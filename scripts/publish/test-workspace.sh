@@ -17,6 +17,7 @@ cp "$root/Cargo.toml" "$root/Cargo.lock" "$root/README.md" "$root/LICENSE" "$fix
 for package in ic-host-artifacts ic-host-fs ic-host-process ic-host-tools; do
     mkdir -p "$fixture/crates/$package/src"
     cp "$root/crates/$package/Cargo.toml" "$fixture/crates/$package/"
+    cp "$root/LICENSE" "$fixture/crates/$package/LICENSE"
     : > "$fixture/crates/$package/src/lib.rs"
 done
 cd "$fixture"
@@ -66,6 +67,19 @@ refuse() {
 }
 # A dry run can review dirty work; an upload cannot admit it.
 PUBLISH_DIRTY=1 refuse publish
+# License copies must remain regular and identical before either Cargo entry.
+notice=crates/ic-host-artifacts/LICENSE
+for scenario in missing changed symlink; do
+    case "$scenario" in
+        missing) rm "$notice" ;;
+        changed) printf '\nchanged notice\n' >> "$notice" ;;
+        symlink) rm "$notice"; ln -s ../../LICENSE "$notice" ;;
+    esac
+    refuse check
+    refuse publish
+    rm -f "$notice"
+    cp LICENSE "$notice"
+done
 PUBLISH_DIRTY=1 invoke check > check.log 2>&1
 printf '%s\0' publish --manifest-path "$fixture/Cargo.toml" --workspace \
     --registry crates-io --all-features --locked --target-dir "$fixture/target" \

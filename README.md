@@ -5,8 +5,8 @@ admitted process execution and IC-specific format handling.
 
 | Crate | Implemented source ownership |
 | --- | --- |
-| ic-host-artifacts | Bounded streams, SHA-256, gzip, verified tar members and generic Wasm facts |
-| ic-host-fs | Regular/no-follow file reads, durable atomic publication, private files and descriptor locks |
+| ic-host-artifacts | Bounded streams, exact byte comparison, SHA-256, gzip encoding/decoding, verified tar members and generic Wasm facts |
+| ic-host-fs | Regular/no-follow reads, missing-suffix path resolution, streamed durable publication, private files and observed descriptor locks |
 | ic-host-process | Executable resolution, digest/version admission, bounded capture and Git observations |
 | ic-host-tools | Candid extraction/normalization and ICP CLI response decoding |
 
@@ -40,5 +40,8 @@ commit, tag and atomic branch/tag push. Registry publication is separate:
 make publish-check performs a Cargo dry run, and make publish uploads the
 committed workspace to crates.io. Read [the publication procedure](docs/publishing.md)
 for prerequisites, retained evidence and partial-upload recovery.
-Release preflight prepares only pinned host tools. The IC executable bundle
-remains available through make install-ic-tools and its offline check.
+Prepare the pinned jq/yq set with make install-host-tools before release version
+queries or release entry points. make release-version uses the shared read-only
+Cargo/TOML reader; parser checks never install missing tools. Release preflight
+refreshes only host tools. The IC executable bundle remains available through
+make install-ic-tools and its offline check.

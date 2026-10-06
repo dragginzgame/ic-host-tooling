@@ -1,0 +1,270 @@
+
+canic
+d815abfc661d791ecf72afc5b1e4b6a990f37a91
+MM CHANGELOG.md
+MM Cargo.lock
+MM Cargo.toml
+ M canisters/test/managed_lifecycle_probe/Cargo.toml
+ M canisters/test/managed_lifecycle_probe/src/lib.rs
+MM ci/dependency-pinning-exceptions.json
+MM crates/canic-control-plane/src/api/lifecycle.rs
+M  crates/canic-control-plane/src/ops/component_provisioning/tests.rs
+AM crates/canic-control-plane/src/ops/component_registry/initialization/mod.rs
+MM crates/canic-control-plane/src/ops/component_registry/mod.rs
+AM crates/canic-control-plane/src/ops/component_registry/tests/initialization/mod.rs
+M  crates/canic-control-plane/src/ops/component_registry/tests/mod.rs
+MM crates/canic-control-plane/src/ops/component_registry/top_level_allocation/mod.rs
+MM crates/canic-control-plane/src/storage/stable/component_registry/mod.rs
+MM crates/canic-control-plane/src/view/component_registry/mod.rs
+MM crates/canic-control-plane/src/workflow/component_registry/component_installation/mod.rs
+MM crates/canic-control-plane/src/workflow/component_registry/mod.rs
+M  crates/canic-control-plane/src/workflow/component_registry/registry_response/mod.rs
+M  crates/canic-core/src/bootstrap/render.rs
+M  crates/canic-core/src/config/schema/component_spec/mod.rs
+M  crates/canic-core/src/config/schema/component_spec/tests.rs
+M  crates/canic-core/src/config/schema/mod.rs
+M  crates/canic-core/src/config/schema/tests.rs
+M  crates/canic-core/src/config/topology/mod.rs
+ M crates/canic-core/src/config/topology/tests.rs
+MM crates/canic-core/src/dto/component_registry.rs
+M  crates/canic-core/src/model/fleet_activation/mod.rs
+M  crates/canic-core/src/ops/storage/fleet_activation/mod.rs
+MM crates/canic-core/src/replay_policy/role_command_manifest.rs
+ M crates/canic-core/src/role_contract/model.rs
+ M crates/canic-core/src/test/config.rs
+AM crates/canic-host/src/component_initialization/mod.rs
+M  crates/canic-host/src/component_operation/tests.rs
+M  crates/canic-host/src/fleet_ensure/ops/current_inventory/mod.rs
+M  crates/canic-host/src/fleet_ensure/ops/startup_funding/observation/binding/tests.rs
+M  crates/canic-host/src/fleet_ensure/policy/tests.rs
+MM crates/canic-host/src/lib.rs
+ M crates/canic-host/src/role_contract/mod.rs
+ M crates/canic-host/src/role_contract/package/mod.rs
+ M crates/canic-host/src/role_contract/package/tests.rs
+ M crates/canic-testing-internal/src/pic/fleet_registry/baseline.rs
+MM crates/canic/src/macros/endpoints/root.rs
+MM crates/canic/src/testing/managed_component_group/fixture/sharding_root_stub.wasm
+M  crates/canic/tests/managed_endpoint_gate_support/mod.rs
+M  crates/canic/tests/workspace_manifest.rs
+MM docs/changelog/0.110.md
+ M docs/design/0.111-standalone-blob-service-extraction/0.111-design.md
+ M docs/design/0.111-standalone-blob-service-extraction/status.md
+ M docs/features/blob-storage/README.md
+ M docs/features/build-and-evidence/managed-app-qualification.md
+MM docs/status/current.md
+MM integrations/blob-service/Cargo.lock
+MM integrations/blob-service/Cargo.toml
+MM integrations/blob-service/consumer/Cargo.lock
+M  integrations/blob-service/consumer/canic.toml
+MM integrations/blob-service/embedded-consumer/Cargo.lock
+M  integrations/blob-service/embedded-consumer/Cargo.toml
+M  integrations/blob-service/embedded-consumer/canic.toml
+MM scripts/dev/managed-root-fixture.json
+?? canisters/test/managed_lifecycle_probe/canic.initialization.toml
+?? canisters/test/managed_lifecycle_probe/src/initialization/
+?? crates/canic-testing-internal/src/pic/fleet_registry/baseline/tests/application_initialization/
+
+ic-query
+0905078d1ef410c63a89fb2924cd18a0653ffa4e
+ M CHANGELOG.md
+ M Cargo.lock
+ M Cargo.toml
+ M crates/ic-query-cli/Cargo.toml
+ M crates/ic-query-cli/examples/governance_artifact.rs
+ M crates/ic-query/Cargo.toml
+ M crates/ic-query/src/cache_file/confined/read.rs
+ M crates/ic-query/src/cache_file/write/json.rs
+ M docs/canister-smoke.md
+ M docs/changelog/0.47.md
+ M docs/design/cache-policy.md
+ M docs/ic-tools.md
+ M docs/provenance.md
+ M docs/supported-hosts.md
+ M scripts/ci/check-ci-scripts.sh
+ M scripts/ci/check-library-feature-boundaries.sh
+
+ic-testkit
+827157434eb8b2d6c13c4b8e47493bd6a38678b9
+ M .shared-tooling.snapshot
+ M CHANGELOG.md
+ M Cargo.lock
+ M Cargo.toml
+ M DRAGGINZGAME.md
+ M Makefile
+ M README.md
+ M ci/tool-versions.env
+ M crates/ic-testkit/CHANGELOG.md
+ M crates/ic-testkit/Cargo.toml
+ M crates/ic-testkit/README.md
+ M crates/ic-testkit/examples/fixture_reuse_driver/mod.rs
+ M crates/ic-testkit/examples/transactional_artifact_cache.rs
+ M crates/ic-testkit/src/artifacts/cache_fs.rs
+ M crates/ic-testkit/src/artifacts/digest.rs
+ M crates/ic-testkit/src/artifacts/host_tests.rs
+ M crates/ic-testkit/src/artifacts/wasm.rs
+ M crates/ic-testkit/src/lib.rs
+ M crates/ic-testkit/tests/pocket_ic_teardown.rs
+ M docs/consuming-snapshots.md
+ M docs/hosts.md
+ M docs/local-setup.md
+ M docs/provenance.md
+ M docs/releases.md
+ M docs/supported-hosts.md
+ M docs/verification-helpers.md
+ M rules/agent-maintenance.md
+ M rules/git-hooks.md
+ M scripts/ci/check-dependency-pins.sh
+ M scripts/ci/check-format-tools.sh
+ M scripts/ci/check-installation-version.sh
+ M scripts/ci/check-publish-guards.sh
+ M scripts/ci/check-release-commands.sh
+ M scripts/ci/check-release-guards.sh
+ M scripts/ci/check-release-metadata.sh
+ M scripts/ci/dependency-pins.jq
+ M scripts/ci/finalize-release-changelog.awk
+ M scripts/ci/test-dependency-pins.sh
+ M scripts/ci/test-host-tools.sh
+ M scripts/dev/install-host-tools.sh
+ M scripts/dev/install-ic-tools.sh
+ M scripts/release/check-tag-at-head.sh
+ M scripts/release/metadata.sh
+ M scripts/release/publish-workspace.sh
+ D scripts/release/read-workspace-version.sh
+?? docs/tag-maintenance.md
+?? scripts/ci/check-release-tag.sh
+?? scripts/ci/read-cargo-workspace-version.sh
+
+ic-backup
+654790f374f9923df9020f4812cec65e47cbe3af
+ M CHANGELOG.md
+ M crates/ic-backup/tests/attempt_recovery.rs
+ M crates/ic-backup/tests/consistency.rs
+ M crates/ic-backup/tests/control_authority.rs
+ M crates/ic-backup/tests/download_integrity.rs
+ M crates/ic-backup/tests/effect_order.rs
+ M crates/ic-backup/tests/execution_progress.rs
+ M crates/ic-backup/tests/execution_settlement.rs
+ M crates/ic-backup/tests/fence_acquisition.rs
+ M crates/ic-backup/tests/fence_obligation.rs
+ M crates/ic-backup/tests/fence_reconciliation.rs
+ M crates/ic-backup/tests/ic_lifecycle_reply.rs
+ M crates/ic-backup/tests/ic_mutation.rs
+ M crates/ic-backup/tests/ic_observation.rs
+ M crates/ic-backup/tests/ic_request.rs
+ M crates/ic-backup/tests/ic_snapshot_artifact.rs
+ M crates/ic-backup/tests/ic_snapshot_data.rs
+ M crates/ic-backup/tests/ic_snapshot_metadata.rs
+ M crates/ic-backup/tests/ic_snapshot_reply.rs
+ M crates/ic-backup/tests/ic_snapshot_upload.rs
+ M crates/ic-backup/tests/inventory_selection.rs
+ M crates/ic-backup/tests/local_recovery.rs
+ M crates/ic-backup/tests/local_restore_source.rs
+ M crates/ic-backup/tests/membership.rs
+ M crates/ic-backup/tests/operation_plan.rs
+ M crates/ic-backup/tests/restore_safety.rs
+ M crates/ic-backup/tests/snapshot_inventory_delta.rs
+ M crates/ic-backup/tests/snapshot_read.rs
+ M docs/development.md
+ M docs/status/current.md
+?? crates/ic-backup/tests/fixture_roots.rs
+?? crates/ic-backup/tests/support/
+
+ic-memory
+d56af42b0bd9ac5a794de2248e31b335945a1e1c
+ M CHANGELOG.md
+ M docs/changelog/0.28.md
+ M docs/release-workflow-qualification.md
+ M examples/repo_tool/tests.rs
+ M scripts/ci/test-release-adapters.sh
+
+icydb
+049e561a843a8d3f4526460fd15876a4a238df10
+ M .shared-tooling.snapshot
+ M AGENTS.md
+ M CHANGELOG.md
+ M Cargo.lock
+ M Cargo.toml
+ M DRAGGINZGAME.md
+ M Makefile
+ M crates/icydb-core/src/db/schema/runtime.rs
+ M crates/icydb-core/src/db/schema/snapshot/tests.rs
+ M crates/icydb/tests/compile.rs
+ M docs/changelog/0.266.md
+ M docs/consuming-snapshots.md
+ M docs/design/0.266-shared-tooling/0.266-status.md
+ M docs/governance/shared-tooling.md
+ M docs/local-setup.md
+ M docs/provenance.md
+ M docs/releases.md
+ M docs/supported-hosts.md
+ M docs/verification-helpers.md
+ M rules/agent-maintenance.md
+ M rules/git-hooks.md
+ M scripts/ci/finalize-release-changelog.awk
+ M scripts/ci/install-ci-tool.sh
+ M scripts/ci/run-validation-targets.sh
+ M scripts/ci/test-pre-commit.sh
+ M scripts/ci/test-release-runner.sh
+ M scripts/dev/delete-github-tags-up-to.pl
+ M testing/integration/Cargo.toml
+ M testing/integration/src/bin/write_wasm_size_report.rs
+ M testing/integration/src/wasm_optimizer.rs
+ M testing/integration/tests/batch_workload/mod.rs
+ M testing/integration/tests/catalog_workload.rs
+ M testing/integration/tests/collection_workload/mod.rs
+ M testing/integration/tests/read_authority.rs
+ M testing/integration/tests/seek_intersection.rs
+ M testing/integration/tests/sql_canister.rs
+ M testing/integration/tests/sql_perf_audit.rs
+?? crates/icydb/tests/fail-endpoints/missing_metrics_capability.rs
+?? crates/icydb/tests/fail-endpoints/missing_metrics_capability.stderr
+?? scripts/ci/check-format-tools.sh
+
+ic-blob-storage
+279b863b127168d20e610129619b78d474098659
+ M CHANGELOG.md
+ M Cargo.lock
+ M Cargo.toml
+ M crates/ic-blob-storage-cli/Cargo.toml
+ M crates/ic-blob-storage-cli/src/native/artifacts/mod.rs
+ M crates/ic-blob-storage-cli/src/native/mod.rs
+ M crates/ic-blob-storage-cli/src/native/upload_inputs/mod.rs
+ M crates/ic-blob-storage-cli/src/probe/record/mod.rs
+ M docs/dependencies.md
+ M docs/status/current.md
+?? crates/ic-blob-storage-cli/src/native/artifacts/tests/
+?? docs/evidence/host-owners-0153.json
+
+toko-miner
+9071b4cc9c1cf0d6d905f73592154b5108ab2147
+ M Cargo.lock
+ M Cargo.toml
+
+ic-metrics
+89f8c6947fb3253991c65479f04bf14acb676328
+ M docs/extraction.md
+ M docs/hosts.md
+ M docs/status/current.md
+?? docs/evidence/release-023.md
+
+ic-timers
+8f0372123e85bd16cadc8b70756b1be9e1d2e03c
+
+ichelper
+0670a9887d727fb9c2cfef85e5ea1c6ebffa8157
+
+shared-tooling
+46c02774a8335cb3949d6f04284c4f53375353c1
+ M CHANGELOG.md
+ M README.md
+ M docs/consuming-snapshots.md
+ M docs/local-setup.md
+ M rules/agent-maintenance.md
+ M scripts/ci/test-portable-tools.sh
+ M scripts/dev/gh-ci.sh
+?? scripts/ci/check-portable-prerequisites.sh
+?? scripts/ci/test-gh-ci.sh
+?? scripts/ci/test-portable-prerequisites.sh
+
+toko-miner-assets
+79e2407ed0d74840658530a0dd04a0c0c69c9ba0

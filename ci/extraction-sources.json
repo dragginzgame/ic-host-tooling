@@ -17,6 +17,38 @@
         {
           "path": "crates/canic-host/src/durable_io/tests.rs",
           "sha256": "a20635e787e0123aff3ac080a4578699fb16e11ca176085eb295b9d5798774b6"
+        },
+        {
+          "path": "crates/canic-host/src/artifact_io/mod.rs",
+          "sha256": "17d525f381eba5945dd9e165eaf4c13fbc1be3aa11cd94a2e66bd7fa8643ae4d",
+          "selection": "deterministic_gzip_bytes zero-timestamp encoding; compression selection and publication stay caller-owned"
+        }
+      ]
+    },
+    {
+      "repository": "https://github.com/dragginzgame/ic-query",
+      "revision": "70f02f0709f157ecdd9f6fc35e0cb84411e8b391",
+      "files": [
+        {
+          "path": "crates/ic-query/src/cache_file/write/json.rs",
+          "sha256": "e955590fe62d5af6affd569d408978df0007af401d782f3983d22b713e06f956",
+          "selection": "MatchingWriter byte-comparison sink; JSON ordering, serialization and confined writes stay caller-owned"
+        }
+      ]
+    },
+    {
+      "repository": "https://github.com/dragginzgame/ic-testkit",
+      "revision": "827157434eb8b2d6c13c4b8e47493bd6a38678b9",
+      "files": [
+        {
+          "path": "crates/ic-testkit/src/artifacts/digest.rs",
+          "sha256": "5162f76d59ade608c30bd00bcb033f969bdaac1bb1c40a9cd6481224780b70e8",
+          "selection": "write_file_atomic streaming producer and return-value contract, integrated into the existing descriptor-relative durable commit engine; cache identities and lifecycle stay caller-owned"
+        },
+        {
+          "path": "crates/ic-testkit/src/artifacts/cache_fs.rs",
+          "sha256": "db58725dc9757667c6f6d70ef1983af53f4c3e70afa94b95d3f3cac26bd47991",
+          "selection": "canonicalize_allow_missing filesystem algorithm and lock_cache_file_with_wait_observer contention/Interrupted contract; adapted to explicit path base and descriptor acquisition; cache namespace, opening, progress policy and retention remain caller-owned"
         }
       ]
     },

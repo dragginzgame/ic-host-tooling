@@ -15,6 +15,12 @@ source="$(git rev-parse --verify HEAD)"
 [[ "$source" =~ ^([0-9a-f]{40}|[0-9a-f]{64})$ ]] || fail 'invalid source identity'
 dirty="$(git status --porcelain --untracked-files=all)"
 [[ "$mode" != publish || -z "$dirty" ]] || fail 'commit workspace changes before publishing'
+[[ -f LICENSE && ! -L LICENSE ]] || fail 'expected a regular root license notice'
+for package in ic-host-artifacts ic-host-fs ic-host-process ic-host-tools; do
+    notice="crates/$package/LICENSE"
+    [[ -f "$notice" && ! -L "$notice" ]] || fail "expected a regular license notice for $package"
+    cmp -s LICENSE "$notice" || fail "license notice differs from the root notice for $package"
+done
 [[ ! -L target && ! -L target/publish ]] || fail 'symlinked publication evidence directory'
 umask 077
 mkdir -p target/publish

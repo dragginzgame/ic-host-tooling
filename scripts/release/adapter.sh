@@ -2,7 +2,8 @@
 set -euo pipefail
 
 # Consumer-owned Cargo adapter. Requires Bash 3.2, Git, Make, awk, cargo-edit
-# (cargo set-version) and the provisioned Rust toolchains/dependency cache.
+# (cargo set-version), prepared jq/Mike Farah yq and the provisioned Rust
+# toolchains/dependency cache.
 # Git effects belong to the shared runner, never to this adapter.
 operation="${1:-}"
 [[ $# -eq 1 ]] || exit 2
@@ -10,7 +11,9 @@ operation="${1:-}"
 tooling_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd -P)"
 fail() { echo "release metadata refused: $1" >&2; exit 1; }
 version() {
-    awk -v mode=manifest -v read_version=1 -f "$tooling_root/scripts/release/metadata-version.awk" Cargo.toml
+    local observed
+    observed="$(bash "$tooling_root/scripts/ci/read-cargo-workspace-version.sh" --stable Cargo.toml)" || return
+    printf '%s\n' "$observed"
 }
 admit_files() {
     local path paths rejection=""
@@ -111,6 +114,11 @@ case "$operation" in
         for file in Cargo.toml Cargo.lock CHANGELOG.md; do
             [[ -f "$file" && ! -L "$file" ]] || fail "missing or symlinked release metadata"
         done
+        # TOML reading belongs to the shared helper. Keep this consumer's exact
+        # version-only metadata layout and synchronized path requirements here.
+        awk -v mode=manifest -v replacement="$RELEASE_PREVIOUS" \
+            -f "$tooling_root/scripts/release/metadata-version.awk" Cargo.toml |
+            cmp - Cargo.toml || fail "unsupported or unsynchronized release metadata"
         [[ "$(awk -v mode=lock -v read_version=1 -f "$tooling_root/scripts/release/metadata-version.awk" Cargo.lock)" == "$RELEASE_PREVIOUS" ]] || fail "lockfile version differs"
         admit_files
         # Git releases and registry publication are separate effects. Validate

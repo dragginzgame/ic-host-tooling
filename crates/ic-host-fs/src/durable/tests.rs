@@ -12,6 +12,55 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
+#[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
+#[test]
+fn streamed_replacement_returns_producer_value_only_after_complete_publication() {
+    use std::io::Write as _;
+    let root = temp_root("streamed-replacement");
+    let path = root.join("nested/output");
+    let value = write_with(&path, |file| {
+        assert!(!path.exists());
+        file.write_all(b"first ")?;
+        file.write_all(b"second")?;
+        Ok(42)
+    })
+    .unwrap();
+    assert_eq!(value, 42);
+    assert_eq!(fs::read(&path).unwrap(), b"first second");
+    assert_eq!(fs::read_dir(path.parent().unwrap()).unwrap().count(), 1);
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
+#[test]
+fn producer_failure_and_bounded_copy_preserve_previous_destination() {
+    use std::io::Write as _;
+    let root = temp_root("streamed-failure");
+    let path = root.join("output");
+    write_bytes(&path, b"original").unwrap();
+    let error = write_with(&path, |file| {
+        file.write_all(b"partial")?;
+        Err::<(), _>(io::Error::from(io::ErrorKind::InvalidData))
+    })
+    .unwrap_err();
+    assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+    assert_eq!(fs::read(&path).unwrap(), b"original");
+    assert_eq!(fs::read_dir(&root).unwrap().count(), 1);
+    let copy = |maximum| {
+        write_with(&path, |file| {
+            ic_host_artifacts::artifact::copy_reader(b"new bytes".as_slice(), file, maximum)
+                .map_err(io::Error::other)
+        })
+    };
+    assert!(copy(8).is_err());
+    assert_eq!(fs::read(&path).unwrap(), b"original");
+    let identity = copy(9).unwrap();
+    assert_eq!(identity.bytes, 9);
+    assert_eq!(fs::read(&path).unwrap(), b"new bytes");
+    assert_eq!(fs::read_dir(&root).unwrap().count(), 1);
+    fs::remove_dir_all(root).unwrap();
+}
+
 #[cfg(unix)]
 #[test]
 fn durable_lock_reports_wait_for_another_process_and_retains_exclusion() {
@@ -484,5 +533,101 @@ fn private_publication_is_owner_only_before_writing_and_never_replaces() {
     let error = create_private_bytes_with_parents(&path, &[8; 32]).unwrap_err();
     assert_eq!(error.kind(), std::io::ErrorKind::AlreadyExists);
     assert_eq!(read_private_bytes::<32>(&path), Some([7; 32]));
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
+#[test]
+fn replacement_supports_long_destination_names() {
+    let root = temp_root("long-replacement");
+    fs::create_dir(&root).unwrap();
+    let path = root.join("a".repeat(255));
+    fs::write(&path, b"previous").unwrap();
+    write_bytes(&path, b"complete").unwrap();
+    let copied = write_with(&path, |file| {
+        std::io::Write::write_all(file, b"streamed")?;
+        Ok(8)
+    })
+    .unwrap();
+    assert_eq!(copied, 8);
+    assert_eq!(fs::read(&path).unwrap(), b"streamed");
+    assert_eq!(fs::read_dir(&root).unwrap().count(), 1);
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
+#[test]
+fn staging_collisions_retry_without_touching_unowned_files() {
+    let root = temp_root("collision-replacement");
+    fs::create_dir(&root).unwrap();
+    let path = root.join("output");
+    fs::write(&path, b"previous").unwrap();
+    let mut collision = None;
+    commit_with_hook(
+        &path,
+        b"complete",
+        FileCommitMode::Replace,
+        |step, candidate| {
+            if step == FileCommitStep::TemporaryFileCreate && collision.is_none() {
+                fs::write(candidate, b"unowned")?;
+                collision = Some(candidate.to_owned());
+            }
+            Ok(())
+        },
+    )
+    .unwrap();
+    assert_eq!(fs::read(&path).unwrap(), b"complete");
+    assert_eq!(fs::read(collision.as_ref().unwrap()).unwrap(), b"unowned");
+    let mut blocked = Vec::new();
+    let error = commit_with_hook(
+        &path,
+        b"never publish",
+        FileCommitMode::Replace,
+        |step, candidate| {
+            if step == FileCommitStep::TemporaryFileCreate {
+                fs::write(candidate, b"unowned")?;
+                blocked.push(candidate.to_owned());
+            }
+            Ok(())
+        },
+    )
+    .unwrap_err();
+    assert_eq!(error.kind(), io::ErrorKind::AlreadyExists);
+    assert!(!blocked.is_empty() && blocked.len() <= 64);
+    assert_eq!(fs::read(&path).unwrap(), b"complete");
+    for candidate in blocked {
+        assert_eq!(fs::read(candidate).unwrap(), b"unowned");
+    }
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
+#[test]
+fn selected_staging_namespace_destinations_remain_absent_until_publication() {
+    const CHILD: &str = "IC_HOST_FS_STAGING_DESTINATION_CHILD";
+    if std::env::var_os(CHILD).is_none() {
+        let output = std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", "durable::tests::selected_staging_namespace_destinations_remain_absent_until_publication", "--test-threads=1"])
+            .env(CHILD, "1")
+            .output().unwrap();
+        assert!(
+            output.status.success(),
+            "{}{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        return;
+    }
+    let root = temp_root("staging-destination");
+    fs::create_dir(&root).unwrap();
+    for (prefix, sequence) in [(".ic-host-tmp", 0), (".IC-HOST-TMP", 2)] {
+        let path = root.join(format!("{prefix}-{}-{sequence}", std::process::id()));
+        write_with(&path, |file| {
+            assert!(!path.exists());
+            std::io::Write::write_all(file, b"complete")
+        })
+        .unwrap();
+        assert_eq!(fs::read(&path).unwrap(), b"complete");
+    }
     fs::remove_dir_all(root).unwrap();
 }

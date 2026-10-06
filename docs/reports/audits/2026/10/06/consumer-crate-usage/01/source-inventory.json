@@ -1,0 +1,1960 @@
+[
+   {
+      "files" : [
+         {
+            "path" : "Cargo.lock",
+            "references" : [
+               {
+                  "line" : 589,
+                  "table" : "[[package]]",
+                  "text" : " \"ic-host-tools 0.3.0\","
+               },
+               {
+                  "line" : 2256,
+                  "table" : "[[package]]",
+                  "text" : "name = \"ic-host-artifacts\""
+               },
+               {
+                  "line" : 2265,
+                  "table" : "[[package]]",
+                  "text" : "name = \"ic-host-fs\""
+               },
+               {
+                  "line" : 2270,
+                  "table" : "[[package]]",
+                  "text" : " \"ic-host-artifacts\","
+               },
+               {
+                  "line" : 2275,
+                  "table" : "[[package]]",
+                  "text" : "name = \"ic-host-process\""
+               },
+               {
+                  "line" : 2280,
+                  "table" : "[[package]]",
+                  "text" : " \"ic-host-artifacts\","
+               },
+               {
+                  "line" : 2281,
+                  "table" : "[[package]]",
+                  "text" : " \"ic-host-fs\","
+               },
+               {
+                  "line" : 2286,
+                  "table" : "[[package]]",
+                  "text" : "name = \"ic-host-tools\""
+               },
+               {
+                  "line" : 2301,
+                  "table" : "[[package]]",
+                  "text" : "name = \"ic-host-tools\""
+               },
+               {
+                  "line" : 2316,
+                  "table" : "[[package]]",
+                  "text" : "name = \"ic-host-tools\""
+               },
+               {
+                  "line" : 2321,
+                  "table" : "[[package]]",
+                  "text" : " \"ic-host-artifacts\","
+               },
+               {
+                  "line" : 2322,
+                  "table" : "[[package]]",
+                  "text" : " \"ic-host-fs\","
+               },
+               {
+                  "line" : 2323,
+                  "table" : "[[package]]",
+                  "text" : " \"ic-host-process\","
+               },
+               {
+                  "line" : 2380,
+                  "table" : "[[package]]",
+                  "text" : " \"ic-host-tools 0.2.0\","
+               },
+               {
+                  "line" : 2454,
+                  "table" : "[[package]]",
+                  "text" : " \"ic-host-tools 0.1.14\","
+               }
+            ],
+            "sha256" : "17e27d48d390ff860677a4682a1e6e135428f212c6916b54e71a67d767aa9820"
+         },
+         {
+            "path" : "Cargo.toml",
+            "references" : [
+               {
+                  "line" : 83,
+                  "table" : "[workspace.dependencies]",
+                  "text" : "ic-host-tools = \"0.3\""
+               }
+            ],
+            "sha256" : "ef5136540225041216941518aa231f210f308a62e52f521dcd6f34c3e8efaa7c"
+         },
+         {
+            "path" : "apps/demo/app/Cargo.toml",
+            "references" : [],
+            "sha256" : "1ed79b58d27a098203e48b4afc6fa674cea4d82d9c2e0947bfa31977134678d2"
+         },
+         {
+            "path" : "apps/demo/user_hub/Cargo.toml",
+            "references" : [],
+            "sha256" : "7bbc52de285ab46c2f9ead8e8389c2d3e227dc5ccfad72d31d90bcf5159c1808"
+         },
+         {
+            "path" : "apps/demo/user_shard/Cargo.toml",
+            "references" : [],
+            "sha256" : "a3be592aebef72e8d0d53977c9e8b8afa694645d6b330fcecd84e83e7e23794b"
+         },
+         {
+            "path" : "apps/test/app/Cargo.toml",
+            "references" : [],
+            "sha256" : "7f1d35c5686671d88fcf79711f7076d20201cddeeddd00f15183f510cb41be06"
+         },
+         {
+            "path" : "apps/test/index_child/Cargo.toml",
+            "references" : [],
+            "sha256" : "504d678ab20c1e0a8a945628f922a0ae4a6e55b4460789d29dc68537fd83f5af"
+         },
+         {
+            "path" : "apps/test/index_hub/Cargo.toml",
+            "references" : [],
+            "sha256" : "e7411fbc7ee9b89e794b53fa715ccec82befb6d8b955f17b5edca96237513bfe"
+         },
+         {
+            "path" : "apps/test/scale/Cargo.toml",
+            "references" : [],
+            "sha256" : "6c4125332f241df83d6af31b3d31ae5f0fe6df022a718ffbe8f56197bb5d20dc"
+         },
+         {
+            "path" : "apps/test/scale_hub/Cargo.toml",
+            "references" : [],
+            "sha256" : "e8445351edd184ac964a443a484fb7b3ade6fa6953e686556b2f7c8b5224c088"
+         },
+         {
+            "path" : "apps/test/test/Cargo.toml",
+            "references" : [],
+            "sha256" : "a338f3bf9027bbd7a4b0fd86feedabf9a375d0d79824678951e08e8ebaff40be"
+         },
+         {
+            "path" : "apps/test/user_hub/Cargo.toml",
+            "references" : [],
+            "sha256" : "b8bea02b4c98e2843aca56fd7f762c04b58fdba17cb4fbe244d816fc7252e47e"
+         },
+         {
+            "path" : "apps/test/user_shard/Cargo.toml",
+            "references" : [],
+            "sha256" : "5ce0d704ec51cb0eab5e00fe09c064fc2a8b3b32a0ce56099876a74de746f30d"
+         },
+         {
+            "path" : "canisters/audit/leaf_probe/Cargo.toml",
+            "references" : [],
+            "sha256" : "868884da75119e51d64746ce984f07bb2daa1244c7a6b7a98f9ccf95346bb3dc"
+         },
+         {
+            "path" : "canisters/audit/local_authorization_probe/Cargo.toml",
+            "references" : [],
+            "sha256" : "afd7d6bbdacfd81f583d1f30b677a6ec335edabcac4bd54f0331bd32368852f5"
+         },
+         {
+            "path" : "canisters/audit/minimal/Cargo.toml",
+            "references" : [],
+            "sha256" : "8e51d91ab354a45c46c2ac8fc80aea949e3cfb9e8eaaa2a2058b3799c976f2c8"
+         },
+         {
+            "path" : "canisters/audit/minimal_metrics/Cargo.toml",
+            "references" : [],
+            "sha256" : "e77ecdfbc532be755a04d34c344cb8aa0e6e5569e7f96c8d945eb08bf6e5a8b6"
+         },
+         {
+            "path" : "canisters/audit/root_probe/Cargo.toml",
+            "references" : [],
+            "sha256" : "b3606f56001a90ccaa37926b98118774beef843ce4d9478169288ea34216067e"
+         },
+         {
+            "path" : "canisters/audit/scaling_probe/Cargo.toml",
+            "references" : [],
+            "sha256" : "fcd94d76916eb9a3b16c7e8d037dcf478b39ac8012109e5c3ecd1d73d6b58227"
+         },
+         {
+            "path" : "canisters/sandbox/blank/Cargo.toml",
+            "references" : [],
+            "sha256" : "fede56716888913d2c88f190324fbd52807e23633ab05399f5b75476096f82dc"
+         },
+         {
+            "path" : "canisters/test/cycles_ledger_stub/Cargo.toml",
+            "references" : [],
+            "sha256" : "7dc5872db18c26c28d8af87953b7d858e23de72dee27c209f313f15ab0e0d363"
+         },
+         {
+            "path" : "canisters/test/delegation_issuer_stub/Cargo.toml",
+            "references" : [],
+            "sha256" : "1fb16f9b47293cbe3afa397374c4ef663125ff5212d92e18e63c99cc6903fe8e"
+         },
+         {
+            "path" : "canisters/test/delegation_root_stub/Cargo.toml",
+            "references" : [],
+            "sha256" : "1614f09d1af99d1cefb230642da6cf0590f9ed7f732688d6b3c4675e40c6bbde"
+         },
+         {
+            "path" : "canisters/test/icp_refill_stub/Cargo.toml",
+            "references" : [],
+            "sha256" : "51168a2f5fdafb539a5d358da950da9a4e79f0c51a81a1544708d93c0ac4355d"
+         },
+         {
+            "path" : "canisters/test/intent_authority/Cargo.toml",
+            "references" : [],
+            "sha256" : "8662d60a82ceae49111724ed5f411b805eb59025c3f02e597ffb22d5f1a80e31"
+         },
+         {
+            "path" : "canisters/test/managed_lifecycle_probe/Cargo.toml",
+            "references" : [],
+            "sha256" : "84c904b21275e3a591ce04d563482f8db29b5be832830efe7f3c2c7189246284"
+         },
+         {
+            "path" : "canisters/test/payload_limit_probe/Cargo.toml",
+            "references" : [],
+            "sha256" : "5f288b2a7c52b0a102a69245e556fcad59055f71982cdf6642a51be0c032981e"
+         },
+         {
+            "path" : "canisters/test/root_funding_probe/Cargo.toml",
+            "references" : [],
+            "sha256" : "8866c130e5b9bfa62ab953407f152af7202a0490319028f6bccf53ba83e2668d"
+         },
+         {
+            "path" : "canisters/test/runtime_probe/Cargo.toml",
+            "references" : [],
+            "sha256" : "0f35ca4d7089367106bec208dbe40f16b01ee9c0d0a6497d06cda24604caa3bf"
+         },
+         {
+            "path" : "canisters/test/sharding_root_stub/Cargo.toml",
+            "references" : [],
+            "sha256" : "7cda523974ccf0961c52fcacb7b5bd7ffe2dd79e02f82a057ed00cc4ed028a87"
+         },
+         {
+            "path" : "crates/canic-backup/Cargo.toml",
+            "references" : [],
+            "sha256" : "9f7928dbd0e1a88ffb00cde46ed3707424dda75150f860b1ca3ed236c1d24f45"
+         },
+         {
+            "path" : "crates/canic-cli/Cargo.toml",
+            "references" : [],
+            "sha256" : "60a761c5120a4b030a9a424690edd6db085aa35703ced5d6d8b238d0a768ff57"
+         },
+         {
+            "path" : "crates/canic-control-plane/Cargo.toml",
+            "references" : [],
+            "sha256" : "d7896c2d2ed7d7c430ff42666816427b848bd964ca81abe93dfeb16eb825a5cd"
+         },
+         {
+            "path" : "crates/canic-core/Cargo.toml",
+            "references" : [],
+            "sha256" : "e70fbb1d77a1d774f70615ff2044b2f2abdb6e9c989f32ce7658bbd29c7664f0"
+         },
+         {
+            "path" : "crates/canic-host/Cargo.toml",
+            "references" : [
+               {
+                  "line" : 39,
+                  "table" : "[dependencies]",
+                  "text" : "ic-host-tools = { workspace = true }"
+               }
+            ],
+            "sha256" : "dccb285f92f035f2e89412ffa85317e8410dd778ec3d479daebcd02e114d6a05"
+         },
+         {
+            "path" : "crates/canic-host/src/artifact_io/wasm/mod.rs",
+            "references" : [
+               {
+                  "line" : 11,
+                  "table" : "",
+                  "text" : "use ic_host_tools::wasm::{ExportKind, InspectionError, InspectionLimits};"
+               },
+               {
+                  "line" : 166,
+                  "table" : "",
+                  "text" : "    let facts = ic_host_tools::wasm::inspect("
+               }
+            ],
+            "sha256" : "3183223a08279f52a306196d4f7be9e5095d81ce13ab9bcfb00465f20fb5d1be"
+         },
+         {
+            "path" : "crates/canic-host/src/canister_build/candid.rs",
+            "references" : [
+               {
+                  "line" : 34,
+                  "table" : "",
+                  "text" : "    Ok(ic_host_tools::candid::normalize(&output.stdout, limit)?.into_bytes())"
+               },
+               {
+                  "line" : 59,
+                  "table" : "",
+                  "text" : "    use ic_host_tools::candid::normalize;"
+               }
+            ],
+            "sha256" : "c1d26a57100cd42a3218b13f9ec90fe416d77f1cef97c5504b02253139472d90"
+         },
+         {
+            "path" : "crates/canic-host/src/durable_io/mod.rs",
+            "references" : [
+               {
+                  "line" : 344,
+                  "table" : "",
+                  "text" : "        ic_host_tools::artifact::read_opened_file(file, maximum_bytes)"
+               },
+               {
+                  "line" : 347,
+                  "table" : "",
+                  "text" : "                ic_host_tools::artifact::ArtifactError::LimitExceeded { .. } => {"
+               },
+               {
+                  "line" : 350,
+                  "table" : "",
+                  "text" : "                ic_host_tools::artifact::ArtifactError::NotRegularFile => {"
+               },
+               {
+                  "line" : 353,
+                  "table" : "",
+                  "text" : "                ic_host_tools::artifact::ArtifactError::Io(source) => {"
+               }
+            ],
+            "sha256" : "47472118e2f2e008857adcf6f190ab4e10c5bb8807a7768ad4f7e5786b6626de"
+         },
+         {
+            "path" : "crates/canic-host/src/release_set/artifact/representation/mod.rs",
+            "references" : [
+               {
+                  "line" : 12,
+                  "table" : "",
+                  "text" : "use ic_host_tools::artifact::{ArtifactError, GzipError, decode_gzip};"
+               }
+            ],
+            "sha256" : "2f90e9c400775648b109aa266f4636556ac5430f8a2016a0e41674c914911d29"
+         },
+         {
+            "path" : "crates/canic-host/src/tool_install/mod.rs",
+            "references" : [
+               {
+                  "line" : 352,
+                  "table" : "",
+                  "text" : "    ic_host_tools::artifact::hash_file(path, u64::MAX)"
+               },
+               {
+                  "line" : 356,
+                  "table" : "",
+                  "text" : "                ic_host_tools::artifact::ArtifactError::Io(source) => source,"
+               }
+            ],
+            "sha256" : "d10944d9cf4b68621b7152e4483922ac16726edaf49c51003f816fbdb436a890"
+         },
+         {
+            "path" : "crates/canic-host/src/tool_resolution/mod.rs",
+            "references" : [
+               {
+                  "line" : 11,
+                  "table" : "",
+                  "text" : "use ic_host_tools::tool::{ResolutionError, resolve_executable};"
+               }
+            ],
+            "sha256" : "349ddd2c0c118546d584556b8898082ec86ea672fc61f19000f41ec782b58ee5"
+         },
+         {
+            "path" : "crates/canic-macros/Cargo.toml",
+            "references" : [],
+            "sha256" : "0973448bf0a531bd00f238105c4b270700c704e45d7ed438adfc097642d4267d"
+         },
+         {
+            "path" : "crates/canic-testing-internal/Cargo.toml",
+            "references" : [],
+            "sha256" : "483a94cbf6ee13a2b8635fd11de409c36a03bf2acb87e4b3b9837b8caabc348a"
+         },
+         {
+            "path" : "crates/canic-tests/Cargo.toml",
+            "references" : [],
+            "sha256" : "97908f686089e192b68e4791a7be3d2037fc90886664e48abc366cd356f8e264"
+         },
+         {
+            "path" : "crates/canic/Cargo.toml",
+            "references" : [],
+            "sha256" : "47a25ba7ca795889c7e654327c0c25f8d388f9245c9cda16c193930a7d3a426f"
+         },
+         {
+            "path" : "integrations/blob-service/Cargo.lock",
+            "references" : [],
+            "sha256" : "86db193ac6f482861bb176c4d90eb85751a4d791c7625406a4e943054c2146b5"
+         },
+         {
+            "path" : "integrations/blob-service/Cargo.toml",
+            "references" : [],
+            "sha256" : "61a049d3c5df50c15dee55837343ff937f62d61d0e8b1ef707dba1e2ce58a244"
+         },
+         {
+            "path" : "integrations/blob-service/consumer/Cargo.lock",
+            "references" : [],
+            "sha256" : "f2166f434864a4ed8b9dd12bbc4a11b7e22d48d0764fc83618c468bad2247577"
+         },
+         {
+            "path" : "integrations/blob-service/consumer/Cargo.toml",
+            "references" : [],
+            "sha256" : "6213834bbe817e25038df688e5f2ede89d4ed00ff660ab665e24d63df73fdcb2"
+         },
+         {
+            "path" : "integrations/blob-service/embedded-consumer/Cargo.lock",
+            "references" : [],
+            "sha256" : "f457c4cf6cca00ab15f0df613cbfd918312cc5f866a82215fabac5a4dc162a65"
+         },
+         {
+            "path" : "integrations/blob-service/embedded-consumer/Cargo.toml",
+            "references" : [],
+            "sha256" : "75d7f6a12580091bed80b58e27173adae3f2dc6ca5fa29f7b2eea19dfafba13f"
+         }
+      ],
+      "root" : "/home/adam/projects/canic"
+   },
+   {
+      "files" : [
+         {
+            "path" : "Cargo.lock",
+            "references" : [
+               {
+                  "line" : 1328,
+                  "table" : "[[package]]",
+                  "text" : "name = \"ic-host-artifacts\""
+               },
+               {
+                  "line" : 1338,
+                  "table" : "[[package]]",
+                  "text" : "name = \"ic-host-fs\""
+               },
+               {
+                  "line" : 1343,
+                  "table" : "[[package]]",
+                  "text" : " \"ic-host-artifacts\","
+               },
+               {
+                  "line" : 1348,
+                  "table" : "[[package]]",
+                  "text" : "name = \"ic-host-process\""
+               },
+               {
+                  "line" : 1353,
+                  "table" : "[[package]]",
+                  "text" : " \"ic-host-artifacts\","
+               },
+               {
+                  "line" : 1354,
+                  "table" : "[[package]]",
+                  "text" : " \"ic-host-fs\","
+               },
+               {
+                  "line" : 1359,
+                  "table" : "[[package]]",
+                  "text" : "name = \"ic-host-tools\""
+               },
+               {
+                  "line" : 1364,
+                  "table" : "[[package]]",
+                  "text" : " \"ic-host-artifacts\","
+               },
+               {
+                  "line" : 1365,
+                  "table" : "[[package]]",
+                  "text" : " \"ic-host-fs\","
+               },
+               {
+                  "line" : 1366,
+                  "table" : "[[package]]",
+                  "text" : " \"ic-host-process\","
+               },
+               {
+                  "line" : 1381,
+                  "table" : "[[package]]",
+                  "text" : " \"ic-host-artifacts\","
+               },
+               {
+                  "line" : 1400,
+                  "table" : "[[package]]",
+                  "text" : " \"ic-host-artifacts\","
+               },
+               {
+                  "line" : 1401,
+                  "table" : "[[package]]",
+                  "text" : " \"ic-host-fs\","
+               },
+               {
+                  "line" : 1402,
+                  "table" : "[[package]]",
+                  "text" : " \"ic-host-tools\","
+               }
+            ],
+            "sha256" : "c28d640078e52350aedc826a69bae778d5a7869f31b62014605706a0c875cb33"
+         },
+         {
+            "path" : "Cargo.toml",
+            "references" : [
+               {
+                  "line" : 22,
+                  "table" : "[workspace.dependencies]",
+                  "text" : "ic-host-artifacts = { version = \"0.3\", default-features = false }"
+               },
+               {
+                  "line" : 23,
+                  "table" : "[workspace.dependencies]",
+                  "text" : "ic-host-fs = { version = \"0.3\", default-features = false }"
+               },
+               {
+                  "line" : 24,
+                  "table" : "[workspace.dependencies]",
+                  "text" : "ic-host-tools = \"0.3\""
+               }
+            ],
+            "sha256" : "87e820cd06e0a32293deb9e084acea34fefba63fa605bf02ede556ad18e6fe70"
+         },
+         {
+            "path" : "crates/ic-query-cli/Cargo.toml",
+            "references" : [
+               {
+                  "line" : 28,
+                  "table" : "[dev-dependencies]",
+                  "text" : "ic-host-artifacts = { workspace = true, features = [\"wasm\"] }"
+               },
+               {
+                  "line" : 29,
+                  "table" : "[dev-dependencies]",
+                  "text" : "ic-host-fs.workspace = true"
+               },
+               {
+                  "line" : 30,
+                  "table" : "[dev-dependencies]",
+                  "text" : "ic-host-tools.workspace = true"
+               }
+            ],
+            "sha256" : "78cb8febd3ce6307a56a948c5a8a817dc4e100497dba38f1d6bcb7cab8cb5bf9"
+         },
+         {
+            "path" : "crates/ic-query-cli/examples/governance_artifact.rs",
+            "references" : [
+               {
+                  "line" : 3,
+                  "table" : "",
+                  "text" : "use ic_host_artifacts::{"
+               },
+               {
+                  "line" : 7,
+                  "table" : "",
+                  "text" : "use ic_host_fs::read::read_file;"
+               },
+               {
+                  "line" : 8,
+                  "table" : "",
+                  "text" : "use ic_host_tools::response::{self, ResponseFormat, ResponseLimits};"
+               },
+               {
+                  "line" : 88,
+                  "table" : "",
+                  "text" : "    use ic_host_tools::response::ResponseError;"
+               }
+            ],
+            "sha256" : "bda7c670dcbae49c96f823368defa3f9d64891e6383ba8ff1a9e47dce16b3109"
+         },
+         {
+            "path" : "crates/ic-query/Cargo.toml",
+            "references" : [
+               {
+                  "line" : 34,
+                  "table" : "[features]",
+                  "text" : "    \"dep:ic-host-artifacts\","
+               },
+               {
+                  "line" : 44,
+                  "table" : "[features]",
+                  "text" : "    \"dep:ic-host-artifacts\","
+               },
+               {
+                  "line" : 56,
+                  "table" : "[features]",
+                  "text" : "    \"dep:ic-host-artifacts\","
+               },
+               {
+                  "line" : 64,
+                  "table" : "[features]",
+                  "text" : "    \"dep:ic-host-artifacts\","
+               },
+               {
+                  "line" : 79,
+                  "table" : "[dependencies]",
+                  "text" : "ic-host-artifacts = { workspace = true, optional = true }"
+               }
+            ],
+            "sha256" : "0943ed41d73b7c136d16de6b175a28619de2c1573066f4364356188804297753"
+         },
+         {
+            "path" : "crates/ic-query/src/cache_file/confined/read.rs",
+            "references" : [
+               {
+                  "line" : 8,
+                  "table" : "",
+                  "text" : "use ic_host_artifacts::artifact::{ArtifactError, read_reader};"
+               }
+            ],
+            "sha256" : "ba0ba084e89605609c784cb9d52881411acf906e39ea7dbd7f9f1bf7ee924bce"
+         },
+         {
+            "path" : "crates/ic-query/src/cache_file/write/json.rs",
+            "references" : [
+               {
+                  "line" : 15,
+                  "table" : "",
+                  "text" : "use ic_host_artifacts::artifact::BoundedWriter;"
+               }
+            ],
+            "sha256" : "9d1f4e765c0157e32bee067bf5a2547e8f48ad9cdbcf4a3e78d0b5beb9064be2"
+         }
+      ],
+      "root" : "/home/adam/projects/ic-query"
+   },
+   {
+      "files" : [
+         {
+            "path" : "Cargo.lock",
+            "references" : [
+               {
+                  "line" : 803,
+                  "table" : "[[package]]",
+                  "text" : "name = \"ic-host-artifacts\""
+               },
+               {
+                  "line" : 815,
+                  "table" : "[[package]]",
+                  "text" : "name = \"ic-host-fs\""
+               },
+               {
+                  "line" : 820,
+                  "table" : "[[package]]",
+                  "text" : " \"ic-host-artifacts\","
+               },
+               {
+                  "line" : 825,
+                  "table" : "[[package]]",
+                  "text" : "name = \"ic-host-process\""
+               },
+               {
+                  "line" : 830,
+                  "table" : "[[package]]",
+                  "text" : " \"ic-host-artifacts\","
+               },
+               {
+                  "line" : 831,
+                  "table" : "[[package]]",
+                  "text" : " \"ic-host-fs\","
+               },
+               {
+                  "line" : 836,
+                  "table" : "[[package]]",
+                  "text" : "name = \"ic-host-tools\""
+               },
+               {
+                  "line" : 841,
+                  "table" : "[[package]]",
+                  "text" : " \"ic-host-artifacts\","
+               },
+               {
+                  "line" : 842,
+                  "table" : "[[package]]",
+                  "text" : " \"ic-host-fs\","
+               },
+               {
+                  "line" : 843,
+                  "table" : "[[package]]",
+                  "text" : " \"ic-host-process\","
+               },
+               {
+                  "line" : 866,
+                  "table" : "[[package]]",
+                  "text" : " \"ic-host-artifacts\","
+               },
+               {
+                  "line" : 867,
+                  "table" : "[[package]]",
+                  "text" : " \"ic-host-fs\","
+               },
+               {
+                  "line" : 868,
+                  "table" : "[[package]]",
+                  "text" : " \"ic-host-process\","
+               },
+               {
+                  "line" : 869,
+                  "table" : "[[package]]",
+                  "text" : " \"ic-host-tools\","
+               }
+            ],
+            "sha256" : "2f068ac5ec07f11d0e261f927e3d94a9a624cd5a7719073c2d205e5e0f785ad8"
+         },
+         {
+            "path" : "Cargo.toml",
+            "references" : [
+               {
+                  "line" : 22,
+                  "table" : "[workspace.dependencies]",
+                  "text" : "ic-host-artifacts = { version = \"0.3.0\", features = [\"archive\", \"wasm\"] }"
+               },
+               {
+                  "line" : 23,
+                  "table" : "[workspace.dependencies]",
+                  "text" : "ic-host-fs = \"0.3.0\""
+               },
+               {
+                  "line" : 24,
+                  "table" : "[workspace.dependencies]",
+                  "text" : "ic-host-process = \"0.3.0\""
+               },
+               {
+                  "line" : 25,
+                  "table" : "[workspace.dependencies]",
+                  "text" : "ic-host-tools = \"0.3.0\""
+               }
+            ],
+            "sha256" : "2d9e608781cb5dbcb17060517660acfeeb32f91032254cbd0327c766ec11f7c2"
+         },
+         {
+            "path" : "canisters/test/perf_probe/Cargo.toml",
+            "references" : [],
+            "sha256" : "1bfca8dd5ee59ed0ea2bbff55844de1052e8006e8e01eb22a1cb3984c808bfab"
+         },
+         {
+            "path" : "crates/ic-testkit/Cargo.toml",
+            "references" : [
+               {
+                  "line" : 26,
+                  "table" : "[target.'cfg(not(target_arch = \"wasm32\"))'.dependencies]",
+                  "text" : "ic-host-artifacts = { workspace = true }"
+               },
+               {
+                  "line" : 27,
+                  "table" : "[target.'cfg(not(target_arch = \"wasm32\"))'.dependencies]",
+                  "text" : "ic-host-fs = { workspace = true }"
+               },
+               {
+                  "line" : 28,
+                  "table" : "[target.'cfg(not(target_arch = \"wasm32\"))'.dependencies]",
+                  "text" : "ic-host-process = { workspace = true }"
+               },
+               {
+                  "line" : 29,
+                  "table" : "[target.'cfg(not(target_arch = \"wasm32\"))'.dependencies]",
+                  "text" : "ic-host-tools = { workspace = true }"
+               }
+            ],
+            "sha256" : "f8c826858c6cb34cafa418593220eed8ee3c7f52dc3cf01c3ad548f917d832b5"
+         },
+         {
+            "path" : "crates/ic-testkit/examples/fixture_reuse_driver/mod.rs",
+            "references" : [
+               {
+                  "line" : 30,
+                  "table" : "",
+                  "text" : "    ic_host_artifacts::artifact::ArtifactError,"
+               },
+               {
+                  "line" : 31,
+                  "table" : "",
+                  "text" : "    ic_host_fs::read::{hash_file, read_opened_file},"
+               },
+               {
+                  "line" : 32,
+                  "table" : "",
+                  "text" : "    ic_host_process::tool::{ResolutionError, resolve_executable},"
+               },
+               {
+                  "line" : 870,
+                  "table" : "",
+                  "text" : "                ic_testkit::ic_host_artifacts::artifact::ArtifactError::LimitExceeded { .. }"
+               }
+            ],
+            "sha256" : "fe32f18c3a2f2ba6e374c3f23b0e5d5ff2fedf30c9f018ebe8a3474ec0b0f2d8"
+         },
+         {
+            "path" : "crates/ic-testkit/examples/transactional_artifact_cache.rs",
+            "references" : [
+               {
+                  "line" : 6,
+                  "table" : "",
+                  "text" : "    ic_host_artifacts::artifact::Sha256Digest,"
+               },
+               {
+                  "line" : 7,
+                  "table" : "",
+                  "text" : "    ic_host_process::tool::{"
+               }
+            ],
+            "sha256" : "e7f0408c3309d470c67ec0481e38ab0882548ea803f2e1e3997a3204f85a84bb"
+         },
+         {
+            "path" : "crates/ic-testkit/src/artifacts/digest.rs",
+            "references" : [
+               {
+                  "line" : 188,
+                  "table" : "",
+                  "text" : "    use ic_host_artifacts::artifact::ArtifactError;"
+               },
+               {
+                  "line" : 189,
+                  "table" : "",
+                  "text" : "    use ic_host_fs::read::read_file;"
+               }
+            ],
+            "sha256" : "2a9c64848fe85520647746b49ec83fd976f12d746b461f75b56c1819ffe9e68a"
+         },
+         {
+            "path" : "crates/ic-testkit/src/artifacts/host_tests.rs",
+            "references" : [
+               {
+                  "line" : 4,
+                  "table" : "",
+                  "text" : "    ic_host_artifacts::artifact::{ArtifactError, Sha256Digest},"
+               },
+               {
+                  "line" : 5,
+                  "table" : "",
+                  "text" : "    ic_host_process::tool::{"
+               }
+            ],
+            "sha256" : "20fee344ad3f81e7cb7d428ef8c9a8ee509e2cdf6d17bb83f3adc46c6b80e74f"
+         },
+         {
+            "path" : "crates/ic-testkit/src/artifacts/wasm.rs",
+            "references" : [
+               {
+                  "line" : 29,
+                  "table" : "",
+                  "text" : "/// the Wasm module; use [`ic_host_artifacts::wasm::inspect`] for structural facts."
+               },
+               {
+                  "line" : 38,
+                  "table" : "",
+                  "text" : ") -> Result<Vec<u8>, ic_host_artifacts::artifact::ArtifactError> {"
+               },
+               {
+                  "line" : 40,
+                  "table" : "",
+                  "text" : "    ic_host_fs::read::read_file(&path, max_bytes)"
+               },
+               {
+                  "line" : 47,
+                  "table" : "",
+                  "text" : "    use ic_host_artifacts::artifact::ArtifactError;"
+               }
+            ],
+            "sha256" : "d233b413f1f29de3c48e966238ec7944150572baa2338eff9f89d11d0165bdcd"
+         },
+         {
+            "path" : "crates/ic-testkit/src/lib.rs",
+            "references" : [
+               {
+                  "line" : 14,
+                  "table" : "",
+                  "text" : "//! - bounded artifact inspection through [`ic_host_artifacts`], filesystem"
+               },
+               {
+                  "line" : 15,
+                  "table" : "",
+                  "text" : "//!   operations through [`ic_host_fs`], verified execution through"
+               },
+               {
+                  "line" : 16,
+                  "table" : "",
+                  "text" : "//!   [`ic_host_process`], and IC-specific helpers through [`ic_host_tools`];"
+               },
+               {
+                  "line" : 40,
+                  "table" : "",
+                  "text" : "pub use {ic_host_artifacts, ic_host_fs, ic_host_process, ic_host_tools};"
+               }
+            ],
+            "sha256" : "20336fb29b60f46c731d19b3972a8382cf81dd8a916f92a538bb365a7df4327e"
+         }
+      ],
+      "root" : "/home/adam/projects/ic-testkit"
+   },
+   {
+      "files" : [
+         {
+            "path" : "Cargo.lock",
+            "references" : [
+               {
+                  "line" : 281,
+                  "table" : "[[package]]",
+                  "text" : " \"ic-host-tools\","
+               },
+               {
+                  "line" : 293,
+                  "table" : "[[package]]",
+                  "text" : "name = \"ic-host-tools\""
+               }
+            ],
+            "sha256" : "aebbb2f59c442b31b9dccb4f379eab01735791c30d7af3248085ce3b1c4cdbac"
+         },
+         {
+            "path" : "Cargo.toml",
+            "references" : [
+               {
+                  "line" : 16,
+                  "table" : "[workspace.dependencies]",
+                  "text" : "ic-host-tools = \"0.2\""
+               }
+            ],
+            "sha256" : "0c3537c9c6dde074e784310efe3212a44b5661f577cc1ef4b29bb280e8019402"
+         },
+         {
+            "path" : "crates/ic-backup/Cargo.toml",
+            "references" : [
+               {
+                  "line" : 19,
+                  "table" : "[dependencies]",
+                  "text" : "ic-host-tools.workspace = true"
+               }
+            ],
+            "sha256" : "3b600778b81e56f8ac41705f78628cb08b7bab15086e20bcd143e866d725998e"
+         },
+         {
+            "path" : "crates/ic-backup/src/lib.rs",
+            "references" : [
+               {
+                  "line" : 91,
+                  "table" : "",
+                  "text" : "//! Bounded Unix record reads reuse ic-host-tools regular-file admission while"
+               }
+            ],
+            "sha256" : "3935e43f118c57661a367bd1b2dc7db3d5b4864b1d2201f531c3845a79930573"
+         },
+         {
+            "path" : "crates/ic-backup/src/ops/artifacts/mod.rs",
+            "references" : [
+               {
+                  "line" : 67,
+                  "table" : "",
+                  "text" : "    use ic_host_tools::artifact::{ArtifactError as InputError, CopyError};"
+               },
+               {
+                  "line" : 71,
+                  "table" : "",
+                  "text" : "    let identity = ic_host_tools::artifact::copy_reader(reader, writer, u64::MAX).map_err("
+               }
+            ],
+            "sha256" : "6a435f4cf1c824ea4983475756641d67c2a3224c8388bb2695cb03b214bf7d15"
+         },
+         {
+            "path" : "crates/ic-backup/src/ops/artifacts/regressions/mod.rs",
+            "references" : [
+               {
+                  "line" : 96,
+                  "table" : "",
+                  "text" : "    use ic_host_tools::artifact::WriterError;"
+               }
+            ],
+            "sha256" : "c51574b2fea6895846d42841f738925ed804e8f77bdf303c2f94e9cd946c4bca"
+         },
+         {
+            "path" : "crates/ic-backup/src/ops/persistence/download_journal/ic_snapshot_artifact/upload/mod.rs",
+            "references" : [
+               {
+                  "line" : 167,
+                  "table" : "",
+                  "text" : "    let bytes = ic_host_tools::artifact::read_reader(file.take(size), limit).map_err(|error| {"
+               },
+               {
+                  "line" : 168,
+                  "table" : "",
+                  "text" : "        use ic_host_tools::artifact::ArtifactError;"
+               }
+            ],
+            "sha256" : "46dcfccc05dc3e23d106b0b599ab570a559617486130f9f817c7b82a1ac7a914"
+         },
+         {
+            "path" : "crates/ic-backup/src/ops/persistence/json/mod.rs",
+            "references" : [
+               {
+                  "line" : 26,
+                  "table" : "",
+                  "text" : "    let mut writer = ic_host_tools::artifact::BoundedWriter::new(io::sink(), max_bytes);"
+               },
+               {
+                  "line" : 72,
+                  "table" : "",
+                  "text" : "        let bytes = ic_host_tools::artifact::read_file_no_follow("
+               },
+               {
+                  "line" : 88,
+                  "table" : "",
+                  "text" : "    error: ic_host_tools::artifact::ArtifactError,"
+               },
+               {
+                  "line" : 91,
+                  "table" : "",
+                  "text" : "    use ic_host_tools::artifact::ArtifactError;"
+               }
+            ],
+            "sha256" : "0b0304de2ee136a3e2860a7c990cd7ee8ec86854feb9d2c0d81c54aaf734fb7f"
+         }
+      ],
+      "root" : "/home/adam/projects/ic-backup"
+   },
+   {
+      "files" : [
+         {
+            "path" : "Cargo.lock",
+            "references" : [
+               {
+                  "line" : 182,
+                  "table" : "[[package]]",
+                  "text" : "name = \"ic-host-tools\""
+               },
+               {
+                  "line" : 202,
+                  "table" : "[[package]]",
+                  "text" : " \"ic-host-tools\","
+               }
+            ],
+            "sha256" : "7da25cdee92c1fc62243fb1d8dc94d5d3dff915d8e6b6f171a5c0c515e3b3ca9"
+         },
+         {
+            "path" : "Cargo.toml",
+            "references" : [
+               {
+                  "line" : 28,
+                  "table" : "[workspace.dependencies]",
+                  "text" : "ic-host-tools = \"0.2\""
+               },
+               {
+                  "line" : 48,
+                  "table" : "[target.'cfg(not(target_arch = \"wasm32\"))'.dev-dependencies]",
+                  "text" : "ic-host-tools.workspace = true"
+               }
+            ],
+            "sha256" : "b17b63610218d07abc2d10ed917ee6751fe03b5f7cae339729c6a795e64bb78d"
+         },
+         {
+            "path" : "examples/repo_tool/mod.rs",
+            "references" : [
+               {
+                  "line" : 7,
+                  "table" : "",
+                  "text" : "use ic_host_tools::artifact::{Sha256Digest, hash_file};"
+               }
+            ],
+            "sha256" : "189373a4c95052fbd5b22505a96acc259a4a3d7afcdb72e8469c3049a3c0d5ed"
+         },
+         {
+            "path" : "testing/runtime-qualification/Cargo.lock",
+            "references" : [],
+            "sha256" : "7bc872926fbeddd23706750c6205582ba9eae6c873612794e06e862503bb6be7"
+         },
+         {
+            "path" : "testing/runtime-qualification/Cargo.toml",
+            "references" : [],
+            "sha256" : "b5fac8720f665cd389ae98cbd537dac0722afb59615fbf9f309ef18b17b7172e"
+         }
+      ],
+      "root" : "/home/adam/projects/ic-memory"
+   },
+   {
+      "files" : [
+         {
+            "path" : "Cargo.lock",
+            "references" : [
+               {
+                  "line" : 1346,
+                  "table" : "[[package]]",
+                  "text" : "name = \"ic-host-artifacts\""
+               },
+               {
+                  "line" : 1356,
+                  "table" : "[[package]]",
+                  "text" : "name = \"ic-host-fs\""
+               },
+               {
+                  "line" : 1361,
+                  "table" : "[[package]]",
+                  "text" : " \"ic-host-artifacts\","
+               },
+               {
+                  "line" : 1366,
+                  "table" : "[[package]]",
+                  "text" : "name = \"ic-host-process\""
+               },
+               {
+                  "line" : 1371,
+                  "table" : "[[package]]",
+                  "text" : " \"ic-host-artifacts\","
+               },
+               {
+                  "line" : 1372,
+                  "table" : "[[package]]",
+                  "text" : " \"ic-host-fs\","
+               },
+               {
+                  "line" : 1377,
+                  "table" : "[[package]]",
+                  "text" : "name = \"ic-host-tools\""
+               },
+               {
+                  "line" : 1392,
+                  "table" : "[[package]]",
+                  "text" : "name = \"ic-host-tools\""
+               },
+               {
+                  "line" : 1397,
+                  "table" : "[[package]]",
+                  "text" : " \"ic-host-artifacts\","
+               },
+               {
+                  "line" : 1398,
+                  "table" : "[[package]]",
+                  "text" : " \"ic-host-fs\","
+               },
+               {
+                  "line" : 1399,
+                  "table" : "[[package]]",
+                  "text" : " \"ic-host-process\","
+               },
+               {
+                  "line" : 1452,
+                  "table" : "[[package]]",
+                  "text" : " \"ic-host-tools 0.1.14\","
+               },
+               {
+                  "line" : 1650,
+                  "table" : "[[package]]",
+                  "text" : " \"ic-host-tools 0.3.0\","
+               },
+               {
+                  "line" : 1830,
+                  "table" : "[[package]]",
+                  "text" : " \"ic-host-artifacts\","
+               },
+               {
+                  "line" : 1831,
+                  "table" : "[[package]]",
+                  "text" : " \"ic-host-fs\","
+               },
+               {
+                  "line" : 1832,
+                  "table" : "[[package]]",
+                  "text" : " \"ic-host-process\","
+               }
+            ],
+            "sha256" : "26ba2a667cac071b09c206cda62d9a5dc468dc15ea1b6c928b1afcabc23f1ce3"
+         },
+         {
+            "path" : "Cargo.toml",
+            "references" : [
+               {
+                  "line" : 88,
+                  "table" : "[workspace.dependencies]",
+                  "text" : "ic-host-artifacts = { version = \"0.3\", default-features = false }"
+               },
+               {
+                  "line" : 89,
+                  "table" : "[workspace.dependencies]",
+                  "text" : "ic-host-fs = \"0.3\""
+               },
+               {
+                  "line" : 90,
+                  "table" : "[workspace.dependencies]",
+                  "text" : "ic-host-process = \"0.3\""
+               },
+               {
+                  "line" : 91,
+                  "table" : "[workspace.dependencies]",
+                  "text" : "ic-host-tools = \"0.3\""
+               }
+            ],
+            "sha256" : "cf11648a3e30b497159956cc53ca00268df92ac959468e74b4e8cb291d4edfe3"
+         },
+         {
+            "path" : "canisters/audit/default_empty/Cargo.toml",
+            "references" : [],
+            "sha256" : "3779de75ffbcf628d3a7168d8ea6dd12c706204d1a901763b46658d2b5d4a019"
+         },
+         {
+            "path" : "canisters/audit/default_empty_metrics/Cargo.toml",
+            "references" : [],
+            "sha256" : "48c32ddebd1deff9eac14d28b7b72ff4a7894b3ded7e638938105b8dfdfe8e01"
+         },
+         {
+            "path" : "canisters/audit/group_path_sql_query/Cargo.toml",
+            "references" : [],
+            "sha256" : "07c8e2ce3782c61210eac51737db6494d88b5a0cd1526e08df2bb4c32b0788c6"
+         },
+         {
+            "path" : "canisters/audit/nested_relation_direct/Cargo.toml",
+            "references" : [],
+            "sha256" : "abdd5c88d96de5dfcc2b57166ea78e7445eb907ae1851ad5052ec71d25774c4f"
+         },
+         {
+            "path" : "canisters/audit/nested_relation_none/Cargo.toml",
+            "references" : [],
+            "sha256" : "94a0b58cdf9a4ee4b5407689535ffa067a0a36842572a6efa3abe4e0ff9ae0c2"
+         },
+         {
+            "path" : "canisters/audit/nested_relation_repeated/Cargo.toml",
+            "references" : [],
+            "sha256" : "a86e07d4182a7ca50012ff1705a2f3e2410aa6c1259d6d843b48f192c4495a18"
+         },
+         {
+            "path" : "canisters/audit/nested_relation_shallow/Cargo.toml",
+            "references" : [],
+            "sha256" : "58bd1d29179e7400213a9615c4b5059104c35465d35141522d8180c618963534"
+         },
+         {
+            "path" : "canisters/audit/one_entity_dynamic_query/Cargo.toml",
+            "references" : [],
+            "sha256" : "30659f7a7b527703fe68a2a2d90ade2cd51d12476744421e812cb315ae1d9f21"
+         },
+         {
+            "path" : "canisters/audit/one_entity_reachable_operations/Cargo.toml",
+            "references" : [],
+            "sha256" : "426f01c3a580ee9d84f4285fbc12cdd6c0619eb0827fc4b64f91f5166468c397"
+         },
+         {
+            "path" : "canisters/audit/one_entity_sql_query/Cargo.toml",
+            "references" : [],
+            "sha256" : "44fb204132ef66bbbab5a3e0c9d3227c99f2dacdb245d4aab49c8784cffc6974"
+         },
+         {
+            "path" : "canisters/audit/one_entity_typed_query/Cargo.toml",
+            "references" : [],
+            "sha256" : "95ea611dc3db979240d1536f109d36ee79468d614dfa84231bd05b3f6fc5ec04"
+         },
+         {
+            "path" : "canisters/audit/request_future_scale/Cargo.toml",
+            "references" : [],
+            "sha256" : "6ebfe9526866feadb47349e5b615e25a2fb1c16e27e9b39f4c7e2d5bc8422a9e"
+         },
+         {
+            "path" : "canisters/audit/sql_perf/Cargo.toml",
+            "references" : [],
+            "sha256" : "4cd2e00363829f059cb8360218a596bd714fdb3f0ca841f27d711273cc1a106b"
+         },
+         {
+            "path" : "canisters/audit/ten_entity_reachable_operations/Cargo.toml",
+            "references" : [],
+            "sha256" : "4ee2fe4767c9858b76ad74f05adcff709d64d795a070fcb7489ff6442fe95e7b"
+         },
+         {
+            "path" : "canisters/audit/ten_entity_typed_query/Cargo.toml",
+            "references" : [],
+            "sha256" : "a1a81a8a4c50adffdeb1f94b457efc51c93efc4ebc08dea74d09d91c479d6545"
+         },
+         {
+            "path" : "canisters/demo/rpg/Cargo.toml",
+            "references" : [],
+            "sha256" : "36d1ea9149d3265711a3e974c8a5bb338345458874fc22913a818d60ae3bb394"
+         },
+         {
+            "path" : "canisters/test/lifecycle_participant/Cargo.toml",
+            "references" : [],
+            "sha256" : "727b669c3c421c52ea6b6688551c16d395b290596e62208a78419e7fa3098b9a"
+         },
+         {
+            "path" : "canisters/test/read_authority/Cargo.toml",
+            "references" : [],
+            "sha256" : "6b19954f67b74af4f745b84836a27502666722473fbdf17c5ef3804f35141654"
+         },
+         {
+            "path" : "canisters/test/schema_guard/Cargo.toml",
+            "references" : [],
+            "sha256" : "b2f9ac7ceac63640718827a5bec0030990f278981f2453f3262bc860cfdd6c06"
+         },
+         {
+            "path" : "canisters/test/schema_public/Cargo.toml",
+            "references" : [],
+            "sha256" : "881769476e862ebf7cfd89e7e110d7539a07e816efbe20b33436f5f9635b0612"
+         },
+         {
+            "path" : "canisters/test/sql/Cargo.toml",
+            "references" : [],
+            "sha256" : "443ef683b0fe8a500cc719548a3c16f82a0e6543f998388b14483ff62fbf301f"
+         },
+         {
+            "path" : "canisters/test/sql_bounded/Cargo.toml",
+            "references" : [],
+            "sha256" : "03e790d684b3ac30ae1066934fa48421b6b888d19a7ec1afc66aff07eebc8c8d"
+         },
+         {
+            "path" : "canisters/test/sql_guard/Cargo.toml",
+            "references" : [],
+            "sha256" : "893b36fc250db33667d4fb93322ecbcabdda73d880adb5fb95e4800a6f6defbf"
+         },
+         {
+            "path" : "canisters/test/startup_timer/Cargo.toml",
+            "references" : [],
+            "sha256" : "0cadb4c612aa06714cdc83e6cfce6fd909fd0b7b47809153fbb08fdbe5a2f294"
+         },
+         {
+            "path" : "crates/icydb-cli/Cargo.toml",
+            "references" : [
+               {
+                  "line" : 18,
+                  "table" : "[dependencies]",
+                  "text" : "ic-host-tools = { workspace = true }"
+               }
+            ],
+            "sha256" : "ea6a80302bf00a913191f01b4c2b868f4787e3e290e86eac5c9219b13fdd4e15"
+         },
+         {
+            "path" : "crates/icydb-cli/src/icp/call.rs",
+            "references" : [
+               {
+                  "line" : 8,
+                  "table" : "",
+                  "text" : "use ic_host_tools::response::{ResponseError, ResponseFormat, ResponseLimits, decode};"
+               }
+            ],
+            "sha256" : "8e2ce81e51c7c3df7d33a5e9a596eedeef59b0d38072a6f15a8b8d52ec7f5ddb"
+         },
+         {
+            "path" : "crates/icydb-core/Cargo.toml",
+            "references" : [],
+            "sha256" : "9c3e356ef0463efcec093454784b5e42c9727209e52aa46e51f8add3ae223c02"
+         },
+         {
+            "path" : "crates/icydb-diagnostic-code/Cargo.toml",
+            "references" : [],
+            "sha256" : "b0312cd5767ee759b35ab5fb52e201fa7e858c90b550d90bfb592fe7297d4c34"
+         },
+         {
+            "path" : "crates/icydb-model-macros/Cargo.toml",
+            "references" : [],
+            "sha256" : "92be46fee9d693513f85354f8fffe19cd70c7f66e611f55ab6a0e8374b3c448b"
+         },
+         {
+            "path" : "crates/icydb-model/Cargo.toml",
+            "references" : [],
+            "sha256" : "42df04524ba4fc3a333ee3c443420553f4a7a0c74ba28c2ac38d035eed7caabc"
+         },
+         {
+            "path" : "crates/icydb-schema/Cargo.toml",
+            "references" : [],
+            "sha256" : "d91a071c208f8bcbfb31f07c4d6f95c8b39b9b5f362923f080a2d1244fea1258"
+         },
+         {
+            "path" : "crates/icydb/Cargo.toml",
+            "references" : [],
+            "sha256" : "bb589d0558aa29269d46b4e63de379fc1259ec93884105c2d800b8f85e0dd4f5"
+         },
+         {
+            "path" : "schema/audit/default_empty/Cargo.toml",
+            "references" : [],
+            "sha256" : "cd7af76befa5fb809a0e786b0f0735d973864505f349930e8fee8523f973a9bd"
+         },
+         {
+            "path" : "schema/audit/group_path/Cargo.toml",
+            "references" : [],
+            "sha256" : "46b0f76718bc069c03598dde9adaec4e757a7639f798cc616c42eb23b2ae0429"
+         },
+         {
+            "path" : "schema/audit/nested_relation/Cargo.toml",
+            "references" : [],
+            "sha256" : "9a79e0475b5d97a2e4f9d12f5018aa6b35c411cbb3793b276633fd384448b5e5"
+         },
+         {
+            "path" : "schema/audit/one_simple/Cargo.toml",
+            "references" : [],
+            "sha256" : "360152bf7298d4430d5a1064f161e0efb449c9fbab201dd55bddc466987959b8"
+         },
+         {
+            "path" : "schema/audit/sql_perf/Cargo.toml",
+            "references" : [],
+            "sha256" : "ccc67cf8872d110f116db96e3134326c477a926d85fca1897aa49103dc878445"
+         },
+         {
+            "path" : "schema/audit/ten_simple/Cargo.toml",
+            "references" : [],
+            "sha256" : "fd4e692435a0aafeb9883b9ff3a2ff5eaf6ea8b5dbd3ca63e4dd33bfa3f8e051"
+         },
+         {
+            "path" : "schema/demo/rpg/Cargo.toml",
+            "references" : [],
+            "sha256" : "596e8e04a7bdfa8ca2586e50c42eaf3715336f0bcc090ba6a3f1b144209e2f7a"
+         },
+         {
+            "path" : "schema/test/fixtures/Cargo.toml",
+            "references" : [],
+            "sha256" : "011a1fc8d1ab02a66e5faf7401ea4d17b57fdb8d5c8fd991b959b9717b639c79"
+         },
+         {
+            "path" : "schema/test/sql/Cargo.toml",
+            "references" : [],
+            "sha256" : "275015804842590355b539e39fdc124a148c9ee1e71927d60282c45b052b5290"
+         },
+         {
+            "path" : "testing/endpoint-installation/Cargo.toml",
+            "references" : [],
+            "sha256" : "e3c3c79fa5d81569389298161a02150c44af57a73f977f08daf95f019b93f87e"
+         },
+         {
+            "path" : "testing/integration/Cargo.toml",
+            "references" : [
+               {
+                  "line" : 16,
+                  "table" : "[dependencies]",
+                  "text" : "ic-host-artifacts = { workspace = true, features = [\"wasm\"] }"
+               },
+               {
+                  "line" : 17,
+                  "table" : "[dependencies]",
+                  "text" : "ic-host-fs = { workspace = true }"
+               },
+               {
+                  "line" : 18,
+                  "table" : "[dependencies]",
+                  "text" : "ic-host-process = { workspace = true }"
+               }
+            ],
+            "sha256" : "7a62e14b076af15c02c27942acb208159faee715a50911ceca3b2b0652d5928d"
+         },
+         {
+            "path" : "testing/integration/src/bin/write_wasm_size_report.rs",
+            "references" : [
+               {
+                  "line" : 12,
+                  "table" : "",
+                  "text" : "use ic_host_artifacts::{"
+               }
+            ],
+            "sha256" : "99d860f950896daade31978f5d1744bbe00e67623cb7045d9f474b4caa3286d7"
+         },
+         {
+            "path" : "testing/integration/src/wasm_optimizer.rs",
+            "references" : [
+               {
+                  "line" : 10,
+                  "table" : "",
+                  "text" : "use ic_host_fs::read::hash_file;"
+               },
+               {
+                  "line" : 11,
+                  "table" : "",
+                  "text" : "use ic_host_process::tool::resolve_executable;"
+               }
+            ],
+            "sha256" : "397dd2462badd5fb1d3f926c6394e678239d5cd9fe5296027a1ad5d14483e835"
+         },
+         {
+            "path" : "testing/integration/tests/batch_workload/mod.rs",
+            "references" : [
+               {
+                  "line" : 5,
+                  "table" : "",
+                  "text" : "use ic_host_artifacts::artifact::Sha256Digest;"
+               }
+            ],
+            "sha256" : "581763ddddcbf94cc05ff65be8a5b2010791f05bdabd55b03c3b45016babef8c"
+         },
+         {
+            "path" : "testing/integration/tests/catalog_workload.rs",
+            "references" : [
+               {
+                  "line" : 4,
+                  "table" : "",
+                  "text" : "use ic_host_artifacts::artifact::Sha256Digest;"
+               }
+            ],
+            "sha256" : "6874db09bd4e586f2ea94bd7d8bee1dfce97f84d1dac168eec625bcbcfec6169"
+         },
+         {
+            "path" : "testing/integration/tests/collection_workload/mod.rs",
+            "references" : [
+               {
+                  "line" : 4,
+                  "table" : "",
+                  "text" : "use ic_host_artifacts::artifact::Sha256Digest;"
+               }
+            ],
+            "sha256" : "1f7c9eeac67538774fca4eb0683fc94def9f1cefaa032695487566132015a7d2"
+         },
+         {
+            "path" : "testing/integration/tests/read_authority.rs",
+            "references" : [
+               {
+                  "line" : 4,
+                  "table" : "",
+                  "text" : "use ic_host_artifacts::artifact::Sha256Digest;"
+               }
+            ],
+            "sha256" : "de6db1c4b12620532195bb7770c48a23475796fb21689d1a31c94ef8ed9bc015"
+         },
+         {
+            "path" : "testing/integration/tests/seek_intersection.rs",
+            "references" : [
+               {
+                  "line" : 5,
+                  "table" : "",
+                  "text" : "use ic_host_artifacts::artifact::Sha256Digest;"
+               }
+            ],
+            "sha256" : "24b5d0d058f7218d96122705d8af229131b061b6b2627f247b51ed0ac5253b2f"
+         },
+         {
+            "path" : "testing/integration/tests/sql_canister.rs",
+            "references" : [
+               {
+                  "line" : 156,
+                  "table" : "",
+                  "text" : "    use ic_host_artifacts::artifact::Sha256Digest;"
+               }
+            ],
+            "sha256" : "c1a76c63b0ecfddff2b901ff981163ce74858ca7e4857671257d7b37a81f2d33"
+         },
+         {
+            "path" : "testing/integration/tests/sql_perf_audit.rs",
+            "references" : [
+               {
+                  "line" : 175,
+                  "table" : "",
+                  "text" : "    use ic_host_artifacts::artifact::Sha256Digest;"
+               }
+            ],
+            "sha256" : "d0b26cecfc06a8950d21e72f41ffe7eff8a70179faf9001b461ffa9e8205a668"
+         },
+         {
+            "path" : "testing/logical-memory/Cargo.toml",
+            "references" : [],
+            "sha256" : "8e65ef892423c3d002d1e3794c19a731d0f6670ee57587df8052584ff83852de"
+         },
+         {
+            "path" : "testing/model-facade-only/Cargo.toml",
+            "references" : [],
+            "sha256" : "87abb3e9b63d6c3aea59fa844fce2a6012d31a90bd276bdb12ea7cafce284169"
+         },
+         {
+            "path" : "testing/model-schema-only/Cargo.toml",
+            "references" : [],
+            "sha256" : "c8ba9110672e694ef8ee57552edbd80bc394f07bf8d8f415666268d03bb0da32"
+         },
+         {
+            "path" : "testing/model-typed-adapter/Cargo.toml",
+            "references" : [],
+            "sha256" : "490eb5fa99ced358c37884856d6c70e8b56e52c0cb67f45098def80983151d2a"
+         },
+         {
+            "path" : "testing/sql-generator/Cargo.toml",
+            "references" : [],
+            "sha256" : "c3a0d0f7cc972b917d9e8eccc8e58b5a5ca195ea1e55cf399655536ef20ba8dc"
+         },
+         {
+            "path" : "testing/sqlite-reference/Cargo.toml",
+            "references" : [],
+            "sha256" : "11b2c55198e0f9e247aab0edc0be0c8fea600a2208ff8ea63ca94ee46a6a1f9e"
+         },
+         {
+            "path" : "testing/wasm-helpers/Cargo.toml",
+            "references" : [],
+            "sha256" : "a646b208c1a13ae4a7a0f8c58058b33f7609cdafed2f8d8bce69cbbbcb9e7be4"
+         }
+      ],
+      "root" : "/home/adam/projects/icydb"
+   },
+   {
+      "files" : [
+         {
+            "path" : "Cargo.lock",
+            "references" : [
+               {
+                  "line" : 1565,
+                  "table" : "[[package]]",
+                  "text" : " \"ic-host-artifacts\","
+               },
+               {
+                  "line" : 1566,
+                  "table" : "[[package]]",
+                  "text" : " \"ic-host-fs\","
+               },
+               {
+                  "line" : 1677,
+                  "table" : "[[package]]",
+                  "text" : "name = \"ic-host-artifacts\""
+               },
+               {
+                  "line" : 1686,
+                  "table" : "[[package]]",
+                  "text" : "name = \"ic-host-fs\""
+               },
+               {
+                  "line" : 1691,
+                  "table" : "[[package]]",
+                  "text" : " \"ic-host-artifacts\","
+               },
+               {
+                  "line" : 1696,
+                  "table" : "[[package]]",
+                  "text" : "name = \"ic-host-tools\""
+               },
+               {
+                  "line" : 1763,
+                  "table" : "[[package]]",
+                  "text" : " \"ic-host-tools\","
+               }
+            ],
+            "sha256" : "e3b3879fd46aeb41ee1af0001daba1e61c8903fd82bc7c792021689f9bd46e87"
+         },
+         {
+            "path" : "Cargo.toml",
+            "references" : [
+               {
+                  "line" : 33,
+                  "table" : "[workspace.dependencies]",
+                  "text" : "ic-host-artifacts = \"0.3\""
+               },
+               {
+                  "line" : 34,
+                  "table" : "[workspace.dependencies]",
+                  "text" : "ic-host-fs = \"0.3\""
+               }
+            ],
+            "sha256" : "b9d15f4806ad0cb6d8e76ec92393ecd496c8d3603dcc8ee75c0297567806a393"
+         },
+         {
+            "path" : "canisters/standalone/Cargo.toml",
+            "references" : [],
+            "sha256" : "57a980da8d428174f53c0fd28d53a109dbc1a79567abd1dc3a90b2ea04b42b7f"
+         },
+         {
+            "path" : "canisters/test/admission_probe/Cargo.toml",
+            "references" : [],
+            "sha256" : "3935f000efdf970eaee89f6136354c59eb5cfc93aac2e6e4b2b2b25c0a01bd2d"
+         },
+         {
+            "path" : "canisters/test/authority_probe/Cargo.toml",
+            "references" : [],
+            "sha256" : "846eb27af213f57d71c6a6679ea74a8d22b6ee8c9f3688d54e792afa0ce79817"
+         },
+         {
+            "path" : "canisters/test/consumer_probe/Cargo.toml",
+            "references" : [],
+            "sha256" : "bd904bac2f9bb091e29faed0cab8f75b8714004f5e6989c0c7b907cec5865b0c"
+         },
+         {
+            "path" : "canisters/test/funding_probe/Cargo.toml",
+            "references" : [],
+            "sha256" : "5c142e8d0eb372c4425c93114b16cdb27e5501cdae1ab0094363417bd9d1259e"
+         },
+         {
+            "path" : "canisters/test/gateway_source/Cargo.toml",
+            "references" : [],
+            "sha256" : "4c3f5a2118a7dd2fa1eea1e9e380f20ca998248c64985e5d5b2bf3819de3542b"
+         },
+         {
+            "path" : "canisters/test/storage_probe/Cargo.toml",
+            "references" : [],
+            "sha256" : "c41692680329403c2f6552704e41356e9cf6a22b94633f9af4469c26fcd203b9"
+         },
+         {
+            "path" : "crates/ic-blob-storage-cli/Cargo.toml",
+            "references" : [
+               {
+                  "line" : 12,
+                  "table" : "[target.'cfg(not(target_family = \"wasm\"))'.dependencies]",
+                  "text" : "ic-host-artifacts.workspace = true"
+               },
+               {
+                  "line" : 13,
+                  "table" : "[target.'cfg(not(target_family = \"wasm\"))'.dependencies]",
+                  "text" : "ic-host-fs.workspace = true"
+               }
+            ],
+            "sha256" : "a35d06c305f993954599982fe92deb523d81b7cb83cb865a690821bbf8201daf"
+         },
+         {
+            "path" : "crates/ic-blob-storage-cli/src/native/artifacts/mod.rs",
+            "references" : [
+               {
+                  "line" : 97,
+                  "table" : "",
+                  "text" : "        ic_host_fs::durable::create_private_bytes_with_parents(&self.path.join(name), bytes)"
+               }
+            ],
+            "sha256" : "fc3fb2c1f08210e7df96a1ac750a4aedf7dba55ad5ef3623cabd9d3bc714effb"
+         },
+         {
+            "path" : "crates/ic-blob-storage-cli/src/native/mod.rs",
+            "references" : [
+               {
+                  "line" : 224,
+                  "table" : "",
+                  "text" : "    let bytes = ic_host_fs::read::read_opened_file(file, maximum).map_err(|_| Failure::File)?;"
+               }
+            ],
+            "sha256" : "c67c1b49992e35afdeed5948e185a004111e0a8482ec28ac2dc7b4c4fabe1531"
+         },
+         {
+            "path" : "crates/ic-blob-storage-cli/src/native/upload_inputs/mod.rs",
+            "references" : [
+               {
+                  "line" : 26,
+                  "table" : "",
+                  "text" : "use ic_host_artifacts::artifact::Sha256Digest;"
+               }
+            ],
+            "sha256" : "34f4991b43f07e2c99c01932870e2b79ffe21f6623562dc8450807687a552ed6"
+         },
+         {
+            "path" : "crates/ic-blob-storage-cli/src/probe/record/mod.rs",
+            "references" : [
+               {
+                  "line" : 1,
+                  "table" : "",
+                  "text" : "use ic_host_artifacts::artifact::{ArtifactError, Sha256Digest};"
+               },
+               {
+                  "line" : 94,
+                  "table" : "",
+                  "text" : "    let result = ic_host_fs::read::read_file_no_follow(&directory.join(name), limit);"
+               },
+               {
+                  "line" : 96,
+                  "table" : "",
+                  "text" : "    let result = ic_host_fs::read::read_file(&directory.join(name), limit);"
+               }
+            ],
+            "sha256" : "e424d7161f4b1f7b060581369db88a74f502b1cb824db5356f888da024e5d1e3"
+         },
+         {
+            "path" : "crates/ic-blob-storage/Cargo.toml",
+            "references" : [],
+            "sha256" : "33bc82ab51e8a2ec2b8d74e58e301d2104a6003f627f465e2ac2bd4676880219"
+         },
+         {
+            "path" : "tests/pocketic/Cargo.toml",
+            "references" : [],
+            "sha256" : "b90c415484e55f755bf44d186eb6fa8b1cce8575c7448154943fb8a5c2a8b297"
+         },
+         {
+            "path" : "tests/protocol/Cargo.toml",
+            "references" : [],
+            "sha256" : "91c00b7eaedf24e8f2a5e98de7b07062cb80e47b2064a8a4108b845af171f318"
+         }
+      ],
+      "root" : "/home/adam/projects/ic-blob-storage"
+   },
+   {
+      "files" : [
+         {
+            "path" : "Cargo.lock",
+            "references" : [
+               {
+                  "line" : 375,
+                  "table" : "[[package]]",
+                  "text" : " \"ic-host-tools 0.3.0\","
+               },
+               {
+                  "line" : 1353,
+                  "table" : "[[package]]",
+                  "text" : "name = \"ic-host-artifacts\""
+               },
+               {
+                  "line" : 1362,
+                  "table" : "[[package]]",
+                  "text" : "name = \"ic-host-fs\""
+               },
+               {
+                  "line" : 1367,
+                  "table" : "[[package]]",
+                  "text" : " \"ic-host-artifacts\","
+               },
+               {
+                  "line" : 1372,
+                  "table" : "[[package]]",
+                  "text" : "name = \"ic-host-process\""
+               },
+               {
+                  "line" : 1377,
+                  "table" : "[[package]]",
+                  "text" : " \"ic-host-artifacts\","
+               },
+               {
+                  "line" : 1378,
+                  "table" : "[[package]]",
+                  "text" : " \"ic-host-fs\","
+               },
+               {
+                  "line" : 1383,
+                  "table" : "[[package]]",
+                  "text" : "name = \"ic-host-tools\""
+               },
+               {
+                  "line" : 1398,
+                  "table" : "[[package]]",
+                  "text" : "name = \"ic-host-tools\""
+               },
+               {
+                  "line" : 1403,
+                  "table" : "[[package]]",
+                  "text" : " \"ic-host-artifacts\","
+               },
+               {
+                  "line" : 1404,
+                  "table" : "[[package]]",
+                  "text" : " \"ic-host-fs\","
+               },
+               {
+                  "line" : 1405,
+                  "table" : "[[package]]",
+                  "text" : " \"ic-host-process\","
+               },
+               {
+                  "line" : 1488,
+                  "table" : "[[package]]",
+                  "text" : " \"ic-host-tools 0.1.14\","
+               }
+            ],
+            "sha256" : "cd78160c323684af7d3ce7c7bb057d743983a7ad1f7a9abebefb58131fa211b0"
+         },
+         {
+            "path" : "Cargo.toml",
+            "references" : [
+               {
+                  "line" : 27,
+                  "table" : "[workspace.dependencies]",
+                  "text" : "ic-host-tools = \"0.3\""
+               }
+            ],
+            "sha256" : "7a25c6ba9e170d77b6ef0533db26610c9377a895af824240a93183cfc8259d63"
+         },
+         {
+            "path" : "apps/toko_miner/blob/Cargo.toml",
+            "references" : [],
+            "sha256" : "94f6d185c553cf099071d7e2d0bb7728d81608a7c86a4e4b685c4507eaba34c3"
+         },
+         {
+            "path" : "apps/toko_miner/game_hub/Cargo.toml",
+            "references" : [],
+            "sha256" : "1b687328b1eebed5f14cef8ae1cded66a12558f3a1733888224ad59df316879d"
+         },
+         {
+            "path" : "apps/toko_miner/game_shard/Cargo.toml",
+            "references" : [],
+            "sha256" : "7754323065ce6980341077a3d46fc2918cb36ed4e04b62b9bc56e0bedf52af58"
+         },
+         {
+            "path" : "apps/toko_miner/translation/Cargo.toml",
+            "references" : [],
+            "sha256" : "5282c1d8e0f6fe04fabb98aa2ee2b6762d65ad80016b7aa0130eb4de3ecf1166"
+         },
+         {
+            "path" : "apps/toko_miner/user_hub/Cargo.toml",
+            "references" : [
+               {
+                  "line" : 33,
+                  "table" : "[target.'cfg(not(target_family = \"wasm\"))'.dev-dependencies]",
+                  "text" : "ic-host-tools = { workspace = true }"
+               }
+            ],
+            "sha256" : "a7a4916f6bbace90fe03455ded9a1dcabc954ad3db1e9c0a1832a8934dbbed73"
+         },
+         {
+            "path" : "apps/toko_miner/user_hub/src/qualification/opening/costs/capacity.rs",
+            "references" : [
+               {
+                  "line" : 124,
+                  "table" : "",
+                  "text" : "    let bytes = ic_host_tools::artifact::read_file(&output, 2 * 1024 * 1024)"
+               }
+            ],
+            "sha256" : "5346385b5f9419f41a82cdf8fc46980fbc6094a80404135bb1d2b32b4b961c79"
+         },
+         {
+            "path" : "apps/toko_miner/user_shard/Cargo.toml",
+            "references" : [],
+            "sha256" : "eb5be510ba285a007f44e45a2304b076496e3e7792e0bfcfe8182a51da962ad3"
+         },
+         {
+            "path" : "crates/toko-miner-contracts/Cargo.toml",
+            "references" : [],
+            "sha256" : "4d87813e8fa361f9b8df6f4f0648d543147cbb7e382754146999b1d114466e8e"
+         }
+      ],
+      "root" : "/home/adam/projects/toko-miner"
+   },
+   {
+      "files" : [
+         {
+            "path" : "Cargo.lock",
+            "references" : [],
+            "sha256" : "86a6a28e1406050907f166efb93da6bc696f216b6283ff020c366d94fb58a44a"
+         },
+         {
+            "path" : "Cargo.toml",
+            "references" : [],
+            "sha256" : "f84ef164edd8ce6e92414635cff3b8b3292c207d1ac5324c63780ac538a4b9d0"
+         },
+         {
+            "path" : "crates/ic-metrics/Cargo.toml",
+            "references" : [],
+            "sha256" : "1b33da2564b97bf34bbae8c5d22bfda4dda792bbd4d049194442f1495508e662"
+         }
+      ],
+      "root" : "/home/adam/projects/ic-metrics"
+   },
+   {
+      "files" : [
+         {
+            "path" : "Cargo.lock",
+            "references" : [],
+            "sha256" : "880bb54d703402952441f097bd8443419acd1f6b186edb965025d69c4c7255b9"
+         },
+         {
+            "path" : "Cargo.toml",
+            "references" : [],
+            "sha256" : "ca0f81413a37574007e1827b9a3058ac688e26144e4fb43fb56e80ef29fed618"
+         },
+         {
+            "path" : "crates/ic-timers/Cargo.toml",
+            "references" : [],
+            "sha256" : "4f52f4c106be32224066cd13dfcc5fc9032eff9b11c7b13b529a99a3ba939532"
+         },
+         {
+            "path" : "testing/Cargo.lock",
+            "references" : [],
+            "sha256" : "47cf169306f8810f61e79923b061863e6cc634ed9ab1c2e1054bb5849955de97"
+         },
+         {
+            "path" : "testing/Cargo.toml",
+            "references" : [],
+            "sha256" : "628a6c2eb3f4dcf083a8052a8bb68a8444777628c3fdb9b05b37676e77dd7c14"
+         },
+         {
+            "path" : "testing/pocketic/Cargo.toml",
+            "references" : [],
+            "sha256" : "c6415c500fc322489d92853fe51a210bc10e7fbf5d62c92b84083cf7019e2d39"
+         },
+         {
+            "path" : "testing/runtime-probe/Cargo.toml",
+            "references" : [],
+            "sha256" : "ff822be9d4b04a77d62c05e9c35c913e318c6e1436254ab4538ad59d8950f166"
+         },
+         {
+            "path" : "testing/size-probe/Cargo.toml",
+            "references" : [],
+            "sha256" : "7e8541da09d577555bdf17584d0fdeb4cb7cd7ee3e0bb862e5cc68d507c816f9"
+         }
+      ],
+      "root" : "/home/adam/projects/ic-timers"
+   },
+   {
+      "files" : [],
+      "root" : "/home/adam/projects/ichelper"
+   },
+   {
+      "files" : [],
+      "root" : "/home/adam/projects/shared-tooling"
+   },
+   {
+      "files" : [],
+      "root" : "/home/adam/projects/toko-miner-assets"
+   }
+]

@@ -17,11 +17,18 @@ with Cargo's normal login or credential-provider configuration. Neither command
 creates commits, changes versions, creates tags or pushes Git refs. Git release
 commands never invoke publication automatically.
 
-Publication can use the committed `0.3.0` package version after the publication
-metadata changes are committed. The pending changelog is documentation for the
-next Git release; it does not prevent publishing the current package version.
-Before upload, review the dry run and confirm that this version is the intended
-registry release. A Git tag does not prove registry publication or host qualification.
+Package metadata uses the standard MIT SPDX identifier. Each crate's `LICENSE`
+is a regular copy of the canonical root notice, compatible with the formatting
+hook and included in the package archive without redundant `license-file`
+metadata. Both publication commands reject missing, symlinked or differing
+notices before invoking Cargo. Update all four copies when the root notice changes.
+
+Cargo's latest registry lookup reports all four `0.3.0` versions already present.
+Do not republish those versions with changed metadata. The pending compatible
+fixes belong to `0.3.1`; package versions remain unchanged until the maintainer
+prepares that release. Before upload, review the dry run and confirm that the
+committed version is the intended registry release. A Git tag does not prove
+registry publication or host qualification.
 
 Admitted invocations retain source identity, metadata, exact arguments and Cargo's
 output under `target/publish/check.*` or `target/publish/publish.*`. Upload intent

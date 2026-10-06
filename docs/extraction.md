@@ -11,7 +11,7 @@ No generic crate depends on ic-host-tools, Canic, IcyDB or an IC runtime.
 Test/example artifact features do not become production filesystem dependencies.
 
 - ic-host-artifacts owns stream identities, bounded read/write/copy mechanics,
-  optional gzip decoding, verified tar member bytes and optional Wasm structural facts.
+  optional gzip encoding/decoding, verified tar member bytes and optional Wasm structural facts.
 - ic-host-fs owns pathname/descriptor reads and the durable module's replace,
   create-new, private-file, parent synchronization and descriptor-lock operations.
 - ic-host-process owns executable resolution/admission, explicit execution context,
@@ -28,6 +28,38 @@ descendant cleanup, hardware-independent crash durability or safe paid-effect re
 Query's capability confinement and refresh leases remain consumer-owned.
 Backup's tree checksums, multi-file publication and journals remain consumer-owned.
 Further adoption must retain each caller's independently established guarantees.
+
+Additional reusable mechanics are extracted from committed sibling source:
+
+- `ic_host_artifacts::artifact::MatchingWriter` compares a produced byte stream
+  with borrowed expected bytes. It keeps consuming after a mismatch so serializer
+  errors remain visible; callers own successful completion and canonical ordering.
+- `ic_host_artifacts::artifact::encode_gzip` writes one zero-timestamp gzip member
+  through a bounded caller-owned sink. Callers select compression, source admission,
+  compressed byte budgets and publication; output compatibility is bound to the
+  selected compression backend rather than promised across dependency upgrades.
+- `ic_host_fs::durable::write_with` accepts a streaming producer and returns its
+  result after the existing durable replacement sequence completes. Byte-based
+  writes share that same commit engine. A returned producer error preserves the
+  old destination and attempts to remove only owned staging. Panics or process
+  interruption can retain staging. Post-rename sync failure still needs caller
+  reconciliation.
+
+- `ic_host_fs::path::canonicalize_allow_missing` resolves existing symlinks and
+  normalizes missing suffixes against an explicit absolute base for relative
+  paths. It resumes existing-component resolution after parent traversal; it
+  neither confines a root nor creates files. Consumer path identities stay local.
+- `ic_host_fs::durable::lock_exclusive_with_wait` acquires a caller-owned regular
+  descriptor with explicit polling and contention observations, retrying
+  interrupted acquisition. The existing pathname progress helper delegates to
+  it with its one-second report cadence. Opening, deadlines, lock namespace,
+  descriptor clones and final-owner unlock remain consumer-owned.
+
+The exact source revisions, file digests and selected mechanics are recorded in
+[source provenance](../ci/extraction-sources.json). These APIs add no JSON schema,
+cache policy, root confinement, tool pin or process-tree ownership. Backup's private
+parent/file modes and crash barriers are stronger than ordinary durable replacement;
+they must not be replaced by `write_with` without preserving those contracts.
 
 The maintainer authorized retiring the original local checkout after verification
 of a full backup. Existing consumers retain their prior dependency selections;

@@ -1,10 +1,42 @@
-//! Bounded single-member gzip decoding shared by artifact and archive callers.
+//! Bounded single-member gzip encoding and decoding for host artifacts.
 
 #[cfg(test)]
 mod tests;
 
-use super::{ArtifactError, read_reader};
-use std::fmt;
+use super::{ArtifactError, BoundedWriter, read_reader};
+use std::{
+    fmt,
+    io::{self, Write},
+};
+
+/// Encode one gzip member with a zero timestamp into a caller-owned bounded sink.
+///
+/// The caller selects compression, input custody and the inclusive compressed
+/// byte budget. The budget includes the header and trailer. No file is created,
+/// synchronized or published. On error the sink can contain partial bytes; the
+/// caller must discard or reconcile them before publication.
+///
+/// Repeatable bytes require the same input, compression settings and backend;
+/// this does not promise identical output across dependency versions. The
+/// compressor's internal working memory is outside the output byte budget.
+///
+/// # Errors
+/// Returns compressor, sink or output-limit errors. Limit errors carry
+/// [`super::WriterError`] inside [`io::Error`].
+pub fn encode_gzip(
+    bytes: &[u8],
+    writer: impl Write,
+    compression: flate2::Compression,
+    max_compressed_bytes: u64,
+) -> io::Result<()> {
+    let mut encoder = flate2::GzBuilder::new().mtime(0).write(
+        BoundedWriter::new(writer, max_compressed_bytes),
+        compression,
+    );
+    encoder.write_all(bytes)?;
+    encoder.finish()?;
+    Ok(())
+}
 
 /// A gzip input, decoding or complete-consumption failure.
 #[derive(Debug)]

@@ -26,6 +26,10 @@ RELEASE_VERSION="$(bash "$root/scripts/ci/next-release-version.sh" "$RELEASE_PRE
 export RELEASE_VERSION
 mkdir "$fixture/bin"
 cp "$root/Cargo.toml" "$root/Cargo.lock" "$root/README.md" "$root/LICENSE" "$fixture/"
+# A valid inline comment must survive observation, preparation and recovery.
+awk '/^version = / { $0 = $0 " # retained workspace version comment" } { print }' \
+    "$fixture/Cargo.toml" > "$fixture/Cargo.toml.commented"
+mv "$fixture/Cargo.toml.commented" "$fixture/Cargo.toml"
 for package in ic-host-artifacts ic-host-fs ic-host-process ic-host-tools; do
     mkdir -p "$fixture/crates/$package/src"
     # Git release qualification remains independent of registry eligibility.
@@ -64,6 +68,9 @@ cat > "$fixture/bin/cargo" <<'STUB'
 set -euo pipefail
 printf 'cargo %s\n' "$*" >> "$ADAPTER_EVENTS"
 case "$*" in
+    'locate-project --workspace --message-format plain --manifest-path Cargo.toml')
+        "$ADAPTER_REAL_CARGO" "$@"
+        exit "${ADAPTER_LOCATE_RESULT:-0}" ;;
     'metadata --no-deps --format-version 1 --locked --offline')
         "$ADAPTER_REAL_CARGO" "$@"
         exit "${ADAPTER_METADATA_RESULT:-0}" ;;
@@ -90,11 +97,61 @@ STUB
 chmod +x "$fixture/bin/git" "$fixture/bin/cargo" "$fixture/bin/make"
 export PATH="$fixture/bin:$PATH"
 cd "$fixture"
+
+# A failed shared reader must not leak plausible version stdout into admission.
+mkdir failed-parser-bin
+cat > failed-parser-bin/jq <<'STUB'
+#!/usr/bin/env bash
+printf '%s\n' "$RELEASE_PREVIOUS"
+exit 17
+STUB
+chmod +x failed-parser-bin/jq
+: > "$ADAPTER_EVENTS"
+if PATH="$fixture/failed-parser-bin:$PATH" bash "$root/scripts/release/adapter.sh" version \
+    > failed-reader-version.log 2>&1; then
+    echo 'Version observation accepted failed parser output' >&2; exit 1
+fi
+[[ ! -s failed-reader-version.log ]] || exit 1
+if PATH="$fixture/failed-parser-bin:$PATH" bash "$root/scripts/release/adapter.sh" preflight \
+    > rejected-parser.log 2>&1; then
+    echo 'Preflight accepted failed parser output' >&2; exit 1
+fi
+printf '%s\n' 'cargo locate-project --workspace --message-format plain --manifest-path Cargo.toml' \
+    'cargo locate-project --workspace --message-format plain --manifest-path Cargo.toml' > expected
+cmp expected "$ADAPTER_EVENTS"
+
+# Cargo validity is checked before TOML projection, including failed queries
+# that print plausible paths and duplicate workspace version keys.
+for scenario in failed-locate duplicate-version unsynchronized-path; do
+    : > "$ADAPTER_EVENTS"
+    cp source/Cargo.toml Cargo.toml
+    case "$scenario" in
+        failed-locate) export ADAPTER_LOCATE_RESULT=17 ;;
+        duplicate-version)
+            awk '/^version = / { print } { print }' source/Cargo.toml > Cargo.toml ;;
+        unsynchronized-path)
+            awk '$1 == "ic-host-fs" { sub(/version = "[^"]+"/, "version = \"99.0.0\"") } { print }' \
+                source/Cargo.toml > Cargo.toml ;;
+    esac
+    cp Cargo.toml rejected-input
+    if bash "$root/scripts/release/adapter.sh" preflight > "rejected-$scenario.log" 2>&1; then
+        echo "Preflight accepted $scenario manifest" >&2; exit 1
+    fi
+    unset ADAPTER_LOCATE_RESULT
+    printf '%s\n' 'cargo locate-project --workspace --message-format plain --manifest-path Cargo.toml' > expected
+    cmp expected "$ADAPTER_EVENTS"
+    cmp rejected-input Cargo.toml
+    cmp source/Cargo.lock Cargo.lock
+    [[ ! -e release-state ]] || exit 1
+done
+cp source/Cargo.toml Cargo.toml
+
 # The copied member manifests retain publish=false. Preflight must reach setup
 # and dependency admission without modifying their metadata or creating intent.
 : > "$ADAPTER_EVENTS"
 bash "$root/scripts/release/adapter.sh" preflight > accepted.log 2>&1
 cat > expected <<'EVENTS'
+cargo locate-project --workspace --message-format plain --manifest-path Cargo.toml
 cargo metadata --no-deps --format-version 1 --locked --offline
 make --no-print-directory install-host-tools
 make --no-print-directory host-tools-check
@@ -104,7 +161,7 @@ cargo fetch --locked --offline
 EVENTS
 cmp expected "$ADAPTER_EVENTS"
 cp expected accepted-events
-cmp Cargo.toml "$root/Cargo.toml"
+cmp Cargo.toml source/Cargo.toml
 cmp Cargo.lock "$root/Cargo.lock"
 [[ ! -e release-state ]] || exit 1
 
@@ -114,7 +171,8 @@ cmp Cargo.lock "$root/Cargo.lock"
 if ADAPTER_METADATA_RESULT=17 bash "$root/scripts/release/adapter.sh" preflight > rejected-metadata.log 2>&1; then
     echo 'Preflight accepted failed metadata validation' >&2; exit 1
 fi
-printf '%s\n' 'cargo metadata --no-deps --format-version 1 --locked --offline' > expected
+printf '%s\n' 'cargo locate-project --workspace --message-format plain --manifest-path Cargo.toml' \
+    'cargo metadata --no-deps --format-version 1 --locked --offline' > expected
 cmp expected "$ADAPTER_EVENTS"
 
 # Keep the independent dirty-source admission boundary ahead of setup.
@@ -122,10 +180,13 @@ cmp expected "$ADAPTER_EVENTS"
 if ADAPTER_DIRTY_PATH=crates/ic-host-tools/src/lib.rs bash "$root/scripts/release/adapter.sh" preflight > rejected-source.log 2>&1; then
     echo 'Preflight accepted uncommitted source' >&2; exit 1
 fi
-[[ ! -s "$ADAPTER_EVENTS" ]] || exit 1
+printf '%s\n' 'cargo locate-project --workspace --message-format plain --manifest-path Cargo.toml' > expected
+cmp expected "$ADAPTER_EVENTS"
 
 # Complete-ledger selection rejects duplicates and competing future candidates.
 # Each failure must stop before setup and leave the changelog untouched.
+printf '%s\n' 'cargo locate-project --workspace --message-format plain --manifest-path Cargo.toml' \
+    'cargo metadata --no-deps --format-version 1 --locked --offline' > expected
 for scenario in duplicate competing misplaced finalized; do
     case "$scenario" in
         duplicate)
@@ -155,6 +216,7 @@ cp source/CHANGELOG.md CHANGELOG.md
 : > "$ADAPTER_EVENTS"
 bash "$root/scripts/release/adapter.sh" verify > verified.log 2>&1
 cat > expected <<'EVENTS'
+cargo locate-project --workspace --message-format plain --manifest-path Cargo.toml
 cargo metadata --no-deps --format-version 1 --locked --offline
 make --no-print-directory host-tools-check
 make --no-print-directory dependency-pins-check

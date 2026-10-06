@@ -15,13 +15,15 @@ use std::{
 mod copy;
 #[cfg(feature = "gzip")]
 mod gzip;
+mod matching;
 #[cfg(test)]
 mod tests;
 mod writer;
 
 pub use copy::{CopyError, copy_reader};
 #[cfg(feature = "gzip")]
-pub use gzip::{GzipError, decode_gzip};
+pub use gzip::{GzipError, decode_gzip, encode_gzip};
+pub use matching::MatchingWriter;
 pub use writer::{BoundedWriter, WriterError};
 
 /// Raw SHA-256 identity, without a product-specific prefix or wire format.

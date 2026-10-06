@@ -17,8 +17,9 @@ publication policy now permits crates.io through the explicit commands below.
 Registry publication has not been performed by the agent.
 
 Shared Tooling remains separate and is adopted at exact reviewed revision
-21f3ec3dd97f2968c9f0b08924451bb2f71770d1. The original bootstrap baseline was
-d957d1f8801885c5b69e4a9ef900155f5f2a8a9d. All automation uses its local snapshot.
+46c02774a8335cb3949d6f04284c4f53375353c1. The original bootstrap baseline was
+d957d1f8801885c5b69e4a9ef900155f5f2a8a9d; the earlier adopted revision was
+21f3ec3dd97f2968c9f0b08924451bb2f71770d1. All automation uses its local snapshot.
 The original bootstrap authorization excluded commits, GitHub repository
 creation, pushes, publication, installation and consumer adoption. Native macOS
 execution remains CI-owned.
@@ -90,8 +91,14 @@ in target/publish/check.ZutGR9. Inspection then found missing license text; inhe
 license-file metadata now includes the canonical root MIT notice in every crate.
 The repeated dry run passed in target/publish/check.JrsZix, and all four packaged
 LICENSE files matched the root bytes. Both attempts retain their exact archives.
-Cargo emitted an informational warning about having both the SPDX license and
-license-file fields; both are retained to name the license and include its notice.
+That attempt emitted Cargo's redundant SPDX license/license-file warning. The
+subsequent correction retains only inherited MIT SPDX metadata, with per-crate
+LICENSE symlinks to the canonical root notice. Cargo packages those links as
+regular files; all four archived notices matched the root bytes. The online dry
+run passed without the license warning in target/publish/check.Y2p7MG, with its
+exact archives retained. Cargo also reported all four 0.3.0 versions already
+present in the crates.io index. The compatible correction remains in pending
+0.3.1; no package version changed and no upload occurred during these checks.
 This validates packaging on Linux, not credentials, registry ownership, actual
 uploads, consumer adoption or native macOS.
 
@@ -110,3 +117,134 @@ were archived and compared against the original before removal. The verified
 backup is /tmp/ic-host-tools-retirement.an3fDZ/repository.tar, with its SHA-256
 beside it. This is temporary storage, not permanent archival. The GitHub source
 repository and existing consumer dependency selections were unchanged.
+
+The requested sibling extraction review covered the 13 sibling repositories at
+discovery level and traced the eight consumers still selecting ic-host-tools 0.2.
+Only this workspace was mutated; sibling working trees and retained artifacts were
+read-only. The previous license-warning correction remains in the working tree.
+Three compatible shared additions extend the pending 0.3.1 batch: MatchingWriter,
+bounded zero-timestamp gzip encoding, and streamed durable replacement through
+write_with. Byte-based writes converge through the same existing commit engine.
+Exact committed source file digests and extraction selections are recorded in
+ci/extraction-sources.json; selected files matched HEAD despite unrelated sibling
+dirty work. The existing Canic copyright notice is preserved in the root license.
+
+Focused Linux checks passed: all-feature artifact library tests (46), filesystem
+library tests (25), minimal artifact tests (21), strict all-target/all-feature
+Clippy, Rustdoc with warnings denied, and Rust 1.88 all-target/all-feature checks
+for the two changed packages. Offline cache preparation, formatting, declaration
+pinning and documentation links also passed. An initial Clippy attempt rejected
+test-local items placed after statements; moving the fixture declarations before
+statements resolved it. No dependencies, versions, tool pins, commits, releases,
+publication, consumer builds or full CI were performed in this extraction batch.
+Native macOS qualification remains outstanding.
+
+The immutable [sibling review evidence](../reports/audits/2026/10/06/sibling-host-extraction/01/report.md)
+records ownership traces, retained stronger contracts and qualification limits.
+The authorized adoption feedback is on GitHub: existing
+[Canic #458](https://github.com/dragginzgame/canic/issues/458#issuecomment-6021451439)
+was updated; new issues are
+[IC Testkit #13](https://github.com/dragginzgame/ic-testkit/issues/13),
+[IC Query #11](https://github.com/dragginzgame/ic-query/issues/11),
+[IC Backup #11](https://github.com/dragginzgame/ic-backup/issues/11),
+[IC Memory #16](https://github.com/dragginzgame/ic-memory/issues/16),
+[IcyDB #307](https://github.com/dragginzgame/icydb/issues/307),
+[IC Blob Storage #14](https://github.com/dragginzgame/ic-blob-storage/issues/14) and
+[Toko Miner #30](https://github.com/dragginzgame/toko-miner/issues/30).
+Shared API implementation is not consumer adoption: sibling copies still exist
+until their owners complete those changes. New APIs remain uncommitted pending
+0.3.1; issue bodies explicitly distinguish them from the released split 0.3.0 APIs.
+
+The maintainer-requested second pass found three more consumer reuse sites using
+existing 0.3.0 primitives: Canic network SHA-256 codecs, Query's confined bounded
+stream collection and IcyDB's diagnostic file/stdin collection. Existing adoption
+issues received source-backed comments with error/accounting acceptance checks;
+no additional shared API was justified. The [second-pass evidence](../reports/audits/2026/10/06/sibling-host-extraction/02/report.md)
+records current source identities separately from the first run. write_with docs
+now distinguish returned errors and attempted staging cleanup from panic/interruption
+retention. Focused filesystem Rustdoc, formatting and documentation checks passed;
+this documentation-only correction adds no new runtime or native macOS evidence.
+
+A follow-on maintainer-authorized extraction adds explicit-base missing-suffix
+path resolution and descriptor lock waiting to the pending 0.3.1 batch. The
+existing pathname progress helper shares the acquisition engine while preserving
+its one-second reporting policy. The descriptor entry point lets Testkit retain
+its opener, 25ms polling cap and phase heartbeat mapping. The source observation
+and selected mechanics are recorded in ci/extraction-sources.json; cache domains,
+pruning and retained-lock lifecycle remain in Testkit.
+
+Consumer preparation exposed a maximum-filename regression in durable staging:
+including a 255-byte destination name in the staging name failed with Linux
+ENAMETOOLONG. The failed behavior log is
+/tmp/ic-testkit-host-long-name-regression.log; its private fixture is retained.
+An earlier attempt failed compiling the new collision fixture because its
+existing hook's mode argument was missing; that attempt remains separately in
+/tmp/ic-testkit-host-long-name-before.log. Short owned staging names now support
+maximum-length destinations, exclude the output name even case-insensitively,
+retry collisions within the existing bound and preserve unowned files.
+
+Focused filesystem library tests (34), all-target strict Clippy, Rust 1.88
+all-target checks and strict Rustdoc pass on Linux. The interruption test injects
+Interrupted at the acquisition boundary; it does not claim native signal delivery
+qualification. Real descriptor contention, callback failure, unowned collision
+preservation, selected staging-namespace destinations and complete publication
+are exercised. Native macOS qualification remains outstanding.
+
+The prepared Testkit consumer patch is retained at
+/tmp/ic-testkit-host-adoption/consumer-adoption.patch. A private consumer fixture
+at /tmp/ic-testkit-host-extraction.b9rs0cq9 tested it with explicit local-source
+patch selections and unchanged package versions; source hashes are recorded in
+its reviewed-host-inputs.json. Focused digest/publication, missing-parent path,
+lock heartbeat, all 28 transaction, linked/restricted Wasm publication, copied
+stamp and partial-materialization tests pass using Testkit's normal target
+folder. This is source qualification, not registry or live consumer adoption.
+The actual consumer remains on published 0.3.0 until reviewed shared publication;
+no version, commit, tag, push, upload or full gate was performed. Implementation
+feedback is on [host-tooling #1](https://github.com/dragginzgame/ic-host-tooling/issues/1),
+[host-tooling #2](https://github.com/dragginzgame/ic-host-tooling/issues/2) and
+[Testkit #13](https://github.com/dragginzgame/ic-testkit/issues/13).
+
+The requested [consumer crate-usage review](../reports/audits/2026/10/06/consumer-crate-usage/01/report.md)
+records current working-tree imports separately from published dependency edges.
+Its saved manifests, lock edges and source digests cover the eight direct consumers
+and discovery across all 13 siblings. It identifies remaining Canic/Toko source
+alignment failures and older published transitive owners without claiming new
+consumer execution evidence. Siblings remained read-only; the new concrete Toko
+and Backup findings were added to their existing adoption issues.
+
+The requested Shared Tooling review refreshed the same 54-file adoption from
+21f3ec3dd97f2968c9f0b08924451bb2f71770d1 to committed revision
+46c02774a8335cb3949d6f04284c4f53375353c1 (0.1.11). The sibling's dirty pending
+0.1.12 work was excluded by refreshing from a private checkout of that commit.
+The new snapshot includes exact large-component changelog comparisons and the
+paired maintenance guidance; no new shared file surfaces were added.
+
+The release adapter now delegates manifest version observations to the existing
+shared Cargo/TOML reader. Its consumer-owned AWK projection retains exact
+version-only payload preparation, synchronized path requirements and owned
+lockfile reads. Valid inline version comments survive preparation and recovery;
+failed parser output, failed Cargo path observations, duplicate workspace keys
+and unsynchronized path versions are rejected before setup or mutation. Version
+queries require the pinned jq/yq set to be prepared first, as documented in README.
+
+Focused offline Linux checks passed: release version observation, the expanded
+adapter fixture, shared Cargo metadata fixtures, release-runner command-stub
+fixtures, ShellCheck, Bash syntax, snapshot integrity, dependency declarations,
+documentation links and formatting. Git effects, tool setup and version mutation
+were substituted in release fixtures; no release operation was run. Cargo.lock,
+tool pins and package versions are unchanged by this review. Native macOS
+qualification and full release gates remain separate from this evidence; these
+changes are uncommitted additions to the pending 0.3.1 batch.
+
+The maintainer's commit attempt exposed an integration failure: the four crate
+LICENSE symlinks conflict with the adopted formatting hook's regular-file-only
+snapshot contract. They are replaced by regular byte-identical copies of the
+canonical root notice; the shared hook remains unchanged. Both publication modes
+now reject missing, symlinked or differing notices before Cargo dispatch. Focused
+publication fixtures cover those refusals with substituted Git/upload effects.
+Offline Cargo package listings include LICENSE for each crate and all four
+working copies match the root. ShellCheck, Bash syntax, formatting, documentation
+links and snapshot integrity passed. No new archive verification, native macOS
+qualification, commit, release or publication occurred in this repair.
+The repaired files were staged without disturbing the existing selection, and
+the actual pre-commit hook passed against that selected index payload on Linux.

@@ -6,6 +6,9 @@
 //! Boundary: reads reject links/special files; writes own sibling staging, publication, cleanup,
 //! and filesystem syncs behind replace and create-new modes.
 
+mod lock_wait;
+pub use lock_wait::lock_exclusive_with_wait;
+
 #[cfg(test)]
 mod tests;
 
@@ -105,6 +108,41 @@ pub fn write_bytes(path: &Path, bytes: &[u8]) -> io::Result<()> {
     commit_bytes(path, bytes, FileCommitMode::Replace)
 }
 
+/// Stream one complete file into durable atomic replacement without buffering its contents.
+///
+/// The producer writes only to the owned sibling staging file. Its return value
+/// is returned after file synchronization, rename and parent synchronization.
+/// If the producer returns an error, the previous destination is preserved and
+/// removal of owned staging is attempted. Panics or process interruption can
+/// leave staging behind.
+/// Missing parents are created and synchronized through the same path as
+/// [`write_bytes`]. Producers own encoding, input/output limits and source admission.
+///
+/// This follows caller-selected parent paths; it does not confine a root or
+/// commit several files together. Do not change the staging file's identity or
+/// retain writable descriptor clones beyond the callback.
+///
+/// # Errors
+/// Returns producer, filesystem, sync or unsupported-host errors. A sync failure
+/// after rename can leave the new complete file visible: reconcile before retrying.
+pub fn write_with<T>(
+    path: &Path,
+    write: impl FnOnce(&mut fs::File) -> io::Result<T>,
+) -> io::Result<T> {
+    #[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
+    {
+        supported::commit_with_writer_and_hook(path, FileCommitMode::Replace, write, |_, _| Ok(()))
+    }
+    #[cfg(not(any(target_os = "linux", target_os = "android", target_vendor = "apple")))]
+    {
+        let _ = (path, write);
+        Err(io::Error::new(
+            io::ErrorKind::Unsupported,
+            "durable atomic file publication is unsupported",
+        ))
+    }
+}
+
 /// Durably create one file and its missing parent hierarchy without replacing
 /// an existing destination.
 ///
@@ -192,21 +230,15 @@ pub fn lock_file_with_progress(
         #[cfg(not(windows))]
         {
             let mut next_report = std::time::Duration::from_secs(1);
-            loop {
-                match rustix::fs::flock(file, rustix::fs::FlockOperation::NonBlockingLockExclusive)
-                {
-                    Ok(()) => break,
-                    Err(rustix::io::Errno::WOULDBLOCK) => {
-                        let elapsed = started.elapsed();
-                        if elapsed >= next_report {
-                            waiting(file, elapsed).map_err(RegularFileLockError::Io)?;
-                            next_report = elapsed + std::time::Duration::from_secs(1);
-                        }
-                        std::thread::sleep(std::time::Duration::from_millis(100));
-                    }
-                    Err(error) => return Err(errno_to_lock_error(error)),
+            lock_exclusive_with_wait(file, std::time::Duration::from_millis(100), |_| {
+                let elapsed = started.elapsed();
+                if elapsed >= next_report {
+                    waiting(file, elapsed)?;
+                    next_report = elapsed + std::time::Duration::from_secs(1);
                 }
-            }
+                Ok(())
+            })
+            .map_err(RegularFileLockError::Io)?;
         }
         Ok(())
     })
@@ -447,8 +479,17 @@ mod supported {
         path: &Path,
         bytes: &[u8],
         mode: FileCommitMode,
-        mut before: impl FnMut(FileCommitStep, &Path) -> io::Result<()>,
+        before: impl FnMut(FileCommitStep, &Path) -> io::Result<()>,
     ) -> io::Result<()> {
+        commit_with_writer_and_hook(path, mode, |file| file.write_all(bytes), before)
+    }
+
+    pub(super) fn commit_with_writer_and_hook<T>(
+        path: &Path,
+        mode: FileCommitMode,
+        write: impl FnOnce(&mut fs::File) -> io::Result<T>,
+        mut before: impl FnMut(FileCommitStep, &Path) -> io::Result<()>,
+    ) -> io::Result<T> {
         let (parent, file_name) = split_target(path)?;
         create_parent_hierarchy(parent, &mut before)?;
         let parent_fd = open_directory(parent)?;
@@ -462,15 +503,19 @@ mod supported {
 
         let staged = (|| {
             before(FileCommitStep::TemporaryFileWrite, &temp_path)?;
-            temp_file.write_all(bytes)?;
+            let value = write(&mut temp_file)?;
             before(FileCommitStep::TemporaryFileSync, &temp_path)?;
-            temp_file.sync_all()
+            temp_file.sync_all()?;
+            Ok(value)
         })();
         drop(temp_file);
-        if let Err(error) = staged {
-            remove_temp(&parent_fd, &temp_name);
-            return Err(error);
-        }
+        let value = match staged {
+            Ok(value) => value,
+            Err(error) => {
+                remove_temp(&parent_fd, &temp_name);
+                return Err(error);
+            }
+        };
 
         if let Err(error) = before(FileCommitStep::Publication, path) {
             remove_temp(&parent_fd, &temp_name);
@@ -490,7 +535,8 @@ mod supported {
         }
 
         before(FileCommitStep::FinalParentSync, parent)?;
-        unix_fs::fsync(&parent_fd).map_err(errno_to_io)
+        unix_fs::fsync(&parent_fd).map_err(errno_to_io)?;
+        Ok(value)
     }
 
     fn publish_create_new(
@@ -623,9 +669,16 @@ mod supported {
     ) -> io::Result<(OsString, PathBuf, fs::File)> {
         for _ in 0..TEMP_ATTEMPTS {
             let sequence = TEMP_SEQUENCE.fetch_add(1, Ordering::Relaxed);
-            let mut temp_name = OsString::from(".");
-            temp_name.push(file_name);
-            temp_name.push(format!(".canic-tmp-{}-{sequence}", std::process::id()));
+            let name = format!(".ic-host-tmp-{}-{sequence}", std::process::id());
+            // Short names support NAME_MAX destinations. Never stage directly
+            // into the selected output, including on case-insensitive hosts.
+            if file_name
+                .as_encoded_bytes()
+                .eq_ignore_ascii_case(name.as_bytes())
+            {
+                continue;
+            }
+            let temp_name = OsString::from(name);
             let temp_path = parent.join(&temp_name);
             before(FileCommitStep::TemporaryFileCreate, &temp_path)?;
             match unix_fs::openat(

@@ -4,10 +4,38 @@
 
 ### Added
 
+- Share missing-suffix path resolution with an explicit relative-path base
+  ([#1](https://github.com/dragginzgame/ic-host-tooling/issues/1)).
+- Share descriptor lock acquisition with caller-selected wait observations and
+  polling, retrying interruptions without changing the existing path helper's
+  one-second reporting policy
+  ([#2](https://github.com/dragginzgame/ic-host-tooling/issues/2)).
+
 - Add separate `make publish-check` and `make publish` commands for verified
   workspace publication to crates.io, retaining logs for partial-upload recovery.
   Enable all four packages for that registry and include their repository link
   and existing MIT license text.
+- Share streamed durable replacement, exact byte-stream comparison and bounded
+  zero-timestamp gzip encoding so consumers can remove their local mechanics
+  while retaining cache, serialization and publication policy.
+
+### Fixed
+
+- Read release versions through the shared Cargo/TOML helper and preserve valid
+  inline version comments during preparation and recovery. Prepare the existing
+  pinned jq/yq set before version queries or release entry points.
+- Compare large changelog version components exactly, keeping future drafts
+  distinct from undated release history
+  ([Shared Tooling #23](https://github.com/dragginzgame/shared-tooling/issues/23)).
+- Keep publication staging names short enough for maximum-length destination
+  names, retry collisions without changing unowned files, and exclude the
+  selected destination from staging allocation
+  ([IC Testkit #13](https://github.com/dragginzgame/ic-testkit/issues/13)).
+
+- Keep standard MIT license metadata without Cargo's redundant license-file warning,
+  while retaining the canonical license notice in every crate archive. Use regular
+  license copies compatible with the formatting hook, and check their contents
+  against the root notice before packaging or publication.
 
 ## [0.3.0] - 2026-10-06
 

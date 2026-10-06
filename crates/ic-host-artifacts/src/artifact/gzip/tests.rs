@@ -11,6 +11,63 @@ fn gzip(bytes: &[u8]) -> Vec<u8> {
 }
 
 #[test]
+fn encoded_member_is_repeatable_and_preserves_the_existing_zero_timestamp_format() {
+    let input = b"artifact input with repeated bytes repeated bytes repeated bytes";
+    let mut reference = GzBuilder::new()
+        .mtime(0)
+        .write(Vec::new(), Compression::best());
+    reference.write_all(input).unwrap();
+    let reference = reference.finish().unwrap();
+    for _ in 0..2 {
+        let mut output = Vec::new();
+        encode_gzip(
+            input,
+            &mut output,
+            Compression::best(),
+            reference.len() as u64,
+        )
+        .unwrap();
+        assert_eq!(output, reference);
+        assert_eq!(&output[4..8], &[0, 0, 0, 0]);
+        assert_eq!(
+            decode_gzip(&output, output.len(), input.len()).unwrap(),
+            input
+        );
+    }
+}
+
+#[test]
+fn compressed_budget_includes_header_and_trailer_and_preserves_sink_errors() {
+    use super::super::WriterError;
+    struct FailedSink;
+    impl std::io::Write for FailedSink {
+        fn write(&mut self, _: &[u8]) -> std::io::Result<usize> {
+            Err(std::io::ErrorKind::PermissionDenied.into())
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+    let mut complete = Vec::new();
+    encode_gzip(b"", &mut complete, Compression::fast(), 100).unwrap();
+    let mut partial = Vec::new();
+    let error = encode_gzip(
+        b"",
+        &mut partial,
+        Compression::fast(),
+        complete.len() as u64 - 1,
+    )
+    .unwrap_err();
+    assert!(matches!(
+        error.get_ref().unwrap().downcast_ref::<WriterError>(),
+        Some(WriterError::LimitExceeded { .. })
+    ));
+    assert!(partial.len() < complete.len());
+    let error = encode_gzip(b"payload", FailedSink, Compression::none(), 100).unwrap_err();
+    assert_eq!(error.kind(), std::io::ErrorKind::PermissionDenied);
+}
+
+#[test]
 fn inclusive_compressed_and_decoded_limits_preserve_input() {
     let payload = vec![42; 40_001];
     let compressed = gzip(&payload);

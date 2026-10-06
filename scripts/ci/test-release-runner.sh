@@ -644,4 +644,51 @@ done
 for version in 01.2.3 1.2.3-beta 1.2 9223372036854775807.0.0; do
     if bash "$ROOT/scripts/ci/next-release-version.sh" "$version" patch > /dev/null 2>&1; then exit 1; fi
 done
+# Preserve exact note ownership beyond binary64 precision and across lengths.
+for components in '9007199254740992 9007199254740993 9007199254740991' \
+    '999999999999999 1000000000000000 999999999999998'; do
+    read -r previous_component candidate_component older_component <<< "$components"
+    for position in major minor patch; do
+        case "$position" in
+            major)
+                previous="$previous_component.0.0"
+                candidate="$candidate_component.0.0"
+                older="$older_component.0.0"
+                ;;
+            minor)
+                previous="0.$previous_component.0"
+                candidate="0.$candidate_component.0"
+                older="0.$older_component.0"
+                ;;
+            patch)
+                previous="0.0.$previous_component"
+                candidate="0.0.$candidate_component"
+                older="0.0.$older_component"
+                ;;
+        esac
+        cat > CHANGELOG.md <<NOTES
+# Changelog
+
+## [$candidate]
+
+- Pending release notes.
+
+## [$previous]
+
+- Equal cutoff history.
+
+## [$older]
+
+- Older history.
+NOTES
+        sed "s/## \[$candidate\]/## [$candidate] - 2026-10-06/" CHANGELOG.md > expected
+        awk -v version="$candidate" -v previous="$previous" -v date=2026-10-06 \
+            -f "$ROOT/scripts/ci/finalize-release-changelog.awk" CHANGELOG.md > prepared
+        cmp expected prepared
+        # A newer draft must not be reclassified as history at the cutoff.
+        if awk -v version="$previous" -v previous="$previous" -v date=2026-10-06 \
+            -f "$ROOT/scripts/ci/finalize-release-changelog.awk" CHANGELOG.md \
+            > prepared 2> conflict.log; then exit 1; fi
+    done
+done
 echo 'release runner command-stub tests passed'
