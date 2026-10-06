@@ -1,0 +1,88 @@
+.DEFAULT_GOAL := help
+PACKAGE ?= ic-host-artifacts
+MSRV ?= 1.88.0
+RELEASE_REMOTE ?= origin
+RELEASE_BRANCH ?= main
+include ci/tool-versions.env
+export PATH := $(CURDIR)/.tools/host/bin:$(CURDIR)/.tools/ic/bin:$(PATH)
+export YQ := $(CURDIR)/.tools/host/bin/yq
+
+ifneq ($(word 2,$(filter release-patch release-minor release-major release-resume,$(MAKECMDGOALS))),)
+$(error Select exactly one release target)
+endif
+
+.PHONY: help fmt fmt-check check clippy docs-check test msrv ci install-hooks install-tools tools-check install-host-tools host-tools-check install-ic-tools ic-tools-check shared-tooling-check dependency-pins-check check-doc-links release-patch release-minor release-major release-resume release-version release-preflight release-verify release-prepare-version release-prepared-check release-files release-commit-check release-committed-check release-tagged-check release-push-check
+help:
+	@echo 'Selected package: check, clippy, docs-check, test, msrv (PACKAGE=<crate>)'
+	@echo 'Formatting and metadata: fmt, fmt-check, shared-tooling-check, dependency-pins-check, check-doc-links'
+	@echo 'Explicit setup: install-tools, install-host-tools, install-ic-tools, install-hooks'
+	@echo 'Offline setup checks: tools-check, host-tools-check, ic-tools-check'
+	@echo 'Full gate: ci (explicit request or configured CI only)'
+	@echo 'Maintainer releases: release-patch, release-minor, release-major, release-resume VERSION=X.Y.Z'
+fmt:
+	@test "$$(cargo sort --version)" = "cargo-sort $(SHARED_TOOLING_CARGO_SORT_VERSION)"
+	cargo sort --workspace
+	cargo fmt --all
+fmt-check:
+	@test "$$(cargo sort --version)" = "cargo-sort $(SHARED_TOOLING_CARGO_SORT_VERSION)"
+	cargo sort --workspace --check
+	cargo fmt --all -- --check
+check:
+	cargo check -p $(PACKAGE) --all-targets --all-features --locked --offline
+clippy:
+	cargo clippy -p $(PACKAGE) --all-targets --all-features --locked --offline -- -D warnings
+docs-check:
+	RUSTDOCFLAGS="-D warnings" cargo doc -p $(PACKAGE) --all-features --locked --offline --no-deps
+test:
+	cargo test -p $(PACKAGE) --all-targets --all-features --locked --offline
+msrv:
+	cargo +$(MSRV) check -p $(PACKAGE) --all-targets --all-features --locked --offline
+install-hooks:
+	bash scripts/dev/install-git-hooks.sh
+install-tools: install-host-tools install-ic-tools
+tools-check: host-tools-check ic-tools-check
+install-host-tools:
+	bash scripts/dev/install-host-tools.sh
+host-tools-check:
+	bash scripts/dev/install-host-tools.sh --check
+install-ic-tools:
+	bash scripts/dev/install-ic-tools.sh
+ic-tools-check:
+	bash scripts/dev/install-ic-tools.sh --check
+shared-tooling-check:
+	bash scripts/ci/verify-shared-tooling-snapshot.sh
+dependency-pins-check:
+	bash scripts/ci/check-dependency-pins.sh --cargo-inheritance
+check-doc-links:
+	perl scripts/ci/check-documentation-links.pl --root "$(CURDIR)" README.md AGENTS.md CHANGELOG.md docs/extraction.md docs/hosts.md docs/status/current.md
+ci:
+	+$(MAKE) --no-print-directory shared-tooling-check
+	+$(MAKE) --no-print-directory host-tools-check
+	+$(MAKE) --no-print-directory dependency-pins-check
+	+$(MAKE) --no-print-directory fmt-check
+	+$(MAKE) --no-print-directory check-doc-links
+	@for package in ic-host-artifacts ic-host-fs ic-host-process ic-host-tools; do \
+		$(MAKE) --no-print-directory clippy PACKAGE=$$package && \
+		$(MAKE) --no-print-directory docs-check PACKAGE=$$package && \
+		$(MAKE) --no-print-directory test PACKAGE=$$package || exit $$?; \
+	done
+release-patch release-minor release-major:
+	+@bash scripts/ci/run-release.sh "$(@:release-%=%)" "$(RELEASE_REMOTE)" "$(RELEASE_BRANCH)"
+release-resume:
+	+@bash scripts/ci/run-release.sh resume "$(VERSION)" "$(RELEASE_REMOTE)" "$(RELEASE_BRANCH)"
+release-version:
+	@bash scripts/release/adapter.sh version
+release-preflight:
+	@bash scripts/release/adapter.sh preflight
+release-verify:
+	+@bash scripts/release/adapter.sh verify
+release-prepare-version:
+	@bash scripts/release/adapter.sh prepare
+release-prepared-check:
+	@bash scripts/release/adapter.sh check
+release-files:
+	@printf '%s\0' Cargo.toml Cargo.lock CHANGELOG.md
+release-commit-check:
+	@bash scripts/release/adapter.sh commit-check
+release-committed-check release-tagged-check release-push-check:
+	@bash scripts/release/adapter.sh committed-check

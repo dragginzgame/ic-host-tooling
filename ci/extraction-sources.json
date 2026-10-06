@@ -1,0 +1,29 @@
+{
+  "format": 1,
+  "sources": [
+    {
+      "repository": "https://github.com/dragginzgame/ic-host-tools",
+      "revision": "be7d73908225e73ab5babf8fbb9fe959f40d439b",
+      "selection": "committed library, tests, examples, lockfile and license"
+    },
+    {
+      "repository": "https://github.com/dragginzgame/canic",
+      "revision": "d815abfc661d791ecf72afc5b1e4b6a990f37a91",
+      "files": [
+        {
+          "path": "crates/canic-host/src/durable_io/mod.rs",
+          "sha256": "47472118e2f2e008857adcf6f190ab4e10c5bb8807a7768ad4f7e5786b6626de"
+        },
+        {
+          "path": "crates/canic-host/src/durable_io/tests.rs",
+          "sha256": "a20635e787e0123aff3ac080a4578699fb16e11ca176085eb295b9d5798774b6"
+        }
+      ]
+    },
+    {
+      "repository": "https://github.com/dragginzgame/shared-tooling",
+      "revision": "d957d1f8801885c5b69e4a9ef900155f5f2a8a9d",
+      "selection": "reviewed snapshot"
+    }
+  ]
+}

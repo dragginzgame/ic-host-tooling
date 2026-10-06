@@ -1,0 +1,33 @@
+[package]
+name = "ic-host-artifacts"
+edition.workspace = true
+rust-version.workspace = true
+version.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Bounded host artifact streams, identities, archives and Wasm inspection"
+readme = "../../README.md"
+publish = false
+
+[features]
+default = []
+archive = ["gzip", "dep:tar"]
+gzip = ["dep:flate2"]
+wasm = ["dep:wasmparser"]
+
+[dependencies]
+flate2 = { workspace = true, optional = true }
+sha2.workspace = true
+tar = { workspace = true, optional = true }
+wasmparser = { workspace = true, optional = true }
+
+[dev-dependencies]
+serde.workspace = true
+serde_json.workspace = true
+
+[lints]
+workspace = true
+
+[[test]]
+name = "consumer_contracts"
+required-features = ["archive", "wasm"]

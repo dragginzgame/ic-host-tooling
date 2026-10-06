@@ -1,0 +1,19 @@
+[package]
+name = "ic-host-fs"
+edition.workspace = true
+rust-version.workspace = true
+version.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Local host filesystem reads, durable publication and file locking"
+readme = "../../README.md"
+publish = false
+
+[target.'cfg(unix)'.dependencies]
+rustix.workspace = true
+
+[dependencies]
+ic-host-artifacts.workspace = true
+
+[lints]
+workspace = true
