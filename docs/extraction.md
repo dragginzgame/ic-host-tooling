@@ -31,6 +31,7 @@ Further adoption must retain each caller's independently established guarantees.
 
 The maintainer authorized retiring the original local checkout after verification
 of a full backup. Existing consumers retain their prior dependency selections;
-adoption of these split crates remains separate. Publication is disabled in the manifests.
+adoption of these split crates remains separate. The manifests permit crates.io
+publication through the [explicit publication procedure](publishing.md).
 The breaking removal of generic APIs from ic-host-tools requires a coordinated
 pre-1.0 minor release. This contract assigns ownership; GitHub issues own follow-up tracking.

@@ -15,9 +15,8 @@ the generic crates have no IC runtime dependency. Compression, archive and Wasm
 support are optional features of ic-host-artifacts. Filesystem/process consumers
 select the small default artifact dependency.
 
-This is an unpublished extraction workspace. Package metadata remains 0.2.0,
-matching the imported library source; all packages currently set publish = false.
-The pending 0.3.0 notes describe the breaking crate-boundary cut, not a release.
+The four-crate extraction has a Git release at 0.3.0. Package metadata permits
+crates.io publication; a Git release does not establish registry availability.
 The original local checkout has been removed after a verified full backup.
 Existing consumers retain their prior dependency selections.
 
@@ -37,7 +36,9 @@ Shared Tooling owns rules, hooks, installers and the common release runner.
 This workspace consumes an exact snapshot; library ownership stays here.
 make ci is the complete configured gate, not an automatic development command.
 The standard release entry points use the shared runner for version preparation,
-commit, tag and atomic branch/tag push. Packages with publish = false can have Git
-releases; registry publication remains a separate, disabled operation.
+commit, tag and atomic branch/tag push. Registry publication is separate:
+make publish-check performs a Cargo dry run, and make publish uploads the
+committed workspace to crates.io. Read [the publication procedure](docs/publishing.md)
+for prerequisites, retained evidence and partial-upload recovery.
 Release preflight prepares only pinned host tools. The IC executable bundle
 remains available through make install-ic-tools and its offline check.

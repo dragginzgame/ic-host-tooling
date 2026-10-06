@@ -4,10 +4,12 @@ edition.workspace = true
 rust-version.workspace = true
 version.workspace = true
 license.workspace = true
+license-file.workspace = true
+repository.workspace = true
 authors.workspace = true
 description = "Host-side Candid extraction and ICP CLI response decoding"
 readme = "../../README.md"
-publish = false
+publish = ["crates-io"]
 
 [target.'cfg(unix)'.dev-dependencies]
 rustix.workspace = true

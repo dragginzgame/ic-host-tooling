@@ -11,7 +11,7 @@ ifneq ($(word 2,$(filter release-patch release-minor release-major release-resum
 $(error Select exactly one release target)
 endif
 
-.PHONY: help fmt fmt-check format-tools-check format-tools-test check clippy docs-check test test-artifacts-minimal msrv ci install-hooks install-tools tools-check install-host-tools host-tools-check install-ic-tools ic-tools-check shared-tooling-check dependency-pins-check check-doc-links release-adapter-check release-patch release-minor release-major release-resume release-version release-preflight release-verify release-prepare-version release-prepared-check release-files release-commit-check release-committed-check release-tagged-check release-push-check
+.PHONY: help fmt fmt-check format-tools-check format-tools-test check clippy docs-check test test-artifacts-minimal msrv ci install-hooks install-tools tools-check install-host-tools host-tools-check install-ic-tools ic-tools-check shared-tooling-check dependency-pins-check check-doc-links release-adapter-check publish publish-check publish-command-check release-patch release-minor release-major release-resume release-version release-preflight release-verify release-prepare-version release-prepared-check release-files release-commit-check release-committed-check release-tagged-check release-push-check
 help:
 	@echo 'Selected package: check, clippy, docs-check, test, msrv (PACKAGE=<crate>)'
 	@echo 'Minimal artifact configuration: test-artifacts-minimal'
@@ -20,6 +20,7 @@ help:
 	@echo 'Offline setup checks: tools-check, host-tools-check, ic-tools-check'
 	@echo 'Full gate: ci (explicit request or configured CI only)'
 	@echo 'Maintainer releases: release-patch, release-minor, release-major, release-resume VERSION=X.Y.Z'
+	@echo 'crates.io publication: publish-check (dry run), publish (upload); offline fixture: publish-command-check'
 format-tools-check:
 	bash scripts/ci/check-format-tools.sh "$(SHARED_TOOLING_CARGO_SORT_VERSION)"
 format-tools-test:
@@ -59,9 +60,15 @@ shared-tooling-check:
 dependency-pins-check:
 	bash scripts/ci/check-dependency-pins.sh --cargo-inheritance
 check-doc-links:
-	perl scripts/ci/check-documentation-links.pl --root "$(CURDIR)" README.md AGENTS.md CHANGELOG.md docs/extraction.md docs/hosts.md docs/status/current.md
+	perl scripts/ci/check-documentation-links.pl --root "$(CURDIR)" README.md AGENTS.md CHANGELOG.md docs/extraction.md docs/hosts.md docs/status/current.md docs/publishing.md
 release-adapter-check:
 	bash scripts/release/test-adapter.sh
+publish:
+	bash scripts/publish/workspace.sh publish
+publish-check:
+	bash scripts/publish/workspace.sh check
+publish-command-check:
+	bash scripts/publish/test-workspace.sh
 ci:
 	+$(MAKE) --no-print-directory shared-tooling-check
 	+$(MAKE) --no-print-directory host-tools-check
@@ -70,6 +77,7 @@ ci:
 	+$(MAKE) --no-print-directory format-tools-test
 	+$(MAKE) --no-print-directory check-doc-links
 	+$(MAKE) --no-print-directory release-adapter-check
+	+$(MAKE) --no-print-directory publish-command-check
 	+$(MAKE) --no-print-directory test-artifacts-minimal
 	@for package in ic-host-artifacts ic-host-fs ic-host-process ic-host-tools; do \
 		$(MAKE) --no-print-directory clippy PACKAGE=$$package && \

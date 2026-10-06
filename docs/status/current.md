@@ -10,8 +10,11 @@ below. Other sibling checkouts and consumer dependencies remain unchanged.
 
 Workspace setup separates artifact streams/inspection, filesystem operations,
 admitted execution/Git observations and IC-specific adapters. Tests and examples
-use their new owners. Packages are non-publishable, with initial inherited 0.2.0
-metadata and pending breaking 0.3.0 notes. No release identity or publication is implied.
+use their new owners. Bootstrap packages were non-publishable with inherited
+0.2.0 metadata; the maintainer subsequently completed the breaking Git 0.3.0
+release at 0456b40e116c7d070428b070d1c3befc36a9345d with tag v0.3.0. Package
+publication policy now permits crates.io through the explicit commands below.
+Registry publication has not been performed by the agent.
 
 Shared Tooling remains separate and is adopted at exact reviewed revision
 21f3ec3dd97f2968c9f0b08924451bb2f71770d1. The original bootstrap baseline was
@@ -27,8 +30,7 @@ selections remain unchanged. Workflow syntax and release Make adapters passed;
 the adapter check used a substitute runner with no release effects.
 
 The local extraction setup is ready for maintainer review. Consumer adoption,
-native macOS qualification and a publication/release batch remain separate work;
-this is not a push or publication readiness assertion.
+native macOS qualification and actual registry publication remain separate work.
 
 The installed workspace's 52-file Shared Tooling snapshot, parsed dependency
 and inheritance declarations, formatting, documentation links and selected
@@ -40,8 +42,9 @@ request, and origin uses https://github.com/dragginzgame/ic-host-tooling.git.
 
 The consumer release adapter now validates locked/offline Cargo metadata without
 requiring registry-publishable packages. Git version/tag releases remain separate
-from registry publication, which stays disabled in all four manifests. The
-pending version remains 0.3.0 for the breaking crate extraction. Release preflight
+from registry publication. The extraction's 0.3.0 notes are finalized; the new
+compatible publication commands select pending 0.3.1 without changing the current
+0.3.0 manifests or lockfile. Release preflight
 now prepares and checks only pinned host parsers; the IC executable bundle stays
 explicit setup. Changelog selection and rewriting use the shared finalizer with
 the saved previous version, retaining the local top-entry and placement guards.
@@ -65,6 +68,40 @@ preservation. An earlier malformed perturbation moved a comment's dependency
 association and failed the expected-byte comparison; its fixture remains at
 /tmp/formatting-adoption.hOzBNO. The corrected input changed only dependency
 order and passed; the failed attempt is not relabeled as a product failure.
+
+The explicit `make publish` target delegates the four-package upload to native
+Cargo with a clean-source check, locked dependencies, all features and an explicit
+crates.io destination. Its separate `make publish-check` admits working edits for
+a no-upload dry run. Both retain source identity, metadata, exact arguments and
+Cargo logs under target/publish; upload recovery remains caller-owned as described
+in [the publication procedure](../publishing.md). No automatic retry, version bump,
+Git effect or artifact cleanup occurs. Credentials remain with Cargo.
+
+Focused Linux publication fixtures passed with real locked/offline metadata and
+substituted Git/upload commands: dry-run flags, dirty-upload refusal, package
+policy and version rejection, failure propagation, pre-dispatch intent, concurrency
+refusal and artifact preservation. Release adapter and Make delegation checks also
+passed with substituted effects, retaining non-publishable-package coverage.
+Formatting, declaration pinning, shell lint and documentation links passed.
+With separately authorized network access, Cargo
+1.99.0 `make publish-check` packaged and compiled all four 0.3.0 crates with all
+features; every upload was aborted by Cargo's dry-run flag. Evidence is retained
+in target/publish/check.ZutGR9. Inspection then found missing license text; inherited
+license-file metadata now includes the canonical root MIT notice in every crate.
+The repeated dry run passed in target/publish/check.JrsZix, and all four packaged
+LICENSE files matched the root bytes. Both attempts retain their exact archives.
+Cargo emitted an informational warning about having both the SPDX license and
+license-file fields; both are retained to name the license and include its notice.
+This validates packaging on Linux, not credentials, registry ownership, actual
+uploads, consumer adoption or native macOS.
+
+The earlier offline dry run failed at registry access and remains recorded in
+target/publish/check.DadcVI. An offline package-only attempt assembled all four
+archives and verified artifacts, then failed verifying filesystem with Cargo's
+internal "no hash listed" error for the temporary registry; its evidence remains
+in target/publish/package-check.XyNI7p. The subsequent online pass does not
+reclassify either failed attempt. No dependency selections or tool pins changed,
+and this batch has no full CI or native macOS execution evidence.
 
 The maintainer authorized deleting /home/adam/projects/ic-host-tools. No sibling
 local dependency paths pointed at that checkout. Its complete Git metadata,

@@ -4,10 +4,12 @@ edition.workspace = true
 rust-version.workspace = true
 version.workspace = true
 license.workspace = true
+license-file.workspace = true
+repository.workspace = true
 authors.workspace = true
 description = "Local host filesystem reads, durable publication and file locking"
 readme = "../../README.md"
-publish = false
+publish = ["crates-io"]
 
 [target.'cfg(unix)'.dependencies]
 rustix.workspace = true

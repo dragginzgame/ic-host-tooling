@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.3.1]
+
+### Added
+
+- Add separate `make publish-check` and `make publish` commands for verified
+  workspace publication to crates.io, retaining logs for partial-upload recovery.
+  Enable all four packages for that registry and include their repository link
+  and existing MIT license text.
+
 ## [0.3.0] - 2026-10-06
 
 ### Breaking

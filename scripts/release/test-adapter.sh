@@ -25,10 +25,11 @@ export RELEASE_PREVIOUS
 RELEASE_VERSION="$(bash "$root/scripts/ci/next-release-version.sh" "$RELEASE_PREVIOUS" "$RELEASE_KIND")"
 export RELEASE_VERSION
 mkdir "$fixture/bin"
-cp "$root/Cargo.toml" "$root/Cargo.lock" "$root/README.md" "$fixture/"
+cp "$root/Cargo.toml" "$root/Cargo.lock" "$root/README.md" "$root/LICENSE" "$fixture/"
 for package in ic-host-artifacts ic-host-fs ic-host-process ic-host-tools; do
     mkdir -p "$fixture/crates/$package/src"
-    cp "$root/crates/$package/Cargo.toml" "$fixture/crates/$package/"
+    # Git release qualification remains independent of registry eligibility.
+    sed 's/^publish = .*/publish = false/' "$root/crates/$package/Cargo.toml" > "$fixture/crates/$package/Cargo.toml"
     : > "$fixture/crates/$package/src/lib.rs"
 done
 printf '# Changelog\n\n## [%s]\n\n- Fixture notes.\n' "$RELEASE_VERSION" > "$fixture/CHANGELOG.md"
