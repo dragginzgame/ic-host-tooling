@@ -14,6 +14,23 @@
   and Canic's durable local-file publication and locking implementation.
   Packages remain unpublished while extraction and consumer qualification proceed.
 
+### Fixed
+
+- Allow the standard Git release workflow while Cargo packages remain
+  non-publishable; registry publication stays separate and disabled.
+- Reject failed formatter prerequisite probes and competing pending changelog
+  candidates using the reviewed shared helpers.
+
+### Changed
+
+- Require only host parsers for library release qualification; the IC executable
+  bundle remains explicit setup.
+
+### Testing
+
+- Exercise the artifact library without optional features in native CI alongside
+  the all-feature package checks.
+
 ## [0.2.0] - 2026-10-06
 
 - **Breaking:** Replace the exposed wasmparser error with host-owned

@@ -14,9 +14,11 @@ use their new owners. Packages are non-publishable, with initial inherited 0.2.0
 metadata and pending breaking 0.3.0 notes. No release identity or publication is implied.
 
 Shared Tooling remains separate and is adopted at exact reviewed revision
+21f3ec3dd97f2968c9f0b08924451bb2f71770d1. The original bootstrap baseline was
 d957d1f8801885c5b69e4a9ef900155f5f2a8a9d. All automation uses its local snapshot.
-No commit, GitHub repository creation, push, publication, installation or consumer
-adoption is part of this setup. Native macOS execution remains CI-owned.
+The original bootstrap authorization excluded commits, GitHub repository
+creation, pushes, publication, installation and consumer adoption. Native macOS
+execution remains CI-owned.
 Focused Linux setup checks passed for each of the four changed packages:
 all-target/all-feature tests and examples, Clippy with warnings denied,
 Rustdoc, and Rust 1.88.0 all-target/all-feature compilation. Artifact tests
@@ -30,9 +32,39 @@ this is not a push or publication readiness assertion.
 
 The installed workspace's 52-file Shared Tooling snapshot, parsed dependency
 and inheritance declarations, formatting, documentation links and selected
-package tests passed. The complete dependency checker requires a tracked
-Cargo.lock, so its tracked-lockfile gate awaits the maintainer's initial commit.
-The index is empty, no commit exists, and the local formatting hook is installed.
+package tests passed during bootstrap. The local formatting hook is installed.
+The original initial-commit blocker is superseded: the local checkout has the
+maintainer-owned commit 67c10830922f9249bfa30ec4f37010bf746519ce and a tracked
+Cargo.lock. The public dragginzgame/ic-host-tooling repository was created on
+request, and origin uses https://github.com/dragginzgame/ic-host-tooling.git.
+
+The consumer release adapter now validates locked/offline Cargo metadata without
+requiring registry-publishable packages. Git version/tag releases remain separate
+from registry publication, which stays disabled in all four manifests. The
+pending version remains 0.3.0 for the breaking crate extraction. Release preflight
+now prepares and checks only pinned host parsers; the IC executable bundle stays
+explicit setup. Changelog selection and rewriting use the shared finalizer with
+the saved previous version, retaining the local top-entry and placement guards.
+Focused Linux checks cover non-publishable packages, failed metadata queries,
+dirty-source refusal, complete-ledger conflicts, historical-note preservation,
+saved receipts and exact committed payloads beneath different working metadata.
+Cargo metadata admission is real and locked/offline; Git, setup, qualification
+and version mutation in these regression fixtures are substitutes.
+
+The refreshed 54-file snapshot includes the shared formatter prerequisite checker
+and regression fixture. It was exported from a clean temporary checkout of the
+committed revision, excluding the sibling's unrelated working edits. Formatter
+refusal checks, actual formatting, hook integration and Make release delegation
+passed on Linux, as did the shared host-tool and release-runner substitute
+fixtures. The new minimal artifact target passed 18 tests with optional
+features disabled and is included in configured native CI. This batch has no
+native macOS execution or complete release-gate evidence. The agent did not
+execute a release command or change package versions, dependencies or tool pins.
+The hook check also passed dependency-order perturbation and working/index
+preservation. An earlier malformed perturbation moved a comment's dependency
+association and failed the expected-byte comparison; its fixture remains at
+/tmp/formatting-adoption.hOzBNO. The corrected input changed only dependency
+order and passed; the failed attempt is not relabeled as a product failure.
 
 The maintainer authorized deleting /home/adam/projects/ic-host-tools. No sibling
 local dependency paths pointed at that checkout. Its complete Git metadata,

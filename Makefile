@@ -11,20 +11,23 @@ ifneq ($(word 2,$(filter release-patch release-minor release-major release-resum
 $(error Select exactly one release target)
 endif
 
-.PHONY: help fmt fmt-check check clippy docs-check test msrv ci install-hooks install-tools tools-check install-host-tools host-tools-check install-ic-tools ic-tools-check shared-tooling-check dependency-pins-check check-doc-links release-patch release-minor release-major release-resume release-version release-preflight release-verify release-prepare-version release-prepared-check release-files release-commit-check release-committed-check release-tagged-check release-push-check
+.PHONY: help fmt fmt-check format-tools-check format-tools-test check clippy docs-check test test-artifacts-minimal msrv ci install-hooks install-tools tools-check install-host-tools host-tools-check install-ic-tools ic-tools-check shared-tooling-check dependency-pins-check check-doc-links release-adapter-check release-patch release-minor release-major release-resume release-version release-preflight release-verify release-prepare-version release-prepared-check release-files release-commit-check release-committed-check release-tagged-check release-push-check
 help:
 	@echo 'Selected package: check, clippy, docs-check, test, msrv (PACKAGE=<crate>)'
-	@echo 'Formatting and metadata: fmt, fmt-check, shared-tooling-check, dependency-pins-check, check-doc-links'
+	@echo 'Minimal artifact configuration: test-artifacts-minimal'
+	@echo 'Formatting and metadata: fmt, fmt-check, shared-tooling-check, dependency-pins-check, check-doc-links, release-adapter-check'
 	@echo 'Explicit setup: install-tools, install-host-tools, install-ic-tools, install-hooks'
 	@echo 'Offline setup checks: tools-check, host-tools-check, ic-tools-check'
 	@echo 'Full gate: ci (explicit request or configured CI only)'
 	@echo 'Maintainer releases: release-patch, release-minor, release-major, release-resume VERSION=X.Y.Z'
-fmt:
-	@test "$$(cargo sort --version)" = "cargo-sort $(SHARED_TOOLING_CARGO_SORT_VERSION)"
+format-tools-check:
+	bash scripts/ci/check-format-tools.sh "$(SHARED_TOOLING_CARGO_SORT_VERSION)"
+format-tools-test:
+	bash scripts/ci/test-format-tools.sh
+fmt: format-tools-check
 	cargo sort --workspace
 	cargo fmt --all
-fmt-check:
-	@test "$$(cargo sort --version)" = "cargo-sort $(SHARED_TOOLING_CARGO_SORT_VERSION)"
+fmt-check: format-tools-check
 	cargo sort --workspace --check
 	cargo fmt --all -- --check
 check:
@@ -35,6 +38,8 @@ docs-check:
 	RUSTDOCFLAGS="-D warnings" cargo doc -p $(PACKAGE) --all-features --locked --offline --no-deps
 test:
 	cargo test -p $(PACKAGE) --all-targets --all-features --locked --offline
+test-artifacts-minimal:
+	cargo test -p ic-host-artifacts --no-default-features --lib --locked --offline
 msrv:
 	cargo +$(MSRV) check -p $(PACKAGE) --all-targets --all-features --locked --offline
 install-hooks:
@@ -55,12 +60,17 @@ dependency-pins-check:
 	bash scripts/ci/check-dependency-pins.sh --cargo-inheritance
 check-doc-links:
 	perl scripts/ci/check-documentation-links.pl --root "$(CURDIR)" README.md AGENTS.md CHANGELOG.md docs/extraction.md docs/hosts.md docs/status/current.md
+release-adapter-check:
+	bash scripts/release/test-adapter.sh
 ci:
 	+$(MAKE) --no-print-directory shared-tooling-check
 	+$(MAKE) --no-print-directory host-tools-check
 	+$(MAKE) --no-print-directory dependency-pins-check
 	+$(MAKE) --no-print-directory fmt-check
+	+$(MAKE) --no-print-directory format-tools-test
 	+$(MAKE) --no-print-directory check-doc-links
+	+$(MAKE) --no-print-directory release-adapter-check
+	+$(MAKE) --no-print-directory test-artifacts-minimal
 	@for package in ic-host-artifacts ic-host-fs ic-host-process ic-host-tools; do \
 		$(MAKE) --no-print-directory clippy PACKAGE=$$package && \
 		$(MAKE) --no-print-directory docs-check PACKAGE=$$package && \

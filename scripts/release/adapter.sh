@@ -42,28 +42,22 @@ selections() {
     notes="$receipt.notes"
 }
 finalize_notes() {
-    local input="$1" first second heading
-    first="$(awk '/^## / { print NR; exit }' "$input")"
+    local input="$1" heading
+    # Retain the consumer's top-entry identity boundary. The shared helper owns
+    # candidate selection, complete-ledger conflict checks and heading rewriting.
     heading="$(awk '/^## / { print; exit }' "$input")"
-    second="$(awk '/^## / { if (++count == 2) { print NR; exit } } END { if (count < 2) print NR+1 }' "$input")"
-    awk -v first="$first" -v heading="## [$RELEASE_VERSION]" '
-        NR != first && ($0 == "## [Draft]" || $0 == heading || index($0, heading " - ") == 1) { conflict=1 }
-        END { exit conflict ? 1 : 0 }
-    ' "$input" || fail "duplicate or misplaced current release entry"
     case "$heading" in
-        '## [Draft]'|"## [$RELEASE_VERSION]")
-            awk -v stop="$second" 'NR < stop' "$input" |
-                awk -v version="$RELEASE_VERSION" -v date="$RELEASE_DATE" -f "$tooling_root/scripts/ci/finalize-release-changelog.awk"
-            awk -v start="$second" 'NR >= start' "$input"
-            ;;
-        "## [$RELEASE_PREVIOUS]"|"## [$RELEASE_PREVIOUS] - "*)
-            # Imported undated historical entries remain historical, unchanged.
-            awk -v stop="$first" 'NR < stop' "$input"
-            printf '## [%s] - %s\n\n' "$RELEASE_VERSION" "$RELEASE_DATE"
-            awk -v start="$first" 'NR >= start' "$input"
-            ;;
+        '## [Draft]'|"## [$RELEASE_VERSION]"|"## [$RELEASE_PREVIOUS]"|"## [$RELEASE_PREVIOUS] - "*) ;;
         *) fail "top changelog entry conflicts with selected release" ;;
     esac
+    # A candidate belongs at the top; do not let the shared selector relocate
+    # a current release entry from history during preparation or recovery.
+    awk -v heading="## [$RELEASE_VERSION]" '
+        /^## / { if (++headings > 1 && ($0 == "## [Draft]" || $0 == heading || index($0, heading " - ") == 1)) exit 1 }
+    ' "$input" || fail "duplicate or misplaced current release entry"
+    awk -v version="$RELEASE_VERSION" -v previous="$RELEASE_PREVIOUS" \
+        -v date="$RELEASE_DATE" \
+        -f "$tooling_root/scripts/ci/finalize-release-changelog.awk" "$input"
 }
 receipt_header() {
     printf '%s\n' release-validation-1 "$RELEASE_SOURCE" "$RELEASE_KIND" \
@@ -119,16 +113,17 @@ case "$operation" in
         done
         [[ "$(awk -v mode=lock -v read_version=1 -f "$tooling_root/scripts/release/metadata-version.awk" Cargo.lock)" == "$RELEASE_PREVIOUS" ]] || fail "lockfile version differs"
         admit_files
-        cargo metadata --no-deps --format-version 1 --locked --offline |
-            jq -e '.packages | all(.publish != [])' > /dev/null ||
-            fail "workspace contains non-publishable bootstrap packages"
+        # Git releases and registry publication are separate effects. Validate
+        # the workspace without requiring its packages to permit publication.
+        cargo metadata --no-deps --format-version 1 --locked --offline > /dev/null ||
+            fail "locked workspace metadata validation failed"
         finalize_notes CHANGELOG.md > /dev/null
-        # Maintainer release entry points prepare pinned local executables before
-        # validation. The verify hook and ordinary gates remain offline.
+        # Library qualification needs only the pinned host parsers. The IC
+        # executable bundle remains explicit setup; verification stays offline.
         if [[ "$operation" == preflight ]]; then
-            make --no-print-directory install-tools
+            make --no-print-directory install-host-tools
         fi
-        CARGO_NET_OFFLINE=true make --no-print-directory tools-check
+        CARGO_NET_OFFLINE=true make --no-print-directory host-tools-check
         CARGO_NET_OFFLINE=true make --no-print-directory dependency-pins-check
         cargo set-version --help > /dev/null
         cargo fetch --locked --offline

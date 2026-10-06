@@ -27,6 +27,8 @@ Read [the extraction contract](docs/extraction.md), [host qualification](docs/ho
 Use cargo test -p ic-host-artifacts --all-features --lib --locked --offline
 or select the corresponding filesystem, process or IC adapter package.
 make check, make clippy and make docs-check accept PACKAGE=<crate>.
+make test-artifacts-minimal exercises the artifact library without optional
+features; native CI runs it alongside the all-feature package checks.
 make install-host-tools and make install-ic-tools are explicit setup commands;
 their offline checks never install tools. make install-hooks activates the
 repository-local formatter after provisioning cargo-sort 2.1.4.
@@ -34,5 +36,8 @@ repository-local formatter after provisioning cargo-sort 2.1.4.
 Shared Tooling owns rules, hooks, installers and the common release runner.
 This workspace consumes an exact snapshot; library ownership stays here.
 make ci is the complete configured gate, not an automatic development command.
-The standard release entry points use the shared runner and refuse the current
-non-publishable bootstrap packages before release preparation.
+The standard release entry points use the shared runner for version preparation,
+commit, tag and atomic branch/tag push. Packages with publish = false can have Git
+releases; registry publication remains a separate, disabled operation.
+Release preflight prepares only pinned host tools. The IC executable bundle
+remains available through make install-ic-tools and its offline check.
