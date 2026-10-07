@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.4.4]
+## [0.4.4] - 2026-10-07
 
 - Hash gzip or raw artifacts and compare decoded gzip with expected bytes
   without allocating a full decoded copy. Retain independent input/payload
