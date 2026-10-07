@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.4.6]
+## [0.4.6] - 2026-10-07
 
 - Fix macOS publication-test expectations for non-UTF-8 filenames by checking
   native filesystem admission, while retaining exact-name success and cleanup
