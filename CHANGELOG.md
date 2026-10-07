@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.4.2]
+## [0.4.2] - 2026-10-07
 
 - Admit caller-trusted installed tools by exact version while retaining their
   observed digest for execution drift checks, removing caller-side hash/admit
