@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.4.5]
+## [0.4.5] - 2026-10-07
 
 - Fix durable-writer compilation on Intel and Apple Silicon macOS by converting
   admitted permissions to Darwin's narrower native type without truncation
