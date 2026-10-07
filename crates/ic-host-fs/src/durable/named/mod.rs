@@ -2,7 +2,7 @@
 
 use std::{fmt, io, path::Path};
 
-/// Failure from a named producer or durable publication, retaining cleanup evidence.
+/// Failure from a named or streamed producer and durable publication, retaining cleanup evidence.
 #[derive(Debug)]
 pub enum NamedWriteError<E> {
     /// The producer or its output validation failed; no publication was attempted.
@@ -19,9 +19,10 @@ pub enum NamedWriteError<E> {
         /// Failure to remove the owned staging entry; replacements are left untouched.
         cleanup_error: Option<io::Error>,
     },
-    /// Rename succeeded, but final directory synchronization failed.
+    /// Publication succeeded, but staging cleanup or final directory sync failed.
     AfterPublication {
-        /// Original synchronization error. The new output is already visible.
+        /// Original cleanup or synchronization error. The new output is visible;
+        /// final directory durability is not established. Reconcile before retrying.
         source: io::Error,
     },
 }
@@ -55,7 +56,7 @@ impl<E: fmt::Display> fmt::Display for NamedWriteError<E> {
             }
             Self::AfterPublication { source } => write!(
                 formatter,
-                "output published but directory sync failed: {source}"
+                "output published but completion failed: {source}"
             ),
         }
     }

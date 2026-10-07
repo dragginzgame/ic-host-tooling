@@ -137,6 +137,8 @@ version = "0.4.2"
 dependencies = [
  "ic-host-artifacts",
  "rustix",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

@@ -19,6 +19,7 @@ help:
 	@echo 'Formatting and metadata: fmt, fmt-check, shared-tooling-check, dependency-pins-check, check-doc-links, release-adapter-check'
 	@echo 'Explicit setup: install-tools, install-host-tools, install-ic-tools, install-hooks'
 	@echo 'Offline setup checks: tools-check, host-tools-check, ic-tools-check'
+	@echo 'Optional Rust tool bundle: install-rust-tools, rust-tools-check'
 	@echo 'Source reports: cloc (this workspace), cloc-tooling (sibling tooling)'
 	@echo 'Full gate: ci (explicit request or configured CI only)'
 	@echo 'Maintainer releases: release-patch, release-minor, release-major, release-resume VERSION=X.Y.Z'
@@ -63,6 +64,7 @@ release-adapter-check:
 	bash scripts/release/test-adapter.sh
 tooling-command-check:
 	bash scripts/ci/test-tool-commands.sh
+	bash scripts/ci/test-rust-tools.sh
 	bash scripts/ci/check-release-commands.sh "$(CURDIR)" ci/tool-versions.env make/tools.mk
 	bash scripts/ci/test-cloc.sh
 publish:

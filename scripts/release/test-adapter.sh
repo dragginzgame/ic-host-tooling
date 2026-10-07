@@ -201,7 +201,7 @@ cmp expected "$ADAPTER_EVENTS"
 # Each failure must stop before setup and leave the changelog untouched.
 printf '%s\n' 'cargo locate-project --workspace --message-format plain --manifest-path Cargo.toml' \
     'cargo metadata --no-deps --format-version 1 --locked --offline' > expected
-for scenario in duplicate duplicate-whitespace competing misplaced misplaced-whitespace finalized; do
+for scenario in duplicate duplicate-whitespace competing misplaced misplaced-whitespace finalized finalized-whitespace finalized-other-date; do
     case "$scenario" in
         duplicate)
             cp source/CHANGELOG.md CHANGELOG.md
@@ -219,6 +219,10 @@ for scenario in duplicate duplicate-whitespace competing misplaced misplaced-whi
             printf '# Changelog\n\n## [%s]\n\n- History.\n\n## [%s] \t \n\n- Misplaced draft.\n' "$RELEASE_PREVIOUS" "$RELEASE_VERSION" > CHANGELOG.md ;;
         finalized)
             printf '# Changelog\n\n## [%s] - %s\n\n- Finalized.\n' "$RELEASE_VERSION" "$RELEASE_DATE" > CHANGELOG.md ;;
+        finalized-whitespace)
+            printf '# Changelog\n\n##\t[%s]\t -  %s \t\n\n- Finalized.\n' "$RELEASE_VERSION" "$RELEASE_DATE" > CHANGELOG.md ;;
+        finalized-other-date)
+            printf '# Changelog\n\n##\t[%s]\t-\t2001-01-01\n\n- Finalized.\n' "$RELEASE_VERSION" > CHANGELOG.md ;;
     esac
     cp CHANGELOG.md before
     : > "$ADAPTER_EVENTS"
@@ -285,5 +289,15 @@ cmp accepted-events "$ADAPTER_EVENTS"
 bash "$root/scripts/release/adapter.sh" verify > history-only-verify.log 2>&1
 bash "$root/scripts/release/adapter.sh" prepare > history-only-prepare.log 2>&1
 printf '# Changelog\n\n## [%s] - %s\n\n## [%s]\n\n- Undated imported history.\n' "$RELEASE_VERSION" "$RELEASE_DATE" "$RELEASE_PREVIOUS" > expected-notes
+cmp expected-notes CHANGELOG.md
+
+# Horizontal whitespace is accepted without changing historical bytes or adding
+# a final newline. Admission and preparation must agree on the same candidate.
+cp source/Cargo.toml source/Cargo.lock .
+printf '# Changelog\n\n##\t [%s] \t\n\n- Candidate.\n\n## [%s]\n\n- History without final LF.' "$RELEASE_VERSION" "$RELEASE_PREVIOUS" > CHANGELOG.md
+bash "$root/scripts/release/adapter.sh" preflight > whitespace-preflight.log 2>&1
+bash "$root/scripts/release/adapter.sh" verify > whitespace-verify.log 2>&1
+bash "$root/scripts/release/adapter.sh" prepare > whitespace-prepare.log 2>&1
+printf '# Changelog\n\n## [%s] - %s\n\n- Candidate.\n\n## [%s]\n\n- History without final LF.' "$RELEASE_VERSION" "$RELEASE_DATE" "$RELEASE_PREVIOUS" > expected-notes
 cmp expected-notes CHANGELOG.md
 echo 'Release adapter checks passed (setup, qualification and Git effects substituted).'

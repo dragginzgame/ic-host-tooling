@@ -10,6 +10,10 @@ mod lock_wait;
 pub use lock_wait::lock_exclusive_with_wait;
 mod named;
 pub use named::{NamedWriteError, write_named_with};
+mod stream;
+#[cfg(unix)]
+pub use stream::write_at_with;
+pub use stream::{PublicationMode, WriteOptions, write_typed_with};
 
 #[cfg(test)]
 mod tests;
@@ -249,7 +253,7 @@ fn commit_bytes(path: &Path, bytes: &[u8], mode: FileCommitMode) -> io::Result<(
 
 #[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
 mod supported {
-    use super::{FileCommitMode, NamedWriteError};
+    use super::{FileCommitMode, NamedWriteError, PublicationMode, WriteOptions};
 
     use std::{
         ffi::{OsStr, OsString},
@@ -260,7 +264,7 @@ mod supported {
     };
 
     use rustix::{
-        fd::{AsFd, OwnedFd},
+        fd::{AsFd, BorrowedFd, OwnedFd},
         fs::{self as unix_fs, AtFlags, Mode, OFlags, RenameFlags},
     };
 
@@ -302,19 +306,72 @@ mod supported {
         path: &Path,
         mode: FileCommitMode,
         produce: impl FnOnce(&Path, &mut fs::File) -> Result<T, E>,
+        before: impl FnMut(FileCommitStep, &Path) -> io::Result<()>,
+    ) -> Result<T, NamedWriteError<E>> {
+        let options = WriteOptions {
+            mode: if mode == FileCommitMode::Replace {
+                PublicationMode::Replace
+            } else {
+                PublicationMode::CreateNew
+            },
+            permissions: if mode == FileCommitMode::CreatePrivateWithParents {
+                0o600
+            } else {
+                0o666
+            },
+        };
+        commit_path_with_options(path, options, produce, before)
+    }
+
+    pub(super) fn commit_path_with_options<T, E>(
+        path: &Path,
+        options: WriteOptions,
+        produce: impl FnOnce(&Path, &mut fs::File) -> Result<T, E>,
         mut before: impl FnMut(FileCommitStep, &Path) -> io::Result<()>,
     ) -> Result<T, NamedWriteError<E>> {
+        validate_permissions(options.permissions).map_err(NamedWriteError::before)?;
         let (parent, file_name) = split_target(path).map_err(NamedWriteError::before)?;
         create_parent_hierarchy(parent, &mut before).map_err(NamedWriteError::before)?;
         let parent_fd = open_directory(parent).map_err(NamedWriteError::before)?;
-        let permissions = if mode == FileCommitMode::CreatePrivateWithParents {
-            Mode::RUSR | Mode::WUSR
-        } else {
-            Mode::RUSR | Mode::WUSR | Mode::RGRP | Mode::WGRP | Mode::ROTH | Mode::WOTH
-        };
-        let (temp_name, temp_path, mut temp_file) =
-            create_sibling_temp(&parent_fd, parent, file_name, permissions, &mut before)
-                .map_err(NamedWriteError::before)?;
+        commit_at_with_hook(
+            parent_fd.as_fd(),
+            Some(parent),
+            file_name,
+            options,
+            produce,
+            before,
+        )
+    }
+
+    pub(super) fn commit_at_with_hook<T, E>(
+        parent_fd: BorrowedFd<'_>,
+        parent_path: Option<&Path>,
+        file_name: &OsStr,
+        options: WriteOptions,
+        produce: impl FnOnce(&Path, &mut fs::File) -> Result<T, E>,
+        mut before: impl FnMut(FileCommitStep, &Path) -> io::Result<()>,
+    ) -> Result<T, NamedWriteError<E>> {
+        validate_permissions(options.permissions).map_err(NamedWriteError::before)?;
+        validate_file_name(file_name).map_err(NamedWriteError::before)?;
+        let metadata = unix_fs::fstat(parent_fd)
+            .map_err(|error| NamedWriteError::before(errno_to_io(error)))?;
+        if unix_fs::FileType::from_raw_mode(metadata.st_mode) != unix_fs::FileType::Directory {
+            return Err(NamedWriteError::before(io::Error::from(
+                io::ErrorKind::NotADirectory,
+            )));
+        }
+        // Descriptor-only calls use relative names solely for hook diagnostics.
+        // All filesystem operations below use the held directory descriptor.
+        let parent = parent_path.unwrap_or_else(|| Path::new(""));
+        let path = parent.join(file_name);
+        let (temp_name, temp_path, mut temp_file) = create_sibling_temp(
+            &parent_fd,
+            parent,
+            file_name,
+            Mode::from_raw_mode(options.permissions),
+            &mut before,
+        )
+        .map_err(NamedWriteError::before)?;
 
         let cleanup = || remove_owned_temp(&parent_fd, &temp_name, &temp_file).err();
         if let Err(source) = before(FileCommitStep::TemporaryFileWrite, &temp_path) {
@@ -335,12 +392,12 @@ mod supported {
 
         let staged = (|| {
             before(FileCommitStep::TemporaryFileSync, &temp_path)?;
-            verify_staging(&parent_fd, parent, &temp_name, &temp_file)?;
+            verify_staging(&parent_fd, parent_path, &temp_name, &temp_file)?;
             temp_file.sync_all()?;
-            before(FileCommitStep::Publication, path)?;
+            before(FileCommitStep::Publication, &path)?;
             // Keep the descriptor alive through rename so its identity cannot
             // be recycled after a producer unlinks or replaces the pathname.
-            verify_staging(&parent_fd, parent, &temp_name, &temp_file)
+            verify_staging(&parent_fd, parent_path, &temp_name, &temp_file)
         })();
         if let Err(source) = staged {
             return Err(NamedWriteError::BeforePublication {
@@ -348,24 +405,26 @@ mod supported {
                 cleanup_error: remove_owned_temp(&parent_fd, &temp_name, &temp_file).err(),
             });
         }
-        let published = match mode {
-            FileCommitMode::Replace => {
-                unix_fs::renameat(&parent_fd, &temp_name, &parent_fd, file_name)
+        let published = match options.mode {
+            PublicationMode::Replace => {
+                unix_fs::renameat(parent_fd, &temp_name, parent_fd, file_name)
+                    .map_err(|error| NamedWriteError::before(errno_to_io(error)))
             }
-            FileCommitMode::CreateNewWithParents | FileCommitMode::CreatePrivateWithParents => {
-                publish_create_new(&parent_fd, &temp_name, file_name)
+            PublicationMode::CreateNew => {
+                publish_create_new(&parent_fd, &temp_name, file_name, &temp_file)
             }
         };
-        if let Err(error) = published {
+        if let Err(NamedWriteError::BeforePublication { source, .. }) = published {
             return Err(NamedWriteError::BeforePublication {
-                source: errno_to_io(error),
+                source,
                 cleanup_error: remove_owned_temp(&parent_fd, &temp_name, &temp_file).err(),
             });
         }
+        published?;
 
         before(FileCommitStep::FinalParentSync, parent)
             .map_err(|source| NamedWriteError::AfterPublication { source })?;
-        unix_fs::fsync(&parent_fd).map_err(|error| NamedWriteError::AfterPublication {
+        unix_fs::fsync(parent_fd).map_err(|error| NamedWriteError::AfterPublication {
             source: errno_to_io(error),
         })?;
         Ok(value)
@@ -386,19 +445,23 @@ mod supported {
     }
 
     fn verify_staging(
-        parent_fd: &OwnedFd,
-        parent: &Path,
+        parent_fd: &impl AsFd,
+        parent: Option<&Path>,
         name: &OsStr,
         file: &fs::File,
     ) -> io::Result<()> {
-        let held_parent = unix_fs::fstat(parent_fd).map_err(errno_to_io)?;
-        let named_parent = unix_fs::statat(unix_fs::CWD, parent, AtFlags::SYMLINK_NOFOLLOW)
-            .map_err(errno_to_io)?;
+        if let Some(parent) = parent {
+            let held_parent = unix_fs::fstat(parent_fd).map_err(errno_to_io)?;
+            let named_parent = unix_fs::statat(unix_fs::CWD, parent, AtFlags::SYMLINK_NOFOLLOW)
+                .map_err(errno_to_io)?;
+            if !same_identity(&held_parent, &named_parent) {
+                return Err(staging_identity_error());
+            }
+        }
         let held = unix_fs::fstat(file).map_err(errno_to_io)?;
         let named =
             unix_fs::statat(parent_fd, name, AtFlags::SYMLINK_NOFOLLOW).map_err(errno_to_io)?;
-        if !same_identity(&held_parent, &named_parent)
-            || !same_identity(&held, &named)
+        if !same_identity(&held, &named)
             || unix_fs::FileType::from_raw_mode(held.st_mode) != unix_fs::FileType::RegularFile
             || held.st_nlink != 1
             || named.st_nlink != 1
@@ -408,7 +471,7 @@ mod supported {
         Ok(())
     }
 
-    fn remove_owned_temp(parent_fd: &OwnedFd, name: &OsStr, file: &fs::File) -> io::Result<()> {
+    fn remove_owned_temp(parent_fd: &impl AsFd, name: &OsStr, file: &fs::File) -> io::Result<()> {
         let named = match unix_fs::statat(parent_fd, name, AtFlags::SYMLINK_NOFOLLOW) {
             Ok(named) => named,
             Err(rustix::io::Errno::NOENT) => return Ok(()),
@@ -421,11 +484,12 @@ mod supported {
         unix_fs::unlinkat(parent_fd, name, AtFlags::empty()).map_err(errno_to_io)
     }
 
-    fn publish_create_new(
-        parent_fd: &OwnedFd,
+    fn publish_create_new<E>(
+        parent_fd: &impl AsFd,
         temp_name: &OsStr,
         file_name: &OsStr,
-    ) -> rustix::io::Result<()> {
+        temp_file: &fs::File,
+    ) -> Result<(), NamedWriteError<E>> {
         let renamed = unix_fs::renameat_with(
             parent_fd,
             temp_name,
@@ -433,25 +497,30 @@ mod supported {
             file_name,
             RenameFlags::NOREPLACE,
         );
-        finish_create_new_publication(parent_fd, temp_name, file_name, renamed)
+        finish_create_new_publication(parent_fd, temp_name, file_name, renamed, || {
+            remove_owned_temp(parent_fd, temp_name, temp_file)
+        })
     }
 
-    fn finish_create_new_publication(
-        parent_fd: &OwnedFd,
+    pub(super) fn finish_create_new_publication<E>(
+        parent_fd: &impl AsFd,
         temp_name: &OsStr,
         file_name: &OsStr,
         renamed: rustix::io::Result<()>,
-    ) -> rustix::io::Result<()> {
+        cleanup: impl FnOnce() -> io::Result<()>,
+    ) -> Result<(), NamedWriteError<E>> {
         match renamed {
             Ok(()) => Ok(()),
             Err(
                 rustix::io::Errno::INVAL | rustix::io::Errno::NOSYS | rustix::io::Errno::OPNOTSUPP,
             ) => {
-                unix_fs::linkat(parent_fd, temp_name, parent_fd, file_name, AtFlags::empty())?;
-                remove_temp(parent_fd, temp_name);
-                Ok(())
+                unix_fs::linkat(parent_fd, temp_name, parent_fd, file_name, AtFlags::empty())
+                    .map_err(|error| NamedWriteError::before(errno_to_io(error)))?;
+                // Publication already happened. Never classify an unlink failure
+                // as safe to retry, or silently retain the extra staging link.
+                cleanup().map_err(|source| NamedWriteError::AfterPublication { source })
             }
-            Err(error) => Err(error),
+            Err(error) => Err(NamedWriteError::before(errno_to_io(error))),
         }
     }
 
@@ -463,8 +532,10 @@ mod supported {
         error: rustix::io::Errno,
     ) -> io::Result<()> {
         let parent_fd = open_directory(parent)?;
-        finish_create_new_publication(&parent_fd, temp_name, file_name, Err(error))
-            .map_err(errno_to_io)
+        finish_create_new_publication(&parent_fd, temp_name, file_name, Err(error), || {
+            remove_temp(&parent_fd, temp_name)
+        })
+        .map_err(NamedWriteError::into_io)
     }
 
     fn split_target(path: &Path) -> io::Result<(&Path, &OsStr)> {
@@ -479,6 +550,33 @@ mod supported {
             .filter(|parent| !parent.as_os_str().is_empty())
             .unwrap_or_else(|| Path::new("."));
         Ok((parent, file_name))
+    }
+
+    fn validate_permissions(permissions: u32) -> io::Result<()> {
+        if permissions & !0o777 != 0 {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "invalid file permission bits",
+            ));
+        }
+        Ok(())
+    }
+
+    fn validate_file_name(name: &OsStr) -> io::Result<()> {
+        if name.is_empty()
+            || name == "."
+            || name == ".."
+            || name
+                .as_encoded_bytes()
+                .iter()
+                .any(|byte| matches!(byte, b'/' | 0))
+        {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "expected one filename component",
+            ));
+        }
+        Ok(())
     }
 
     fn create_parent_hierarchy(
@@ -593,8 +691,9 @@ mod supported {
         .map_err(errno_to_io)
     }
 
-    fn remove_temp(parent_fd: &impl AsFd, temp_name: &OsStr) {
-        let _ = unix_fs::unlinkat(parent_fd, temp_name, AtFlags::empty());
+    #[cfg(test)]
+    fn remove_temp(parent_fd: &impl AsFd, temp_name: &OsStr) -> io::Result<()> {
+        unix_fs::unlinkat(parent_fd, temp_name, AtFlags::empty()).map_err(errno_to_io)
     }
 
     fn errno_to_io(error: rustix::io::Errno) -> io::Error {

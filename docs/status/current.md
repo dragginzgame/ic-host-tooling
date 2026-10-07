@@ -1,6 +1,78 @@
 # Current handoff
 
-## Latest qualification: 2026-10-07, after 0.4.1
+## Latest qualification: 2026-10-07, after 0.4.2
+
+The maintainer reports 0.4.2 pushed; local HEAD is
+`6501d0e9fa7ba0439ec7a4010ca7bf0205e1d712` with finalized root notes and package
+versions at 0.4.2. [Exact-source CI](https://github.com/dragginzgame/ic-host-tooling/actions/runs/37624014360)
+passes Linux/MSRV but both macOS jobs fail in the shared temporary-directory
+fixture before Rust tests. Raw native logs are retained at
+/tmp/ic-host-042-arm-ci.log and /tmp/ic-host-042-intel-ci.log. This supersedes
+the previous queued state and does not establish registry or consumer adoption.
+
+The next compatible batch targets **0.4.3**. Shared Tooling 0.1.19 is adopted
+from exact local commit `a06e4719e3839b8eefcfb88ec8923aa88eb63ccc`, through a
+clean private checkout and the canonical exporter. The 67-file snapshot adds
+the Rust installer/fixture and the IC pin-reader dependency. The clean upstream
+checkout and export evidence are under /tmp/ic-host-043-shared.oquvT1. Later
+dirty commit-policy edits were excluded; the prohibition on agent commits
+remains. No matching hosted upstream run was available at review. This local
+adoption still requires final committed consumer/native qualification.
+
+The snapshot repairs the macOS tool-command fixture's unnormalized temporary
+root, guards optional Rust installation paths, preserves changelog history/EOF
+and corrects LOC target-symlink handling. The consumer release adapter normalizes
+heading whitespace consistently with the new finalizer. Optional Rust bundle
+targets are exposed independently of aggregate setup/check; no real tools were
+downloaded or installed. Existing pins remain and the shared matrix adds
+cargo-sort-derives 0.13.0 and candid-extractor 0.1.6. Coordination remains on
+[Host #6](https://github.com/dragginzgame/ic-host-tooling/issues/6).
+
+`durable::write_typed_with` and Unix `durable::write_at_with` address
+[Host #15](https://github.com/dragginzgame/ic-host-tooling/issues/15) and
+[Host #16](https://github.com/dragginzgame/ic-host-tooling/issues/16). Both share
+the existing publication engine and `NamedWriteError<E>`, with explicit
+replace/create-only options and permissions. Descriptor publication borrows
+standard `BorrowedFd`, validates one filename and stays anchored to the held
+directory when its path moves. The hard-link create-only fallback now reports
+staging cleanup failure as after-publication instead of silently succeeding.
+Production dependencies and package versions are unchanged, and no API was
+removed. Serde and serde_json test dependencies reuse their already-selected lockfile
+versions. Cargo.lock changes only the filesystem package's dependency edges.
+
+Focused Linux checks pass: 58 filesystem tests, 38 dependent process tests,
+strict filesystem Clippy, Rust 1.88 compilation and Rustdoc. Tests retain real
+serde/native errors, bounded writes, create-only conflicts, original output,
+directory anchoring, invalid-name/descriptor refusal, final-symlink behavior and
+foreign staging cleanup. Sync/unlink failures use injected faults; ordinary
+filesystem operations are real. Initial lock-preparation and Clippy failures
+are retained alongside corrected passes in /tmp/ic-host-043-*.log. No full local
+CI/release gate ran. Native macOS Intel/ARM proof remains outstanding.
+
+Focused shared checks also pass: trailing-slash and symlinked temporary paths, substituted
+Rust/IC installation, release-runner and consumer adapter fixtures, historical
+EOF preservation, LOC, snapshot integrity, declaration pins, links, sorting,
+formatting and ShellCheck. LOC initially lacked cloc on PATH; the passing rerun
+used existing sibling tools read-only after checking Host's exact pins. This
+does not provision this checkout's tools. Installation and Git effects in
+fixtures are substitutes.
+
+Read-only consumer inspection identified Query at clean
+`11aedb9d233dd2580a401fa4a9b35892a1a75f57`, Backup at
+`7660b56c196d2af3d084524bc74bb9dd4982d1ad` with unrelated dirty work, and Canic at
+`900ef517695a14423764910e22ae7c22af4a41a3` with its inspected JSON writer unchanged.
+Query's cap-std directory implements standard `AsFd`, so it can retain root and
+target admission while removing its allocator/publication pipeline and serde
+error bridge. Its pre-serialization rule remains local if invalid input must not
+create parents. [Query #19](https://github.com/dragginzgame/ic-query/issues/19)
+owns adoption. Backup and Canic need a plan preserving their exact crash-barrier
+and recovery proof before replacing their duplicate JSON publication engines;
+see [Backup #24](https://github.com/dragginzgame/ic-backup/issues/24) and
+[Canic #458](https://github.com/dragginzgame/canic/issues/458). No sibling files
+were edited. All three Host issues remain open for delivery/native evidence;
+no commit, tag, push or publication occurred.
+
+## Previous qualification: 2026-10-07, after 0.4.1
 
 The maintainer reports 0.4.1 live. Local HEAD and v0.4.1 identify
 ce2dd57cedc5000b44bb6a9ff5194f7d65a42c38, with finalized root notes and package

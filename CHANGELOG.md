@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.4.3]
+
+- Stream durable output with typed producer errors, explicit replace/create-only
+  policy and caller-selected permissions, including publication beneath an
+  already-admitted directory descriptor
+  ([#15](https://github.com/dragginzgame/ic-host-tooling/issues/15),
+  [#16](https://github.com/dragginzgame/ic-host-tooling/issues/16)).
+- Report staging cleanup failures after hard-link publication as already
+  published, preserving the information callers need before retrying
+  ([#15](https://github.com/dragginzgame/ic-host-tooling/issues/15)).
+- Adopt Shared Tooling 0.1.19 to repair temporary-path handling in macOS tooling
+  fixtures, preserve changelog history bytes and provide guarded optional Rust
+  tool installation
+  ([#6](https://github.com/dragginzgame/ic-host-tooling/issues/6)).
+
+See [the 0.4 notes](docs/changelog/0.4.md).
+
 ## [0.4.2] - 2026-10-07
 
 - Admit caller-trusted installed tools by exact version while retaining their

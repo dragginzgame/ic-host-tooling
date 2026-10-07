@@ -41,7 +41,14 @@ staging path, then shares the normal durable publication engine. Callers validat
 bounded output before success and retain typed producer/cleanup errors. See the
 [named-output contract](docs/changelog/0.4.md#named-external-output) before adopting it.
 
-The four-crate workspace has a Git release at 0.4.1. Package metadata permits
+`durable::write_typed_with` retains serializer errors while streaming through
+the same engine, with explicit replace/create-only options and file permissions.
+`durable::write_at_with` borrows an admitted directory descriptor so publication
+stays anchored to it even when its original path moves. Consumers retain path
+admission, budgets and recovery; see the
+[publication contract](docs/changelog/0.4.md#typed-and-descriptor-relative-publication).
+
+The four-crate workspace has a Git release at 0.4.2. Package metadata permits
 crates.io publication; a Git release does not establish registry availability.
 The original local checkout has been removed after a verified full backup.
 Consumers adopt and qualify registry selections independently.
@@ -60,6 +67,8 @@ and the default extractor's required owners.
 make install-host-tools and make install-ic-tools are explicit setup commands;
 their offline checks never install tools. make install-hooks activates the
 repository-local formatter after provisioning cargo-sort 2.1.4.
+The optional `make install-rust-tools` bundle has its own offline
+`make rust-tools-check`; neither runs as part of the aggregate setup/check targets.
 The common `make/tools.mk` owns setup/check commands and selects pinned jq, yq,
 ripgrep with PCRE2 and cloc. CI uses those same targets. Run
 `make install-host-tools` after this snapshot update to prepare the expanded set;
