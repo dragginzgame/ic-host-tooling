@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.4.3]
+## [0.4.3] - 2026-10-07
 
 - Stream durable output with typed producer errors, explicit replace/create-only
   policy and caller-selected permissions, including publication beneath an
