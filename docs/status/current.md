@@ -1,5 +1,46 @@
 # Current handoff
 
+## Latest qualification: 2026-10-07
+
+The maintainer released 0.3.2 at c7c0d85765054909c05d86f6d3fd2c9965510335.
+The current uncommitted batch targets compatible 0.3.3; package manifests,
+Cargo.lock, tool pins and the adopted Shared Tooling snapshot remain unchanged.
+The history below records earlier batches and their evidence, not current versions.
+
+[CI for the released source](https://github.com/dragginzgame/ic-host-tooling/actions/runs/37589678525)
+passed Linux and MSRV but failed on macOS 15 Intel and ARM at the same path test:
+native canonicalization accepted `file/..` where Linux rejects it. The repaired
+test compares native results, including after missing-prefix normalization,
+without changing production resolution or weakening actual native errors.
+Seven focused path tests pass on Linux. Native macOS requalification is pending.
+
+The shared capture entry accepts the caller's existing `Command`, preserving
+opaque platform setup and executable policy while using the admitted runner's
+single bounded capture engine. `ToolError` now exposes borrowed evidence and
+execution failure accessors. No production symbols were removed or compatibility
+reexports added. Scope and consumer coordination remain on
+[Host #5](https://github.com/dragginzgame/ic-host-tooling/issues/5) and
+[Host #9](https://github.com/dragginzgame/ic-host-tooling/issues/9).
+
+Focused offline Linux checks passed: 32 process tests, 19 dependent tools tests
+and examples, process/filesystem strict Clippy and Rust 1.88 compilation, strict
+process Rustdoc, formatting, documentation links, pins, feature graphs and exact
+58-file snapshot verification. Logs remain under /tmp/ic-host-033-*.log, including
+the original macOS CI failure and the initial test-style Clippy failure. No full
+local CI/release gate or native macOS execution was performed.
+
+All sibling repositories stayed read-only. A Canic candidate against inspected
+5e0dd13f7b494e800201841223a6167b544a5892 is retained at
+/tmp/ic-host-033-canic-capture/consumer.patch with source digests and logs. It
+removes the local child owner/nonblocking reader loop, retains the product error
+adapter and requires future published 0.3.3. The patch applies to that source;
+two tests pass in a private reduced-error fixture, not Canic's full dependency
+graph. Consumer adoption is coordinated on
+[Canic #458](https://github.com/dragginzgame/canic/issues/458).
+No commit, tag, push, publication, dependency upgrade or tool download occurred.
+
+## Historical evidence
+
 The maintainer authorized creating /home/adam/projects/ic-host-tooling with
 four ic-host-* packages and copying the existing implementation as extraction input.
 The committed library import is IC Host Tools 0.2.0 at

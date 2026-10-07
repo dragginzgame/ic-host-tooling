@@ -67,6 +67,17 @@
       ],
       "repository": "https://github.com/dragginzgame/ic-query",
       "revision": "0905078d1ef410c63a89fb2924cd18a0653ffa4e"
+    },
+    {
+      "repository": "https://github.com/dragginzgame/canic",
+      "revision": "5e0dd13f7b494e800201841223a6167b544a5892",
+      "files": [
+        {
+          "path": "crates/canic-host/src/observatory/ops/transport/process/mod.rs",
+          "sha256": "2d186f463e05bc517c9e3eaae7b10a3119c48f99f842e06904f617d37cbd71e1",
+          "selection": "query_output caller-configured Command capture contract; existing Host nonblocking capture engine remains canonical, while version policy, command construction, observation errors and platform setup remain caller-owned"
+        }
+      ]
     }
   ]
 }

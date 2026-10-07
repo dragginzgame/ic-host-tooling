@@ -63,20 +63,29 @@ fn explicit_base_errors_and_native_names_are_preserved() {
 fn existing_file_traversal_errors_survive_missing_suffix_normalization() {
     let fixture = Fixture::new();
     fs::write(fixture.root.join("file"), b"contents").unwrap();
-    for path in [
-        "file/..",
-        "file/.",
-        "file/",
-        "missing/../file/../output",
-        "missing/../file/.",
-        "missing/../file/",
+    // realpath/canonicalize may normalize file/.. on macOS where Linux rejects
+    // it. The contract retains the host's result, including after a missing
+    // prefix is normalized; it does not impose Linux traversal on every host.
+    for (path, existing, suffix) in [
+        ("file/..", "file/..", ""),
+        ("file/.", "file/.", ""),
+        ("file/", "file/", ""),
+        ("missing/../file/../output", "file/..", "output"),
+        ("missing/../file/.", "file/.", ""),
+        ("missing/../file/", "file/", ""),
     ] {
+        let native = fixture.root.join(existing).canonicalize().map(|resolved| {
+            if suffix.is_empty() {
+                resolved
+            } else {
+                resolved.join(suffix)
+            }
+        });
+        let actual = canonicalize_allow_missing(Path::new(path), &fixture.root);
         assert_eq!(
-            canonicalize_allow_missing(Path::new(path), &fixture.root)
-                .unwrap_err()
-                .kind(),
-            io::ErrorKind::NotADirectory,
-            "invalid directory traversal: {path}"
+            actual.map_err(|error| error.kind()),
+            native.map_err(|error| error.kind()),
+            "native directory traversal: {path}"
         );
     }
 }

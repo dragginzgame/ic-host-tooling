@@ -20,12 +20,21 @@ pub(super) fn capture(
     context: &ExecutionContext<'_>,
     limits: OutputLimits,
 ) -> Result<ExecutionEvidence, ExecutionError> {
-    let started = Instant::now();
-    let mut child = Command::new(path)
+    let mut command = Command::new(path);
+    command
         .args(arguments)
         .current_dir(context.current_dir)
         .env_clear()
-        .envs(context.environment.iter().map(|(key, value)| (key, value)))
+        .envs(context.environment.iter().map(|(key, value)| (key, value)));
+    capture_command(&mut command, limits)
+}
+
+pub(super) fn capture_command(
+    command: &mut Command,
+    limits: OutputLimits,
+) -> Result<ExecutionEvidence, ExecutionError> {
+    let started = Instant::now();
+    let mut child = command
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())

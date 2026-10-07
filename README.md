@@ -7,7 +7,7 @@ admitted process execution and IC-specific format handling.
 | --- | --- |
 | ic-host-artifacts | Bounded streams and hashing writers, exact byte comparison, SHA-256, gzip encoding/decoding, verified tar members and generic Wasm facts |
 | ic-host-fs | Regular/no-follow reads, missing-suffix path resolution, streamed durable publication, private files and observed descriptor locks |
-| ic-host-process | Executable resolution, digest/version admission, bounded capture and Git observations |
+| ic-host-process | Executable resolution, digest/version admission, bounded caller-command capture and Git observations |
 | ic-host-tools | Candid extraction/normalization and ICP CLI response decoding |
 
 These run locally outside canisters. The ic-host prefix identifies their ecosystem;
@@ -19,10 +19,16 @@ the artifact/filesystem/process extraction dependencies. The default
 `candid-extraction` feature preserves the existing Unix Candid API. Response
 decoding is always available and needs only serde/serde_json.
 
-The four-crate extraction has a Git release at 0.3.0. Package metadata permits
+`tool::capture_command` accepts a caller-configured `std::process::Command` when
+the consumer owns executable admission. It shares bounded capture and direct-child
+cleanup with `AdmittedTool`, whose exact digest/version checks remain in place.
+`ToolError::evidence` and `execution_error` borrow retained diagnostics without
+copying output; callers own presentation and recovery.
+
+The four-crate workspace has a Git release at 0.3.2. Package metadata permits
 crates.io publication; a Git release does not establish registry availability.
 The original local checkout has been removed after a verified full backup.
-Existing consumers retain their prior dependency selections.
+Consumers adopt and qualify registry selections independently.
 
 Read [the extraction contract](docs/extraction.md), [host qualification](docs/hosts.md),
 [the handoff](docs/status/current.md) and [agent rules](AGENTS.md).

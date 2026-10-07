@@ -23,11 +23,10 @@ hook and included in the package archive without redundant `license-file`
 metadata. Both publication commands reject missing, symlinked or differing
 notices before invoking Cargo. Update all four copies when the root notice changes.
 
-Cargo's latest registry lookup reports all four `0.3.0` versions already present.
-Do not republish those versions with changed metadata. The pending compatible
-fixes belong to `0.3.1`; package versions remain unchanged until the maintainer
-prepares that release. Before upload, review the dry run and confirm that the
-committed version is the intended registry release. A Git tag does not prove
+Before upload, review the dry run and confirm that the committed version is the
+intended registry release. Inspect current registry state for that exact version;
+never republish an existing version with changed source or metadata. Pending
+changelog entries do not change package versions. A Git tag does not prove
 registry publication or host qualification.
 
 Admitted invocations retain source identity, metadata, exact arguments and Cargo's

@@ -33,6 +33,17 @@ Query's capability confinement and refresh leases remain consumer-owned.
 Backup's tree checksums, multi-file publication and journals remain consumer-owned.
 Further adoption must retain each caller's independently established guarantees.
 
+`ic_host_process::tool::capture_command` reuses that same execution engine with a
+caller-configured `std::process::Command`. The caller's executable/version policy,
+arguments, cwd, environment and platform setup are retained; stdin becomes null
+and stdout/stderr are bounded pipes. Unlike the exact-byte admission performed by
+`AdmittedTool`, this entry performs no executable identity or version checks.
+Ambient inheritance and PATH resolution follow the supplied command. This avoids
+reconstructing commands and dropping consumer-owned setup. Neither entry owns
+process groups, retries or paid-operation recovery. `ToolError::evidence` and
+`execution_error` borrow the existing capture and failure objects for consumer
+error projection; no parallel error model or automatic diagnostic output is added.
+
 Additional reusable mechanics are extracted from committed sibling source:
 
 - `ic_host_artifacts::artifact::HashingWriter` hashes accepted writes through the

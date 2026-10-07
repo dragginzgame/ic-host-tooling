@@ -1,4 +1,4 @@
-//! Digest/version admission and bounded execution of explicit Unix host tools.
+//! Executable admission and bounded execution of caller-selected Unix commands.
 //!
 //! Consumers own pins, arguments, credentials, environment and trusted executable
 //! directories. Execution is not a sandbox or process-tree supervisor. Calls
@@ -18,7 +18,7 @@ use std::{
     fmt, fs, io,
     os::unix::{ffi::OsStrExt as _, fs::PermissionsExt as _},
     path::{Path, PathBuf},
-    process::ExitStatus,
+    process::{Command, ExitStatus},
     time::Duration,
 };
 
@@ -259,6 +259,68 @@ pub enum ToolError {
     },
 }
 
+impl ToolError {
+    /// Borrow the original bounded capture, including successful version output.
+    ///
+    /// Validation and filesystem/admission failures have no capture and return
+    /// `None`. A failed spawn retains its existing empty execution evidence.
+    /// No output is copied, decoded, logged or formatted by this accessor.
+    #[must_use]
+    pub fn evidence(&self) -> Option<&ExecutionEvidence> {
+        match self {
+            Self::Execution(error) => Some(&error.evidence),
+            Self::VersionUtf8 { evidence, .. } | Self::VersionMismatch { evidence } => {
+                Some(evidence)
+            }
+            Self::InvalidInvocation(_) | Self::Io(_) | Self::NotExecutable | Self::Artifact(_) => {
+                None
+            }
+        }
+    }
+
+    /// Borrow the original execution failure and its kill/reap outcomes, if any.
+    ///
+    /// A successful version capture rejected by admission has evidence but no
+    /// execution failure. Formatting, redaction and recovery remain caller-owned.
+    #[must_use]
+    pub fn execution_error(&self) -> Option<&ExecutionError> {
+        match self {
+            Self::Execution(error) => Some(error),
+            _ => None,
+        }
+    }
+}
+
+/// Capture one caller-configured command without performing executable admission.
+///
+/// The caller owns the program, arguments, working directory, environment and
+/// platform setup. Their [`Command`] settings are used unchanged except that
+/// stdin is set to null and stdout/stderr to pipes. Ambient environment or PATH
+/// search remains enabled if the caller's command enables it. No digest/version
+/// check, credential selection, command reconstruction or retry is performed.
+/// Use [`AdmittedTool`] when exact executable-byte/version admission is required.
+///
+/// Shares the admitted-tool execution engine: stdout/stderr are drained fairly
+/// with bounded storage, and the deadline starts immediately before spawning
+/// and extends through pipe EOF. On failure, pipes are closed and the direct
+/// child is terminated/reaped, retaining the original failure and cleanup
+/// evidence. Descendants, platform setup hooks and inherited descriptor lifetimes
+/// remain caller-owned. Spawning, setup hooks and kill/reap are synchronous and
+/// may exceed the deadline. This does not supervise a process group, roll back
+/// an external effect or make an uncertain command safe to repeat.
+///
+/// # Errors
+/// Rejects an invalid deadline before touching or spawning the command. Spawn,
+/// capture, nonzero exit, overflow and deadline failures retain bounded evidence.
+pub fn capture_command(
+    command: &mut Command,
+    limits: OutputLimits,
+) -> Result<ExecutionEvidence, ToolError> {
+    validate_limits(limits)?;
+    process::capture_command(command, limits)
+        .map_err(|source| ToolError::Execution(Box::new(source)))
+}
+
 impl fmt::Display for ToolError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -421,13 +483,7 @@ fn validate_invocation(
     if !context.current_dir.is_absolute() {
         return Err(reject(InvalidInvocation::WorkingDirectory));
     }
-    if limits.timeout.is_zero()
-        || std::time::Instant::now()
-            .checked_add(limits.timeout)
-            .is_none()
-    {
-        return Err(reject(InvalidInvocation::Deadline));
-    }
+    validate_limits(limits)?;
     for (index, argument) in arguments.iter().enumerate() {
         if argument.as_bytes().contains(&0) {
             return Err(reject(InvalidInvocation::Argument { index }));
@@ -445,6 +501,17 @@ fn validate_invocation(
         if value.as_bytes().contains(&0) {
             return Err(reject(InvalidInvocation::EnvironmentValue { index }));
         }
+    }
+    Ok(())
+}
+
+fn validate_limits(limits: OutputLimits) -> Result<(), ToolError> {
+    if limits.timeout.is_zero()
+        || std::time::Instant::now()
+            .checked_add(limits.timeout)
+            .is_none()
+    {
+        return Err(ToolError::InvalidInvocation(InvalidInvocation::Deadline));
     }
     Ok(())
 }

@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.3.3]
+
+### Added
+
+- Capture caller-configured commands through the same bounded process engine as
+  admitted tools, preserving caller-owned executable policy and command setup
+  ([#5](https://github.com/dragginzgame/ic-host-tooling/issues/5)).
+- Borrow retained process and version evidence directly from `ToolError`, including
+  original execution and cleanup failures, without copying captured output
+  ([#9](https://github.com/dragginzgame/ic-host-tooling/issues/9)).
+
+### Fixed
+
+- Qualify path traversal against each host's native canonicalization results,
+  fixing a Linux-specific test expectation that failed on both macOS architectures
+  ([#1](https://github.com/dragginzgame/ic-host-tooling/issues/1)).
+
 ## [0.3.2] - 2026-10-07
 
 ### Added

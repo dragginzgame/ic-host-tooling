@@ -7,6 +7,9 @@ use super::*;
 use crate::test_support::{Fixture, LIMITS, VERSION, admit, tool_path};
 use std::os::unix::ffi::OsStringExt as _;
 
+mod capture;
+mod evidence;
+
 #[test]
 fn digest_rejection_precedes_any_version_execution() {
     let fixture = Fixture::new();
