@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.4.5]
+
+- Fix durable-writer compilation on Intel and Apple Silicon macOS by converting
+  admitted permissions to Darwin's narrower native type without truncation
+  ([#18](https://github.com/dragginzgame/ic-host-tooling/issues/18)).
+
+See [the 0.4 notes](docs/changelog/0.4.md).
+
 ## [0.4.4] - 2026-10-07
 
 - Hash gzip or raw artifacts and compare decoded gzip with expected bytes

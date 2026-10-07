@@ -54,13 +54,14 @@ decoded bytes exactly with an expected slice. All retain explicit input/payload
 bounds and strict single-member integrity checks; see the
 [gzip contract](docs/changelog/0.4.md#gzip-identities-and-exact-representation-comparison).
 
-The four-crate workspace has a Git release at 0.4.3. Package metadata permits
+The four-crate workspace has a Git release at 0.4.4. Package metadata permits
 crates.io publication; a Git release does not establish registry availability.
 The original local checkout has been removed after a verified full backup.
 Consumers adopt and qualify registry selections independently.
 
 Read [the extraction contract](docs/extraction.md), [host qualification](docs/hosts.md),
 [the handoff](docs/status/current.md) and [agent rules](AGENTS.md).
+Human and agent contributions follow the [PR contribution rules](rules/contributions.md).
 
 Use cargo test -p ic-host-artifacts --all-features --lib --locked --offline
 or select the corresponding filesystem, process or IC adapter package.

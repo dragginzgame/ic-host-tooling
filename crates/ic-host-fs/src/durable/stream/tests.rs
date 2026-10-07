@@ -163,18 +163,29 @@ fn filename_and_descriptor_admission_precedes_any_producer_or_stage() {
         );
     }
     let path = fixture.root.join("must not create/output");
-    let error = write_typed_with(
-        &path,
-        WriteOptions {
-            permissions: 0o4600,
+    for permissions in [0o1000, 0o4600, 0x1_0000 | 0o600, u32::MAX] {
+        let options = WriteOptions {
+            permissions,
             ..CREATE
-        },
-        |_| -> io::Result<()> { panic!("invalid mode dispatched") },
-    )
-    .unwrap_err();
-    assert!(
-        matches!(error, NamedWriteError::BeforePublication { source, .. } if source.kind() == io::ErrorKind::InvalidInput)
-    );
+        };
+        let error = write_typed_with(&path, options, |_| -> io::Result<()> {
+            panic!("invalid mode dispatched")
+        })
+        .unwrap_err();
+        assert!(
+            matches!(error, NamedWriteError::BeforePublication { source, cleanup_error: None } if source.kind() == io::ErrorKind::InvalidInput)
+        );
+        let error = write_at_with(
+            directory.as_fd(),
+            OsStr::new("output"),
+            options,
+            |_| -> io::Result<()> { panic!("invalid descriptor mode dispatched") },
+        )
+        .unwrap_err();
+        assert!(
+            matches!(error, NamedWriteError::BeforePublication { source, cleanup_error: None } if source.kind() == io::ErrorKind::InvalidInput)
+        );
+    }
     assert_eq!(fs::read_dir(&fixture.root).unwrap().count(), 0);
     let regular = fs::File::create(fixture.root.join("file")).unwrap();
     let error = write_at_with(

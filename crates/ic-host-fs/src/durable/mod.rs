@@ -364,11 +364,22 @@ mod supported {
         // All filesystem operations below use the held directory descriptor.
         let parent = parent_path.unwrap_or_else(|| Path::new(""));
         let path = parent.join(file_name);
+        // Darwin's mode_t is u16; Linux uses u32. Permission admission above
+        // remains authoritative, and the narrowing conversion is checked.
+        #[cfg(target_vendor = "apple")]
+        let permissions = u16::try_from(options.permissions).map_err(|_| {
+            NamedWriteError::before(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "invalid file permission bits",
+            ))
+        })?;
+        #[cfg(not(target_vendor = "apple"))]
+        let permissions = options.permissions;
         let (temp_name, temp_path, mut temp_file) = create_sibling_temp(
             &parent_fd,
             parent,
             file_name,
-            Mode::from_raw_mode(options.permissions),
+            Mode::from_raw_mode(permissions),
             &mut before,
         )
         .map_err(NamedWriteError::before)?;

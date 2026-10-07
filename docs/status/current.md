@@ -1,6 +1,52 @@
 # Current handoff
 
-## Latest qualification: 2026-10-07, after 0.4.3
+## Latest qualification: 2026-10-07, after 0.4.4
+
+Released 0.4.4 is `d7785db667db0c2fd5135f4aaa0bf02a847c3126`. Its failed
+atomic push was subsequently recovered: remote main and the annotated v0.4.4
+tag were verified at that commit, and the saved release plan is complete.
+[Exact-source CI](https://github.com/dragginzgame/ic-host-tooling/actions/runs/37642928105)
+passes Linux/MSRV but fails both macOS architectures compiling the durable writer.
+`Mode::from_raw_mode` requires Darwin's u16 mode while the public options hold
+u32. Both native logs are retained under /tmp/ic-host-045-macos-*.log. This
+supersedes the earlier queued/running native status; the shared scratch-directory
+fixture is no longer the failing step.
+
+The compatible **0.4.5** draft repairs
+[Host #18](https://github.com/dragginzgame/ic-host-tooling/issues/18) with checked
+Apple conversion after existing permission admission. Linux retains u32.
+Public options, invalid-mode rejection and publication error state are unchanged;
+no truncating cast or panic is introduced. The existing admission regression
+now rejects special permission bits and values exceeding u16 at both entry
+points, before parent/staging creation or producer dispatch.
+
+Focused locked/offline Linux checks pass: 58 filesystem tests, strict filesystem
+Clippy and Rust 1.88. Dependency cache preparation, sorting, formatting, snapshot,
+pins and documentation checks pass. Logs remain under /tmp/ic-host-045-*.
+Neither native macOS target is installed locally. The Apple branch still needs
+execution/compilation in exact committed Intel and ARM macOS CI; the passing
+Linux checks do not establish that qualification. Query and Blob adoption remain
+coordinated on #18 until the repair is delivered and natively qualified.
+
+[Host #17](https://github.com/dragginzgame/ic-host-tooling/issues/17) is prepared
+through canonical adoption of committed Shared Tooling 0.1.20,
+`3ecc48e579f6cf6e6ab01a6645d8a250fc8c6934`, whose
+[upstream CI](https://github.com/dragginzgame/shared-tooling/actions/runs/37641211708)
+passes. A clean private clone was exported, adding rules/contributions.md for
+68 verified snapshot entries. Its path is recorded in /tmp/ic-host-045-shared-path.
+The baseline, linked rules/guides and local AGENTS overlay now agree: scoped
+commit/PR requests authorize their documented Git workflow; ordinary fixes remain
+local, and merge/integration-branch/release effects retain separate authority.
+Historical handoff descriptions of old prohibitions remain historical evidence.
+No Git effects are implied by adoption itself. Policy links were checked locally;
+runtime shared scripts, tool pins and CI workflows did not change in this refresh.
+
+No function, method or type was removed. Package versions, dependencies and
+Cargo.lock remain unchanged. No sibling edit, broad local gate, tool download,
+commit, push or publication occurred. The fixes remain in the working tree;
+#17 and #18 stay open through their delivery/qualification requirements.
+
+## Previous qualification: 2026-10-07, after 0.4.3
 
 The maintainer reports 0.4.3 live. The clean starting HEAD is
 `644d49c096ae05c2e17e1b6aacf14770988c5cf6`, with finalized root notes and package
