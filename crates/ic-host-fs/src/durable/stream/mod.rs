@@ -85,9 +85,11 @@ pub fn write_typed_with<T, E>(
 /// The callback and interruption obligations of [`write_typed_with`] also apply.
 ///
 /// # Errors
-/// Rejects invalid names/permissions and non-directory descriptors before staging
+/// Rejects invalid filename components/permissions and non-directory descriptors before staging
 /// or producer invocation. Retains typed producer, cleanup and publication-state
 /// errors through the same engine and [`NamedWriteError`] as pathname publication.
+/// Name validation checks components, not filesystem-specific byte encoding:
+/// the filesystem may reject a name at publication after the producer runs.
 #[cfg(unix)]
 pub fn write_at_with<T, E>(
     parent: std::os::fd::BorrowedFd<'_>,

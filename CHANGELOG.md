@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.4.6]
+
+- Fix macOS publication-test expectations for non-UTF-8 filenames by checking
+  native filesystem admission, while retaining exact-name success and cleanup
+  coverage on supported filesystems
+  ([#19](https://github.com/dragginzgame/ic-host-tooling/issues/19)).
+
+See [the 0.4 notes](docs/changelog/0.4.md).
+
 ## [0.4.5] - 2026-10-07
 
 - Fix durable-writer compilation on Intel and Apple Silicon macOS by converting

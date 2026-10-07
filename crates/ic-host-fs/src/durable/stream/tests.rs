@@ -198,12 +198,64 @@ fn filename_and_descriptor_admission_precedes_any_producer_or_stage() {
     assert!(
         matches!(error, NamedWriteError::BeforePublication { source, .. } if source.kind() == io::ErrorKind::NotADirectory)
     );
-    let name = OsString::from_vec(vec![0xff, b'x']);
-    write_at_with(directory.as_fd(), &name, CREATE, |file| {
-        file.write_all(b"non-UTF-8")
-    })
-    .unwrap();
-    assert_eq!(fs::read(fixture.root.join(name)).unwrap(), b"non-UTF-8");
+}
+
+#[test]
+fn non_utf8_publication_matches_native_filesystem_admission() {
+    for options in [REPLACE, CREATE] {
+        let fixture = Fixture::new();
+        let directory = fs::File::open(&fixture.root).unwrap();
+        let name = OsString::from_vec(vec![0xff, b'x']);
+        let destination = fixture.root.join(&name);
+        let native_stage = fixture.root.join("native-stage");
+        fs::write(&native_stage, b"native").unwrap();
+        // Observe this filesystem's destination admission independently. Darwin
+        // filesystems can reject these bytes; a Unix OsString alone admits them.
+        let native = match options.mode {
+            PublicationMode::Replace => fs::rename(&native_stage, &destination),
+            PublicationMode::CreateNew => fs::hard_link(&native_stage, &destination),
+        };
+        if native.is_ok() {
+            assert_eq!(fs::read(&destination).unwrap(), b"native");
+            fs::remove_file(&destination).unwrap();
+        }
+        if native.is_err() || options.mode == PublicationMode::CreateNew {
+            assert_eq!(fs::read(&native_stage).unwrap(), b"native");
+            fs::remove_file(&native_stage).unwrap();
+        }
+        let mut produced = false;
+        let result = write_at_with(directory.as_fd(), &name, options, |file| {
+            produced = true;
+            file.write_all(b"non-UTF-8")
+        });
+        // Lexical name admission precedes the callback; native final-entry
+        // admission occurs at publication after the producer has completed.
+        assert!(produced);
+        match native {
+            Ok(()) => {
+                result.unwrap();
+                assert_eq!(fs::read(&destination).unwrap(), b"non-UTF-8");
+                let names: Vec<_> = fs::read_dir(&fixture.root)
+                    .unwrap()
+                    .map(|entry| entry.unwrap().file_name())
+                    .collect();
+                assert_eq!(names, [name]);
+            }
+            Err(native_error) => {
+                assert_eq!(
+                    native_error.raw_os_error(),
+                    Some(rustix::io::Errno::ILSEQ.raw_os_error())
+                );
+                assert!(matches!(
+                    result,
+                    Err(NamedWriteError::BeforePublication { source, cleanup_error: None })
+                        if source.raw_os_error() == native_error.raw_os_error()
+                ));
+                // Enumerate instead of looking up a name rejected by this FS.
+                assert_eq!(fs::read_dir(&fixture.root).unwrap().count(), 0);
+            }
+        }
+    }
 }
 
 #[test]

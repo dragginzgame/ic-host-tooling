@@ -1,6 +1,50 @@
 # Current handoff
 
-## Latest qualification: 2026-10-07, after 0.4.4
+## Latest qualification: 2026-10-07, after 0.4.5
+
+Released 0.4.5 is `93a905b048bcaa2a0aed4214ac2f13f065dc2905`.
+[Exact-source CI](https://github.com/dragginzgame/ic-host-tooling/actions/runs/37645681743)
+passes Linux/MSRV. Both macOS architectures now compile the filesystem library,
+pass its strict Clippy and run its tests; the u32/u16 defect is resolved. They
+then fail the unconditional non-UTF-8 filename success assertion with EILSEQ,
+after 57 other filesystem tests pass. Native logs are retained at
+/tmp/ic-host-046-arm.log and /tmp/ic-host-046-intel.log.
+
+The compatible **0.4.6** draft addresses
+[Host #19](https://github.com/dragginzgame/ic-host-tooling/issues/19) with a
+fixture repair and API documentation clarification. Native rename/link operations
+independently establish whether the same filesystem accepts the filename bytes.
+Both replace and create-only Host calls must agree: accepted names retain exact
+bytes/contents, while rejected names preserve native EILSEQ in BeforePublication
+with successful cleanup and no output/staging left behind. No platform branch
+skips the test or translates the name. Existing invalid-component, invalid-mode
+and non-directory checks still assert rejection before producer invocation.
+
+The issue's initial no-producer wording does not describe native final-name
+rejection: the producer writes the valid staging entry before the filesystem
+admits the destination at publication. The new test verifies that ordering and
+cleanup rather than changing production policy. BeforePublication does not mean
+the callback had no effects. This distinction is recorded on #19 and in Rustdoc.
+
+Focused locked/offline Linux checks pass: 59 filesystem tests, strict filesystem
+Clippy and Rust 1.88, following explicit offline cache preparation. Logs are in
+/tmp/ic-host-046-*.log. Linux exercised the accepting-filesystem branch; the
+rejecting branch still requires exact committed native macOS CI. Production
+code, dependencies, package versions and Cargo.lock are unchanged. No function,
+method or type was removed; the filename case moved into its own expanded test.
+
+Issue review confirms the 0.4.5 contribution adoption is committed and the
+Darwin compiler defect is fixed. [#17](https://github.com/dragginzgame/ic-host-tooling/issues/17)
+and [#18](https://github.com/dragginzgame/ic-host-tooling/issues/18) were closed
+with exact release evidence; overall native acceptance remains tracked by #19.
+Query's latest feedback reports prepared 0.48.0 typed descriptor adoption and
+173 focused Linux tests, with its own capability/permission/schema rules kept
+local. That is consumer-reported Linux evidence, not native acceptance or a
+reason to remove Backup's separate crash-barrier obligations. Shared Tooling
+remains at the already-adopted committed 0.1.20 revision. No sibling files,
+Git refs, publication or CI runs were changed; no broad local gate ran.
+
+## Previous qualification: 2026-10-07, after 0.4.4
 
 Released 0.4.4 is `d7785db667db0c2fd5135f4aaa0bf02a847c3126`. Its failed
 atomic push was subsequently recovered: remote main and the annotated v0.4.4
