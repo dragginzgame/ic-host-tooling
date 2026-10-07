@@ -37,6 +37,12 @@
   license copies compatible with the formatting hook, and check their contents
   against the root notice before packaging or publication.
 
+### Testing
+
+- Isolate descriptor close/reacquisition checks from parallel subprocess tests,
+  preserving immediate release assertions without transient inherited-descriptor
+  contention ([#2](https://github.com/dragginzgame/ic-host-tooling/issues/2)).
+
 ## [0.3.0] - 2026-10-06
 
 ### Breaking

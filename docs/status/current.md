@@ -248,3 +248,22 @@ links and snapshot integrity passed. No new archive verification, native macOS
 qualification, commit, release or publication occurred in this repair.
 The repaired files were staged without disturbing the existing selection, and
 the actual pre-commit hook passed against that selected index payload on Linux.
+
+After the maintainer committed the batch as 5e73861, a filesystem test failed at
+the immediate close/reacquisition assertion. The descriptor test lacked the
+subprocess isolation already used by the older path-lock test: a parallel process
+spawn can inherit a locked descriptor until exec, briefly retaining exclusion
+after the originating descriptor closes. The descriptor test now runs alone in
+an exact-test subprocess, preserving its contention, returned ownership and
+immediate close-release assertions. Production acquisition behavior is unchanged.
+This remains compatible pending 0.3.1 work; no tag or package version changed.
+
+The reported failure was not reproduced in the isolated baseline run or 20
+parallel baseline runs; the inherited-descriptor explanation is source-based,
+not a captured failing interleaving. Baseline logs remain in
+/tmp/ic-host-lock-before-*.log. After isolation, all four lock-wait module tests,
+all 34 filesystem tests and 20 further library runs with 32 test threads passed;
+the repetition logs remain in /tmp/ic-host-lock-after-*.log. Strict all-target
+Clippy, Rust 1.88 all-target checks, formatting and documentation checks passed
+offline on Linux. Full release gates and native macOS qualification were not
+performed; this repair remains uncommitted for the maintainer.
