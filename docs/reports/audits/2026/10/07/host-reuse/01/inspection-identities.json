@@ -1,0 +1,1504 @@
+[
+   {
+      "dirty_status" : " M CHANGELOG.md\u0000 M crates/ic-host-fs/src/path/mod.rs\u0000 M crates/ic-host-fs/src/path/tests.rs\u0000 D crates/ic-host-fs/tests/fixtures/git.sh\u0000 D crates/ic-host-fs/tests/fixtures/tool.sh\u0000 D crates/ic-host-process/tests/fixtures/empty.wasm\u0000 D crates/ic-host-tools/tests/fixtures/empty.wasm\u0000 D crates/ic-host-tools/tests/fixtures/git.sh\u0000 M docs/extraction.md\u0000?? docs/reports/audits/2026/10/07/\u0000",
+      "files" : [
+         {
+            "bytes" : 5697,
+            "path" : ".shared-tooling.snapshot",
+            "sha256" : "2808142f49ca9269ef8b94e95321a6f0124c67a918eddd4558490ba349bd6761"
+         },
+         {
+            "bytes" : 1683,
+            "path" : "AGENTS.md",
+            "sha256" : "968f128d3224a656b5162b9ec3918c966616ef271e2831e9438f4aa8adb979d0"
+         },
+         {
+            "bytes" : 9063,
+            "path" : "Cargo.lock",
+            "sha256" : "df1520878f4b27af2555f355a1dda53ca7ae9e5a6706b3cc7dd1c0b5951c157f"
+         },
+         {
+            "bytes" : 1611,
+            "path" : "Cargo.toml",
+            "sha256" : "0ae563bef5ad081d37ee95c0111190c0e49fe228c40eb1581b2cc7f35c84808e"
+         },
+         {
+            "bytes" : 19867,
+            "path" : "DRAGGINZGAME.md",
+            "sha256" : "8bdc1b56702aecafe1d761e46ba68b7b695dc9ce435711288f4455a096c1e0a2"
+         },
+         {
+            "bytes" : 7055,
+            "path" : "audits/README.md",
+            "sha256" : "926d5a39ea62a3becd19ff0326c63987b2929d3a1a728e2a0ef8a7180824d231"
+         },
+         {
+            "bytes" : 2399,
+            "path" : "audits/flow-convergence-and-duplication.md",
+            "sha256" : "35fd87d36a09ed0971841abf28535d43470c713a82581c2251b924da1ab8f484"
+         },
+         {
+            "bytes" : 11800,
+            "path" : "crates/ic-host-artifacts/src/archive/mod.rs",
+            "sha256" : "0aa25f26c92962cb8d7c937a45520d70ab08cbeffcb19346b43e0c76560bd1d1"
+         },
+         {
+            "bytes" : 11100,
+            "path" : "crates/ic-host-artifacts/src/archive/tests.rs",
+            "sha256" : "f421faa806b90ad5ae9190b31cd8be4254b0e762b5f7dfd4b673251747d5f87c"
+         },
+         {
+            "bytes" : 3251,
+            "path" : "crates/ic-host-artifacts/src/artifact/copy/mod.rs",
+            "sha256" : "f19f7cd091b07071243aba912e39b540efc6b255dd6ab95eeec5009dacc79891"
+         },
+         {
+            "bytes" : 5828,
+            "path" : "crates/ic-host-artifacts/src/artifact/copy/tests.rs",
+            "sha256" : "937b40f6b9a5d1095158006565409091156f2e2f247a8596b33b23255180fe3c"
+         },
+         {
+            "bytes" : 4030,
+            "path" : "crates/ic-host-artifacts/src/artifact/gzip/mod.rs",
+            "sha256" : "d82756b91c7ff5572258203ab9169b2ab05a67e57ba1ef55b3a1332e09c87e36"
+         },
+         {
+            "bytes" : 5978,
+            "path" : "crates/ic-host-artifacts/src/artifact/gzip/tests.rs",
+            "sha256" : "582c71450f63642e28ef49582ff795143ca7e23f8689e11058de0179bd4c56c7"
+         },
+         {
+            "bytes" : 1654,
+            "path" : "crates/ic-host-artifacts/src/artifact/matching/mod.rs",
+            "sha256" : "41caec22e1ca9ed06a585f81e3cfb722d5dae913588d718f644bacb3ba7c8d5a"
+         },
+         {
+            "bytes" : 1381,
+            "path" : "crates/ic-host-artifacts/src/artifact/matching/tests.rs",
+            "sha256" : "a279485feaa927afab1784420ddd175906aebe09ec8f34d632af9ae21723f3bb"
+         },
+         {
+            "bytes" : 8465,
+            "path" : "crates/ic-host-artifacts/src/artifact/mod.rs",
+            "sha256" : "98d69a42387e338b18d3167149c04821ebe393a42eaabbc93d32679afc6e50da"
+         },
+         {
+            "bytes" : 4752,
+            "path" : "crates/ic-host-artifacts/src/artifact/tests.rs",
+            "sha256" : "63d48e04f56ef6208a3eab2c1fb4b2221ec3a3aea6a866aaf68631af7fd707e4"
+         },
+         {
+            "bytes" : 4244,
+            "path" : "crates/ic-host-artifacts/src/artifact/writer/mod.rs",
+            "sha256" : "e68f3cd9081699ec327e6ce39c6d6477846815321eca3730ccfc5367de7392bf"
+         },
+         {
+            "bytes" : 5589,
+            "path" : "crates/ic-host-artifacts/src/artifact/writer/tests.rs",
+            "sha256" : "1deed1e755d459b275cfdb0b2553d930f56980e2381b7b14325c405a54b649af"
+         },
+         {
+            "bytes" : 183,
+            "path" : "crates/ic-host-artifacts/src/lib.rs",
+            "sha256" : "eb2fbc7e97d2c03a714c08ce8abcb54ab302370a9bab34828ac05f7c70579af2"
+         },
+         {
+            "bytes" : 11545,
+            "path" : "crates/ic-host-artifacts/src/wasm/mod.rs",
+            "sha256" : "a87a8b5a8d6dd1e4920cce4389822b16ee64148d871ca18835fe05794208f295"
+         },
+         {
+            "bytes" : 7002,
+            "path" : "crates/ic-host-artifacts/src/wasm/tests.rs",
+            "sha256" : "2c6c24dab2e53e5a6f797c638c95725e9af8ab808d7490c86c655c39457c0039"
+         },
+         {
+            "bytes" : 11683,
+            "path" : "crates/ic-host-artifacts/tests/consumer_contracts.rs",
+            "sha256" : "73284325f81c682b42409e66d7560ee06ee2a303c1a9e635776bf93eba04b1a9"
+         },
+         {
+            "bytes" : 2409,
+            "path" : "crates/ic-host-fs/src/durable/lock_wait/mod.rs",
+            "sha256" : "b2f7abd572a2721949e6bfe4225802719fa8dc39f0846000e2ff834d26c6f6a3"
+         },
+         {
+            "bytes" : 3876,
+            "path" : "crates/ic-host-fs/src/durable/lock_wait/tests.rs",
+            "sha256" : "465a873327fc5f3bd5872eaa9f98d9fdc36db7dd005c5836aa37ea55dd88d73b"
+         },
+         {
+            "bytes" : 26224,
+            "path" : "crates/ic-host-fs/src/durable/mod.rs",
+            "sha256" : "0cbcb6bec734c18f102c2c21031bf6f55504ae4857a3e3e766bf1ea85dd83c76"
+         },
+         {
+            "bytes" : 22311,
+            "path" : "crates/ic-host-fs/src/durable/tests.rs",
+            "sha256" : "cbf0bd2416c982211d3f69d398ea5b97438e52df8da481e66b8f07c569f47b90"
+         },
+         {
+            "bytes" : 162,
+            "path" : "crates/ic-host-fs/src/lib.rs",
+            "sha256" : "7fafcfc1bd549b83c75f89601aa26a65ee1f628becff128c65faf965391b890d"
+         },
+         {
+            "bytes" : 7441,
+            "path" : "crates/ic-host-fs/src/path/mod.rs",
+            "sha256" : "f03b059ba11cb1320ed86abb1e06893efa98e3bbf27d5eedea332ac173b7a341"
+         },
+         {
+            "bytes" : 6059,
+            "path" : "crates/ic-host-fs/src/path/tests.rs",
+            "sha256" : "fbdc51f48e22504af1dc428cd36b5d75c91b3ecb32278f238d6eeb1d84247142"
+         },
+         {
+            "bytes" : 2987,
+            "path" : "crates/ic-host-fs/src/read/mod.rs",
+            "sha256" : "f82a03e12524e88059fae4e3b893a374f4eb890eaa7d8e7192bb5c729383386b"
+         },
+         {
+            "bytes" : 1658,
+            "path" : "crates/ic-host-fs/src/read/no_follow/mod.rs",
+            "sha256" : "a694e905f2b1bf14554bda2d29884d35eb48fdb0a919b5aaf3eb132df9d21813"
+         },
+         {
+            "bytes" : 5984,
+            "path" : "crates/ic-host-fs/src/read/no_follow/tests.rs",
+            "sha256" : "90381736d1d6e65d64066b1aaec08d5f02b07b6c42662ae1b5841605a90cd7a5"
+         },
+         {
+            "bytes" : 1049,
+            "path" : "crates/ic-host-fs/src/read/tests.rs",
+            "sha256" : "b759c8db2c123d4eccbde43847866d8dd867990684f5e0cc9fac65064895a74d"
+         },
+         {
+            "bytes" : 665,
+            "path" : "crates/ic-host-fs/src/test_support/mod.rs",
+            "sha256" : "9f6fe53974cacc49439f776abd6148a21fce7812a36d3b0fac800b585ab8e0c5"
+         },
+         {
+            "bytes" : 187,
+            "path" : "crates/ic-host-process/src/lib.rs",
+            "sha256" : "60dbf830b1b38a2cef3e924d196897ff9393c0652aa8a41b0ec82447d4a14fe0"
+         },
+         {
+            "bytes" : 9408,
+            "path" : "crates/ic-host-process/src/provenance/mod.rs",
+            "sha256" : "a2b6e39bf61556d23ea85f7ad891d10cdc066bb0c0dc7563f3d9184242fa9e1e"
+         },
+         {
+            "bytes" : 5920,
+            "path" : "crates/ic-host-process/src/provenance/tests.rs",
+            "sha256" : "66ab228d60f8c34c95161739451aca29737525bec08adaf0f99dc9e79fddcb5d"
+         },
+         {
+            "bytes" : 2437,
+            "path" : "crates/ic-host-process/src/test_support/mod.rs",
+            "sha256" : "bca4f83cb1658068c138073dafe5c1529146674e84b84e76592b18443f9e10cd"
+         },
+         {
+            "bytes" : 16524,
+            "path" : "crates/ic-host-process/src/tool/mod.rs",
+            "sha256" : "165975315735d6bbcd017a684b35e7b515b96b48cbdf9fa6361a96d11d16fbe3"
+         },
+         {
+            "bytes" : 5882,
+            "path" : "crates/ic-host-process/src/tool/process.rs",
+            "sha256" : "1267ce370c2ae34c2d427739f2e2e8335517d6372bf8fa572298f2e386fb4045"
+         },
+         {
+            "bytes" : 6872,
+            "path" : "crates/ic-host-process/src/tool/resolution/mod.rs",
+            "sha256" : "46014bab71680c81fc6640960d31f88ae459004a3dba230e852e4c0ba42c9e1a"
+         },
+         {
+            "bytes" : 9544,
+            "path" : "crates/ic-host-process/src/tool/resolution/tests.rs",
+            "sha256" : "11323ff9bb0d7cc74973aa7ac506320c4801049f7d5f7cc97b655a24048c7cf0"
+         },
+         {
+            "bytes" : 11797,
+            "path" : "crates/ic-host-process/src/tool/tests.rs",
+            "sha256" : "b8c16cf729ec6279ac08d0dbf4f475f3a9324cbe7676405bba013e3b64ff94cf"
+         },
+         {
+            "bytes" : 2635,
+            "path" : "crates/ic-host-tools/examples/extract_candid.rs",
+            "sha256" : "a9000ceeacae988062e48e46611ec5800f5e354d91c73d89c52b325b324dff66"
+         },
+         {
+            "bytes" : 964,
+            "path" : "crates/ic-host-tools/examples/hash_serialized_json.rs",
+            "sha256" : "63eb9b7a260d7ac9140fbe8bbb3e00fa95f6dcb438e3e1149f641c90ee5f7bd4"
+         },
+         {
+            "bytes" : 1738,
+            "path" : "crates/ic-host-tools/examples/inspect_archive.rs",
+            "sha256" : "18859522282c51b217741496c1fd29f50e87ad1790889c2b02f7936e7fe63552"
+         },
+         {
+            "bytes" : 2532,
+            "path" : "crates/ic-host-tools/examples/inspect_artifact.rs",
+            "sha256" : "42f9a602fa42efd84503f6669b402c1e6e14f6797b7a8ed9b6f9ecbf3d8bdfda"
+         },
+         {
+            "bytes" : 3482,
+            "path" : "crates/ic-host-tools/examples/inspect_git.rs",
+            "sha256" : "27c80076717eb8d599191a61bf3f9de999beaab5d4a1510597e088c25467ab1e"
+         },
+         {
+            "bytes" : 1460,
+            "path" : "crates/ic-host-tools/examples/inspect_gzip.rs",
+            "sha256" : "8fa20cebb73e5101f0992097fac41469bcfe8228ade43d5ae8ca0d5f715cf00b"
+         },
+         {
+            "bytes" : 1326,
+            "path" : "crates/ic-host-tools/examples/inspect_regular_file.rs",
+            "sha256" : "a95cdeb1d15808d0bb3be82f487eff9265fa2150801fee3df1f30a585408cbe2"
+         },
+         {
+            "bytes" : 1807,
+            "path" : "crates/ic-host-tools/examples/inspect_response.rs",
+            "sha256" : "cc70660eadb436491351f72f3587e2e8c75db8643ea37f4588fad8dea80c66c6"
+         },
+         {
+            "bytes" : 1436,
+            "path" : "crates/ic-host-tools/examples/resolve_tool.rs",
+            "sha256" : "6f2b07e973793eadf2b9d3b7a98429cbd04b8c4811c5256de3bdcc62fca48220"
+         },
+         {
+            "bytes" : 9033,
+            "path" : "crates/ic-host-tools/src/candid/mod.rs",
+            "sha256" : "743044af466ba6ee69807f5809ed8cc3506145586bcaaae201a029dc7a832943"
+         },
+         {
+            "bytes" : 9863,
+            "path" : "crates/ic-host-tools/src/candid/tests.rs",
+            "sha256" : "211a0b0d167ed3610d52939c319ba64614d03528538badba07d319fa67d11610"
+         },
+         {
+            "bytes" : 168,
+            "path" : "crates/ic-host-tools/src/lib.rs",
+            "sha256" : "a8a77d8a0cb4a5fb09ac59e8a42dfa55308c2e8e54e4f5a8ee17166c7cf6e322"
+         },
+         {
+            "bytes" : 9851,
+            "path" : "crates/ic-host-tools/src/response/mod.rs",
+            "sha256" : "0939e03b121b05597fdac1bb4389fb23c0045550f1ebe39c95c7479a9fd83795"
+         },
+         {
+            "bytes" : 8835,
+            "path" : "crates/ic-host-tools/src/response/tests.rs",
+            "sha256" : "cba3f1a6eff16c03dd3a7b8698bc7d9dc43aee3904e7dc61d4f56c31228f957e"
+         },
+         {
+            "bytes" : 2626,
+            "path" : "crates/ic-host-tools/src/test_support/mod.rs",
+            "sha256" : "ac8b89bd80e3b3e1d121143570da132f6680b5b8bf1e3cc5b70335d5a48df86b"
+         }
+      ],
+      "head" : "38a2a5127be064014e6d39d72d0300ffb2cf20be",
+      "host_lock_packages" : [
+         {
+            "name" : "ic-host-artifacts",
+            "version" : "0.3.1"
+         },
+         {
+            "name" : "ic-host-fs",
+            "version" : "0.3.1"
+         },
+         {
+            "name" : "ic-host-process",
+            "version" : "0.3.1"
+         },
+         {
+            "name" : "ic-host-tools",
+            "version" : "0.3.1"
+         }
+      ],
+      "repository" : "ic-host-tooling"
+   },
+   {
+      "dirty_status" : "",
+      "files" : [
+         {
+            "bytes" : 6651,
+            "path" : ".shared-tooling.snapshot",
+            "sha256" : "a7609a04a2e8f64cb236352aef3453da76e6fca9a3572ede1674059f8e7c39c0"
+         },
+         {
+            "bytes" : 19001,
+            "path" : "AGENTS.md",
+            "sha256" : "1243121121298ad2f94f7199eb413c01bce3b6fb255e30532c5229a8e0f6d9cb"
+         },
+         {
+            "bytes" : 134639,
+            "path" : "Cargo.lock",
+            "sha256" : "eebd780002e366e2dc181f67477895b864c01e3ea331ac647b0418f1506cf121"
+         },
+         {
+            "bytes" : 6451,
+            "path" : "Cargo.toml",
+            "sha256" : "f5f2985d5316266d1f7389a8d08601ad3e443c93cf20f4108a5e06b13e5eb644"
+         },
+         {
+            "bytes" : 20483,
+            "path" : "DRAGGINZGAME.md",
+            "sha256" : "9c4a8524b15ec9beaf3b0ae64323d97b58194e6f9d5b065c14b773a67de2e3e9"
+         },
+         {
+            "bytes" : 7136,
+            "path" : "audits/README.md",
+            "sha256" : "b4c691ed78e3122b548566c148f8b8bb74b06ad6ca55092516f8ce271d8b1460"
+         },
+         {
+            "bytes" : 2399,
+            "path" : "audits/flow-convergence-and-duplication.md",
+            "sha256" : "35fd87d36a09ed0971841abf28535d43470c713a82581c2251b924da1ab8f484"
+         },
+         {
+            "bytes" : 52723,
+            "path" : "crates/canic-cli/src/admission/mod.rs",
+            "sha256" : "4c713df0284023599252ee72757135f57ca3b2015745ece4767bf3c405a0622d"
+         },
+         {
+            "bytes" : 16723,
+            "path" : "crates/canic-cli/src/fleet/bootstrap/mod.rs",
+            "sha256" : "a6d29220225e0fc82213e6841b829cd231a2ebfae43a0bd49703e25c40e9e033"
+         },
+         {
+            "bytes" : 55736,
+            "path" : "crates/canic-cli/src/fleet/mod.rs",
+            "sha256" : "3fa89997675843384d2ba6a41eae7a87c35d1836a9c11157ad7a4822d0142a54"
+         },
+         {
+            "bytes" : 3756,
+            "path" : "crates/canic-cli/src/output/mod.rs",
+            "sha256" : "c4528e473d11eca46d441567bcc08f4dc8a6b6928d51c4d21bd0792e66dabb06"
+         },
+         {
+            "bytes" : 30319,
+            "path" : "crates/canic-cli/src/scaffold/mod.rs",
+            "sha256" : "9b5b2c2ca1baf2b705326daaca0764cc5fd543a2de1a80ea80cc9eec736803f1"
+         },
+         {
+            "bytes" : 7473,
+            "path" : "crates/canic-cli/tests/recovery/mod.rs",
+            "sha256" : "bcc58c119480f307cb0b920770601095ed44744f8ace5b500478a06c939f1954"
+         },
+         {
+            "bytes" : 7111,
+            "path" : "crates/canic-host/examples/local_fleet.rs",
+            "sha256" : "65111a6a5ef48db93c37fdbf3972e9dbff42e42cd465bf79bf64ba9abc533bc4"
+         },
+         {
+            "bytes" : 22654,
+            "path" : "crates/canic-host/src/artifact_io/mod.rs",
+            "sha256" : "4e4c4b903d8f4b9ca8bf67e494128e2bd9347f015c78df885274763297b5f33e"
+         },
+         {
+            "bytes" : 10376,
+            "path" : "crates/canic-host/src/artifact_io/wasm/mod.rs",
+            "sha256" : "06115f2fec9bdfd37d36b8f400ad901ff17b4ddd07cd90b025311d9ecee6aa34"
+         },
+         {
+            "bytes" : 4017,
+            "path" : "crates/canic-host/src/bootstrap_candid/mod.rs",
+            "sha256" : "7c01449c727a2d110954830c6400f6661430548a5f79cc907d27b706d5a1dd5a"
+         },
+         {
+            "bytes" : 6688,
+            "path" : "crates/canic-host/src/canister_build/cache/mod.rs",
+            "sha256" : "adee047a166207d7ea50049d2616128864375e17c7c26df166fc85bfae7b4f53"
+         },
+         {
+            "bytes" : 2201,
+            "path" : "crates/canic-host/src/canister_build/candid.rs",
+            "sha256" : "c1d26a57100cd42a3218b13f9ec90fe416d77f1cef97c5504b02253139472d90"
+         },
+         {
+            "bytes" : 8497,
+            "path" : "crates/canic-host/src/canister_build/candid_cache/mod.rs",
+            "sha256" : "cd8c867facefebb8df67cc85c18805b0617676e8cae28363f05c2b1c80d811fa"
+         },
+         {
+            "bytes" : 2762,
+            "path" : "crates/canic-host/src/canister_build/compiled/mod.rs",
+            "sha256" : "df5172b9d8b043b1658986598e87963af1606e6389f574af1e088d8b206bc64f"
+         },
+         {
+            "bytes" : 7358,
+            "path" : "crates/canic-host/src/canister_build/reuse/dependencies/mod.rs",
+            "sha256" : "fb9381321ace7061f31bc3f1055b3f6eb2b8a05e7d354e04c17f5a533bcc179b"
+         },
+         {
+            "bytes" : 4495,
+            "path" : "crates/canic-host/src/canister_build/reuse/diagnostics/environment/mod.rs",
+            "sha256" : "92e7ff792f10205ca4c72b9b7feb036a999b57334669da8f853d5f8fafc7a176"
+         },
+         {
+            "bytes" : 7325,
+            "path" : "crates/canic-host/src/canister_build/reuse/diagnostics/mod.rs",
+            "sha256" : "eadf91f97f743b037512ea266bd1f660c5bb46e3cb03d3cef19f69358c50cde2"
+         },
+         {
+            "bytes" : 4920,
+            "path" : "crates/canic-host/src/canister_build/reuse/diagnostics/rejection/mod.rs",
+            "sha256" : "e31e7598682ce91475fff3758ee15c4f7f0617ed316acd6f3b29b0846e4f6934"
+         },
+         {
+            "bytes" : 4946,
+            "path" : "crates/canic-host/src/canister_build/reuse/lock/mod.rs",
+            "sha256" : "127afe827259da0e14eb283b635981c11ade2144a3c76f3a55d6fdee8ad66ba1"
+         },
+         {
+            "bytes" : 24971,
+            "path" : "crates/canic-host/src/canister_build/reuse/mod.rs",
+            "sha256" : "88e4d206d97d101e35f74572c623fa76a8808783667afe34446a88b322dee131"
+         },
+         {
+            "bytes" : 12803,
+            "path" : "crates/canic-host/src/canister_build/reuse/tests/complete/mod.rs",
+            "sha256" : "87fb85262629974d283415868476599d053975d873841df0412aa7b200e1cdb5"
+         },
+         {
+            "bytes" : 5475,
+            "path" : "crates/canic-host/src/component_operation/ops/mod.rs",
+            "sha256" : "85e4f169205028995f830d7dc6fd6b020e0ca96b0d9806cbaf974d03cf53f4c4"
+         },
+         {
+            "bytes" : 5450,
+            "path" : "crates/canic-host/src/component_operation/workflow/mod.rs",
+            "sha256" : "3bc641df25c9dfcdf82393e04406b6dcb82eb8427bd7a98b0f537c7e2ac278da"
+         },
+         {
+            "bytes" : 94239,
+            "path" : "crates/canic-host/src/fleet_ensure/generate/mod.rs",
+            "sha256" : "542621409d7c682fc8d9b961527652f9ad8653de459b127ddf36ca894d6fb5c4"
+         },
+         {
+            "bytes" : 197508,
+            "path" : "crates/canic-host/src/fleet_ensure/generate/tests.rs",
+            "sha256" : "e2bcee62a5c05aa9a15f425a4346a3a966048e28c86dc8402c233903262fe0ba"
+         },
+         {
+            "bytes" : 3816,
+            "path" : "crates/canic-host/src/fleet_ensure/ops/attempt_recovery/mod.rs",
+            "sha256" : "754d90b931e4e6205d47de0bf24d04ba67b842e72078dcf650be5fdccd1692cc"
+         },
+         {
+            "bytes" : 13027,
+            "path" : "crates/canic-host/src/fleet_ensure/ops/attempt_recovery/owner/mod.rs",
+            "sha256" : "9339a434886e8eddbfc342e118ddb6b55a5d319f1b90944e1af4b9312df5a430"
+         },
+         {
+            "bytes" : 5222,
+            "path" : "crates/canic-host/src/fleet_ensure/ops/attempt_recovery/tests.rs",
+            "sha256" : "57d5f3c49e79edf830b0eb81365038f1c189e02232af22bc6da7fc857215424a"
+         },
+         {
+            "bytes" : 19611,
+            "path" : "crates/canic-host/src/fleet_ensure/ops/capacity_import/admission/review/mod.rs",
+            "sha256" : "3bfe28d886258c18ece90675a7c6fa8c5749d9d49c2702a82fee1b8c5fed4d38"
+         },
+         {
+            "bytes" : 9308,
+            "path" : "crates/canic-host/src/fleet_ensure/ops/capacity_import/admission/survey/mod.rs",
+            "sha256" : "7c6b7784f2c78a996ef57c90a29eee84209bc466d0883983a8ec266c6f5f3f29"
+         },
+         {
+            "bytes" : 13836,
+            "path" : "crates/canic-host/src/fleet_ensure/ops/capacity_import/journal/store/mod.rs",
+            "sha256" : "0d295f080091682b3f36c24cfc67b2e04a09fec877ff958ccd09346a98acf971"
+         },
+         {
+            "bytes" : 21616,
+            "path" : "crates/canic-host/src/fleet_ensure/ops/capacity_import/publication/mod.rs",
+            "sha256" : "373f8771ee7ba35130aba01bbc91263fa74b3fc68443fc01c42d4cebfbd352ab"
+         },
+         {
+            "bytes" : 9472,
+            "path" : "crates/canic-host/src/fleet_ensure/ops/clean_reinstall/mod.rs",
+            "sha256" : "ed0abc1d6cfb3f83c69202b27a89127e1f5bfb4a03f77ba875f6d2799c4782f9"
+         },
+         {
+            "bytes" : 115996,
+            "path" : "crates/canic-host/src/fleet_ensure/ops/current_inventory/mod.rs",
+            "sha256" : "b7e4f535bba14bb6d559f83cb2a1a1b2c85e66de726b0741b0c8fec068f38c35"
+         },
+         {
+            "bytes" : 110214,
+            "path" : "crates/canic-host/src/fleet_ensure/ops/current_protocol/mod.rs",
+            "sha256" : "9d208fb7068fee50764c1908aa97f64fb220a20127167d53b41ccca8f13d3669"
+         },
+         {
+            "bytes" : 87704,
+            "path" : "crates/canic-host/src/fleet_ensure/ops/current_protocol/tests.rs",
+            "sha256" : "c3e29f92de77d533faed8b8c800583c5384ca19e883c9330643b6d224a330dee"
+         },
+         {
+            "bytes" : 10662,
+            "path" : "crates/canic-host/src/fleet_ensure/ops/infrastructure_bootstrap/convergence/mod.rs",
+            "sha256" : "a79e353614a1f14b36a9dde891f63e9ea2093e4d93d495ded454eb5323e6ebb8"
+         },
+         {
+            "bytes" : 12606,
+            "path" : "crates/canic-host/src/fleet_ensure/ops/infrastructure_bootstrap/inspection/mod.rs",
+            "sha256" : "d4540a2f30aa2915f29b6e86089a151a35e628c99463a480aadb5752ff55344a"
+         },
+         {
+            "bytes" : 11369,
+            "path" : "crates/canic-host/src/fleet_ensure/ops/infrastructure_bootstrap/publication/mod.rs",
+            "sha256" : "4cf7dab32ed18bee003c56215f159ba1d4392042164205d44539fe11931ad1c2"
+         },
+         {
+            "bytes" : 13192,
+            "path" : "crates/canic-host/src/fleet_ensure/ops/infrastructure_bootstrap/survey/mod.rs",
+            "sha256" : "03de8a4644e4090d13698047396deca7f526536bed54684731e8a6dccd119fa5"
+         },
+         {
+            "bytes" : 12097,
+            "path" : "crates/canic-host/src/fleet_ensure/ops/infrastructure_bootstrap/terminal/mod.rs",
+            "sha256" : "66778eb59e58410d3c7e8930b10132941a8af21e7966cc59600e54f06c5665f7"
+         },
+         {
+            "bytes" : 38212,
+            "path" : "crates/canic-host/src/fleet_ensure/ops/mod.rs",
+            "sha256" : "3e952703dd25ed498d17d434f8d1ec4493a870d88db499e28762334e5445a6c7"
+         },
+         {
+            "bytes" : 10598,
+            "path" : "crates/canic-host/src/fleet_ensure/ops/operation_selection/archive/mod.rs",
+            "sha256" : "3a21dd211ce3e157b523884b81f6983322af0c7ed2cccfa2baa56981bff3682e"
+         },
+         {
+            "bytes" : 13411,
+            "path" : "crates/canic-host/src/fleet_ensure/ops/operation_selection/mod.rs",
+            "sha256" : "75d9de7b96e52a23ef918198cd67fd79b4e1284d00d636b3384e0e440470587f"
+         },
+         {
+            "bytes" : 9128,
+            "path" : "crates/canic-host/src/fleet_ensure/ops/operation_selection/retirement/mod.rs",
+            "sha256" : "1aa0ebb845c9b6697eab1e2246972a5a7101a684200ed82a1993c1699e397988"
+         },
+         {
+            "bytes" : 14258,
+            "path" : "crates/canic-host/src/fleet_ensure/ops/plan_content/mod.rs",
+            "sha256" : "3af26ed9d9fbb34f36c8b8841f5ec9afee56497a60f2461f236c4ead61fc5aa7"
+         },
+         {
+            "bytes" : 11611,
+            "path" : "crates/canic-host/src/fleet_ensure/ops/reinstall/adoption/mod.rs",
+            "sha256" : "6b527efd5232a7f1e1f908c2ef03b2575211d1249b5f22b56a84299311746911"
+         },
+         {
+            "bytes" : 2087,
+            "path" : "crates/canic-host/src/fleet_package/lock/mod.rs",
+            "sha256" : "76f3a9e5bc2a91cb8288f3b1a8546019e961bfc82ea9b3c180dce2007e5792b0"
+         },
+         {
+            "bytes" : 11961,
+            "path" : "crates/canic-host/src/fleet_package/mod.rs",
+            "sha256" : "6396817892162809879934b6e44cc610e5cd545a2b3d67fe6c8fc089f06822e6"
+         },
+         {
+            "bytes" : 6236,
+            "path" : "crates/canic-host/src/frontend/ops/bundle/mod.rs",
+            "sha256" : "1205df1ce2aa338db04b5e97b501c905fac4aa183b8ffb8164c5b9d01fe29f74"
+         },
+         {
+            "bytes" : 5741,
+            "path" : "crates/canic-host/src/frontend/ops/capacity/mod.rs",
+            "sha256" : "fd5cc41cf4d5cc06df63c81f4e7f6fea05549bbdaef6cbfff3f727db520954c6"
+         },
+         {
+            "bytes" : 9253,
+            "path" : "crates/canic-host/src/frontend/ops/mod.rs",
+            "sha256" : "3cd304fa0e040455044344f883a43b929e1e56e0bd149033c6cde2ab2cdebf14"
+         },
+         {
+            "bytes" : 7569,
+            "path" : "crates/canic-host/src/frontend/ops/uploaded/mod.rs",
+            "sha256" : "1c053b0837bac242f32ac4d99bbfd499e63e83b445127e7e3a912f4a7d2704d4"
+         },
+         {
+            "bytes" : 18406,
+            "path" : "crates/canic-host/src/frontend/tests.rs",
+            "sha256" : "e0216a7d3d8cfdb45cc867e564b02e3d62fe771a161b89f8ddf108bb615aeedb"
+         },
+         {
+            "bytes" : 3044,
+            "path" : "crates/canic-host/src/local_fleet/ops/bindings/mod.rs",
+            "sha256" : "db9896d60ef39d0415d3c2722d9bf480f82cf8866d82d4abd26be0e22162bd0d"
+         },
+         {
+            "bytes" : 14246,
+            "path" : "crates/canic-host/src/local_fleet/ops/mod.rs",
+            "sha256" : "715dff4a699c0c33cb3a5a5a3a0f4fc3e409e95536d493afd51799cf9bbcbca9"
+         },
+         {
+            "bytes" : 15922,
+            "path" : "crates/canic-host/src/local_fleet/ops/prepare/mod.rs",
+            "sha256" : "369e3d8f320d6e87cbf69cad178dc7e6eadd0339f4cea0ea8e35defd0467e9d7"
+         },
+         {
+            "bytes" : 3571,
+            "path" : "crates/canic-host/src/local_fleet/ops/reset/mod.rs",
+            "sha256" : "3987dab45928016dd0141b0dd579ee29742b3849e6fd846c5745dbe245ad9136"
+         },
+         {
+            "bytes" : 21981,
+            "path" : "crates/canic-host/src/network/mod.rs",
+            "sha256" : "e915cca66c0ef4974288dd7abcb19f3224d21d7a945a6bd967037899c9234480"
+         },
+         {
+            "bytes" : 7878,
+            "path" : "crates/canic-host/src/protocol_binding/mod.rs",
+            "sha256" : "5fa7677304ed6fd5a6f442460fb5d9082c5e8fd0894c9e415e53bee2d1a93c76"
+         },
+         {
+            "bytes" : 20218,
+            "path" : "crates/canic-host/src/release_build/mod.rs",
+            "sha256" : "e2eb3873c2d03df154ad0f10437cb0e9b4560b179a770a89543591c1dae330a7"
+         },
+         {
+            "bytes" : 14857,
+            "path" : "crates/canic-host/src/release_set/application/persistence/mod.rs",
+            "sha256" : "623f44b4043b5a43e07dbc5cf7ec8f8bd50b0684cea8a2d17fe7a8ee6831967c"
+         },
+         {
+            "bytes" : 16554,
+            "path" : "crates/canic-host/src/release_set/application/persistence/tests.rs",
+            "sha256" : "79ef8d69c7e398b806f507f5b0e7cc5fa5761d8b4c50cae31ed4714e31443cee"
+         },
+         {
+            "bytes" : 28542,
+            "path" : "crates/canic-host/src/release_set/application/tests.rs",
+            "sha256" : "30f9981dc5fb362b3a0f1f923911bd28fd855f12d8cbb15b84ddea6f42912826"
+         },
+         {
+            "bytes" : 3906,
+            "path" : "crates/canic-host/src/release_set/artifact/mod.rs",
+            "sha256" : "6d5963e3824fb19b96ffaf023a3893fa63c2d1f644f11d268625dafcec28c86a"
+         },
+         {
+            "bytes" : 2726,
+            "path" : "crates/canic-host/src/release_set/artifact/representation/mod.rs",
+            "sha256" : "079474920a90c602b7cb11c57add90537835396982ad0d733dec4c2dc07ff06b"
+         },
+         {
+            "bytes" : 5238,
+            "path" : "crates/canic-host/src/release_set/candid/mod.rs",
+            "sha256" : "e20b72ed714bdc18376ff6568ee9e271491dc6a83463e250293f60fef8dee181"
+         },
+         {
+            "bytes" : 12495,
+            "path" : "crates/canic-host/src/release_set/config/mod.rs",
+            "sha256" : "27769fe7de291e01940c02679af8d4a40a4d43e8001f7a247bd94b62ac3225f7"
+         },
+         {
+            "bytes" : 9855,
+            "path" : "crates/canic-host/src/release_set/current/mod.rs",
+            "sha256" : "6c487a8b709e49084618bb0d8daa55fe1aa4f475dba78a7caea02fcad3e7f480"
+         },
+         {
+            "bytes" : 9331,
+            "path" : "crates/canic-host/src/release_set/fixture/configuration/mod.rs",
+            "sha256" : "021a238586f84fa2ead2bdaae8cf3cd6fb38fddc6b5b0915a594acc21b9a0d79"
+         },
+         {
+            "bytes" : 9526,
+            "path" : "crates/canic-host/src/release_set/fixture/persistence/mod.rs",
+            "sha256" : "9a69cd69845c927382eb39a6c1b1d9e9b9b92d3d7239276973b3de4ff9d089f6"
+         },
+         {
+            "bytes" : 15822,
+            "path" : "crates/canic-host/src/release_set/infrastructure/persistence/mod.rs",
+            "sha256" : "b0f3a0b82e7bd57b1c2a9b31248bff7c75aea23c06f97f15c4833bcb6ce81372"
+         },
+         {
+            "bytes" : 13891,
+            "path" : "crates/canic-host/src/release_set/infrastructure/persistence/tests.rs",
+            "sha256" : "63436ea09a4afd1b24e601f97945ecbdbdc5dec878372a55d154929a52253bb3"
+         },
+         {
+            "bytes" : 8520,
+            "path" : "crates/canic-host/src/release_set/infrastructure/tests.rs",
+            "sha256" : "18391a9103076ce841249118638b90064a2036493329314853d65f52ed70ec9f"
+         },
+         {
+            "bytes" : 12790,
+            "path" : "crates/canic-host/src/tool_install/mod.rs",
+            "sha256" : "cc3b58733d78586221217a2fbac89f86c050870e16d94d2add0b85d9a95ce47e"
+         },
+         {
+            "bytes" : 5241,
+            "path" : "crates/canic-host/src/tool_resolution/mod.rs",
+            "sha256" : "57ce6ec510f6b8730e2685360d89049d4bd8400c054422c542b3682d5bf66889"
+         },
+         {
+            "bytes" : 6871,
+            "path" : "crates/canic-testing-internal/src/embedded_root/mod.rs",
+            "sha256" : "0d3fd747c6af43cfe93dd1d33b59c342195fd68a72a6c438085e2ef3fcb4d2e0"
+         }
+      ],
+      "head" : "d7698e1f0541cb52ad8d762bc1549a700b412e88",
+      "host_lock_packages" : [
+         {
+            "name" : "ic-host-artifacts",
+            "version" : "0.3.1"
+         },
+         {
+            "name" : "ic-host-fs",
+            "version" : "0.3.1"
+         },
+         {
+            "name" : "ic-host-process",
+            "version" : "0.3.1"
+         },
+         {
+            "name" : "ic-host-tools",
+            "version" : "0.1.14"
+         },
+         {
+            "name" : "ic-host-tools",
+            "version" : "0.2.0"
+         },
+         {
+            "name" : "ic-host-tools",
+            "version" : "0.3.1"
+         }
+      ],
+      "repository" : "canic"
+   },
+   {
+      "dirty_status" : " M .shared-tooling.snapshot\u0000 M AGENTS.md\u0000 M CHANGELOG.md\u0000 M Cargo.lock\u0000 M Cargo.toml\u0000 M DRAGGINZGAME.md\u0000 M audits/README.md\u0000 M audits/module-cleanup.md\u0000 M crates/ic-query-cli/Cargo.toml\u0000 M crates/ic-query-cli/examples/governance_artifact.rs\u0000 M crates/ic-query/Cargo.toml\u0000 M crates/ic-query/src/cache_file/confined/read.rs\u0000 M crates/ic-query/src/cache_file/write/json.rs\u0000 M crates/ic-query/src/nns/registry/replay/archive/mod.rs\u0000 M crates/ic-query/src/nns/registry/replay/archive/storage.rs\u0000 M crates/ic-query/src/nns/registry/replay/certified_catalog_cache.rs\u0000 M docs/canister-smoke.md\u0000 M docs/changelog/0.47.md\u0000 M docs/consuming-snapshots.md\u0000 M docs/design/cache-policy.md\u0000 M docs/local-setup.md\u0000 M docs/releases.md\u0000 M docs/supported-hosts.md\u0000 M rules/agent-maintenance.md\u0000 M rules/cargo-dependencies.md\u0000 M rules/git-hooks.md\u0000 M scripts/canister/smoke.py\u0000 M scripts/canister/test_smoke.py\u0000 M scripts/ci/check-ci-scripts.sh\u0000 M scripts/ci/check-library-feature-boundaries.sh\u0000 M scripts/ci/check-release-guards.sh\u0000 M scripts/ci/run-release.sh\u0000 M scripts/ci/verify-shared-tooling-snapshot.sh\u0000?? docs/tag-maintenance.md\u0000?? rules/rust-workspaces.md\u0000?? scripts/dev/gh-ci.sh\u0000?? scripts/distribution/\u0000",
+      "files" : [
+         {
+            "bytes" : 5183,
+            "path" : ".shared-tooling.snapshot",
+            "sha256" : "a0164db77d46a7a74e90731d0e77c961c8c7bc468a31b1b053ea17dbc7793510"
+         },
+         {
+            "bytes" : 14062,
+            "path" : "AGENTS.md",
+            "sha256" : "6de37c067bd600c6396d84aa79c28fa42909c03e1424c14b86d88caaf71a93b9"
+         },
+         {
+            "bytes" : 84995,
+            "path" : "Cargo.lock",
+            "sha256" : "aa06b896ac617e5a08d12c37518c5046d471751cb10a19aabc44a494342a95ae"
+         },
+         {
+            "bytes" : 1656,
+            "path" : "Cargo.toml",
+            "sha256" : "65378bd5eb2b9c119f3199c64fd421a285e586e2f44332fa1ea89e56ab178c08"
+         },
+         {
+            "bytes" : 20919,
+            "path" : "DRAGGINZGAME.md",
+            "sha256" : "54d5f831720a559c8afec83cd8f2f39ac3c82bf4a95d3ba336b3d82229d12800"
+         },
+         {
+            "bytes" : 7136,
+            "path" : "audits/README.md",
+            "sha256" : "b4c691ed78e3122b548566c148f8b8bb74b06ad6ca55092516f8ce271d8b1460"
+         },
+         {
+            "bytes" : 2399,
+            "path" : "audits/flow-convergence-and-duplication.md",
+            "sha256" : "35fd87d36a09ed0971841abf28535d43470c713a82581c2251b924da1ab8f484"
+         },
+         {
+            "bytes" : 6076,
+            "path" : "crates/ic-query-cli/examples/governance_artifact.rs",
+            "sha256" : "68727394b9fbe977892622ee08229083680947d6699e7eb7406a49d536c78ae9"
+         },
+         {
+            "bytes" : 13387,
+            "path" : "crates/ic-query/src/cache_file/confined/read.rs",
+            "sha256" : "ba0ba084e89605609c784cb9d52881411acf906e39ea7dbd7f9f1bf7ee924bce"
+         },
+         {
+            "bytes" : 9520,
+            "path" : "crates/ic-query/src/cache_file/write/json.rs",
+            "sha256" : "bd4b61494c978bfd90e6ad6953741a8217b626e6152ed251679fa305c53c6097"
+         },
+         {
+            "bytes" : 5493,
+            "path" : "crates/ic-query/src/cache_file/write/output.rs",
+            "sha256" : "9d4d381b0c79a5b9160343b2d7476aa6f976fa3671faa07d839db825c66c54c3"
+         },
+         {
+            "bytes" : 1299,
+            "path" : "crates/ic-query/src/cache_file/write/path.rs",
+            "sha256" : "6ab9fff8dab2b12e4110da545930cfbcb4b36a0c50086d90f815fac1f9d08258"
+         },
+         {
+            "bytes" : 5445,
+            "path" : "crates/ic-query/src/cache_file/write/tests.rs",
+            "sha256" : "238fd4b07c242787a1b6dcd05bc3c90bcb38b78d7ab94b3fa92804ea78b02308"
+         },
+         {
+            "bytes" : 33000,
+            "path" : "crates/ic-query/src/nns/registry/replay/archive/mod.rs",
+            "sha256" : "c24424ce03be10bb6515eb50c395222fe4504cebeeaf51ecbbf1a0a826a87b41"
+         },
+         {
+            "bytes" : 24753,
+            "path" : "crates/ic-query/src/nns/registry/replay/archive/storage.rs",
+            "sha256" : "76d95aecbc5e30280ed07c624f10d53fa07fcd0f85b89e834fa97a4dc3bc9e2f"
+         }
+      ],
+      "head" : "0905078d1ef410c63a89fb2924cd18a0653ffa4e",
+      "host_lock_packages" : [
+         {
+            "name" : "ic-host-artifacts",
+            "version" : "0.3.1"
+         },
+         {
+            "name" : "ic-host-fs",
+            "version" : "0.3.1"
+         },
+         {
+            "name" : "ic-host-process",
+            "version" : "0.3.1"
+         },
+         {
+            "name" : "ic-host-tools",
+            "version" : "0.3.1"
+         }
+      ],
+      "repository" : "ic-query"
+   },
+   {
+      "dirty_status" : " M .shared-tooling.snapshot\u0000 M CHANGELOG.md\u0000 M Cargo.lock\u0000 M Cargo.toml\u0000 M DRAGGINZGAME.md\u0000 M Makefile\u0000 M README.md\u0000 M audits/README.md\u0000 M audits/module-cleanup.md\u0000 M ci/tool-versions.env\u0000 M crates/ic-testkit/CHANGELOG.md\u0000 M crates/ic-testkit/Cargo.toml\u0000 M crates/ic-testkit/README.md\u0000 M crates/ic-testkit/examples/fixture_reuse_driver/mod.rs\u0000 M crates/ic-testkit/examples/transactional_artifact_cache.rs\u0000 M crates/ic-testkit/src/artifacts/cache_fs.rs\u0000 M crates/ic-testkit/src/artifacts/digest.rs\u0000 M crates/ic-testkit/src/artifacts/host_tests.rs\u0000 M crates/ic-testkit/src/artifacts/wasm.rs\u0000 M crates/ic-testkit/src/lib.rs\u0000 M crates/ic-testkit/tests/pocket_ic_teardown.rs\u0000 M docs/consuming-snapshots.md\u0000 M docs/hosts.md\u0000 M docs/local-setup.md\u0000 M docs/provenance.md\u0000 M docs/releases.md\u0000 M docs/supported-hosts.md\u0000 M docs/verification-helpers.md\u0000 M rules/agent-maintenance.md\u0000 M rules/git-hooks.md\u0000 M scripts/ci/check-dependency-pins.sh\u0000 M scripts/ci/check-format-tools.sh\u0000 M scripts/ci/check-installation-version.sh\u0000 M scripts/ci/check-publish-guards.sh\u0000 M scripts/ci/check-release-commands.sh\u0000 M scripts/ci/check-release-guards.sh\u0000 M scripts/ci/check-release-metadata.sh\u0000 M scripts/ci/dependency-pins.jq\u0000 M scripts/ci/finalize-release-changelog.awk\u0000 M scripts/ci/run-release.sh\u0000 M scripts/ci/test-dependency-pins.sh\u0000 M scripts/ci/test-host-tools.sh\u0000 M scripts/ci/verify-shared-tooling-snapshot.sh\u0000 M scripts/dev/install-host-tools.sh\u0000 M scripts/dev/install-ic-tools.sh\u0000 M scripts/release/check-tag-at-head.sh\u0000 M scripts/release/metadata.sh\u0000 M scripts/release/publish-workspace.sh\u0000 D scripts/release/read-workspace-version.sh\u0000?? docs/tag-maintenance.md\u0000?? scripts/ci/check-release-tag.sh\u0000?? scripts/ci/read-cargo-workspace-version.sh\u0000?? scripts/dev/gh-ci.sh\u0000?? scripts/distribution/\u0000",
+      "files" : [
+         {
+            "bytes" : 5245,
+            "path" : ".shared-tooling.snapshot",
+            "sha256" : "e0cf1586b61a2e8605073fa9242454f1a3cead9be355e842bcd181d1e2e7bec4"
+         },
+         {
+            "bytes" : 2944,
+            "path" : "AGENTS.md",
+            "sha256" : "93d7093421cffce41306f381d6badb00b21986045daaacff7209384e49b2832f"
+         },
+         {
+            "bytes" : 71477,
+            "path" : "Cargo.lock",
+            "sha256" : "01905f73abaaaff3044d5eec1bae16be81854710a5cfd60dabeb09caff1c058a"
+         },
+         {
+            "bytes" : 1793,
+            "path" : "Cargo.toml",
+            "sha256" : "91649689f43345a1bb196805429d4c065dd935c0f6dd38f7a07f35fab2251021"
+         },
+         {
+            "bytes" : 20483,
+            "path" : "DRAGGINZGAME.md",
+            "sha256" : "9c4a8524b15ec9beaf3b0ae64323d97b58194e6f9d5b065c14b773a67de2e3e9"
+         },
+         {
+            "bytes" : 7136,
+            "path" : "audits/README.md",
+            "sha256" : "b4c691ed78e3122b548566c148f8b8bb74b06ad6ca55092516f8ce271d8b1460"
+         },
+         {
+            "bytes" : 2399,
+            "path" : "audits/flow-convergence-and-duplication.md",
+            "sha256" : "35fd87d36a09ed0971841abf28535d43470c713a82581c2251b924da1ab8f484"
+         },
+         {
+            "bytes" : 33972,
+            "path" : "crates/ic-testkit/examples/fixture_reuse_driver/mod.rs",
+            "sha256" : "fe32f18c3a2f2ba6e374c3f23b0e5d5ff2fedf30c9f018ebe8a3474ec0b0f2d8"
+         },
+         {
+            "bytes" : 3077,
+            "path" : "crates/ic-testkit/examples/transactional_artifact_cache.rs",
+            "sha256" : "e7f0408c3309d470c67ec0481e38ab0882548ea803f2e1e3997a3204f85a84bb"
+         },
+         {
+            "bytes" : 33068,
+            "path" : "crates/ic-testkit/src/artifacts/cache_fs.rs",
+            "sha256" : "ffed3ec898087ce589245bd474a783bc40643eb03753d4293b357e904dffea02"
+         },
+         {
+            "bytes" : 31082,
+            "path" : "crates/ic-testkit/src/artifacts/digest.rs",
+            "sha256" : "edaefc74af7d142f13f9995bd0fe2ee6d1e8fd6a13fd12e3e03160f3be5f53ed"
+         },
+         {
+            "bytes" : 2853,
+            "path" : "crates/ic-testkit/src/artifacts/host_tests.rs",
+            "sha256" : "20fee344ad3f81e7cb7d428ef8c9a8ee509e2cdf6d17bb83f3adc46c6b80e74f"
+         },
+         {
+            "bytes" : 2750,
+            "path" : "crates/ic-testkit/src/artifacts/wasm.rs",
+            "sha256" : "d233b413f1f29de3c48e966238ec7944150572baa2338eff9f89d11d0165bdcd"
+         },
+         {
+            "bytes" : 2719,
+            "path" : "crates/ic-testkit/src/lib.rs",
+            "sha256" : "20336fb29b60f46c731d19b3972a8382cf81dd8a916f92a538bb365a7df4327e"
+         }
+      ],
+      "head" : "827157434eb8b2d6c13c4b8e47493bd6a38678b9",
+      "host_lock_packages" : [
+         {
+            "name" : "ic-host-artifacts",
+            "version" : "0.3.1"
+         },
+         {
+            "name" : "ic-host-fs",
+            "version" : "0.3.1"
+         },
+         {
+            "name" : "ic-host-process",
+            "version" : "0.3.1"
+         },
+         {
+            "name" : "ic-host-tools",
+            "version" : "0.3.1"
+         }
+      ],
+      "repository" : "ic-testkit"
+   },
+   {
+      "dirty_status" : " M .shared-tooling.snapshot\u0000 M AGENTS.md\u0000 M CHANGELOG.md\u0000 M Cargo.lock\u0000 M Cargo.toml\u0000 M DRAGGINZGAME.md\u0000 M audits/README.md\u0000 M audits/module-cleanup.md\u0000 M crates/ic-backup/Cargo.toml\u0000 M crates/ic-backup/src/hash/mod.rs\u0000 M crates/ic-backup/src/lib.rs\u0000 M crates/ic-backup/src/model/artifacts/mod.rs\u0000 M crates/ic-backup/src/model/artifacts/tests/mod.rs\u0000 M crates/ic-backup/src/model/attempt_journal/authority/mod.rs\u0000 M crates/ic-backup/src/model/attempt_journal/history/mod.rs\u0000 M crates/ic-backup/src/model/attempt_journal/mod.rs\u0000 M crates/ic-backup/src/model/consistency/requirement/mod.rs\u0000 M crates/ic-backup/src/model/download_journal/mod.rs\u0000 M crates/ic-backup/src/model/inventory/target/mod.rs\u0000 M crates/ic-backup/src/model/operation_plan/context/mod.rs\u0000 M crates/ic-backup/src/model/operation_plan/mod.rs\u0000 M crates/ic-backup/src/model/operation_plan/operation/mod.rs\u0000 M crates/ic-backup/src/model/restore_references/mod.rs\u0000 M crates/ic-backup/src/model/restore_safety/requirement/mod.rs\u0000 M crates/ic-backup/src/ops/artifacts/mod.rs\u0000 M crates/ic-backup/src/ops/artifacts/regressions/mod.rs\u0000 M crates/ic-backup/src/ops/persistence/download_journal/ic_snapshot_artifact/upload/mod.rs\u0000 M crates/ic-backup/src/ops/persistence/download_journal/ic_snapshot_artifact/verification/mod.rs\u0000 M crates/ic-backup/src/ops/persistence/download_journal/mod.rs\u0000 M crates/ic-backup/src/ops/persistence/download_journal/tests/mod.rs\u0000 M crates/ic-backup/src/ops/persistence/json/mod.rs\u0000 M crates/ic-backup/src/ops/persistence/layout_lifetime/mod.rs\u0000 M crates/ic-backup/src/ops/persistence/layout_lifetime/tests/mod.rs\u0000 M crates/ic-backup/tests/attempt_recovery.rs\u0000 M crates/ic-backup/tests/consistency.rs\u0000 M crates/ic-backup/tests/control_authority.rs\u0000 M crates/ic-backup/tests/download_integrity.rs\u0000 M crates/ic-backup/tests/effect_order.rs\u0000 M crates/ic-backup/tests/execution_progress.rs\u0000 M crates/ic-backup/tests/execution_settlement.rs\u0000 M crates/ic-backup/tests/fence_acquisition.rs\u0000 M crates/ic-backup/tests/fence_obligation.rs\u0000 M crates/ic-backup/tests/fence_reconciliation.rs\u0000 M crates/ic-backup/tests/ic_lifecycle_reply.rs\u0000 M crates/ic-backup/tests/ic_mutation.rs\u0000 M crates/ic-backup/tests/ic_observation.rs\u0000 M crates/ic-backup/tests/ic_request.rs\u0000 M crates/ic-backup/tests/ic_snapshot_artifact.rs\u0000 M crates/ic-backup/tests/ic_snapshot_data.rs\u0000 M crates/ic-backup/tests/ic_snapshot_metadata.rs\u0000 M crates/ic-backup/tests/ic_snapshot_reply.rs\u0000 M crates/ic-backup/tests/ic_snapshot_upload.rs\u0000 M crates/ic-backup/tests/inventory_selection.rs\u0000 M crates/ic-backup/tests/local_recovery.rs\u0000 M crates/ic-backup/tests/local_restore_source.rs\u0000 M crates/ic-backup/tests/membership.rs\u0000 M crates/ic-backup/tests/operation_plan.rs\u0000 M crates/ic-backup/tests/restore_safety.rs\u0000 M crates/ic-backup/tests/snapshot_inventory_delta.rs\u0000 M crates/ic-backup/tests/snapshot_read.rs\u0000 M docs/consuming-snapshots.md\u0000 M docs/development.md\u0000 M docs/extraction-boundary.md\u0000 M docs/ic-host-tools-adoption.json\u0000 M docs/local-setup.md\u0000 M docs/releases.md\u0000 M docs/releasing.md\u0000 M docs/shared-tooling-review.json\u0000 M docs/shared-tooling.md\u0000 M docs/status/current.md\u0000 M docs/supported-hosts.md\u0000 M rules/agent-maintenance.md\u0000 M rules/cargo-dependencies.md\u0000 M rules/git-hooks.md\u0000 M scripts/ci/run-release.sh\u0000 M scripts/ci/test-release-runner.sh\u0000 M scripts/ci/test-tooling.sh\u0000 M scripts/ci/verify-shared-tooling-snapshot.sh\u0000 M scripts/hooks/test-hooks.sh\u0000 M scripts/release/test-release.sh\u0000?? crates/ic-backup/src/ops/persistence/download_journal/ic_snapshot_artifact/verification/tests/\u0000?? crates/ic-backup/tests/fixture_roots.rs\u0000?? crates/ic-backup/tests/support/\u0000?? rules/rust-workspaces.md\u0000?? scripts/distribution/\u0000",
+      "files" : [
+         {
+            "bytes" : 6146,
+            "path" : ".shared-tooling.snapshot",
+            "sha256" : "c3ab93ee6b24b9d3263b3e4e886ba49b3f937a7891cdb716b812cc18e2467ee1"
+         },
+         {
+            "bytes" : 39265,
+            "path" : "AGENTS.md",
+            "sha256" : "73ec68a0d0426fc887b33838d72a2b3e355d3ed8c0838837df0aa1c523725dde"
+         },
+         {
+            "bytes" : 16460,
+            "path" : "Cargo.lock",
+            "sha256" : "d32cd1ebe0122aeeabc2b88f6c15a12b9d2cb4108e048eb0c01be929d49cd306"
+         },
+         {
+            "bytes" : 1016,
+            "path" : "Cargo.toml",
+            "sha256" : "423ff3eec28da672e6c4e7cf809b7e299a7f016754a72fb13069eae00c4c97e1"
+         },
+         {
+            "bytes" : 20919,
+            "path" : "DRAGGINZGAME.md",
+            "sha256" : "54d5f831720a559c8afec83cd8f2f39ac3c82bf4a95d3ba336b3d82229d12800"
+         },
+         {
+            "bytes" : 7136,
+            "path" : "audits/README.md",
+            "sha256" : "b4c691ed78e3122b548566c148f8b8bb74b06ad6ca55092516f8ce271d8b1460"
+         },
+         {
+            "bytes" : 2399,
+            "path" : "audits/flow-convergence-and-duplication.md",
+            "sha256" : "35fd87d36a09ed0971841abf28535d43470c713a82581c2251b924da1ab8f484"
+         },
+         {
+            "bytes" : 3469,
+            "path" : "crates/ic-backup/src/model/artifacts/mod.rs",
+            "sha256" : "c6115fe9b2dfa2481e790504743376bec7112cf4b3a1f4f78787b54756d97a90"
+         },
+         {
+            "bytes" : 5665,
+            "path" : "crates/ic-backup/src/ops/artifacts/mod.rs",
+            "sha256" : "59dbbcdcf7d974275dce74e31e74a62bb0b94772fbdc2d81c0afc31b18bcad52"
+         },
+         {
+            "bytes" : 10162,
+            "path" : "crates/ic-backup/src/ops/artifacts/regressions/mod.rs",
+            "sha256" : "89abf7b77574ba95cef8c140673dd364dccc39b7d24a4d5568de9d14e2f77c7b"
+         },
+         {
+            "bytes" : 8489,
+            "path" : "crates/ic-backup/src/ops/persistence/download_journal/ic_snapshot_artifact/upload/mod.rs",
+            "sha256" : "fbf511b0e577563aa7bc741674770e7fab9b8079dbceb1628dc94f2b15f23226"
+         },
+         {
+            "bytes" : 9292,
+            "path" : "crates/ic-backup/src/ops/persistence/download_journal/ic_snapshot_artifact/verification/mod.rs",
+            "sha256" : "d45814f471bac7a6846b8ed82fc5f302ca8a46cfe0fc74866ee1f658cfe93bd4"
+         },
+         {
+            "bytes" : 8588,
+            "path" : "crates/ic-backup/src/ops/persistence/json/mod.rs",
+            "sha256" : "627af48ad2fbd1729507727e2815aac26a4391121cceabed59e66c8abdcf8f5b"
+         },
+         {
+            "bytes" : 7539,
+            "path" : "crates/ic-backup/src/ops/persistence/layout_lifetime/mod.rs",
+            "sha256" : "9c7684f7eb694d0e2d9bc5641018609a40f3eb5d1074923f04f67f0f11e88d19"
+         }
+      ],
+      "head" : "654790f374f9923df9020f4812cec65e47cbe3af",
+      "host_lock_packages" : [
+         {
+            "name" : "ic-host-artifacts",
+            "version" : "0.3.1"
+         },
+         {
+            "name" : "ic-host-fs",
+            "version" : "0.3.1"
+         }
+      ],
+      "repository" : "ic-backup"
+   },
+   {
+      "dirty_status" : "",
+      "files" : [
+         {
+            "bytes" : 5677,
+            "path" : ".shared-tooling.snapshot",
+            "sha256" : "4f9c75d118b74b6c0ee2335115c86bef33d5cdf566ec425afa8abd2793e340cd"
+         },
+         {
+            "bytes" : 12007,
+            "path" : "AGENTS.md",
+            "sha256" : "d64efebfffdeaa7f9e9d636ccb1da71393e264fcfad19d961bcc88e018891c52"
+         },
+         {
+            "bytes" : 13240,
+            "path" : "Cargo.lock",
+            "sha256" : "246bc7f45f158202357473146236acaf6f5a4096802ca6134c6b1e08d64b6100"
+         },
+         {
+            "bytes" : 3388,
+            "path" : "Cargo.toml",
+            "sha256" : "2551f96114d7b0b6b2c9e10f16c3aa6a4da4e0c704c385389dee0af4bd100c89"
+         },
+         {
+            "bytes" : 20483,
+            "path" : "DRAGGINZGAME.md",
+            "sha256" : "9c4a8524b15ec9beaf3b0ae64323d97b58194e6f9d5b065c14b773a67de2e3e9"
+         },
+         {
+            "bytes" : 7136,
+            "path" : "audits/README.md",
+            "sha256" : "b4c691ed78e3122b548566c148f8b8bb74b06ad6ca55092516f8ce271d8b1460"
+         },
+         {
+            "bytes" : 2399,
+            "path" : "audits/flow-convergence-and-duplication.md",
+            "sha256" : "35fd87d36a09ed0971841abf28535d43470c713a82581c2251b924da1ab8f484"
+         },
+         {
+            "bytes" : 49224,
+            "path" : "examples/repo_tool/mod.rs",
+            "sha256" : "bce47f4ac68aed9aaf1a4752cae0448450d44e2d96410702fedf6ee2a9fd8ae6"
+         },
+         {
+            "bytes" : 63878,
+            "path" : "examples/repo_tool/tests.rs",
+            "sha256" : "ae266120dec292539f0ca56880d0f07f8c1a88c87008cd96cf76b1c5fbcc23c9"
+         }
+      ],
+      "head" : "7a20c685cc83949b7c0e6af9b16816c3a8e7cdd6",
+      "host_lock_packages" : [
+         {
+            "name" : "ic-host-artifacts",
+            "version" : "0.3.1"
+         },
+         {
+            "name" : "ic-host-fs",
+            "version" : "0.3.1"
+         }
+      ],
+      "repository" : "ic-memory"
+   },
+   {
+      "dirty_status" : " M .github/workflows/ci.yml\u0000 M .shared-tooling.snapshot\u0000 M AGENTS.md\u0000 M CHANGELOG.md\u0000 M Cargo.lock\u0000 M Cargo.toml\u0000 M DRAGGINZGAME.md\u0000 M Makefile\u0000 M audits/README.md\u0000 M audits/module-cleanup.md\u0000 M crates/icydb-cli/Cargo.toml\u0000 M crates/icydb-cli/src/diagnostic.rs\u0000 M crates/icydb-cli/src/diagnostic/artifact.rs\u0000 M crates/icydb-core/src/db/schema/runtime.rs\u0000 M crates/icydb-core/src/db/schema/snapshot/tests.rs\u0000 M crates/icydb/tests/compile.rs\u0000 M docs/changelog/0.266.md\u0000 M docs/consuming-snapshots.md\u0000 M docs/design/0.266-shared-tooling/0.266-status.md\u0000 M docs/governance/shared-tooling.md\u0000 M docs/local-setup.md\u0000 M docs/provenance.md\u0000 M docs/releases.md\u0000 M docs/supported-hosts.md\u0000 M docs/verification-helpers.md\u0000 M rules/agent-maintenance.md\u0000 M rules/git-hooks.md\u0000 M scripts/ci/finalize-release-changelog.awk\u0000 M scripts/ci/install-ci-tool.sh\u0000 M scripts/ci/run-release.sh\u0000 M scripts/ci/run-validation-targets.sh\u0000 M scripts/ci/test-pre-commit.sh\u0000 M scripts/ci/test-release-runner.sh\u0000 M scripts/ci/verify-shared-tooling-snapshot.sh\u0000 M scripts/dev/delete-github-tags-up-to.pl\u0000 M testing/integration/Cargo.toml\u0000 M testing/integration/src/bin/write_wasm_size_report.rs\u0000 M testing/integration/src/canister_artifact.rs\u0000 M testing/integration/src/canister_build_cache.rs\u0000 M testing/integration/src/wasm_optimizer.rs\u0000 M testing/integration/tests/batch_workload/mod.rs\u0000 M testing/integration/tests/catalog_workload.rs\u0000 M testing/integration/tests/collection_workload/mod.rs\u0000 M testing/integration/tests/read_authority.rs\u0000 M testing/integration/tests/seek_intersection.rs\u0000 M testing/integration/tests/sql_canister.rs\u0000 M testing/integration/tests/sql_perf_audit.rs\u0000?? crates/icydb/tests/fail-endpoints/missing_metrics_capability.rs\u0000?? crates/icydb/tests/fail-endpoints/missing_metrics_capability.stderr\u0000?? scripts/ci/check-format-tools.sh\u0000?? scripts/ci/run-nonempty-cargo-test.sh\u0000?? scripts/ci/test-gh-ci.sh\u0000?? scripts/dev/gh-ci.sh\u0000?? scripts/distribution/\u0000",
+      "files" : [
+         {
+            "bytes" : 5908,
+            "path" : ".shared-tooling.snapshot",
+            "sha256" : "8ae85e9520bdcd089d74a402bbc29a213ebf736b2c0d8c3fbb5ed7001da228d4"
+         },
+         {
+            "bytes" : 12452,
+            "path" : "AGENTS.md",
+            "sha256" : "e7aaf241582b8f83cae1fc6cb4d562cd577aeed746d9feb570b85acea05fac7b"
+         },
+         {
+            "bytes" : 99309,
+            "path" : "Cargo.lock",
+            "sha256" : "6e23ed78b5597ba1149157209d0260053a88a8ca9ccdf842a499c696c45f2466"
+         },
+         {
+            "bytes" : 7413,
+            "path" : "Cargo.toml",
+            "sha256" : "8f800246070f0c49fd7e081c758b4a7f97ebaceb658a58dd12099071e719a6f4"
+         },
+         {
+            "bytes" : 20483,
+            "path" : "DRAGGINZGAME.md",
+            "sha256" : "9c4a8524b15ec9beaf3b0ae64323d97b58194e6f9d5b065c14b773a67de2e3e9"
+         },
+         {
+            "bytes" : 7136,
+            "path" : "audits/README.md",
+            "sha256" : "b4c691ed78e3122b548566c148f8b8bb74b06ad6ca55092516f8ce271d8b1460"
+         },
+         {
+            "bytes" : 2399,
+            "path" : "audits/flow-convergence-and-duplication.md",
+            "sha256" : "35fd87d36a09ed0971841abf28535d43470c713a82581c2251b924da1ab8f484"
+         },
+         {
+            "bytes" : 130000,
+            "path" : "crates/icydb-cli/src/diagnostic.rs",
+            "sha256" : "1e685f74dc2405b860b5d3c6042d9572c1bb1b2728a29cd24e6daa5375d430fa"
+         },
+         {
+            "bytes" : 26133,
+            "path" : "crates/icydb-cli/src/diagnostic/artifact.rs",
+            "sha256" : "e639f8b467b2fc9cdcc3de30dc5b73f8055299960a818cf3a4be0a42ce0305d0"
+         },
+         {
+            "bytes" : 4147,
+            "path" : "crates/icydb-cli/src/icp/call.rs",
+            "sha256" : "8e2ce81e51c7c3df7d33a5e9a596eedeef59b0d38072a6f15a8b8d52ec7f5ddb"
+         },
+         {
+            "bytes" : 39364,
+            "path" : "testing/integration/src/bin/write_wasm_size_report.rs",
+            "sha256" : "99d860f950896daade31978f5d1744bbe00e67623cb7045d9f474b4caa3286d7"
+         },
+         {
+            "bytes" : 30896,
+            "path" : "testing/integration/src/canister_artifact.rs",
+            "sha256" : "eed168f1910808ece6c1c333ee252f95a3d1682d28ad890e22ad7191c43e21a8"
+         },
+         {
+            "bytes" : 11408,
+            "path" : "testing/integration/src/wasm_optimizer.rs",
+            "sha256" : "7e27f343f487176deec9af3e67d3eab2a62bb890e8170acbde5531f2db39a077"
+         },
+         {
+            "bytes" : 6260,
+            "path" : "testing/integration/tests/batch_workload/mod.rs",
+            "sha256" : "581763ddddcbf94cc05ff65be8a5b2010791f05bdabd55b03c3b45016babef8c"
+         },
+         {
+            "bytes" : 6602,
+            "path" : "testing/integration/tests/catalog_workload.rs",
+            "sha256" : "6874db09bd4e586f2ea94bd7d8bee1dfce97f84d1dac168eec625bcbcfec6169"
+         },
+         {
+            "bytes" : 4202,
+            "path" : "testing/integration/tests/collection_workload/mod.rs",
+            "sha256" : "1f7c9eeac67538774fca4eb0683fc94def9f1cefaa032695487566132015a7d2"
+         },
+         {
+            "bytes" : 11892,
+            "path" : "testing/integration/tests/read_authority.rs",
+            "sha256" : "de6db1c4b12620532195bb7770c48a23475796fb21689d1a31c94ef8ed9bc015"
+         },
+         {
+            "bytes" : 12585,
+            "path" : "testing/integration/tests/seek_intersection.rs",
+            "sha256" : "24b5d0d058f7218d96122705d8af229131b061b6b2627f247b51ed0ac5253b2f"
+         },
+         {
+            "bytes" : 204879,
+            "path" : "testing/integration/tests/sql_canister.rs",
+            "sha256" : "c1a76c63b0ecfddff2b901ff981163ce74858ca7e4857671257d7b37a81f2d33"
+         },
+         {
+            "bytes" : 34554,
+            "path" : "testing/integration/tests/sql_perf_audit.rs",
+            "sha256" : "d0b26cecfc06a8950d21e72f41ffe7eff8a70179faf9001b461ffa9e8205a668"
+         }
+      ],
+      "head" : "049e561a843a8d3f4526460fd15876a4a238df10",
+      "host_lock_packages" : [
+         {
+            "name" : "ic-host-artifacts",
+            "version" : "0.3.1"
+         },
+         {
+            "name" : "ic-host-fs",
+            "version" : "0.3.1"
+         },
+         {
+            "name" : "ic-host-process",
+            "version" : "0.3.1"
+         },
+         {
+            "name" : "ic-host-tools",
+            "version" : "0.1.14"
+         },
+         {
+            "name" : "ic-host-tools",
+            "version" : "0.3.1"
+         }
+      ],
+      "repository" : "icydb"
+   },
+   {
+      "dirty_status" : " M .github/workflows/tooling.yml\u0000 M .shared-tooling.snapshot\u0000 M AGENTS.md\u0000 M CHANGELOG.md\u0000 M Cargo.lock\u0000 M DRAGGINZGAME.md\u0000 M Makefile\u0000 M audits/README.md\u0000 M audits/module-cleanup.md\u0000 M docs/consuming-snapshots.md\u0000 M docs/dependencies.md\u0000 M docs/local-setup.md\u0000 M docs/releases.md\u0000 M docs/releasing.md\u0000 M docs/status/current.md\u0000 M docs/supported-hosts.md\u0000 M rules/agent-maintenance.md\u0000 M scripts/ci/finalize-release-changelog.awk\u0000 M scripts/ci/run-release.sh\u0000 M scripts/ci/run-validation-targets.sh\u0000 M scripts/ci/test-release-runner.sh\u0000 M scripts/ci/verify-shared-tooling-snapshot.sh\u0000 M scripts/release/test-release.sh\u0000?? docs/evidence/refresh-0154-02.json\u0000?? docs/evidence/shared-011-0154.json\u0000?? scripts/ci/check-validation-logging.sh\u0000?? scripts/dev/gh-ci.sh\u0000?? scripts/distribution/\u0000",
+      "files" : [
+         {
+            "bytes" : 6121,
+            "path" : ".shared-tooling.snapshot",
+            "sha256" : "3bbec3e4fbb07bc866b6ef04d56b0793653b8f47afa400eec5f8aa4575b52438"
+         },
+         {
+            "bytes" : 5959,
+            "path" : "AGENTS.md",
+            "sha256" : "d751d473a5fe22ebcee2d4207b48a16d5d03f8edca914c9c0bd5c2f50c365946"
+         },
+         {
+            "bytes" : 107248,
+            "path" : "Cargo.lock",
+            "sha256" : "682aa748836e6325857a2d94772d4c314d933377ca97cbb5a0f12fdad70e1f7f"
+         },
+         {
+            "bytes" : 1603,
+            "path" : "Cargo.toml",
+            "sha256" : "ae1f00f76db088ea1ad96d8f434160dfb240d5c25a25c18affddf6f058af1d06"
+         },
+         {
+            "bytes" : 20483,
+            "path" : "DRAGGINZGAME.md",
+            "sha256" : "9c4a8524b15ec9beaf3b0ae64323d97b58194e6f9d5b065c14b773a67de2e3e9"
+         },
+         {
+            "bytes" : 7136,
+            "path" : "audits/README.md",
+            "sha256" : "b4c691ed78e3122b548566c148f8b8bb74b06ad6ca55092516f8ce271d8b1460"
+         },
+         {
+            "bytes" : 2399,
+            "path" : "audits/flow-convergence-and-duplication.md",
+            "sha256" : "35fd87d36a09ed0971841abf28535d43470c713a82581c2251b924da1ab8f484"
+         },
+         {
+            "bytes" : 3725,
+            "path" : "crates/ic-blob-storage-cli/src/native/artifacts/mod.rs",
+            "sha256" : "fc3fb2c1f08210e7df96a1ac750a4aedf7dba55ad5ef3623cabd9d3bc714effb"
+         },
+         {
+            "bytes" : 31471,
+            "path" : "crates/ic-blob-storage-cli/src/native/mod.rs",
+            "sha256" : "c67c1b49992e35afdeed5948e185a004111e0a8482ec28ac2dc7b4c4fabe1531"
+         },
+         {
+            "bytes" : 16216,
+            "path" : "crates/ic-blob-storage-cli/src/native/upload_inputs/mod.rs",
+            "sha256" : "34f4991b43f07e2c99c01932870e2b79ffe21f6623562dc8450807687a552ed6"
+         },
+         {
+            "bytes" : 7086,
+            "path" : "crates/ic-blob-storage-cli/src/probe/record/mod.rs",
+            "sha256" : "e424d7161f4b1f7b060581369db88a74f502b1cb824db5356f888da024e5d1e3"
+         }
+      ],
+      "head" : "9d9cdf82b832c88278df54686d06aec274f905e9",
+      "host_lock_packages" : [
+         {
+            "name" : "ic-host-artifacts",
+            "version" : "0.3.1"
+         },
+         {
+            "name" : "ic-host-fs",
+            "version" : "0.3.1"
+         },
+         {
+            "name" : "ic-host-tools",
+            "version" : "0.1.14"
+         }
+      ],
+      "repository" : "ic-blob-storage"
+   },
+   {
+      "dirty_status" : " M Cargo.lock\u0000 M Cargo.toml\u0000 M apps/toko_miner/user_hub/Cargo.toml\u0000 M apps/toko_miner/user_hub/src/qualification/opening/costs/capacity.rs\u0000",
+      "files" : [
+         {
+            "bytes" : 979,
+            "path" : ".shared-tooling.snapshot",
+            "sha256" : "3e105d9fb46bee24eb680687814e4ed86b5fff9b1b0cddf833afcfb7f1c7fbd5"
+         },
+         {
+            "bytes" : 28027,
+            "path" : "AGENTS.md",
+            "sha256" : "63de26e0f221f9ec6876b51da6fa5f83425b15d5afc8306d28ddff46ff5888c7"
+         },
+         {
+            "bytes" : 98430,
+            "path" : "Cargo.lock",
+            "sha256" : "eb64c6fcb5bba536a4cc3b40ed1044973a7745f250c422d074ff661b7339048a"
+         },
+         {
+            "bytes" : 2030,
+            "path" : "Cargo.toml",
+            "sha256" : "d2a8ffaee15ef9eb5b8b3bcef45217ff5ad8b1acd16bff0148215970e0626081"
+         },
+         {
+            "bytes" : 5403,
+            "path" : "apps/toko_miner/user_hub/src/qualification/opening/costs/capacity.rs",
+            "sha256" : "e282de4415434a1c7d22e71914b1f96a8f015610e3cb93797bc9bf730a39d8ec"
+         }
+      ],
+      "head" : "9071b4cc9c1cf0d6d905f73592154b5108ab2147",
+      "host_lock_packages" : [
+         {
+            "name" : "ic-host-artifacts",
+            "version" : "0.3.1"
+         },
+         {
+            "name" : "ic-host-fs",
+            "version" : "0.3.1"
+         },
+         {
+            "name" : "ic-host-tools",
+            "version" : "0.1.14"
+         }
+      ],
+      "repository" : "toko-miner"
+   },
+   {
+      "dirty_status" : " M .shared-tooling.snapshot\u0000 M AGENTS.md\u0000 M CHANGELOG.md\u0000 M DRAGGINZGAME.md\u0000 M README.md\u0000 M audits/README.md\u0000 M audits/module-cleanup.md\u0000 M docs/consuming-snapshots.md\u0000 M docs/extraction.md\u0000 M docs/hosts.md\u0000 M docs/local-setup.md\u0000 M docs/releases.md\u0000 M docs/status/current.md\u0000 M docs/supported-hosts.md\u0000 M rules/agent-maintenance.md\u0000 M rules/cargo-dependencies.md\u0000 M rules/git-hooks.md\u0000 M scripts/ci/install-yq.sh\u0000 M scripts/ci/run-release.sh\u0000 M scripts/ci/test-release-runner.sh\u0000 M scripts/ci/verify-shared-tooling-snapshot.sh\u0000?? docs/evidence/adoption-024.md\u0000?? docs/evidence/release-023.md\u0000?? rules/rust-workspaces.md\u0000?? scripts/ci/install-ci-tool.sh\u0000?? scripts/distribution/\u0000",
+      "files" : [
+         {
+            "bytes" : 5906,
+            "path" : ".shared-tooling.snapshot",
+            "sha256" : "8a7d617c9c1d3a473bc858dc02877954d1e4c7d47c51d197db65b10d4132a805"
+         },
+         {
+            "bytes" : 4062,
+            "path" : "AGENTS.md",
+            "sha256" : "7bf77bd2955eb56b465133f80ddc2c16e860854d8e6d3da6efeafbacdb2c8475"
+         },
+         {
+            "bytes" : 154,
+            "path" : "Cargo.lock",
+            "sha256" : "86a6a28e1406050907f166efb93da6bc696f216b6283ff020c366d94fb58a44a"
+         },
+         {
+            "bytes" : 575,
+            "path" : "Cargo.toml",
+            "sha256" : "f84ef164edd8ce6e92414635cff3b8b3292c207d1ac5324c63780ac538a4b9d0"
+         },
+         {
+            "bytes" : 20919,
+            "path" : "DRAGGINZGAME.md",
+            "sha256" : "54d5f831720a559c8afec83cd8f2f39ac3c82bf4a95d3ba336b3d82229d12800"
+         },
+         {
+            "bytes" : 7136,
+            "path" : "audits/README.md",
+            "sha256" : "b4c691ed78e3122b548566c148f8b8bb74b06ad6ca55092516f8ce271d8b1460"
+         },
+         {
+            "bytes" : 2399,
+            "path" : "audits/flow-convergence-and-duplication.md",
+            "sha256" : "35fd87d36a09ed0971841abf28535d43470c713a82581c2251b924da1ab8f484"
+         }
+      ],
+      "head" : "89f8c6947fb3253991c65479f04bf14acb676328",
+      "host_lock_packages" : [],
+      "repository" : "ic-metrics"
+   },
+   {
+      "dirty_status" : " M .shared-tooling-audits.snapshot\u0000 M .shared-tooling.snapshot\u0000 M .shared-tooling/helpers/.shared-tooling.snapshot\u0000 M AGENTS.md\u0000 M CHANGELOG.md\u0000 M Cargo.lock\u0000 M DRAGGINZGAME.md\u0000 M docs/audits/code-hygiene.md\u0000 M docs/releasing.md\u0000 M docs/shared-tooling.md\u0000 M docs/status/current.md\u0000 M rules/cargo-dependencies.md\u0000 M rules/git-hooks.md\u0000 M scripts/distribution/governance-files.txt\u0000 M testing/Cargo.toml\u0000 D testing/pocketic/Cargo.toml\u0000 D testing/pocketic/src/cohorts.rs\u0000 D testing/pocketic/src/harness/mod.rs\u0000 D testing/pocketic/src/main.rs\u0000 D testing/pocketic/src/tests.rs\u0000 D testing/runtime-probe/Cargo.toml\u0000 D testing/runtime-probe/src/churn/mod.rs\u0000 D testing/runtime-probe/src/lib.rs\u0000 D testing/runtime-probe/src/ordinary/mod.rs\u0000 D testing/size-probe/Cargo.toml\u0000 D testing/size-probe/src/lib.rs\u0000?? rules/rust-workspaces.md\u0000?? testing/crates/\u0000",
+      "files" : [
+         {
+            "bytes" : 2813,
+            "path" : ".shared-tooling.snapshot",
+            "sha256" : "0161425a91a91c6159693a12fcf4828fc6339410ede04ff793d86e10fc93e31a"
+         },
+         {
+            "bytes" : 10061,
+            "path" : "AGENTS.md",
+            "sha256" : "a0c5527a75afa353f5c14447eb7635bd087f0ccfd821d02cadd37232c2592eec"
+         },
+         {
+            "bytes" : 3125,
+            "path" : "Cargo.lock",
+            "sha256" : "4ec666f73760198e819aaca8a9a03bfb338a8c05f82b392ef977eba1fc82c995"
+         },
+         {
+            "bytes" : 1184,
+            "path" : "Cargo.toml",
+            "sha256" : "586c99695a5cc1f0f8a7d85fef40fc4ad78aba0d7ffcbf82292654dc19dd1a62"
+         },
+         {
+            "bytes" : 20919,
+            "path" : "DRAGGINZGAME.md",
+            "sha256" : "54d5f831720a559c8afec83cd8f2f39ac3c82bf4a95d3ba336b3d82229d12800"
+         },
+         {
+            "bytes" : 7136,
+            "path" : "audits/README.md",
+            "sha256" : "b4c691ed78e3122b548566c148f8b8bb74b06ad6ca55092516f8ce271d8b1460"
+         },
+         {
+            "bytes" : 2399,
+            "path" : "audits/flow-convergence-and-duplication.md",
+            "sha256" : "35fd87d36a09ed0971841abf28535d43470c713a82581c2251b924da1ab8f484"
+         }
+      ],
+      "head" : "c84d4e4d26f968a9d7f2d37f30f7fed447692c0f",
+      "host_lock_packages" : [],
+      "repository" : "ic-timers"
+   },
+   {
+      "dirty_status" : "",
+      "files" : [],
+      "head" : "0670a9887d727fb9c2cfef85e5ea1c6ebffa8157",
+      "host_lock_packages" : [],
+      "repository" : "ichelper"
+   },
+   {
+      "dirty_status" : "",
+      "files" : [
+         {
+            "bytes" : 770,
+            "path" : "AGENTS.md",
+            "sha256" : "249a21316d0bf47047dc1dc94a72aab8762aac6ca891fbbf91996b5e38119315"
+         },
+         {
+            "bytes" : 20919,
+            "path" : "DRAGGINZGAME.md",
+            "sha256" : "54d5f831720a559c8afec83cd8f2f39ac3c82bf4a95d3ba336b3d82229d12800"
+         },
+         {
+            "bytes" : 7136,
+            "path" : "audits/README.md",
+            "sha256" : "b4c691ed78e3122b548566c148f8b8bb74b06ad6ca55092516f8ce271d8b1460"
+         },
+         {
+            "bytes" : 2399,
+            "path" : "audits/flow-convergence-and-duplication.md",
+            "sha256" : "35fd87d36a09ed0971841abf28535d43470c713a82581c2251b924da1ab8f484"
+         }
+      ],
+      "head" : "e378671d90afa237ff63a4b0e3b9551eb2c222b6",
+      "host_lock_packages" : [],
+      "repository" : "shared-tooling"
+   },
+   {
+      "dirty_status" : "",
+      "files" : [
+         {
+            "bytes" : 1593,
+            "path" : "AGENTS.md",
+            "sha256" : "de8a05ca2467e1f6778f79a291442d5b415f8aee7ea149866064efd9affbf9e7"
+         }
+      ],
+      "head" : "79e2407ed0d74840658530a0dd04a0c0c69c9ba0",
+      "host_lock_packages" : [],
+      "repository" : "toko-miner-assets"
+   }
+]

@@ -1,0 +1,30 @@
+compiled test binary: target/debug/deps/canic_host-d6640e8206839ccd; filter: frontend::tests::payload_inventory
+
+running 2 tests
+test frontend::tests::payload_inventory_is_content_bound_and_enforces_explicit_limits ... ok
+test frontend::tests::payload_inventory_rejects_symlinks_and_special_files_without_reading_them ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 1179 filtered out; finished in 0.00s
+
+compiled test binary: target/debug/deps/canic_host-d6640e8206839ccd; filter: artifact_io::tests::
+
+running 16 tests
+test artifact_io::tests::failed_cargo_input_capture_leaves_no_stage_or_published_changes ... ok
+test artifact_io::tests::fast_wasm_does_not_request_binaryen_optimization ... ok
+test artifact_io::tests::sidecar_only_runtime_rejects_embedded_or_mismatched_candid ... ok
+test artifact_io::tests::release_wasm_fails_closed_when_binaryen_is_missing ... ok
+test artifact_io::tests::sidecar_only_runtime_matches_declared_methods_without_candid_payload ... ok
+test artifact_io::tests::release_wasm_rejects_the_wrong_binaryen_version ... ok
+test artifact_io::tests::failed_ic_wasm_metadata_is_rejected ... ok
+test artifact_io::tests::successful_ic_wasm_metadata_records_tool_identity ... ok
+test artifact_io::tests::successful_ic_wasm_shrink_replaces_artifact ... ok
+test artifact_io::tests::failed_ic_wasm_shrink_preserves_original_and_removes_partial_output ... ok
+test artifact_io::tests::release_wasm_optimization_rejects_required_feature_drift ... ok
+test artifact_io::tests::release_wasm_optimization_records_metrics_and_preserves_contract ... ok
+test artifact_io::tests::captured_cargo_input_survives_replacement_and_cleans_up ... ok
+test artifact_io::tests::release_wasm_optimization_rejects_export_or_candid_drift ... ok
+test artifact_io::tests::install_limits_accept_exact_supported_boundaries ... ok
+test artifact_io::tests::install_limit_failure_preserves_the_published_artifact_set ... ok
+
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 1165 filtered out; finished in 0.14s
+

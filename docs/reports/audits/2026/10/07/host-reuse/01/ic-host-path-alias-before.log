@@ -1,0 +1,40 @@
+   Compiling ic-host-fs v0.3.1 (/home/adam/projects/ic-host-tooling/crates/ic-host-fs)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.23s
+     Running unittests src/lib.rs (target/debug/deps/ic_host_fs-9024d8f39fab7afe)
+
+running 5 tests
+test path::tests::existing_file_traversal_errors_survive_missing_suffix_normalization ... FAILED
+test path::tests::explicit_base_errors_and_native_names_are_preserved ... ok
+test path::tests::dangling_symlink_targets_chains_and_parent_traversal_share_one_identity ... FAILED
+test path::tests::missing_parent_traversal_resumes_symlink_resolution ... ok
+test path::tests::symlink_cycles_reject_without_confusing_repeated_completed_expansions ... FAILED
+
+failures:
+
+---- path::tests::existing_file_traversal_errors_survive_missing_suffix_normalization stdout ----
+
+thread 'path::tests::existing_file_traversal_errors_survive_missing_suffix_normalization' (218) panicked at crates/ic-host-fs/src/path/tests.rs:71:18:
+called `Result::unwrap_err()` on an `Ok` value: "/tmp/ic-host-fs-test-216-1/file"
+
+---- path::tests::dangling_symlink_targets_chains_and_parent_traversal_share_one_identity stdout ----
+
+thread 'path::tests::dangling_symlink_targets_chains_and_parent_traversal_share_one_identity' (217) panicked at crates/ic-host-fs/src/path/tests.rs:93:9:
+assertion `left == right` failed
+  left: "/tmp/ic-host-fs-test-216-0/relative"
+ right: "/tmp/ic-host-fs-test-216-0/real/generated"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- path::tests::symlink_cycles_reject_without_confusing_repeated_completed_expansions stdout ----
+
+thread 'path::tests::symlink_cycles_reject_without_confusing_repeated_completed_expansions' (221) panicked at crates/ic-host-fs/src/path/tests.rs:112:14:
+called `Result::unwrap_err()` on an `Ok` value: "/tmp/ic-host-fs-test-216-4/cycle"
+
+
+failures:
+    path::tests::dangling_symlink_targets_chains_and_parent_traversal_share_one_identity
+    path::tests::existing_file_traversal_errors_survive_missing_suffix_normalization
+    path::tests::symlink_cycles_reject_without_confusing_repeated_completed_expansions
+
+test result: FAILED. 2 passed; 3 failed; 0 ignored; 0 measured; 32 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p ic-host-fs --lib`

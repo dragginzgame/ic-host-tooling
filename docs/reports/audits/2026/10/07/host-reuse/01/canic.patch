@@ -1,0 +1,176 @@
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -80,8 +80,8 @@
+ ic-canister-sig-creation = "1.3.1"
+ ic-cdk = "0.20.3"
+ ic-certification = "3.0"
+-ic-host-artifacts = { version = "0.3", default-features = false }
+-ic-host-fs = { version = "0.3", default-features = false }
++ic-host-artifacts = { version = "0.3.1", default-features = false }
++ic-host-fs = { version = "0.3.1", default-features = false }
+ ic-host-process = { version = "0.3", default-features = false }
+ ic-host-tools = "0.3"
+ ic-management-canister-types = "0.11"
+--- a/crates/canic-host/src/artifact_io/mod.rs
++++ b/crates/canic-host/src/artifact_io/mod.rs
+@@ -15,16 +15,16 @@
+ use std::{
+     collections::BTreeSet,
+     fs,
+-    io::{Read, Write},
+     path::{Path, PathBuf},
+     sync::atomic::{AtomicU64, Ordering},
+     time::Instant,
+ };
+ 
+-use ic_host_fs::durable::write_bytes;
++use ic_host_artifacts::artifact::encode_gzip;
++use ic_host_fs::durable::{write_bytes, write_with};
+ 
+ use canic_core::ids::BuildNetwork;
+-use flate2::{Compression, GzBuilder};
++use flate2::Compression;
+ 
+ pub use wasm::enforce_wasm_install_limits;
+ pub use wasm::wasm_artifact_metrics;
+@@ -370,20 +370,17 @@
+     wasm_path: &Path,
+     wasm_gz_path: &Path,
+ ) -> Result<(), Box<dyn std::error::Error>> {
+-    let mut wasm_bytes = Vec::new();
+-    fs::File::open(wasm_path)?.read_to_end(&mut wasm_bytes)?;
+-
+-    let gz_bytes = deterministic_gzip_bytes(&wasm_bytes)?;
+-    write_bytes(wasm_gz_path, &gz_bytes)?;
++    let wasm_bytes = fs::read(wasm_path)?;
++    write_with(wasm_gz_path, |file| {
++        encode_gzip(&wasm_bytes, file, Compression::best(), u64::MAX)
++    })?;
+     Ok(())
+ }
+ 
+ fn deterministic_gzip_bytes(bytes: &[u8]) -> Result<Vec<u8>, std::io::Error> {
+-    let mut encoder = GzBuilder::new()
+-        .mtime(0)
+-        .write(Vec::new(), Compression::best());
+-    encoder.write_all(bytes)?;
+-    encoder.finish()
++    let mut output = Vec::new();
++    encode_gzip(bytes, &mut output, Compression::best(), u64::MAX)?;
++    Ok(output)
+ }
+ 
+ // Embed the extracted service interface for local artifacts so
+--- a/crates/canic-host/src/frontend/ops/capacity/mod.rs
++++ b/crates/canic-host/src/frontend/ops/capacity/mod.rs
+@@ -11,11 +11,11 @@
+     icp::IcpCli,
+ };
+ use canic_core::cdk::utils::hash::hex_bytes;
++use ic_host_artifacts::artifact::{ArtifactError, hash_reader};
+ use sha2_host::{Digest, Sha256};
+ use std::{
+     collections::BTreeMap,
+     fs,
+-    io::Read as _,
+     path::Path,
+     time::{SystemTime, UNIX_EPOCH},
+ };
+@@ -101,30 +101,18 @@
+                 .map_err(|_| FrontendError::Integrity)?,
+         );
+     }
+-    let mut file = options.open(path)?;
++    let file = options.open(path)?;
+     if !file.metadata()?.is_file() {
+         return Err(FrontendError::Integrity);
+     }
+-    let mut buffer = vec![0_u8; 64 * 1024];
+-    let mut total = 0_u64;
+-    let mut hash = Sha256::new();
+-    loop {
+-        let count = file.read(&mut buffer)?;
+-        if count == 0 {
+-            break;
+-        }
+-        total = total
+-            .checked_add(count as u64)
+-            .ok_or(FrontendError::Integrity)?;
+-        if total > expected_bytes {
+-            return Err(FrontendError::Integrity);
+-        }
+-        hash.update(&buffer[..count]);
+-    }
+-    if total != expected_bytes {
++    let identity = hash_reader(file, expected_bytes).map_err(|error| match error {
++        ArtifactError::Io(source) => FrontendError::Io(source),
++        _ => FrontendError::Integrity,
++    })?;
++    if identity.bytes != expected_bytes {
+         return Err(FrontendError::Integrity);
+     }
+-    Ok(hash.finalize().into())
++    Ok(*identity.sha256.as_bytes())
+ }
+ 
+ /// Observe native canister cycles, distinct from any Cycles Ledger account balance.
+--- a/crates/canic-host/src/network/mod.rs
++++ b/crates/canic-host/src/network/mod.rs
+@@ -10,10 +10,9 @@
+ use crate::icp_config::{IcpConfigError, resolve_icp_build_network_from_root};
+ 
+ use canic_core::ids::{BuildNetwork, CanonicalNetworkId};
++use ic_host_artifacts::artifact::Sha256Digest;
+ use serde::{Deserialize, Deserializer, Serialize, Serializer, de};
+-use sha2_host::{Digest, Sha256};
+ use std::{
+-    fmt::Write as _,
+     io,
+     path::{Path, PathBuf},
+     time::{SystemTime, SystemTimeError, UNIX_EPOCH},
+@@ -408,39 +407,18 @@
+ }
+ 
+ fn sha256_digest(bytes: &[u8]) -> [u8; 32] {
+-    Sha256::digest(bytes).into()
++    *Sha256Digest::compute(bytes).as_bytes()
+ }
+ 
+ fn parse_fingerprint(value: &str) -> Result<[u8; 32], NetworkIdentityError> {
+-    if value.len() != 64
+-        || !value
+-            .bytes()
+-            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+-    {
+-        return Err(NetworkIdentityError::InvalidFingerprint);
+-    }
+-    let mut digest = [0; 32];
+-    for (index, pair) in value.as_bytes().as_chunks::<2>().0.iter().enumerate() {
+-        digest[index] = (decode_nibble(pair[0]) << 4) | decode_nibble(pair[1]);
+-    }
+-    Ok(digest)
+-}
+-
+-fn decode_nibble(byte: u8) -> u8 {
+-    match byte {
+-        b'0'..=b'9' => byte - b'0',
+-        b'a'..=b'f' => byte - b'a' + 10,
+-        _ => unreachable!("fingerprint was validated before decoding"),
+-    }
++    value
++        .parse::<Sha256Digest>()
++        .map(|digest| *digest.as_bytes())
++        .map_err(|_| NetworkIdentityError::InvalidFingerprint)
+ }
+ 
+ fn encode_digest(digest: [u8; 32]) -> String {
+-    digest
+-        .iter()
+-        .fold(String::with_capacity(64), |mut encoded, byte| {
+-            write!(encoded, "{byte:02x}").expect("writing to a String cannot fail");
+-            encoded
+-        })
++    Sha256Digest::from_bytes(digest).to_string()
+ }
+ 
+ fn create_new(path: &Path, bytes: &[u8]) -> Result<(), NetworkIdentityError> {

@@ -1,0 +1,35 @@
+   Compiling version_check v0.9.5
+   Compiling typenum v1.20.1
+   Compiling cpufeatures v0.2.17
+   Compiling cfg-if v1.0.5
+   Compiling rustix v1.1.5
+   Compiling linux-raw-sys v0.12.1
+   Compiling bitflags v2.13.2
+   Compiling generic-array v0.14.7
+   Compiling block-buffer v0.10.4
+   Compiling crypto-common v0.1.7
+   Compiling digest v0.10.7
+   Compiling sha2 v0.10.9
+   Compiling ic-host-artifacts v0.3.1 (/home/adam/projects/ic-host-tooling/crates/ic-host-artifacts)
+   Compiling ic-host-fs v0.3.1 (/home/adam/projects/ic-host-tooling/crates/ic-host-fs)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.63s
+     Running unittests src/lib.rs (target/debug/deps/ic_host_fs-9024d8f39fab7afe)
+
+running 1 test
+test path::tests::existing_file_traversal_errors_survive_missing_suffix_normalization ... FAILED
+
+failures:
+
+---- path::tests::existing_file_traversal_errors_survive_missing_suffix_normalization stdout ----
+
+thread 'path::tests::existing_file_traversal_errors_survive_missing_suffix_normalization' (438) panicked at crates/ic-host-fs/src/path/tests.rs:64:18:
+called `Result::unwrap_err()` on an `Ok` value: "/tmp/ic-host-fs-test-437-0"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    path::tests::existing_file_traversal_errors_survive_missing_suffix_normalization
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 34 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p ic-host-fs --lib`

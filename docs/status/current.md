@@ -17,6 +17,7 @@ publication policy now permits crates.io through the explicit commands below.
 Registry publication has not been performed by the agent.
 
 Shared Tooling remains separate and is adopted at exact reviewed revision
+25e7ce83149e081e4dcc52c55c33724e44153f2a (0.1.14). The prior adoption was
 46c02774a8335cb3949d6f04284c4f53375353c1. The original bootstrap baseline was
 d957d1f8801885c5b69e4a9ef900155f5f2a8a9d; the earlier adopted revision was
 21f3ec3dd97f2968c9f0b08924451bb2f71770d1. All automation uses its local snapshot.
@@ -267,3 +268,77 @@ the repetition logs remain in /tmp/ic-host-lock-after-*.log. Strict all-target
 Clippy, Rust 1.88 all-target checks, formatting and documentation checks passed
 offline on Linux. Full release gates and native macOS qualification were not
 performed; this repair remains uncommitted for the maintainer.
+
+The maintainer released 0.3.1 at 38a2a5127be064014e6d39d72d0300ffb2cf20be.
+The current [host reuse audit](../reports/audits/2026/10/07/host-reuse/01/report.md)
+repairs missing-path traversal/dangling-target resolution and adds an explicit
+caller-owned missing-target depth allowance in pending 0.3.2; manifests remain
+0.3.1. Five unused extracted fixture copies are deleted. All 39 filesystem tests,
+strict Clippy, Rust 1.88 compilation and strict Rustdoc pass on Linux, as do the
+selected process/tools tests after cleanup. Snapshot, pins and lock selections
+are unchanged. Native macOS and full CI/release qualification remain separate.
+
+The maintainer explicitly approved replacements in Canic and Toko Miner.
+Canic now reuses published 0.3.1 gzip/hash/digest mechanics; 32 focused native
+checks pass. Its source was separately committed by the maintainer during review,
+not by this agent. Toko's direct bounded reader uses filesystem ownership and its
+native User Hub tests compile. Offline lock sync removes only unreachable direct
+0.3.1 tools/process selections. Query's prepared resolver deletion remains a
+handoff patch until shared publication; five existing alias/export tests pass in
+a private reduced-error fixture, not its full feature graph. Existing owning
+GitHub issues record the applied fixes and remaining published graph convergence.
+No release, publication, push or deployment was performed in this batch.
+
+The maintainer authorized implementing Host issues
+[#3](https://github.com/dragginzgame/ic-host-tooling/issues/3),
+[#4](https://github.com/dragginzgame/ic-host-tooling/issues/4) and
+[#6](https://github.com/dragginzgame/ic-host-tooling/issues/6). The response-only
+tools profile excludes artifact/filesystem/process production dependencies when
+default features are disabled; default Candid extraction retains its API and
+required owners. The new bounded artifact HashingWriter hashes only successful
+accepted writes and returns sink/prefix identity. Producer success, encoding,
+flush/sync, descriptor admission and publication remain caller-owned. No JSON
+production dependency or fifth crate was added.
+
+The 58-file Shared Tooling snapshot was exported from a clean private checkout
+of committed 25e7ce8, excluding the sibling's dirty pending 0.1.15 bytes. It adds
+the workspace rule, explicit governance membership, delegated installer and Make
+execution guard. Snapshot verification is independent of inspected helpers;
+release pushes recheck their destination and dispatch through its captured URL.
+The existing four crate locations conform, including inherited metadata and
+dependencies. The committed rule permits application-owned apps/ trees without
+requiring this repository to move packages. Upstream
+[CI for that exact source](https://github.com/dragginzgame/shared-tooling/actions/runs/37586649650)
+passed. Pending upstream LOC reporting and the IcyDB layout exception were
+reviewed separately as dirty source and were not adopted or executed; cloc is
+not installed locally.
+
+Focused offline Linux checks passed: 52 artifact unit and seven consumer-contract
+tests, 27 minimal artifact tests, 19 default tools tests and ten response-only
+tests with applicable examples. An independent response-only consumer compiled
+and ran with no extraction owners in its normal graph. Strict Clippy, Rustdoc and
+Rust 1.88 checks passed for the changed packages, including the response-only
+MSRV configuration. The dependency-graph guard, formatting, pins, local links,
+exact snapshot verification, scoped consumer formatting-hook preservation,
+snapshot corruption fixtures, host installer fixtures and release adapter/runner
+substitutes passed. Release/installer effects were substituted; no real Git
+mutation, upload or tool download occurred. Logs remain under
+/tmp/ic-host-next-*.log. Initial compile/style/format failures remain separately
+recorded rather than being relabeled as passing attempts.
+
+Query's proposed response profile and private DigestingWriter replacement are
+retained at /tmp/ic-query-host-next-candidate/consumer.patch with before/candidate
+source digests. During review Query committed that inspected source as clean
+0.47.7 at 73dd32bcbe7cdada61dec1cfcd966b252564e48a; all three before-file digests
+still match and the patch applies there. It has not been applied or compiled in
+Query's full graph. Query retains schema, canonical encoding, descriptor checks
+and capability-confined publication. The consumer follow-up is
+[Query #14](https://github.com/dragginzgame/ic-query/issues/14). Automatic review
+rejected posting the full patch/source digests; the accepted issue contains only
+already-public API proposals and Host issue links. The patch remains local.
+Actual consumer archive/response tests and native macOS qualification must
+follow reviewed publication. These compatible
+additions extend pending 0.3.2; manifests and Cargo.lock remain 0.3.1, with tool
+pins unchanged. Prior path fixes, audit evidence and fixture deletions are
+preserved. Full CI/release gates and consumer native macOS were not run locally.
+No commit, tag, push, publication or new sibling file edit was performed.

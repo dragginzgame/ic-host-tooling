@@ -1,0 +1,33 @@
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -24,7 +24,7 @@
+ # Published native media preparer; Canic owns the managed storage dependency.
+ ic-blob-storage = "=0.15.1"
+ ic-cdk = "0.20.3"
+-ic-host-tools = "0.3"
++ic-host-fs = { version = "0.3", default-features = false }
+ ic-metrics = "0.2"
+ ic-timers = "0.14"
+ icydb = { version = "0.266", default-features = false }
+--- a/apps/toko_miner/user_hub/Cargo.toml
++++ b/apps/toko_miner/user_hub/Cargo.toml
+@@ -30,7 +30,7 @@
+ serde = { workspace = true }
+ 
+ [target.'cfg(not(target_family = "wasm"))'.dev-dependencies]
+-ic-host-tools = { workspace = true }
++ic-host-fs = { workspace = true }
+ 
+ [lints]
+ workspace = true
+--- a/apps/toko_miner/user_hub/src/qualification/opening/costs/capacity.rs
++++ b/apps/toko_miner/user_hub/src/qualification/opening/costs/capacity.rs
+@@ -121,7 +121,7 @@
+         "{}",
+         String::from_utf8_lossy(&result.stderr)
+     );
+-    let bytes = ic_host_tools::artifact::read_file(&output, 2 * 1024 * 1024)
++    let bytes = ic_host_fs::read::read_file(&output, 2 * 1024 * 1024)
+         .expect("complete browser bytes within the ingress bound");
+     fs::remove_dir_all(directory).expect("remove browser encoding files");
+     bytes

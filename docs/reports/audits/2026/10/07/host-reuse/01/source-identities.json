@@ -1,0 +1,62 @@
+[
+   {
+      "before_sha256" : "d63cc6b350b174c1426aa948da2aede6cbede69043f0411042875a6784a91235",
+      "candidate_sha256" : "f5f2985d5316266d1f7389a8d08601ad3e443c93cf20f4108a5e06b13e5eb644",
+      "path" : "Cargo.toml",
+      "repository" : "canic"
+   },
+   {
+      "before_sha256" : "c583a583c174ed1f8c10018af427f8fe58fb2454f597847973ca7a4abad90a0d",
+      "candidate_sha256" : "4e4c4b903d8f4b9ca8bf67e494128e2bd9347f015c78df885274763297b5f33e",
+      "path" : "crates/canic-host/src/artifact_io/mod.rs",
+      "repository" : "canic"
+   },
+   {
+      "before_sha256" : "f34b48157fb62cb8dc00ebfe8a97b83db2b79677cad27930311bbe66334598ef",
+      "candidate_sha256" : "fd5cc41cf4d5cc06df63c81f4e7f6fea05549bbdaef6cbfff3f727db520954c6",
+      "path" : "crates/canic-host/src/frontend/ops/capacity/mod.rs",
+      "repository" : "canic"
+   },
+   {
+      "before_sha256" : "4006eeb94a41e16ddae287b287c5eea68c930206249a5184b6949354c71b4ae4",
+      "candidate_sha256" : "e915cca66c0ef4974288dd7abcb19f3224d21d7a945a6bd967037899c9234480",
+      "path" : "crates/canic-host/src/network/mod.rs",
+      "repository" : "canic"
+   },
+   {
+      "before_sha256" : "7a25c6ba9e170d77b6ef0533db26610c9377a895af824240a93183cfc8259d63",
+      "candidate_sha256" : "d2a8ffaee15ef9eb5b8b3bcef45217ff5ad8b1acd16bff0148215970e0626081",
+      "path" : "Cargo.toml",
+      "repository" : "toko-miner"
+   },
+   {
+      "before_sha256" : "a7a4916f6bbace90fe03455ded9a1dcabc954ad3db1e9c0a1832a8934dbbed73",
+      "candidate_sha256" : "99412f538f34f9545681eb73ecfbc1dc901077547c8dbeeac8731632d2a27884",
+      "path" : "apps/toko_miner/user_hub/Cargo.toml",
+      "repository" : "toko-miner"
+   },
+   {
+      "before_sha256" : "5346385b5f9419f41a82cdf8fc46980fbc6094a80404135bb1d2b32b4b961c79",
+      "candidate_sha256" : "e282de4415434a1c7d22e71914b1f96a8f015610e3cb93797bc9bf730a39d8ec",
+      "path" : "apps/toko_miner/user_hub/src/qualification/opening/costs/capacity.rs",
+      "repository" : "toko-miner"
+   },
+   {
+      "before_sha256" : "65378bd5eb2b9c119f3199c64fd421a285e586e2f44332fa1ea89e56ab178c08",
+      "candidate_sha256" : "9fb616b4b25e939fc221c501ebc466005667d0d9c4c0d9c37b3fe1780fee16a2",
+      "path" : "Cargo.toml",
+      "repository" : "ic-query"
+   },
+   {
+      "before_sha256" : "0943ed41d73b7c136d16de6b175a28619de2c1573066f4364356188804297753",
+      "candidate_sha256" : "47066209ec72a46d1d08a95edc113beeee2067a4ba9080dc3a1d360e70337d65",
+      "path" : "crates/ic-query/Cargo.toml",
+      "repository" : "ic-query"
+   },
+   {
+      "before_sha256" : "9d4d381b0c79a5b9160343b2d7476aa6f976fa3671faa07d839db825c66c54c3",
+      "candidate_sha256" : "c804f71c75ee934e8146ee95b6355333d0c5500edf6721c2ab6c37ba0013ef22",
+      "path" : "crates/ic-query/src/cache_file/write/output.rs",
+      "repository" : "ic-query"
+   }
+]

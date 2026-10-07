@@ -1,0 +1,6 @@
+bash scripts/ci/verify-shared-tooling-snapshot.sh
+shared-tooling snapshot verified: 54 file(s)
+bash scripts/ci/check-dependency-pins.sh --cargo-inheritance
+dependency pins passed (declarations and tracked lockfiles; runtime qualification remains consumer-owned)
+perl scripts/ci/check-documentation-links.pl --root "/home/adam/projects/ic-host-tooling" README.md AGENTS.md CHANGELOG.md docs/extraction.md docs/hosts.md docs/status/current.md docs/publishing.md
+[OK] 16 local references across 7 documents.

@@ -13,10 +13,14 @@ publish = ["crates-io"]
 [target.'cfg(unix)'.dev-dependencies]
 rustix.workspace = true
 
+[features]
+default = ["candid-extraction"]
+candid-extraction = ["dep:ic-host-artifacts", "dep:ic-host-fs", "dep:ic-host-process"]
+
 [dependencies]
-ic-host-artifacts.workspace = true
-ic-host-fs.workspace = true
-ic-host-process.workspace = true
+ic-host-artifacts = { workspace = true, optional = true }
+ic-host-fs = { workspace = true, optional = true }
+ic-host-process = { workspace = true, optional = true }
 serde.workspace = true
 serde_json.workspace = true
 
@@ -26,3 +30,36 @@ sha2.workspace = true
 
 [lints]
 workspace = true
+
+# These examples use the filesystem/process owners enabled by the default profile.
+[[example]]
+name = "extract_candid"
+required-features = ["candid-extraction"]
+
+[[example]]
+name = "inspect_archive"
+required-features = ["candid-extraction"]
+
+[[example]]
+name = "inspect_artifact"
+required-features = ["candid-extraction"]
+
+[[example]]
+name = "inspect_git"
+required-features = ["candid-extraction"]
+
+[[example]]
+name = "inspect_gzip"
+required-features = ["candid-extraction"]
+
+[[example]]
+name = "inspect_regular_file"
+required-features = ["candid-extraction"]
+
+[[example]]
+name = "inspect_response"
+required-features = ["candid-extraction"]
+
+[[example]]
+name = "resolve_tool"
+required-features = ["candid-extraction"]

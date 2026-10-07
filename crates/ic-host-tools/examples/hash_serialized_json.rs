@@ -1,7 +1,6 @@
 //! Demonstrate caller-owned JSON encoding over a bounded hashing sink.
 
-use ic_host_artifacts::artifact::{BoundedWriter, Sha256Digest, read_reader};
-use sha2::{Digest, Sha256};
+use ic_host_artifacts::artifact::{HashingWriter, read_reader};
 use std::{env, error::Error, io};
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -13,10 +12,12 @@ fn main() -> Result<(), Box<dyn Error>> {
     let output_limit: u64 = args[2].parse()?;
     let input = read_reader(io::stdin().lock(), input_limit)?;
     let value: serde_json::Value = serde_json::from_slice(&input)?;
-    let mut writer = BoundedWriter::new(Sha256::new(), output_limit);
+    let mut writer = HashingWriter::new(io::sink(), output_limit);
     serde_json::to_writer(&mut writer, &value)?;
-    let count = writer.bytes_written();
-    let digest = Sha256Digest::from_bytes(writer.into_inner().finalize().into());
-    println!("serialized_bytes={count} sha256={digest}");
+    let (_, identity) = writer.into_parts();
+    println!(
+        "serialized_bytes={} sha256={}",
+        identity.bytes, identity.sha256
+    );
     Ok(())
 }

@@ -1,0 +1,58 @@
+--- /tmp/toko-host-reuse-lock-before	2026-10-07 08:40:33.572014382 +0200
++++ ../toko-miner/Cargo.lock	2026-10-07 08:40:33.658944527 +0200
+@@ -372,7 +372,7 @@
+  "candid",
+  "canic",
+  "ic-cdk",
+- "ic-host-tools 0.3.1",
++ "ic-host-fs",
+  "icydb",
+  "serde",
+  "serde_json",
+@@ -1369,17 +1369,6 @@
+ ]
+ 
+ [[package]]
+-name = "ic-host-process"
+-version = "0.3.1"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "0b2eecf7bc6e99344bbdf32ff123c2e4653506f09f2edea8918aa0978955c557"
+-dependencies = [
+- "ic-host-artifacts",
+- "ic-host-fs",
+- "rustix",
+-]
+-
+-[[package]]
+ name = "ic-host-tools"
+ version = "0.1.14"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+@@ -1395,19 +1384,6 @@
+ ]
+ 
+ [[package]]
+-name = "ic-host-tools"
+-version = "0.3.1"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "e72b6f926e666bb00a04e8f5795bed21a8473541d9d03833e0edebb9e3837d4d"
+-dependencies = [
+- "ic-host-artifacts",
+- "ic-host-fs",
+- "ic-host-process",
+- "serde",
+- "serde_json",
+-]
+-
+-[[package]]
+ name = "ic-management-canister-types"
+ version = "0.8.0"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+@@ -1485,7 +1461,7 @@
+  "candid",
+  "fs2",
+  "ic-cdk",
+- "ic-host-tools 0.1.14",
++ "ic-host-tools",
+  "libc",
+  "pocket-ic",
+  "serde",

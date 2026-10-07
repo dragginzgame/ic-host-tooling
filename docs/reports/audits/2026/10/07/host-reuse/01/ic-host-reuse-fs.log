@@ -1,0 +1,46 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.01s
+     Running unittests src/lib.rs (target/debug/deps/ic_host_fs-9024d8f39fab7afe)
+
+running 39 tests
+test durable::lock_wait::tests::interrupted_acquisition_retries_without_false_contention ... ok
+test durable::lock_wait::tests::callback_failure_and_invalid_intervals_do_not_acquire ... ok
+test durable::lock_wait::tests::nonregular_descriptors_are_rejected_before_observation ... ok
+test durable::tests::bounded_regular_read_preserves_exact_bytes_and_rejects_links ... ok
+test durable::tests::durable_write_rejects_a_target_without_a_file_name ... ok
+test durable::tests::link_publication_fallback_cannot_replace_an_existing_file ... ok
+test read::tests::bounded_file_operations_leave_source_intact_and_reject_special_inputs ... ok
+test read::no_follow::tests::final_symlinks_are_rejected_without_changing_existing_following_reads ... ok
+test path::tests::existing_file_traversal_errors_survive_missing_suffix_normalization ... ok
+test path::tests::explicit_base_errors_and_native_names_are_preserved ... ok
+test path::tests::missing_parent_traversal_resumes_symlink_resolution ... ok
+test durable::tests::unsupported_no_replace_rename_uses_atomic_link_publication ... ok
+test path::tests::dangling_symlink_targets_chains_and_parent_traversal_share_one_identity ... ok
+test path::tests::missing_target_depth_is_caller_selected_and_completed_links_do_not_accumulate ... ok
+test read::no_follow::tests::ancestor_symlinks_remain_an_explicit_consumer_confinement_obligation ... ok
+test path::tests::symlink_cycles_reject_without_confusing_repeated_completed_expansions ... ok
+test read::no_follow::tests::descriptor_identity_survives_path_replacement_and_reads_from_its_current_position ... ok
+test read::no_follow::tests::missing_and_invalid_paths_preserve_structured_open_failures ... ok
+test durable::tests::bounded_regular_read_rejects_existing_and_growing_oversize_content ... ok
+test read::no_follow::tests::exact_limits_and_empty_files_preserve_the_selected_bytes ... ok
+test durable::tests::durable_create_new_with_parents_rejects_a_symlinked_parent ... ok
+test read::no_follow::tests::fifo_without_a_writer_is_rejected_without_waiting_for_one ... ok
+test read::no_follow::tests::opened_directories_and_devices_are_rejected_before_reading ... ok
+test durable::lock_wait::tests::descriptor_contention_reports_and_preserves_returned_ownership ... ok
+test path::tests::long_acyclic_missing_target_chains_use_iterative_resolution ... ok
+test durable::tests::new_parent_failures_never_create_the_final_file_or_staging ... ok
+test durable::tests::postpublication_sync_failure_exposes_only_new_complete_bytes ... ok
+test durable::tests::create_new_publication_race_cannot_replace_the_winner ... ok
+test durable::tests::prepublication_failures_preserve_old_complete_bytes_and_remove_staging ... ok
+test durable::tests::failed_replacement_removes_its_staging_file ... ok
+test durable::tests::staging_collisions_retry_without_touching_unowned_files ... ok
+test durable::tests::replacement_supports_long_destination_names ... ok
+test durable::tests::streamed_replacement_returns_producer_value_only_after_complete_publication ... ok
+test durable::tests::durable_create_new_with_parents_never_replaces_an_existing_file ... ok
+test durable::tests::selected_staging_namespace_destinations_remain_absent_until_publication ... ok
+test durable::tests::producer_failure_and_bounded_copy_preserve_previous_destination ... ok
+test durable::tests::private_publication_is_owner_only_before_writing_and_never_replaces ... ok
+test durable::tests::durable_write_creates_parents_and_replaces_complete_contents ... ok
+test durable::tests::durable_lock_reports_wait_for_another_process_and_retains_exclusion ... ok
+
+test result: ok. 39 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.15s
+

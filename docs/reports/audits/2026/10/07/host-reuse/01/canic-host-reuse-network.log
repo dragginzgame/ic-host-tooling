@@ -1,0 +1,61 @@
+    Blocking waiting for file lock on build directory
+   Compiling arbitrary v1.5.0
+   Compiling zerocopy v0.8.61
+   Compiling binrw v0.15.2
+   Compiling lalrpop v0.20.2
+   Compiling ic-timers v0.14.5
+   Compiling prost v0.14.4
+   Compiling candid v0.10.37
+   Compiling ic-host-artifacts v0.3.1
+   Compiling ic-host-fs v0.3.1
+   Compiling ic-host-process v0.3.1
+   Compiling ic-host-tools v0.3.1
+   Compiling ic_principal v0.1.5
+   Compiling ic-stable-structures v0.7.2
+   Compiling ic-cdk-macros v0.20.3
+   Compiling canic-core v0.110.52 (/home/adam/projects/canic/crates/canic-core)
+   Compiling ic-transport-types v0.49.2
+   Compiling ic-cdk v0.20.3
+   Compiling ic-management-canister-types v0.8.0
+   Compiling icrc-cbor v0.1.0
+   Compiling icrc-ledger-types v0.2.0
+   Compiling ppv-lite86 v0.2.21
+   Compiling half v2.7.1
+   Compiling ahash v0.8.12
+   Compiling cached v0.56.0
+   Compiling ciborium-ll v0.2.2
+   Compiling rand_chacha v0.3.1
+   Compiling ciborium v0.2.2
+   Compiling rand v0.8.8
+   Compiling ic-memory v0.28.4
+   Compiling ic-verify-bls-signature v0.6.0
+   Compiling ic-ed25519 v0.6.0
+   Compiling ic-secp256k1 v0.3.0
+   Compiling ic-agent v0.49.2
+   Compiling candid_parser v0.4.1
+   Compiling pocket-ic v16.0.0
+   Compiling ic-query v0.47.6
+   Compiling ic-testkit v0.19.2
+   Compiling canic-control-plane v0.110.52 (/home/adam/projects/canic/crates/canic-control-plane)
+   Compiling canic-host v0.110.52 (/home/adam/projects/canic/crates/canic-host)
+    Finished `test` profile [optimized + debuginfo] target(s) in 2m 28s
+     Running unittests src/lib.rs (target/debug/deps/canic_host-d6640e8206839ccd)
+
+running 14 tests
+test network::tests::enrollment_rejects_symlinked_root_key_input_without_writing ... ok
+test network::tests::fingerprint_mismatch_writes_nothing ... ok
+test network::tests::resolver_rejects_a_profile_without_complete_authority ... ok
+test network::tests::ic_mainnet_trust_anchor_cannot_be_enrolled ... ok
+test network::tests::noncanonical_fingerprint_writes_nothing ... ok
+test network::tests::ic_mainnet_environment_aliases_resolve_the_compiled_identity ... ok
+test network::tests::enrollment_rejects_fifo_root_key_input_without_writing ... ok
+test network::tests::exact_reenrollment_is_idempotent ... ok
+test network::tests::enrollment_publishes_authority_before_profile_and_resolves_it ... ok
+test network::tests::changed_anchor_cannot_rebind_an_existing_profile ... ok
+test network::tests::resolver_rejects_a_digest_that_disagrees_with_the_exact_anchor ... ok
+test network::tests::frontend_trust_uses_only_exact_enrolled_local_bytes ... ok
+test network::tests::enrollment_resumes_after_authority_root_was_published ... ok
+test network::tests::two_environment_aliases_share_one_network_authority ... ok
+
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 1167 filtered out; finished in 0.17s
+

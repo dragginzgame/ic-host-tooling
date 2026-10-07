@@ -56,6 +56,17 @@
       "repository": "https://github.com/dragginzgame/shared-tooling",
       "revision": "d957d1f8801885c5b69e4a9ef900155f5f2a8a9d",
       "selection": "reviewed snapshot"
+    },
+    {
+      "files": [
+        {
+          "path": "crates/ic-query/src/nns/registry/replay/archive/mod.rs",
+          "selection": "DigestingWriter push serialization hashing requirement; adapted to the existing BoundedWriter accepted-byte contract as HashingWriter; JSON, producer success, descriptor admission and publication stay caller-owned",
+          "sha256": "7f7796c19588226b5f15d7efab935821eeb9fa97c3c93b66979379477a601dc3"
+        }
+      ],
+      "repository": "https://github.com/dragginzgame/ic-query",
+      "revision": "0905078d1ef410c63a89fb2924cd18a0653ffa4e"
     }
   ]
 }

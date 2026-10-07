@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.3.2]
+
+### Added
+
+- Add a response-only tools profile by disabling default features. Keep Candid
+  extraction enabled by default with its required dependency owners
+  ([#3](https://github.com/dragginzgame/ic-host-tooling/issues/3)).
+- Share bounded `HashingWriter` for push serializers, with sink recovery and raw
+  identities for accepted bytes; completion and publication remain caller-owned
+  ([#4](https://github.com/dragginzgame/ic-host-tooling/issues/4)).
+
+### Fixed
+
+- Resolve dangling symlink targets and retain native directory-traversal errors
+  when normalizing missing paths. Add a caller-selected limit for nested missing
+  symlink targets so consumers can retain their existing resolution budgets
+  ([#1](https://github.com/dragginzgame/ic-host-tooling/issues/1)).
+- Adopt Shared Tooling 0.1.14: independently verify snapshots, keep release pushes
+  bound to the captured destination and reject inherited Make modes that hide
+  failures or skip formatting/release execution. Retain existing tool pins and
+  virtual workspace package locations, with the shared `apps/` allowance
+  ([#6](https://github.com/dragginzgame/ic-host-tooling/issues/6)).
+
 ## [0.3.1] - 2026-10-07
 
 ### Added

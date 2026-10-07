@@ -1,0 +1,146 @@
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -20,7 +20,7 @@
+ ic-agent = { version = "0.49.2", default-features = false }
+ ic-cdk = "0.20.2"
+ ic-host-artifacts = { version = "0.3.1", default-features = false }
+-ic-host-fs = { version = "0.3.1", default-features = false }
++ic-host-fs = { version = "0.3.2", default-features = false }
+ ic-host-tools = "0.3.1"
+ ic-query = { path = "crates/ic-query", version = "0.47.6", default-features = false }
+ prost = "0.14.3"
+--- a/crates/ic-query/Cargo.toml
++++ b/crates/ic-query/Cargo.toml
+@@ -32,6 +32,7 @@
+     "dep:cap-fs-ext",
+     "dep:cap-std",
+     "dep:ic-host-artifacts",
++    "dep:ic-host-fs",
+     "dep:reqwest",
+     "dep:tokio",
+ ]
+@@ -42,6 +43,7 @@
+     "dep:futures",
+     "dep:ic-agent",
+     "dep:ic-host-artifacts",
++    "dep:ic-host-fs",
+     "dep:serde_cbor",
+     "dep:sha2",
+     "dep:tokio",
+@@ -54,6 +56,7 @@
+     "dep:futures",
+     "dep:ic-agent",
+     "dep:ic-host-artifacts",
++    "dep:ic-host-fs",
+     "dep:tokio",
+ ]
+ subnet-catalog-host = [
+@@ -62,6 +65,7 @@
+     "dep:futures",
+     "dep:ic-agent",
+     "dep:ic-host-artifacts",
++    "dep:ic-host-fs",
+     "dep:prost",
+     "dep:sha2",
+     "dep:tokio",
+@@ -77,6 +81,7 @@
+ futures = { workspace = true, optional = true }
+ ic-agent = { workspace = true, optional = true }
+ ic-host-artifacts = { workspace = true, optional = true }
++ic-host-fs = { workspace = true, optional = true }
+ prost = { workspace = true, optional = true }
+ reqwest = { workspace = true, features = [
+     "rustls",
+--- a/crates/ic-query/src/cache_file/write/output.rs
++++ b/crates/ic-query/src/cache_file/write/output.rs
+@@ -11,20 +11,31 @@
+ use std::{
+     fs,
+     io::{self, Write},
+-    path::{Component, Path, PathBuf},
++    path::{Path, PathBuf},
+ };
+ 
++const MAX_OUTPUT_SYMLINK_DEPTH: usize = 64;
++
+ pub fn validate_output_path(
+     output_path: &Path,
+     managed_paths: &[&Path],
+ ) -> Result<(), CacheFileError> {
+-    let resolved_output =
+-        resolve_output_path(output_path, 0).map_err(|source| output_error(output_path, source))?;
++    let base = std::env::current_dir().map_err(|source| output_error(output_path, source))?;
++    let resolved_output = ic_host_fs::path::canonicalize_allow_missing_with_symlink_limit(
++        output_path,
++        &base,
++        MAX_OUTPUT_SYMLINK_DEPTH,
++    )
++    .map_err(|source| output_error(output_path, source))?;
+     let output_metadata =
+         optional_metadata(output_path).map_err(|source| output_error(output_path, source))?;
+     for &managed_path in managed_paths {
+-        let resolved_managed = resolve_output_path(managed_path, 0)
+-            .map_err(|source| output_error(output_path, source))?;
++        let resolved_managed = ic_host_fs::path::canonicalize_allow_missing_with_symlink_limit(
++            managed_path,
++            &base,
++            MAX_OUTPUT_SYMLINK_DEPTH,
++        )
++        .map_err(|source| output_error(output_path, source))?;
+         let managed_metadata =
+             optional_metadata(managed_path).map_err(|source| output_error(output_path, source))?;
+         if resolved_output == resolved_managed
+@@ -102,53 +113,6 @@
+     }
+ }
+ 
+-fn resolve_output_path(path: &Path, symlink_depth: usize) -> io::Result<PathBuf> {
+-    let path = if path.as_os_str().is_empty() {
+-        Path::new(".")
+-    } else {
+-        path
+-    };
+-    match fs::canonicalize(path) {
+-        Ok(resolved) => return Ok(resolved),
+-        Err(error) if error.kind() == io::ErrorKind::NotFound => {}
+-        Err(error) => return Err(error),
+-    }
+-    // Also resolve dangling links and missing targets before directories or locks exist.
+-    if fs::symlink_metadata(path).is_ok_and(|metadata| metadata.is_symlink()) {
+-        if symlink_depth >= 64 {
+-            return Err(io::Error::new(
+-                io::ErrorKind::InvalidInput,
+-                "too many output symlinks",
+-            ));
+-        }
+-        let target = fs::read_link(path)?;
+-        let target = if target.is_absolute() {
+-            target
+-        } else {
+-            path.parent().unwrap_or_else(|| Path::new(".")).join(target)
+-        };
+-        return resolve_output_path(&target, symlink_depth + 1);
+-    }
+-    let parent = path
+-        .parent()
+-        .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "output path has no parent"))?;
+-    let mut resolved = resolve_output_path(parent, symlink_depth)?;
+-    match path.components().next_back() {
+-        Some(Component::Normal(name)) => resolved.push(name),
+-        Some(Component::ParentDir) => {
+-            resolved.pop();
+-        }
+-        Some(Component::CurDir) => {}
+-        _ => {
+-            return Err(io::Error::new(
+-                io::ErrorKind::InvalidInput,
+-                "invalid output path",
+-            ));
+-        }
+-    }
+-    Ok(resolved)
+-}
+-
+ fn output_alias_error(output_path: &Path, managed_path: &Path) -> CacheFileError {
+     CacheFileError::OutputAliasesManagedPath {
+         output_path: output_path.to_path_buf(),

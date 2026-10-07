@@ -11,10 +11,11 @@ ifneq ($(word 2,$(filter release-patch release-minor release-major release-resum
 $(error Select exactly one release target)
 endif
 
-.PHONY: help fmt fmt-check format-tools-check format-tools-test check clippy docs-check test test-artifacts-minimal msrv ci install-hooks install-tools tools-check install-host-tools host-tools-check install-ic-tools ic-tools-check shared-tooling-check dependency-pins-check check-doc-links release-adapter-check publish publish-check publish-command-check release-patch release-minor release-major release-resume release-version release-preflight release-verify release-prepare-version release-prepared-check release-files release-commit-check release-committed-check release-tagged-check release-push-check
+.PHONY: help fmt fmt-check format-tools-check format-tools-test check clippy docs-check test test-artifacts-minimal test-tools-response tools-features-check msrv ci install-hooks install-tools tools-check install-host-tools host-tools-check install-ic-tools ic-tools-check shared-tooling-check dependency-pins-check check-doc-links release-adapter-check publish publish-check publish-command-check release-patch release-minor release-major release-resume release-version release-preflight release-verify release-prepare-version release-prepared-check release-files release-commit-check release-committed-check release-tagged-check release-push-check
 help:
 	@echo 'Selected package: check, clippy, docs-check, test, msrv (PACKAGE=<crate>)'
 	@echo 'Minimal artifact configuration: test-artifacts-minimal'
+	@echo 'Response-only configuration: test-tools-response and tools-features-check'
 	@echo 'Formatting and metadata: fmt, fmt-check, shared-tooling-check, dependency-pins-check, check-doc-links, release-adapter-check'
 	@echo 'Explicit setup: install-tools, install-host-tools, install-ic-tools, install-hooks'
 	@echo 'Offline setup checks: tools-check, host-tools-check, ic-tools-check'
@@ -26,9 +27,11 @@ format-tools-check:
 format-tools-test:
 	bash scripts/ci/test-format-tools.sh
 fmt: format-tools-check
+	bash scripts/ci/check-make-execution.sh
 	cargo sort --workspace
 	cargo fmt --all
 fmt-check: format-tools-check
+	bash scripts/ci/check-make-execution.sh
 	cargo sort --workspace --check
 	cargo fmt --all -- --check
 check:
@@ -41,6 +44,10 @@ test:
 	cargo test -p $(PACKAGE) --all-targets --all-features --locked --offline
 test-artifacts-minimal:
 	cargo test -p ic-host-artifacts --no-default-features --lib --locked --offline
+test-tools-response:
+	cargo test -p ic-host-tools --no-default-features --all-targets --locked --offline
+tools-features-check:
+	bash scripts/ci/check-tools-features.sh
 msrv:
 	cargo +$(MSRV) check -p $(PACKAGE) --all-targets --all-features --locked --offline
 install-hooks:
@@ -79,6 +86,8 @@ ci:
 	+$(MAKE) --no-print-directory release-adapter-check
 	+$(MAKE) --no-print-directory publish-command-check
 	+$(MAKE) --no-print-directory test-artifacts-minimal
+	+$(MAKE) --no-print-directory tools-features-check
+	+$(MAKE) --no-print-directory test-tools-response
 	@for package in ic-host-artifacts ic-host-fs ic-host-process ic-host-tools; do \
 		$(MAKE) --no-print-directory clippy PACKAGE=$$package && \
 		$(MAKE) --no-print-directory docs-check PACKAGE=$$package && \

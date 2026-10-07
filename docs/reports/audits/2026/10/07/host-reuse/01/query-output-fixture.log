@@ -1,0 +1,43 @@
+   Compiling version_check v0.9.5
+   Compiling typenum v1.20.1
+   Compiling cpufeatures v0.2.17
+   Compiling cfg-if v1.0.5
+   Compiling rustix v1.1.5
+   Compiling linux-raw-sys v0.12.1
+   Compiling bitflags v2.13.2
+   Compiling generic-array v0.14.7
+   Compiling block-buffer v0.10.4
+   Compiling crypto-common v0.1.7
+   Compiling digest v0.10.7
+   Compiling sha2 v0.10.9
+   Compiling ic-host-artifacts v0.3.1 (/home/adam/projects/ic-host-tooling/crates/ic-host-artifacts)
+   Compiling ic-host-fs v0.3.1 (/home/adam/projects/ic-host-tooling/crates/ic-host-fs)
+   Compiling query-output-path-qualification v0.0.0 (/tmp/ic-query-host-path-20261007)
+warning: unused import: `PathBuf`
+  --> src/cache_file/write/output.rs:14:18
+   |
+14 |     path::{Path, PathBuf},
+   |                  ^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: `query-output-path-qualification` (lib) generated 1 warning (run `cargo fix --lib -p query-output-path-qualification` to apply 1 suggestion)
+warning: `query-output-path-qualification` (lib test) generated 1 warning (1 duplicate)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.35s
+     Running unittests src/lib.rs (/tmp/ic-query-host-path-20261007/target/debug/deps/query_output_path_qualification-29c5c4ff53c88954)
+
+running 5 tests
+test cache_file::write::tests::output_compares_relative_and_absolute_paths ... ok
+test cache_file::write::tests::output_rejects_missing_managed_paths_and_parent_traversal_aliases ... ok
+test cache_file::write::tests::output_rejects_dangling_symlink_aliases_before_creating_managed_files ... ok
+test cache_file::write::tests::output_rejects_file_symlink_parent_symlink_and_hard_link_aliases ... ok
+test cache_file::write::tests::distinct_output_replaces_export_and_preserves_managed_file ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+   Doc-tests query_output_path_qualification
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

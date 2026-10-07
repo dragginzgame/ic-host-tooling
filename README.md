@@ -5,7 +5,7 @@ admitted process execution and IC-specific format handling.
 
 | Crate | Implemented source ownership |
 | --- | --- |
-| ic-host-artifacts | Bounded streams, exact byte comparison, SHA-256, gzip encoding/decoding, verified tar members and generic Wasm facts |
+| ic-host-artifacts | Bounded streams and hashing writers, exact byte comparison, SHA-256, gzip encoding/decoding, verified tar members and generic Wasm facts |
 | ic-host-fs | Regular/no-follow reads, missing-suffix path resolution, streamed durable publication, private files and observed descriptor locks |
 | ic-host-process | Executable resolution, digest/version admission, bounded capture and Git observations |
 | ic-host-tools | Candid extraction/normalization and ICP CLI response decoding |
@@ -14,6 +14,10 @@ These run locally outside canisters. The ic-host prefix identifies their ecosyst
 the generic crates have no IC runtime dependency. Compression, archive and Wasm
 support are optional features of ic-host-artifacts. Filesystem/process consumers
 select the small default artifact dependency.
+Response-only consumers can disable `ic-host-tools`' default features to exclude
+the artifact/filesystem/process extraction dependencies. The default
+`candid-extraction` feature preserves the existing Unix Candid API. Response
+decoding is always available and needs only serde/serde_json.
 
 The four-crate extraction has a Git release at 0.3.0. Package metadata permits
 crates.io publication; a Git release does not establish registry availability.
@@ -28,6 +32,9 @@ or select the corresponding filesystem, process or IC adapter package.
 make check, make clippy and make docs-check accept PACKAGE=<crate>.
 make test-artifacts-minimal exercises the artifact library without optional
 features; native CI runs it alongside the all-feature package checks.
+make test-tools-response checks the response-only library, and
+make tools-features-check verifies its actual production dependency exclusions
+and the default extractor's required owners.
 make install-host-tools and make install-ic-tools are explicit setup commands;
 their offline checks never install tools. make install-hooks activates the
 repository-local formatter after provisioning cargo-sort 2.1.4.

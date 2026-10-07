@@ -5,10 +5,14 @@ be7d73908225e73ab5babf8fbb9fe959f40d439b. Pending sibling tooling edits
 were excluded. Canic's clean durable module and its tests are bound to their
 observed committed bytes in [source provenance](../ci/extraction-sources.json).
 
-Dependencies point down from ic-host-tools to ic-host-process and ic-host-fs,
+With the default `candid-extraction` feature, dependencies point down from
+ic-host-tools to ic-host-process and ic-host-fs,
 from ic-host-process to ic-host-fs, and from each to ic-host-artifacts.
 No generic crate depends on ic-host-tools, Canic, IcyDB or an IC runtime.
 Test/example artifact features do not become production filesystem dependencies.
+Disabling the tools defaults retains response decoding while excluding all three
+generic extraction dependencies from its normal graph. This is an additive
+feature choice; default callers retain the existing Unix extraction surface.
 
 - ic-host-artifacts owns stream identities, bounded read/write/copy mechanics,
   optional gzip encoding/decoding, verified tar member bytes and optional Wasm structural facts.
@@ -31,6 +35,11 @@ Further adoption must retain each caller's independently established guarantees.
 
 Additional reusable mechanics are extracted from committed sibling source:
 
+- `ic_host_artifacts::artifact::HashingWriter` hashes accepted writes through the
+  existing bounded writer, returning the original sink and raw size/digest. It
+  needs no complete serialized buffer. Short writes count and hash only accepted
+  bytes; a failed producer yields at most an observed prefix, never a completion
+  receipt. Encoding, producer success, flush/sync and publication stay local.
 - `ic_host_artifacts::artifact::MatchingWriter` compares a produced byte stream
   with borrowed expected bytes. It keeps consuming after a mismatch so serializer
   errors remain visible; callers own successful completion and canonical ordering.
@@ -47,8 +56,12 @@ Additional reusable mechanics are extracted from committed sibling source:
 
 - `ic_host_fs::path::canonicalize_allow_missing` resolves existing symlinks and
   normalizes missing suffixes against an explicit absolute base for relative
-  paths. It resumes existing-component resolution after parent traversal; it
-  neither confines a root nor creates files. Consumer path identities stay local.
+  paths, including dangling symlink targets. It resumes existing-component
+  resolution after parent traversal and retains native directory requirements.
+  `canonicalize_allow_missing_with_symlink_limit` additionally accepts the
+  consumer's limit on simultaneously active missing-target expansions. Neither
+  entry confines a root or creates files. Hard-link identity, opening and
+  concurrent pathname revalidation remain consumer-owned.
 - `ic_host_fs::durable::lock_exclusive_with_wait` acquires a caller-owned regular
   descriptor with explicit polling and contention observations, retrying
   interrupted acquisition. The existing pathname progress helper delegates to
