@@ -48,7 +48,13 @@ stays anchored to it even when its original path moves. Consumers retain path
 admission, budgets and recovery; see the
 [publication contract](docs/changelog/0.4.md#typed-and-descriptor-relative-publication).
 
-The four-crate workspace has a Git release at 0.4.2. Package metadata permits
+With the artifact `gzip` feature, `hash_gzip` and `hash_gzip_or_raw` identify
+decoded payloads without a full decoded allocation. `gzip_matches` compares
+decoded bytes exactly with an expected slice. All retain explicit input/payload
+bounds and strict single-member integrity checks; see the
+[gzip contract](docs/changelog/0.4.md#gzip-identities-and-exact-representation-comparison).
+
+The four-crate workspace has a Git release at 0.4.3. Package metadata permits
 crates.io publication; a Git release does not establish registry availability.
 The original local checkout has been removed after a verified full backup.
 Consumers adopt and qualify registry selections independently.

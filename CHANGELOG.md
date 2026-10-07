@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.4.4]
+
+- Hash gzip or raw artifacts and compare decoded gzip with expected bytes
+  without allocating a full decoded copy. Retain independent input/payload
+  limits and strict single-member integrity checks
+  ([#12](https://github.com/dragginzgame/ic-host-tooling/issues/12)).
+
+See [the 0.4 notes](docs/changelog/0.4.md).
+
 ## [0.4.3] - 2026-10-07
 
 - Stream durable output with typed producer errors, explicit replace/create-only

@@ -190,3 +190,107 @@ fn optional_header_fields_count_against_the_complete_input_allowance() {
         Err(GzipError::InputLimit { .. })
     ));
 }
+
+#[test]
+fn streamed_hashes_identify_payloads_and_enforce_both_representation_budgets() {
+    for raw in [vec![], b"\0asm\x01\0\0\0".to_vec(), vec![42; 100_003]] {
+        let compressed = gzip(&raw);
+        let expected = super::super::ArtifactIdentity {
+            bytes: raw.len() as u64,
+            sha256: super::super::Sha256Digest::compute(&raw),
+        };
+        assert_eq!(
+            hash_gzip(&compressed, compressed.len(), expected.bytes).unwrap(),
+            expected
+        );
+        for input in [&raw, &compressed] {
+            assert_eq!(
+                hash_gzip_or_raw(input, input.len(), expected.bytes).unwrap(),
+                expected
+            );
+            if !input.is_empty() {
+                assert!(matches!(
+                    hash_gzip_or_raw(input, input.len() - 1, expected.bytes),
+                    Err(GzipError::InputLimit { .. })
+                ));
+            }
+            if expected.bytes != 0 {
+                assert!(matches!(
+                    hash_gzip_or_raw(input, input.len(), expected.bytes - 1),
+                    Err(GzipError::Decode(ArtifactError::LimitExceeded { .. }))
+                ));
+            }
+        }
+    }
+    // Only a complete magic prefix selects gzip; no Wasm interpretation is made.
+    for raw in [b"\x1f".as_slice(), b"\x1f\x00", b"ordinary data"] {
+        assert_eq!(
+            hash_gzip_or_raw(raw, raw.len(), raw.len() as u64)
+                .unwrap()
+                .sha256,
+            super::super::Sha256Digest::compute(raw)
+        );
+        assert!(hash_gzip(raw, raw.len(), raw.len() as u64).is_err());
+    }
+    assert!(hash_gzip_or_raw(b"\x1f\x8b", 2, 2).is_err());
+}
+
+#[test]
+fn gzip_comparison_is_exact_bounded_and_checks_completion_after_mismatch() {
+    let raw = vec![42; 100_003];
+    let compressed = gzip(&raw);
+    assert!(gzip_matches(&compressed, &raw, compressed.len()).unwrap());
+    let mut different = raw.clone();
+    different[0] ^= 1;
+    assert!(!gzip_matches(&compressed, &different, compressed.len()).unwrap());
+    different = raw.clone();
+    different.push(0);
+    assert!(!gzip_matches(&compressed, &different, compressed.len()).unwrap());
+    assert!(matches!(
+        gzip_matches(&compressed, &raw[..raw.len() - 1], compressed.len()),
+        Err(GzipError::Decode(ArtifactError::LimitExceeded { .. }))
+    ));
+    assert!(matches!(
+        gzip_matches(&compressed, &raw, compressed.len() - 1),
+        Err(GzipError::InputLimit { .. })
+    ));
+    let empty = gzip(b"");
+    assert!(gzip_matches(&empty, b"", empty.len()).unwrap());
+    assert!(!gzip_matches(&empty, b"a", empty.len()).unwrap());
+}
+
+#[test]
+fn streamed_operations_refuse_truncation_integrity_failure_and_trailing_data() {
+    let raw = b"a complete artifact";
+    let compressed = gzip(raw);
+    let check = |input: &[u8]| {
+        // A content mismatch must not conceal malformed framing or integrity.
+        let different = vec![0; raw.len()];
+        assert!(gzip_matches(input, &different, input.len()).is_err());
+        assert!(hash_gzip(input, input.len(), raw.len() as u64).is_err());
+        if input.starts_with(&[0x1f, 0x8b]) {
+            assert!(hash_gzip_or_raw(input, input.len(), raw.len() as u64).is_err());
+        }
+    };
+    for end in 0..compressed.len() {
+        check(&compressed[..end]);
+    }
+    for index in [2, compressed.len() - 8, compressed.len() - 4] {
+        let mut corrupt = compressed.clone();
+        corrupt[index] ^= 1;
+        check(&corrupt);
+    }
+    for tail in [vec![0], gzip(b""), gzip(b"more")] {
+        let mut joined = compressed.clone();
+        joined.extend(tail);
+        assert!(matches!(
+            hash_gzip(&joined, joined.len(), raw.len() as u64),
+            Err(GzipError::TrailingData)
+        ));
+        assert!(matches!(
+            gzip_matches(&joined, raw, joined.len()),
+            Err(GzipError::TrailingData)
+        ));
+        check(&joined);
+    }
+}

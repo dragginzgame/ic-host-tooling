@@ -25,7 +25,7 @@ mod writer;
 pub use chunks::{ChunkDigestError, chunk_digests};
 pub use copy::{CopyError, copy_reader};
 #[cfg(feature = "gzip")]
-pub use gzip::{GzipError, decode_gzip, encode_gzip};
+pub use gzip::{GzipError, decode_gzip, encode_gzip, gzip_matches, hash_gzip, hash_gzip_or_raw};
 pub use hashing::HashingWriter;
 pub use matching::MatchingWriter;
 pub use writer::{BoundedWriter, WriterError};

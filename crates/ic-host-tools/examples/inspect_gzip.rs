@@ -1,6 +1,6 @@
 //! Inspect a saved gzip artifact without writing decoded bytes or printing them.
 
-use ic_host_artifacts::artifact::{Sha256Digest, decode_gzip};
+use ic_host_artifacts::artifact::{Sha256Digest, hash_gzip};
 use ic_host_fs::read::read_file;
 use std::{error::Error, io, path::Path};
 
@@ -26,16 +26,12 @@ fn main() -> Result<(), Box<dyn Error>> {
         return Err(io::Error::new(io::ErrorKind::InvalidInput, "unexpected argument").into());
     }
     let compressed = read_file(Path::new(&path), max_compressed)?;
-    let decoded = decode_gzip(&compressed, max_compressed, max_decoded)?;
+    let decoded = hash_gzip(&compressed, max_compressed, max_decoded as u64)?;
     println!(
         "compressed_bytes={} sha256={}",
         compressed.len(),
         Sha256Digest::compute(&compressed)
     );
-    println!(
-        "decoded_bytes={} sha256={}",
-        decoded.len(),
-        Sha256Digest::compute(&decoded)
-    );
+    println!("decoded_bytes={} sha256={}", decoded.bytes, decoded.sha256);
     Ok(())
 }

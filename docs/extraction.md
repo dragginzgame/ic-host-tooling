@@ -72,6 +72,12 @@ consumer policy; no host catalog or version-range resolver is introduced.
 
 Additional reusable mechanics are extracted from committed sibling source:
 
+- `artifact::hash_gzip` and `hash_gzip_or_raw` reuse bounded hashing over the
+  existing single-member gzip decoder. `gzip_matches` reuses `MatchingWriter`
+  to compare exact decoded bytes without retaining another payload copy. Input
+  admission, CRC/length and trailing-data checks have one owner shared with
+  `decode_gzip`. Complete compressed/raw input is still a caller-owned slice;
+  Wasm admission, representation selection and deployment policy stay local.
 - `ic_host_artifacts::artifact::chunk_digests` computes ordered fixed-size chunk
   digests and the complete raw input identity through the existing bounded read
   traversal. Callers select a nonzero chunk size, input-byte allowance and maximum

@@ -1,6 +1,54 @@
 # Current handoff
 
-## Latest qualification: 2026-10-07, after 0.4.2
+## Latest qualification: 2026-10-07, after 0.4.3
+
+The maintainer reports 0.4.3 live. The clean starting HEAD is
+`644d49c096ae05c2e17e1b6aacf14770988c5cf6`, with finalized root notes and package
+versions at 0.4.3. [Exact-source CI](https://github.com/dragginzgame/ic-host-tooling/actions/runs/37639415895)
+has passed Linux/MSRV; native ARM macOS is running and Intel macOS is queued at
+the latest inspection. That run does not qualify the new uncommitted work.
+Shared Tooling's latest local committed revision remains the adopted 0.1.19
+`a06e4719e3839b8eefcfb88ec8923aa88eb63ccc`; no new snapshot adoption is needed.
+
+The next compatible batch targets **0.4.4**, adding gzip identity and exact
+comparison helpers for [Host #12](https://github.com/dragginzgame/ic-host-tooling/issues/12).
+`hash_gzip` identifies a strict single member; `hash_gzip_or_raw` additionally
+selects raw input unless its first two bytes are gzip magic. Both return decoded
+or raw `ArtifactIdentity` without a full decoded allocation, with independent
+input/payload bounds. They accept an already-resident borrowed slice, not an
+unbounded file or network stream. They do not validate Wasm. `gzip_matches`
+compares exact bytes against a borrowed expected slice, retaining existing
+decoded-limit versus malformed-gzip distinctions. All reuse the existing
+decoder framing checks, bounded traversal, hashing and `MatchingWriter`.
+
+Canic's inspected representation module is clean at
+`4bee0f8f69c80825e41d6100bde7575c5002980d`. Its `qualify_representation` currently
+allocates decoded Wasm only to compare it with the raw artifact. A concrete
+`gzip_matches` replacement and preserved error projection are recorded on
+[Canic #458](https://github.com/dragginzgame/canic/issues/458). No Canic files
+were edited or consumer graph compiled. Toko's shell hashing still requires
+consumer-owned CLI integration; adding a Rust helper does not delete it.
+
+Focused offline Linux qualification passes: 61 artifact unit tests, seven
+consumer-contract tests, 33 minimal-profile tests, strict artifact Clippy,
+Rust 1.88 compilation and Rustdoc. Existing gzip/archive behavior passes after
+sharing its framing owner. New cases cover exact input/payload limits, raw/gzip
+identity equivalence, mismatch followed by malformed CRC, truncation, member
+concatenation and trailing bytes. The initial Clippy const-function finding and
+corrected run are retained under /tmp/ic-host-044-*.log. Cache preparation passed
+offline against the unchanged selected lockfile.
+
+The strict-gzip example now uses incremental hashing; a real run over minimal
+Wasm compressed by the existing system gzip matches independent sha256sum
+values for compressed and decoded bytes. Evidence is at the path recorded in
+/tmp/ic-host-044-example-path. Snapshot, pins, links, sorting and formatting
+checks pass. No dependency, feature, package version, lockfile or existing API
+was removed or changed by this batch; gzip error diagnostics now describe both
+raw and decoded payload failures. No function, method or type was removed.
+Native macOS qualification remains outstanding, and no full local gate, commit,
+push, publication, download or sibling edit occurred.
+
+## Previous qualification: 2026-10-07, after 0.4.2
 
 The maintainer reports 0.4.2 pushed; local HEAD is
 `6501d0e9fa7ba0439ec7a4010ca7bf0205e1d712` with finalized root notes and package
