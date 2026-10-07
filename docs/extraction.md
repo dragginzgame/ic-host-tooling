@@ -26,6 +26,14 @@ Source tests move with their owner; public artifact projection tests belong to
 ic-host-artifacts. Runnable examples retain explicit dependencies on each owner.
 No generic compatibility reexports remain in ic-host-tools.
 
+Within `ic-host-fs`, `read` is the sole owner of required/optional/private reads.
+Following paths, final-component no-follow admission and already-open descriptor
+reads remain distinct contracts. Optional reads reuse the same bounded stream
+engine and return `ArtifactError`; private reads add typed permission, link-count
+and fixed-length rejection. Durable publication and locks do not own a second
+reader hierarchy. Lock errors retain typed admission and original I/O causes.
+The [0.4 notes](changelog/0.4.md) describe the required consumer changes.
+
 The first import preserves implemented guarantees. It does not establish root
 confinement for following pathname APIs, immutable source bytes, process sandboxing,
 descendant cleanup, hardware-independent crash durability or safe paid-effect retries.

@@ -25,7 +25,12 @@ cleanup with `AdmittedTool`, whose exact digest/version checks remain in place.
 `ToolError::evidence` and `execution_error` borrow retained diagnostics without
 copying output; callers own presentation and recovery.
 
-The four-crate workspace has a Git release at 0.3.2. Package metadata permits
+Filesystem reads live under `ic_host_fs::read`, including optional bounded
+no-follow reads and typed private-file admission. Durable publication and locks
+remain under `durable`. The pending breaking cleanup requires the
+[0.4 consumer changes](docs/changelog/0.4.md).
+
+The four-crate workspace has a Git release at 0.3.3. Package metadata permits
 crates.io publication; a Git release does not establish registry availability.
 The original local checkout has been removed after a verified full backup.
 Consumers adopt and qualify registry selections independently.

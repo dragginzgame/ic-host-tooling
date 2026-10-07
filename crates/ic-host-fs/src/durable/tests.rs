@@ -1,10 +1,7 @@
 use super::*;
 
 #[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
-use super::supported::{
-    FileCommitStep, commit_with_hook, publish_create_new_after_error,
-    read_optional_regular_bytes_bounded_with_hook,
-};
+use super::supported::{FileCommitStep, commit_with_hook, publish_create_new_after_error};
 
 use std::{
     fs,
@@ -91,7 +88,9 @@ fn durable_lock_reports_wait_for_another_process_and_retains_exclusion() {
         return;
     }
     if let Some(root) = std::env::var_os(CHILD_ROOT) {
-        let _lock = lock_file(&PathBuf::from(root).join("complete-build-reuse.lock")).unwrap();
+        let _lock =
+            lock_regular_file_with_parents(&PathBuf::from(root).join("complete-build-reuse.lock"))
+                .unwrap();
         println!("LOCK_HELD");
         io::stdout().flush().unwrap();
         let mut line = String::new();
@@ -119,6 +118,10 @@ fn durable_lock_reports_wait_for_another_process_and_retains_exclusion() {
         }
     }
     let path = root.join("complete-build-reuse.lock");
+    assert!(matches!(
+        lock_file_with_progress(&path, |_, _| Err(io::ErrorKind::PermissionDenied.into())),
+        Err(RegularFileLockError::Io(error)) if error.kind() == io::ErrorKind::PermissionDenied
+    ));
     let started = Instant::now();
     let mut progress = None;
     let lock = lock_file_with_progress(&path, |_, elapsed| {
@@ -172,6 +175,45 @@ fn durable_write_creates_parents_and_replaces_complete_contents() {
     fs::remove_dir_all(root).expect("remove temp root");
 }
 
+#[cfg(unix)]
+#[test]
+fn lock_errors_preserve_admission_and_original_io_causes() {
+    use std::error::Error as _;
+    let fixture = crate::test_support::Fixture::new();
+    let target = fixture.root.join("target");
+    fs::write(&target, b"unchanged").unwrap();
+    let link = fixture.root.join("link");
+    std::os::unix::fs::symlink(&target, &link).unwrap();
+    for path in [&fixture.root, &link] {
+        assert!(matches!(
+            lock_regular_file_with_parents(path),
+            Err(RegularFileLockError::NotRegular)
+        ));
+        assert!(matches!(
+            lock_file_with_progress(path, |_, _| panic!("admission failed")),
+            Err(RegularFileLockError::NotRegular)
+        ));
+    }
+    assert_eq!(fs::read(&target).unwrap(), b"unchanged");
+    let error = lock_regular_file_with_parents(&fixture.root.join("invalid\0path")).unwrap_err();
+    let RegularFileLockError::Io(original) = &error else {
+        panic!("expected original I/O cause");
+    };
+    let retained = error.source().unwrap().downcast_ref::<io::Error>().unwrap();
+    assert!(std::ptr::eq(original, retained));
+    assert_eq!(retained.kind(), io::ErrorKind::InvalidInput);
+    let projected = io::Error::from(error);
+    assert_eq!(projected.kind(), io::ErrorKind::InvalidInput);
+    let projected = io::Error::from(RegularFileLockError::NotRegular);
+    assert!(matches!(
+        projected
+            .get_ref()
+            .unwrap()
+            .downcast_ref::<RegularFileLockError>(),
+        Some(RegularFileLockError::NotRegular)
+    ));
+}
+
 #[test]
 fn durable_create_new_with_parents_never_replaces_an_existing_file() {
     let root = temp_root("create-new-with-parents");
@@ -217,57 +259,6 @@ fn durable_write_rejects_a_target_without_a_file_name() {
     let error = write_bytes(Path::new("/"), b"value").expect_err("directory target must fail");
 
     assert_eq!(error.kind(), io::ErrorKind::InvalidInput);
-}
-
-#[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
-#[test]
-fn bounded_regular_read_rejects_existing_and_growing_oversize_content() {
-    let root = temp_root("bounded-read-oversize");
-    fs::create_dir_all(&root).expect("create temp root");
-    let path = root.join("object");
-    fs::write(&path, b"12345").expect("write oversized object");
-
-    assert!(matches!(
-        read_optional_regular_bytes_bounded(&path, 4),
-        Err(BoundedRegularFileReadError::TooLarge)
-    ));
-
-    fs::write(&path, b"1234").expect("write initially bounded object");
-    let growing =
-        read_optional_regular_bytes_bounded_with_hook(&path, 4, || fs::write(&path, b"12345"));
-    assert!(matches!(
-        growing,
-        Err(BoundedRegularFileReadError::TooLarge)
-    ));
-
-    fs::remove_dir_all(root).expect("remove temp root");
-}
-
-#[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
-#[test]
-fn bounded_regular_read_preserves_exact_bytes_and_rejects_links() {
-    let root = temp_root("bounded-read-regular");
-    fs::create_dir_all(&root).expect("create temp root");
-    let path = root.join("object");
-    fs::write(&path, b"1234").expect("write bounded object");
-
-    assert_eq!(
-        read_optional_regular_bytes_bounded(&path, 4).expect("bounded read"),
-        Some(b"1234".to_vec())
-    );
-
-    #[cfg(unix)]
-    {
-        std::os::unix::fs::symlink(&path, root.join("linked-object")).expect("create object link");
-        assert!(matches!(
-            read_optional_regular_bytes_bounded(&root.join("linked-object"), 4),
-            Err(BoundedRegularFileReadError::Read(
-                RegularFileReadError::NotRegular
-            ))
-        ));
-    }
-
-    fs::remove_dir_all(root).expect("remove temp root");
 }
 
 #[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
@@ -529,10 +520,16 @@ fn private_publication_is_owner_only_before_writing_and_never_replaces() {
         },
     )
     .unwrap();
-    assert_eq!(read_private_bytes::<32>(&path), Some([7; 32]));
+    assert_eq!(
+        crate::read::read_private_bytes::<32>(&path).unwrap(),
+        Some([7; 32])
+    );
     let error = create_private_bytes_with_parents(&path, &[8; 32]).unwrap_err();
     assert_eq!(error.kind(), std::io::ErrorKind::AlreadyExists);
-    assert_eq!(read_private_bytes::<32>(&path), Some([7; 32]));
+    assert_eq!(
+        crate::read::read_private_bytes::<32>(&path).unwrap(),
+        Some([7; 32])
+    );
     fs::remove_dir_all(root).unwrap();
 }
 

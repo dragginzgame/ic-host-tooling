@@ -7,6 +7,12 @@ use std::{fs::File, path::Path};
 mod no_follow;
 #[cfg(unix)]
 pub use no_follow::read_file_no_follow;
+#[cfg(unix)]
+pub use no_follow::read_optional_file_no_follow;
+#[cfg(unix)]
+mod private;
+#[cfg(unix)]
+pub use private::{PrivateFileReadError, read_private_bytes};
 #[cfg(test)]
 mod tests;
 

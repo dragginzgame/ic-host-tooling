@@ -1,4 +1,4 @@
-use super::read_file_no_follow;
+use super::{open_optional_regular_file, read_file_no_follow, read_optional_file_no_follow};
 use crate::{
     read::{read_file, read_opened_file},
     test_support::Fixture,
@@ -170,5 +170,56 @@ fn missing_and_invalid_paths_preserve_structured_open_failures() {
     assert!(
         matches!(read_file_no_follow(Path::new("invalid\0path"), 1024),
         Err(ArtifactError::Io(error)) if error.kind() == io::ErrorKind::InvalidInput)
+    );
+}
+
+#[test]
+fn bounded_regular_read_rejects_existing_and_growing_oversize_content() {
+    let fixture = Fixture::new();
+    let path = fixture.root.join("object");
+    fs::write(&path, b"12345").unwrap();
+    assert!(matches!(
+        read_optional_file_no_follow(&path, 4),
+        Err(ArtifactError::LimitExceeded { limit: 4 })
+    ));
+    fs::write(&path, b"1234").unwrap();
+    let file = open_optional_regular_file(&path).unwrap().unwrap();
+    fs::write(&path, b"12345").unwrap();
+    assert!(matches!(
+        read_opened_file(file, 4),
+        Err(ArtifactError::LimitExceeded { limit: 4 })
+    ));
+}
+
+#[test]
+fn bounded_regular_read_preserves_exact_bytes_and_rejects_links() {
+    let fixture = Fixture::new();
+    let path = fixture.root.join("object");
+    assert!(read_optional_file_no_follow(&path, 4).unwrap().is_none());
+    fs::write(&path, b"1234").unwrap();
+    assert_eq!(
+        read_optional_file_no_follow(&path, 4).unwrap(),
+        Some(b"1234".to_vec())
+    );
+    for (name, target) in [("linked", "object"), ("dangling", "missing")] {
+        let link = fixture.root.join(name);
+        symlink(target, &link).unwrap();
+        assert!(matches!(
+            read_optional_file_no_follow(&link, 4),
+            Err(ArtifactError::NotRegularFile)
+        ));
+    }
+    assert!(matches!(
+        read_optional_file_no_follow(&fixture.root, 4),
+        Err(ArtifactError::NotRegularFile)
+    ));
+    assert!(
+        matches!(read_optional_file_no_follow(Path::new("invalid\0path"), 4),
+        Err(ArtifactError::Io(error)) if error.kind() == io::ErrorKind::InvalidInput)
+    );
+    fs::write(&path, []).unwrap();
+    assert_eq!(
+        read_optional_file_no_follow(&path, 0).unwrap(),
+        Some(Vec::new())
     );
 }

@@ -10,12 +10,32 @@ online retry.
 
 `make publish` uploads the current committed workspace version to crates.io.
 It requires a clean working tree, four synchronized publishable packages and
-prepared Cargo 1.99 plus the pinned local jq. Cargo owns dependency ordering,
+prepared Cargo 1.99, Git, tar and the pinned local jq. Cargo owns dependency ordering,
 package verification and index waiting. Package policy restricts each crate to
 crates.io; the wrapper always selects that registry explicitly. Credentials stay
 with Cargo's normal login or credential-provider configuration. Neither command
 creates commits, changes versions, creates tags or pushes Git refs. Git release
 commands never invoke publication automatically.
+
+Before any upload, the wrapper prepares all four archives with `cargo package
+--workspace --all-features --locked --no-verify`. This step resolves package
+dependencies but does not compile or upload; the final Cargo publication still
+verifies packages. Each archive's `.cargo_vcs_info.json` must name the selected
+clean `HEAD` and its exact `crates/<package>` path. All package metadata must
+declare `https://github.com/dragginzgame/ic-host-tooling` as the repository.
+
+The wrapper then fetches that exact commit from the declared HTTPS repository
+into a fresh bare object store beneath the publication attempt. Failed fetches,
+mismatched commit identities, missing/dirty package provenance and source changes
+stop before upload. Git prompts are disabled; ordinary trusted Git transport
+configuration still applies. The source request, archive provenance, fetch log
+and retrieved objects are retained. This guard is a remote-read effect of the
+explicit upload command; it never pushes a ref or creates a commit.
+
+`publish-check` retains its dirty-worktree dry-run contract and does not claim
+remote provenance verification. The upload guard does not establish CI success
+or native host qualification, and callers must keep source stable throughout
+packaging/publication. See [#7](https://github.com/dragginzgame/ic-host-tooling/issues/7).
 
 Package metadata uses the standard MIT SPDX identifier. Each crate's `LICENSE`
 is a regular copy of the canonical root notice, compatible with the formatting

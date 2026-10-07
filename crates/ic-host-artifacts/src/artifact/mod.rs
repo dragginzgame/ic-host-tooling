@@ -170,6 +170,16 @@ impl From<io::Error> for ArtifactError {
     }
 }
 
+/// Preserve native I/O identity or retain the typed artifact cause at an I/O boundary.
+impl From<ArtifactError> for io::Error {
+    fn from(error: ArtifactError) -> Self {
+        match error {
+            ArtifactError::Io(source) => source,
+            other => Self::other(other),
+        }
+    }
+}
+
 /// Hash one stream with constant working memory and no reliance on metadata.
 ///
 /// Reads at most `max_bytes + 1` bytes, using the extra byte to detect overflow.

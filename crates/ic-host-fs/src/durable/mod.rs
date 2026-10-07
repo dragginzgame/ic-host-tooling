@@ -1,10 +1,10 @@
-//! Durable filesystem publication, private reads and exclusive descriptor locks.
+//! Durable filesystem publication and exclusive descriptor locks.
 //!
 //! Responsibility: own atomic durable regular-file publication for host consumers.
 //! Does not own: domain schemas or transitions, path selection, ephemeral protocol files, open
 //! command-result descriptors, backup persistence, or multi-file transactions.
-//! Boundary: reads reject links/special files; writes own sibling staging, publication, cleanup,
-//! and filesystem syncs behind replace and create-new modes.
+//! Boundary: writes own sibling staging, publication, cleanup and filesystem syncs
+//! behind replace and create-new modes. Reads belong to [`crate::read`].
 
 mod lock_wait;
 pub use lock_wait::lock_exclusive_with_wait;
@@ -12,28 +12,7 @@ pub use lock_wait::lock_exclusive_with_wait;
 #[cfg(test)]
 mod tests;
 
-use std::{fs, io, path::Path};
-
-/// A regular-file read could not be admitted.
-#[derive(Debug)]
-pub enum RegularFileReadError {
-    /// The opened entry is not a regular file.
-    NotRegular,
-    /// The filesystem operation failed.
-    Io(io::Error),
-    #[cfg(not(unix))]
-    /// This operation is unsupported on the selected host.
-    UnsupportedPlatform,
-}
-
-/// A bounded regular-file read failed.
-#[derive(Debug)]
-pub enum BoundedRegularFileReadError {
-    /// Opening or reading the regular file failed.
-    Read(RegularFileReadError),
-    /// The observed file exceeds the caller's allowance.
-    TooLarge,
-}
+use std::{fmt, fs, io, path::Path};
 
 /// A no-follow regular-file lock could not be acquired.
 #[derive(Debug)]
@@ -47,46 +26,37 @@ pub enum RegularFileLockError {
     UnsupportedPlatform,
 }
 
-/// Read one optional regular file without following a final symlink.
-///
-/// # Errors
-/// Returns admission, read or unsupported-platform errors. Missing files return `None`.
-pub fn read_optional_regular_bytes(path: &Path) -> Result<Option<Vec<u8>>, RegularFileReadError> {
-    #[cfg(unix)]
-    {
-        supported::read_optional_regular_bytes(path)
-    }
-
-    #[cfg(not(unix))]
-    {
-        let _ = path;
-        Err(RegularFileReadError::UnsupportedPlatform)
+impl fmt::Display for RegularFileLockError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::NotRegular => formatter.write_str("lock target is not a regular file"),
+            Self::Io(_) => formatter.write_str("regular file lock I/O failed"),
+            #[cfg(windows)]
+            Self::UnsupportedPlatform => formatter.write_str("regular file locking is unsupported"),
+        }
     }
 }
 
-/// Read at most `maximum_bytes + 1` from one optional regular no-follow file.
-///
-/// Descriptor metadata rejects an already oversized file before allocating its
-/// contents. The extra byte in the bounded read detects growth after that
-/// metadata observation.
-///
-/// # Errors
-/// Returns read/admission errors or `TooLarge` when the observed bytes exceed the limit.
-pub fn read_optional_regular_bytes_bounded(
-    path: &Path,
-    maximum_bytes: usize,
-) -> Result<Option<Vec<u8>>, BoundedRegularFileReadError> {
-    #[cfg(unix)]
-    {
-        supported::read_optional_regular_bytes_bounded(path, maximum_bytes)
+impl std::error::Error for RegularFileLockError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Io(source) => Some(source),
+            Self::NotRegular => None,
+            #[cfg(windows)]
+            Self::UnsupportedPlatform => None,
+        }
     }
+}
 
-    #[cfg(not(unix))]
-    {
-        let _ = (path, maximum_bytes);
-        Err(BoundedRegularFileReadError::Read(
-            RegularFileReadError::UnsupportedPlatform,
-        ))
+/// Preserve native I/O identity or retain the typed admission cause at an I/O boundary.
+impl From<RegularFileLockError> for io::Error {
+    fn from(error: RegularFileLockError) -> Self {
+        match error {
+            RegularFileLockError::Io(source) => source,
+            other @ RegularFileLockError::NotRegular => Self::other(other),
+            #[cfg(windows)]
+            other @ RegularFileLockError::UnsupportedPlatform => Self::other(other),
+        }
     }
 }
 
@@ -162,45 +132,6 @@ pub fn create_private_bytes_with_parents(path: &Path, bytes: &[u8]) -> io::Resul
     commit_bytes(path, bytes, FileCommitMode::CreatePrivateWithParents)
 }
 
-/// Read a fixed-size private file through a no-follow regular descriptor.
-/// Permissions and size are checked on the opened descriptor before reading.
-#[must_use]
-pub fn read_private_bytes<const N: usize>(path: &Path) -> Option<[u8; N]> {
-    #[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
-    {
-        supported::read_private_bytes(path)
-    }
-    #[cfg(not(any(target_os = "linux", target_os = "android", target_vendor = "apple")))]
-    {
-        let _ = path;
-        None
-    }
-}
-
-/// Read a bounded regular file without following a final symlink.
-///
-/// # Errors
-/// Returns missing-file, admission, read, size-limit or unsupported-platform errors.
-pub fn read_regular_bytes(path: &Path, maximum_bytes: usize) -> io::Result<Vec<u8>> {
-    match read_optional_regular_bytes_bounded(path, maximum_bytes) {
-        Ok(Some(bytes)) => Ok(bytes),
-        Ok(None) => Err(io::Error::from(io::ErrorKind::NotFound)),
-        Err(BoundedRegularFileReadError::Read(RegularFileReadError::Io(error))) => Err(error),
-        Err(error) => Err(io::Error::other(format!(
-            "invalid bounded regular file: {error:?}"
-        ))),
-    }
-}
-
-/// Hold an exclusive kernel lock on a durable regular file until the returned handle drops.
-///
-/// # Errors
-/// Returns file admission, creation, sync or lock acquisition failures.
-pub fn lock_file(path: &Path) -> io::Result<fs::File> {
-    lock_regular_file_with_parents(path)
-        .map_err(|error| io::Error::other(format!("cannot lock regular file: {error:?}")))
-}
-
 /// Open and exclusively lock one durable regular no-follow file.
 ///
 /// The lock file and missing parent hierarchy are durably created first. The
@@ -219,12 +150,16 @@ pub fn lock_regular_file_with_parents(path: &Path) -> Result<fs::File, RegularFi
 
 /// Acquire the same exclusive lock, reporting contention while preserving its lifetime.
 ///
+/// Errors retain their admission category or original I/O cause, including a
+/// failed progress callback. No callback or lock error is converted to text.
+/// Consumers own diagnostic formatting and whether to retry.
+///
 /// # Errors
 /// Returns file admission, creation, sync, lock acquisition or callback failures.
 pub fn lock_file_with_progress(
     path: &Path,
     mut waiting: impl FnMut(&fs::File, std::time::Duration) -> io::Result<()>,
-) -> io::Result<fs::File> {
+) -> Result<fs::File, RegularFileLockError> {
     let started = std::time::Instant::now();
     open_regular_lock_file(path, |file| {
         #[cfg(not(windows))]
@@ -241,16 +176,6 @@ pub fn lock_file_with_progress(
             .map_err(RegularFileLockError::Io)?;
         }
         Ok(())
-    })
-    .map_err(|error| match error {
-        RegularFileLockError::Io(error) => error,
-        error @ RegularFileLockError::NotRegular => {
-            io::Error::other(format!("cannot lock regular file: {error:?}"))
-        }
-        #[cfg(windows)]
-        error @ RegularFileLockError::UnsupportedPlatform => {
-            io::Error::other(format!("cannot lock regular file: {error:?}"))
-        }
     })
 }
 
@@ -322,12 +247,12 @@ fn commit_bytes(path: &Path, bytes: &[u8], mode: FileCommitMode) -> io::Result<(
 
 #[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
 mod supported {
-    use super::{BoundedRegularFileReadError, FileCommitMode, RegularFileReadError};
+    use super::FileCommitMode;
 
     use std::{
         ffi::{OsStr, OsString},
         fs,
-        io::{self, Read, Write},
+        io::{self, Write},
         path::{Path, PathBuf},
         sync::atomic::{AtomicU64, Ordering},
     };
@@ -339,129 +264,6 @@ mod supported {
 
     const TEMP_ATTEMPTS: usize = 64;
     static TEMP_SEQUENCE: AtomicU64 = AtomicU64::new(0);
-
-    pub(super) fn read_private_bytes<const N: usize>(path: &Path) -> Option<[u8; N]> {
-        use std::os::unix::fs::MetadataExt as _;
-        let (mut file, size) = open_optional_regular_file(path).ok()??;
-        let metadata = file.metadata().ok()?;
-        if size != N as u64 || metadata.mode() & 0o777 != 0o600 || metadata.nlink() != 1 {
-            return None;
-        }
-        let mut bytes = [0; N];
-        file.read_exact(&mut bytes).ok()?;
-        let mut extra = [0];
-        if file.read(&mut extra).ok()? != 0 {
-            return None;
-        }
-        Some(bytes)
-    }
-
-    pub(super) fn read_optional_regular_bytes(
-        path: &Path,
-    ) -> Result<Option<Vec<u8>>, RegularFileReadError> {
-        let Some((mut file, _)) = open_optional_regular_file(path)? else {
-            return Ok(None);
-        };
-        let mut bytes = Vec::new();
-        file.read_to_end(&mut bytes)
-            .map_err(RegularFileReadError::Io)?;
-        Ok(Some(bytes))
-    }
-
-    pub(super) fn read_optional_regular_bytes_bounded(
-        path: &Path,
-        maximum_bytes: usize,
-    ) -> Result<Option<Vec<u8>>, BoundedRegularFileReadError> {
-        read_optional_regular_bytes_bounded_with_hook(path, maximum_bytes, || Ok(()))
-    }
-
-    #[cfg(test)]
-    pub(super) fn read_optional_regular_bytes_bounded_with_hook(
-        path: &Path,
-        maximum_bytes: usize,
-        before_read: impl FnOnce() -> io::Result<()>,
-    ) -> Result<Option<Vec<u8>>, BoundedRegularFileReadError> {
-        read_optional_regular_bytes_bounded_inner(path, maximum_bytes, before_read)
-    }
-
-    #[cfg(not(test))]
-    fn read_optional_regular_bytes_bounded_with_hook(
-        path: &Path,
-        maximum_bytes: usize,
-        before_read: impl FnOnce() -> io::Result<()>,
-    ) -> Result<Option<Vec<u8>>, BoundedRegularFileReadError> {
-        read_optional_regular_bytes_bounded_inner(path, maximum_bytes, before_read)
-    }
-
-    fn read_optional_regular_bytes_bounded_inner(
-        path: &Path,
-        maximum_bytes: usize,
-        before_read: impl FnOnce() -> io::Result<()>,
-    ) -> Result<Option<Vec<u8>>, BoundedRegularFileReadError> {
-        let Some((file, observed_size)) =
-            open_optional_regular_file(path).map_err(BoundedRegularFileReadError::Read)?
-        else {
-            return Ok(None);
-        };
-        if observed_size > u64::try_from(maximum_bytes).unwrap_or(u64::MAX) {
-            return Err(BoundedRegularFileReadError::TooLarge);
-        }
-        before_read().map_err(|source| {
-            BoundedRegularFileReadError::Read(RegularFileReadError::Io(source))
-        })?;
-
-        crate::read::read_opened_file(file, maximum_bytes)
-            .map(Some)
-            .map_err(|error| match error {
-                ic_host_artifacts::artifact::ArtifactError::LimitExceeded { .. } => {
-                    BoundedRegularFileReadError::TooLarge
-                }
-                ic_host_artifacts::artifact::ArtifactError::NotRegularFile => {
-                    BoundedRegularFileReadError::Read(RegularFileReadError::NotRegular)
-                }
-                ic_host_artifacts::artifact::ArtifactError::Io(source) => {
-                    BoundedRegularFileReadError::Read(RegularFileReadError::Io(source))
-                }
-                source => BoundedRegularFileReadError::Read(RegularFileReadError::Io(
-                    io::Error::other(source),
-                )),
-            })
-    }
-
-    fn open_optional_regular_file(
-        path: &Path,
-    ) -> Result<Option<(fs::File, u64)>, RegularFileReadError> {
-        let metadata = match fs::symlink_metadata(path) {
-            Ok(metadata) => metadata,
-            Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(None),
-            Err(error) => return Err(RegularFileReadError::Io(error)),
-        };
-        if !metadata.file_type().is_file() {
-            return Err(RegularFileReadError::NotRegular);
-        }
-
-        let fd: OwnedFd = unix_fs::open(
-            path,
-            OFlags::RDONLY | OFlags::NOFOLLOW | OFlags::NONBLOCK | OFlags::CLOEXEC,
-            Mode::empty(),
-        )
-        .map_err(errno_to_io)
-        .map_err(RegularFileReadError::Io)?;
-        let metadata = unix_fs::fstat(&fd)
-            .map_err(errno_to_io)
-            .map_err(RegularFileReadError::Io)?;
-        if unix_fs::FileType::from_raw_mode(metadata.st_mode) != unix_fs::FileType::RegularFile {
-            return Err(RegularFileReadError::NotRegular);
-        }
-
-        let size = u64::try_from(metadata.st_size).map_err(|_| {
-            RegularFileReadError::Io(io::Error::new(
-                io::ErrorKind::InvalidData,
-                "regular file has a negative size",
-            ))
-        })?;
-        Ok(Some((fs::File::from(fd), size)))
-    }
 
     #[derive(Clone, Copy, Debug, Eq, PartialEq)]
     pub(super) enum FileCommitStep {

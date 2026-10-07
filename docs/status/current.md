@@ -2,9 +2,82 @@
 
 ## Latest qualification: 2026-10-07
 
+The maintainer released 0.3.3 at 3d18ca9a9ed0ac5935a16c5bac99694d8e9a7d0a.
+The current uncommitted reader/error cleanup targets **0.4.0** because it removes
+public APIs and changes error contracts. Manifests and Cargo.lock remain 0.3.3;
+dependencies, tool pins and the adopted snapshot are unchanged. The
+[migration notes](../changelog/0.4.md) bind the required consumer changes to
+[Host #14](https://github.com/dragginzgame/ic-host-tooling/issues/14).
+
+All reads now belong to `ic_host_fs::read`. Optional no-follow reads require a
+byte budget and share the existing bounded descriptor/stream engine. Private
+reads distinguish missing files from typed admission/read failures. The durable
+module no longer duplicates readers or formats lock errors into strings.
+Following paths, no-follow admission, opened descriptors, private permissions
+and direct descriptor lock ownership retain their separate obligations.
+
+Focused offline Linux checks passed: all 44 filesystem tests, 32 process tests,
+19 tools tests and applicable examples; filesystem strict Clippy, Rustdoc and
+Rust 1.88 compilation; formatting, links, pins, feature graphs and the exact
+58-file snapshot check. Lock callback failure was exercised under actual
+cross-process contention. Private-file metadata checks used real files, while
+stream interruption/trailer failures used a controlled reader. The first
+Clippy attempt failed on style lints; its log is preserved alongside the passing
+attempt under /tmp/ic-host-040-*.log. Native macOS and full local CI/release gates
+were not run for these uncommitted bytes.
+
+Canic is the only inspected sibling source referencing the retired APIs. The
+source inventory records 50 matching files, with hashes and clean source at
+d9b10b07d610b513aa90d221040a8d27a7fc9ed7, in
+/tmp/ic-host-040-consumer-source.json. An authorized isolated migration from that
+revision is retained at /tmp/ic-host-040-canic-rehearsal/consumer.patch. Its full
+Host/CLI dependency graph passes all-target/all-feature compilation and strict
+Clippy on Linux; 138 selected network, release-set, diagnostic, Candid-cache,
+generation and plan-content tests pass. One installed-extractor test is ignored
+by its existing requirement; native extractor fixtures pass. This is not a full
+consumer suite or native macOS qualification.
+
+The private rehearsal selects candidate Host crates at fixture-only version
+0.4.0 alongside published 0.3.3 transitive dependencies. Its proposed 16 MiB
+document and 128 MiB artifact budgets require consumer review against retained
+inputs; existing smaller format limits remain. The adoption patch excludes local
+path overrides and Cargo.lock; registry lock selections must be generated after
+publication. This work did not edit actual sibling checkouts or this repository's
+package versions and lockfile. Canic's active Cargo.lock changed independently
+during the rehearsal; the candidate still applies, but those newer dependency
+selections are not qualified by the frozen rehearsal. No commit, tag, push,
+upload or tool download occurred.
+
+The migration exposed repetitive typed-error projection at existing consumer I/O
+boundaries. ArtifactError and RegularFileLockError now convert into io::Error
+without losing native error identity or typed admission causes. A focused
+artifact regression, all 44 filesystem tests, strict artifact/filesystem Clippy,
+Rust 1.88 checks and Rustdoc pass on Linux. The first Clippy attempt rejected a
+single-variant wildcard; both failed and corrected logs remain under
+/tmp/ic-host-040-io-*.log.
+
+Publication now inspects all four prepared archives' clean source/path records
+and fetches the exact commit into a fresh object store before upload. Expanded
+offline failure fixtures and ShellCheck pass. A separate live rehearsal used
+real Cargo archives and exact HTTPS retrieval for committed 0.3.3 source
+3d18ca9a9ed0ac5935a16c5bac99694d8e9a7d0a; the final upload was replaced by an argv
+recorder. Its evidence is retained under
+/tmp/ic-host-040-publication-live/source/target/publish/publish.xPawGS. This proves
+the guard mechanics, not remote availability or qualification of dirty 0.4.
+The original provenance follow-up remains on
+[Host #7](https://github.com/dragginzgame/ic-host-tooling/issues/7).
+
+The existing CI matrix includes native macOS 15 Intel and ARM. Qualification of
+these candidate bytes requires a maintainer commit and push/PR; agents must not
+create commits. The successful CI for released 0.3.3 does not qualify dirty 0.4.
+Consumer review remains on
+[Canic #458](https://github.com/dragginzgame/canic/issues/458).
+
+## Previous batch: 0.3.3 preparation
+
 The maintainer released 0.3.2 at c7c0d85765054909c05d86f6d3fd2c9965510335.
-The current uncommitted batch targets compatible 0.3.3; package manifests,
-Cargo.lock, tool pins and the adopted Shared Tooling snapshot remain unchanged.
+The following batch was prepared for compatible 0.3.3; package manifests,
+Cargo.lock, tool pins and the adopted snapshot stayed unchanged during preparation.
 The history below records earlier batches and their evidence, not current versions.
 
 [CI for the released source](https://github.com/dragginzgame/ic-host-tooling/actions/runs/37589678525)

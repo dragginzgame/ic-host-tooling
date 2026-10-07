@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Thin Cargo workspace publication adapter. Requires prepared Cargo 1.99, Git,
-# jq and tee. Cargo owns packaging, dependency ordering, verification, upload
+# jq, tar and tee. Cargo owns packaging, dependency ordering, verification, upload
 # and index waiting. The caller owns credentials and partial-upload recovery.
 mode="${1:-}"
 [[ $# == 1 && ( "$mode" == publish || "$mode" == check ) ]] || {
@@ -41,7 +41,9 @@ jq -e '
         ["ic-host-artifacts", "ic-host-fs", "ic-host-process", "ic-host-tools"]
       and ($packages | map(.version) | unique | length) == 1
       and ($packages | all(.publish == ["crates-io"]))
+      and ($packages | all(.repository == "https://github.com/dragginzgame/ic-host-tooling"))
 ' "$attempt/metadata.json" > /dev/null || fail 'expected four synchronized crates.io packages'
+repository="$(jq -r '.packages[0].repository' "$attempt/metadata.json")"
 version="$(jq -r '.packages[0].version' "$attempt/metadata.json")"
 [[ "$version" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]] || fail 'expected a stable workspace version'
 arguments=(publish --manifest-path "$root/Cargo.toml" --workspace --registry crates-io \
@@ -52,6 +54,33 @@ if [[ "$mode" == check ]]; then arguments+=(--dry-run --allow-dirty); fi
 printf '%s\n' publication-1 "$mode" "$source" "$version" crates-io \
     ic-host-artifacts ic-host-fs ic-host-process ic-host-tools > "$attempt/intent"
 printf '%s\0' "${arguments[@]}" > "$attempt/arguments"
+if [[ "$mode" == publish ]]; then
+    # Inspect Cargo's actual package provenance before upload. Package preparation
+    # resolves dependencies but does not upload or build; publish still owns
+    # compilation, dependency order and all registry effects.
+    package_arguments=(package --manifest-path "$root/Cargo.toml" --workspace \
+        --registry crates-io --all-features --locked --no-verify --target-dir "$root/target")
+    printf '%s\0' "${package_arguments[@]}" > "$attempt/package-arguments"
+    cargo "${package_arguments[@]}" > "$attempt/package.log" 2>&1 || fail 'package preparation failed; no upload attempted'
+    for package in ic-host-artifacts ic-host-fs ic-host-process ic-host-tools; do
+        archive="target/package/$package-$version.crate"
+        [[ -f "$archive" && ! -L "$archive" ]] || fail "missing regular package archive for $package"
+        tar -xOf "$archive" "$package-$version/.cargo_vcs_info.json" \
+            > "$attempt/$package-vcs.json" 2> "$attempt/$package-vcs.log" || fail "missing package provenance for $package"
+        jq -e --arg source "$source" --arg path "crates/$package" \
+            '.git.sha1 == $source and (.git.dirty // false) == false and .path_in_vcs == $path' \
+            "$attempt/$package-vcs.json" > /dev/null || fail "package source identity differs for $package"
+    done
+    # An empty object store establishes remote retrieval rather than merely
+    # finding an object already present in this checkout. Retain it as evidence.
+    printf '%s\n' "$repository" "$source" > "$attempt/source-request"
+    git init --bare "$attempt/source.git" > "$attempt/source-init.log" 2>&1 || fail 'cannot prepare source evidence'
+    GIT_TERMINAL_PROMPT=0 git -C "$attempt/source.git" fetch --no-tags --depth=1 \
+        "$repository" "$source" > "$attempt/source-fetch.log" 2>&1 || fail 'packaged source is not retrievable from the declared repository'
+    retrieved="$(git -C "$attempt/source.git" rev-parse --verify 'FETCH_HEAD^{commit}')" || fail 'retrieved source is not a commit'
+    [[ "$retrieved" == "$source" ]] || fail 'retrieved source differs from package provenance'
+    printf '%s\n' "$retrieved" > "$attempt/source-verified"
+fi
 [[ "$(git rev-parse --verify HEAD)" == "$source" &&
     "$(git status --porcelain --untracked-files=all)" == "$dirty" ]] || fail 'source changed before publication'
 status=0

@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.4.0]
+
+### Breaking
+
+- Consolidate filesystem reads under `ic-host-fs::read`, remove unbounded and
+  duplicate durable readers, and retain typed read, private-file and lock
+  failures. Consumers must supply read budgets, update imports and distinguish
+  missing private files from rejected or unreadable files. Replace `lock_file`
+  with the existing typed lock API; progress locks now return that same error
+  ([#14](https://github.com/dragginzgame/ic-host-tooling/issues/14)).
+  See [the 0.4 migration notes](docs/changelog/0.4.md).
+
+### Fixed
+
+- Refuse package uploads unless each prepared archive records the clean selected
+  source and that exact commit is retrievable from the declared repository;
+  preserve preparation and retrieval evidence before dispatch
+  ([#7](https://github.com/dragginzgame/ic-host-tooling/issues/7)).
+
 ## [0.3.3] - 2026-10-07
 
 ### Added

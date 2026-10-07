@@ -29,9 +29,20 @@ cat > bin/git <<'STUB'
 set -euo pipefail
 case "$*" in
     'rev-parse --show-toplevel') echo "$PUBLISH_FIXTURE" ;;
-    'rev-parse --verify HEAD') echo 0000000000000000000000000000000000000000 ;;
+    'rev-parse --verify HEAD')
+        if [[ -e "$PUBLISH_FIXTURE/source-changed" ]]; then
+            echo 1111111111111111111111111111111111111111
+        else echo 0000000000000000000000000000000000000000; fi ;;
     'status --porcelain --untracked-files=all')
         if [[ "${PUBLISH_DIRTY:-0}" == 1 ]]; then echo ' M Cargo.toml'; fi ;;
+    init\ --bare\ *) mkdir -p "$3" ;;
+    -C\ *\ fetch\ --no-tags\ --depth=1\ *)
+        [[ "$6" == https://github.com/dragginzgame/ic-host-tooling &&
+           "$7" == 0000000000000000000000000000000000000000 ]]
+        printf '%s\n' "$*" >> "$PUBLISH_FIXTURE/fetch-calls"
+        exit "${PUBLISH_FETCH_RESULT:-0}" ;;
+    -C\ *\ rev-parse\ --verify\ *)
+        echo "${PUBLISH_RETRIEVED_SOURCE:-0000000000000000000000000000000000000000}" ;;
     *) echo "Unexpected Git operation: $*" >&2; exit 2 ;;
 esac
 STUB
@@ -41,6 +52,21 @@ set -euo pipefail
 printf '%s\n' "$1" >> "$PUBLISH_FIXTURE/calls"
 case "$1" in
     metadata) cat "$PUBLISH_FIXTURE/metadata.json"; exit "${PUBLISH_METADATA_RESULT:-0}" ;;
+    package)
+        [[ "${PUBLISH_PACKAGE_RESULT:-0}" == 0 ]] || exit "$PUBLISH_PACKAGE_RESULT"
+        printf '%s\0' "$@" > "$PUBLISH_FIXTURE/package-arguments"
+        mkdir -p target/package
+        version="$(jq -r '.packages[0].version' "$PUBLISH_FIXTURE/metadata.json")"
+        for package in ic-host-artifacts ic-host-fs ic-host-process ic-host-tools; do
+            directory="target/package/$package-$version"
+            mkdir -p "$directory"
+            jq -n --arg source "${PUBLISH_PACKAGE_SOURCE:-0000000000000000000000000000000000000000}" \
+                --arg path "${PUBLISH_PACKAGE_PATH:-crates/$package}" --argjson dirty "${PUBLISH_PACKAGE_DIRTY:-false}" \
+                '{git: {sha1: $source, dirty: $dirty}, path_in_vcs: $path}' > "$directory/.cargo_vcs_info.json"
+            if [[ "${PUBLISH_VCS_MISSING:-0}" == 1 ]]; then rm "$directory/.cargo_vcs_info.json"; fi
+            tar -czf "$directory.crate" -C target/package "$package-$version"
+        done
+        if [[ "${PUBLISH_CHANGE_SOURCE:-0}" == 1 ]]; then : > "$PUBLISH_FIXTURE/source-changed"; fi ;;
     publish)
         # Intent must exist before dispatch, including when Cargo then fails.
         intents=(target/publish/*/intent)
@@ -85,14 +111,20 @@ printf '%s\0' publish --manifest-path "$fixture/Cargo.toml" --workspace \
     --registry crates-io --all-features --locked --target-dir "$fixture/target" \
     --dry-run --allow-dirty > expected-arguments
 cmp expected-arguments arguments
+[[ ! -e fetch-calls && ! -e package-arguments ]]
 
 : > calls
 invoke publish > publish.log 2>&1
 printf '%s\0' publish --manifest-path "$fixture/Cargo.toml" --workspace \
     --registry crates-io --all-features --locked --target-dir "$fixture/target" > expected-arguments
 cmp expected-arguments arguments
-printf 'metadata\npublish\n' > expected-calls
+printf 'metadata\npackage\npublish\n' > expected-calls
 cmp expected-calls calls
+printf '%s\0' package --manifest-path "$fixture/Cargo.toml" --workspace \
+    --registry crates-io --all-features --locked --no-verify --target-dir "$fixture/target" > expected-package-arguments
+cmp expected-package-arguments package-arguments
+attempt="$(awk '/^Publication evidence: / { sub(/^Publication evidence: /, ""); print }' publish.log)"
+[[ -f "$attempt/source-verified" && -f "$attempt/source-request" && -f "$attempt/ic-host-fs-vcs.json" ]]
 
 # Stop at Cargo's failure and retain the attempt's intent, log and artifacts.
 : > calls
@@ -109,17 +141,38 @@ attempt="$(awk '/^Publication evidence: / { sub(/^Publication evidence: /, ""); 
 if PUBLISH_METADATA_RESULT=17 invoke publish > metadata-failure.log 2>&1; then exit 1; fi
 printf 'metadata\n' > expected-calls
 cmp expected-calls calls
-for scenario in disabled mixed-version extra-package; do
+for scenario in disabled mixed-version extra-package wrong-repository; do
     case "$scenario" in
         disabled) jq '.packages[0].publish = []' original-metadata.json > metadata.json ;;
         mixed-version) jq '.packages[0].version = "99.0.0"' original-metadata.json > metadata.json ;;
         extra-package) jq '.packages[0].name = "unexpected-owner"' original-metadata.json > metadata.json ;;
+        wrong-repository) jq '.packages[0].repository = "https://github.com/other/repository"' original-metadata.json > metadata.json ;;
     esac
     : > calls
     if invoke publish > "$scenario.log" 2>&1; then exit 1; fi
     cmp expected-calls calls
 done
 cp original-metadata.json metadata.json
+# Neither stale archives nor plausible failed retrieval can authorize upload.
+for scenario in package-failed vcs-missing vcs-dirty vcs-mismatch vcs-path fetch-failed fetch-mismatch source-changed; do
+    : > calls
+    status=0
+    case "$scenario" in
+        package-failed) PUBLISH_PACKAGE_RESULT=17 invoke publish > "$scenario.log" 2>&1 || status=$? ;;
+        vcs-missing) PUBLISH_VCS_MISSING=1 invoke publish > "$scenario.log" 2>&1 || status=$? ;;
+        vcs-dirty) PUBLISH_PACKAGE_DIRTY=true invoke publish > "$scenario.log" 2>&1 || status=$? ;;
+        vcs-mismatch) PUBLISH_PACKAGE_SOURCE=1111111111111111111111111111111111111111 invoke publish > "$scenario.log" 2>&1 || status=$? ;;
+        vcs-path) PUBLISH_PACKAGE_PATH=wrong/path invoke publish > "$scenario.log" 2>&1 || status=$? ;;
+        fetch-failed) PUBLISH_FETCH_RESULT=17 invoke publish > "$scenario.log" 2>&1 || status=$? ;;
+        fetch-mismatch) PUBLISH_RETRIEVED_SOURCE=1111111111111111111111111111111111111111 invoke publish > "$scenario.log" 2>&1 || status=$? ;;
+        source-changed) PUBLISH_CHANGE_SOURCE=1 invoke publish > "$scenario.log" 2>&1 || status=$? ;;
+    esac
+    [[ "$status" != 0 ]] || exit 1
+    printf 'metadata\npackage\n' > expected-calls
+    cmp expected-calls calls
+    [[ ! -e target/publish/lock ]]
+    rm -f source-changed
+done
 mkdir target/publish/lock
 refuse publish
 [[ -d target/publish/lock ]] || exit 1

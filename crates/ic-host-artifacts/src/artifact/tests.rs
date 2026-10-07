@@ -2,6 +2,23 @@ use super::*;
 use std::io::Cursor;
 
 #[test]
+fn io_projection_preserves_native_codes_and_typed_artifact_causes() {
+    let native = io::Error::from_raw_os_error(2);
+    let projected = io::Error::from(ArtifactError::Io(native));
+    assert_eq!(projected.raw_os_error(), Some(2));
+    for error in [
+        ArtifactError::NotRegularFile,
+        ArtifactError::LimitExceeded { limit: 42 },
+    ] {
+        let projected = io::Error::from(error);
+        assert!(matches!(
+            projected.get_ref().unwrap().downcast_ref::<ArtifactError>(),
+            Some(ArtifactError::NotRegularFile | ArtifactError::LimitExceeded { limit: 42 })
+        ));
+    }
+}
+
+#[test]
 fn sha256_matches_known_vectors_and_round_trips_authority() {
     for (bytes, hex) in [
         (
