@@ -32,6 +32,12 @@ fn streamed_replacement_returns_producer_value_only_after_complete_publication()
 #[test]
 fn producer_failure_and_bounded_copy_preserve_previous_destination() {
     use std::io::Write as _;
+    struct BrokenInput;
+    impl io::Read for BrokenInput {
+        fn read(&mut self, _: &mut [u8]) -> io::Result<usize> {
+            Err(io::Error::from_raw_os_error(13))
+        }
+    }
     let root = temp_root("streamed-failure");
     let path = root.join("output");
     write_bytes(&path, b"original").unwrap();
@@ -46,10 +52,24 @@ fn producer_failure_and_bounded_copy_preserve_previous_destination() {
     let copy = |maximum| {
         write_with(&path, |file| {
             ic_host_artifacts::artifact::copy_reader(b"new bytes".as_slice(), file, maximum)
-                .map_err(io::Error::other)
+                .map_err(io::Error::from)
         })
     };
-    assert!(copy(8).is_err());
+    let error = copy(8).unwrap_err();
+    assert!(matches!(
+        error
+            .get_ref()
+            .unwrap()
+            .downcast_ref::<ic_host_artifacts::artifact::CopyError>(),
+        Some(ic_host_artifacts::artifact::CopyError::Input(
+            ic_host_artifacts::artifact::ArtifactError::LimitExceeded { limit: 8 }
+        ))
+    ));
+    let error = write_with(&path, |file| {
+        ic_host_artifacts::artifact::copy_reader(BrokenInput, file, 9).map_err(io::Error::from)
+    })
+    .unwrap_err();
+    assert_eq!(error.raw_os_error(), Some(13));
     assert_eq!(fs::read(&path).unwrap(), b"original");
     let identity = copy(9).unwrap();
     assert_eq!(identity.bytes, 9);

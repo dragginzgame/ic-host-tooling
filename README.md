@@ -25,6 +25,12 @@ cleanup with `AdmittedTool`, whose exact digest/version checks remain in place.
 `ToolError::evidence` and `execution_error` borrow retained diagnostics without
 copying output; callers own presentation and recovery.
 
+`AdmittedTool::admit_version` accepts a `VersionSpec` for caller-trusted installed
+tools without a published binary digest. It records the installed identity,
+checks the exact version and rejects byte drift before later execution. That
+observed identity is not authentication; installation provenance stays with the
+caller. `admit` with `ToolSpec` continues to require an exact digest pin.
+
 Filesystem reads live under `ic_host_fs::read`, including optional bounded
 no-follow reads and typed private-file admission. Durable publication and locks
 remain under `durable`. Upgrading from 0.3 requires the
@@ -35,7 +41,7 @@ staging path, then shares the normal durable publication engine. Callers validat
 bounded output before success and retain typed producer/cleanup errors. See the
 [named-output contract](docs/changelog/0.4.md#named-external-output) before adopting it.
 
-The four-crate workspace has a Git release at 0.4.0. Package metadata permits
+The four-crate workspace has a Git release at 0.4.1. Package metadata permits
 crates.io publication; a Git release does not establish registry availability.
 The original local checkout has been removed after a verified full backup.
 Consumers adopt and qualify registry selections independently.

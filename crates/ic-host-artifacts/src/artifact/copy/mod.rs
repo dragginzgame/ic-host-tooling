@@ -43,6 +43,20 @@ impl From<ArtifactError> for CopyError {
     }
 }
 
+/// Preserve native input/output I/O identity at an I/O-only boundary.
+///
+/// Non-I/O input failures remain a downcastable [`CopyError`] cause with kind
+/// [`io::ErrorKind::Other`]. Keep `CopyError` directly when the input/output
+/// distinction is needed: converting a native error discards that distinction.
+impl From<CopyError> for io::Error {
+    fn from(error: CopyError) -> Self {
+        match error {
+            CopyError::Input(ArtifactError::Io(source)) | CopyError::Output(source) => source,
+            other @ CopyError::Input(_) => Self::other(other),
+        }
+    }
+}
+
 /// Copy one bounded source stream and identify its bytes with constant memory.
 ///
 /// Shares the read traversal used by [`super::hash_reader`] and

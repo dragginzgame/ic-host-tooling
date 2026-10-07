@@ -61,6 +61,22 @@ pub struct ToolSpec<'a> {
     pub version_identity: &'a str,
 }
 
+/// Exact version authority for a caller-trusted installed executable.
+///
+/// Unlike [`ToolSpec`], this supplies no trusted executable digest. Admission
+/// records the installed bytes for later drift checks; a matching version is
+/// not authentication of those bytes. Consumers own installation provenance.
+pub struct VersionSpec<'a> {
+    /// Absolute path in a caller-controlled filesystem; no PATH search occurs.
+    pub executable: &'a Path,
+    /// Maximum executable bytes read during admission and every later run.
+    pub executable_bytes: u64,
+    /// Exact argument vector used to observe version identity.
+    pub version_arguments: &'a [OsString],
+    /// Required UTF-8 stdout after Unicode whitespace is trimmed at both ends.
+    pub version_identity: &'a str,
+}
+
 /// An invalid invocation was rejected before a child was spawned.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum InvalidInvocation {
@@ -346,8 +362,10 @@ impl std::error::Error for ToolError {
     }
 }
 
-/// An executable whose exact bytes and version were admitted by a consumer.
+/// An executable with a retained byte identity and an admitted exact version.
 ///
+/// [`Self::admit`] requires a consumer-supplied digest. [`Self::admit_version`]
+/// records the installed identity without authenticating it against a pin.
 /// Every execution rechecks digest/permission before spawning. Consumers must
 /// exclude concurrent writers to the executable and its parent directories:
 /// filesystem checks and `exec` are separate operations. This is not a file
@@ -370,6 +388,49 @@ impl AdmittedTool {
         context: &ExecutionContext<'_>,
         limits: OutputLimits,
     ) -> Result<Self, ToolError> {
+        Self::admit_with_digest(
+            &VersionSpec {
+                executable: spec.executable,
+                executable_bytes: spec.executable_bytes,
+                version_arguments: spec.version_arguments,
+                version_identity: spec.version_identity,
+            },
+            Some(spec.sha256),
+            context,
+            limits,
+        )
+    }
+
+    /// Admit an exact version and record the caller-trusted installed bytes.
+    ///
+    /// For tools built locally, no portable published digest may exist. This
+    /// entry hashes the executable within the supplied budget before running
+    /// the version command. The resulting [`Self::identity`] is an observation,
+    /// not a trusted published pin. All later runs reject changed bytes using
+    /// the same verification and capture engine as [`Self::admit`].
+    ///
+    /// The caller must trust the installation before admission: the version
+    /// command executes those bytes. Exact version output does not establish
+    /// authenticity. No version ranges, tool installation or PATH search occur.
+    /// The caller must exclude concurrent executable/directory writers.
+    ///
+    /// # Errors
+    /// Rejects invalid inputs, non-executable or oversized files, process
+    /// failures, non-UTF-8 stdout and a different successful version identity.
+    pub fn admit_version(
+        spec: &VersionSpec<'_>,
+        context: &ExecutionContext<'_>,
+        limits: OutputLimits,
+    ) -> Result<Self, ToolError> {
+        Self::admit_with_digest(spec, None, context, limits)
+    }
+
+    fn admit_with_digest(
+        spec: &VersionSpec<'_>,
+        expected: Option<Sha256Digest>,
+        context: &ExecutionContext<'_>,
+        limits: OutputLimits,
+    ) -> Result<Self, ToolError> {
         if !spec.executable.is_absolute() {
             return Err(ToolError::InvalidInvocation(
                 InvalidInvocation::ExecutablePath,
@@ -383,7 +444,7 @@ impl AdmittedTool {
         }
         validate_invocation(spec.version_arguments, context, limits)?;
         let path = fs::canonicalize(spec.executable).map_err(ToolError::Io)?;
-        let identity = verify_executable(&path, spec.executable_bytes, spec.sha256)?;
+        let identity = verify_executable(&path, spec.executable_bytes, expected)?;
         let evidence = process::capture(&path, spec.version_arguments, context, limits)
             .map_err(|source| ToolError::Execution(Box::new(source)))?;
         let version = match std::str::from_utf8(&evidence.stdout) {
@@ -414,7 +475,10 @@ impl AdmittedTool {
         &self.path
     }
 
-    /// Admitted raw executable identity.
+    /// Retained raw executable identity.
+    ///
+    /// With [`Self::admit_version`], this is an observed identity, not proof of
+    /// a published binary pin or trusted installation provenance.
     #[must_use]
     pub const fn identity(&self) -> ArtifactIdentity {
         self.identity
@@ -444,7 +508,11 @@ impl AdmittedTool {
         limits: OutputLimits,
     ) -> Result<ExecutionEvidence, ToolError> {
         validate_invocation(arguments, context, limits)?;
-        verify_executable(&self.path, self.executable_bytes, self.identity.sha256)?;
+        verify_executable(
+            &self.path,
+            self.executable_bytes,
+            Some(self.identity.sha256),
+        )?;
         process::capture(&self.path, arguments, context, limits)
             .map_err(|source| ToolError::Execution(Box::new(source)))
     }
@@ -453,10 +521,12 @@ impl AdmittedTool {
 fn verify_executable(
     path: &Path,
     limit: u64,
-    expected: Sha256Digest,
+    expected: Option<Sha256Digest>,
 ) -> Result<ArtifactIdentity, ToolError> {
     let actual = hash_file(path, limit).map_err(ToolError::Artifact)?;
-    if actual.sha256 != expected {
+    if let Some(expected) = expected
+        && actual.sha256 != expected
+    {
         return Err(ToolError::Artifact(ArtifactError::DigestMismatch {
             expected,
             actual,

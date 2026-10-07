@@ -61,8 +61,23 @@ process groups, retries or paid-operation recovery. `ToolError::evidence` and
 `execution_error` borrow the existing capture and failure objects for consumer
 error projection; no parallel error model or automatic diagnostic output is added.
 
+`AdmittedTool::admit_version` shares the exact admission engine for tools whose
+installation the caller already trusts. It takes a `VersionSpec`, records the
+bounded executable identity and admits exact version output; later runs enforce
+that observed digest. It removes consumer-side hash/admit composition without
+claiming that observed bytes are a trusted published pin. Existing `ToolSpec`
+admission still compares its supplied digest before executing the version probe.
+Installation provenance, per-host pins and selection of either contract remain
+consumer policy; no host catalog or version-range resolver is introduced.
+
 Additional reusable mechanics are extracted from committed sibling source:
 
+- `ic_host_artifacts::artifact::chunk_digests` computes ordered fixed-size chunk
+  digests and the complete raw input identity through the existing bounded read
+  traversal. Callers select a nonzero chunk size, input-byte allowance and maximum
+  digest count; compression interpretation and upload policy stay local.
+  `CopyError` can project into `io::Error`, preserving native input/output causes
+  and retaining non-I/O copy failures as typed causes at publication boundaries.
 - `ic_host_artifacts::artifact::HashingWriter` hashes accepted writes through the
   existing bounded writer, returning the original sink and raw size/digest. It
   needs no complete serialized buffer. Short writes count and hash only accepted

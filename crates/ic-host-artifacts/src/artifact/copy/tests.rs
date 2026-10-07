@@ -2,6 +2,33 @@ use super::*;
 use std::io::Cursor;
 
 #[test]
+fn io_conversion_preserves_native_codes_and_non_io_copy_causes() {
+    for error in [
+        CopyError::Input(ArtifactError::Io(io::Error::from_raw_os_error(13))),
+        CopyError::Output(io::Error::from_raw_os_error(13)),
+    ] {
+        let error = io::Error::from(error);
+        assert_eq!(error.raw_os_error(), Some(13));
+        assert_eq!(error.kind(), io::ErrorKind::PermissionDenied);
+    }
+    let error = io::Error::from(CopyError::Input(ArtifactError::LimitExceeded { limit: 4 }));
+    assert_eq!(error.kind(), io::ErrorKind::Other);
+    assert!(matches!(
+        error.get_ref().unwrap().downcast_ref::<CopyError>(),
+        Some(CopyError::Input(ArtifactError::LimitExceeded { limit: 4 }))
+    ));
+    let error = io::Error::from(CopyError::Output(io::Error::new(
+        io::ErrorKind::InvalidData,
+        super::super::WriterError::InvalidWriteCount {
+            offered: 1,
+            written: 2,
+        },
+    )));
+    assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+    assert!(error.get_ref().unwrap().is::<super::super::WriterError>());
+}
+
+#[test]
 fn copying_hashing_and_reading_share_the_same_complete_stream_identity() {
     let bytes = vec![37; 40_001];
     let mut output = Vec::new();

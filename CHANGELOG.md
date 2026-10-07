@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.4.2]
+
+- Admit caller-trusted installed tools by exact version while retaining their
+  observed digest for execution drift checks, removing caller-side hash/admit
+  composition without changing pinned-byte admission
+  ([#11](https://github.com/dragginzgame/ic-host-tooling/issues/11)).
+- Hash ordered upload chunks and their complete input in one bounded pass,
+  with explicit byte and digest-count limits
+  ([#12](https://github.com/dragginzgame/ic-host-tooling/issues/12)).
+- Preserve native input/output errors when converting bounded-copy failures
+  at I/O publication boundaries
+  ([#14](https://github.com/dragginzgame/ic-host-tooling/issues/14)).
+
+See [the 0.4 notes](docs/changelog/0.4.md).
+
 ## [0.4.1] - 2026-10-07
 
 - Add owned named staging for external-tool output, sharing durable publication

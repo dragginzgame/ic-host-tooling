@@ -12,6 +12,7 @@ use std::{
     str::FromStr,
 };
 
+mod chunks;
 mod copy;
 #[cfg(feature = "gzip")]
 mod gzip;
@@ -21,6 +22,7 @@ mod matching;
 mod tests;
 mod writer;
 
+pub use chunks::{ChunkDigestError, chunk_digests};
 pub use copy::{CopyError, copy_reader};
 #[cfg(feature = "gzip")]
 pub use gzip::{GzipError, decode_gzip, encode_gzip};

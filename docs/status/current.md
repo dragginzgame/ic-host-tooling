@@ -1,6 +1,99 @@
 # Current handoff
 
-## Latest qualification: 2026-10-07, after 0.4.0
+## Latest qualification: 2026-10-07, after 0.4.1
+
+The maintainer reports 0.4.1 live. Local HEAD and v0.4.1 identify
+ce2dd57cedc5000b44bb6a9ff5194f7d65a42c38, with finalized root notes and package
+versions at 0.4.1. [Exact-source CI](https://github.com/dragginzgame/ic-host-tooling/actions/runs/37614534197)
+has passed Linux and MSRV; both native macOS jobs have now failed in the shared
+tool-command fixture before reaching the Rust tests. The fixture compares an
+unnormalized temporary directory with Make's independently resolved `CURDIR`.
+[Shared #56](https://github.com/dragginzgame/shared-tooling/issues/56) records the
+native failure and a Linux trailing-slash reproduction. Normalizing the fixture
+root with `pwd -P` passes both trailing-slash and symlinked temporary-root cases
+in a private copy at /tmp/ic-host-042-tool-command.k2qV6s. The canonical shared
+source and this repository's snapshot remain unchanged pending a committed fix.
+This supersedes the earlier queued status; native qualification and independent
+registry verification are not complete.
+
+The next compatible batch targets **0.4.2**, implementing the concrete installed
+extractor case in [Host #11](https://github.com/dragginzgame/ic-host-tooling/issues/11).
+`AdmittedTool::admit_version` takes `VersionSpec`, records a bounded observed
+executable identity, checks the exact version and reuses the existing admission
+and execution engine. Subsequent runs enforce that digest and permissions.
+Existing `ToolSpec` admission retains its pre-execution trusted-digest check.
+No functions, methods or types were removed; package versions, dependencies,
+lockfile, tool pins and snapshot selection are unchanged.
+
+The current IcyDB caller at clean 15e083e479129bb8a62aede0e768a2b5c40be23b
+still hashes its installed extractor before constructing `ToolSpec`. The new API
+removes that composition after publication/adoption; installation provenance,
+executable selection, input/output budgets and recovery remain consumer-owned.
+Observed bytes are never described as a published pin. Sibling files remain
+read-only; adoption is coordinated in [IcyDB #307](https://github.com/dragginzgame/icydb/issues/307).
+
+Focused offline Linux qualification passes: 38 process tests, 19 dependent tools
+tests and example compilation, strict process Clippy, Rust 1.88 and Rustdoc.
+Tests cover exact version admission, retained failed-version evidence, bounded
+executable/output reads, deadline cleanup and rejection of byte/permission drift
+before execution. Formatting, declaration pins, local links and snapshot checks
+also pass. Evidence is under /tmp/ic-host-042-*.log, retaining the initial test
+variant typo and Clippy correction separately from the passing results.
+
+A private rehearsal at /tmp/ic-host-042-extractor.GFIdnx uses the existing native
+candid-extractor 0.1.6 without downloading or installing it. Version admission
+observes digest cbc4bc7ff04bec168a5c491990b6693ad6a30128196131ba6d2fdab982f62255
+and 15529640 bytes, then the shared Candid adapter successfully extracts a minimal
+WAT service at a spaced path while preserving its input. Its 64 MiB executable,
+4 KiB input and 1 MiB output bounds are rehearsal choices, not consumer defaults.
+This is not full IcyDB graph/adoption evidence. New API native macOS qualification
+still requires matching committed CI. No full local gate or release ran.
+
+The same 0.4.2 draft now adds two compatible artifact-owner improvements.
+`chunk_digests` implements the ordered chunk/whole-input portion of
+[Host #12](https://github.com/dragginzgame/ic-host-tooling/issues/12), reusing the
+bounded reader with explicit nonzero chunk size, input-byte and digest-count
+limits. Chunk boundaries ignore reader fragmentation; allocation is fallible,
+no chunk-sized buffer is allocated, and failure returns no partial identities.
+It hashes the exact supplied representation; gzip detection and decoded-module
+hashing are not implemented by this function.
+
+Read-only Canic inspection at ab7227f0acb216fdabdceb76fd134c7a369d2def identifies
+`append_chunk_actions` and `stage_managed_release_set` as callers that separately
+collect chunk hashes and the complete artifact hash. Their inspected source and
+`cdk::utils::hash::wasm_hash` are clean at that revision. The hash helper is raw
+SHA-256, without decompression or a domain prefix. Adoption still needs consumer
+budget/error/schema choices and qualification, tracked on
+[Canic #458](https://github.com/dragginzgame/canic/issues/458); no Canic code changed.
+
+`From<CopyError> for io::Error` addresses the remaining I/O projection feedback in
+[Host #14](https://github.com/dragginzgame/ic-host-tooling/issues/14). Native input
+and output errors retain their kind, OS code and custom cause; non-I/O input
+failures remain downcastable `CopyError` causes under `Other`. Direct `CopyError`
+remains necessary when callers need input/output provenance. IcyDB's clean
+`publish_artifact_copy` at bc8eef82a906384eb1d43dd314a1b23277b654d7 can replace
+`map_err(io::Error::other)` after adoption; its files were not modified.
+
+Focused Linux checks for these additions pass: 58 artifact unit tests and seven
+consumer-contract tests with all features, 33 minimal-profile tests, strict
+artifact/filesystem Clippy, artifact Rust 1.88 compilation and Rustdoc. The
+focused durable-copy test confirms native I/O identity, typed byte-limit failure,
+old-destination preservation and successful publication. Formatting, pins,
+snapshot and documentation checks also pass. Evidence is in
+/tmp/ic-host-042-more-*.log; initial test-only Clippy failures are retained beside
+the corrected passes. No production APIs, functions or types were removed, no
+dependencies changed, and native macOS qualification remains outstanding.
+
+Shared Tooling review identifies committed 0.1.18,
+a3430b34b32a60f3b245a2b4f7e2f5321556fe56, with
+[successful upstream native CI](https://github.com/dragginzgame/shared-tooling/actions/runs/37604299590).
+Its new Rust installer is affected by [Shared #54](https://github.com/dragginzgame/shared-tooling/issues/54);
+the route-admission repair and runner disk checker are still dirty upstream work.
+This batch retains the verified 0.1.17 snapshot rather than exposing that installer
+or attributing unpublished fixes to 0.1.18. Adoption coordination stays on
+[Host #6](https://github.com/dragginzgame/ic-host-tooling/issues/6).
+
+## Previous batch: 0.4.1 preparation
 
 The maintainer released 0.4.0 at 6b171744def811882ba6c71d50135efa898302a9
 (v0.4.0), and reports it live. [CI for that exact source](https://github.com/dragginzgame/ic-host-tooling/actions/runs/37602699181)
