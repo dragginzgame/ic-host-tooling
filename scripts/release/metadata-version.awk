@@ -18,7 +18,16 @@ mode == "lock" && /^name = / { package_name = $0; sub(/^name = "/, "", package_n
 }
 mode == "manifest" && $1 in owned && /version = "/ {
     count++
-    if (replacement != "") sub(/version = "[^"]+"/, "version = \"" replacement "\"")
+    if (replacement != "") {
+        requirement = $0
+        sub(/^.*version = "/, "", requirement)
+        sub(/".*$/, "", requirement)
+        projected = replacement
+        # Cargo preserves a bare major.minor requirement's precision when
+        # updating workspace dependencies; package/lock versions stay complete.
+        if (requirement ~ /^[0-9]+\.[0-9]+$/) sub(/\.[^.]+$/, "", projected)
+        sub(/version = "[^"]+"/, "version = \"" projected "\"")
+    }
 }
 !read_version { print }
 END { expected = mode == "manifest" ? 1 + length(names) : length(names); if (count != expected || invalid) exit 2 }

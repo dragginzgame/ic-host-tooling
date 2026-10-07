@@ -8,6 +8,8 @@
 
 mod lock_wait;
 pub use lock_wait::lock_exclusive_with_wait;
+mod named;
+pub use named::{NamedWriteError, write_named_with};
 
 #[cfg(test)]
 mod tests;
@@ -247,7 +249,7 @@ fn commit_bytes(path: &Path, bytes: &[u8], mode: FileCommitMode) -> io::Result<(
 
 #[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
 mod supported {
-    use super::FileCommitMode;
+    use super::{FileCommitMode, NamedWriteError};
 
     use std::{
         ffi::{OsStr, OsString},
@@ -290,38 +292,61 @@ mod supported {
         path: &Path,
         mode: FileCommitMode,
         write: impl FnOnce(&mut fs::File) -> io::Result<T>,
-        mut before: impl FnMut(FileCommitStep, &Path) -> io::Result<()>,
+        before: impl FnMut(FileCommitStep, &Path) -> io::Result<()>,
     ) -> io::Result<T> {
-        let (parent, file_name) = split_target(path)?;
-        create_parent_hierarchy(parent, &mut before)?;
-        let parent_fd = open_directory(parent)?;
+        commit_with_producer_and_hook(path, mode, |_, file| write(file), before)
+            .map_err(NamedWriteError::into_io)
+    }
+
+    pub(super) fn commit_with_producer_and_hook<T, E>(
+        path: &Path,
+        mode: FileCommitMode,
+        produce: impl FnOnce(&Path, &mut fs::File) -> Result<T, E>,
+        mut before: impl FnMut(FileCommitStep, &Path) -> io::Result<()>,
+    ) -> Result<T, NamedWriteError<E>> {
+        let (parent, file_name) = split_target(path).map_err(NamedWriteError::before)?;
+        create_parent_hierarchy(parent, &mut before).map_err(NamedWriteError::before)?;
+        let parent_fd = open_directory(parent).map_err(NamedWriteError::before)?;
         let permissions = if mode == FileCommitMode::CreatePrivateWithParents {
             Mode::RUSR | Mode::WUSR
         } else {
             Mode::RUSR | Mode::WUSR | Mode::RGRP | Mode::WGRP | Mode::ROTH | Mode::WOTH
         };
         let (temp_name, temp_path, mut temp_file) =
-            create_sibling_temp(&parent_fd, parent, file_name, permissions, &mut before)?;
+            create_sibling_temp(&parent_fd, parent, file_name, permissions, &mut before)
+                .map_err(NamedWriteError::before)?;
 
-        let staged = (|| {
-            before(FileCommitStep::TemporaryFileWrite, &temp_path)?;
-            let value = write(&mut temp_file)?;
-            before(FileCommitStep::TemporaryFileSync, &temp_path)?;
-            temp_file.sync_all()?;
-            Ok(value)
-        })();
-        drop(temp_file);
-        let value = match staged {
+        let cleanup = || remove_owned_temp(&parent_fd, &temp_name, &temp_file).err();
+        if let Err(source) = before(FileCommitStep::TemporaryFileWrite, &temp_path) {
+            return Err(NamedWriteError::BeforePublication {
+                source,
+                cleanup_error: cleanup(),
+            });
+        }
+        let value = match produce(&temp_path, &mut temp_file) {
             Ok(value) => value,
-            Err(error) => {
-                remove_temp(&parent_fd, &temp_name);
-                return Err(error);
+            Err(source) => {
+                return Err(NamedWriteError::Producer {
+                    source,
+                    cleanup_error: remove_owned_temp(&parent_fd, &temp_name, &temp_file).err(),
+                });
             }
         };
 
-        if let Err(error) = before(FileCommitStep::Publication, path) {
-            remove_temp(&parent_fd, &temp_name);
-            return Err(error);
+        let staged = (|| {
+            before(FileCommitStep::TemporaryFileSync, &temp_path)?;
+            verify_staging(&parent_fd, parent, &temp_name, &temp_file)?;
+            temp_file.sync_all()?;
+            before(FileCommitStep::Publication, path)?;
+            // Keep the descriptor alive through rename so its identity cannot
+            // be recycled after a producer unlinks or replaces the pathname.
+            verify_staging(&parent_fd, parent, &temp_name, &temp_file)
+        })();
+        if let Err(source) = staged {
+            return Err(NamedWriteError::BeforePublication {
+                source,
+                cleanup_error: remove_owned_temp(&parent_fd, &temp_name, &temp_file).err(),
+            });
         }
         let published = match mode {
             FileCommitMode::Replace => {
@@ -332,13 +357,68 @@ mod supported {
             }
         };
         if let Err(error) = published {
-            remove_temp(&parent_fd, &temp_name);
-            return Err(errno_to_io(error));
+            return Err(NamedWriteError::BeforePublication {
+                source: errno_to_io(error),
+                cleanup_error: remove_owned_temp(&parent_fd, &temp_name, &temp_file).err(),
+            });
         }
 
-        before(FileCommitStep::FinalParentSync, parent)?;
-        unix_fs::fsync(&parent_fd).map_err(errno_to_io)?;
+        before(FileCommitStep::FinalParentSync, parent)
+            .map_err(|source| NamedWriteError::AfterPublication { source })?;
+        unix_fs::fsync(&parent_fd).map_err(|error| NamedWriteError::AfterPublication {
+            source: errno_to_io(error),
+        })?;
         Ok(value)
+    }
+
+    fn same_identity(left: &unix_fs::Stat, right: &unix_fs::Stat) -> bool {
+        left.st_dev == right.st_dev
+            && left.st_ino == right.st_ino
+            && unix_fs::FileType::from_raw_mode(left.st_mode)
+                == unix_fs::FileType::from_raw_mode(right.st_mode)
+    }
+
+    fn staging_identity_error() -> io::Error {
+        io::Error::new(
+            io::ErrorKind::InvalidData,
+            "staging or parent identity changed",
+        )
+    }
+
+    fn verify_staging(
+        parent_fd: &OwnedFd,
+        parent: &Path,
+        name: &OsStr,
+        file: &fs::File,
+    ) -> io::Result<()> {
+        let held_parent = unix_fs::fstat(parent_fd).map_err(errno_to_io)?;
+        let named_parent = unix_fs::statat(unix_fs::CWD, parent, AtFlags::SYMLINK_NOFOLLOW)
+            .map_err(errno_to_io)?;
+        let held = unix_fs::fstat(file).map_err(errno_to_io)?;
+        let named =
+            unix_fs::statat(parent_fd, name, AtFlags::SYMLINK_NOFOLLOW).map_err(errno_to_io)?;
+        if !same_identity(&held_parent, &named_parent)
+            || !same_identity(&held, &named)
+            || unix_fs::FileType::from_raw_mode(held.st_mode) != unix_fs::FileType::RegularFile
+            || held.st_nlink != 1
+            || named.st_nlink != 1
+        {
+            return Err(staging_identity_error());
+        }
+        Ok(())
+    }
+
+    fn remove_owned_temp(parent_fd: &OwnedFd, name: &OsStr, file: &fs::File) -> io::Result<()> {
+        let named = match unix_fs::statat(parent_fd, name, AtFlags::SYMLINK_NOFOLLOW) {
+            Ok(named) => named,
+            Err(rustix::io::Errno::NOENT) => return Ok(()),
+            Err(error) => return Err(errno_to_io(error)),
+        };
+        let held = unix_fs::fstat(file).map_err(errno_to_io)?;
+        if !same_identity(&held, &named) {
+            return Err(staging_identity_error());
+        }
+        unix_fs::unlinkat(parent_fd, name, AtFlags::empty()).map_err(errno_to_io)
     }
 
     fn publish_create_new(

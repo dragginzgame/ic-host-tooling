@@ -4,14 +4,14 @@ MSRV ?= 1.88.0
 RELEASE_REMOTE ?= origin
 RELEASE_BRANCH ?= main
 include ci/tool-versions.env
-export PATH := $(CURDIR)/.tools/host/bin:$(CURDIR)/.tools/ic/bin:$(PATH)
+include make/tools.mk
 export YQ := $(CURDIR)/.tools/host/bin/yq
 
 ifneq ($(word 2,$(filter release-patch release-minor release-major release-resume,$(MAKECMDGOALS))),)
 $(error Select exactly one release target)
 endif
 
-.PHONY: help fmt fmt-check format-tools-check format-tools-test check clippy docs-check test test-artifacts-minimal test-tools-response tools-features-check msrv ci install-hooks install-tools tools-check install-host-tools host-tools-check install-ic-tools ic-tools-check shared-tooling-check dependency-pins-check check-doc-links release-adapter-check publish publish-check publish-command-check release-patch release-minor release-major release-resume release-version release-preflight release-verify release-prepare-version release-prepared-check release-files release-commit-check release-committed-check release-tagged-check release-push-check
+.PHONY: help fmt fmt-check format-tools-check format-tools-test check clippy docs-check test test-artifacts-minimal test-tools-response tools-features-check msrv ci install-hooks tooling-command-check shared-tooling-check dependency-pins-check check-doc-links release-adapter-check publish publish-check publish-command-check release-patch release-minor release-major release-resume release-version release-preflight release-verify release-prepare-version release-prepared-check release-files release-commit-check release-committed-check release-tagged-check release-push-check
 help:
 	@echo 'Selected package: check, clippy, docs-check, test, msrv (PACKAGE=<crate>)'
 	@echo 'Minimal artifact configuration: test-artifacts-minimal'
@@ -19,6 +19,7 @@ help:
 	@echo 'Formatting and metadata: fmt, fmt-check, shared-tooling-check, dependency-pins-check, check-doc-links, release-adapter-check'
 	@echo 'Explicit setup: install-tools, install-host-tools, install-ic-tools, install-hooks'
 	@echo 'Offline setup checks: tools-check, host-tools-check, ic-tools-check'
+	@echo 'Source reports: cloc (this workspace), cloc-tooling (sibling tooling)'
 	@echo 'Full gate: ci (explicit request or configured CI only)'
 	@echo 'Maintainer releases: release-patch, release-minor, release-major, release-resume VERSION=X.Y.Z'
 	@echo 'crates.io publication: publish-check (dry run), publish (upload); offline fixture: publish-command-check'
@@ -52,24 +53,18 @@ msrv:
 	cargo +$(MSRV) check -p $(PACKAGE) --all-targets --all-features --locked --offline
 install-hooks:
 	bash scripts/dev/install-git-hooks.sh
-install-tools: install-host-tools install-ic-tools
-tools-check: host-tools-check ic-tools-check
-install-host-tools:
-	bash scripts/dev/install-host-tools.sh
-host-tools-check:
-	bash scripts/dev/install-host-tools.sh --check
-install-ic-tools:
-	bash scripts/dev/install-ic-tools.sh
-ic-tools-check:
-	bash scripts/dev/install-ic-tools.sh --check
 shared-tooling-check:
 	bash scripts/ci/verify-shared-tooling-snapshot.sh
 dependency-pins-check:
 	bash scripts/ci/check-dependency-pins.sh --cargo-inheritance
 check-doc-links:
-	perl scripts/ci/check-documentation-links.pl --root "$(CURDIR)" README.md AGENTS.md CHANGELOG.md docs/extraction.md docs/hosts.md docs/status/current.md docs/publishing.md
+	perl scripts/ci/check-documentation-links.pl --root "$(CURDIR)" README.md AGENTS.md CHANGELOG.md docs/changelog/0.4.md docs/extraction.md docs/hosts.md docs/status/current.md docs/publishing.md
 release-adapter-check:
 	bash scripts/release/test-adapter.sh
+tooling-command-check:
+	bash scripts/ci/test-tool-commands.sh
+	bash scripts/ci/check-release-commands.sh "$(CURDIR)" ci/tool-versions.env make/tools.mk
+	bash scripts/ci/test-cloc.sh
 publish:
 	bash scripts/publish/workspace.sh publish
 publish-check:
@@ -84,6 +79,7 @@ ci:
 	+$(MAKE) --no-print-directory format-tools-test
 	+$(MAKE) --no-print-directory check-doc-links
 	+$(MAKE) --no-print-directory release-adapter-check
+	+$(MAKE) --no-print-directory tooling-command-check
 	+$(MAKE) --no-print-directory publish-command-check
 	+$(MAKE) --no-print-directory test-artifacts-minimal
 	+$(MAKE) --no-print-directory tools-features-check

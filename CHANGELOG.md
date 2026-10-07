@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.4.1]
+
+- Add owned named staging for external-tool output, sharing durable publication
+  while retaining producer errors, cleanup evidence and publication state
+  ([#8](https://github.com/dragginzgame/ic-host-tooling/issues/8)).
+- Share setup/check recipes and pinned host tools between Make and CI; add
+  workspace and sibling-tooling LOC reports
+  ([#6](https://github.com/dragginzgame/ic-host-tooling/issues/6)).
+- Accept trailing whitespace on release headings while preserving notes and
+  refusing duplicate or misplaced candidates
+  ([#6](https://github.com/dragginzgame/ic-host-tooling/issues/6)).
+- Preserve short internal dependency requirements such as `0.4` during release
+  validation and preparation, matching Cargo's version updates.
+
+See [the 0.4 notes](docs/changelog/0.4.md).
+
 ## [0.4.0] - 2026-10-07
 
 ### Breaking

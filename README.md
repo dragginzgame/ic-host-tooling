@@ -27,10 +27,15 @@ copying output; callers own presentation and recovery.
 
 Filesystem reads live under `ic_host_fs::read`, including optional bounded
 no-follow reads and typed private-file admission. Durable publication and locks
-remain under `durable`. The pending breaking cleanup requires the
+remain under `durable`. Upgrading from 0.3 requires the
 [0.4 consumer changes](docs/changelog/0.4.md).
 
-The four-crate workspace has a Git release at 0.3.3. Package metadata permits
+`durable::write_named_with` lets an external tool write to an owned absolute
+staging path, then shares the normal durable publication engine. Callers validate
+bounded output before success and retain typed producer/cleanup errors. See the
+[named-output contract](docs/changelog/0.4.md#named-external-output) before adopting it.
+
+The four-crate workspace has a Git release at 0.4.0. Package metadata permits
 crates.io publication; a Git release does not establish registry availability.
 The original local checkout has been removed after a verified full backup.
 Consumers adopt and qualify registry selections independently.
@@ -49,6 +54,14 @@ and the default extractor's required owners.
 make install-host-tools and make install-ic-tools are explicit setup commands;
 their offline checks never install tools. make install-hooks activates the
 repository-local formatter after provisioning cargo-sort 2.1.4.
+The common `make/tools.mk` owns setup/check commands and selects pinned jq, yq,
+ripgrep with PCRE2 and cloc. CI uses those same targets. Run
+`make install-host-tools` after this snapshot update to prepare the expanded set;
+`make host-tools-check` verifies it offline without installing anything.
+`make cloc` reports this workspace's Rust runtime/test lines; `make cloc-tooling`
+inventories sibling tooling and separates matching shared snapshots from local
+code. `CLOC_PARENT` selects the latter's parent directory. Direct shell commands
+need their own PATH setup as described in [local setup](docs/local-setup.md).
 
 Shared Tooling owns rules, hooks, installers and the common release runner.
 This workspace consumes an exact snapshot; library ownership stays here.
@@ -58,7 +71,7 @@ commit, tag and atomic branch/tag push. Registry publication is separate:
 make publish-check performs a Cargo dry run, and make publish uploads the
 committed workspace to crates.io. Read [the publication procedure](docs/publishing.md)
 for prerequisites, retained evidence and partial-upload recovery.
-Prepare the pinned jq/yq set with make install-host-tools before release version
+Prepare the pinned host set with make install-host-tools before release version
 queries or release entry points. make release-version uses the shared read-only
 Cargo/TOML reader; parser checks never install missing tools. Release preflight
 refreshes only host tools. The IC executable bundle remains available through

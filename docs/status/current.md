@@ -1,6 +1,78 @@
 # Current handoff
 
-## Latest qualification: 2026-10-07
+## Latest qualification: 2026-10-07, after 0.4.0
+
+The maintainer released 0.4.0 at 6b171744def811882ba6c71d50135efa898302a9
+(v0.4.0), and reports it live. [CI for that exact source](https://github.com/dragginzgame/ic-host-tooling/actions/runs/37602699181)
+passes Linux, MSRV and both macOS 15 architectures. This supersedes the pending
+native qualification in the historical preparation evidence below; it does not
+prove adoption by any consumer.
+
+The current compatible tooling and named-staging batch targets **0.4.1**.
+Shared Tooling is adopted
+at committed 0.1.17, 88f1d70cdf671aefb9507d7a81411ed5daa358b3, with 64 exact
+snapshot entries. Export used a clean private checkout and excluded the sibling's
+newer uncommitted changes. [Upstream CI](https://github.com/dragginzgame/shared-tooling/actions/runs/37601115116)
+passes all its native jobs. The common Make include replaces six local setup/check
+recipes, provides LOC reports, and selects pinned jq/yq/ripgrep/cloc consistently
+for Make and CI. The only added tool pin is cloc 2.10; existing selections remain.
+
+The release adapter accepts trailing heading whitespace while preserving note
+placement and rejecting duplicate/misplaced entries. A concurrent maintainer edit
+shortened the four internal dependency requirements to `0.4`; at the maintainer's
+request this is preserved and the metadata projection now retains requirement
+precision. Real offline cargo-set-version probes in private copies match exact
+projected manifests and lockfiles for 0.4.1, 0.5.0 and 1.0.0. Actual package versions
+remain 0.4.0 and Cargo.lock is unchanged.
+
+Focused Linux release-adapter, shared release-runner, Make command delegation,
+installer failure/preservation and LOC fixtures pass. Host workspace LOC reporting
+also runs successfully. Formatting-hook selection/index preservation, formatting,
+declaration pins, documentation links, ShellCheck and workflow lint pass.
+Installer and Git release effects in fixtures are
+substitutes. Real LOC execution used existing sibling tools read-only after
+verification against the adopted pins; it does not establish installation in this
+checkout. Logs and the frozen upstream source are retained under
+/tmp/ic-host-shared-017.Cq5xAc. The initial adapter rejection of shortened
+requirements and an incomplete private cargo-edit probe are retained alongside
+their corrected passes. That tooling adoption changed no Rust production code;
+the subsequent filesystem addition is qualified separately below. No full local
+gate ran, and no native CI result yet covers these uncommitted adoption bytes.
+
+The adoption and consumer-specific release checks remain coordinated on
+[Host #6](https://github.com/dragginzgame/ic-host-tooling/issues/6). Sibling files
+were not edited; no commit, tag, push, publication or tool download occurred.
+
+The requested [Host #8](https://github.com/dragginzgame/ic-host-tooling/issues/8)
+implementation adds `durable::write_named_with` and `NamedWriteError<E>`. Named
+external producers share the existing durable publication engine; there is no
+second allocator/rename pipeline. Callback errors keep their original type and
+process evidence, cleanup failures remain separate, and final directory-sync
+errors report that publication already happened. The held staging descriptor and
+parent are checked before publication, and cleanup refuses foreign replacements.
+Consumers must write/truncate the precreated inode, validate bounded content,
+finish all writers and control the parent hierarchy. Namespace checks are not an
+atomic comparison-and-rename primitive against concurrent hostile writers.
+
+Focused offline Linux checks pass: 51 filesystem tests and 34 process tests,
+including missing/invalid output, file/symlink/FIFO/directory substitution, extra
+hard links, parent replacement, replacement after sync, cleanup rejection,
+before/after-publication sync failures, bounded process overflow and timeout.
+Strict filesystem/process Clippy, Rust 1.88 and Rustdoc pass. The initial Clippy
+const-function suggestion and corrected result are retained under
+/tmp/ic-host-issue8-*.log. No existing functions, methods or types were removed.
+
+A private real Binaryen 132 rehearsal at /tmp/ic-host-issue8-binaryen.zzcRc4 uses
+IcyDB's existing executable read-only after exact digest/version admission.
+Producing a minimal Wasm module at spaced paths and rejecting invalid input both
+pass, preserving the previous output, process evidence and ordinary staging
+cleanup. The fixture records source hashes from IcyDB's dirty working input on
+4d5b38a543bd4f7f349034b4797d78ddad6e76e3; it is not a full consumer adoption or
+general Wasm-validation proof. Native macOS qualification of the new API and
+published consumer adoption remain outstanding on Host #8 and
+[IcyDB #307](https://github.com/dragginzgame/icydb/issues/307).
+
+## Previous batch: 0.4.0 preparation
 
 The maintainer released 0.3.3 at 3d18ca9a9ed0ac5935a16c5bac99694d8e9a7d0a.
 The current uncommitted reader/error cleanup targets **0.4.0** because it removes

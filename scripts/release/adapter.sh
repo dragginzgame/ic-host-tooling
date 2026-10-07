@@ -48,7 +48,7 @@ finalize_notes() {
     local input="$1" heading
     # Retain the consumer's top-entry identity boundary. The shared helper owns
     # candidate selection, complete-ledger conflict checks and heading rewriting.
-    heading="$(awk '/^## / { print; exit }' "$input")"
+    heading="$(awk '/^## / { sub(/[ \t]+$/, ""); print; exit }' "$input")"
     case "$heading" in
         '## [Draft]'|"## [$RELEASE_VERSION]"|"## [$RELEASE_PREVIOUS]"|"## [$RELEASE_PREVIOUS] - "*) ;;
         *) fail "top changelog entry conflicts with selected release" ;;
@@ -56,7 +56,10 @@ finalize_notes() {
     # A candidate belongs at the top; do not let the shared selector relocate
     # a current release entry from history during preparation or recovery.
     awk -v heading="## [$RELEASE_VERSION]" '
-        /^## / { if (++headings > 1 && ($0 == "## [Draft]" || $0 == heading || index($0, heading " - ") == 1)) exit 1 }
+        /^## / {
+            sub(/[ \t]+$/, "")
+            if (++headings > 1 && ($0 == "## [Draft]" || $0 == heading || index($0, heading " - ") == 1)) exit 1
+        }
     ' "$input" || fail "duplicate or misplaced current release entry"
     awk -v version="$RELEASE_VERSION" -v previous="$RELEASE_PREVIOUS" \
         -v date="$RELEASE_DATE" \

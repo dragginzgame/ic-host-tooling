@@ -9,6 +9,7 @@ use std::os::unix::ffi::OsStringExt as _;
 
 mod capture;
 mod evidence;
+mod named;
 
 #[test]
 fn digest_rejection_precedes_any_version_execution() {

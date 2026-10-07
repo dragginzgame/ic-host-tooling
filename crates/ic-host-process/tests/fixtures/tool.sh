@@ -38,6 +38,12 @@ case "${1-}" in
         printf 'failure stderr' >&2
         exit 23
         ;;
+    --named-output)
+        printf '%s' "$3" > "$2"
+        printf 'producer stdout'
+        printf 'producer stderr' >&2
+        exit "$4"
+        ;;
     --flood-stdout)
         while :; do printf '0123456789abcdef'; done
         ;;

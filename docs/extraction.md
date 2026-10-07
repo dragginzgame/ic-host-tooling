@@ -34,6 +34,15 @@ and fixed-length rejection. Durable publication and locks do not own a second
 reader hierarchy. Lock errors retain typed admission and original I/O causes.
 The [0.4 notes](changelog/0.4.md) describe the required consumer changes.
 
+`durable::write_named_with` exposes an absolute owned staging pathname to external
+producers through the existing publication engine. Filesystem code owns exclusive
+creation, descriptor lifetime, identity checks, cleanup and sync/rename outcomes.
+The callback owns executable admission, process completion, bounded output
+validation and any domain interpretation. Its original error and cleanup evidence
+remain distinct, as does a final sync failure after publication. Parent hierarchy
+control and exclusion of concurrent namespace mutation are caller prerequisites;
+this is neither arbitrary-file adoption nor a child sandbox.
+
 The first import preserves implemented guarantees. It does not establish root
 confinement for following pathname APIs, immutable source bytes, process sandboxing,
 descendant cleanup, hardware-independent crash durability or safe paid-effect retries.

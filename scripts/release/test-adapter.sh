@@ -36,7 +36,8 @@ for package in ic-host-artifacts ic-host-fs ic-host-process ic-host-tools; do
     sed 's/^publish = .*/publish = false/' "$root/crates/$package/Cargo.toml" > "$fixture/crates/$package/Cargo.toml"
     : > "$fixture/crates/$package/src/lib.rs"
 done
-printf '# Changelog\n\n## [%s]\n\n- Fixture notes.\n' "$RELEASE_VERSION" > "$fixture/CHANGELOG.md"
+# Heading presentation must not detach notes from the selected release.
+printf '# Changelog\n\n## [%s] \t \n\n- Fixture notes.\n' "$RELEASE_VERSION" > "$fixture/CHANGELOG.md"
 printf '\n## [%s]\n\n- Undated imported history.\n\n## [0.0.1] - 2026-10-01\n\n- Dated history.\n' "$RELEASE_PREVIOUS" >> "$fixture/CHANGELOG.md"
 mkdir "$fixture/source" "$fixture/committed"
 cp "$fixture/Cargo.toml" "$fixture/Cargo.lock" "$fixture/CHANGELOG.md" "$fixture/source/"
@@ -165,6 +166,19 @@ cmp Cargo.toml source/Cargo.toml
 cmp Cargo.lock "$root/Cargo.lock"
 [[ ! -e release-state ]] || exit 1
 
+# Complete and major.minor requirements both admit the synchronized workspace.
+# Preserve each form's precision through the actual adapter transaction below.
+for requirement in "$RELEASE_PREVIOUS" "${RELEASE_PREVIOUS%.*}"; do
+    awk -v requirement="$requirement" '
+        /^ic-host-/ { sub(/version = "[^"]+"/, "version = \"" requirement "\"") }
+        { print }
+    ' source/Cargo.toml > Cargo.toml
+    : > "$ADAPTER_EVENTS"
+    bash "$root/scripts/release/adapter.sh" preflight > "accepted-$requirement.log" 2>&1
+    cmp accepted-events "$ADAPTER_EVENTS"
+done
+cp source/Cargo.toml Cargo.toml
+
 # A failed Cargo query may print valid metadata: its failure must still stop
 # preflight before any setup or fetch is attempted.
 : > "$ADAPTER_EVENTS"
@@ -187,17 +201,22 @@ cmp expected "$ADAPTER_EVENTS"
 # Each failure must stop before setup and leave the changelog untouched.
 printf '%s\n' 'cargo locate-project --workspace --message-format plain --manifest-path Cargo.toml' \
     'cargo metadata --no-deps --format-version 1 --locked --offline' > expected
-for scenario in duplicate competing misplaced finalized; do
+for scenario in duplicate duplicate-whitespace competing misplaced misplaced-whitespace finalized; do
     case "$scenario" in
         duplicate)
             cp source/CHANGELOG.md CHANGELOG.md
             printf '\n## [%s]\n\n- Duplicate.\n' "$RELEASE_VERSION" >> CHANGELOG.md ;;
+        duplicate-whitespace)
+            cp source/CHANGELOG.md CHANGELOG.md
+            printf '\n## [%s] \t \n\n- Duplicate.\n' "$RELEASE_VERSION" >> CHANGELOG.md ;;
         competing)
             cp source/CHANGELOG.md CHANGELOG.md
             future="$(bash "$root/scripts/ci/next-release-version.sh" "$RELEASE_VERSION" minor)"
             printf '\n## [%s]\n\n- Competing draft.\n' "$future" >> CHANGELOG.md ;;
         misplaced)
             printf '# Changelog\n\n## [%s]\n\n- History.\n\n## [%s]\n\n- Misplaced draft.\n' "$RELEASE_PREVIOUS" "$RELEASE_VERSION" > CHANGELOG.md ;;
+        misplaced-whitespace)
+            printf '# Changelog\n\n## [%s]\n\n- History.\n\n## [%s] \t \n\n- Misplaced draft.\n' "$RELEASE_PREVIOUS" "$RELEASE_VERSION" > CHANGELOG.md ;;
         finalized)
             printf '# Changelog\n\n## [%s] - %s\n\n- Finalized.\n' "$RELEASE_VERSION" "$RELEASE_DATE" > CHANGELOG.md ;;
     esac
