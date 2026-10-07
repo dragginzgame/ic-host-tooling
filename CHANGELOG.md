@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.4.1]
+## [0.4.1] - 2026-10-07
 
 - Add owned named staging for external-tool output, sharing durable publication
   while retaining producer errors, cleanup evidence and publication state
