@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.6.0]
+## [0.6.0] - 2026-10-08
 
 - Capture wrapper commands with explicit process-group cleanup through the shared
   bounded execution engine, stopping same-group children on exit or failure
