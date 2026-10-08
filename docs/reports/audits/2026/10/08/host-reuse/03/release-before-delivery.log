@@ -1,0 +1,7 @@
+Release 0.1.0 -> 0.1.1 on main via origin: validate, prepare, stage, commit/tag, atomic push
+[main f6a983a] Release 0.1.1
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+To /tmp/release-runner-test.ceLgdh/real-tracking/normal/destination.git
+   754586a..f6a983a  HEAD -> main
+ * [new tag]         v0.1.1 -> v0.1.1
+Release 0.1.1 completed; retained plan: .git/release-state/0.1.1.plan

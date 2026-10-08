@@ -1,6 +1,56 @@
 # Current handoff
 
-## Latest work: 2026-10-08, released 0.6.0 and pending 0.7.0 communication
+## Latest work: 2026-10-08, released 0.7.0 and pending 0.7.1 tooling refresh
+
+Host 0.7.0 is pushed at `491fc0e231b9650526f5f57b9ab7b1f62f02218c`.
+[Exact-source CI](https://github.com/dragginzgame/ic-host-tooling/actions/runs/37773664766)
+passes Linux x86-64, Rust 1.88 and native macOS 15 Intel/Apple Silicon. This
+supersedes the candidate-native statements below. Registry publication was not
+independently checked in this continuation; actual consumer adoption remains
+separate under [#5](https://github.com/dragginzgame/ic-host-tooling/issues/5#issuecomment-6059575927).
+
+The compatible **0.7.1** local batch adopts committed Shared Tooling 0.1.26
+`75a8a60f49cec11d3f6aecab5c977029c42cc549` through its canonical exporter
+from a clean private checkout. The existing 68-file selection is unchanged;
+upstream dirty edits are excluded. Matching local tracking refs now refresh
+after confirmed release/resume without overwriting concurrent/symbolic refs.
+Snapshot updates can advance a verified unchanged uncommitted export, check
+explicit additions/companions and refuse selected-path/index races. Tooling LOC
+includes bin/ and unborn repositories. AGENTS.md and exact snapshot digests agree.
+
+The new real-Git fixture against Host's old runner reproduces successful delivery
+followed by `ahead 1`; all 19 tracking cases pass with the adopted owner. Focused
+Host adapter/receipt and Make wiring fixtures, snapshot distribution, tooling LOC,
+selected ShellCheck, Perl syntax and snapshot verification pass. An initial LOC
+run lacked cloc in PATH; the existing Host tool path resolves that without a
+download. Source/controls/failures/final logs remain in
+`/tmp/ic-host-audit-20261008-03/`. No real release effects were exercised.
+
+The [new frozen convergence audit](../reports/audits/2026/10/08/host-reuse/03/report.md)
+records current sibling identities, dirty adoption and fresh Toko Wasm failures.
+Canic's working publication/inspection code and Toko Miner's encoder now use
+shared owners. The remaining parser deletion route is Canic #481 → Toko #1791;
+both owners received fresh evidence. Query still needs its actual process/receipt
+integration decision; its TERM grace/bounded reap differ from Host's owner.
+[Testkit #32](https://github.com/dragginzgame/ic-testkit/issues/32) records the new
+public Host 0.7 dependency boundary and necessary next minor release, separately
+from its previously completed Host 0.5/0.6 adoption. No further Host abstraction
+was justified. Consumers are concurrently editing; inventory is point-in-time
+source evidence, not a delivered or universally qualified dependency graph.
+
+Both changelog views describe pending 0.7.1. The 0.7 detailed headings now carry
+only versions, leaving draft/date state with the finalized root ledger rather
+than another label the release runner does not finalize. Existing release prose
+is preserved. Rust source, manifests, lock selections and package versions are
+unchanged; no function, method or type was removed.
+
+Exact upstream 0.1.26 CI passes Linux, Apple Silicon and lint/security; Intel
+remained running at observation. This local Host snapshot adoption still needs
+its own matching native CI, distinct from released 0.7.0. Siblings remain
+read-only. No broad local gate, tool download, commit/push, release or publication
+occurred. Owning GitHub issues remain the sole follow-up tracker.
+
+## Previous work: 2026-10-08, released 0.6.0 and pending 0.7.0 communication (superseded)
 
 Host 0.6.0 is released at `6f066e727c977e0b7ec8d3d77821df8508b95c64`;
 manifests and lock reflect that release. The maintainer reports it live, and

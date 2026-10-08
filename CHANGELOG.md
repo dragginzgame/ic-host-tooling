@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.7.1]
+
+- Refresh matching local tracking refs after confirmed releases, avoiding stale
+  ahead-of-origin status while preserving concurrent or unrelated refs
+  ([shared #62](https://github.com/dragginzgame/shared-tooling/issues/62)).
+- Adopt guarded consecutive snapshot refreshes and explicit companion-checked
+  additions, plus tooling counts for `bin/` and repositories without commits
+  ([shared #60](https://github.com/dragginzgame/shared-tooling/issues/60),
+  [#61](https://github.com/dragginzgame/shared-tooling/issues/61),
+  [#64](https://github.com/dragginzgame/shared-tooling/issues/64)).
+
+See [the 0.7 notes](docs/changelog/0.7.md).
+
 ## [0.7.0] - 2026-10-08
 
 - Communicate with caller-spawned children through the shared bounded IO engine,

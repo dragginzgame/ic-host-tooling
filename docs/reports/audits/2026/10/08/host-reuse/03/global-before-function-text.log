@@ -1,0 +1,5 @@
+wasm: /tmp/ic-host-audit-20261008-03/wasm/global-before-function.wasm
+  raw bytes:                40  (0.000 MiB)
+  code section:              4  (0.000 MiB)
+  function count:            1
+OK: within IC install limits and raw soft budget

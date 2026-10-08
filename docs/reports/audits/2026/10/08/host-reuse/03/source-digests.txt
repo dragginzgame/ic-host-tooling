@@ -1,0 +1,10 @@
+692a3c134969b28abe7c287af80f0210dbd199ddda8c28b31b56f0997f2d668d  ../canic/crates/canic-host/src/tool_install/mod.rs
+bd507feb2014332a917e03f7077b8052105462cb89c099c62421dcf6423859df  ../canic/crates/canic-host/src/artifact_io/wasm/mod.rs
+852c7c0c257ec0ea7cbe2720b20f036b2fdad94f5e2d53bcff9fde005472bc7a  ../canic/crates/canic-host/src/icp/command.rs
+203deab0946d09a097999238a5ca302bc14469d97f642b89969c3a444e3e3400  ../toko/bin/wasm-postprocess/wasm_metrics.js
+8a4c0acaeb7c45b1e642247f80454dc3b8a562ea64a3b8fd8ac91dceb561d3fd  ../toko-miner/apps/toko_miner/user_hub/src/qualification/opening/costs/capacity/encoder.rs
+ea44b95bc3f4856afb15618507d5b86210127d423dc2c8e61f74b7dcd6322882  ../ic-testkit/Cargo.toml
+251c41ad3388504ab8fb3c3886bfde219f82564e340bc5bf87ccd6a778fd9a58  ../ic-testkit/crates/ic-testkit/src/lib.rs
+f91e77600efcea3300061f8efb3b27ae5ea8bc0a73145253d9d6d96c7b473719  ../ic-testkit/CHANGELOG.md
+aba7f631e397e436b79c31dfd8fc93eec48d06a0deba2840f115e9176f462105  ../ic-query/scripts/canister/smoke.py
+093d9404d7e065a7ec0eedd2244df9688c624e99b7f3478f8d74357db2ea6e44  ../ic-backup/crates/ic-backup/src/ops/persistence/command_lifetime_lock/mod.rs

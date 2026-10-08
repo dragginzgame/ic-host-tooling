@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Shared companions: scripts/ci/verify-file-checksum.sh
 set -euo pipefail
 
 # Internal implementation of the reviewed CI-tool entry points.
