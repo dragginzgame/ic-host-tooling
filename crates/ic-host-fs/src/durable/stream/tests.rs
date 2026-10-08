@@ -305,6 +305,7 @@ fn descriptor_publication_preserves_sync_state_and_foreign_stage_cleanup_evidenc
             OsStr::new("output"),
             REPLACE,
             |_, file| file.write_all(b"new"),
+            None::<fn(&Path, &()) -> io::Result<()>>,
             |current, _| {
                 if current == step {
                     Err(io::Error::from_raw_os_error(5))
@@ -337,6 +338,7 @@ fn descriptor_publication_preserves_sync_state_and_foreign_stage_cleanup_evidenc
             fs::write(fixture.root.join(stage), b"foreign").unwrap();
             Err("producer evidence")
         },
+        None::<fn(&Path, &()) -> Result<(), &'static str>>,
         |_, _| Ok(()),
     )
     .unwrap_err();
@@ -344,6 +346,145 @@ fn descriptor_publication_preserves_sync_state_and_foreign_stage_cleanup_evidenc
         matches!(error, NamedWriteError::Producer { source: "producer evidence", cleanup_error: Some(source) } if source.kind() == io::ErrorKind::InvalidData)
     );
     assert_eq!(fs::read_dir(&fixture.root).unwrap().count(), 2);
+}
+
+#[test]
+fn closed_writer_admission_executes_before_replacing_the_destination() {
+    let fixture = Fixture::new();
+    let output = fixture.root.join("executable with spaces");
+    fs::write(&output, b"old").unwrap();
+    let value = write_validated_with(
+        &output,
+        WriteOptions {
+            permissions: 0o700,
+            ..REPLACE
+        },
+        |file| -> io::Result<_> {
+            let mut source = fs::File::open("/bin/sh")?;
+            io::copy(&mut source, file)?;
+            Ok(42)
+        },
+        |stage, value| -> io::Result<()> {
+            assert!(stage.is_absolute());
+            assert_eq!(*value, 42);
+            assert_eq!(fs::read(&output)?, b"old");
+            assert!(
+                std::process::Command::new(stage)
+                    .args(["-c", "exit 0"])
+                    .status()?
+                    .success()
+            );
+            Ok(())
+        },
+    )
+    .unwrap();
+    assert_eq!(value, 42);
+    assert!(
+        std::process::Command::new(&output)
+            .args(["-c", "exit 0"])
+            .status()
+            .unwrap()
+            .success()
+    );
+    assert_eq!(fs::read_dir(&fixture.root).unwrap().count(), 1);
+}
+
+#[test]
+fn admission_rejection_and_identity_replacement_preserve_previous_output() {
+    let fixture = Fixture::new();
+    let output = fixture.root.join("output");
+    for replace in [false, true] {
+        fs::write(&output, b"old").unwrap();
+        let mut stage_path = None;
+        let result = write_validated_with(
+            &output,
+            REPLACE,
+            |file| file.write_all(b"new"),
+            |stage, ()| -> io::Result<()> {
+                stage_path = Some(stage.to_owned());
+                if replace {
+                    fs::remove_file(stage)?;
+                    fs::write(stage, b"foreign")?;
+                    Ok(())
+                } else {
+                    Err(io::Error::from_raw_os_error(13))
+                }
+            },
+        );
+        assert_eq!(fs::read(&output).unwrap(), b"old");
+        if replace {
+            assert!(
+                matches!(result, Err(NamedWriteError::BeforePublication { source, cleanup_error: Some(_) }) if source.kind() == io::ErrorKind::InvalidData)
+            );
+            assert_eq!(fs::read(stage_path.unwrap()).unwrap(), b"foreign");
+        } else {
+            assert!(
+                matches!(result, Err(NamedWriteError::Producer { source, cleanup_error: None }) if source.raw_os_error() == Some(13))
+            );
+            assert!(!stage_path.unwrap().exists());
+        }
+    }
+}
+
+#[test]
+fn validated_publication_retains_sync_and_publication_failure_phases() {
+    let fixture = Fixture::new();
+    let output = fixture.root.join("output");
+    for step in [
+        FileCommitStep::TemporaryFileSync,
+        FileCommitStep::Publication,
+        FileCommitStep::FinalParentSync,
+    ] {
+        fs::write(&output, b"old").unwrap();
+        let mut admitted = false;
+        let error = super::super::supported::commit_path_with_options(
+            &output,
+            REPLACE,
+            |_, file| file.write_all(b"new"),
+            Some(|_: &Path, (): &()| -> io::Result<()> {
+                admitted = true;
+                Ok(())
+            }),
+            |current, _| {
+                if current == step {
+                    Err(io::Error::from_raw_os_error(5))
+                } else {
+                    Ok(())
+                }
+            },
+        )
+        .unwrap_err();
+        assert_eq!(admitted, step != FileCommitStep::TemporaryFileSync);
+        if step == FileCommitStep::FinalParentSync {
+            assert!(
+                matches!(error, NamedWriteError::AfterPublication { source } if source.raw_os_error() == Some(5))
+            );
+            assert_eq!(fs::read(&output).unwrap(), b"new");
+        } else {
+            assert!(
+                matches!(error, NamedWriteError::BeforePublication { source, cleanup_error: None } if source.raw_os_error() == Some(5))
+            );
+            assert_eq!(fs::read(&output).unwrap(), b"old");
+        }
+        assert_eq!(fs::read_dir(&fixture.root).unwrap().count(), 1);
+    }
+}
+
+#[test]
+fn validated_create_new_preserves_an_admission_race_winner() {
+    let fixture = Fixture::new();
+    let output = fixture.root.join("output");
+    let result = write_validated_with(
+        &output,
+        CREATE,
+        |file| file.write_all(b"ours"),
+        |_, ()| fs::write(&output, b"winner"),
+    );
+    assert!(
+        matches!(result, Err(NamedWriteError::BeforePublication { source, cleanup_error: None }) if source.kind() == io::ErrorKind::AlreadyExists)
+    );
+    assert_eq!(fs::read(output).unwrap(), b"winner");
+    assert_eq!(fs::read_dir(&fixture.root).unwrap().count(), 1);
 }
 
 #[test]

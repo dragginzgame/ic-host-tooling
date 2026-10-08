@@ -20,13 +20,7 @@ fn encoded_member_is_repeatable_and_preserves_the_existing_zero_timestamp_format
     let reference = reference.finish().unwrap();
     for _ in 0..2 {
         let mut output = Vec::new();
-        encode_gzip(
-            input,
-            &mut output,
-            Compression::best(),
-            reference.len() as u64,
-        )
-        .unwrap();
+        encode_gzip(input, &mut output, 9, reference.len() as u64).unwrap();
         assert_eq!(output, reference);
         assert_eq!(&output[4..8], &[0, 0, 0, 0]);
         assert_eq!(
@@ -49,22 +43,40 @@ fn compressed_budget_includes_header_and_trailer_and_preserves_sink_errors() {
         }
     }
     let mut complete = Vec::new();
-    encode_gzip(b"", &mut complete, Compression::fast(), 100).unwrap();
+    encode_gzip(b"", &mut complete, 1, 100).unwrap();
     let mut partial = Vec::new();
-    let error = encode_gzip(
-        b"",
-        &mut partial,
-        Compression::fast(),
-        complete.len() as u64 - 1,
-    )
-    .unwrap_err();
+    let error = encode_gzip(b"", &mut partial, 1, complete.len() as u64 - 1).unwrap_err();
     assert!(matches!(
         error.get_ref().unwrap().downcast_ref::<WriterError>(),
         Some(WriterError::LimitExceeded { .. })
     ));
     assert!(partial.len() < complete.len());
-    let error = encode_gzip(b"payload", FailedSink, Compression::none(), 100).unwrap_err();
+    let error = encode_gzip(b"payload", FailedSink, 0, 100).unwrap_err();
     assert_eq!(error.kind(), std::io::ErrorKind::PermissionDenied);
+}
+
+#[test]
+fn compression_levels_preserve_backend_bytes_and_reject_invalid_input_before_writing() {
+    for level in 0..=9 {
+        let input = b"same bytes same bytes same bytes";
+        let mut expected = GzBuilder::new()
+            .mtime(0)
+            .write(Vec::new(), Compression::new(level));
+        expected.write_all(input).unwrap();
+        let mut output = Vec::new();
+        encode_gzip(input, &mut output, level, 4096).unwrap();
+        assert_eq!(output, expected.finish().unwrap());
+    }
+    let mut output = b"untouched".to_vec();
+    for level in [10, u32::MAX] {
+        assert_eq!(
+            encode_gzip(b"input", &mut output, level, 4096)
+                .unwrap_err()
+                .kind(),
+            io::ErrorKind::InvalidInput
+        );
+        assert_eq!(output, b"untouched");
+    }
 }
 
 #[test]

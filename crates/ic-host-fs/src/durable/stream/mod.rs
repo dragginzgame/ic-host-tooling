@@ -56,6 +56,7 @@ pub fn write_typed_with<T, E>(
             path,
             options,
             |_, file| produce(file),
+            None::<fn(&Path, &T) -> Result<(), E>>,
             |_, _| Ok(()),
         )
     }
@@ -105,12 +106,61 @@ pub fn write_at_with<T, E>(
             name,
             options,
             |_, file| produce(file),
+            None::<fn(&Path, &T) -> Result<(), E>>,
             |_, _| Ok(()),
         )
     }
     #[cfg(not(any(target_os = "linux", target_os = "android", target_vendor = "apple")))]
     {
         let _ = (parent, name, options, produce);
+        Err(NamedWriteError::before(std::io::Error::new(
+            std::io::ErrorKind::Unsupported,
+            "durable atomic file publication is unsupported",
+        )))
+    }
+}
+
+/// Stream, synchronize and close a writer before admitting its staged pathname.
+///
+/// Shares [`write_typed_with`]'s engine, permissions and publication modes. After
+/// successful production and file sync, a verified read-only descriptor retains
+/// inode custody while the library's writable descriptor is closed. `admit` then
+/// receives the absolute staged path and the producer's value before publication.
+/// This allows executable admission on hosts that reject executing a writable inode.
+///
+/// The producer must close all writable clones and finish external writers before
+/// returning. Admission must not modify the file and must finish its child processes
+/// before returning. The library does not choose executable versions, arguments,
+/// environment, byte limits or retries. Read permission is required when reopening
+/// the stage; execute permission is caller-selected. All parent-custody and
+/// interruption obligations of [`write_typed_with`] apply. A read-only descriptor
+/// is not a sandbox or a guarantee against concurrent content modification.
+///
+/// # Errors
+/// Producer/admission failures retain `E` in [`NamedWriteError::Producer`].
+/// Reopening, identity, sync and publication failures retain their filesystem
+/// phase. Admission rejection preserves the prior destination and attempts
+/// owned-entry cleanup. Reconcile after-publication failures before retrying.
+pub fn write_validated_with<T, E>(
+    path: &Path,
+    options: WriteOptions,
+    produce: impl FnOnce(&mut fs::File) -> Result<T, E>,
+    admit: impl FnOnce(&Path, &T) -> Result<(), E>,
+) -> Result<T, NamedWriteError<E>> {
+    #[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
+    {
+        let absolute = std::path::absolute(path).map_err(NamedWriteError::before)?;
+        super::supported::commit_path_with_options(
+            &absolute,
+            options,
+            |_, file| produce(file),
+            Some(admit),
+            |_, _| Ok(()),
+        )
+    }
+    #[cfg(not(any(target_os = "linux", target_os = "android", target_vendor = "apple")))]
+    {
+        let _ = (path, options, produce, admit);
         Err(NamedWriteError::before(std::io::Error::new(
             std::io::ErrorKind::Unsupported,
             "durable atomic file publication is unsupported",

@@ -10,8 +10,11 @@ description = "Admitted host executable resolution, bounded execution and Git ob
 readme = "../../README.md"
 publish = ["crates-io"]
 
+[target.'cfg(target_os = "macos")'.dependencies]
+libc.workspace = true
+
 [target.'cfg(unix)'.dependencies]
-rustix.workspace = true
+rustix = { workspace = true, features = ["process"] }
 
 [dependencies]
 ic-host-artifacts.workspace = true

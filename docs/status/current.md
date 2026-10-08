@@ -1,6 +1,191 @@
 # Current handoff
 
-## Latest qualification: 2026-10-07, after 0.4.5
+## Latest qualification: 2026-10-07, pending 0.5.0
+
+Released base remains 0.4.6 at
+`0fb05f9e18f032425188d68e1d69317a0f0127d5`. The current local batch carries
+forward the child work below and implements the remaining artifact/API and
+single-file executable publication requirements. The pending release is now
+**0.5.0**, superseding the earlier 0.4.7 draft: numeric gzip compression arguments,
+new public Wasm fact fields, stricter import/global framing and additional typed
+inspection failures require consumer changes. Both changelog views are aligned;
+manifest/package versions remain 0.4.6. No stored format changed.
+
+`durable::write_validated_with` closes the staged writer before caller admission,
+retaining verified read-only inode custody in the existing publication engine.
+It preserves original producer/admission failures, separate cleanup errors and
+before/after-publication filesystem evidence. Linux tests execute a staged
+`/bin/sh` before replacing the old destination and cover rejection, foreign inode
+replacement, create-only races and sync/publication failure ordering. Writable
+clones, child completion, content/namespace custody, executable policy and
+multi-file bundles remain consumer obligations.
+
+Wasm inspection now reports imported functions, defined/imported globals and
+exact code-body bytes. Source review corrected the premise in
+[Host #10](https://github.com/dragginzgame/ic-host-tooling/issues/10): the replica
+checks bytes after the encoded function-count prefix, whereas existing
+`code_section_bytes` includes it. Both facts are retained with distinct meanings;
+a padded-LEB fixture verifies the actual prefix width is excluded. The opt-in
+`ic-limits` tools adapter compares three selected resources using caller limits
+or reference revision `9499f64bda8bcf087188dd8a1bb594115640ba9e`. It does not
+establish complete installability or deployed-network policy. With defaults
+disabled it introduces no filesystem/process dependencies.
+
+After explicit locked offline cache preparation, focused Linux checks pass:
+63 filesystem tests, 65 all-feature artifact tests, 12 response/limits-profile
+tests, strict selected Clippy, Rust 1.88 all-target checks, warning-denied Rustdoc
+and actual feature-graph exclusions. The child qualification below remains
+applicable to unchanged child source. Logs, including corrected initial lint
+failures, are preserved under `/tmp/ic-host-next-*`, `/tmp/ic-host-050-*` and
+`/tmp/ic-host-047-*`. No full local CI/release gate ran. Native macOS compilation
+and execution of the candidate, including the approved private FFI call and
+closed-writer executable fixture, remain unqualified on both architectures.
+Released 0.4.6 CI success is not candidate evidence.
+
+GitHub delivery now succeeds after earlier server failures. Source/evidence and
+remaining delivery requirements are recorded on
+[#5](https://github.com/dragginzgame/ic-host-tooling/issues/5),
+[#10](https://github.com/dragginzgame/ic-host-tooling/issues/10),
+[#14](https://github.com/dragginzgame/ic-host-tooling/issues/14) and
+[#20](https://github.com/dragginzgame/ic-host-tooling/issues/20).
+[#13](https://github.com/dragginzgame/ic-host-tooling/issues/13) is closed as not
+planned: `candid_parser::utils` already owns service compatibility/reporting,
+and Canic's cited domain-specific method equality is not the same operation.
+No redundant compatibility wrapper or dependency was added.
+
+The prepared child replacement and exact private rehearsal evidence are delivered
+in [Testkit #25](https://github.com/dragginzgame/ic-testkit/issues/25).
+[Canic #458](https://github.com/dragginzgame/canic/issues/458#issuecomment-6043858342)
+records the closed-writer contract, numeric gzip adoption and corrected Wasm
+comparison, bound to reviewed dirty module digests. Sibling checkouts remain
+untouched. Testkit publicly reexports Host crates, so selecting the new Host minor
+also requires its consumer minor. Canic must preserve typed publication/cleanup
+outcomes and retain its independently used bundle staging helper. Query's Python
+capture/cancellation integration and Canic's inherited operation-lock descriptors
+are still unimplemented requirements under #5; owned pipes alone do not satisfy
+those contracts. No descendant-exit or paid-effect recovery guarantee was added.
+
+The only removed Host function is private `tool::process::reap`, replaced by
+`child::OwnedChild` cleanup/reaping. No type or public function was removed;
+`encode_gzip` changed its argument contract. No dependency version or registry
+selection changed, and no download, sibling mutation, commit, push, release or
+publication was performed.
+
+The subsequent adoption rehearsal refreshes all 68 selected Shared Tooling files
+from committed 0.1.22 `2687f26317952c43c685f7f799ed09288dc10a67`, using a clean
+isolated copy; the sibling's uncommitted 0.1.23 edits are excluded. AGENTS.md and
+the snapshot identify the new revision. Its upstream native Linux/macOS jobs
+[pass at that exact revision](https://github.com/dragginzgame/shared-tooling/actions/runs/37659875012).
+Focused local snapshot, release-adapter, direct recovery and command-wiring
+fixtures pass. `RELEASE_DELIVERY=direct` remains the consumer's qualified policy;
+other selections are refused before command execution. PR release delivery,
+including its pending older-gh compatibility fix, has not been adopted. Ordinary
+contribution PRs remain available through the existing contribution rules.
+
+Canic rehearsal is bound to clean committed source
+`95038e1a381ce88eb19415f5bb6d8439457b75f1` in an isolated copy. All four Host
+packages use explicit local source patches; the selected registry versions are
+not upgraded or presented as published 0.5. Nine installer, 24 artifact and two
+staged executable-admission tests pass, with strict canic-host all-target Clippy.
+Original admission errno, independent foreign-stage cleanup refusal and typed
+after-publication projection are covered. Existing bundle fixtures still pass.
+No real tool installation or network download ran. The complete proposed patch,
+scope, source and consumer minor-boundary requirements are delivered on
+[Canic #458](https://github.com/dragginzgame/canic/issues/458#issuecomment-6044765060).
+The real Canic checkout is untouched.
+
+The proposed Canic patch removes private `artifact_io::wasm::validate_defined_functions`
+and `validate_wasm_code_section_size`, replacing them with one projection over
+the shared report. Its three former boundary tests are consolidated into the
+new reference/import boundary case; final-artifact exact/+1 coverage remains.
+`publish_executable` is refactored, not removed. Bundle helpers remain required.
+No additional Host function or type was removed by the snapshot/rehearsal work.
+Logs, failed lint attempts, exact source digests and patches are retained under
+`/tmp/ic-host-050-adoption.6V2DSt/`.
+
+This machine is Linux x86-64. Native candidate macOS qualification requires the
+existing PR CI matrix; its latest completed Host run still covers released
+0.4.6. The complete candidate patch and draft PR description are prepared in
+the same evidence directory. A scoped commit/PR request is required by the
+contribution rules before publishing the candidate branch. No candidate native
+macOS run, commit, branch push or PR has occurred yet.
+
+## Previous qualification: 2026-10-07, initial 0.4.7 draft (superseded)
+
+The maintainer reports 0.4.6 live. The compatible **0.4.7** candidate implements
+the explicit child/group cleanup portion of
+[#5](https://github.com/dragginzgame/ic-host-tooling/issues/5), based on
+`0fb05f9e18f032425188d68e1d69317a0f0127d5`. `child::OwnedChild` preserves the
+caller's command IO/context while creating a new group. Polling, natural waiting,
+termination and Drop share leader reservation, signalling and reaping mechanics.
+The existing capture engine now uses that owner internally with its existing
+direct-child contract. Its private `tool::process::reap` function was removed;
+`OwnedChild::terminate` and its private reap method replace it. No public function,
+method or type was removed. No application lifecycle or recovery policy moved.
+
+The maintainer explicitly approved the small macOS FFI boundary after reviewing
+`/tmp/ic-host-047-macos-boundary.rs`. One private fixed-buffer membership query
+handles the sole-zombie group EPERM case; unsafe code is denied elsewhere.
+The already-selected libc 0.2.190 is now a macOS-only direct dependency and
+rustix enables its process feature. Cargo.lock adds only the libc dependency
+edge; package versions and registry version selections are unchanged. No tool
+or dependency download was needed. Native macOS compilation/execution of these
+candidate bytes remains outstanding, independently of released 0.4.6 success.
+
+After explicit offline cache preparation, Linux checks pass: 44 process tests,
+strict process Clippy, Rust 1.88 checks and Rustdoc. Native child tests exercise
+caller IO/context, new group selection, normal exit with a remaining descendant,
+explicit termination, Drop/unwind, repeated status inspection and lost reaping
+ownership. Interrupted-call retry is injected at its helper boundary, not claimed
+as native signal-delivery evidence. Initial lint findings and corrected logs are
+retained under `/tmp/ic-host-047-*`. Sorting, formatting, dependency declarations,
+snapshot integrity and documentation checks pass. No full local gate ran.
+
+The proposed Testkit patch `/tmp/ic-host-047-testkit.patch` applies to the unchanged
+startup module on `2db7b4f6b616b484408695656e26207628d74c5f`; its source digest
+is recorded in `ci/extraction-sources.json`. A private source rehearsal at
+`/tmp/ic-host-047-testkit.0Jzbxb` replaces the guard/poll/group-kill/reap helpers,
+removing 134 net lines. Explicit local-source Cargo patches pass 16 startup tests,
+7 server-runner integration tests and strict Testkit library Clippy on Linux.
+One real-server startup test and two runner cases (real server and its worker)
+remain ignored. No real PocketIC server ran. This is candidate source evidence,
+not registry adoption or native consumer qualification. Testkit's real checkout
+and unrelated dirty work remain untouched. No commit, push or release occurred.
+
+GitHub reads succeeded, but attempts to create the consumer handoff issue and
+comment on existing #5 failed with server errors. Reconciliation found no created
+consumer issue; the prepared payload and patch remain in `/tmp/ic-host-047-*`
+as delivery evidence, not a replacement issue tracker. #5 remains the owning
+follow-up for qualification and its separate Query/Canic execution requirements.
+
+## Previous qualification: 2026-10-07, after 0.4.6
+
+Released 0.4.6 is `0fb05f9e18f032425188d68e1d69317a0f0127d5`.
+[Exact-source CI](https://github.com/dragginzgame/ic-host-tooling/actions/runs/37648086908)
+passes MSRV, Linux x86-64, macOS 15 Intel and macOS 15 Apple Silicon. This
+supersedes the outstanding native qualification below: the Darwin mode repair
+and native non-UTF-8 publication fixture now pass on both supported architectures.
+The maintainer reports the release pushed; CI evidence alone does not establish
+registry publication or consumer adoption.
+
+The issue review recorded this release evidence on the completed Host extraction
+and snapshot-adoption issues before closing them. Consumer integration remains
+with its existing owning-repository issues, including Query's descriptor writer
+and Backup's crash-barrier obligations. Source review of the remaining proposals
+found no additional confirmed patch defect: process-group cleanup needs a bounded
+ownership design, Candid compatibility must reuse its existing upstream engine,
+and changes to the public compression type or Wasm fact fields require a minor
+release. GitHub remains the follow-up tracker; this handoff is qualification
+evidence rather than a second issue queue.
+
+Shared Tooling remains at committed 0.1.20
+`3ecc48e579f6cf6e6ab01a6645d8a250fc8c6934`, already adopted. This continuation
+only updates the handoff and removes the README's stale release-number copy.
+No production code, function, method, type, dependency or package version changed.
+Documentation links and whitespace checks pass. No local compilation, full gate,
+sibling mutation, commit, push or publication was performed.
+
+## Previous qualification: 2026-10-07, after 0.4.5
 
 Released 0.4.5 is `93a905b048bcaa2a0aed4214ac2f13f065dc2905`.
 [Exact-source CI](https://github.com/dragginzgame/ic-host-tooling/actions/runs/37645681743)

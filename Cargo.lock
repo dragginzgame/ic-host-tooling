@@ -147,6 +147,7 @@ version = "0.4.6"
 dependencies = [
  "ic-host-artifacts",
  "ic-host-fs",
+ "libc",
  "rustix",
 ]
 

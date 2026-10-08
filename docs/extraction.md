@@ -13,14 +13,17 @@ Test/example artifact features do not become production filesystem dependencies.
 Disabling the tools defaults retains response decoding while excluding all three
 generic extraction dependencies from its normal graph. This is an additive
 feature choice; default callers retain the existing Unix extraction surface.
+The optional `ic-limits` profile adds only generic artifact inspection to the
+response-only graph; IC reference values and comparison remain in the tools owner.
 
 - ic-host-artifacts owns stream identities, bounded read/write/copy mechanics,
   optional gzip encoding/decoding, verified tar member bytes and optional Wasm structural facts.
 - ic-host-fs owns pathname/descriptor reads and the durable module's replace,
   create-new, private-file, parent synchronization and descriptor-lock operations.
 - ic-host-process owns executable resolution/admission, explicit execution context,
-  output limits, deadlines, direct-child cleanup evidence and separate Git queries.
-- ic-host-tools owns Candid text/extractor interpretation and ICP response formats.
+  output limits, deadlines, direct-child/explicit group cleanup evidence and separate Git queries.
+- ic-host-tools owns Candid text/extractor interpretation, ICP response formats
+  and explicit revision-bound IC resource comparisons.
 
 Source tests move with their owner; public artifact projection tests belong to
 ic-host-artifacts. Runnable examples retain explicit dependencies on each owner.
@@ -43,6 +46,13 @@ remain distinct, as does a final sync failure after publication. Parent hierarch
 control and exclusion of concurrent namespace mutation are caller prerequisites;
 this is neither arbitrary-file adoption nor a child sandbox.
 
+`durable::write_validated_with` adds a closed-writer admission phase to that same
+engine. Read-only descriptor custody preserves inode identity while permitting
+prepublication executable probes. Consumers retain tool versions, distribution
+hashes, probe arguments/environment and bundle layout. All writable clones and
+probe processes must finish before publication; read-only custody does not
+prevent an external writer from changing bytes.
+
 The first import preserves implemented guarantees. It does not establish root
 confinement for following pathname APIs, immutable source bytes, process sandboxing,
 descendant cleanup, hardware-independent crash durability or safe paid-effect retries.
@@ -60,6 +70,22 @@ reconstructing commands and dropping consumer-owned setup. Neither entry owns
 process groups, retries or paid-operation recovery. `ToolError::evidence` and
 `execution_error` borrow the existing capture and failure objects for consumer
 error projection; no parallel error model or automatic diagnostic output is added.
+
+`ic_host_process::child::OwnedChild` shares child spawn/reap/cleanup mechanics
+with the direct-child capture engine. Its public spawn establishes a new group
+while preserving caller IO and command settings. It reserves an exited leader
+until group signalling finishes, then reaps it. The caller drives polling,
+natural waiting or cancellation; Drop provides best-effort cleanup, including
+unwinding. Typed cleanup evidence remains separate from the original operation
+failure. No application readiness, global signal handler, lifecycle controller,
+retry, descendant-exit barrier or process-tree containment is introduced.
+Exclusive reaping and an unchanged child group are required. Synchronous cleanup
+has no wall-clock bound and only reaps the direct child.
+
+The sole-zombie macOS check uses one private fixed-buffer libproc call, explicitly
+approved by the maintainer. Unsafe code remains denied outside that function.
+All other process syscalls use safe rustix APIs; the existing selected libc
+version becomes a macOS-only direct dependency, without a bindgen toolchain.
 
 `AdmittedTool::admit_version` shares the exact admission engine for tools whose
 installation the caller already trusts. It takes a `VersionSpec`, records the
