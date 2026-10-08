@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.7.0]
+## [0.7.0] - 2026-10-08
 
 - Communicate with caller-spawned children through the shared bounded IO engine,
   supporting piped input, inherited output, cancellation and explicit retention
