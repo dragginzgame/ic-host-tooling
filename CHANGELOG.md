@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.8.0]
+## [0.8.0] - 2026-10-08
 
 - Allow caller-selected TERM grace and bounded reaping for owned groups,
   shared by explicit termination, communication failures and Drop. This supplies

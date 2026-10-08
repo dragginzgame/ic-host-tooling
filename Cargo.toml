@@ -10,7 +10,7 @@ resolver = "3"
 [workspace.package]
 edition = "2024"
 rust-version = "1.88.0"
-version = "0.7.2"
+version = "0.8.0"
 license = "MIT"
 repository = "https://github.com/dragginzgame/ic-host-tooling"
 authors = ["borovan <84897664+borovan@users.noreply.github.com>"]
@@ -19,10 +19,10 @@ description = "Host-side artifact, filesystem, process and IC tooling"
 [workspace.dependencies]
 # Registry versions are compatible ranges; Cargo.lock records exact build selections.
 flate2 = { version = "1.1.10", default-features = false, features = ["rust_backend"] }
-ic-host-artifacts = { path = "crates/ic-host-artifacts", version = "0.7", default-features = false }
-ic-host-fs = { path = "crates/ic-host-fs", version = "0.7", default-features = false }
-ic-host-process = { path = "crates/ic-host-process", version = "0.7", default-features = false }
-ic-host-tools = { path = "crates/ic-host-tools", version = "0.7", default-features = false }
+ic-host-artifacts = { path = "crates/ic-host-artifacts", version = "0.8", default-features = false }
+ic-host-fs = { path = "crates/ic-host-fs", version = "0.8", default-features = false }
+ic-host-process = { path = "crates/ic-host-process", version = "0.8", default-features = false }
+ic-host-tools = { path = "crates/ic-host-tools", version = "0.8", default-features = false }
 libc = "0.2.190"
 rustix = { version = "1.1.4", default-features = false, features = ["std", "fs"] }
 serde = { version = "1.0.228", default-features = false, features = ["std"] }
