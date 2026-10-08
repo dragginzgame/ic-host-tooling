@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.7.2]
+## [0.7.2] - 2026-10-08
 
 - Preserve checkout paths in release-adapter, publication and feature checks with an
   inherited `CDPATH` or trailing path newlines
