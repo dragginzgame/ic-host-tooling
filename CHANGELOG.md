@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.8.1]
+## [0.8.1] - 2026-10-08
 
 - Add immediate path-lock contention refusal through the existing regular-file
   admission API ([#24](https://github.com/dragginzgame/ic-host-tooling/issues/24)).
