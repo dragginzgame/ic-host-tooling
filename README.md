@@ -89,6 +89,8 @@ the returned close-on-exec descriptor. Callers retain retry and waiting policy.
 `durable::open_regular_lock_file_with_parents` exposes that same admitted file
 without acquiring a lock. Consumers can select shared locking or compose it with
 `lock_exclusive_with_wait`, keeping wait timing and explicit unlock policy local.
+Existing lock files need no staging or parent write permission; durable creation
+runs only when the entry is missing.
 
 `durable::write_named_with` lets an external tool write to an owned absolute
 staging path, then shares the normal durable publication engine. Callers validate

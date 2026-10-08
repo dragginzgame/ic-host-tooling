@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.8.4]
+
+- Open existing lock files without temporary publication or sync work, allowing
+  writable locks under read-only parent directories
+  ([#29](https://github.com/dragginzgame/ic-host-tooling/issues/29)).
+- Refresh shared installer validation and simulation-only release fixtures;
+  report all refused release-source paths through the common checker
+  ([#30](https://github.com/dragginzgame/ic-host-tooling/issues/30)).
+
+See [the 0.8 notes](docs/changelog/0.8.md).
+
 ## [0.8.3] - 2026-10-08
 
 - Add live output observation to owned-child communication, retaining bounded

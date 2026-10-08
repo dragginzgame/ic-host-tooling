@@ -53,8 +53,8 @@ The table describes the intended CI contract. Passing qualification for a
 revision requires its matching workflow run; adding a matrix entry does not
 establish that the run passed.
 
-The portable job allows 25 minutes including native setup and evidence upload.
-Its regression step has a separate 15-minute limit, leaving time for the failure
+The portable job allows 35 minutes including native setup and evidence upload.
+Its regression step has a separate 20-minute limit, leaving time for the failure
 collector after an overlong suite. Lint/security retains its 10-minute limit.
 
 All three jobs also run real Prettier/Rust hook qualification and a native
@@ -78,6 +78,7 @@ required to run setup. Make targets and CI select this same local tool set.
 | `scripts/dev/cloc-siblings.sh` | Git and the same prepared tools as `cloc.sh`; read-only root workspace summaries |
 | `scripts/dev/cloc-tooling.pl` | Git, cloc, and core Perl modules including JSON::PP and Digest::SHA; no Cargo or consumer command execution |
 | `scripts/dev/gh-ci.sh` | Git and an authenticated GitHub CLI |
+| Local maintenance coordinator | Bash 3.2+, Git, prepared/authenticated Codex CLI with `exec --approve-for-me`, and a serial scheduler; the supplied user units require Linux systemd. Task tools remain optional consumer-qualified inputs; see [local scheduling](../tasks/local-schedule.md). The offline fixture substitutes Codex and starts no agent. |
 | `scripts/ci/run-validation-targets.sh` | GNU Make plus `awk`, `grep` or `rg`, `sed`, `tail`, and `tee` |
 | Archive installer scripts | `curl`, `tar`, a SHA-256 implementation, and the archive codec used by the selected tool |
 | Evidence archiver | Bash 3.2+, tar and gzip; explicit existing roots and relative selections |
@@ -126,6 +127,17 @@ The pinning regression fixture also requires the reviewed jq and yq parsers. CI 
 them from checksum-pinned Linux and macOS binaries; checks and fixtures never
 download it implicitly. Its installer also maps Linux ARM64; only matching
 native execution qualifies that host.
+
+## Cargo installation assessment
+
+The separate manually triggered `cargo-install-qualification.yml` workflow
+qualifies Cargo's registry binary/example mechanics on the same three native
+hosts. It records the prepared Cargo/Rust compiler identity and uses a 30-minute
+assessment step within a 40-minute job, preserving time for failed-build evidence
+collection. It does not extend the default portable gate or establish a new
+consumer installer contract. See the
+[assessment procedure](local-setup.md#cargo-installation-assessment) for its
+selected fixtures, offline prerequisites and outstanding extraction boundaries.
 
 ## Installer-capable platforms
 

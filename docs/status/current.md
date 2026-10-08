@@ -1,6 +1,49 @@
 # Current handoff
 
-## Latest work: 2026-10-08, pending 0.8.3 consumer composition APIs
+## Latest work: 2026-10-08, pending 0.8.4 lock opening and shared tooling
+
+Host 0.8.3 is released at `67d031222073f23ad437b45053156e229f86a016`,
+reported live by the maintainer. This compatible **0.8.4** batch implements
+[#29](https://github.com/dragginzgame/ic-host-tooling/issues/29) and
+[#30](https://github.com/dragginzgame/ic-host-tooling/issues/30) locally.
+
+Existing lock entries now skip durable publication staging. Missing entries
+still create parents/file once and converge on the same no-follow/nonblocking
+open and descriptor checks. Existing bytes, lock acquisition policy and typed
+errors are retained. A concurrent removal may return NotFound without retry.
+An actual Linux syscall probe of three existing-file opens changed from three
+temporary files/fsyncs/no-replace attempts/unlinks to zero, and read/write opening
+under a mode-0555 parent now succeeds. This measures effects, not elapsed speed.
+The controlled prior failure is retained in `/tmp/ic-host-audit-083/`; current
+probe, source and checks are under `/tmp/ic-host-084/`.
+
+Shared Tooling was exported canonically from a clean private checkout of
+`4e274a2219c0b0cc3af68ec65658b373253518fb`. The final 86-file selection includes
+the new release-source checker and maintenance catalog/companions. No scheduler
+is activated. Host's adapter delegates source inventory to the shared checker,
+retaining its allowed paths for each phase. Consumer release-runner tests now
+simulate Git effects; upstream retains real tracking qualification separately.
+The exact previous `ci/ic-tools.tsv` bytes are preserved as a documented local
+selection outside the snapshot, avoiding an incidental PocketIC pin upgrade.
+Upstream dirty changes, new Cargo installer qualification and optional npm checks
+are not adopted as active Host tasks. Package versions and lock selections stay
+at the released state. No function, method or type was removed; the private
+adapter inventory loop was replaced inside its existing `admit_files` function.
+
+Focused locked/offline Linux validation passes: 45 durable tests (including
+concurrent creation, read-only parents and device/FIFO/symlink refusal), strict
+filesystem Clippy, Rust 1.88 all-target compilation and warning-denied Rustdoc.
+Host adapter/publication fixtures, shared simulation-runner and source-checker
+fixtures, both installer suites, selected ShellCheck, declaration pins and
+snapshot integrity pass. Installer payloads/downloads and release effects are
+substituted; source-checker fixtures use a disposable Git index without commits.
+Initial checker invocations with an unsupported `--root` flag are retained
+separately from the successful `--consumer` runs. Documentation links, formatting
+and diff checks pass. Native macOS Intel/ARM qualification remains pending for
+this candidate. No full gate, real tool download/install, commit, push, release,
+publication, schedule activation or sibling edit occurred.
+
+## Previous work: 2026-10-08, pending 0.8.3 consumer composition APIs
 
 Host 0.8.2 is released at `92bd2fecc71124b562e227a32a67644e1e5e34b7`,
 reported live by the maintainer. The tree was clean before this batch.

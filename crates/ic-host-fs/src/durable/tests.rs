@@ -234,10 +234,8 @@ fn lock_errors_preserve_admission_and_original_io_causes() {
             .unwrap()
             .success()
     );
-    // Admission first attempts durable creation using sibling staging. Keep all
-    // fixtures in our writable directory: /dev/null can fail earlier on /dev
-    // permissions instead of reaching the non-regular-file check.
-    for path in [&fixture.root, &link, &fifo] {
+    // Existing special entries must be rejected without staging in their parent.
+    for path in [&fixture.root, &link, &fifo, Path::new("/dev/null")] {
         let result = open_regular_lock_file_with_parents(path);
         assert!(
             matches!(result, Err(RegularFileLockError::NotRegular)),
@@ -274,6 +272,56 @@ fn lock_errors_preserve_admission_and_original_io_causes() {
             .downcast_ref::<RegularFileLockError>(),
         Some(RegularFileLockError::NotRegular)
     ));
+}
+
+#[cfg(unix)]
+#[test]
+fn existing_lock_admission_does_not_require_parent_write_permission() {
+    use std::os::unix::fs::PermissionsExt as _;
+    let fixture = crate::test_support::Fixture::new();
+    let path = fixture.root.join("lock");
+    fs::write(&path, b"existing lock bytes").unwrap();
+    fs::set_permissions(&fixture.root, fs::Permissions::from_mode(0o555)).unwrap();
+    // Restore permissions before asserting so even a regression leaves the
+    // fixture removable. The syscall probe separately checks no staging/sync.
+    let result = open_regular_lock_file_with_parents(&path);
+    fs::set_permissions(&fixture.root, fs::Permissions::from_mode(0o755)).unwrap();
+    let file = result.unwrap();
+    assert!(file.metadata().unwrap().is_file());
+    assert_eq!(fs::read(&path).unwrap(), b"existing lock bytes");
+}
+
+#[cfg(unix)]
+#[test]
+fn concurrent_missing_lock_openers_converge_on_one_regular_file() {
+    use std::{os::unix::fs::MetadataExt as _, sync::Barrier};
+    let fixture = crate::test_support::Fixture::new();
+    let path = fixture.root.join("nested/lock");
+    let start = Barrier::new(8);
+    let files = std::thread::scope(|scope| {
+        let workers: Vec<_> = (0..8)
+            .map(|_| {
+                scope.spawn(|| {
+                    start.wait();
+                    open_regular_lock_file_with_parents(&path).unwrap()
+                })
+            })
+            .collect();
+        workers
+            .into_iter()
+            .map(|worker| worker.join().unwrap())
+            .collect::<Vec<_>>()
+    });
+    let expected = fs::metadata(&path).unwrap();
+    for file in files {
+        let metadata = file.metadata().unwrap();
+        assert_eq!(
+            (metadata.dev(), metadata.ino()),
+            (expected.dev(), expected.ino())
+        );
+    }
+    assert_eq!(fs::read_dir(path.parent().unwrap()).unwrap().count(), 1);
+    assert_eq!(expected.len(), 0);
 }
 
 #[cfg(unix)]

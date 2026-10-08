@@ -44,6 +44,9 @@ without acquisition so consumers can choose shared locks or descriptor waiting.
 It preserves existing bytes and returns a close-on-exec read/write descriptor.
 Consumers retain stable namespace, clone lifetime and explicit unlock policy;
 opening does not establish root confinement or lock ownership.
+Existing lock entries skip publication staging and synchronization; only missing
+entries invoke durable creation. Final descriptor checks still enforce regular
+no-follow admission, and namespace removal may return a native error without retry.
 The [0.4 notes](changelog/0.4.md) describe the required consumer changes.
 
 `durable::write_named_with` exposes an absolute owned staging pathname to external

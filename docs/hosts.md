@@ -16,6 +16,12 @@ minimal artifact tests and each selected package with all features in sequence.
 The release gate uses the same host tools; installing the IC executable bundle
 is separate explicit setup and is not required for library qualification.
 CI also owns native macOS execution; Linux qualification is not macOS evidence.
+`ci/ic-tools.tsv` is a consumer-owned pin selection, retained byte-for-byte from
+the previous snapshot at `db039347d2372b877c1c46dcdd2b5c3aa9412009`.
+It is excluded from subsequent shared snapshot refreshes so tooling maintenance
+does not silently change the selected PocketIC 16.0.0 server. Host library gates
+do not use that server; changing these pins and qualifying protocol consumers
+remain separate work. The shared installer still reads this one local matrix.
 The workflow runs on pull requests and pushes to `main`; it cannot qualify
 uncommitted local bytes. A scoped contribution PR exercises both macOS 15
 architectures and Linux against the candidate source before release. Bind

@@ -19,24 +19,12 @@ version() {
     printf '%s\n' "$observed"
 }
 admit_files() {
-    local path paths rejection=""
-    paths="$(mktemp "${TMPDIR:-/tmp}/ic-host-release-paths.XXXXXX")"
-    # Inventory both sides independently: restoring a working file to HEAD
-    # must not conceal a different staged payload.
-    git diff --name-only -z --cached HEAD -- > "$paths"
-    git diff --name-only -z -- >> "$paths"
-    git ls-files --others --exclude-standard -z >> "$paths"
-    while IFS= read -r -d '' path; do
-        case "$path" in
-            CHANGELOG.md) ;;
-            Cargo.toml|Cargo.lock) [[ "$operation" != preflight && "$operation" != verify ]] || {
-                rejection="commit Cargo metadata before releasing"; break;
-            } ;;
-            *) rejection="uncommitted non-release path: $path"; break ;;
-        esac
-    done < "$paths"
-    rm -f "$paths"
-    [[ -z "$rejection" ]] || fail "$rejection"
+    local allowed=(--allow CHANGELOG.md)
+    if [[ "$operation" != preflight && "$operation" != verify ]]; then
+        allowed+=(--allow Cargo.toml --allow Cargo.lock)
+    fi
+    bash "$tooling_root/scripts/ci/check-release-source.sh" "${allowed[@]}" ||
+        fail 'commit refused source paths before releasing'
 }
 selections() {
     [[ "${RELEASE_SOURCE:?}" =~ ^[0-9a-f]{40,64}$ ]] || fail "invalid source identity"

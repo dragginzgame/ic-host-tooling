@@ -73,9 +73,11 @@ case "$*" in
             "$RELEASE_COMMIT:"*) cat "$ADAPTER_COMMITTED/${2#*:}" ;;
             *) exit 2 ;;
         esac ;;
-    'diff --name-only -z --cached HEAD --'|'ls-files --others --exclude-standard -z') ;;
-    'diff --name-only -z --')
-        if [[ -n "${ADAPTER_DIRTY_PATH:-}" ]]; then printf '%s\0' "$ADAPTER_DIRTY_PATH"; fi ;;
+    'rev-parse --show-prefix') ;;
+    'status --porcelain=v1 -z --untracked-files=all')
+        if [[ -n "${ADAPTER_DIRTY_PATH:-}" ]]; then printf ' M %s\0' "$ADAPTER_DIRTY_PATH"; fi
+        if [[ -n "${ADAPTER_STAGED_PATH:-}" ]]; then printf 'M  %s\0' "$ADAPTER_STAGED_PATH"; fi
+        if [[ -n "${ADAPTER_UNTRACKED_PATH:-}" ]]; then printf '?? %s\0' "$ADAPTER_UNTRACKED_PATH"; fi ;;
     *) echo "Unexpected Git operation: $*" >&2; exit 2 ;;
 esac
 STUB
@@ -206,9 +208,14 @@ cmp expected "$ADAPTER_EVENTS"
 
 # Keep the independent dirty-source admission boundary ahead of setup.
 : > "$ADAPTER_EVENTS"
-if ADAPTER_DIRTY_PATH=crates/ic-host-tools/src/lib.rs bash "$root/scripts/release/adapter.sh" preflight > rejected-source.log 2>&1; then
+if ADAPTER_DIRTY_PATH=crates/ic-host-tools/src/lib.rs ADAPTER_STAGED_PATH=Cargo.lock \
+    ADAPTER_UNTRACKED_PATH='unexpected source.rs' \
+    bash "$root/scripts/release/adapter.sh" preflight > rejected-source.log 2>&1; then
     echo 'Preflight accepted uncommitted source' >&2; exit 1
 fi
+grep -F 'unstaged: crates/ic-host-tools/src/lib.rs' rejected-source.log > /dev/null
+grep -F 'staged: Cargo.lock' rejected-source.log > /dev/null
+grep -F 'untracked: unexpected\ source.rs' rejected-source.log > /dev/null
 printf '%s\n' 'cargo locate-project --workspace --message-format plain --manifest-path Cargo.toml' > expected
 cmp expected "$ADAPTER_EVENTS"
 

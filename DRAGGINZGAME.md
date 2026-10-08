@@ -41,7 +41,7 @@ Consumer choices described in those guides remain subject to this baseline.
   Changing directories, shared ownership, dependency fixes, inspection requests
   and issue-reporting authority do not grant cross-repository edit permission.
   Without that authorization, keep other repositories read-only and report the
-  proposed fix in the owning repository's GitHub issue.
+  proposed fix under the GitHub issue authorization below.
 - Follow the [contribution rules](rules/contributions.md): ordinary contributions
   from people and agents use branches and pull requests. Agents may create
   scoped commits when asked to commit or deliver a PR. A PR request includes the
@@ -63,11 +63,14 @@ Consumer choices described in those guides remain subject to this baseline.
   result. Apply authorized current-repository fixes directly to the working tree
   and run the appropriate focused checks; a detached patch alone does not complete
   a local repair. Inspection remains distinct from repair authorization.
-  Relevant GitHub issue work is always authorized across repositories: create,
-  comment, update, assign, close or reopen issues as warranted by the evidence,
-  following the feedback rules below. No separate permission is required for
-  those issue actions. This does not authorize cross-repository file edits,
-  unrelated messages or release effects.
+  Relevant GitHub issue work has standing authorization only in repositories
+  owned by `dragginzgame`: create, comment, update, assign, close or reopen issues
+  as warranted by the evidence, following the feedback rules below. Verify the
+  actual GitHub owner before writing. Issue actions in any other GitHub repository
+  require explicit maintainer authorization for that destination and action;
+  searching and reading issues remain permitted. Prepare external issue content
+  for review before requesting authorization. This does not authorize
+  cross-repository file edits, unrelated messages or release effects.
 
 ## Ownership and simplification
 
@@ -255,11 +258,16 @@ Consumer choices described in those guides remain subject to this baseline.
   is declared in root `[workspace.dependencies]`, and every child manifest uses
   `workspace = true`, including development, build and target-specific tables.
   Keep version/source selections in the root; children select target conditions,
-  features and publication policy. Do not upgrade a toolchain or raise MSRV
-  without an established need and appropriate validation.
+  features and publication policy. Keep the
+  [minimum supported Rust version](rules/cargo-dependencies.md#minimum-supported-rust-version-msrv)
+  as low as the qualified package dependency path permits, independently of the
+  development toolchain. CI must explicitly check each advertised floor;
+  documented package groups may have different floors. Do not upgrade a toolchain
+  or raise MSRV without an established need and appropriate validation.
 - Follow the [Rust hygiene baseline](docs/principles/rust-code-hygiene.md): narrow
   visibility, documented APIs/invariants, ordinary module discovery, bounded
-  fallible decoding and typed errors. Exact edition, internal module layout and
+  fallible decoding, typed errors and `std` paths in code that requires `std`,
+  preserving documented `no_std` support. Exact edition, internal module layout and
   lint choices stay local within the workspace rules. Do not fake platform
   behavior with production cfg(test) paths.
 - Rust repositories adopt the [standard formatting hook](rules/git-hooks.md):
@@ -303,6 +311,10 @@ Consumer choices described in those guides remain subject to this baseline.
 
 ## Feedback and handoff
 
+- Use the [repeatable task catalog](tasks/README.md) for named maintenance checks
+  and bounded recurring audits. Shared Tooling owns the procedures; consumers
+  own local inputs and validation contracts. Scheduled execution requires explicit
+  activation and retains the task's inspection/repair boundaries.
 - Follow the [user-triggered agent maintenance rules](rules/agent-maintenance.md)
   when asked to check CI, review issues or inspect for work after completing a
   task. Session activation carries forward within its scope; inspection and
@@ -321,8 +333,8 @@ Consumer choices described in those guides remain subject to this baseline.
 - Track upstream acceptance separately from verified consumer adoption. Resolve
   product-specific feedback locally instead of promoting it to universal policy.
   For another repository's finding, search its issues and file or update the
-  matching issue under the standing authorization above. Include a concrete fix
-  or patch where feasible and its actual validation results. Keep shared snapshots
+  matching issue under the issue authorization above. Include a concrete fix or
+  patch where feasible and its actual validation results. Keep shared snapshots
   intact; repair at the source owner and adopt a reviewed committed revision.
   Other cross-repository changes retain their separate authority.
   If issue access or a remote is unavailable, report the finding and blocker to

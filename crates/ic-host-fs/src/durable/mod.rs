@@ -216,16 +216,26 @@ pub fn lock_file_with_progress(
 /// Callers own trusted parent paths and namespace stability. Only the final
 /// component is opened without following symlinks; this is not root confinement.
 /// Admission does not bound filesystem creation, open or sync latency.
+/// Existing entries are admitted without staging or syncing another file, so
+/// their parent need not be writable. Missing entries use durable creation once;
+/// a competing creator is admitted through the same checks. Removal during
+/// admission can return a native not-found error rather than retrying indefinitely.
 ///
 /// # Errors
 /// Returns typed file admission, creation, sync or unsupported-host failures.
 pub fn open_regular_lock_file_with_parents(path: &Path) -> Result<fs::File, RegularFileLockError> {
-    match create_new_bytes_with_parents(path, &[]) {
-        Ok(()) => {}
-        Err(source) if source.kind() == io::ErrorKind::AlreadyExists => {}
+    let metadata = match fs::symlink_metadata(path) {
+        Ok(metadata) => metadata,
+        Err(source) if source.kind() == io::ErrorKind::NotFound => {
+            match create_new_bytes_with_parents(path, &[]) {
+                Ok(()) => {}
+                Err(source) if source.kind() == io::ErrorKind::AlreadyExists => {}
+                Err(source) => return Err(RegularFileLockError::Io(source)),
+            }
+            fs::symlink_metadata(path).map_err(RegularFileLockError::Io)?
+        }
         Err(source) => return Err(RegularFileLockError::Io(source)),
-    }
-    let metadata = fs::symlink_metadata(path).map_err(RegularFileLockError::Io)?;
+    };
     if !metadata.file_type().is_file() {
         return Err(RegularFileLockError::NotRegular);
     }
@@ -237,6 +247,9 @@ pub fn open_regular_lock_file_with_parents(path: &Path) -> Result<fs::File, Regu
             fs::{FileType, Mode, OFlags, fstat, open},
         };
 
+        // Path metadata selects creation and rejects known special entries; the
+        // no-follow/nonblocking open and descriptor check still own admission
+        // if the path changes between observations.
         let fd: OwnedFd = open(
             path,
             OFlags::RDWR | OFlags::NOFOLLOW | OFlags::NONBLOCK | OFlags::CLOEXEC,
