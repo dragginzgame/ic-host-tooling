@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.8.2]
+## [0.8.2] - 2026-10-08
 
 - Fix the cleanup-error test fixture on macOS, where `/bin/true` is absent,
   so native CI can exercise the intended cancellation and cleanup assertions
