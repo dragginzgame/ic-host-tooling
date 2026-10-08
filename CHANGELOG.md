@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.8.3]
+## [0.8.3] - 2026-10-08
 
 - Add live output observation to owned-child communication, retaining bounded
   capture and cleanup so consumers can remove private pipe-reader loops
