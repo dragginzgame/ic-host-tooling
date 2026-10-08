@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.5.2]
+## [0.5.2] - 2026-10-08
 
 - Observe child exit while retaining cleanup ownership, then explicitly hand off
   a successful background command to caller-owned lifecycle management. Ordinary
