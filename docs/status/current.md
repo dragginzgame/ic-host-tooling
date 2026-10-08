@@ -1,6 +1,53 @@
 # Current handoff
 
-## Latest work: 2026-10-08, pending 0.8.1 local Rust improvements
+## Latest work: 2026-10-08, released 0.8.1 and pending 0.8.2 macOS fixture repair
+
+Host **0.8.1** is released at `973f00a029dd873c242a4d06e9f8d2d5172ff0df`;
+the local tag and GitHub main agree, and the maintainer reports it live. The
+working tree was clean before this continuation. This supersedes the pending
+0.8.1 statements below. The initially absent
+[exact-source 0.8.1 CI run](https://github.com/dragginzgame/ic-host-tooling/actions/runs/37799978288)
+now passes Linux and MSRV; macOS ARM is running and Intel remains queued.
+Registry publication is reported by Query's
+[consumer check](https://github.com/dragginzgame/ic-host-tooling/issues/5#issuecomment-6063007687),
+not independently rechecked here.
+
+Both macOS 15 architectures in the older
+[0.8.0 CI run](https://github.com/dragginzgame/ic-host-tooling/actions/runs/37792592340)
+failed the same process fixture: `/bin/true` is absent, so spawn returned NotFound
+before testing cleanup. Each recorded 67 process tests passed and one failed;
+Linux and MSRV succeeded. The offending fixture was unchanged in 0.8.1.
+
+The compatible **0.8.2** local correction uses `/bin/sh -c 'exit 0'`, matching
+existing portable fixtures. It retains the real child, deliberate external reap,
+original cancellation/output and separate TERM/KILL/reap error assertions under
+[#5](https://github.com/dragginzgame/ic-host-tooling/issues/5). Four focused process
+boundary tests, strict process Clippy, the exact regression on Rust 1.88,
+formatting, changed-document links and diff hygiene pass locked/offline on Linux.
+Failed native logs remain in `/tmp/ic-host-080-failed-ci.log`; new evidence is in
+`/tmp/ic-host-082/`. Native Intel/Apple Silicon qualification remains pending.
+No production code, public API, dependency selection or package version changed;
+no function, method or type was removed.
+
+Query now reports its actual process replacement implemented locally for pending
+0.50.1, updated to published Host 0.8.1, with 37 real Linux harness fixtures. This is
+[consumer-reported evidence](https://github.com/dragginzgame/ic-host-tooling/issues/5#issuecomment-6063097729),
+not a new consumer build or native qualification here. Shared Tooling still has
+committed HEAD db039347; its installer link-byte fix for
+[#75](https://github.com/dragginzgame/shared-tooling/issues/75) remains dirty and
+was not adopted. The issue completion review closed
+[#23](https://github.com/dragginzgame/ic-host-tooling/issues/23),
+[#25](https://github.com/dragginzgame/ic-host-tooling/issues/25) and
+[#26](https://github.com/dragginzgame/ic-host-tooling/issues/26) with delivered
+evidence. Both older macOS jobs passed the unchanged path fixtures before their
+unrelated process failure; the example/buffer sources match the qualified hashes.
+[#24](https://github.com/dragginzgame/ic-host-tooling/issues/24) retains its explicit
+native lock-qualification requirement; #5 retains fixture delivery and consumer
+acceptance. Canic #481/#482 receive the delivered recipe/nonblocking-lock handoff.
+No new Host API gap was established. Siblings remain read-only. No full
+gate, download, commit, push, release or CI rerun/dispatch occurred.
+
+## Previous work: 2026-10-08, pending 0.8.1 local Rust improvements
 
 The compatible **0.8.1** batch now also implements
 [#24](https://github.com/dragginzgame/ic-host-tooling/issues/24),

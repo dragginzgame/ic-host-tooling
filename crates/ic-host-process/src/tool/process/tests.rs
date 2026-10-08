@@ -127,7 +127,7 @@ fn cleanup_ownership_failure_does_not_replace_original_timeout() {
 fn bounded_cleanup_retains_term_kill_and_reap_failures_beside_cancellation() {
     let _fixture = Fixture::new();
     let mut child = OwnedChild::spawn_with_cleanup(
-        &mut Command::new("/bin/true"),
+        Command::new("/bin/sh").args(["-c", "exit 0"]),
         crate::child::CleanupPolicy::TermThenKill {
             grace: Duration::from_secs(30),
             reap_timeout: Duration::ZERO,

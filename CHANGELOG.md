@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.8.2]
+
+- Fix the cleanup-error test fixture on macOS, where `/bin/true` is absent,
+  so native CI can exercise the intended cancellation and cleanup assertions
+  ([#5](https://github.com/dragginzgame/ic-host-tooling/issues/5)).
+
+See [the 0.8 notes](docs/changelog/0.8.md).
+
 ## [0.8.1] - 2026-10-08
 
 - Add immediate path-lock contention refusal through the existing regular-file
