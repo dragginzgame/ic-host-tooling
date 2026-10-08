@@ -1,0 +1,8 @@
+203deab0946d09a097999238a5ca302bc14469d97f642b89969c3a444e3e3400  ../toko/bin/wasm-postprocess/wasm_metrics.js
+e1f4f8e3645094df99ebc8a7b6634c63789595846ecfe758bbd13827c4452cc2  ../canic/crates/canic-host/src/artifact_io/wasm/mod.rs
+2acdb9b82bbad5a39f3192fd4f6ab77bc28f1b6bbf1392b3bf4fbd785cf0e843  ../canic/crates/canic-host/src/tool_install/mod.rs
+034c0141e02521f1977e99a9eb1111f6a7d3c265fadd66b75c787234579f2fb1  ../ic-testkit/crates/ic-testkit/src/pic/startup.rs
+fb27b3cf362ff75e3166f25659deeb9d14f45b5d7b1e34beaa29e7a0ec2ca313  ../ic-testkit/crates/ic-testkit/src/artifacts/digest.rs
+eb1b7314770d6b969feabf15cadfe9b3d007bf5991e7a8a36cf775ed6cdba9be  ../ic-testkit/crates/ic-testkit/src/artifacts/wasm_cache.rs
+e5f1552fc2622f327e5176ffd9bc048db9488900d2ea7c4fed90096edeb2d88a  ../ic-query/scripts/canister/smoke.py
+537660554af147dbd4fe9ed18fb65975f1e132fffc7d62cd8bb70abf94250521  crates/ic-host-process/src/child/mod.rs

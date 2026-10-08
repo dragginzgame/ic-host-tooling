@@ -11,11 +11,11 @@ mod tests;
 
 use rustix::{
     io::Errno,
-    process::{Pid, Signal, WaitId, WaitIdOptions, kill_process_group, waitid},
+    process::{Pid, Signal, WaitId, WaitIdOptions, WaitIdStatus, kill_process_group, waitid},
 };
 use std::{
     fmt, io,
-    os::unix::process::CommandExt,
+    os::unix::process::{CommandExt, ExitStatusExt},
     process::{Child, ChildStderr, ChildStdin, ChildStdout, Command, ExitStatus},
 };
 
@@ -26,7 +26,10 @@ use std::{
 /// executable admission. The child must not change groups, and callers must
 /// not independently reap it (including through a global SIGCHLD handler).
 ///
-/// Polling an exited leader signals remaining group members before reaping it.
+/// Ordinary waiting signals remaining group members before reaping the leader.
+/// For a deliberate background handoff, [`Self::poll_exit`] observes without
+/// releasing cleanup ownership, then [`Self::handoff`] reaps a successful leader
+/// without signalling its group. The caller then owns the background lifetime.
 /// Drop makes a best-effort kill/reap attempt, including during unwinding. Use
 /// [`Self::terminate`] to observe cleanup failures. Cleanup is synchronous and
 /// has no wall-clock bound; successful signalling is not proof that descendants
@@ -125,6 +128,63 @@ impl OwnedChild {
         self.child.stderr.take()
     }
 
+    /// Observe leader exit without signalling or reaping it.
+    ///
+    /// An exited leader stays reserved with `WNOWAIT`, so cancellation, failed IO
+    /// admission and unwinding still clean its group. Repeated observations do
+    /// not release ownership. After a completed wait/termination/handoff, returns
+    /// the cached status. This status alone does not establish a handoff.
+    ///
+    /// Call [`Self::handoff`] only after admitting a successful background start.
+    /// Otherwise use [`Self::wait`] or [`Self::terminate`] to clean and reap.
+    /// # Errors
+    /// Returns native inspection errors; external reaping invalidates ownership.
+    pub fn poll_exit(&mut self) -> io::Result<Option<ExitStatus>> {
+        if let Some(status) = self.status {
+            return Ok(Some(status));
+        }
+        self.observe_exit(true)?
+            .map(|status| {
+                // Unix wait status encoding used by Linux and Darwin. waitid's
+                // siginfo status is an exit code/signal, not an encoded wait status.
+                let raw = if let Some(code) = status.exit_status() {
+                    code << 8
+                } else if let Some(signal) = status.terminating_signal() {
+                    signal | if status.dumped() { 0x80 } else { 0 }
+                } else {
+                    return Err(io::Error::other("waitid returned a non-exit observation"));
+                };
+                Ok(ExitStatus::from_raw(raw))
+            })
+            .transpose()
+    }
+
+    /// Reap an already successful leader without signalling its remaining group.
+    ///
+    /// This is the explicit transfer point for a background lifetime. The caller
+    /// must first admit its IO/result and arrange application-owned readiness,
+    /// cancellation and stop/recovery. Zero exit does not prove those obligations.
+    /// No PID/group handle is transferred: it could be reused after reaping.
+    /// Subsequent wait/termination/Drop never signal the handed-off group.
+    ///
+    /// Use [`Self::poll_exit`] while draining IO and checking cancellation. A
+    /// running or unsuccessful leader is refused without releasing ownership;
+    /// use ordinary wait/termination for failed startup, keeping its original
+    /// failure separate from any cleanup error. Drop still attempts cleanup.
+    /// # Errors
+    /// Returns `InvalidInput` for a running, unsuccessful or already-reaped
+    /// leader, or native inspection/reap errors. Reap failures retain cleanup
+    /// ownership unless it was lost externally.
+    pub fn handoff(&mut self) -> io::Result<ExitStatus> {
+        if !self.owned || !self.poll_exit()?.is_some_and(|status| status.success()) {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "handoff requires an owned, successfully exited leader",
+            ));
+        }
+        self.reap()
+    }
+
     /// Inspect exit without blocking on a running child; clean its group before reaping.
     ///
     /// Repeated successful calls return the cached status without signalling again.
@@ -139,7 +199,7 @@ impl OwnedChild {
             return Err(Errno::CHILD.into());
         }
         if self.group {
-            if !self.observe_exit(true)? {
+            if self.observe_exit(true)?.is_none() {
                 return Ok(None);
             }
             self.signal_group()?;
@@ -215,17 +275,17 @@ impl OwnedChild {
             .ok_or_else(|| io::Error::other("child PID is zero"))
     }
 
-    fn observe_exit(&mut self, nonblocking: bool) -> io::Result<bool> {
+    fn observe_exit(&mut self, nonblocking: bool) -> io::Result<Option<WaitIdStatus>> {
         let pid = self.pid()?;
-        // NOWAIT reserves the leader PID until the final group signal, avoiding
-        // signalling an unrelated group if the leader exited before cleanup.
+        // NOWAIT reserves the leader PID until cleanup or explicit handoff,
+        // avoiding signals to an unrelated group after an early leader exit.
         let mut options = WaitIdOptions::EXITED | WaitIdOptions::NOWAIT;
         if nonblocking {
             options |= WaitIdOptions::NOHANG;
         }
         let result = retry_interrupted(|| waitid(WaitId::Pid(pid), options).map_err(Into::into));
         self.check_wait_ownership(&result);
-        result.map(|status| status.is_some())
+        result
     }
 
     #[cfg_attr(
@@ -243,7 +303,7 @@ impl OwnedChild {
             #[cfg(target_os = "macos")]
             Err(error)
                 if error.raw_os_error() == Some(Errno::PERM.raw_os_error())
-                    && self.observe_exit(true)?
+                    && self.observe_exit(true)?.is_some()
                     && macos::sole_group_member(pid) =>
             {
                 Ok(())

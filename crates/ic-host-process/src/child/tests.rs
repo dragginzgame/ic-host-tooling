@@ -216,3 +216,134 @@ fn external_reaping_loses_ownership_and_retains_cleanup_failures() {
     );
     drop(child);
 }
+
+#[test]
+fn successful_handoff_preserves_background_io_until_consumer_stop() {
+    let _fixture = Fixture::new();
+    // A separate inherited control pipe is the fixture's application stop
+    // mechanism; it never signals a potentially reused PID after handoff.
+    let mut command = command(
+        "exec 3<&0; read gate; (while IFS= read -r line; do printf '%s\\n' \"$line\"; done) <&3 & exit 0",
+    );
+    command.stdin(Stdio::piped()).stdout(Stdio::piped());
+    let mut child = OwnedChild::spawn(&mut command).unwrap();
+    let pid = child.id();
+    let mut stdin = child.take_stdin().unwrap();
+    let mut stdout = child.take_stdout().unwrap();
+    nonblocking(&stdout);
+    assert!(child.poll_exit().unwrap().is_none());
+    assert_eq!(
+        child.handoff().unwrap_err().kind(),
+        io::ErrorKind::InvalidInput
+    );
+    writeln!(stdin, "start").unwrap();
+    until(|| child.poll_exit().unwrap().is_some());
+    let observed = child.poll_exit().unwrap().unwrap();
+    assert!(observed.success());
+    // A second native observation proves polling reserved the leader for the
+    // eventual disposition instead of losing group identity by reaping early.
+    assert!(
+        waitid(
+            WaitId::Pid(Pid::from_raw(i32::try_from(pid).unwrap()).unwrap()),
+            WaitIdOptions::EXITED | WaitIdOptions::NOWAIT | WaitIdOptions::NOHANG,
+        )
+        .unwrap()
+        .is_some()
+    );
+    assert_eq!(child.handoff().unwrap(), observed);
+    assert_reaped(pid);
+    assert_eq!(
+        child.handoff().unwrap_err().kind(),
+        io::ErrorKind::InvalidInput
+    );
+    assert_eq!(child.poll_exit().unwrap(), Some(observed));
+    assert_eq!(child.try_wait().unwrap(), Some(observed));
+    assert_eq!(child.wait().unwrap(), observed);
+    assert_eq!(child.terminate().unwrap(), observed);
+    drop(child);
+    writeln!(stdin, "still running after handoff and drop").unwrap();
+    assert_eq!(
+        read_until(&mut stdout, false),
+        b"still running after handoff and drop\n"
+    );
+    drop(stdin); // Consumer-owned stop, after background work has been observed.
+    assert_eq!(read_until(&mut stdout, true), b"");
+}
+
+#[test]
+fn unsuccessful_handoff_retains_status_and_group_cleanup() {
+    let _fixture = Fixture::new();
+    for ending in [
+        "exit 23",
+        "exit 255",
+        "kill -TERM $$",
+        "ulimit -c 0; kill -ABRT $$",
+    ] {
+        let mut command = command(&format!("sleep 30 & {ending}"));
+        command.stdout(Stdio::piped());
+        let mut child = OwnedChild::spawn(&mut command).unwrap();
+        let pid = child.id();
+        let mut stdout = child.take_stdout().unwrap();
+        nonblocking(&stdout);
+        until(|| child.poll_exit().unwrap().is_some());
+        let original = child.poll_exit().unwrap().unwrap();
+        assert!(!original.success());
+        assert_eq!(
+            child.handoff().unwrap_err().kind(),
+            io::ErrorKind::InvalidInput
+        );
+        // Original exit/signal survives cleanup. Failed handoff is not detach.
+        assert_eq!(child.terminate().unwrap(), original);
+        assert_eq!(read_until(&mut stdout, true), b"");
+        assert_reaped(pid);
+    }
+}
+
+#[test]
+fn observed_success_still_cleans_on_cancellation_wait_and_unwind() {
+    let _fixture = Fixture::new();
+    for mode in ["terminate", "wait", "drop", "panic"] {
+        let mut command = command("sleep 30 & exit 0");
+        command.stdout(Stdio::piped());
+        let mut child = OwnedChild::spawn(&mut command).unwrap();
+        let pid = child.id();
+        let mut stdout = child.take_stdout().unwrap();
+        nonblocking(&stdout);
+        until(|| child.poll_exit().unwrap().is_some());
+        match mode {
+            "terminate" => assert!(child.terminate().unwrap().success()),
+            "wait" => assert!(child.wait().unwrap().success()),
+            "drop" => drop(child),
+            _ => assert!(
+                std::panic::catch_unwind(move || {
+                    let _owned = child;
+                    panic!("caller rejected background IO before handoff");
+                })
+                .is_err()
+            ),
+        }
+        assert_eq!(read_until(&mut stdout, true), b"");
+        assert_reaped(pid);
+    }
+}
+
+#[test]
+fn handoff_refuses_external_reaping_without_signalling_reused_identity() {
+    let _fixture = Fixture::new();
+    let mut child = OwnedChild::spawn(&mut command("exit 0")).unwrap();
+    until(|| child.poll_exit().unwrap().is_some());
+    let pid = Pid::from_raw(i32::try_from(child.id()).unwrap()).unwrap();
+    waitid(WaitId::Pid(pid), WaitIdOptions::EXITED).unwrap();
+    assert_eq!(
+        child.handoff().unwrap_err().raw_os_error(),
+        Some(Errno::CHILD.raw_os_error())
+    );
+    let error = child.terminate().unwrap_err();
+    assert!(error.status.is_none());
+    assert!(error.kill_error.is_none());
+    assert_eq!(
+        error.group_error.unwrap().raw_os_error(),
+        Some(Errno::CHILD.raw_os_error())
+    );
+    drop(child);
+}

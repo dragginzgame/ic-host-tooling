@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.5.2]
+
+- Observe child exit while retaining cleanup ownership, then explicitly hand off
+  a successful background command to caller-owned lifecycle management. Ordinary
+  waiting and cancellation retain their existing group cleanup behavior
+  ([#5](https://github.com/dragginzgame/ic-host-tooling/issues/5)).
+
+See [the 0.5 notes](docs/changelog/0.5.md).
+
 ## [0.5.1] - 2026-10-08
 
 - Refuse release delivery when the final check changes the payload or tag, and

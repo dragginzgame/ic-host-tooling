@@ -31,7 +31,10 @@ copying output; callers own presentation and recovery.
 `child::OwnedChild::spawn` starts a caller-configured command in a new owned
 process group. It preserves command IO and supports polling, waiting, explicit
 termination and cleanup during unwinding. Callers retain admission, readiness,
-cancellation and application lifecycle policy. See the
+cancellation and application lifecycle policy. For deliberate background startup,
+`poll_exit` retains cleanup ownership through result admission; explicit `handoff`
+then reaps a successful leader without stopping the background group. See the
+[handoff contract](docs/changelog/0.5.md#explicit-successful-background-handoff) and the
 [child cleanup contract](docs/changelog/0.5.md#explicit-child-and-process-group-cleanup)
 for exclusive ownership and descendant limitations.
 

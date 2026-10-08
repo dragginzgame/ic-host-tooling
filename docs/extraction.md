@@ -73,8 +73,14 @@ error projection; no parallel error model or automatic diagnostic output is adde
 
 `ic_host_process::child::OwnedChild` shares child spawn/reap/cleanup mechanics
 with the direct-child capture engine. Its public spawn establishes a new group
-while preserving caller IO and command settings. It reserves an exited leader
-until group signalling finishes, then reaps it. The caller drives polling,
+while preserving caller IO and command settings. Ordinary waits reserve an exited
+leader until group signalling finishes, then reap it. `poll_exit` can instead
+observe status without signalling/reaping while the caller admits IO and checks
+cancellation. Only explicit `handoff` of a still-owned, successful leader reaps
+without group cleanup; the consumer then owns readiness, stop and recovery.
+Running/failed/already-reaped leaders cannot be handed off. Observing success
+alone leaves Drop/termination cleanup intact. No reusable PID/group authority
+is returned after reaping. The caller drives polling,
 natural waiting or cancellation; Drop provides best-effort cleanup, including
 unwinding. Typed cleanup evidence remains separate from the original operation
 failure. No application readiness, global signal handler, lifecycle controller,

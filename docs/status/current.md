@@ -1,6 +1,115 @@
 # Current handoff
 
-## Latest qualification: 2026-10-08, pending 0.5.1 release-runner repair
+## Latest work: 2026-10-08, pending 0.5.2 successful background handoff
+
+The compatible **0.5.2** batch adds `OwnedChild::poll_exit` and `handoff`
+for [#5](https://github.com/dragginzgame/ic-host-tooling/issues/5), based on
+released Host `81f9809861159def2fd0987fcb7961cda4afd969`. Polling reserves
+an exited leader through `WNOWAIT` without signalling/reaping; explicit handoff
+only accepts a still-owned successful exit. Existing wait/termination/Drop
+cleanup remains the default. Refused handoff retains ownership, unless lost to
+an external reaper; completed handoff never exposes reusable group authority.
+The consumer admits IO, checks cancellation and owns subsequent readiness,
+stop and recovery. No new dependency, stored format, unsafe block or package
+version change is introduced. No function, method or type was removed.
+
+Focused locked/offline Linux evidence: all 48 process library tests pass,
+including 10 child cases; strict all-target Clippy, Rust 1.88 all-target check
+and warning-denied Rustdoc pass. Child coverage includes leader reservation,
+live background IO after handoff/Drop, refused running/failed/signalled exits,
+original status preservation, repeated calls, cancellation/unwinding after an
+observed successful exit, and external-reaping ownership loss. Logs remain at
+`/tmp/ic-host-handoff-{child,process,clippy-final,msrv,doc}.log`.
+
+A private standalone rehearsal under `/tmp/ic-host-handoff-query/` adapts the
+withdrawn Query candidate preserved at `/tmp/ic-query-host5.yUGdBe/`. Only
+background-start requests opt in. The helper observes while draining IO, cleans
+failed exits through ordinary wait, admits decoded output/cancellation/deadline,
+and finally calls handoff. The original successful-start heartbeat fixture
+fails in the control using ordinary wait, then passes with the new disposition.
+Nine selected existing consumer process fixtures pass; two additional scoped
+checks prove invalid UTF-8 and a held-pipe deadline clean the background group
+before transfer while retaining the original error. Receipt publication is
+substituted by disposable JSON output in this process-only rehearsal; no real
+network or full Query integration is qualified. Candidate/control sources,
+exact digests, logs and deltas against the withdrawn bridge are retained there.
+Those deltas are evidence, not an apply-ready patch against current Query.
+No Python tooling was added to Host or to the real sibling checkout.
+
+Native candidate macOS 15 Intel/ARM qualification remains pending: released
+0.5.1 CI is evidence for its own bytes, not these APIs. Full Query adoption must
+rebase its bridge and qualify its real receipt/network entrypoint. Canic inherited
+operation-lock custody and bounded execution convergence remain separate #5
+requirements. The real Query checkout and all other siblings remain read-only.
+Existing audit/handoff edits were preserved. No broad local gate, download,
+commit, push, release or publication ran; both changelog views carry 0.5.2.
+
+## Previous recheck: 2026-10-08, Testkit 0.22 and Canic 0.110.53 pushed
+
+Testkit 0.22.0 is on remote main at
+`2951fd19e58799580e60ec0f6f5864d296271a62`.
+[Its CI](https://github.com/dragginzgame/ic-testkit/actions/runs/37752946475)
+passes portable-host, checks and PocketIC concurrency on Linux/macOS Intel/ARM;
+the MSRV job is skipped. The maintainer reports publication live; an independent
+registry API read returned HTTP 403. Blob Storage, IcyDB, Timers and Toko Miner
+now have dirty manifest/lock selections of Testkit 0.22.0 and only Host 0.5.1.
+This supersedes their older dependency observations below, not their pending
+consumer delivery/qualification obligations.
+
+Canic's remote main is released 0.110.53 at
+`4c51a87c6a32397196bb3f65d064641194df10a5`. Its pushed graph still selects
+Host 0.4.6/Testkit 0.21; active dirty manifest/lock edits select Host 0.5.1,
+Testkit 0.22.0 and Backup 0.7.0. The remaining old Host artifacts/fs reverse
+edge in that working lock comes from Query 0.48.1. Installer/Wasm owner
+replacement is still pending, separately from dependency selection.
+[Canic #458](https://github.com/dragginzgame/canic/issues/458#issuecomment-6056656562)
+and [Testkit #25](https://github.com/dragginzgame/ic-testkit/issues/25#issuecomment-6056656248)
+carry the superseding evidence.
+
+Both Canic native macOS jobs in
+[release CI](https://github.com/dragginzgame/canic/actions/runs/37752054026)
+fail with `test-pocketic-workers.sh: line 92: rg: command not found`.
+The workflow invokes worker fixtures before installing pinned host tools.
+[Canic #465](https://github.com/dragginzgame/canic/issues/465#issuecomment-6056655921)
+owns the smallest correction: install/export the existing canonical tools before
+those fixtures, then qualify both native jobs. This is not evidence of a Host
+child failure. Other Canic release jobs were still running at observation.
+Sibling checkouts remain untouched; only this handoff changed locally during
+recheck. No builds, dependency resolution, runtime changes or deletions occurred.
+
+## Previous qualification: 2026-10-08, released 0.5.1 and renewed sibling audit
+
+Host 0.5.1 is committed at `81f9809861159def2fd0987fcb7961cda4afd969`.
+[Exact-release CI](https://github.com/dragginzgame/ic-host-tooling/actions/runs/37750135927)
+passes Linux x86-64, Rust 1.88 and native macOS 15 Intel/Apple Silicon.
+This supersedes the pending delivery/native statements below;
+[#22](https://github.com/dragginzgame/ic-host-tooling/issues/22) is closed.
+The maintainer reports publication live; this audit independently checked Git/CI,
+not registry publication.
+
+The [new frozen convergence audit](../reports/audits/2026/10/08/host-reuse/02/report.md)
+records exact sibling working-source and dependency evidence. The main ready
+simplification remains coordinated Testkit 0.22/Canic adoption, then removal of
+old Host 0.4 edges and Toko's duplicate Wasm parser. Canic's prepared patch still
+passes applicability; pending sibling changes are not delivered adoption.
+Query's attempted process bridge was withdrawn after its successful-background
+handoff fixture failed. [#5](https://github.com/dragginzgame/ic-host-tooling/issues/5#issuecomment-6055899595)
+owns that newly demonstrated contract, preserving existing Testkit cleanup.
+
+Canonical 0.1.23 release-runner adoption findings were delivered to existing
+Canic #453/IcyDB #299 and new Query #20/Blob Storage #28; Testkit #25 carries the
+current downstream dependency evidence. Toko Miner's snapshot moved to 0.1.23
+during inspection. Shared Tooling's latest committed revision remains the one
+already adopted here. No new Host runtime defect or further generic byte/file
+abstraction was established. The retained Toko contract failures remain bound
+to the earlier fixtures and unchanged source, not a new execution.
+
+Only this handoff and new audit evidence changed locally. Siblings stayed
+read-only; no runtime code, dependency, function, method or type changed or was
+removed. No compilation, broad local gate, release, publication, commit or push
+ran. GitHub issues remain the sole follow-up tracker.
+
+## Previous qualification: 2026-10-08, pending 0.5.1 release-runner repair (superseded)
 
 The compatible **0.5.1** batch adopts committed Shared Tooling 0.1.23
 `0ba0ad00ed94848e54ecc82629b6b7873b7284c0` for

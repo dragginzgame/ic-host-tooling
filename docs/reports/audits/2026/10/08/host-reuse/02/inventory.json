@@ -1,0 +1,1000 @@
+{
+  "observedAt": "2026-10-08T08:36:08.038Z",
+  "mode": "Read-only git and manifest/lock text inspection, no Cargo resolution",
+  "repositories": [
+    {
+      "repo": "ic-host-tooling",
+      "head": "81f9809861159def2fd0987fcb7961cda4afd969",
+      "status": "",
+      "snapshot": "0ba0ad00ed94848e54ecc82629b6b7873b7284c0",
+      "requirements": [
+        "ic-host-artifacts = { path = \"crates/ic-host-artifacts\", version = \"0.5\", default-features = false }",
+        "ic-host-fs = { path = \"crates/ic-host-fs\", version = \"0.5\", default-features = false }",
+        "ic-host-process = { path = \"crates/ic-host-process\", version = \"0.5\", default-features = false }",
+        "ic-host-tools = { path = \"crates/ic-host-tools\", version = \"0.5\", default-features = false }"
+      ],
+      "hosts": [
+        {
+          "name": "ic-host-artifacts",
+          "version": "0.5.1",
+          "deps": [
+            "flate2",
+            "serde",
+            "serde_json",
+            "sha2",
+            "tar",
+            "wasmparser"
+          ],
+          "parents": [
+            "ic-host-fs 0.5.1",
+            "ic-host-process 0.5.1",
+            "ic-host-tools 0.5.1"
+          ]
+        },
+        {
+          "name": "ic-host-fs",
+          "version": "0.5.1",
+          "deps": [
+            "ic-host-artifacts",
+            "rustix",
+            "serde",
+            "serde_json"
+          ],
+          "parents": [
+            "ic-host-process 0.5.1",
+            "ic-host-tools 0.5.1"
+          ]
+        },
+        {
+          "name": "ic-host-process",
+          "version": "0.5.1",
+          "deps": [
+            "ic-host-artifacts",
+            "ic-host-fs",
+            "libc",
+            "rustix"
+          ],
+          "parents": [
+            "ic-host-tools 0.5.1"
+          ]
+        },
+        {
+          "name": "ic-host-tools",
+          "version": "0.5.1",
+          "deps": [
+            "ic-host-artifacts",
+            "ic-host-fs",
+            "ic-host-process",
+            "rustix",
+            "serde",
+            "serde_json",
+            "sha2"
+          ],
+          "parents": []
+        }
+      ],
+      "files": [
+        {
+          "path": "Cargo.toml",
+          "sha256": "2844a2f425cdefff4280cc99db769bef72bfd78bc805999da9c7178c0e7eefc6"
+        },
+        {
+          "path": "Cargo.lock",
+          "sha256": "42900c0ca50a4994da1a380a7580f0a5dd2a6a981a4917c00e05b8b0c2cbd649"
+        },
+        {
+          "path": ".shared-tooling.snapshot",
+          "sha256": "1b67e2b0262a03b132f3822237e109c31b0403ca2249ec7f4d7a32c1296232c0"
+        },
+        {
+          "path": "scripts/ci/run-release.sh",
+          "sha256": "f9df53d57b569e02c23ce97cebefd79471ba353b9b6910e30c9a0c9845398823"
+        }
+      ]
+    },
+    {
+      "repo": "shared-tooling",
+      "head": "0ba0ad00ed94848e54ecc82629b6b7873b7284c0",
+      "status": "",
+      "snapshot": null,
+      "requirements": [],
+      "hosts": [],
+      "files": [
+        {
+          "path": "scripts/ci/run-release.sh",
+          "sha256": "f9df53d57b569e02c23ce97cebefd79471ba353b9b6910e30c9a0c9845398823"
+        }
+      ]
+    },
+    {
+      "repo": "canic",
+      "head": "e286b3fd98460c98670336853f80658a920966e0",
+      "status": "",
+      "snapshot": "a3430b34b32a60f3b245a2b4f7e2f5321556fe56",
+      "requirements": [
+        "canic = { version = \"0.110.52\", path = \"crates/canic\", default-features = false }",
+        "ic-host-artifacts = { version = \"0.4.6\", default-features = false }",
+        "ic-host-fs = { version = \"0.4.6\", default-features = false }",
+        "ic-host-process = { version = \"0.4.6\", default-features = false }",
+        "ic-host-tools = \"0.4.6\"",
+        "ic-testkit = \"0.21\"",
+        "canic = { path = \"crates/canic\" }"
+      ],
+      "hosts": [
+        {
+          "name": "ic-host-artifacts",
+          "version": "0.4.6",
+          "deps": [
+            "flate2",
+            "sha2 0.10.9",
+            "tar",
+            "wasmparser"
+          ],
+          "parents": [
+            "canic-host 0.110.52",
+            "ic-backup 0.5.4",
+            "ic-host-fs 0.4.6",
+            "ic-host-process 0.4.6",
+            "ic-host-tools 0.4.6",
+            "ic-query 0.48.1",
+            "ic-testkit 0.21.3"
+          ]
+        },
+        {
+          "name": "ic-host-fs",
+          "version": "0.4.6",
+          "deps": [
+            "ic-host-artifacts",
+            "rustix"
+          ],
+          "parents": [
+            "canic-cli 0.110.52",
+            "canic-host 0.110.52",
+            "canic-testing-internal 0.110.52",
+            "ic-backup 0.5.4",
+            "ic-host-process 0.4.6",
+            "ic-host-tools 0.4.6",
+            "ic-query 0.48.1",
+            "ic-testkit 0.21.3"
+          ]
+        },
+        {
+          "name": "ic-host-process",
+          "version": "0.4.6",
+          "deps": [
+            "ic-host-artifacts",
+            "ic-host-fs",
+            "rustix"
+          ],
+          "parents": [
+            "canic-host 0.110.52",
+            "ic-host-tools 0.4.6",
+            "ic-testkit 0.21.3"
+          ]
+        },
+        {
+          "name": "ic-host-tools",
+          "version": "0.4.6",
+          "deps": [
+            "ic-host-artifacts",
+            "ic-host-fs",
+            "ic-host-process",
+            "serde",
+            "serde_json"
+          ],
+          "parents": [
+            "canic-host 0.110.52",
+            "ic-testkit 0.21.3"
+          ]
+        }
+      ],
+      "files": [
+        {
+          "path": "Cargo.toml",
+          "sha256": "7305e716d7880a0cc5d2979cfa3290ed4b85f40a4addfe947863ea74f03902b7"
+        },
+        {
+          "path": "Cargo.lock",
+          "sha256": "a2526c2e27312c7572670b58e410c7fbeb77cb6d79c3b990f46ec4779786038a"
+        },
+        {
+          "path": ".shared-tooling.snapshot",
+          "sha256": "e179a2d96248b7dfc080e60f1e3e4d191552908ef86434ebb2bdedf172b89bab"
+        },
+        {
+          "path": "scripts/ci/run-release.sh",
+          "sha256": "aa4d8ea6bf6266a32c6edae56cf3eea8dafd3149278c108998c0091bc94dbc92"
+        }
+      ]
+    },
+    {
+      "repo": "ic-testkit",
+      "head": "a8e83a1940e5f44927c6df95b5d1269a3ac699bc",
+      "status": "M .shared-tooling.snapshot\n M CHANGELOG.md\n M Cargo.lock\n M Cargo.toml\n M README.md\n M crates/ic-testkit/CHANGELOG.md\n M crates/ic-testkit/src/artifacts/digest.rs\n M crates/ic-testkit/src/artifacts/wasm_cache.rs\n M crates/ic-testkit/src/artifacts/wasm_cache/tests.rs\n M crates/ic-testkit/src/pic/startup.rs\n M docs/consuming-snapshots.md\n M docs/hosts.md\n M docs/releases.md\n M docs/supported-hosts.md\n M scripts/ci/release-pr.sh\n M scripts/ci/run-release.sh",
+      "snapshot": "0ba0ad00ed94848e54ecc82629b6b7873b7284c0",
+      "requirements": [
+        "ic-host-artifacts = { version = \"0.5\", features = [\"archive\", \"wasm\"] }",
+        "ic-host-fs = \"0.5\"",
+        "ic-host-process = \"0.5\"",
+        "ic-host-tools = \"0.5\"",
+        "ic-testkit = { path = \"crates/ic-testkit\" }"
+      ],
+      "hosts": [
+        {
+          "name": "ic-host-artifacts",
+          "version": "0.5.1",
+          "deps": [
+            "flate2",
+            "sha2",
+            "tar",
+            "wasmparser"
+          ],
+          "parents": [
+            "ic-host-fs 0.5.1",
+            "ic-host-process 0.5.1",
+            "ic-host-tools 0.5.1",
+            "ic-testkit 0.21.3"
+          ]
+        },
+        {
+          "name": "ic-host-fs",
+          "version": "0.5.1",
+          "deps": [
+            "ic-host-artifacts",
+            "rustix"
+          ],
+          "parents": [
+            "ic-host-process 0.5.1",
+            "ic-host-tools 0.5.1",
+            "ic-testkit 0.21.3"
+          ]
+        },
+        {
+          "name": "ic-host-process",
+          "version": "0.5.1",
+          "deps": [
+            "ic-host-artifacts",
+            "ic-host-fs",
+            "libc",
+            "rustix"
+          ],
+          "parents": [
+            "ic-host-tools 0.5.1",
+            "ic-testkit 0.21.3"
+          ]
+        },
+        {
+          "name": "ic-host-tools",
+          "version": "0.5.1",
+          "deps": [
+            "ic-host-artifacts",
+            "ic-host-fs",
+            "ic-host-process",
+            "serde",
+            "serde_json"
+          ],
+          "parents": [
+            "ic-testkit 0.21.3"
+          ]
+        }
+      ],
+      "files": [
+        {
+          "path": "Cargo.toml",
+          "sha256": "ea3e1808a659d31dadc1f33f0a1163670742bc195d3b10e69cf8075109a31b96"
+        },
+        {
+          "path": "Cargo.lock",
+          "sha256": "9fcc99c3648344556a0ba5cac3aaf98d4fc9fda742a859c0d743dd14a8440420"
+        },
+        {
+          "path": ".shared-tooling.snapshot",
+          "sha256": "25059ed52f9be524020ec455ecce8c8d7b4a611c259fb814bbfda059d703489e"
+        },
+        {
+          "path": "scripts/ci/run-release.sh",
+          "sha256": "f9df53d57b569e02c23ce97cebefd79471ba353b9b6910e30c9a0c9845398823"
+        }
+      ]
+    },
+    {
+      "repo": "ic-query",
+      "head": "08012b4bedd288b5882c0d8134ea94aa739228f6",
+      "status": "M .shared-tooling.snapshot\n M AGENTS.md\n M CHANGELOG.md\n M Cargo.lock\n M Cargo.toml\n M DRAGGINZGAME.md\n M docs/canister-smoke.md\n M docs/changelog/0.48.md\n M docs/consuming-snapshots.md\n M docs/release-workflow.md\n M docs/releases.md\n M docs/supported-hosts.md\n M rules/contributions.md\n M scripts/canister/smoke.py\n M scripts/canister/test_smoke.py\n M scripts/ci/check-release-guards.sh\n M scripts/ci/run-release.sh\n M scripts/ci/test-release-runner.sh\n M scripts/distribution/governance-files.txt\n M scripts/release/adapter.sh\n?? scripts/ci/release-pr.sh",
+      "snapshot": "2687f26317952c43c685f7f799ed09288dc10a67",
+      "requirements": [
+        "ic-host-artifacts = { version = \"0.5\", default-features = false }",
+        "ic-host-fs = { version = \"0.5\", default-features = false }",
+        "ic-host-tools = { version = \"0.5\", default-features = false }"
+      ],
+      "hosts": [
+        {
+          "name": "ic-host-artifacts",
+          "version": "0.5.1",
+          "deps": [
+            "sha2 0.10.9",
+            "wasmparser"
+          ],
+          "parents": [
+            "ic-host-fs 0.5.1",
+            "ic-query 0.48.1",
+            "ic-query-cli 0.48.1"
+          ]
+        },
+        {
+          "name": "ic-host-fs",
+          "version": "0.5.1",
+          "deps": [
+            "ic-host-artifacts",
+            "rustix"
+          ],
+          "parents": [
+            "ic-query 0.48.1",
+            "ic-query-cli 0.48.1"
+          ]
+        },
+        {
+          "name": "ic-host-tools",
+          "version": "0.5.1",
+          "deps": [
+            "serde",
+            "serde_json"
+          ],
+          "parents": [
+            "ic-query-cli 0.48.1"
+          ]
+        }
+      ],
+      "files": [
+        {
+          "path": "Cargo.toml",
+          "sha256": "5e27ba37d64a0b37a3f32d6445194af3f187e48cd4ee3ce202f3512acc20ea85"
+        },
+        {
+          "path": "Cargo.lock",
+          "sha256": "a61608e5f4db7006be6b798ab6d82c68708e84f8ebc78cd3fab38231da2e884a"
+        },
+        {
+          "path": ".shared-tooling.snapshot",
+          "sha256": "c3ffb177da0d191d797d4ab2cb97aec41219a9e47c754401e3138e4a1a1d0215"
+        },
+        {
+          "path": "scripts/ci/run-release.sh",
+          "sha256": "c6409aed359942eccb58534d69adc136a08e6018c26d3035247380494cc665e3"
+        }
+      ]
+    },
+    {
+      "repo": "ic-backup",
+      "head": "8a1152d0a510f34f8daed59f06632306f7cf134e",
+      "status": "M .shared-tooling.snapshot\n M AGENTS.md\n M CHANGELOG.md\n M Cargo.lock\n M Cargo.toml\n M crates/ic-backup/src/ops/artifacts/secure/unix/mod.rs\n M crates/ic-backup/src/ops/persistence/artifact_commit/supported/mod.rs\n M crates/ic-backup/src/ops/persistence/command_lifetime_lock/mod.rs\n M crates/ic-backup/src/ops/persistence/download_journal/ic_snapshot_artifact/mod.rs\n M crates/ic-backup/src/ops/persistence/download_journal/ic_snapshot_artifact/upload/mod.rs\n M crates/ic-backup/src/ops/persistence/download_journal/ic_snapshot_artifact/verification/mod.rs\n M crates/ic-backup/src/ops/persistence/file_lock/mod.rs\n M crates/ic-backup/src/ops/persistence/layout_lifetime/mod.rs\n M docs/consuming-snapshots.md\n M docs/development.md\n M docs/extraction-boundary.md\n M docs/ic-host-tools-adoption.json\n M docs/pocketic-qualification.json\n M docs/pocketic-qualification.md\n M docs/releases.md\n M docs/releasing.md\n M docs/shared-tooling-review.json\n M docs/shared-tooling.md\n M docs/status/current.md\n M docs/supported-hosts.md\n M scripts/ci/release-pr.sh\n M scripts/ci/run-release.sh\n M scripts/ci/test-release-pr.sh\n M scripts/ci/test-release-runner.sh",
+      "snapshot": "0ba0ad00ed94848e54ecc82629b6b7873b7284c0",
+      "requirements": [
+        "ic-host-artifacts = { version = \"0.5\", default-features = false }",
+        "ic-host-fs = { version = \"0.5\", default-features = false }",
+        "ic-host-process = { version = \"0.5\", default-features = false }"
+      ],
+      "hosts": [
+        {
+          "name": "ic-host-artifacts",
+          "version": "0.5.0",
+          "deps": [
+            "sha2"
+          ],
+          "parents": [
+            "ic-backup 0.6.0",
+            "ic-host-fs 0.5.0",
+            "ic-host-process 0.5.0"
+          ]
+        },
+        {
+          "name": "ic-host-fs",
+          "version": "0.5.0",
+          "deps": [
+            "ic-host-artifacts",
+            "rustix"
+          ],
+          "parents": [
+            "ic-backup 0.6.0",
+            "ic-host-process 0.5.0"
+          ]
+        },
+        {
+          "name": "ic-host-process",
+          "version": "0.5.0",
+          "deps": [
+            "ic-host-artifacts",
+            "ic-host-fs",
+            "libc",
+            "rustix"
+          ],
+          "parents": [
+            "ic-backup 0.6.0"
+          ]
+        }
+      ],
+      "files": [
+        {
+          "path": "Cargo.toml",
+          "sha256": "a46ae01a4f57121620fe90697132822359f7b305c0ac7dbb19a596676371c167"
+        },
+        {
+          "path": "Cargo.lock",
+          "sha256": "775715639d03d16dfdfede0015ab9e5c0f5ad4e9cd692f7ef2bc88b75d249961"
+        },
+        {
+          "path": ".shared-tooling.snapshot",
+          "sha256": "f191d2d474b932fa869ef73de86daa021052d5e9b22344c1a5525fa3e8976802"
+        },
+        {
+          "path": "scripts/ci/run-release.sh",
+          "sha256": "f9df53d57b569e02c23ce97cebefd79471ba353b9b6910e30c9a0c9845398823"
+        }
+      ]
+    },
+    {
+      "repo": "ic-blob-storage",
+      "head": "704b8ebf6bea85a715e465e32e34758b601852ec",
+      "status": "M CHANGELOG.md\n M Cargo.lock\n M crates/ic-blob-storage-contracts/README.md\n M docs/dependencies.md\n M docs/evidence/caffeine-probes/README.md\n M docs/evidence/caffeine-probes/local/SHA256SUMS\n M docs/releasing.md\n M docs/status/current.md\n M scripts/release/release-data.pl\n M scripts/release/release.sh\n M scripts/release/test-release.sh\n?? docs/evidence/caffeine-probes/local/2026-10-08-host050-0180-03/summary.json\n?? docs/evidence/host050-package0180.md\n?? docs/evidence/publication-helper0181.md",
+      "snapshot": "3ecc48e579f6cf6e6ab01a6645d8a250fc8c6934",
+      "requirements": [
+        "ic-host-artifacts = \"0.5\"",
+        "ic-host-fs = \"0.5\"",
+        "ic-testkit = \"0.21\""
+      ],
+      "hosts": [
+        {
+          "name": "ic-host-artifacts",
+          "version": "0.4.6",
+          "deps": [
+            "flate2",
+            "sha2 0.10.9",
+            "tar",
+            "wasmparser"
+          ],
+          "parents": [
+            "ic-host-fs 0.4.6",
+            "ic-host-process 0.4.6",
+            "ic-host-tools 0.4.6",
+            "ic-testkit 0.21.3"
+          ]
+        },
+        {
+          "name": "ic-host-artifacts",
+          "version": "0.5.0",
+          "deps": [
+            "sha2 0.10.9"
+          ],
+          "parents": [
+            "ic-blob-storage-cli 0.18.0",
+            "ic-blob-storage-contracts 0.18.0",
+            "ic-host-fs 0.5.0"
+          ]
+        },
+        {
+          "name": "ic-host-fs",
+          "version": "0.4.6",
+          "deps": [
+            "ic-host-artifacts 0.4.6",
+            "rustix"
+          ],
+          "parents": [
+            "ic-host-process 0.4.6",
+            "ic-host-tools 0.4.6",
+            "ic-testkit 0.21.3"
+          ]
+        },
+        {
+          "name": "ic-host-fs",
+          "version": "0.5.0",
+          "deps": [
+            "ic-host-artifacts 0.5.0",
+            "rustix"
+          ],
+          "parents": [
+            "ic-blob-storage-cli 0.18.0"
+          ]
+        },
+        {
+          "name": "ic-host-process",
+          "version": "0.4.6",
+          "deps": [
+            "ic-host-artifacts 0.4.6",
+            "ic-host-fs 0.4.6",
+            "rustix"
+          ],
+          "parents": [
+            "ic-host-tools 0.4.6",
+            "ic-testkit 0.21.3"
+          ]
+        },
+        {
+          "name": "ic-host-tools",
+          "version": "0.4.6",
+          "deps": [
+            "ic-host-artifacts 0.4.6",
+            "ic-host-fs 0.4.6",
+            "ic-host-process",
+            "serde",
+            "serde_json"
+          ],
+          "parents": [
+            "ic-testkit 0.21.3"
+          ]
+        }
+      ],
+      "files": [
+        {
+          "path": "Cargo.toml",
+          "sha256": "84631ac4deca0a654d7781c7d2675d9e8e7d9b052269ccdd285f3f4ef52a179a"
+        },
+        {
+          "path": "Cargo.lock",
+          "sha256": "bc4b6cf2ed1a1fbc5bf3df2aecc959f1efa09271e778c73daaba852420cbb1c9"
+        },
+        {
+          "path": ".shared-tooling.snapshot",
+          "sha256": "6b31acaca6a9648614938ad6c9dfae44a8a4cc2325ac90690e73782ae38456c4"
+        },
+        {
+          "path": "scripts/ci/run-release.sh",
+          "sha256": "aa4d8ea6bf6266a32c6edae56cf3eea8dafd3149278c108998c0091bc94dbc92"
+        }
+      ]
+    },
+    {
+      "repo": "icydb",
+      "head": "cb8cefca1d68c20025398eae6dfab18a2eb45883",
+      "status": "M .shared-tooling.snapshot\n M AGENTS.md\n M CHANGELOG.md\n M Cargo.lock\n M Cargo.toml\n M DRAGGINZGAME.md\n M Makefile\n M crates/icydb-core/src/db/commit/store/mod.rs\n M crates/icydb-core/src/db/commit/store/tests.rs\n M crates/icydb-core/src/db/query/builder/scalar_projection.rs\n M docs/audits/targeted/metrics-lookup.md\n M docs/changelog/0.267.md\n M docs/consuming-snapshots.md\n M docs/governance/shared-tooling.md\n M docs/ic-tools.md\n M docs/local-setup.md\n M docs/principles/reviewable-changes.md\n M docs/releases.md\n M docs/supported-hosts.md\n M docs/verification-helpers.md\n M rules/agent-maintenance.md\n M rules/changelogs.md\n M rules/git-hooks.md\n M scripts/ci/bump-version.sh\n M scripts/ci/check-pocketic-alignment.sh\n M scripts/ci/finalize-release-changelog.awk\n M scripts/ci/run-icydb-validation-targets.sh\n M scripts/ci/run-validation-targets.sh\n M scripts/ci/test-release-runner.sh\n M scripts/ci/test-rust-tools.sh\n M scripts/ci/test-shared-tooling-adapters.sh\n M scripts/ci/test-tool-commands.sh\n M scripts/ci/test-workstation-setup.sh\n M scripts/dev/install-ic-tools.sh\n M scripts/dev/install-rust-tools.sh\n M scripts/distribution/governance-files.txt\n M scripts/release/test-pin-exceptions.sh\n M testing/integration/src/bin/write_wasm_size_report.rs\n M testing/integration/src/wasm_optimizer.rs\n?? rules/contributions.md\n?? scripts/ci/check-pocketic-binary.sh\n?? scripts/ci/ic-tool-pins.awk\n?? scripts/ci/test-pocketic-checks.sh",
+      "snapshot": "3ecc48e579f6cf6e6ab01a6645d8a250fc8c6934",
+      "requirements": [
+        "ic-host-artifacts = { version = \"0.5\", default-features = false }",
+        "ic-host-fs = \"0.5\"",
+        "ic-host-process = \"0.5\"",
+        "ic-host-tools = { version = \"0.5\", default-features = false }",
+        "ic-testkit = \"0.21\""
+      ],
+      "hosts": [
+        {
+          "name": "ic-host-artifacts",
+          "version": "0.4.6",
+          "deps": [
+            "flate2",
+            "sha2",
+            "tar",
+            "wasmparser"
+          ],
+          "parents": [
+            "ic-host-fs 0.4.6",
+            "ic-host-process 0.4.6",
+            "ic-host-tools 0.4.6",
+            "ic-testkit 0.21.3"
+          ]
+        },
+        {
+          "name": "ic-host-artifacts",
+          "version": "0.5.0",
+          "deps": [
+            "sha2",
+            "wasmparser"
+          ],
+          "parents": [
+            "ic-host-fs 0.5.0",
+            "ic-host-process 0.5.0",
+            "ic-host-tools 0.5.0",
+            "icydb-cli 0.267.1",
+            "icydb-testing-integration 0.267.1"
+          ]
+        },
+        {
+          "name": "ic-host-fs",
+          "version": "0.4.6",
+          "deps": [
+            "ic-host-artifacts 0.4.6",
+            "rustix"
+          ],
+          "parents": [
+            "ic-host-process 0.4.6",
+            "ic-host-tools 0.4.6",
+            "ic-testkit 0.21.3"
+          ]
+        },
+        {
+          "name": "ic-host-fs",
+          "version": "0.5.0",
+          "deps": [
+            "ic-host-artifacts 0.5.0",
+            "rustix"
+          ],
+          "parents": [
+            "ic-host-process 0.5.0",
+            "ic-host-tools 0.5.0",
+            "icydb-cli 0.267.1",
+            "icydb-testing-integration 0.267.1"
+          ]
+        },
+        {
+          "name": "ic-host-process",
+          "version": "0.4.6",
+          "deps": [
+            "ic-host-artifacts 0.4.6",
+            "ic-host-fs 0.4.6",
+            "rustix"
+          ],
+          "parents": [
+            "ic-host-tools 0.4.6",
+            "ic-testkit 0.21.3"
+          ]
+        },
+        {
+          "name": "ic-host-process",
+          "version": "0.5.0",
+          "deps": [
+            "ic-host-artifacts 0.5.0",
+            "ic-host-fs 0.5.0",
+            "libc",
+            "rustix"
+          ],
+          "parents": [
+            "ic-host-tools 0.5.0",
+            "icydb-testing-integration 0.267.1"
+          ]
+        },
+        {
+          "name": "ic-host-tools",
+          "version": "0.4.6",
+          "deps": [
+            "ic-host-artifacts 0.4.6",
+            "ic-host-fs 0.4.6",
+            "ic-host-process 0.4.6",
+            "serde",
+            "serde_json"
+          ],
+          "parents": [
+            "ic-testkit 0.21.3"
+          ]
+        },
+        {
+          "name": "ic-host-tools",
+          "version": "0.5.0",
+          "deps": [
+            "ic-host-artifacts 0.5.0",
+            "ic-host-fs 0.5.0",
+            "ic-host-process 0.5.0",
+            "serde",
+            "serde_json"
+          ],
+          "parents": [
+            "icydb-cli 0.267.1",
+            "icydb-testing-integration 0.267.1"
+          ]
+        }
+      ],
+      "files": [
+        {
+          "path": "Cargo.toml",
+          "sha256": "cf1ff99da52913d85cebe2951e0a0ddc0bbcafeed93225451f7515345d9764e8"
+        },
+        {
+          "path": "Cargo.lock",
+          "sha256": "f84e375a6f5a8aa4ee1dfd3e1a8a46fb3ea1e701338b63c252db2b7ca2870066"
+        },
+        {
+          "path": ".shared-tooling.snapshot",
+          "sha256": "0209c1dd64e91390055142fccec5f6c72d150f6771496d1ec3e7d91650de887c"
+        },
+        {
+          "path": "scripts/ci/run-release.sh",
+          "sha256": "aa4d8ea6bf6266a32c6edae56cf3eea8dafd3149278c108998c0091bc94dbc92"
+        }
+      ]
+    },
+    {
+      "repo": "ic-memory",
+      "head": "692fbc81d698f4b8253565ff3036f3ad3fb42cd2",
+      "status": "M .shared-tooling.snapshot\n M AGENTS.md\n M CHANGELOG.md\n M Cargo.lock\n M Cargo.toml\n M RELEASING.md\n M crates/ic-memory/examples/repo_tool/mod.rs\n M crates/ic-memory/examples/repo_tool/tests.rs\n M docs/changelog/0.31.md\n M docs/release-workflow-qualification.md\n M docs/releases.md\n M scripts/ci/release-pr.sh\n M scripts/ci/run-release.sh\n M scripts/ci/test-release-runner.sh",
+      "snapshot": "0ba0ad00ed94848e54ecc82629b6b7873b7284c0",
+      "requirements": [
+        "ic-host-artifacts = { version = \"0.5\", default-features = false }",
+        "ic-host-fs = { version = \"0.5\", default-features = false }"
+      ],
+      "hosts": [
+        {
+          "name": "ic-host-artifacts",
+          "version": "0.5.1",
+          "deps": [
+            "sha2"
+          ],
+          "parents": [
+            "ic-host-fs 0.5.1",
+            "ic-memory 0.31.3"
+          ]
+        },
+        {
+          "name": "ic-host-fs",
+          "version": "0.5.1",
+          "deps": [
+            "ic-host-artifacts",
+            "rustix"
+          ],
+          "parents": [
+            "ic-memory 0.31.3"
+          ]
+        }
+      ],
+      "files": [
+        {
+          "path": "Cargo.toml",
+          "sha256": "83c9789eb191820150e2ac9576d599a5d1f2967a54830eb960a3ab63581f82db"
+        },
+        {
+          "path": "Cargo.lock",
+          "sha256": "ec78feda08e50bb629490b85ff0e9ecd60568868a52599dc21c34ebf48f8f9be"
+        },
+        {
+          "path": ".shared-tooling.snapshot",
+          "sha256": "b7c5faf6f9fccc2ae1fe497b17daa8ce5c2f4bbad2e3a02a794c93d5ada72ad3"
+        },
+        {
+          "path": "scripts/ci/run-release.sh",
+          "sha256": "f9df53d57b569e02c23ce97cebefd79471ba353b9b6910e30c9a0c9845398823"
+        }
+      ]
+    },
+    {
+      "repo": "ic-metrics",
+      "head": "69b110b8fbefdac4773eac7631796f9dcb3f41a0",
+      "status": "M README.md\n M docs/extraction.md\n M docs/hosts.md\n M docs/status/current.md\n?? docs/evidence/release-0211.md",
+      "snapshot": "0ba0ad00ed94848e54ecc82629b6b7873b7284c0",
+      "requirements": [],
+      "hosts": [],
+      "files": [
+        {
+          "path": "Cargo.toml",
+          "sha256": "59e6b693e9279cc2334f1d27a9f1cd6c047654131d7b02d12140a3c9b9537528"
+        },
+        {
+          "path": "Cargo.lock",
+          "sha256": "c4f1052005d55176f3664a671b7d35a33a721c0892414776c23274a050afe9a9"
+        },
+        {
+          "path": ".shared-tooling.snapshot",
+          "sha256": "22542e9fe71ed9773505e77cf85dadeec39438ee72e215f1b73c07afdf665b78"
+        },
+        {
+          "path": "scripts/ci/run-release.sh",
+          "sha256": "f9df53d57b569e02c23ce97cebefd79471ba353b9b6910e30c9a0c9845398823"
+        }
+      ]
+    },
+    {
+      "repo": "ic-timers",
+      "head": "6fc76e9ffaabad575fe5f044029e6fdd063e4e32",
+      "status": "M CHANGELOG.md\n M Cargo.lock\n M docs/releasing.md\n M docs/shared-tooling.md\n M docs/status/current.md",
+      "snapshot": "0ba0ad00ed94848e54ecc82629b6b7873b7284c0",
+      "requirements": [
+        "ic-testkit = \"0.21\""
+      ],
+      "hosts": [
+        {
+          "name": "ic-host-artifacts",
+          "version": "0.4.6",
+          "deps": [
+            "flate2",
+            "sha2",
+            "tar",
+            "wasmparser"
+          ],
+          "parents": [
+            "ic-host-fs 0.4.6",
+            "ic-host-process 0.4.6",
+            "ic-host-tools 0.4.6",
+            "ic-testkit 0.21.3"
+          ]
+        },
+        {
+          "name": "ic-host-fs",
+          "version": "0.4.6",
+          "deps": [
+            "ic-host-artifacts",
+            "rustix"
+          ],
+          "parents": [
+            "ic-host-process 0.4.6",
+            "ic-host-tools 0.4.6",
+            "ic-testkit 0.21.3"
+          ]
+        },
+        {
+          "name": "ic-host-process",
+          "version": "0.4.6",
+          "deps": [
+            "ic-host-artifacts",
+            "ic-host-fs",
+            "rustix"
+          ],
+          "parents": [
+            "ic-host-tools 0.4.6",
+            "ic-testkit 0.21.3"
+          ]
+        },
+        {
+          "name": "ic-host-tools",
+          "version": "0.4.6",
+          "deps": [
+            "ic-host-artifacts",
+            "ic-host-fs",
+            "ic-host-process",
+            "serde",
+            "serde_json"
+          ],
+          "parents": [
+            "ic-testkit 0.21.3"
+          ]
+        }
+      ],
+      "files": [
+        {
+          "path": "Cargo.toml",
+          "sha256": "3c1aa347bcf85825d5299a7a841f267bc50f96700bc8108988dc551466c7319a"
+        },
+        {
+          "path": "Cargo.lock",
+          "sha256": "b2e1f04c263bd3e3f01e061c718c63413d78a50d5f057bfa4b41c5579f650a9b"
+        },
+        {
+          "path": ".shared-tooling.snapshot",
+          "sha256": "05019ce9d21338876c252a4503c0896928d06d96174de22987ac31936ae144d2"
+        },
+        {
+          "path": "scripts/ci/run-release.sh",
+          "sha256": "f9df53d57b569e02c23ce97cebefd79471ba353b9b6910e30c9a0c9845398823"
+        }
+      ]
+    },
+    {
+      "repo": "toko-miner",
+      "head": "aeed004b03b9b5d848de3750d77a42c5160c5fdf",
+      "status": "M .shared-tooling.snapshot\n M Cargo.lock\n M Cargo.toml\n M Makefile\n M scripts/ci/run-release.sh\n M scripts/dev/install-blob-preparer.py\n M scripts/dev/install-node.sh\n M scripts/dev/node-toolchain.sh\n M scripts/release/bundle.py\n M tool-versions.env\n?? scripts/ci/finalize-release-changelog.awk\n?? scripts/ci/release-pr.sh\n?? scripts/ci/test-release-runner.sh",
+      "snapshot": "0ba0ad00ed94848e54ecc82629b6b7873b7284c0",
+      "requirements": [
+        "canic = { version = \"0.110.52\", path = \"../canic/crates/canic\", default-features = false }",
+        "ic-host-fs = { version = \"0.5\", default-features = false }",
+        "ic-host-process = { version = \"0.5\", default-features = false }"
+      ],
+      "hosts": [
+        {
+          "name": "ic-host-artifacts",
+          "version": "0.4.6",
+          "deps": [
+            "flate2",
+            "sha2 0.10.9",
+            "tar",
+            "wasmparser"
+          ],
+          "parents": [
+            "ic-host-fs 0.4.6",
+            "ic-host-process 0.4.6",
+            "ic-host-tools 0.4.6",
+            "ic-testkit 0.21.3"
+          ]
+        },
+        {
+          "name": "ic-host-artifacts",
+          "version": "0.5.1",
+          "deps": [
+            "sha2 0.10.9"
+          ],
+          "parents": [
+            "ic-host-fs 0.5.1",
+            "ic-host-process 0.5.1"
+          ]
+        },
+        {
+          "name": "ic-host-fs",
+          "version": "0.4.6",
+          "deps": [
+            "ic-host-artifacts 0.4.6",
+            "rustix"
+          ],
+          "parents": [
+            "ic-host-process 0.4.6",
+            "ic-host-tools 0.4.6",
+            "ic-testkit 0.21.3"
+          ]
+        },
+        {
+          "name": "ic-host-fs",
+          "version": "0.5.1",
+          "deps": [
+            "ic-host-artifacts 0.5.1",
+            "rustix"
+          ],
+          "parents": [
+            "canister_toko_miner_user_hub 0.3.19",
+            "ic-host-process 0.5.1"
+          ]
+        },
+        {
+          "name": "ic-host-process",
+          "version": "0.4.6",
+          "deps": [
+            "ic-host-artifacts 0.4.6",
+            "ic-host-fs 0.4.6",
+            "rustix"
+          ],
+          "parents": [
+            "ic-host-tools 0.4.6",
+            "ic-testkit 0.21.3"
+          ]
+        },
+        {
+          "name": "ic-host-process",
+          "version": "0.5.1",
+          "deps": [
+            "ic-host-artifacts 0.5.1",
+            "ic-host-fs 0.5.1",
+            "libc",
+            "rustix"
+          ],
+          "parents": [
+            "canister_toko_miner_user_hub 0.3.19"
+          ]
+        },
+        {
+          "name": "ic-host-tools",
+          "version": "0.4.6",
+          "deps": [
+            "ic-host-artifacts 0.4.6",
+            "ic-host-fs 0.4.6",
+            "ic-host-process 0.4.6",
+            "serde",
+            "serde_json"
+          ],
+          "parents": [
+            "ic-testkit 0.21.3"
+          ]
+        }
+      ],
+      "files": [
+        {
+          "path": "Cargo.toml",
+          "sha256": "e282dbe69303f73f2c9d1e1067e5b73413cd6658ee5d5ee5cc7006d43974dd28"
+        },
+        {
+          "path": "Cargo.lock",
+          "sha256": "8c8be7d95efc4060e8a70e787f20ff8813bdbdd597ba34891413d550ea5b2bfa"
+        },
+        {
+          "path": ".shared-tooling.snapshot",
+          "sha256": "9799f337d4054a50ee053346d8db9855bc395cea03cd0b36aabe7a5f2832a9d6"
+        },
+        {
+          "path": "scripts/ci/run-release.sh",
+          "sha256": "f9df53d57b569e02c23ce97cebefd79471ba353b9b6910e30c9a0c9845398823"
+        }
+      ]
+    },
+    {
+      "repo": "toko",
+      "head": "44d4e2c6d41e3575b2503e79ffa369129ff3ecf2",
+      "status": "",
+      "snapshot": null,
+      "requirements": [
+        "canic = { version = \"=0.110.48\", default-features = false }",
+        "ic-testkit = \"0.7.6\""
+      ],
+      "hosts": [],
+      "files": [
+        {
+          "path": "Cargo.toml",
+          "sha256": "0a0ba0ca8cb71432e22250f277ef78c4026ac146b215890640887de6f26175ca"
+        },
+        {
+          "path": "Cargo.lock",
+          "sha256": "a6040f31789775224e51d3c783a35cd799eddac0da698998d3d738b649bfb81a"
+        }
+      ]
+    }
+  ]
+}
