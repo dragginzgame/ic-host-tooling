@@ -234,11 +234,15 @@ fn lock_errors_preserve_admission_and_original_io_causes() {
             .unwrap()
             .success()
     );
-    for path in [&fixture.root, &link, &fifo, Path::new("/dev/null")] {
-        assert!(matches!(
-            open_regular_lock_file_with_parents(path),
-            Err(RegularFileLockError::NotRegular)
-        ));
+    // Admission first attempts durable creation using sibling staging. Keep all
+    // fixtures in our writable directory: /dev/null can fail earlier on /dev
+    // permissions instead of reaching the non-regular-file check.
+    for path in [&fixture.root, &link, &fifo] {
+        let result = open_regular_lock_file_with_parents(path);
+        assert!(
+            matches!(result, Err(RegularFileLockError::NotRegular)),
+            "{path:?}: {result:?}"
+        );
         assert!(matches!(
             try_lock_regular_file_with_parents(path),
             Err(RegularFileLockError::NotRegular)

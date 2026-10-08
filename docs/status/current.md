@@ -29,6 +29,18 @@ explicit unlock with a live clone and special-file refusal. The initial Clippy
 line-count/assertion failures and corrected results remain in `/tmp/ic-host-083/`.
 Native macOS Intel/Apple Silicon qualification remains pending for this candidate.
 
+The maintainer's subsequent filesystem run failed
+`lock_errors_preserve_admission_and_original_io_causes`. The added `/dev/null`
+case depended on permission to create sibling staging under `/dev` before the
+non-regular-file check. An initial exact rerun failed; a diagnostic rerun passed,
+so the prior device-fixture result was environment-dependent. A replacement Unix
+socket fixture was also rejected by the sandbox and was removed. The final test
+uses only its existing owned directory/symlink/FIFO fixtures, with path/error
+diagnostics. Production behavior is unchanged and no symbol is removed. All 64
+filesystem library tests and strict filesystem Clippy pass locked/offline on
+Linux. Attempts and final results are retained in `/tmp/ic-host-083-admission/`.
+This is still pending 0.8.3; native macOS qualification remains separate.
+
 Testkit adoption/deletion remains separately tracked in
 [#35](https://github.com/dragginzgame/ic-testkit/issues/35) and
 [#36](https://github.com/dragginzgame/ic-testkit/issues/36). The Canic CLI to Toko

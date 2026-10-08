@@ -8,6 +8,8 @@
 - Expose unlocked regular lock-file admission so consumers can share safe opening
   while choosing their own locking and wait policy
   ([#27](https://github.com/dragginzgame/ic-host-tooling/issues/27)).
+- Keep lock-admission test fixtures in writable temporary storage, avoiding
+  failures caused by `/dev` permissions.
 
 See [the 0.8 notes](docs/changelog/0.8.md).
 
