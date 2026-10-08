@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.5.1]
+
+- Refuse release delivery when the final check changes the payload or tag, and
+  verify local/remote release identity before reporting a completed resume
+  ([#22](https://github.com/dragginzgame/ic-host-tooling/issues/22)).
+
+See [the 0.5 notes](docs/changelog/0.5.md).
+
 ## [0.5.0] - 2026-10-08
 
 - Own explicitly spawned process groups with polling, termination and cleanup

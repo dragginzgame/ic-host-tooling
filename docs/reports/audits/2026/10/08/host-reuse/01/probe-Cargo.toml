@@ -1,0 +1,11 @@
+[package]
+name = "host-audit-probe"
+version = "0.0.0"
+edition = "2024"
+publish = false
+[workspace]
+[dependencies]
+ic-host-artifacts = { path = "/home/adam/projects/ic-host-tooling/crates/ic-host-artifacts", default-features = false, features = ["wasm"] }
+ic-host-tools = { path = "/home/adam/projects/ic-host-tooling/crates/ic-host-tools", default-features = false, features = ["ic-limits"] }
+[patch.crates-io]
+ic-host-artifacts = { path = "/home/adam/projects/ic-host-tooling/crates/ic-host-artifacts" }

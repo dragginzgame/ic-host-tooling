@@ -1,0 +1,24 @@
+imported-function-limit --enforce
+wasm: /tmp/ic-host-050-audit.c6TeTV/imported-function-limit.wasm
+  raw bytes:            200037  (0.191 MiB)
+  code section:         150003  (0.143 MiB)
+  function count:        50001
+FAIL: function count 50001 exceeds IC 50000 limit (IC0505)
+imported-function-limit --json --enforce
+{"raw_bytes":200037,"code_section_bytes":150003,"function_count":50001}
+global-before-function --enforce
+wasm: /tmp/ic-host-050-audit.c6TeTV/global-before-function.wasm
+  raw bytes:                40  (0.000 MiB)
+  code section:              4  (0.000 MiB)
+  function count:            1
+OK: within IC install limits and raw soft budget
+global-before-function --json --enforce
+{"raw_bytes":40,"code_section_bytes":4,"function_count":1}
+truncated-code --enforce
+wasm: /tmp/ic-host-050-audit.c6TeTV/truncated-code.wasm
+  raw bytes:                11  (0.000 MiB)
+  code section:              5  (0.000 MiB)
+  function count:            1
+OK: within IC install limits and raw soft budget
+truncated-code --json --enforce
+{"raw_bytes":11,"code_section_bytes":5,"function_count":1}

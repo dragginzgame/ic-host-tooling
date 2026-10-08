@@ -1,6 +1,90 @@
 # Current handoff
 
-## Latest qualification: 2026-10-07, pending 0.5.0
+## Latest qualification: 2026-10-08, pending 0.5.1 release-runner repair
+
+The compatible **0.5.1** batch adopts committed Shared Tooling 0.1.23
+`0ba0ad00ed94848e54ecc82629b6b7873b7284c0` for
+[#22](https://github.com/dragginzgame/ic-host-tooling/issues/22), the consumer
+adoption of [upstream #58](https://github.com/dragginzgame/shared-tooling/issues/58).
+The canonical refresh exported the existing 68-file set from a clean private
+clone, preserving the prior dirty handoff and audit evidence. Only the shared
+direct runner, its owning regression fixture and release guidance changed within
+that set; local AGENTS.md and the exact-digest snapshot identify the new revision.
+
+Direct push now rechecks committed payload/index/worktree and the exact annotated
+tag after the final consumer check. Completed resume verifies local/remote tag
+identity and observed branch ancestry before returning success. Conflicts and
+unavailable observations stop without repeating release effects; known descendant
+tips remain valid. Direct delivery, adapter receipts and stored plan format remain
+unchanged. The optional PR helper is not added or enabled by this refresh.
+
+The new owning fixture reproduces the old runner's final-hook tag-retargeting
+failure before adoption: it accepted the mutation, pushed and marked completion.
+That command-substitute failure is retained in
+`/tmp/ic-host-051.cdcrRj/before.log` and `/tmp/release-runner-test.Fm5yQL`.
+After adoption, focused Linux direct-runner, Host adapter/receipt and Make wiring
+fixtures pass. The direct-runner fixture also passes under genuine Bash 3.2.57
+on Linux using an already-installed binary, with child shell selection included.
+That shell-portability check is not native macOS execution. Snapshot integrity,
+documentation links and whitespace checks pass.
+Selected ShellCheck passes with its optional source lookup bound to the same
+reviewed upstream clone; initial missing-unselected-helper diagnostics are retained.
+No real release effect is exercised by these fixtures. Logs and exact source clone
+remain under `/tmp/ic-host-051.cdcrRj/`.
+
+Upstream [exact-source CI](https://github.com/dragginzgame/shared-tooling/actions/runs/37746567888)
+passes Linux, macOS 15 Intel/ARM and lint/security. This is upstream native
+qualification; the uncommitted Host adoption still needs its own matching native
+CI before delivery qualification is complete. Released Host 0.5.0 CI remains
+evidence for its own bytes only. #22 stays open for delivery/qualification;
+#5 retains the separate consumer capture/cancellation and inherited-lock work.
+
+Both changelog views carry the pending 0.5.1 correction. Crate APIs, Cargo
+manifests, dependency selections and package versions are unchanged. No function,
+method or type was removed. No Rust compilation, broad local gate, tool download,
+sibling mutation, commit, push, release or publication occurred. The preceding
+audit files remain present and unchanged.
+
+## Previous qualification: 2026-10-08, released 0.5.0 and consumer audit
+
+Remote main and annotated v0.5.0 resolve to
+`db637fac8b7a9ef62301e1d9009ffeb5ffcd0be7`, matching this checkout.
+[Exact release CI](https://github.com/dragginzgame/ic-host-tooling/actions/runs/37744999108)
+passes Linux x86-64, Rust 1.88, macOS 15 Intel and macOS 15 Apple Silicon.
+This supersedes the pending delivery and native qualification statements below.
+The separate draft PR #21 remains open; its status does not describe release main.
+The maintainer reports the release live; this audit verified Git/CI identity,
+not registry publication independently.
+
+The [sibling redundancy audit](../reports/audits/2026/10/08/host-reuse/01/report.md)
+finds that the next useful simplification is consumer adoption of delivered
+owners. The existing Canic and Testkit patches still pass applicability checks
+against their current selected source. Their earlier isolated Linux rehearsals
+remain historical evidence; no new consumer build or native integration is
+claimed. Toko's two shell callers still use a hand-written Wasm parser. Three
+local fixtures demonstrate import-count drift, malformed-input acceptance and
+a JSON/enforcement inconsistency; a locked/offline Host 0.5 source probe returns
+the expected structural facts and rejects the malformed fixture.
+
+Evidence and concrete deletion routes are delivered to
+[Canic #458](https://github.com/dragginzgame/canic/issues/458#issuecomment-6055356118),
+[Canic #481](https://github.com/dragginzgame/canic/issues/481#issuecomment-6055364940),
+[Testkit #25](https://github.com/dragginzgame/ic-testkit/issues/25#issuecomment-6055355777)
+and [Toko #1791](https://github.com/dragginzgame/toko/issues/1791#issuecomment-6055355350).
+Host #10, #14 and #20 are closed with release evidence, including concurrent
+consumer verification. #5 retains its distinct capture/cancellation and inherited
+lock obligations. GitHub remains the sole follow-up tracker.
+
+Shared Tooling's committed source is still the adopted 0.1.22 revision
+`2687f26317952c43c685f7f799ed09288dc10a67`; pending 0.1.23 edits were not adopted.
+No new Host production abstraction is justified by this audit. Consumer domain
+hash framing, measured scratch-buffer choices, confinement, private crash
+barriers, artifact sets and paid-operation recovery retain their existing owners.
+Only this handoff and audit evidence changed locally. No function, method, type,
+dependency or package version was removed or changed. Sibling working trees
+remain untouched; no release, publication, commit, push or broad local gate ran.
+
+## Previous qualification: 2026-10-07, pending 0.5.0 (superseded)
 
 Released base remains 0.4.6 at
 `0fb05f9e18f032425188d68e1d69317a0f0127d5`. The current local batch carries

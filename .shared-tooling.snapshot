@@ -1,13 +1,13 @@
 # Shared Tooling snapshot v1
 format	1
 source	https://github.com/dragginzgame/shared-tooling
-revision	2687f26317952c43c685f7f799ed09288dc10a67
+revision	0ba0ad00ed94848e54ecc82629b6b7873b7284c0
 file	b5a6e8fb723a861b722834675e27b4b16f3d296112622c1b40cdc8714f575404	-	rules/changelogs.md
-file	aae1eccb19c8e789c41f9feb6faeadebb220311bbabddf256e4ec4518ae6fba5	-	docs/releases.md
-file	c6409aed359942eccb58534d69adc136a08e6018c26d3035247380494cc665e3	x	scripts/ci/run-release.sh
+file	be3638eecab7925f3a3fe054bb4db667a409101404ceba6a69d9750ce8c6f919	-	docs/releases.md
+file	f9df53d57b569e02c23ce97cebefd79471ba353b9b6910e30c9a0c9845398823	x	scripts/ci/run-release.sh
 file	37e028e2d9fee271ffdc06d06fc15d7a148ec524def3d9ed2afcd9910c0ec642	x	scripts/ci/next-release-version.sh
 file	e7f4c82566858b89b50c5c2f929097bdde85345a2c0c1bf553bb1170cc4f5960	-	scripts/ci/finalize-release-changelog.awk
-file	71308ad28237a6cd1239bf036c06b69ef8938e4d67d3d52ba56d5f7f2dc87cce	x	scripts/ci/test-release-runner.sh
+file	34329b2a30af902ca5cecc9e578693d5cddb621e9be59d6f256de997209622a0	x	scripts/ci/test-release-runner.sh
 file	fe90530851fed47985442343664b5f5f44fde396d78a0d6f489cc1562c61592d	-	DRAGGINZGAME.md
 file	59f6cb0b47fcfa698396776bbb391737292ebf34457ad7c65803fe7b36961499	-	docs/principles/README.md
 file	9315c9faffa4f36cfab496342535bf49d728ddd2111e8e127cbc44b3fac89ce7	-	docs/principles/decision-artifact-discipline.md
