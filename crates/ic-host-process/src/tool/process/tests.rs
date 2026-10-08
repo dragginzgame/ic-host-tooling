@@ -18,7 +18,7 @@ fn io_failure_cleans_the_group_and_keeps_the_original_error() {
     // Substitute an OS read failure at the capture finalization boundary; the
     // child/group and cleanup are real, with no production fault hook.
     let error = finish_capture(
-        child,
+        &mut child,
         ExecutionEvidence::default(),
         Err(io_failure(
             ExecutionOperation::ReadOutput,
@@ -58,7 +58,7 @@ fn cleanup_ownership_failure_does_not_replace_original_timeout() {
     waitid(WaitId::Pid(pid), WaitIdOptions::EXITED).unwrap();
     assert!(child.poll_exit().is_err());
     let error = finish_capture(
-        child,
+        &mut child,
         ExecutionEvidence::default(),
         Err(ExecutionFailure::TimedOut),
     )

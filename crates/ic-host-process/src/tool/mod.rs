@@ -29,7 +29,8 @@ pub struct OutputLimits {
     pub stdout_bytes: usize,
     /// Maximum retained stderr bytes; zero permits only empty stderr.
     pub stderr_bytes: usize,
-    /// Positive deadline from immediately before spawning through output EOF.
+    /// Positive deadline from immediately before spawning through output EOF,
+    /// or from entry to [`communicate_child`] for an already spawned child.
     /// Verification reads, spawning syscalls and kill/reap may take longer.
     pub timeout: Duration,
 }
@@ -77,7 +78,8 @@ pub struct VersionSpec<'a> {
     pub version_identity: &'a str,
 }
 
-/// An invalid invocation was rejected before a child was spawned.
+/// Invocation parameters rejected before dispatch or communication.
+/// An already spawned child remains owned and untouched by this validation.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum InvalidInvocation {
     /// Tool paths must be absolute.
@@ -120,8 +122,8 @@ pub enum OutputStream {
 /// and status. Error messages never include command arguments or environment.
 #[derive(Default)]
 pub struct ExecutionEvidence {
-    /// Observed direct-child status, if reaped. A killed process's status does
-    /// not prove that any external effect did not happen.
+    /// Observed direct-child status. Communication can reserve a successful
+    /// leader without reaping it. Status does not prove external effects absent.
     pub status: Option<ExitStatus>,
     /// Retained stdout prefix, bounded by the selected limit.
     pub stdout: Vec<u8>,
@@ -152,16 +154,16 @@ impl fmt::Debug for ExecutionEvidence {
 pub enum ExecutionOperation {
     /// Create the child process in its selected working directory.
     Spawn,
-    /// Obtain the child's stdout pipe.
-    StdoutPipe,
-    /// Obtain the child's stderr pipe.
-    StderrPipe,
-    /// Read a capture pipe's current descriptor flags.
+    /// Obtain the child's pipe for explicitly supplied input.
+    StdinPipe,
+    /// Read an IO pipe's current descriptor flags.
     ReadPipeFlags,
-    /// Enable nonblocking reads on a capture pipe.
+    /// Enable nonblocking IO on a pipe.
     SetPipeFlags,
     /// Read bytes from a capture pipe.
     ReadOutput,
+    /// Write bytes to the child's stdin pipe.
+    WriteInput,
     /// Observe child exit, including selected group cleanup before reaping.
     Wait,
 }
@@ -170,11 +172,11 @@ impl fmt::Display for ExecutionOperation {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
             Self::Spawn => "spawn",
-            Self::StdoutPipe => "stdout pipe",
-            Self::StderrPipe => "stderr pipe",
+            Self::StdinPipe => "stdin pipe",
             Self::ReadPipeFlags => "read pipe flags",
             Self::SetPipeFlags => "set pipe flags",
             Self::ReadOutput => "read output",
+            Self::WriteInput => "write input",
             Self::Wait => "wait",
         })
     }
@@ -187,6 +189,8 @@ pub enum ExecutionFailure {
     ExitStatus,
     /// Child exit or pipe EOF was not observed before the caller's deadline.
     TimedOut,
+    /// The caller's cancellation predicate requested cleanup.
+    Cancelled,
     /// A stream emitted more bytes than allowed.
     OutputLimit {
         /// Stream whose bound was exceeded.
@@ -230,6 +234,7 @@ impl fmt::Display for ExecutionError {
                 write!(f, "tool exited unsuccessfully: {:?}", self.evidence.status)
             }
             ExecutionFailure::TimedOut => f.write_str("tool capture exceeded its deadline"),
+            ExecutionFailure::Cancelled => f.write_str("tool communication cancelled"),
             ExecutionFailure::OutputLimit { stream } => {
                 write!(f, "tool {stream:?} exceeded its byte limit")
             }
@@ -253,7 +258,8 @@ impl std::error::Error for ExecutionError {
 /// Executable admission or execution failed.
 #[derive(Debug)]
 pub enum ToolError {
-    /// Invalid context, authority or arguments; no child was spawned.
+    /// Invalid context, authority or arguments; no new child was spawned.
+    /// Communication validation leaves an existing child and its pipes untouched.
     InvalidInvocation(InvalidInvocation),
     /// Filesystem path resolution or metadata failed before execution.
     Io(io::Error),
@@ -363,6 +369,63 @@ pub fn capture_group_command(
 ) -> Result<ExecutionEvidence, ToolError> {
     validate_limits(limits)?;
     process::capture_command(command, limits, process::CleanupScope::ProcessGroup)
+        .map_err(|source| ToolError::Execution(Box::new(source)))
+}
+
+/// Successful leader disposition during [`communicate_child`].
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum SuccessfulExit {
+    /// Clean the owned group before reaping, then finish draining captured pipes.
+    Cleanup,
+    /// Reserve the successful leader through IO completion and caller admission.
+    /// The caller must then explicitly wait, terminate or hand off the owner.
+    Retain,
+}
+
+/// Communicate once with a caller-spawned child using its configured IO.
+///
+/// Uses the capture engine to fairly drain available stdout/stderr pipes and
+/// write borrowed input without blocking reader/writer threads. The caller
+/// configures IO before [`crate::child::OwnedChild::spawn`]: absent output pipes
+/// are left alone (for example inherited progress output or files). Limits only
+/// apply to captured pipes. Do not take the child's pipes before this call.
+/// `Some(input)`, including empty input, requires piped stdin. `None` closes any
+/// available stdin pipe immediately; inherited stdin remains caller-selected.
+/// Stdin closes after input is written. An early broken pipe is accepted, like
+/// standard communicate semantics; command status and diagnostics remain primary.
+/// This does not guarantee the command consumed all input or applied its effects.
+///
+/// The deadline starts on entry, excluding earlier spawn time. `cancelled` is
+/// polled between bounded IO steps and before returning success; it must return
+/// promptly. No signal handler, cancellation thread, retry or output decoding
+/// is installed. IO failure, cancellation, timeout, overflow and unsuccessful
+/// exit close pipes and terminate/reap through the child's existing owner,
+/// retaining original failure and separate cleanup errors.
+///
+/// On success, all owned pipes are closed. With [`SuccessfulExit::Cleanup`],
+/// group cleanup and reaping occur as soon as leader exit is observed. With
+/// [`SuccessfulExit::Retain`], the successful leader remains reserved and group
+/// cleanup remains armed. After admitting output and checking
+/// application cancellation/deadlines, the caller must choose ordinary
+/// [`crate::child::OwnedChild::wait`] cleanup or explicit
+/// [`crate::child::OwnedChild::handoff`]. Rejected output can use `terminate`
+/// to retain cleanup evidence. Dropping the owner provides best-effort cleanup.
+/// This is not process-tree confinement or a descendant-exit barrier.
+///
+/// # Errors
+/// Invalid deadlines leave the already spawned child and its pipes untouched;
+/// the caller retains cleanup responsibility. An already reaped/transferred
+/// owner is rejected instead of reporting reserved success. Other failures return execution
+/// evidence after cleanup. Synchronous cleanup can exceed the deadline.
+pub fn communicate_child(
+    child: &mut crate::child::OwnedChild,
+    input: Option<&[u8]>,
+    limits: OutputLimits,
+    successful_exit: SuccessfulExit,
+    cancelled: impl FnMut() -> bool,
+) -> Result<ExecutionEvidence, ToolError> {
+    validate_limits(limits)?;
+    process::communicate(child, input, limits, successful_exit, cancelled)
         .map_err(|source| ToolError::Execution(Box::new(source)))
 }
 

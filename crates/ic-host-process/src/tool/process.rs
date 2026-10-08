@@ -1,15 +1,15 @@
 use super::{
     ExecutionContext, ExecutionError, ExecutionEvidence, ExecutionFailure, ExecutionOperation,
-    OutputLimits, OutputStream,
+    OutputLimits, OutputStream, SuccessfulExit,
 };
 use crate::child::OwnedChild;
 use rustix::fs::{OFlags, fcntl_getfl, fcntl_setfl};
 use std::{
     ffi::OsString,
-    io::{self, Read},
+    io::{self, Read, Write},
     os::fd::AsFd,
     path::Path,
-    process::{Command, Stdio},
+    process::{Command, ExitStatus, Stdio},
     time::{Duration, Instant},
 };
 
@@ -60,32 +60,91 @@ pub(super) fn capture_command(
         kill_error: None,
         wait_error: None,
     })?;
+    exchange(
+        &mut child,
+        None,
+        limits,
+        started,
+        SuccessfulExit::Cleanup,
+        || false,
+    )
+}
+
+pub(super) fn communicate(
+    child: &mut OwnedChild,
+    input: Option<&[u8]>,
+    limits: OutputLimits,
+    successful_exit: SuccessfulExit,
+    cancelled: impl FnMut() -> bool,
+) -> Result<ExecutionEvidence, ExecutionError> {
+    exchange(
+        child,
+        input,
+        limits,
+        Instant::now(),
+        successful_exit,
+        cancelled,
+    )
+}
+
+fn exchange(
+    child: &mut OwnedChild,
+    input: Option<&[u8]>,
+    limits: OutputLimits,
+    started: Instant,
+    successful_exit: SuccessfulExit,
+    mut cancelled: impl FnMut() -> bool,
+) -> Result<ExecutionEvidence, ExecutionError> {
     let mut evidence = ExecutionEvidence::default();
+    let mut stdin = child.take_stdin();
     let mut stdout = child.take_stdout();
     let mut stderr = child.take_stderr();
     let result = (|| {
-        let stdout = stdout.as_mut().ok_or_else(|| {
-            io_failure(
-                ExecutionOperation::StdoutPipe,
+        if !child.is_owned() {
+            return Err(io_failure(
+                ExecutionOperation::Wait,
+                io::ErrorKind::InvalidInput.into(),
+            ));
+        }
+        if input.is_some() && stdin.is_none() {
+            return Err(io_failure(
+                ExecutionOperation::StdinPipe,
                 io::ErrorKind::BrokenPipe.into(),
-            )
-        })?;
-        let stderr = stderr.as_mut().ok_or_else(|| {
-            io_failure(
-                ExecutionOperation::StderrPipe,
-                io::ErrorKind::BrokenPipe.into(),
-            )
-        })?;
-        nonblocking(stdout)?;
-        nonblocking(stderr)?;
-        let mut stdout_eof = false;
-        let mut stderr_eof = false;
+            ));
+        }
+        let mut remaining = input.unwrap_or_default();
+        if remaining.is_empty() {
+            drop(stdin.take());
+        }
+        if let Some(pipe) = &stdin {
+            nonblocking(pipe)?;
+        }
+        if let Some(pipe) = &stdout {
+            nonblocking(pipe)?;
+        }
+        if let Some(pipe) = &stderr {
+            nonblocking(pipe)?;
+        }
+        let mut stdout_eof = stdout.is_none();
+        let mut stderr_eof = stderr.is_none();
         loop {
+            if cancelled() {
+                return Err(ExecutionFailure::Cancelled);
+            }
             if started.elapsed() >= limits.timeout {
                 return Err(ExecutionFailure::TimedOut);
             }
+            let progress_in = if let Some(pipe) = &mut stdin {
+                let progress = write_chunk(pipe, &mut remaining)?;
+                if remaining.is_empty() {
+                    drop(stdin.take());
+                }
+                progress
+            } else {
+                false
+            };
             let progress_out = read_chunk(
-                stdout,
+                &mut stdout,
                 &mut evidence.stdout,
                 limits.stdout_bytes,
                 OutputStream::Stdout,
@@ -93,42 +152,69 @@ pub(super) fn capture_command(
                 &mut evidence.stdout_truncated,
             )?;
             let progress_err = read_chunk(
-                stderr,
+                &mut stderr,
                 &mut evidence.stderr,
                 limits.stderr_bytes,
                 OutputStream::Stderr,
                 &mut stderr_eof,
                 &mut evidence.stderr_truncated,
             )?;
-            evidence.status = child
-                .try_wait()
+            evidence.status = poll_completion(child, successful_exit)
                 .map_err(|source| io_failure(ExecutionOperation::Wait, source))?;
             if let Some(status) = evidence.status
                 && stdout_eof
                 && stderr_eof
+                && stdin.is_none()
             {
+                if cancelled() {
+                    return Err(ExecutionFailure::Cancelled);
+                }
+                // Retained success still needs timely caller admission. Ordinary
+                // capture keeps its existing synchronous-cleanup exception.
+                if successful_exit == SuccessfulExit::Retain && started.elapsed() >= limits.timeout
+                {
+                    return Err(ExecutionFailure::TimedOut);
+                }
                 return if status.success() {
                     Ok(())
                 } else {
                     Err(ExecutionFailure::ExitStatus)
                 };
             }
-            if !progress_out && !progress_err {
+            if !progress_in && !progress_out && !progress_err {
                 std::thread::sleep(
                     POLL_INTERVAL.min(limits.timeout.saturating_sub(started.elapsed())),
                 );
             }
         }
     })();
-    // Close both pipes before cleanup. A descendant retaining a writer must not
+    // Close all pipes before cleanup. A descendant retaining a writer must not
     // cause a blocking drain or leave background reader threads after a timeout.
+    drop(stdin);
     drop(stdout);
     drop(stderr);
     finish_capture(child, evidence, result)
 }
 
+fn poll_completion(
+    child: &mut OwnedChild,
+    successful_exit: SuccessfulExit,
+) -> io::Result<Option<ExitStatus>> {
+    if successful_exit == SuccessfulExit::Retain {
+        child.poll_exit().and_then(|status| {
+            if status.is_some_and(|status| !status.success()) {
+                child.try_wait()
+            } else {
+                Ok(status)
+            }
+        })
+    } else {
+        child.try_wait()
+    }
+}
+
 fn finish_capture(
-    mut child: OwnedChild,
+    child: &mut OwnedChild,
     mut evidence: ExecutionEvidence,
     result: Result<(), ExecutionFailure>,
 ) -> Result<ExecutionEvidence, ExecutionError> {
@@ -156,6 +242,35 @@ fn finish_capture(
     }
 }
 
+fn write_chunk(writer: &mut impl Write, remaining: &mut &[u8]) -> Result<bool, ExecutionFailure> {
+    let count = match writer.write(&remaining[..remaining.len().min(16 * 1024)]) {
+        Ok(0) => {
+            return Err(io_failure(
+                ExecutionOperation::WriteInput,
+                io::ErrorKind::WriteZero.into(),
+            ));
+        }
+        Ok(count) => count,
+        // Commands may deliberately stop reading and still supply useful status
+        // and diagnostics. Closing early is not proof the input was consumed.
+        Err(error) if error.kind() == io::ErrorKind::BrokenPipe => {
+            *remaining = &[];
+            return Ok(true);
+        }
+        Err(error)
+            if matches!(
+                error.kind(),
+                io::ErrorKind::Interrupted | io::ErrorKind::WouldBlock
+            ) =>
+        {
+            return Ok(false);
+        }
+        Err(source) => return Err(io_failure(ExecutionOperation::WriteInput, source)),
+    };
+    *remaining = &remaining[count..];
+    Ok(true)
+}
+
 fn nonblocking(pipe: &impl AsFd) -> Result<(), ExecutionFailure> {
     let flags = fcntl_getfl(pipe)
         .map_err(|source| io_failure(ExecutionOperation::ReadPipeFlags, source.into()))?;
@@ -164,13 +279,16 @@ fn nonblocking(pipe: &impl AsFd) -> Result<(), ExecutionFailure> {
 }
 
 fn read_chunk(
-    reader: &mut impl Read,
+    reader: &mut Option<impl Read>,
     bytes: &mut Vec<u8>,
     limit: usize,
     stream: OutputStream,
     eof: &mut bool,
     truncated: &mut bool,
 ) -> Result<bool, ExecutionFailure> {
+    let Some(reader) = reader else {
+        return Ok(false);
+    };
     if *eof {
         return Ok(false);
     }

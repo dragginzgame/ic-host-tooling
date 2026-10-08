@@ -8,6 +8,7 @@ use crate::test_support::{Fixture, LIMITS, VERSION, admit, tool_path};
 use std::os::unix::ffi::OsStringExt as _;
 
 mod capture;
+mod communicate;
 mod evidence;
 mod group;
 mod named;

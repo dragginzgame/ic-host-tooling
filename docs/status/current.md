@@ -1,6 +1,71 @@
 # Current handoff
 
-## Latest work: 2026-10-08, pending 0.6.0 owned-group capture
+## Latest work: 2026-10-08, released 0.6.0 and pending 0.7.0 communication
+
+Host 0.6.0 is released at `6f066e727c977e0b7ec8d3d77821df8508b95c64`;
+manifests and lock reflect that release. The maintainer reports it live, and
+[independent consumer feedback](https://github.com/dragginzgame/ic-host-tooling/issues/5#issuecomment-6059032413)
+confirms non-yanked registry packages and the published Toko encoder rehearsal.
+[Exact-release CI](https://github.com/dragginzgame/ic-host-tooling/actions/runs/37769906817)
+passes Linux x86-64, Rust 1.88 and native macOS 15 Intel/Apple Silicon.
+The 0.6 detail heading now agrees with the finalized root ledger. Historical
+candidate statements below are superseded, not current publication status.
+
+The local pending **0.7.0** batch continues
+[#5](https://github.com/dragginzgame/ic-host-tooling/issues/5) through the existing
+capture engine. `communicate_child` accepts an existing `OwnedChild`, borrowed
+input, available output pipes, budgets and a prompt cancellation predicate.
+Inherited/file/null output remains caller-configured. `SuccessfulExit::Cleanup`
+cleans on leader exit; `Retain` reserves successful ownership through IO so the
+consumer can admit output, recheck cancellation/deadlines, then explicitly wait,
+terminate or hand off. Reaped/transferred owners are rejected. No IO worker
+threads, new dependency, unsafe boundary or second production loop is added.
+
+The public enum additions `ExecutionFailure::Cancelled` and
+`ExecutionOperation::{StdinPipe, WriteInput}`, and removal of obsolete
+`ExecutionOperation::{StdoutPipe, StderrPipe}`, require a pre-1.0 minor release.
+Update exhaustive matches and remove references to the two deleted variants.
+No function, method or type was removed. Existing capture/admission entrypoints
+retain their IO and cleanup selections. Both changelog views select pending
+0.7.0; package versions and dependency selections remain unchanged at 0.6.0.
+
+Focused locked/offline Linux checks pass: 61 process library tests, strict
+all-target Clippy, Rust 1.88 all-target compilation, warning-denied Rustdoc and
+all-feature/all-target tools-consumer compilation. Coverage includes full-duplex
+pipe pressure, EOF and early stdin closure, inherited IO, cancellation with
+blocked input and at final success, retained leader cleanup on timeout/overflow,
+post-IO rejection/handoff and reuse refusal. Existing direct/group capture and
+cleanup-error fixtures remain passing. Logs are `/tmp/ic-host-communicate-*.log`;
+initial lint failures and corrected final3 results are preserved.
+
+`/tmp/ic-host-communicate-query/` contains a standalone adaptation of the previous
+withdrawn bridge, sources/lock/digests, source delta and logs. Nine selected
+existing process fixtures pass, including full-duplex IO, inherited output,
+escaped pipes and successful background heartbeat. Three additional probes
+prove cancellation, held-pipe timeout and invalid UTF-8 retain their original
+failure and stop the owned background group before handoff. The consumer
+projection retains Query's own output-limit wording; its initial mismatch and
+correction are preserved. Receipt publication is substituted by disposable JSON
+in this process-only rehearsal. Its cached external lock selections are retained;
+only temporary path-package identities were refreshed to this 0.6.0 checkout.
+
+The rehearsal removes `Capture`, `Capture::start`, `Capture::finish`, `drain`
+and the old bridge's IO-worker/supervision loop, replacing them with shared
+communication and caller-owned output/error admission. These are deletions in
+the private withdrawn candidate, not in a sibling checkout. Current Query is
+released 0.49.1 with concurrent dirty source, including receipt changes; copies
+of the reviewed source are retained with the rehearsal. Its actual integration
+must preserve current receipts, signal interpretation and lifecycle policy.
+The existing Python TERM grace and bounded reap are not supplied by Host's
+synchronous KILL/reap owner. This is not an apply-ready patch against current
+Query or qualification of its full graph, real receipt entrypoint or live network.
+
+Candidate native macOS Intel/ARM qualification remains pending; 0.6 CI does not
+qualify these new bytes. Keep #5 open through actual consumer adoption and native
+acceptance. Siblings remain untouched. No full local gate, tool download,
+commit/push, release, publication or package-version change ran.
+
+## Previous work: 2026-10-08, pending 0.6.0 owned-group capture (superseded)
 
 The only open Host issue, [#5](https://github.com/dragginzgame/ic-host-tooling/issues/5),
 now has a concrete Toko Miner bounded-wrapper consumer. The local **0.6.0** batch

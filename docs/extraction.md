@@ -78,6 +78,24 @@ direct-child fallback and reap errors. This adds no retries, inherited input,
 cancellation controller, implicit handoff or paid-operation recovery. Escaped
 processes remain outside its scope; signalling does not prove descendant exit.
 
+`communicate_child` uses that same IO engine with an existing `OwnedChild`.
+Callers configure stdin/stdout/stderr before spawn, select borrowed input and
+output budgets, and supply a prompt cancellation predicate. Piped IO is fair,
+bounded and nonblocking; absent output pipes preserve inherited/file/null IO.
+There are no IO worker threads, global signal handlers or retries. Errors retain
+the canonical execution/cleanup evidence. Invalid deadlines leave the existing
+owner and pipes untouched. Communication time excludes earlier spawning;
+consumers retain end-to-end timing and input-size policy.
+
+`SuccessfulExit::Cleanup` preserves ordinary group cleanup on leader exit.
+`SuccessfulExit::Retain` keeps the successful leader reserved until the consumer
+admits output and rechecks cancellation/deadlines, then explicitly chooses
+wait/termination or handoff. Failure still cleans the group. No automatic
+background ownership transfer occurs. Broken stdin pipes preserve command
+status/diagnostics and do not establish that input was consumed. The new failure
+categories and removed obsolete output-pipe categories are detailed in the
+[0.7 notes](changelog/0.7.md).
+
 `ic_host_process::child::OwnedChild` shares child spawn/reap/cleanup mechanics
 with the direct-child capture engine. Its public spawn establishes a new group
 while preserving caller IO and command settings. Ordinary waits reserve an exited

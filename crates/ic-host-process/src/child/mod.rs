@@ -98,6 +98,10 @@ impl OwnedChild {
         Self::spawn_inner(command, false)
     }
 
+    pub(crate) const fn is_owned(&self) -> bool {
+        self.owned
+    }
+
     fn spawn_inner(command: &mut Command, group: bool) -> io::Result<Self> {
         command.spawn().map(|child| Self {
             child,

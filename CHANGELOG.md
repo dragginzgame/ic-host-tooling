@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.7.0]
+
+- Communicate with caller-spawned children through the shared bounded IO engine,
+  supporting piped input, inherited output, cancellation and explicit retention
+  of successful background commands for admission before handoff
+  ([#5](https://github.com/dragginzgame/ic-host-tooling/issues/5)).
+- **Breaking:** process failure categories now include cancellation and stdin IO;
+  obsolete missing-output-pipe categories are removed. Update exhaustive error
+  matches. Existing capture entrypoints keep their cleanup behavior.
+
+See [the 0.7 notes](docs/changelog/0.7.md).
+
 ## [0.6.0] - 2026-10-08
 
 - Capture wrapper commands with explicit process-group cleanup through the shared
