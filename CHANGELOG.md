@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.5.1]
+## [0.5.1] - 2026-10-08
 
 - Refuse release delivery when the final check changes the payload or tag, and
   verify local/remote release identity before reporting a completed resume
