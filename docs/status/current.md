@@ -37,10 +37,14 @@ tests, strict selected Clippy, Rust 1.88 all-target checks, warning-denied Rustd
 and actual feature-graph exclusions. The child qualification below remains
 applicable to unchanged child source. Logs, including corrected initial lint
 failures, are preserved under `/tmp/ic-host-next-*`, `/tmp/ic-host-050-*` and
-`/tmp/ic-host-047-*`. No full local CI/release gate ran. Native macOS compilation
-and execution of the candidate, including the approved private FFI call and
-closed-writer executable fixture, remain unqualified on both architectures.
-Released 0.4.6 CI success is not candidate evidence.
+`/tmp/ic-host-047-*`. No full local CI/release gate ran. The authorized draft PR now supplies native
+qualification of candidate commit `6f92fa1cff2fb672ec79c228b79df45633f9cf81`:
+[CI run 37742983651](https://github.com/dragginzgame/ic-host-tooling/actions/runs/37742983651)
+passes Linux x86-64, Rust 1.88, macOS 15 Intel and macOS 15 Apple Silicon.
+Both Mac jobs compile and exercise the approved private FFI boundary and
+closed-writer publication tests. This is candidate-source evidence, independent
+of released 0.4.6, and does not establish registry publication or native consumer
+qualification.
 
 GitHub delivery now succeeds after earlier server failures. Source/evidence and
 remaining delivery requirements are recorded on
@@ -68,8 +72,9 @@ those contracts. No descendant-exit or paid-effect recovery guarantee was added.
 The only removed Host function is private `tool::process::reap`, replaced by
 `child::OwnedChild` cleanup/reaping. No type or public function was removed;
 `encode_gzip` changed its argument contract. No dependency version or registry
-selection changed, and no download, sibling mutation, commit, push, release or
-publication was performed.
+selection changed, and no download, sibling mutation, release or publication
+was performed during local preparation. Authorized topic-branch delivery is
+recorded below.
 
 The subsequent adoption rehearsal refreshes all 68 selected Shared Tooling files
 from committed 0.1.22 `2687f26317952c43c685f7f799ed09288dc10a67`, using a clean
@@ -103,13 +108,15 @@ No additional Host function or type was removed by the snapshot/rehearsal work.
 Logs, failed lint attempts, exact source digests and patches are retained under
 `/tmp/ic-host-050-adoption.6V2DSt/`.
 
-This machine is Linux x86-64. Native candidate macOS qualification requires the
-existing PR CI matrix; its latest completed Host run still covers released
-0.4.6. The maintainer authorized the prepared draft PR on 2026-10-08. The exact reviewed
-patch was applied in an isolated checkout on `codex/host-050-consolidation`; the
-original working tree is preserved. This commit prepares that authorized PR and
-its native CI run. Candidate macOS qualification remains pending until the
-result is observed; no merge, release or package publication is authorized.
+The maintainer authorized the prepared draft PR on 2026-10-08.
+[Draft PR #21](https://github.com/dragginzgame/ic-host-tooling/pull/21) is open
+from `codex/host-050-consolidation` against `main`. The reviewed patch was
+committed and pushed from an isolated checkout at `/tmp/ic-host-050-pr.cRWJZb`;
+the original working tree remains intact. All four CI jobs pass for the runtime
+commit identified above. This documentation follow-up records that observation;
+its runtime source, dependencies and workflow are unchanged. The PR remains a
+draft. No merge, direct integration-branch push, release or publication occurred.
+Native run metadata and logs are retained in the adoption evidence directory.
 
 ## Previous qualification: 2026-10-07, initial 0.4.7 draft (superseded)
 
