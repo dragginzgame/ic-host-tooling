@@ -16,6 +16,10 @@ minimal artifact tests and each selected package with all features in sequence.
 The release gate uses the same host tools; installing the IC executable bundle
 is separate explicit setup and is not required for library qualification.
 CI also owns native macOS execution; Linux qualification is not macOS evidence.
+The workflow runs on pull requests and pushes to `main`; it cannot qualify
+uncommitted local bytes. A scoped contribution PR exercises both macOS 15
+architectures and Linux against the candidate source before release. Bind
+results to that PR's tested commit and keep consumer rehearsals separate.
 Earlier Shared Tooling host-fixture failures on macOS remain historical evidence
 in the original repository. The refreshed fixture has local Linux execution with
 substituted host identities here; native macOS qualification remains separate.

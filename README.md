@@ -7,8 +7,8 @@ admitted process execution and IC-specific format handling.
 | --- | --- |
 | ic-host-artifacts | Bounded streams and hashing writers, exact byte comparison, SHA-256, gzip encoding/decoding, verified tar members and generic Wasm facts |
 | ic-host-fs | Regular/no-follow reads, missing-suffix path resolution, streamed durable publication, private files and observed descriptor locks |
-| ic-host-process | Executable resolution, digest/version admission, bounded caller-command capture and Git observations |
-| ic-host-tools | Candid extraction/normalization and ICP CLI response decoding |
+| ic-host-process | Executable resolution, digest/version admission, bounded capture, explicit child/group cleanup and Git observations |
+| ic-host-tools | Candid extraction/normalization, ICP CLI response decoding and optional IC resource reports |
 
 These run locally outside canisters. The ic-host prefix identifies their ecosystem;
 the generic crates have no IC runtime dependency. Compression, archive and Wasm
@@ -18,12 +18,22 @@ Response-only consumers can disable `ic-host-tools`' default features to exclude
 the artifact/filesystem/process extraction dependencies. The default
 `candid-extraction` feature preserves the existing Unix Candid API. Response
 decoding is always available and needs only serde/serde_json.
+The optional `ic-limits` feature compares Wasm facts with explicitly selected,
+revision-bound IC resource limits, without filesystem/process dependencies when
+defaults are disabled. See the [0.5 contract changes](docs/changelog/0.5.md).
 
 `tool::capture_command` accepts a caller-configured `std::process::Command` when
 the consumer owns executable admission. It shares bounded capture and direct-child
 cleanup with `AdmittedTool`, whose exact digest/version checks remain in place.
 `ToolError::evidence` and `execution_error` borrow retained diagnostics without
 copying output; callers own presentation and recovery.
+
+`child::OwnedChild::spawn` starts a caller-configured command in a new owned
+process group. It preserves command IO and supports polling, waiting, explicit
+termination and cleanup during unwinding. Callers retain admission, readiness,
+cancellation and application lifecycle policy. See the
+[child cleanup contract](docs/changelog/0.5.md#explicit-child-and-process-group-cleanup)
+for exclusive ownership and descendant limitations.
 
 `AdmittedTool::admit_version` accepts a `VersionSpec` for caller-trusted installed
 tools without a published binary digest. It records the installed identity,
@@ -41,6 +51,11 @@ staging path, then shares the normal durable publication engine. Callers validat
 bounded output before success and retain typed producer/cleanup errors. See the
 [named-output contract](docs/changelog/0.4.md#named-external-output) before adopting it.
 
+`durable::write_validated_with` closes the staging writer before a caller's
+prepublication admission callback, enabling executable probes while preserving
+the working destination on rejection. See the
+[closed-writer contract](docs/changelog/0.5.md#closed-writer-executable-admission).
+
 `durable::write_typed_with` retains serializer errors while streaming through
 the same engine, with explicit replace/create-only options and file permissions.
 `durable::write_at_with` borrows an admitted directory descriptor so publication
@@ -54,8 +69,8 @@ decoded bytes exactly with an expected slice. All retain explicit input/payload
 bounds and strict single-member integrity checks; see the
 [gzip contract](docs/changelog/0.4.md#gzip-identities-and-exact-representation-comparison).
 
-The four-crate workspace has a Git release at 0.4.5. Package metadata permits
-crates.io publication; a Git release does not establish registry availability.
+The four-crate workspace permits crates.io publication; a Git release does not
+establish registry availability. Release qualification is recorded in the handoff.
 The original local checkout has been removed after a verified full backup.
 Consumers adopt and qualify registry selections independently.
 
@@ -89,7 +104,10 @@ Shared Tooling owns rules, hooks, installers and the common release runner.
 This workspace consumes an exact snapshot; library ownership stays here.
 make ci is the complete configured gate, not an automatic development command.
 The standard release entry points use the shared runner for version preparation,
-commit, tag and atomic branch/tag push. Registry publication is separate:
+commit, tag and atomic branch/tag push with `RELEASE_DELIVERY=direct`.
+This consumer rejects other delivery selections before starting a command;
+Shared Tooling's optional PR release flow needs separate adapter qualification.
+Registry publication is separate:
 make publish-check performs a Cargo dry run, and make publish uploads the
 committed workspace to crates.io. Read [the publication procedure](docs/publishing.md)
 for prerequisites, retained evidence and partial-upload recovery.

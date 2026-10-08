@@ -22,19 +22,29 @@ use std::{
 /// Repeatable bytes require the same input, compression settings and backend;
 /// this does not promise identical output across dependency versions. The
 /// compressor's internal working memory is outside the output byte budget.
+/// `compression_level` is 0 (stored) through 9 (best compression); 1 is fastest
+/// and 6 is the usual balanced setting. The format-level value exposes no
+/// compression-backend dependency type.
 ///
 /// # Errors
 /// Returns compressor, sink or output-limit errors. Limit errors carry
 /// [`super::WriterError`] inside [`io::Error`].
+/// Levels above 9 return `InvalidInput` before writing to the sink.
 pub fn encode_gzip(
     bytes: &[u8],
     writer: impl Write,
-    compression: flate2::Compression,
+    compression_level: u32,
     max_compressed_bytes: u64,
 ) -> io::Result<()> {
+    if compression_level > 9 {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "gzip compression level must be 0 through 9",
+        ));
+    }
     let mut encoder = flate2::GzBuilder::new().mtime(0).write(
         BoundedWriter::new(writer, max_compressed_bytes),
-        compression,
+        flate2::Compression::new(compression_level),
     );
     encoder.write_all(bytes)?;
     encoder.finish()?;

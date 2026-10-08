@@ -6,7 +6,7 @@
 //! Facts borrow source bytes; no metadata or export names are copied.
 
 use std::{collections::BTreeMap, fmt};
-use wasmparser::{Encoding, ExternalKind, Parser, Payload};
+use wasmparser::{Encoding, ExternalKind, Parser, Payload, TypeRef};
 
 #[cfg(test)]
 mod tests;
@@ -73,6 +73,16 @@ impl std::error::Error for ParseError {}
 /// A structural inspection failed without yielding partial facts.
 #[derive(Debug)]
 pub enum InspectionError {
+    /// A parser offset or extent cannot be represented by the host address space.
+    UnrepresentableSize {
+        /// Original parser value, without misclassifying it as a caller byte limit.
+        value: u64,
+    },
+    /// Imports exceed the representable Wasm index-space count.
+    CountOverflow {
+        /// Index space being counted.
+        kind: ExportKind,
+    },
     /// A caller-supplied resource bound was exceeded.
     LimitExceeded {
         /// Resource being counted.
@@ -103,6 +113,11 @@ pub enum InspectionError {
 impl fmt::Display for InspectionError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::UnrepresentableSize { value } => write!(
+                f,
+                "Wasm offset or extent {value} exceeds the host address space"
+            ),
+            Self::CountOverflow { kind } => write!(f, "Wasm {kind:?} import count exceeds u32"),
             Self::LimitExceeded {
                 resource,
                 actual,
@@ -171,10 +186,19 @@ pub struct WasmFacts<'a> {
     pub raw_bytes: usize,
     /// Code section payload bytes, including its vector count and body lengths.
     pub code_section_bytes: usize,
+    /// Encoded function bodies and body lengths, excluding the code vector count.
+    /// This is the parser's remaining code-section size, used by the IC reference.
+    pub code_body_bytes: usize,
     /// Data section payload bytes, including its vector count and framing.
     pub data_section_bytes: usize,
     /// Defined functions, excluding imports; function/code counts must agree.
     pub defined_functions: u32,
+    /// Imported functions, including exact-function imports.
+    pub imported_functions: u32,
+    /// Defined globals; initializer framing is parsed but types are not validated.
+    pub defined_globals: u32,
+    /// Imported globals, separate from definitions for index-space diagnostics.
+    pub imported_globals: u32,
     /// Number of encoded data segments.
     pub data_segments: u32,
     /// All exports keyed by exact name; callers select IC/application methods.
@@ -203,8 +227,12 @@ pub fn inspect(bytes: &[u8], limits: InspectionLimits) -> Result<WasmFacts<'_>, 
     let mut facts = WasmFacts {
         raw_bytes: bytes.len(),
         code_section_bytes: 0,
+        code_body_bytes: 0,
         data_section_bytes: 0,
         defined_functions: 0,
+        imported_functions: 0,
+        defined_globals: 0,
+        imported_globals: 0,
         data_segments: 0,
         exports: BTreeMap::new(),
         custom_sections: Vec::new(),
@@ -224,6 +252,13 @@ pub fn inspect(bytes: &[u8], limits: InspectionLimits) -> Result<WasmFacts<'_>, 
             Payload::Version { encoding, .. } if encoding != Encoding::Module => {
                 return Err(InspectionError::UnsupportedEncoding);
             }
+            Payload::ImportSection(reader) => inspect_imports(reader, &mut facts)?,
+            Payload::GlobalSection(reader) => {
+                facts.defined_globals = reader.count();
+                for global in reader {
+                    global.map_err(parse_error)?;
+                }
+            }
             Payload::FunctionSection(reader) => {
                 facts.defined_functions = reader.count();
                 // Exhaust the iterator to reject count/payload mismatch, rather
@@ -232,8 +267,9 @@ pub fn inspect(bytes: &[u8], limits: InspectionLimits) -> Result<WasmFacts<'_>, 
                     index.map_err(parse_error)?;
                 }
             }
-            Payload::CodeSectionStart { range, .. } => {
+            Payload::CodeSectionStart { range, size, .. } => {
                 facts.code_section_bytes = host_size(range.end - range.start)?;
+                facts.code_body_bytes = host_size(u64::from(size))?;
             }
             Payload::DataSection(reader) => {
                 let range = reader.range();
@@ -243,38 +279,7 @@ pub fn inspect(bytes: &[u8], limits: InspectionLimits) -> Result<WasmFacts<'_>, 
                     segment.map_err(parse_error)?;
                 }
             }
-            Payload::ExportSection(reader) => {
-                enforce(
-                    InspectionResource::Exports,
-                    u64::from(reader.count()),
-                    u64::from(limits.exports),
-                )?;
-                for entry in reader.into_iter_with_offsets() {
-                    let (offset, entry) = entry.map_err(parse_error)?;
-                    let kind = match entry.kind {
-                        ExternalKind::Func | ExternalKind::FuncExact => ExportKind::Function,
-                        ExternalKind::Table => ExportKind::Table,
-                        ExternalKind::Memory => ExportKind::Memory,
-                        ExternalKind::Global => ExportKind::Global,
-                        ExternalKind::Tag => ExportKind::Tag,
-                    };
-                    if facts
-                        .exports
-                        .insert(
-                            entry.name,
-                            Export {
-                                kind,
-                                index: entry.index,
-                            },
-                        )
-                        .is_some()
-                    {
-                        return Err(InspectionError::DuplicateExport {
-                            offset: host_size(offset)?,
-                        });
-                    }
-                }
-            }
+            Payload::ExportSection(reader) => inspect_exports(reader, &mut facts, limits.exports)?,
             Payload::CustomSection(reader) => {
                 enforce(
                     InspectionResource::CustomSections,
@@ -298,14 +303,74 @@ pub fn inspect(bytes: &[u8], limits: InspectionLimits) -> Result<WasmFacts<'_>, 
     Ok(facts)
 }
 
+fn inspect_imports(
+    reader: wasmparser::ImportSectionReader<'_>,
+    facts: &mut WasmFacts<'_>,
+) -> Result<(), InspectionError> {
+    for import in reader.into_imports() {
+        match import.map_err(parse_error)?.ty {
+            TypeRef::Func(_) | TypeRef::FuncExact(_) => {
+                facts.imported_functions = facts.imported_functions.checked_add(1).ok_or(
+                    InspectionError::CountOverflow {
+                        kind: ExportKind::Function,
+                    },
+                )?;
+            }
+            TypeRef::Global(_) => {
+                facts.imported_globals = facts.imported_globals.checked_add(1).ok_or(
+                    InspectionError::CountOverflow {
+                        kind: ExportKind::Global,
+                    },
+                )?;
+            }
+            _ => {}
+        }
+    }
+    Ok(())
+}
+
+fn inspect_exports<'a>(
+    reader: wasmparser::ExportSectionReader<'a>,
+    facts: &mut WasmFacts<'a>,
+    limit: u32,
+) -> Result<(), InspectionError> {
+    enforce(
+        InspectionResource::Exports,
+        u64::from(reader.count()),
+        u64::from(limit),
+    )?;
+    for entry in reader.into_iter_with_offsets() {
+        let (offset, entry) = entry.map_err(parse_error)?;
+        let kind = match entry.kind {
+            ExternalKind::Func | ExternalKind::FuncExact => ExportKind::Function,
+            ExternalKind::Table => ExportKind::Table,
+            ExternalKind::Memory => ExportKind::Memory,
+            ExternalKind::Global => ExportKind::Global,
+            ExternalKind::Tag => ExportKind::Tag,
+        };
+        if facts
+            .exports
+            .insert(
+                entry.name,
+                Export {
+                    kind,
+                    index: entry.index,
+                },
+            )
+            .is_some()
+        {
+            return Err(InspectionError::DuplicateExport {
+                offset: host_size(offset)?,
+            });
+        }
+    }
+    Ok(())
+}
+
 // The parser carries u64 offsets; borrowed artifact facts use host-sized values.
 // No offset or extent can require more than the host's entire addressable input.
 fn host_size(value: u64) -> Result<usize, InspectionError> {
-    usize::try_from(value).map_err(|_| InspectionError::LimitExceeded {
-        resource: InspectionResource::ModuleBytes,
-        actual: value,
-        limit: usize::MAX as u64,
-    })
+    usize::try_from(value).map_err(|_| InspectionError::UnrepresentableSize { value })
 }
 
 const fn enforce(

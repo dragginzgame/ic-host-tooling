@@ -63,6 +63,7 @@ fn reports_exact_metrics_exports_and_borrowed_metadata_in_encounter_order() {
     let facts = inspect(&bytes, LIMITS).unwrap();
     assert_eq!(facts.raw_bytes, bytes.len());
     assert_eq!(facts.code_section_bytes, 4);
+    assert_eq!(facts.code_body_bytes, 3);
     assert_eq!(facts.data_section_bytes, 6);
     assert_eq!(facts.defined_functions, 1);
     assert_eq!(facts.data_segments, 1);
@@ -80,6 +81,49 @@ fn reports_exact_metrics_exports_and_borrowed_metadata_in_encounter_order() {
     let source_range = bytes.as_ptr_range();
     assert!(source_range.contains(&facts.custom_sections[0].data.as_ptr()));
     assert_eq!(bytes, original);
+}
+
+#[test]
+fn code_body_measurement_excludes_the_actual_encoded_count_width() {
+    let mut module = HEADER.to_vec();
+    section(&mut module, 1, &[1, 0x60, 0, 0]);
+    section(&mut module, 3, &[1, 0]);
+    // A valid padded LEB count occupies two bytes, not its minimal one byte.
+    section(&mut module, 10, &[0x81, 0, 2, 0, 0x0b]);
+    let facts = inspect(&module, LIMITS).unwrap();
+    assert_eq!(facts.code_section_bytes, 5);
+    assert_eq!(facts.code_body_bytes, 3);
+}
+
+#[test]
+fn imported_functions_and_globals_are_counted_separately_from_definitions() {
+    let mut module = HEADER.to_vec();
+    section(&mut module, 1, &[1, 0x60, 0, 0]);
+    section(
+        &mut module,
+        2,
+        &[2, 1, b'm', 1, b'f', 0, 0, 1, b'm', 1, b'g', 3, 0x7f, 0],
+    );
+    section(&mut module, 3, &[1, 0]);
+    section(&mut module, 6, &[1, 0x7f, 0, 0x41, 0, 0x0b]);
+    section(&mut module, 10, &[1, 2, 0, 0x0b]);
+    let facts = inspect(&module, LIMITS).unwrap();
+    assert_eq!(facts.defined_functions, 1);
+    assert_eq!(facts.imported_functions, 1);
+    assert_eq!(facts.defined_globals, 1);
+    assert_eq!(facts.imported_globals, 1);
+}
+
+#[test]
+fn malformed_import_and_global_vectors_do_not_yield_partial_facts() {
+    for (id, payload) in [(2, &[1, 1, b'm'][..]), (6, &[1, 0x7f, 0, 0x41][..])] {
+        let mut module = HEADER.to_vec();
+        section(&mut module, id, payload);
+        assert!(matches!(
+            inspect(&module, LIMITS),
+            Err(InspectionError::Parse(_))
+        ));
+    }
 }
 
 #[test]

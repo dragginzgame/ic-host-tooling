@@ -13,7 +13,7 @@ pub use named::{NamedWriteError, write_named_with};
 mod stream;
 #[cfg(unix)]
 pub use stream::write_at_with;
-pub use stream::{PublicationMode, WriteOptions, write_typed_with};
+pub use stream::{PublicationMode, WriteOptions, write_typed_with, write_validated_with};
 
 #[cfg(test)]
 mod tests;
@@ -320,13 +320,20 @@ mod supported {
                 0o666
             },
         };
-        commit_path_with_options(path, options, produce, before)
+        commit_path_with_options(
+            path,
+            options,
+            produce,
+            None::<fn(&Path, &T) -> Result<(), E>>,
+            before,
+        )
     }
 
     pub(super) fn commit_path_with_options<T, E>(
         path: &Path,
         options: WriteOptions,
         produce: impl FnOnce(&Path, &mut fs::File) -> Result<T, E>,
+        admit: Option<impl FnOnce(&Path, &T) -> Result<(), E>>,
         mut before: impl FnMut(FileCommitStep, &Path) -> io::Result<()>,
     ) -> Result<T, NamedWriteError<E>> {
         validate_permissions(options.permissions).map_err(NamedWriteError::before)?;
@@ -339,6 +346,7 @@ mod supported {
             file_name,
             options,
             produce,
+            admit,
             before,
         )
     }
@@ -349,6 +357,7 @@ mod supported {
         file_name: &OsStr,
         options: WriteOptions,
         produce: impl FnOnce(&Path, &mut fs::File) -> Result<T, E>,
+        admit: Option<impl FnOnce(&Path, &T) -> Result<(), E>>,
         mut before: impl FnMut(FileCommitStep, &Path) -> io::Result<()>,
     ) -> Result<T, NamedWriteError<E>> {
         validate_permissions(options.permissions).map_err(NamedWriteError::before)?;
@@ -364,25 +373,11 @@ mod supported {
         // All filesystem operations below use the held directory descriptor.
         let parent = parent_path.unwrap_or_else(|| Path::new(""));
         let path = parent.join(file_name);
-        // Darwin's mode_t is u16; Linux uses u32. Permission admission above
-        // remains authoritative, and the narrowing conversion is checked.
-        #[cfg(target_vendor = "apple")]
-        let permissions = u16::try_from(options.permissions).map_err(|_| {
-            NamedWriteError::before(io::Error::new(
-                io::ErrorKind::InvalidInput,
-                "invalid file permission bits",
-            ))
-        })?;
-        #[cfg(not(target_vendor = "apple"))]
-        let permissions = options.permissions;
-        let (temp_name, temp_path, mut temp_file) = create_sibling_temp(
-            &parent_fd,
-            parent,
-            file_name,
-            Mode::from_raw_mode(permissions),
-            &mut before,
-        )
-        .map_err(NamedWriteError::before)?;
+        let permissions =
+            native_permissions(options.permissions).map_err(NamedWriteError::before)?;
+        let (temp_name, temp_path, mut temp_file) =
+            create_sibling_temp(&parent_fd, parent, file_name, permissions, &mut before)
+                .map_err(NamedWriteError::before)?;
 
         let cleanup = || remove_owned_temp(&parent_fd, &temp_name, &temp_file).err();
         if let Err(source) = before(FileCommitStep::TemporaryFileWrite, &temp_path) {
@@ -404,7 +399,32 @@ mod supported {
         let staged = (|| {
             before(FileCommitStep::TemporaryFileSync, &temp_path)?;
             verify_staging(&parent_fd, parent_path, &temp_name, &temp_file)?;
-            temp_file.sync_all()?;
+            temp_file.sync_all()
+        })();
+        if let Err(source) = staged {
+            return Err(NamedWriteError::BeforePublication {
+                source,
+                cleanup_error: remove_owned_temp(&parent_fd, &temp_name, &temp_file).err(),
+            });
+        }
+        if let Some(admit) = admit {
+            match retain_read_only(&parent_fd, parent_path, &temp_name, &temp_file) {
+                Ok(read_only) => drop(std::mem::replace(&mut temp_file, read_only)),
+                Err(source) => {
+                    return Err(NamedWriteError::BeforePublication {
+                        source,
+                        cleanup_error: remove_owned_temp(&parent_fd, &temp_name, &temp_file).err(),
+                    });
+                }
+            }
+            if let Err(source) = admit(&temp_path, &value) {
+                return Err(NamedWriteError::Producer {
+                    source,
+                    cleanup_error: remove_owned_temp(&parent_fd, &temp_name, &temp_file).err(),
+                });
+            }
+        }
+        let staged = (|| {
             before(FileCommitStep::Publication, &path)?;
             // Keep the descriptor alive through rename so its identity cannot
             // be recycled after a producer unlinks or replaces the pathname.
@@ -439,6 +459,41 @@ mod supported {
             source: errno_to_io(error),
         })?;
         Ok(value)
+    }
+
+    fn native_permissions(permissions: u32) -> io::Result<Mode> {
+        validate_permissions(permissions)?;
+        // Darwin's mode_t is u16; retain checked narrowing after admission.
+        #[cfg(target_vendor = "apple")]
+        let permissions = u16::try_from(permissions).map_err(|_| {
+            io::Error::new(io::ErrorKind::InvalidInput, "invalid file permission bits")
+        })?;
+        Ok(Mode::from_raw_mode(permissions))
+    }
+
+    fn retain_read_only(
+        parent_fd: &impl AsFd,
+        parent_path: Option<&Path>,
+        name: &OsStr,
+        original: &fs::File,
+    ) -> io::Result<fs::File> {
+        let read_only = fs::File::from(
+            unix_fs::openat(
+                parent_fd,
+                name,
+                OFlags::RDONLY | OFlags::NOFOLLOW | OFlags::NONBLOCK | OFlags::CLOEXEC,
+                Mode::empty(),
+            )
+            .map_err(errno_to_io)?,
+        );
+        // Both descriptors remain open until identity is verified, preventing reuse.
+        let held = unix_fs::fstat(original).map_err(errno_to_io)?;
+        let reopened = unix_fs::fstat(&read_only).map_err(errno_to_io)?;
+        if !same_identity(&held, &reopened) {
+            return Err(staging_identity_error());
+        }
+        verify_staging(parent_fd, parent_path, name, &read_only)?;
+        Ok(read_only)
     }
 
     fn same_identity(left: &unix_fs::Stat, right: &unix_fs::Stat) -> bool {

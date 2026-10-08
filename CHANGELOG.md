@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.5.0]
+
+- Own explicitly spawned process groups with polling, termination and cleanup
+  during unwinding, while preserving caller-selected command IO and keeping
+  original operation failures separate from cleanup diagnostics
+  ([#5](https://github.com/dragginzgame/ic-host-tooling/issues/5)).
+
+- Add closed-writer staged executable admission before durable publication
+  ([#20](https://github.com/dragginzgame/ic-host-tooling/issues/20)).
+- **Breaking:** gzip encoding now accepts numeric levels 0–9; Wasm facts and
+  typed inspection failures expand. Update compression arguments, fact literals
+  and exhaustive error matches. Add opt-in revision-bound IC resource reports
+  with exact code-body, defined-function and global counts
+  ([#10](https://github.com/dragginzgame/ic-host-tooling/issues/10),
+  [#14](https://github.com/dragginzgame/ic-host-tooling/issues/14)).
+
+See [the 0.5 notes](docs/changelog/0.5.md).
+
 ## [0.4.6] - 2026-10-07
 
 - Fix macOS publication-test expectations for non-UTF-8 filenames by checking

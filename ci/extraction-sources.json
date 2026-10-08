@@ -2,6 +2,17 @@
   "format": 1,
   "sources": [
     {
+      "repository": "https://github.com/dragginzgame/ic-testkit",
+      "revision": "2db7b4f6b616b484408695656e26207628d74c5f",
+      "files": [
+        {
+          "path": "crates/ic-testkit/src/pic/startup.rs",
+          "sha256": "8c8126d4351634987dd98df7c9632f1f551902e39f662b399def980d236a503b",
+          "selection": "owned child polling, WNOWAIT leader reservation, group kill/reap and unwind cleanup; adapted to safe rustix and one approved fixed-buffer macOS membership query; readiness, output files, cancellation, application lifecycle and paid-effect recovery remain caller-owned"
+        }
+      ]
+    },
+    {
       "repository": "https://github.com/dragginzgame/ic-host-tools",
       "revision": "be7d73908225e73ab5babf8fbb9fe959f40d439b",
       "selection": "committed library, tests, examples, lockfile and license"

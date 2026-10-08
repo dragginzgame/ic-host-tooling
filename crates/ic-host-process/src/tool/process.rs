@@ -2,13 +2,14 @@ use super::{
     ExecutionContext, ExecutionError, ExecutionEvidence, ExecutionFailure, ExecutionOperation,
     OutputLimits, OutputStream,
 };
+use crate::child::OwnedChild;
 use rustix::fs::{OFlags, fcntl_getfl, fcntl_setfl};
 use std::{
     ffi::OsString,
     io::{self, Read},
     os::fd::AsFd,
     path::Path,
-    process::{Child, Command, Stdio},
+    process::{Command, Stdio},
     time::{Duration, Instant},
 };
 
@@ -34,20 +35,19 @@ pub(super) fn capture_command(
     limits: OutputLimits,
 ) -> Result<ExecutionEvidence, ExecutionError> {
     let started = Instant::now();
-    let mut child = command
+    command
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .map_err(|source| ExecutionError {
-            failure: io_failure(ExecutionOperation::Spawn, source),
-            evidence: ExecutionEvidence::default(),
-            kill_error: None,
-            wait_error: None,
-        })?;
+        .stderr(Stdio::piped());
+    let mut child = OwnedChild::spawn_direct(command).map_err(|source| ExecutionError {
+        failure: io_failure(ExecutionOperation::Spawn, source),
+        evidence: ExecutionEvidence::default(),
+        kill_error: None,
+        wait_error: None,
+    })?;
     let mut evidence = ExecutionEvidence::default();
-    let mut stdout = child.stdout.take();
-    let mut stderr = child.stderr.take();
+    let mut stdout = child.take_stdout();
+    let mut stderr = child.take_stderr();
     let result = (|| {
         let stdout = stdout.as_mut().ok_or_else(|| {
             io_failure(
@@ -112,7 +112,16 @@ pub(super) fn capture_command(
     match result {
         Ok(()) => Ok(evidence),
         Err(failure) => {
-            let (kill_error, wait_error) = reap(&mut child, &mut evidence);
+            let (kill_error, wait_error) = match child.terminate() {
+                Ok(status) => {
+                    evidence.status = Some(status);
+                    (None, None)
+                }
+                Err(error) => {
+                    evidence.status = error.status;
+                    (error.kill_error, error.wait_error)
+                }
+            };
             Err(ExecutionError {
                 failure,
                 evidence,
@@ -169,24 +178,6 @@ fn read_chunk(
         return Err(ExecutionFailure::OutputLimit { stream });
     }
     Ok(true)
-}
-
-fn reap(
-    child: &mut Child,
-    evidence: &mut ExecutionEvidence,
-) -> (Option<io::Error>, Option<io::Error>) {
-    if evidence.status.is_some() {
-        return (None, None);
-    }
-    let kill_error = child.kill().err();
-    let wait_error = match child.wait() {
-        Ok(status) => {
-            evidence.status = Some(status);
-            None
-        }
-        Err(source) => Some(source),
-    };
-    (kill_error, wait_error)
 }
 
 const fn io_failure(operation: ExecutionOperation, source: io::Error) -> ExecutionFailure {
