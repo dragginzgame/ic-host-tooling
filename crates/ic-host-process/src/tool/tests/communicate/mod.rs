@@ -335,3 +335,60 @@ fn cancellation_is_checked_again_before_returning_reserved_success() {
     assert_reaped(&child);
     assert!(child.handoff().is_err());
 }
+
+#[test]
+fn communication_uses_owned_term_grace_with_blocked_input_and_held_pipes() {
+    let fixture = Fixture::new();
+    for mode in ["timeout", "cancel", "exited-leader"] {
+        let ready = fixture.root.join(mode);
+        let mut command = command(
+            "trap 'exit 0' TERM; \
+             sh -c 'trap \"\" TERM; printf ready > \"$READY\"; exec sleep 30' & \
+             printf prefix; if [ \"$MODE\" = exited-leader ]; then exit 0; fi; wait",
+        );
+        command.env("READY", &ready).env("MODE", mode);
+        let grace = Duration::from_millis(50);
+        let mut child = OwnedChild::spawn_with_cleanup(
+            &mut command,
+            crate::child::CleanupPolicy::TermThenKill {
+                grace,
+                reap_timeout: Duration::from_secs(2),
+            },
+        )
+        .unwrap();
+        let ready_deadline = Instant::now() + Duration::from_secs(5);
+        while !ready.exists() {
+            assert!(Instant::now() < ready_deadline);
+            std::thread::sleep(Duration::from_millis(2));
+        }
+        let input = vec![b'x'; 1024 * 1024];
+        let started = Instant::now();
+        let error = communicate_child(
+            &mut child,
+            Some(&input),
+            OutputLimits {
+                timeout: Duration::from_millis(100),
+                ..LIMITS
+            },
+            SuccessfulExit::Retain,
+            || mode == "cancel",
+        )
+        .unwrap_err();
+        let execution = error.execution_error().unwrap();
+        if mode == "cancel" {
+            assert!(matches!(execution.failure, ExecutionFailure::Cancelled));
+        } else {
+            assert!(matches!(execution.failure, ExecutionFailure::TimedOut));
+            assert_eq!(execution.evidence.stdout, b"prefix");
+        }
+        assert!(started.elapsed() >= grace);
+        assert!(
+            execution.term_error.is_none()
+                && execution.group_error.is_none()
+                && execution.kill_error.is_none()
+                && execution.wait_error.is_none()
+        );
+        assert_reaped(&child);
+        assert!(child.handoff().is_err());
+    }
+}

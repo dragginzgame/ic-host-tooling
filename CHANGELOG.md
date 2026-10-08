@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.8.0]
+
+- Allow caller-selected TERM grace and bounded reaping for owned groups,
+  shared by explicit termination, communication failures and Drop. This supplies
+  Query's required cleanup timing without another process runner
+  ([#5](https://github.com/dragginzgame/ic-host-tooling/issues/5)).
+- **Breaking:** `CleanupError` and `ExecutionError` add `term_error`. Update struct
+  literals and exhaustive destructuring. Existing spawn/capture defaults remain
+  immediate KILL with synchronous reaping.
+
+See [the 0.8 notes](docs/changelog/0.8.md).
+
 ## [0.7.2] - 2026-10-08
 
 - Preserve checkout paths in release-adapter, publication and feature checks with an

@@ -219,7 +219,9 @@ pub struct ExecutionError {
     pub failure: ExecutionFailure,
     /// Observed status and bounded stdout/stderr prefixes.
     pub evidence: ExecutionEvidence,
-    /// Failure signalling an explicitly owned process group; absent in direct capture.
+    /// Failure signalling TERM under the caller-selected child cleanup policy.
+    pub term_error: Option<io::Error>,
+    /// Failure signalling KILL to an owned process group; absent in direct capture.
     pub group_error: Option<io::Error>,
     /// Failure to terminate the direct child, if termination was needed.
     pub kill_error: Option<io::Error>,
@@ -414,9 +416,10 @@ pub enum SuccessfulExit {
 ///
 /// # Errors
 /// Invalid deadlines leave the already spawned child and its pipes untouched;
-/// the caller retains cleanup responsibility. An already reaped/transferred
+/// the caller retains cleanup responsibility. An already terminating/reaped/transferred
 /// owner is rejected instead of reporting reserved success. Other failures return execution
-/// evidence after cleanup. Synchronous cleanup can exceed the deadline.
+/// evidence after cleanup. Cleanup uses the policy chosen at child spawn and
+/// can exceed the communication deadline by its separate grace/reap allowance.
 pub fn communicate_child(
     child: &mut crate::child::OwnedChild,
     input: Option<&[u8]>,

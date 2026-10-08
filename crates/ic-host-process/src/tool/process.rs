@@ -56,6 +56,7 @@ pub(super) fn capture_command(
     let mut child = spawned.map_err(|source| ExecutionError {
         failure: io_failure(ExecutionOperation::Spawn, source),
         evidence: ExecutionEvidence::default(),
+        term_error: None,
         group_error: None,
         kill_error: None,
         wait_error: None,
@@ -221,19 +222,25 @@ fn finish_capture(
     match result {
         Ok(()) => Ok(evidence),
         Err(failure) => {
-            let (group_error, kill_error, wait_error) = match child.terminate() {
+            let (term_error, group_error, kill_error, wait_error) = match child.terminate() {
                 Ok(status) => {
                     evidence.status = Some(status);
-                    (None, None, None)
+                    (None, None, None, None)
                 }
                 Err(error) => {
                     evidence.status = error.status;
-                    (error.group_error, error.kill_error, error.wait_error)
+                    (
+                        error.term_error,
+                        error.group_error,
+                        error.kill_error,
+                        error.wait_error,
+                    )
                 }
             };
             Err(ExecutionError {
                 failure,
                 evidence,
+                term_error,
                 group_error,
                 kill_error,
                 wait_error,

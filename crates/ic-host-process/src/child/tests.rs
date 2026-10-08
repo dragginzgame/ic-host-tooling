@@ -347,3 +347,146 @@ fn handoff_refuses_external_reaping_without_signalling_reused_identity() {
     );
     drop(child);
 }
+
+#[test]
+fn term_grace_reserves_exited_leader_until_descendant_kill() {
+    let fixture = Fixture::new();
+    let marker = fixture.root.join("term");
+    let mut command = command(
+        "trap 'printf term > \"$MARKER\"; exit 0' TERM; \
+         sh -c 'trap \"\" TERM; printf ready; exec sleep 30' & wait",
+    );
+    command.env("MARKER", &marker).stdout(Stdio::piped());
+    let grace = Duration::from_millis(100);
+    let mut child = OwnedChild::spawn_with_cleanup(
+        &mut command,
+        CleanupPolicy::TermThenKill {
+            grace,
+            reap_timeout: Duration::from_secs(2),
+        },
+    )
+    .unwrap();
+    let pid = child.id();
+    let mut stdout = child.take_stdout().unwrap();
+    let mut ready = [0; 5];
+    stdout.read_exact(&mut ready).unwrap();
+    assert_eq!(&ready, b"ready");
+    nonblocking(&stdout);
+    let started = Instant::now();
+    assert!(child.terminate().unwrap().success());
+    assert!(started.elapsed() >= grace);
+    assert_eq!(std::fs::read(marker).unwrap(), b"term");
+    // The leader handled TERM, but its TERM-ignoring descendant held this pipe
+    // until the subsequent group KILL. Early leader reaping would lose authority.
+    assert_eq!(read_until(&mut stdout, true), b"");
+    assert_reaped(pid);
+}
+
+#[test]
+fn bounded_policy_applies_to_termination_drop_and_unwinding() {
+    let _fixture = Fixture::new();
+    for mode in ["terminate", "drop", "panic"] {
+        let mut command = command("trap '' TERM; printf ready; exec sleep 30");
+        command.stdout(Stdio::piped());
+        let grace = Duration::from_millis(25);
+        let mut child = OwnedChild::spawn_with_cleanup(
+            &mut command,
+            CleanupPolicy::TermThenKill {
+                grace,
+                reap_timeout: Duration::from_secs(2),
+            },
+        )
+        .unwrap();
+        let pid = child.id();
+        child
+            .take_stdout()
+            .unwrap()
+            .read_exact(&mut [0; 5])
+            .unwrap();
+        let started = Instant::now();
+        match mode {
+            "terminate" => assert_eq!(child.terminate().unwrap().signal(), Some(9)),
+            "drop" => drop(child),
+            _ => assert!(
+                std::panic::catch_unwind(move || {
+                    let _owned = child;
+                    panic!("caller failed during admission");
+                })
+                .is_err()
+            ),
+        }
+        assert!(started.elapsed() >= grace);
+        assert_reaped(pid);
+    }
+}
+
+#[test]
+fn exhausted_reap_allowance_is_not_restarted_by_return_or_drop() {
+    let _fixture = Fixture::new();
+    let mut child = OwnedChild::spawn_with_cleanup(
+        &mut command("exec sleep 30"),
+        CleanupPolicy::TermThenKill {
+            grace: Duration::from_secs(30),
+            reap_timeout: Duration::from_millis(30),
+        },
+    )
+    .unwrap();
+    let pid = Pid::from_raw(i32::try_from(child.id()).unwrap()).unwrap();
+    // Substitute already-dispatched escalation while the real child is still
+    // running. This tests pending reaping without inducing an unkillable OS task.
+    child.reap_started = Some(Instant::now());
+    let started = Instant::now();
+    let error = child.terminate().unwrap_err();
+    assert_eq!(error.wait_error.unwrap().kind(), io::ErrorKind::TimedOut);
+    assert!(started.elapsed() >= Duration::from_millis(30));
+    assert!(child.owned);
+    assert!(child.handoff().is_err());
+    assert_eq!(
+        child.terminate().unwrap_err().wait_error.unwrap().kind(),
+        io::ErrorKind::TimedOut
+    );
+    drop(child);
+    assert!(started.elapsed() < Duration::from_secs(2));
+    // The caller still owes recovery after a reap timeout; no detached thread or
+    // silently blocking destructor took that obligation. Clean this test child.
+    kill_process_group(pid, Signal::KILL).unwrap();
+    waitid(WaitId::Pid(pid), WaitIdOptions::EXITED).unwrap();
+}
+
+#[test]
+fn bounded_policy_keeps_successful_handoff_explicit() {
+    let fixture = Fixture::new();
+    let marker = fixture.root.join("survived");
+    let mut command = command("(sleep 0.1; printf alive > \"$MARKER\") & exit 0");
+    command.env("MARKER", &marker);
+    let mut child = OwnedChild::spawn_with_cleanup(
+        &mut command,
+        CleanupPolicy::TermThenKill {
+            grace: Duration::ZERO,
+            reap_timeout: Duration::ZERO,
+        },
+    )
+    .unwrap();
+    until(|| child.poll_exit().unwrap().is_some());
+    assert!(child.handoff().unwrap().success());
+    drop(child);
+    until(|| std::fs::read(&marker).is_ok_and(|bytes| bytes == b"alive"));
+}
+
+#[test]
+fn bounded_termination_accepts_a_reserved_sole_zombie() {
+    let _fixture = Fixture::new();
+    let mut child = OwnedChild::spawn_with_cleanup(
+        &mut command("exit 0"),
+        CleanupPolicy::TermThenKill {
+            grace: Duration::from_millis(25),
+            reap_timeout: Duration::ZERO,
+        },
+    )
+    .unwrap();
+    until(|| child.poll_exit().unwrap().is_some());
+    // Darwin may refuse signalling a group containing only its zombie leader.
+    // Both TERM and KILL must use the existing conservative native inspection.
+    assert!(child.terminate().unwrap().success());
+    assert_reaped(child.id());
+}

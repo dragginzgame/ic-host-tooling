@@ -110,8 +110,16 @@ natural waiting or cancellation; Drop provides best-effort cleanup, including
 unwinding. Typed cleanup evidence remains separate from the original operation
 failure. No application readiness, global signal handler, lifecycle controller,
 retry, descendant-exit barrier or process-tree containment is introduced.
-Exclusive reaping and an unchanged child group are required. Synchronous cleanup
-has no wall-clock bound and only reaps the direct child.
+Exclusive reaping and an unchanged child group are required. The default cleanup
+has no wall-clock bound and only reaps the direct child. `spawn_with_cleanup`
+can select `CleanupPolicy::TermThenKill` with caller-owned grace and reap limits.
+TERM leaves the leader reserved until group KILL, even if it exits during grace.
+Repeated termination and Drop share the original reap allowance rather than
+restarting it. Timeout retains the child for explicit caller recovery; dropping
+it may leave an unreaped child until parent exit. No reaper thread is installed.
+Explicit natural waiting and successful background handoff keep their contracts.
+TERM, group KILL, direct-child fallback and reap errors remain separate from the
+original execution failure. See the [0.8 contract](changelog/0.8.md).
 
 The sole-zombie macOS check uses one private fixed-buffer libproc call, explicitly
 approved by the maintainer. Unsafe code remains denied outside that function.

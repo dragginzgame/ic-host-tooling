@@ -38,6 +38,12 @@ then reaps a successful leader without stopping the background group. See the
 [child cleanup contract](docs/changelog/0.5.md#explicit-child-and-process-group-cleanup)
 for exclusive ownership and descendant limitations.
 
+`spawn_with_cleanup` selects `CleanupPolicy::TermThenKill` for caller-owned TERM
+grace and bounded reaping. Communication failures and Drop use that same policy;
+the default remains immediate KILL with synchronous reaping. Reap timeout retains
+the owner for explicit recovery and does not start a background reaper. See the
+[bounded cleanup contract](docs/changelog/0.8.md#caller-selected-termination-timing).
+
 `tool::capture_group_command` combines bounded stdout/stderr capture with that
 group cleanup for commands whose descendants must be signalled on exit or
 failure. Ordinary `capture_command` retains direct-child cleanup. Both share one

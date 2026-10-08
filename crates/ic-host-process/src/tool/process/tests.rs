@@ -74,3 +74,37 @@ fn cleanup_ownership_failure_does_not_replace_original_timeout() {
         Some(rustix::io::Errno::CHILD.raw_os_error())
     );
 }
+
+#[test]
+fn bounded_cleanup_retains_term_kill_and_reap_failures_beside_cancellation() {
+    let _fixture = Fixture::new();
+    let mut child = OwnedChild::spawn_with_cleanup(
+        &mut Command::new("/bin/true"),
+        crate::child::CleanupPolicy::TermThenKill {
+            grace: Duration::from_secs(30),
+            reap_timeout: Duration::ZERO,
+        },
+    )
+    .unwrap();
+    let pid = Pid::from_raw(i32::try_from(child.id()).unwrap()).unwrap();
+    waitid(WaitId::Pid(pid), WaitIdOptions::EXITED).unwrap();
+    assert!(child.poll_exit().is_err());
+    let error = finish_capture(
+        &mut child,
+        ExecutionEvidence {
+            stdout: b"prefix".to_vec(),
+            ..ExecutionEvidence::default()
+        },
+        Err(ExecutionFailure::Cancelled),
+    )
+    .unwrap_err();
+    assert!(matches!(error.failure, ExecutionFailure::Cancelled));
+    assert_eq!(error.evidence.stdout, b"prefix");
+    for failure in [error.term_error, error.group_error, error.wait_error] {
+        assert_eq!(
+            failure.unwrap().raw_os_error(),
+            Some(rustix::io::Errno::CHILD.raw_os_error())
+        );
+    }
+    assert!(error.kill_error.is_none());
+}

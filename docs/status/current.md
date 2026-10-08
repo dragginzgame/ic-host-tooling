@@ -1,6 +1,56 @@
 # Current handoff
 
-## Latest work: 2026-10-08, released 0.7.1 and pending 0.7.2 path fixes
+## Latest work: 2026-10-08, released 0.7.2 and pending 0.8.0 bounded cleanup
+
+Host 0.7.2 is released at `8236b506307d33f7c34f56d6e0ba9db4300792d7`;
+the maintainer reports it live. Its
+[exact-source CI](https://github.com/dragginzgame/ic-host-tooling/actions/runs/37789259299)
+passes Linux and Rust 1.88; both macOS 15 jobs were queued at inspection. This
+supersedes the pending-0.7.2 statements below. Registry availability was not
+independently checked, and this release does not qualify the new candidate.
+
+The local **0.8.0** batch addresses the concrete Query timing requirement under
+[#5](https://github.com/dragginzgame/ic-host-tooling/issues/5#issuecomment-6061981009).
+`OwnedChild::spawn_with_cleanup` accepts `CleanupPolicy::TermThenKill` with
+caller-owned grace and reap durations. TERM preserves the leader through grace;
+KILL still reaches the group after an early leader exit. Nonblocking reap
+observations use a single remembered allowance across explicit termination and
+Drop. Expiry retains ownership for caller recovery; dropping can leave an
+unreaped child until parent exit. No background reaper or hidden blocking wait
+is introduced. The existing owner and communication engine remain authoritative.
+
+`CleanupError` and `ExecutionError` add a separate `term_error` field. Update
+public struct literals/exhaustive destructuring, using None for existing
+immediate-KILL fixtures; this requires the pre-1.0 minor release. Existing
+spawn/capture defaults, explicit natural waits and successful handoff retain
+their contracts. No function, method or type was removed. Root/detail notes,
+README, extraction contract and the explicit documentation check cover 0.8.0.
+Manifests, lock selections, tool pins and the Shared Tooling snapshot remain
+unchanged at the released selections; no package version mutation ran.
+
+Focused locked/offline Linux validation passes: 68 process tests, one API example
+compile, strict all-target Clippy, Rust 1.88 all-target check, warning-denied
+Rustdoc and all-feature/all-target tools-consumer compilation. Cases exercise
+TERM-exited leaders with TERM-ignoring descendants, sole zombies, held pipes,
+blocked stdin, cancellation/timeouts, unwinding and handoff. Reap-expiry coverage
+substitutes already-dispatched escalation around a real running child; it does
+not induce an unkillable native task. External reaping supplies real ownership
+errors, not native permission-denial evidence. The first Clippy attempt's empty
+assertion lint and corrected final results remain in `/tmp/ic-host-080-cleanup/`.
+Documentation links and diff hygiene pass. Candidate macOS qualification is pending.
+
+Query is now released 0.50.0 at `bd583e2b6baa7570be363b2948345c57582c3f31`,
+still using its Python process owner and published artifact/fs dependencies.
+Its current cleanup implementation/fixtures were read, not replaced or executed.
+Actual Query helper, receipt and signal integration, deletion and native acceptance
+remain under #5; the old private bridge is not an apply-ready patch for this source.
+[Canic #458](https://github.com/dragginzgame/canic/issues/458#issuecomment-6061981427)
+records its one observed ExecutionError test-literal update on eventual 0.8
+adoption, separately from its concurrently changing dependency graph.
+Siblings remain read-only. No full local gate, tool download, new unsafe code,
+commit/push, release or publication occurred.
+
+## Previous work: 2026-10-08, released 0.7.1 and pending 0.7.2 path fixes (superseded)
 
 Host 0.7.1 is released at `410fee7c309e781edf6a361f0e480d71b7c11e5a`.
 The maintainer reports it live. Its

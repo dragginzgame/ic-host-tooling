@@ -17,7 +17,23 @@ use std::{
     fmt, io,
     os::unix::process::{CommandExt, ExitStatusExt},
     process::{Child, ChildStderr, ChildStdin, ChildStdout, Command, ExitStatus},
+    time::{Duration, Instant},
 };
+
+/// Caller-selected termination behavior for an owned process group.
+#[derive(Clone, Copy, Debug)]
+pub enum CleanupPolicy {
+    /// Signal KILL immediately, then wait synchronously for the leader.
+    KillAndWait,
+    /// Signal TERM, reserve the leader through the grace period, then signal
+    /// KILL and poll reaping for at most the selected duration.
+    TermThenKill {
+        /// Time allowed after successful TERM signalling, even if the leader exits.
+        grace: Duration,
+        /// Reap allowance after KILL; zero permits one nonblocking observation.
+        reap_timeout: Duration,
+    },
+}
 
 /// One exclusively owned child, normally spawned as a new process-group leader.
 ///
@@ -31,8 +47,9 @@ use std::{
 /// releasing cleanup ownership, then [`Self::handoff`] reaps a successful leader
 /// without signalling its group. The caller then owns the background lifetime.
 /// Drop makes a best-effort kill/reap attempt, including during unwinding. Use
-/// [`Self::terminate`] to observe cleanup failures. Cleanup is synchronous and
-/// has no wall-clock bound; successful signalling is not proof that descendants
+/// [`Self::terminate`] to observe cleanup failures. The default cleanup waits
+/// synchronously; [`Self::spawn_with_cleanup`] can select bounded reaping.
+/// Successful signalling is not proof that descendants
 /// have exited or completed external effects. Only the direct child is reaped.
 /// Group signalling can succeed for only some members when credentials differ.
 pub struct OwnedChild {
@@ -40,6 +57,8 @@ pub struct OwnedChild {
     group: bool,
     status: Option<ExitStatus>,
     owned: bool,
+    cleanup: CleanupPolicy,
+    reap_started: Option<Instant>,
 }
 
 /// Failures observed during one explicit termination attempt.
@@ -50,7 +69,9 @@ pub struct OwnedChild {
 pub struct CleanupError {
     /// Status retained if the direct child was reaped despite another failure.
     pub status: Option<ExitStatus>,
-    /// Failure signalling the owned process group.
+    /// Failure signalling TERM to the owned process group.
+    pub term_error: Option<io::Error>,
+    /// Failure signalling KILL to the owned process group.
     pub group_error: Option<io::Error>,
     /// Failure killing the direct child (including fallback after group failure).
     pub kill_error: Option<io::Error>,
@@ -62,6 +83,7 @@ impl fmt::Display for CleanupError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str("child cleanup failed")?;
         for (operation, error) in [
+            ("group TERM", &self.term_error),
             ("group signal", &self.group_error),
             ("child kill", &self.kill_error),
             ("child wait", &self.wait_error),
@@ -76,8 +98,9 @@ impl fmt::Display for CleanupError {
 
 impl std::error::Error for CleanupError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        self.group_error
+        self.term_error
             .as_ref()
+            .or(self.group_error.as_ref())
             .or(self.kill_error.as_ref())
             .or(self.wait_error.as_ref())
             .map(|error| error as &dyn std::error::Error)
@@ -90,24 +113,52 @@ impl OwnedChild {
     /// # Errors
     /// Returns the native spawn/setup failure. No retries are performed.
     pub fn spawn(command: &mut Command) -> io::Result<Self> {
+        Self::spawn_with_cleanup(command, CleanupPolicy::KillAndWait)
+    }
+
+    /// Spawn a new owned group with caller-selected termination timing.
+    ///
+    /// The policy applies whenever termination is needed, including communication
+    /// failures and Drop during unwinding. It does not change natural waiting or
+    /// successful background handoff. No signal handler or reaper thread is added.
+    ///
+    /// ```no_run
+    /// use ic_host_process::child::{CleanupPolicy, OwnedChild};
+    /// use std::{process::Command, time::Duration};
+    /// let mut child = OwnedChild::spawn_with_cleanup(
+    ///     &mut Command::new("caller-selected-tool"),
+    ///     CleanupPolicy::TermThenKill {
+    ///         grace: Duration::from_secs(5),
+    ///         reap_timeout: Duration::from_secs(5),
+    ///     },
+    /// )?;
+    /// // Configure command IO before spawn; communicate/admit before handoff.
+    /// child.terminate()?;
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    /// # Errors
+    /// Returns the native spawn/setup failure. No retries are performed.
+    pub fn spawn_with_cleanup(command: &mut Command, cleanup: CleanupPolicy) -> io::Result<Self> {
         command.process_group(0);
-        Self::spawn_inner(command, true)
+        Self::spawn_inner(command, true, cleanup)
     }
 
     pub(crate) fn spawn_direct(command: &mut Command) -> io::Result<Self> {
-        Self::spawn_inner(command, false)
+        Self::spawn_inner(command, false, CleanupPolicy::KillAndWait)
     }
 
     pub(crate) const fn is_owned(&self) -> bool {
-        self.owned
+        self.owned && self.reap_started.is_none()
     }
 
-    fn spawn_inner(command: &mut Command, group: bool) -> io::Result<Self> {
+    fn spawn_inner(command: &mut Command, group: bool, cleanup: CleanupPolicy) -> io::Result<Self> {
         command.spawn().map(|child| Self {
             child,
             group,
             status: None,
             owned: true,
+            cleanup,
+            reap_started: None,
         })
     }
 
@@ -176,11 +227,11 @@ impl OwnedChild {
     /// use ordinary wait/termination for failed startup, keeping its original
     /// failure separate from any cleanup error. Drop still attempts cleanup.
     /// # Errors
-    /// Returns `InvalidInput` for a running, unsuccessful or already-reaped
+    /// Returns `InvalidInput` for a running, unsuccessful, terminating or already-reaped
     /// leader, or native inspection/reap errors. Reap failures retain cleanup
     /// ownership unless it was lost externally.
     pub fn handoff(&mut self) -> io::Result<ExitStatus> {
-        if !self.owned || !self.poll_exit()?.is_some_and(|status| status.success()) {
+        if !self.is_owned() || !self.poll_exit()?.is_some_and(|status| status.success()) {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidInput,
                 "handoff requires an owned, successfully exited leader",
@@ -206,7 +257,7 @@ impl OwnedChild {
             if self.observe_exit(true)?.is_none() {
                 return Ok(None);
             }
-            self.signal_group()?;
+            self.signal_group(Signal::KILL)?;
             self.reap().map(Some)
         } else {
             let result = retry_interrupted(|| self.child.try_wait());
@@ -231,16 +282,25 @@ impl OwnedChild {
         }
         if self.group {
             self.observe_exit(false)?;
-            self.signal_group()?;
+            self.signal_group(Signal::KILL)?;
         }
         self.reap()
     }
 
-    /// Kill the owned group (or internal direct child), then reap the leader.
+    /// Terminate the owned group (or internal direct child), then reap the leader.
     ///
     /// Repeated calls after reaping return the cached status and never signal a
     /// reused PID. A prior group failure still matters even if reaping succeeded;
     /// later calls cannot recover group ownership and do not erase that evidence.
+    /// With [`CleanupPolicy::TermThenKill`], successful TERM signalling is followed
+    /// by the full grace period without reaping, then KILL even if the leader has
+    /// exited. A TERM error does not prevent KILL or reaping. The reap allowance
+    /// begins after signalling; repeated termination and Drop never restart it or
+    /// repeat escalation. Reap timeout returns `TimedOut` in `wait_error` while
+    /// keeping the unreaped child owned. Callers may explicitly recover with
+    /// `try_wait`/`wait`; dropping after timeout can leave an unreaped child until
+    /// parent exit. No background reaper is installed. Scheduling and native
+    /// syscall latency are outside these polling bounds.
     /// # Errors
     /// Retains each failed cleanup step separately. Group failure triggers a
     /// direct-child kill fallback. Drop cannot report errors; call this explicitly
@@ -249,21 +309,48 @@ impl OwnedChild {
         if let Some(status) = self.status {
             return Ok(status);
         }
-        let group_error = if self.group {
-            self.signal_group().err()
+        let first_attempt = self.reap_started.is_none();
+        let term_error =
+            if first_attempt && let CleanupPolicy::TermThenKill { grace, .. } = self.cleanup {
+                let error = self.signal_group(Signal::TERM).err();
+                if error.is_none() {
+                    let started = Instant::now();
+                    while started.elapsed() < grace {
+                        std::thread::sleep(
+                            grace
+                                .saturating_sub(started.elapsed())
+                                .min(Duration::from_secs(1)),
+                        );
+                    }
+                }
+                error
+            } else {
+                None
+            };
+        let group_error = if first_attempt && self.group {
+            self.signal_group(Signal::KILL).err()
         } else {
             None
         };
-        let kill_error = if self.owned && (!self.group || group_error.is_some()) {
+        let kill_error = if first_attempt && self.owned && (!self.group || group_error.is_some()) {
             retry_interrupted(|| self.child.kill()).err()
         } else {
             None
         };
-        let waited = self.reap();
+        let waited = match self.cleanup {
+            CleanupPolicy::KillAndWait => self.reap(),
+            CleanupPolicy::TermThenKill { reap_timeout, .. } => {
+                let started = *self.reap_started.get_or_insert_with(Instant::now);
+                self.reap_bounded(started, reap_timeout)
+            }
+        };
         match waited {
-            Ok(status) if group_error.is_none() && kill_error.is_none() => Ok(status),
+            Ok(status) if term_error.is_none() && group_error.is_none() && kill_error.is_none() => {
+                Ok(status)
+            }
             other => Err(CleanupError {
                 status: self.status,
+                term_error,
                 group_error,
                 kill_error,
                 wait_error: other.err(),
@@ -299,9 +386,9 @@ impl OwnedChild {
             reason = "Darwin inspects and may invalidate child ownership"
         )
     )]
-    fn signal_group(&mut self) -> io::Result<()> {
+    fn signal_group(&mut self, signal: Signal) -> io::Result<()> {
         let pid = self.pid()?;
-        match retry_interrupted(|| kill_process_group(pid, Signal::KILL).map_err(Into::into)) {
+        match retry_interrupted(|| kill_process_group(pid, signal).map_err(Into::into)) {
             Ok(()) => Ok(()),
             Err(error) if error.raw_os_error() == Some(Errno::SRCH.raw_os_error()) => Ok(()),
             #[cfg(target_os = "macos")]
@@ -327,6 +414,35 @@ impl OwnedChild {
         }
         self.check_wait_ownership(&result);
         result
+    }
+
+    fn reap_bounded(&mut self, started: Instant, timeout: Duration) -> io::Result<ExitStatus> {
+        if !self.owned {
+            return Err(Errno::CHILD.into());
+        }
+        loop {
+            // Never call blocking wait, including after an interrupted poll.
+            let result = self.child.try_wait();
+            self.check_wait_ownership(&result);
+            match result {
+                Ok(Some(status)) => {
+                    self.status = Some(status);
+                    self.owned = false;
+                    return Ok(status);
+                }
+                Ok(None) => {}
+                Err(error) if error.kind() == io::ErrorKind::Interrupted => {}
+                Err(error) => return Err(error),
+            }
+            let remaining = timeout.saturating_sub(started.elapsed());
+            if remaining.is_zero() {
+                return Err(io::Error::new(
+                    io::ErrorKind::TimedOut,
+                    "child reap timed out",
+                ));
+            }
+            std::thread::sleep(remaining.min(Duration::from_millis(2)));
+        }
     }
 
     fn check_wait_ownership<T>(&mut self, result: &io::Result<T>) {
