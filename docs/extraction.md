@@ -39,6 +39,11 @@ reader hierarchy. Lock errors retain typed admission and original I/O causes.
 through the same path opener; contention retains native `WouldBlock`. Blocking
 and progress callers retain their existing behavior. No filesystem latency
 deadline, retry controller or stale-lock removal is introduced.
+`open_regular_lock_file_with_parents` is that single admission owner, exposed
+without acquisition so consumers can choose shared locks or descriptor waiting.
+It preserves existing bytes and returns a close-on-exec read/write descriptor.
+Consumers retain stable namespace, clone lifetime and explicit unlock policy;
+opening does not establish root confinement or lock ownership.
 The [0.4 notes](changelog/0.4.md) describe the required consumer changes.
 
 `durable::write_named_with` exposes an absolute owned staging pathname to external
@@ -90,6 +95,15 @@ There are no IO worker threads, global signal handlers or retries. Errors retain
 the canonical execution/cleanup evidence. Invalid deadlines leave the existing
 owner and pipes untouched. Communication time excludes earlier spawning;
 consumers retain end-to-end timing and input-size policy.
+
+`communicate_child_with_observer` projects nonempty retained byte chunks from
+that same engine. Per-stream ordering is retained; chunk boundaries and ordering
+between streams are unspecified. Overflow reports only the retained prefix and
+still fails with canonical evidence. Callbacks run synchronously and must return
+promptly. The cancellation callback can project caller-owned heartbeat events
+even while output is silent. Callback unwinding closes pipes and attempts the
+owner's cleanup before resuming the panic; an unreaped child remains owned for
+explicit recovery. There is no separate reader loop, event schema or scheduler.
 
 `SuccessfulExit::Cleanup` preserves ordinary group cleanup on leader exit.
 `SuccessfulExit::Retain` keeps the successful leader reserved until the consumer

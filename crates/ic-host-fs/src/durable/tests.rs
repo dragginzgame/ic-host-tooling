@@ -234,7 +234,11 @@ fn lock_errors_preserve_admission_and_original_io_causes() {
             .unwrap()
             .success()
     );
-    for path in [&fixture.root, &link, &fifo] {
+    for path in [&fixture.root, &link, &fifo, Path::new("/dev/null")] {
+        assert!(matches!(
+            open_regular_lock_file_with_parents(path),
+            Err(RegularFileLockError::NotRegular)
+        ));
         assert!(matches!(
             try_lock_regular_file_with_parents(path),
             Err(RegularFileLockError::NotRegular)
@@ -266,6 +270,44 @@ fn lock_errors_preserve_admission_and_original_io_causes() {
             .downcast_ref::<RegularFileLockError>(),
         Some(RegularFileLockError::NotRegular)
     ));
+}
+
+#[cfg(unix)]
+#[test]
+fn admitted_lock_files_compose_with_shared_locks_and_explicit_clone_unlock() {
+    use rustix::fs::{FlockOperation as Op, flock};
+    let root = temp_root("admitted-lock");
+    let path = root.join("nested/lock");
+    let first = open_regular_lock_file_with_parents(&path).unwrap();
+    fs::write(&path, b"retained contents").unwrap();
+    let second = open_regular_lock_file_with_parents(&path).unwrap();
+    assert!(
+        rustix::io::fcntl_getfd(&first)
+            .unwrap()
+            .contains(rustix::io::FdFlags::CLOEXEC)
+    );
+    // Both opens were unlocked: an independent exclusive acquisition succeeds.
+    flock(&second, Op::NonBlockingLockExclusive).unwrap();
+    flock(&second, Op::Unlock).unwrap();
+    flock(&first, Op::NonBlockingLockShared).unwrap();
+    flock(&second, Op::NonBlockingLockShared).unwrap();
+    let contender = open_regular_lock_file_with_parents(&path).unwrap();
+    assert_eq!(
+        flock(&contender, Op::NonBlockingLockExclusive),
+        Err(rustix::io::Errno::WOULDBLOCK)
+    );
+    let duplicate = first.try_clone().unwrap();
+    flock(&first, Op::Unlock).unwrap();
+    flock(&second, Op::Unlock).unwrap();
+    // Explicit final-owner policy can release retention despite a live clone.
+    lock_exclusive_with_wait(&contender, std::time::Duration::from_millis(1), |_| {
+        panic!("explicitly unlocked descriptors must not retain contention")
+    })
+    .unwrap();
+    assert_eq!(fs::read(&path).unwrap(), b"retained contents");
+    flock(&contender, Op::Unlock).unwrap();
+    drop((first, second, duplicate, contender));
+    fs::remove_dir_all(root).unwrap();
 }
 
 #[test]

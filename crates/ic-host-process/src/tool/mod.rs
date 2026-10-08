@@ -427,8 +427,44 @@ pub fn communicate_child(
     successful_exit: SuccessfulExit,
     cancelled: impl FnMut() -> bool,
 ) -> Result<ExecutionEvidence, ToolError> {
+    communicate_child_with_observer(child, input, limits, successful_exit, cancelled, |_, _| {})
+}
+
+/// Communicate with an owned child while observing retained output bytes live.
+///
+/// Uses the same bounds, pipe handling and cleanup as [`communicate_child`].
+/// `output` receives nonempty borrowed chunks after retention, in order within
+/// each stream; chunk boundaries and ordering between streams are unspecified.
+/// The bytes concatenate to the corresponding returned evidence, including the
+/// retained prefix on overflow. Bytes beyond a selected limit are never reported.
+/// Output is raw bytes, not necessarily complete lines or UTF-8.
+///
+/// Both callbacks run synchronously and must return promptly. `cancelled` also
+/// runs while the child is silent and may project caller-owned heartbeat events;
+/// no exact callback cadence is guaranteed. Callback time counts toward the
+/// communication deadline. A callback panic closes the pipes, attempts cleanup
+/// using the child's policy and resumes the original unwind, even if the caller
+/// catches it while retaining the child. Cleanup errors cannot be returned during
+/// unwind; any unreaped child remains owned for caller recovery.
+///
+/// Callers own event schemas, scheduling, output budgets and diagnostic rendering.
+/// Observation does not change hard overflow into truncation-and-continue.
+///
+/// # Panics
+/// Resumes callback panics after attempting cleanup with the selected policy.
+///
+/// # Errors
+/// Returns the same validation and execution errors as [`communicate_child`].
+pub fn communicate_child_with_observer(
+    child: &mut crate::child::OwnedChild,
+    input: Option<&[u8]>,
+    limits: OutputLimits,
+    successful_exit: SuccessfulExit,
+    cancelled: impl FnMut() -> bool,
+    output: impl FnMut(OutputStream, &[u8]),
+) -> Result<ExecutionEvidence, ToolError> {
     validate_limits(limits)?;
-    process::communicate(child, input, limits, successful_exit, cancelled)
+    process::communicate(child, input, limits, successful_exit, cancelled, output)
         .map_err(|source| ToolError::Execution(Box::new(source)))
 }
 

@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.8.3]
+
+- Add live output observation to owned-child communication, retaining bounded
+  capture and cleanup so consumers can remove private pipe-reader loops
+  ([#28](https://github.com/dragginzgame/ic-host-tooling/issues/28)).
+- Expose unlocked regular lock-file admission so consumers can share safe opening
+  while choosing their own locking and wait policy
+  ([#27](https://github.com/dragginzgame/ic-host-tooling/issues/27)).
+
+See [the 0.8 notes](docs/changelog/0.8.md).
+
 ## [0.8.2] - 2026-10-08
 
 - Fix the cleanup-error test fixture on macOS, where `/bin/true` is absent,

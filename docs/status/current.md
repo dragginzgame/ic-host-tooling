@@ -1,6 +1,42 @@
 # Current handoff
 
-## Latest work: 2026-10-08, released 0.8.1 and pending 0.8.2 macOS fixture repair
+## Latest work: 2026-10-08, pending 0.8.3 consumer composition APIs
+
+Host 0.8.2 is released at `92bd2fecc71124b562e227a32a67644e1e5e34b7`,
+reported live by the maintainer. The tree was clean before this batch.
+The compatible **0.8.3** draft adds live output observation
+([#28](https://github.com/dragginzgame/ic-host-tooling/issues/28)) and unlocked
+regular lock-file admission
+([#27](https://github.com/dragginzgame/ic-host-tooling/issues/27)). Versions,
+dependency selections and the Shared Tooling snapshot remain unchanged.
+
+`communicate_child_with_observer` shares the existing bounded I/O engine and
+reports only retained bytes, including overflow prefixes. Callback unwinding
+closes pipes and attempts the selected cleanup before resuming the panic, even
+when a caller catches it while retaining the borrowed child. Consumers retain
+event schemas, heartbeat scheduling and output/time limits. The private
+`durable::open_regular_lock_file` is renamed/promoted to
+`open_regular_lock_file_with_parents`; acquisition moves to its existing callers.
+There is one opener, with unchanged admission and path-lock behavior, and no
+compatibility alias. No other function, method or type was removed.
+
+Focused locked/offline Linux validation passes: 54 process-tool tests and 43
+durable-filesystem tests, strict selected-package all-target Clippy, Rust 1.88
+all-target compilation and warning-denied Rustdoc. Coverage includes live binary
+output, fair simultaneous streams, bounded observed prefixes, silent cancellation,
+descendant-held pipes, callback unwinding with a retained owner, shared locking,
+explicit unlock with a live clone and special-file refusal. The initial Clippy
+line-count/assertion failures and corrected results remain in `/tmp/ic-host-083/`.
+Native macOS Intel/Apple Silicon qualification remains pending for this candidate.
+
+Testkit adoption/deletion remains separately tracked in
+[#35](https://github.com/dragginzgame/ic-testkit/issues/35) and
+[#36](https://github.com/dragginzgame/ic-testkit/issues/36). The Canic CLI to Toko
+parser-deletion route remains consumer-owned; Host's Wasm composition API is
+already sufficient. Sibling source was not modified. No full gate, dependency
+download, commit, push, release or publication was performed.
+
+## Previous work: 2026-10-08, released 0.8.1 and pending 0.8.2 macOS fixture repair
 
 Host **0.8.1** is released at `973f00a029dd873c242a4d06e9f8d2d5172ff0df`;
 the local tag and GitHub main agree, and the maintainer reports it live. The

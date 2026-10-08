@@ -146,12 +146,11 @@ pub fn create_private_bytes_with_parents(path: &Path, bytes: &[u8]) -> io::Resul
 /// # Errors
 /// Returns typed file admission, creation, sync or lock acquisition failures.
 pub fn lock_regular_file_with_parents(path: &Path) -> Result<fs::File, RegularFileLockError> {
-    open_regular_lock_file(path, |file| {
-        #[cfg(not(windows))]
-        rustix::fs::flock(file, rustix::fs::FlockOperation::LockExclusive)
-            .map_err(errno_to_lock_error)?;
-        Ok(())
-    })
+    let file = open_regular_lock_file_with_parents(path)?;
+    #[cfg(not(windows))]
+    rustix::fs::flock(&file, rustix::fs::FlockOperation::LockExclusive)
+        .map_err(errno_to_lock_error)?;
+    Ok(file)
 }
 
 /// Open a durable regular no-follow lock file and attempt exclusive acquisition once.
@@ -168,12 +167,11 @@ pub fn lock_regular_file_with_parents(path: &Path) -> Result<fs::File, RegularFi
 /// # Errors
 /// Returns typed admission, creation, sync or native lock errors, including contention.
 pub fn try_lock_regular_file_with_parents(path: &Path) -> Result<fs::File, RegularFileLockError> {
-    open_regular_lock_file(path, |file| {
-        #[cfg(not(windows))]
-        rustix::fs::flock(file, rustix::fs::FlockOperation::NonBlockingLockExclusive)
-            .map_err(errno_to_lock_error)?;
-        Ok(())
-    })
+    let file = open_regular_lock_file_with_parents(path)?;
+    #[cfg(not(windows))]
+    rustix::fs::flock(&file, rustix::fs::FlockOperation::NonBlockingLockExclusive)
+        .map_err(errno_to_lock_error)?;
+    Ok(file)
 }
 
 /// Acquire the same exclusive lock, reporting contention while preserving its lifetime.
@@ -189,28 +187,39 @@ pub fn lock_file_with_progress(
     mut waiting: impl FnMut(&fs::File, std::time::Duration) -> io::Result<()>,
 ) -> Result<fs::File, RegularFileLockError> {
     let started = std::time::Instant::now();
-    open_regular_lock_file(path, |file| {
-        #[cfg(not(windows))]
-        {
-            let mut next_report = std::time::Duration::from_secs(1);
-            lock_exclusive_with_wait(file, std::time::Duration::from_millis(100), |_| {
-                let elapsed = started.elapsed();
-                if elapsed >= next_report {
-                    waiting(file, elapsed)?;
-                    next_report = elapsed + std::time::Duration::from_secs(1);
-                }
-                Ok(())
-            })
-            .map_err(RegularFileLockError::Io)?;
-        }
-        Ok(())
-    })
+    let file = open_regular_lock_file_with_parents(path)?;
+    #[cfg(not(windows))]
+    {
+        let mut next_report = std::time::Duration::from_secs(1);
+        lock_exclusive_with_wait(&file, std::time::Duration::from_millis(100), |_| {
+            let elapsed = started.elapsed();
+            if elapsed >= next_report {
+                waiting(&file, elapsed)?;
+                next_report = elapsed + std::time::Duration::from_secs(1);
+            }
+            Ok(())
+        })
+        .map_err(RegularFileLockError::Io)?;
+    }
+    Ok(file)
 }
 
-fn open_regular_lock_file(
-    path: &Path,
-    acquire: impl FnOnce(&fs::File) -> Result<(), RegularFileLockError>,
-) -> Result<fs::File, RegularFileLockError> {
+/// Open an unlocked regular no-follow lock file, durably creating missing parents
+/// and the file first. Existing file bytes are preserved.
+///
+/// The returned read/write descriptor is close-on-exec. No lock is acquired:
+/// callers choose shared/exclusive acquisition, wait timing, callbacks and unlock
+/// lifetime. It composes with [`lock_exclusive_with_wait`]. Descriptor clones
+/// share kernel lock ownership; explicit unlock and final-close policy remain
+/// caller-owned.
+///
+/// Callers own trusted parent paths and namespace stability. Only the final
+/// component is opened without following symlinks; this is not root confinement.
+/// Admission does not bound filesystem creation, open or sync latency.
+///
+/// # Errors
+/// Returns typed file admission, creation, sync or unsupported-host failures.
+pub fn open_regular_lock_file_with_parents(path: &Path) -> Result<fs::File, RegularFileLockError> {
     match create_new_bytes_with_parents(path, &[]) {
         Ok(()) => {}
         Err(source) if source.kind() == io::ErrorKind::AlreadyExists => {}
@@ -238,9 +247,7 @@ fn open_regular_lock_file(
         if FileType::from_raw_mode(metadata.st_mode) != FileType::RegularFile {
             return Err(RegularFileLockError::NotRegular);
         }
-        let file = fs::File::from(fd);
-        acquire(&file)?;
-        Ok(file)
+        Ok(fs::File::from(fd))
     }
 
     #[cfg(windows)]

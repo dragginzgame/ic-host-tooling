@@ -24,7 +24,8 @@ fn fragmented_capture_keeps_capacity_and_overflow_evidence_within_budget() {
                     limit,
                     OutputStream::Stdout,
                     &mut eof,
-                    &mut truncated
+                    &mut truncated,
+                    &mut |_, _| {},
                 )
                 .unwrap()
             );
@@ -37,7 +38,8 @@ fn fragmented_capture_keeps_capacity_and_overflow_evidence_within_budget() {
                 limit,
                 OutputStream::Stdout,
                 &mut eof,
-                &mut truncated
+                &mut truncated,
+                &mut |_, _| {},
             ),
             Err(ExecutionFailure::OutputLimit {
                 stream: OutputStream::Stdout

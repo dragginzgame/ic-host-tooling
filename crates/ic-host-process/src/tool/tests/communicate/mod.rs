@@ -3,6 +3,8 @@ use crate::child::OwnedChild;
 use rustix::process::{Pid, WaitId, WaitIdOptions, waitid};
 use std::{process::Stdio, time::Instant};
 
+mod observe;
+
 fn command(script: &str) -> Command {
     let mut command = Command::new("/bin/sh");
     command
@@ -35,7 +37,8 @@ fn full_duplex_io_is_bounded_fair_and_leaves_success_reserved() {
     );
     let mut child = OwnedChild::spawn(&mut command).unwrap();
     let input = vec![b'x'; 256 * 1024];
-    let evidence = communicate_child(
+    let (mut stdout, mut stderr) = (Vec::new(), Vec::new());
+    let evidence = communicate_child_with_observer(
         &mut child,
         Some(&input),
         OutputLimits {
@@ -44,6 +47,10 @@ fn full_duplex_io_is_bounded_fair_and_leaves_success_reserved() {
         },
         SuccessfulExit::Retain,
         || false,
+        |stream, bytes| match stream {
+            OutputStream::Stdout => stdout.extend_from_slice(bytes),
+            OutputStream::Stderr => stderr.extend_from_slice(bytes),
+        },
     )
     .unwrap();
     assert_eq!(
@@ -52,6 +59,8 @@ fn full_duplex_io_is_bounded_fair_and_leaves_success_reserved() {
     );
     assert_eq!(&evidence.stdout[160_000..], input);
     assert_eq!(evidence.stderr, b"fedcba9876543210".repeat(10_000));
+    assert_eq!(stdout, evidence.stdout);
+    assert_eq!(stderr, evidence.stderr);
     assert!(evidence.status.unwrap().success());
     let pid = Pid::from_raw(i32::try_from(child.id()).unwrap()).unwrap();
     assert!(

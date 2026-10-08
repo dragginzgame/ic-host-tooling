@@ -8,6 +8,7 @@ use std::{
     ffi::OsString,
     io::{self, Read, Write},
     os::fd::AsFd,
+    panic::{AssertUnwindSafe, catch_unwind, resume_unwind},
     path::Path,
     process::{Command, ExitStatus, Stdio},
     time::{Duration, Instant},
@@ -68,6 +69,7 @@ pub(super) fn capture_command(
         started,
         SuccessfulExit::Cleanup,
         || false,
+        |_, _| {},
     )
 }
 
@@ -77,6 +79,7 @@ pub(super) fn communicate(
     limits: OutputLimits,
     successful_exit: SuccessfulExit,
     cancelled: impl FnMut() -> bool,
+    output: impl FnMut(OutputStream, &[u8]),
 ) -> Result<ExecutionEvidence, ExecutionError> {
     exchange(
         child,
@@ -85,6 +88,7 @@ pub(super) fn communicate(
         Instant::now(),
         successful_exit,
         cancelled,
+        output,
     )
 }
 
@@ -95,12 +99,16 @@ fn exchange(
     started: Instant,
     successful_exit: SuccessfulExit,
     mut cancelled: impl FnMut() -> bool,
+    mut output: impl FnMut(OutputStream, &[u8]),
 ) -> Result<ExecutionEvidence, ExecutionError> {
     let mut evidence = ExecutionEvidence::default();
     let mut stdin = child.take_stdin();
     let mut stdout = child.take_stdout();
     let mut stderr = child.take_stderr();
-    let result = (|| {
+    // Resume the original panic after closing pipes and attempting cleanup.
+    // The borrowed owner can outlive a caller's catch_unwind, so its Drop alone
+    // cannot guarantee cleanup here. No callback is reused after unwinding.
+    let result = catch_unwind(AssertUnwindSafe(|| {
         if !child.is_owned() {
             return Err(io_failure(
                 ExecutionOperation::Wait,
@@ -117,15 +125,9 @@ fn exchange(
         if remaining.is_empty() {
             drop(stdin.take());
         }
-        if let Some(pipe) = &stdin {
-            nonblocking(pipe)?;
-        }
-        if let Some(pipe) = &stdout {
-            nonblocking(pipe)?;
-        }
-        if let Some(pipe) = &stderr {
-            nonblocking(pipe)?;
-        }
+        stdin.as_ref().map(nonblocking).transpose()?;
+        stdout.as_ref().map(nonblocking).transpose()?;
+        stderr.as_ref().map(nonblocking).transpose()?;
         let mut stdout_eof = stdout.is_none();
         let mut stderr_eof = stderr.is_none();
         loop {
@@ -151,6 +153,7 @@ fn exchange(
                 OutputStream::Stdout,
                 &mut stdout_eof,
                 &mut evidence.stdout_truncated,
+                &mut output,
             )?;
             let progress_err = read_chunk(
                 &mut stderr,
@@ -159,6 +162,7 @@ fn exchange(
                 OutputStream::Stderr,
                 &mut stderr_eof,
                 &mut evidence.stderr_truncated,
+                &mut output,
             )?;
             evidence.status = poll_completion(child, successful_exit)
                 .map_err(|source| io_failure(ExecutionOperation::Wait, source))?;
@@ -188,13 +192,19 @@ fn exchange(
                 );
             }
         }
-    })();
+    }));
     // Close all pipes before cleanup. A descendant retaining a writer must not
     // cause a blocking drain or leave background reader threads after a timeout.
     drop(stdin);
     drop(stdout);
     drop(stderr);
-    finish_capture(child, evidence, result)
+    match result {
+        Ok(result) => finish_capture(child, evidence, result),
+        Err(panic) => {
+            let _ = child.terminate();
+            resume_unwind(panic)
+        }
+    }
 }
 
 fn poll_completion(
@@ -292,6 +302,7 @@ fn read_chunk(
     stream: OutputStream,
     eof: &mut bool,
     truncated: &mut bool,
+    output: &mut impl FnMut(OutputStream, &[u8]),
 ) -> Result<bool, ExecutionFailure> {
     let Some(reader) = reader else {
         return Ok(false);
@@ -328,6 +339,9 @@ fn read_chunk(
             .map_err(|source| ExecutionFailure::Allocation { stream, source })?;
     }
     bytes.extend_from_slice(&buffer[..retained]);
+    if retained != 0 {
+        output(stream, &buffer[..retained]);
+    }
     if retained != count {
         *truncated = true;
         return Err(ExecutionFailure::OutputLimit { stream });

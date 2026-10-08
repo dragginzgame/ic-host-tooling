@@ -63,6 +63,13 @@ group cleanup for commands whose descendants must be signalled on exit or
 failure. Ordinary `capture_command` retains direct-child cleanup. Both share one
 capture engine; callers retain budgets, admission and external-effect recovery.
 
+`tool::communicate_child_with_observer` adds live stdout/stderr observation to
+`communicate_child` for an existing owner. It reports only retained bytes, keeps
+the same hard limits and cleanup, and lets callers project progress events.
+The cancellation callback can also emit caller-scheduled heartbeats while silent.
+Callback unwinding attempts cleanup even when the borrowed owner survives the
+caller's panic handler.
+
 `AdmittedTool::admit_version` accepts a `VersionSpec` for caller-trusted installed
 tools without a published binary digest. It records the installed identity,
 checks the exact version and rejects byte drift before later execution. That
@@ -78,6 +85,10 @@ remain under `durable`. Upgrading from 0.3 requires the
 durable creation with the blocking lock API, but returns a native `WouldBlock`
 I/O cause on contention. It preserves existing bytes and holds the lock through
 the returned close-on-exec descriptor. Callers retain retry and waiting policy.
+
+`durable::open_regular_lock_file_with_parents` exposes that same admitted file
+without acquiring a lock. Consumers can select shared locking or compose it with
+`lock_exclusive_with_wait`, keeping wait timing and explicit unlock policy local.
 
 `durable::write_named_with` lets an external tool write to an owned absolute
 staging path, then shares the normal durable publication engine. Callers validate
