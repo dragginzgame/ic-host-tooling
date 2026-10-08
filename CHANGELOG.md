@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.5.0]
+## [0.5.0] - 2026-10-08
 
 - Own explicitly spawned process groups with polling, termination and cleanup
   during unwinding, while preserving caller-selected command IO and keeping
