@@ -154,6 +154,28 @@ pub fn lock_regular_file_with_parents(path: &Path) -> Result<fs::File, RegularFi
     })
 }
 
+/// Open a durable regular no-follow lock file and attempt exclusive acquisition once.
+///
+/// Uses the same parent creation and file admission as
+/// [`lock_regular_file_with_parents`], preserving existing file contents.
+/// Contention returns [`RegularFileLockError::Io`] with [`io::ErrorKind::WouldBlock`]
+/// immediately; there is no polling, retry or progress callback. The returned
+/// close-on-exec descriptor holds the lock until unlocked or closed.
+///
+/// Callers own trusted parents, namespace stability and contention policy.
+/// Nonblocking acquisition does not bound filesystem open, creation or sync latency.
+///
+/// # Errors
+/// Returns typed admission, creation, sync or native lock errors, including contention.
+pub fn try_lock_regular_file_with_parents(path: &Path) -> Result<fs::File, RegularFileLockError> {
+    open_regular_lock_file(path, |file| {
+        #[cfg(not(windows))]
+        rustix::fs::flock(file, rustix::fs::FlockOperation::NonBlockingLockExclusive)
+            .map_err(errno_to_lock_error)?;
+        Ok(())
+    })
+}
+
 /// Acquire the same exclusive lock, reporting contention while preserving its lifetime.
 ///
 /// Errors retain their admission category or original I/O cause, including a

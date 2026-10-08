@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.8.1]
+
+- Add immediate path-lock contention refusal through the existing regular-file
+  admission API ([#24](https://github.com/dragginzgame/ic-host-tooling/issues/24)).
+- Reduce allocation churn for fragmented reads, captured output, chunk digests
+  and Candid normalization while retaining caller bounds
+  ([#26](https://github.com/dragginzgame/ic-host-tooling/issues/26)).
+- Add a compiled IC resource-report example with consistent text/JSON enforcement
+  ([#25](https://github.com/dragginzgame/ic-host-tooling/issues/25)).
+- Fix relative installer paths under inherited `CDPATH` and reject snapshots
+  missing the installer fixtures' evidence helpers, by adopting committed
+  Shared Tooling fixes
+  ([shared #67](https://github.com/dragginzgame/shared-tooling/issues/67),
+  [#73](https://github.com/dragginzgame/shared-tooling/issues/73)).
+
+See [the 0.8 notes](docs/changelog/0.8.md).
+
 ## [0.8.0] - 2026-10-08
 
 - Allow caller-selected TERM grace and bounded reaping for owned groups,

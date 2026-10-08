@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Shared companions: scripts/ci/test-tool-evidence.sh
 set -euo pipefail
 ROOT="$0"
 [[ "$ROOT" == /* ]] || ROOT="$PWD/$ROOT"
@@ -185,6 +186,8 @@ for host in Linux:x86_64 Linux:arm64 Darwin:x86_64 Darwin:arm64; do
     install --with-ripgrep --with-cloc --check
     install --with-ripgrep --with-cloc
     [[ "$(wc -l < "$fixture/downloads")" == "$before" ]] || exit 1
+    (cd "$fixture"; CDPATH="$fixture" bash "$ROOT/scripts/dev/install-host-tools.sh" \
+        --consumer "${consumer#"$fixture/"}" --versions "$pins" --with-ripgrep --with-cloc --check) > /dev/null 2>&1
     bash "$ROOT/scripts/ci/test-tool-evidence.sh" "$consumer" host "$pins"
 done
 original="$(readlink "$consumer/.tools/host")"

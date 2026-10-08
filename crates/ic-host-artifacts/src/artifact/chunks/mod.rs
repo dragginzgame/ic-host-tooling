@@ -3,7 +3,7 @@
 #[cfg(test)]
 mod tests;
 
-use super::{ArtifactError, ArtifactIdentity, Sha256Digest, visit_reader};
+use super::{ArtifactError, ArtifactIdentity, Sha256Digest, reserve_bounded, visit_reader};
 use sha2::{Digest, Sha256};
 use std::{collections::TryReserveError, fmt, io::Read, num::NonZeroUsize};
 
@@ -85,8 +85,7 @@ pub fn chunk_digests(
                 if digests.len() == max_chunks {
                     return Err(ChunkDigestError::ChunkLimit { limit: max_chunks });
                 }
-                digests
-                    .try_reserve_exact(1)
+                reserve_bounded(&mut digests, 1, max_chunks)
                     .map_err(ChunkDigestError::Allocation)?;
             }
             let count = buffer.len().min(chunk_bytes.get() - filled);

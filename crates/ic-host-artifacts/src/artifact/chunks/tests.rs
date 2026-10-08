@@ -40,6 +40,7 @@ fn chunk_boundaries_and_whole_identity_ignore_read_fragmentation() {
             )
             .unwrap();
             assert_eq!(chunks, expected);
+            assert!(chunks.capacity() <= expected.len());
             assert_eq!(
                 whole,
                 ArtifactIdentity {

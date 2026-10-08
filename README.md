@@ -22,6 +22,20 @@ The optional `ic-limits` feature compares Wasm facts with explicitly selected,
 revision-bound IC resource limits, without filesystem/process dependencies when
 defaults are disabled. See the [0.5 contract changes](docs/changelog/0.5.md).
 
+The compiled [IC resource-report example](crates/ic-host-tools/examples/inspect_install_limits/main.rs)
+inspects once and compares code-body bytes, defined functions and all globals
+against the explicitly selected reference revision. Run it with:
+
+```sh
+cargo run --locked --offline -p ic-host-tools --no-default-features --features ic-limits \
+  --example inspect_install_limits -- module.wasm 20000000 1000 10000 1000 15000000 --json
+```
+
+The numeric arguments select the hard raw-byte, section, export and custom-section
+bounds, followed by a soft raw-byte warning threshold. Text and JSON share the
+same failure exit decision; warnings alone do not reject. This is a composition
+recipe, not complete Wasm validation or evidence of deployed subnet limits.
+
 `tool::capture_command` accepts a caller-configured `std::process::Command` when
 the consumer owns executable admission. It shares bounded capture and direct-child
 cleanup with `AdmittedTool`, whose exact digest/version checks remain in place.
@@ -59,6 +73,11 @@ Filesystem reads live under `ic_host_fs::read`, including optional bounded
 no-follow reads and typed private-file admission. Durable publication and locks
 remain under `durable`. Upgrading from 0.3 requires the
 [0.4 consumer changes](docs/changelog/0.4.md).
+
+`durable::try_lock_regular_file_with_parents` shares regular-file admission and
+durable creation with the blocking lock API, but returns a native `WouldBlock`
+I/O cause on contention. It preserves existing bytes and holds the lock through
+the returned close-on-exec descriptor. Callers retain retry and waiting policy.
 
 `durable::write_named_with` lets an external tool write to an owned absolute
 staging path, then shares the normal durable publication engine. Callers validate

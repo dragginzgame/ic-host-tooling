@@ -35,6 +35,10 @@ reads remain distinct contracts. Optional reads reuse the same bounded stream
 engine and return `ArtifactError`; private reads add typed permission, link-count
 and fixed-length rejection. Durable publication and locks do not own a second
 reader hierarchy. Lock errors retain typed admission and original I/O causes.
+`try_lock_regular_file_with_parents` adds one nonblocking acquisition attempt
+through the same path opener; contention retains native `WouldBlock`. Blocking
+and progress callers retain their existing behavior. No filesystem latency
+deadline, retry controller or stale-lock removal is introduced.
 The [0.4 notes](changelog/0.4.md) describe the required consumer changes.
 
 `durable::write_named_with` exposes an absolute owned staging pathname to external

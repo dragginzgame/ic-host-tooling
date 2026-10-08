@@ -1,6 +1,92 @@
 # Current handoff
 
-## Latest work: 2026-10-08, released 0.7.2 and pending 0.8.0 bounded cleanup
+## Latest work: 2026-10-08, pending 0.8.1 local Rust improvements
+
+The compatible **0.8.1** batch now also implements
+[#24](https://github.com/dragginzgame/ic-host-tooling/issues/24),
+[#25](https://github.com/dragginzgame/ic-host-tooling/issues/25) and
+[#26](https://github.com/dragginzgame/ic-host-tooling/issues/26) locally on released
+0.8.0 `fc74f679c7503ef9dd2db8fbd893c5c5907c72c4`. The previously dirty installer
+snapshot and documentation changes below are preserved. Package versions, locked
+dependency selections and shared snapshot selection are unchanged by this batch.
+
+`try_lock_regular_file_with_parents` delegates to the existing opener and attempts
+one nonblocking exclusive lock, retaining native WouldBlock on contention.
+Artifact reads/chunk vectors and captured process output use bounded geometric
+capacity requests; Candid normalization measures and allocates once. The compiled
+`inspect_install_limits` example inspects once, explicitly selects the reference
+limits, keeps raw budgets separate, and computes its outcome before text/JSON
+rendering. It runs with the pure `ic-limits` feature profile. No function, method
+or type was removed, and no public compatibility contract was broken.
+
+Focused locked/offline Linux checks pass: 42 durable tests, 46 artifact-module
+tests, 50 process-tool tests, 9 Candid tests, 3 actual example tests and 2 IC limit
+tests. Cases cover independent-process contention before owner release,
+close-on-exec, preserved bytes and special-file rejection; fragmented capacity
+bounds; 50,000 definitions plus an import, imported globals, exact/+1 body limits,
+malformed/truncated input, raw admission and text/JSON outcome parity. Selected
+strict Clippy, Rust 1.88 library/example compilation, new-API Rustdoc, feature
+graph isolation, manifest ordering and documentation links pass. Initial lint
+failures and their corrected results are retained, not relabeled as passes.
+
+The same scratch counting-allocator probe changed allocation/reallocation calls
+from 65,536 to 17 for a 64 KiB one-byte-fragment read, 10,000 to 1 for Candid lines,
+and 4,096 to 13 for one-byte chunk digests. This measures requests, not elapsed
+runtime or copied bytes. No unsafe allocator is added to repository code.
+Evidence is in `/tmp/ic-host-081-local/`; the baseline probe remains under
+`/tmp/ic-host-local-review/`. Native macOS Intel/Apple Silicon qualification and
+consumer adoption remain pending. Siblings remain read-only; no full gate,
+download, commit, push, release or publication ran.
+
+## Previous work: 2026-10-08, released 0.8.0 and pending 0.8.1 installer fixes
+
+Host 0.8.0 is released at `fc74f679c7503ef9dd2db8fbd893c5c5907c72c4`;
+the maintainer reports it live. Its
+[exact-source CI](https://github.com/dragginzgame/ic-host-tooling/actions/runs/37792592340)
+passes Linux and MSRV; both macOS 15 jobs remain queued. This supersedes the
+pending/unpublished-0.8 statements below without claiming native acceptance.
+The older 0.7.1/0.7.2 runs were cancelled with native jobs incomplete; only
+0.7.0 has previously recorded complete native evidence in this handoff.
+
+The compatible local **0.8.1** batch canonically adopts committed Shared Tooling
+`db039347d2372b877c1c46dcdd2b5c3aa9412009` from a clean private checkout.
+The 72-file selection is unchanged; concurrent dirty upstream 0.1.28 work is
+excluded. Relative host/IC/Rust installer operands now resolve independently of
+CDPATH, and fixture companion declarations reject incomplete exports. The shared
+selector documentation describes the existing owner. No Rust API/runtime,
+manifest/lock, package-version, tool-pin or CI-upload-wiring change is made.
+
+The released host installer reproduced a two-line consumer path and exit 1 from
+its parent using `CDPATH="$PWD"` and `--consumer ic-host-tooling --check`. The
+same command passes after adoption against the existing pinned tools. Focused
+host/IC/Rust installer fixtures pass with substituted payloads/Cargo. Three
+disposable incomplete exports reject the actual missing companion edges before
+creating any selected files or manifest. Snapshot integrity, selected ShellCheck
+and Bash syntax, dependency declarations, documentation links and diff hygiene
+pass on Linux. Logs and the failed control remain in `/tmp/ic-host-081/`.
+Candidate native macOS qualification remains separate. Adoption evidence is on
+[shared #73](https://github.com/dragginzgame/shared-tooling/issues/73#issuecomment-6062166982).
+
+Read-only consumer snapshots record Canic's direct Host 0.8 plus transitive 0.7.2
+through published Backup 0.8.0, Query 0.50.0 and Testkit 0.24.0. Query and Testkit
+are concurrently updating their dirty manifests/locks to Host 0.8; that is not
+published graph convergence. Canic's observed error fixture still needs
+`term_error: None`, reported on
+[Canic #458](https://github.com/dragginzgame/canic/issues/458#issuecomment-6062205655).
+Testkit's public Host reexports require its next minor 0.25.0 if it retains the
+0.8 selection; both observed dirty notes still said 0.24.1. The compatibility
+finding is on [Testkit #32](https://github.com/dragginzgame/ic-testkit/issues/32#issuecomment-6062205183).
+
+[#5](https://github.com/dragginzgame/ic-host-tooling/issues/5#issuecomment-6062206243)
+now records the delivered Host cleanup API. Query still has no process dependency
+or actual runner replacement; its artifact/fs update does not establish that
+integration. Source/manifest/lock snapshots under `/tmp/ic-host-081/consumers/`
+are point-in-time inspection, not consumer compilation or native qualification.
+No additional Host abstraction was justified by this review. No function,
+method or type was removed. Siblings remain read-only; no full local gate, tool
+download, commit/push, release or publication ran.
+
+## Previous work: 2026-10-08, released 0.7.2 and pending 0.8.0 bounded cleanup (superseded)
 
 Host 0.7.2 is released at `8236b506307d33f7c34f56d6e0ba9db4300792d7`;
 the maintainer reports it live. Its

@@ -26,7 +26,9 @@ while [[ $# -gt 0 ]]; do
         *) usage; exit 2 ;;
     esac
 done
-consumer="$(cd "$consumer" && pwd -P)"
+[[ "$consumer" == /* ]] || consumer="$PWD/$consumer"
+consumer="$(cd -P "$consumer" && printf '%s/.' "$PWD")"
+consumer="${consumer%/.}"
 versions="${versions:-$consumer/ci/tool-versions.env}"
 # This reviewed shell file is code, just like the consumer's Makefile.
 # shellcheck disable=SC1090

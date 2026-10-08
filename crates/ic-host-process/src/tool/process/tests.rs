@@ -3,6 +3,54 @@ use crate::test_support::Fixture;
 use rustix::process::{Pid, WaitId, WaitIdOptions, waitid};
 
 #[test]
+fn fragmented_capture_keeps_capacity_and_overflow_evidence_within_budget() {
+    struct Fragmented<'a>(&'a [u8]);
+    impl Read for Fragmented<'_> {
+        fn read(&mut self, buffer: &mut [u8]) -> io::Result<usize> {
+            let count = buffer.len().min(1);
+            self.0.read(&mut buffer[..count])
+        }
+    }
+    for limit in [0, 1, 3, 37, 257] {
+        let input = vec![7; limit + 1];
+        let mut reader = Some(Fragmented(&input));
+        let mut bytes = Vec::new();
+        let (mut eof, mut truncated) = (false, false);
+        for _ in 0..limit {
+            assert!(
+                read_chunk(
+                    &mut reader,
+                    &mut bytes,
+                    limit,
+                    OutputStream::Stdout,
+                    &mut eof,
+                    &mut truncated
+                )
+                .unwrap()
+            );
+            assert!(bytes.capacity() <= limit);
+        }
+        assert!(matches!(
+            read_chunk(
+                &mut reader,
+                &mut bytes,
+                limit,
+                OutputStream::Stdout,
+                &mut eof,
+                &mut truncated
+            ),
+            Err(ExecutionFailure::OutputLimit {
+                stream: OutputStream::Stdout
+            })
+        ));
+        assert_eq!(bytes, input[..limit]);
+        assert!(truncated);
+        assert!(!eof);
+        assert!(bytes.capacity() <= limit);
+    }
+}
+
+#[test]
 fn io_failure_cleans_the_group_and_keeps_the_original_error() {
     let _fixture = Fixture::new();
     let mut command = Command::new("/bin/sh");

@@ -115,11 +115,24 @@ fn interrupted_reads_resume_and_other_io_errors_stay_typed() {
 
 #[test]
 fn owned_stream_reads_are_bounded_and_preserve_io_failure_types() {
+    struct Fragmented<'a>(&'a [u8]);
+    impl Read for Fragmented<'_> {
+        fn read(&mut self, buffer: &mut [u8]) -> io::Result<usize> {
+            let count = buffer.len().min(1);
+            self.0.read(&mut buffer[..count])
+        }
+    }
     struct Broken;
     impl Read for Broken {
         fn read(&mut self, _: &mut [u8]) -> io::Result<usize> {
             Err(io::ErrorKind::PermissionDenied.into())
         }
+    }
+    for length in [0, 1, 3, 37, 257] {
+        let input = vec![7; length];
+        let bytes = read_reader(Fragmented(&input), length).unwrap();
+        assert_eq!(bytes, input);
+        assert!(bytes.capacity() <= length);
     }
     let mut stream = Cursor::new(vec![7; 40_000]);
     assert!(matches!(

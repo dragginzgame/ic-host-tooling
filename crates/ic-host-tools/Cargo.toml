@@ -46,6 +46,10 @@ name = "inspect_artifact"
 required-features = ["candid-extraction"]
 
 [[example]]
+name = "inspect_install_limits"
+required-features = ["ic-limits"]
+
+[[example]]
 name = "inspect_git"
 required-features = ["candid-extraction"]
 

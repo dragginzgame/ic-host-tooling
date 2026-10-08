@@ -108,13 +108,7 @@ fn durable_lock_reports_wait_for_another_process_and_retains_exclusion() {
         return;
     }
     if let Some(root) = std::env::var_os(CHILD_ROOT) {
-        let _lock =
-            lock_regular_file_with_parents(&PathBuf::from(root).join("complete-build-reuse.lock"))
-                .unwrap();
-        println!("LOCK_HELD");
-        io::stdout().flush().unwrap();
-        let mut line = String::new();
-        io::stdin().read_line(&mut line).unwrap();
+        hold_regular_lock_until_release(&PathBuf::from(root).join("complete-build-reuse.lock"));
         return;
     }
     let root = temp_root("progress-lock");
@@ -138,6 +132,14 @@ fn durable_lock_reports_wait_for_another_process_and_retains_exclusion() {
         }
     }
     let path = root.join("complete-build-reuse.lock");
+    assert!(matches!(
+        try_lock_regular_file_with_parents(&path),
+        Err(RegularFileLockError::Io(error)) if error.kind() == io::ErrorKind::WouldBlock
+    ));
+    // The owner is still waiting for our release message: acquisition did not
+    // wait for it to exit, and the failed attempt did not truncate its file.
+    assert!(child.try_wait().unwrap().is_none());
+    assert_eq!(fs::read(&path).unwrap(), b"existing lock contents");
     assert!(matches!(
         lock_file_with_progress(&path, |_, _| Err(io::ErrorKind::PermissionDenied.into())),
         Err(RegularFileLockError::Io(error)) if error.kind() == io::ErrorKind::PermissionDenied
@@ -175,7 +177,26 @@ fn durable_lock_reports_wait_for_another_process_and_retains_exclusion() {
     )
     .unwrap();
     drop(contender);
+    let acquired = try_lock_regular_file_with_parents(&path).unwrap();
+    assert_eq!(fs::read(&path).unwrap(), b"existing lock contents");
+    drop(acquired);
     fs::remove_dir_all(root).unwrap();
+}
+
+#[cfg(unix)]
+fn hold_regular_lock_until_release(path: &Path) {
+    use std::io::Write as _;
+    let lock = try_lock_regular_file_with_parents(path).unwrap();
+    assert!(
+        rustix::io::fcntl_getfd(&lock)
+            .unwrap()
+            .contains(rustix::io::FdFlags::CLOEXEC)
+    );
+    fs::write(path, b"existing lock contents").unwrap();
+    println!("LOCK_HELD");
+    io::stdout().flush().unwrap();
+    let mut line = String::new();
+    io::stdin().read_line(&mut line).unwrap();
 }
 
 #[test]
@@ -204,7 +225,20 @@ fn lock_errors_preserve_admission_and_original_io_causes() {
     fs::write(&target, b"unchanged").unwrap();
     let link = fixture.root.join("link");
     std::os::unix::fs::symlink(&target, &link).unwrap();
-    for path in [&fixture.root, &link] {
+    let fifo = fixture.root.join("fifo");
+    // rustix's mknodat/mkfifoat are unavailable on Apple hosts.
+    assert!(
+        std::process::Command::new("/usr/bin/mkfifo")
+            .arg(&fifo)
+            .status()
+            .unwrap()
+            .success()
+    );
+    for path in [&fixture.root, &link, &fifo] {
+        assert!(matches!(
+            try_lock_regular_file_with_parents(path),
+            Err(RegularFileLockError::NotRegular)
+        ));
         assert!(matches!(
             lock_regular_file_with_parents(path),
             Err(RegularFileLockError::NotRegular)

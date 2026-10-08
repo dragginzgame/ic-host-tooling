@@ -318,9 +318,15 @@ fn read_chunk(
         Err(source) => return Err(io_failure(ExecutionOperation::ReadOutput, source)),
     };
     let retained = count.min(limit - bytes.len());
-    bytes
-        .try_reserve_exact(retained)
-        .map_err(|source| ExecutionFailure::Allocation { stream, source })?;
+    let required = bytes.len() + retained;
+    if required > bytes.capacity() {
+        // Keep requested capacity within the stream budget while amortizing
+        // small pipe reads. This crate owns process capture storage.
+        let capacity = bytes.capacity().saturating_mul(2).max(required).min(limit);
+        bytes
+            .try_reserve_exact(capacity - bytes.len())
+            .map_err(|source| ExecutionFailure::Allocation { stream, source })?;
+    }
     bytes.extend_from_slice(&buffer[..retained]);
     if retained != count {
         *truncated = true;

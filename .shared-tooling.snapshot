@@ -1,7 +1,7 @@
 # Shared Tooling snapshot v1
 format	1
 source	https://github.com/dragginzgame/shared-tooling
-revision	b866d41041a1986eeec95bde9af4c6ba0853d2e3
+revision	db039347d2372b877c1c46dcdd2b5c3aa9412009
 file	b5a6e8fb723a861b722834675e27b4b16f3d296112622c1b40cdc8714f575404	-	rules/changelogs.md
 file	5166b2aca90aa35b9ec1c796816b2a7f49c87ccbd7d9baf06a7a649503833632	-	docs/releases.md
 file	430f6bb6008dcad91ca7f72fb1563f0d1959d6619cf97eccfb050ffee9c723fd	x	scripts/ci/run-release.sh
@@ -38,13 +38,13 @@ file	bb7e91db83eae51bdea679e43038b31fc67984a60e5fbc6e7f0f186d3d1ebb26	-	docs/loc
 file	ff700a201efff31508d1682e5701b94e41d68f4892307d53b59e37f36e210264	-	docs/ic-tools.md
 file	82892e25292fe47c26035a0031aa4ad1996fcf181732163e75039bd657f2f84b	-	ci/tool-versions.env
 file	5b1ef6bc9e344139f5e171cc1a3783bcee3650275de2f44fe0f8fa10f2bfef87	-	ci/ic-tools.tsv
-file	50350d8967b42385c2ceb60b3ce72918c95bead6a4c5d80ad18ae23ffbdde8bf	x	scripts/dev/install-host-tools.sh
-file	9af3e960e93a0d59422fe1b45120f9fcef69882f0151f360dd89bfdf9cf3c918	x	scripts/dev/install-ic-tools.sh
+file	6c762098082b95603cba93fa6013d77420a051ea3014adae6b21e5c4099eb99c	x	scripts/dev/install-host-tools.sh
+file	5f472a6e590baf048293e55b5dad6703baefb0f655b91f785d0ecb300d3360fc	x	scripts/dev/install-ic-tools.sh
 file	ab2202f89a077373fffac29f57527b88ccc65998f5c85c60a32081edd8338150	x	scripts/ci/verify-evidence-checksums.sh
-file	407b3088a292002a585217790ced95040bb498e94885b1f47e94cc12ae499450	x	scripts/ci/test-host-tools.sh
-file	d9d1f78be58618cd87262486606763b04e8da33bf248b9a189c47903ead5b051	x	scripts/ci/test-ic-tools.sh
+file	d1a0b0be255a72e5438c74052ee5f9e00584050f5ce15d6e9d9edc124146b1b8	x	scripts/ci/test-host-tools.sh
+file	c4600e06579cfca70aeedb08589c83ca85238db45bb1b1a9683e6d5b4b344a77	x	scripts/ci/test-ic-tools.sh
 file	17e7a1e929934fa763afad4b6443bffd930ee316814912689b0a4b7df7ac9be7	x	scripts/ci/test-evidence-checksums.sh
-file	77aadb32fe003786a714d5001ab564b4324c5b63ce2831f1ef6f4736f6715fe1	-	docs/verification-helpers.md
+file	79304d8ba54f65e39a3ed5de05d8e737e315741a0f3fae93e845469d905bb8c5	-	docs/verification-helpers.md
 file	5dd38585740657f98f655c15c4f617ca05dc4b6304e0925675a44376ec33309b	x	scripts/ci/check-release-commands.sh
 file	a04ef3105e7851b83bb682120873e29a6c3c604183c275bc53051dd9e4b300a7	x	scripts/ci/check-documentation-links.pl
 file	7ccdd181e517e563e8541b341c1313fa5e25094ee45f8fee81843471a65893bd	x	scripts/ci/test-documentation-links.pl
@@ -67,10 +67,10 @@ file	1dd0f35519fc3afafb723eadbb7d2cce1207e4103f41939d3ceec5a6678ebb22	x	scripts/
 file	458e8f46b21887e892ea506768602477581a80fd10ffb579d1aeb46e20d9bcb4	x	scripts/ci/test-tool-commands.sh
 file	261dec422b038266a754babcffbd2492b54b92712ef1108b20a2cb8c1dbe114a	x	scripts/ci/test-cloc.sh
 file	49e5c54defd9330aacf2635fd36803f3ea469ea278a2628f63dbd82458dfd5a9	-	scripts/ci/ic-tool-pins.awk
-file	15cd4863b4e992a0e3cdcb6a95bc9e276589534bd914a1809c0c6bdd3034a03c	x	scripts/dev/install-rust-tools.sh
+file	ac24a1367e55b9e4f19cf67d5e19547aebca278a8b625a565c0e2f4e01e3fe9b	x	scripts/dev/install-rust-tools.sh
 file	a74fc5ec8415bbe2ccbd9c51ba16b544bffb1f72a89a981b68e19aff8edbc8c0	x	scripts/ci/test-rust-tools.sh
 file	05838a36f21bb4299617ae8965687791062c94d768181f5f97676cc577382153	-	rules/contributions.md
-file	4a214ec9804d2c515da383a406e53a170e7ee32cc4049bab2745d2a9a649affb	x	scripts/ci/test-tool-evidence.sh
+file	90e6b75e1bd3e3d7bc68b18f727379981e6811aa0a1b061e75d32c4699b13632	x	scripts/ci/test-tool-evidence.sh
 file	d7feda634703b4e0acb9e5406deccca2b81b821dfa738b714708b82a2c2e9bc3	x	scripts/ci/select-tool-evidence.sh
 file	5be336cb3e8045b2d2d536542a94944b376ee812b03f786a90b9d962ab697f13	x	scripts/ci/archive-evidence.sh
 file	020b67bcb75d35f5c12392b8c9ec3d7ba31f3a8e07c8318c35643be1ddf72d40	-	.github/actions/retain-failure-evidence/action.yml

@@ -233,13 +233,26 @@ pub fn verify_reader(
 pub fn read_reader(mut reader: impl Read, max_bytes: usize) -> Result<Vec<u8>, ArtifactError> {
     let mut bytes = Vec::new();
     visit_reader::<ArtifactError>(&mut reader, max_bytes as u64, |chunk| {
-        bytes
-            .try_reserve_exact(chunk.len())
-            .map_err(ArtifactError::Allocation)?;
+        reserve_bounded(&mut bytes, chunk.len(), max_bytes).map_err(ArtifactError::Allocation)?;
         bytes.extend_from_slice(chunk);
         Ok(())
     })?;
     Ok(bytes)
+}
+
+// Callers admit the additional elements against `limit` before reserving.
+// Grow geometrically without requesting capacity beyond that element budget.
+fn reserve_bounded<T>(
+    items: &mut Vec<T>,
+    additional: usize,
+    limit: usize,
+) -> Result<(), std::collections::TryReserveError> {
+    let required = items.len() + additional;
+    if required > items.capacity() {
+        let capacity = items.capacity().saturating_mul(2).max(required).min(limit);
+        items.try_reserve_exact(capacity - items.len())?;
+    }
+    Ok(())
 }
 
 fn visit_reader<E: From<ArtifactError>>(

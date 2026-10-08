@@ -77,20 +77,20 @@ pub fn normalize(bytes: &[u8], max_bytes: usize) -> Result<String, Normalization
         });
     }
     let text = std::str::from_utf8(bytes).map_err(NormalizationError::Utf8)?;
-    let mut normalized = String::new();
+    let mut length = 0_usize;
     for line in text.lines() {
-        let line = line.trim_end();
-        let length = normalized
-            .len()
-            .checked_add(line.len())
-            .and_then(|length| length.checked_add(1));
-        if length.is_none_or(|length| length > max_bytes) {
-            return Err(NormalizationError::OutputLimit { limit: max_bytes });
-        }
-        normalized
-            .try_reserve_exact(line.len() + 1)
-            .map_err(NormalizationError::Allocation)?;
-        normalized.push_str(line);
+        length = length
+            .checked_add(line.trim_end().len())
+            .and_then(|length| length.checked_add(1))
+            .filter(|&length| length <= max_bytes)
+            .ok_or(NormalizationError::OutputLimit { limit: max_bytes })?;
+    }
+    let mut normalized = String::new();
+    normalized
+        .try_reserve_exact(length)
+        .map_err(NormalizationError::Allocation)?;
+    for line in text.lines() {
+        normalized.push_str(line.trim_end());
         normalized.push('\n');
     }
     Ok(normalized)
