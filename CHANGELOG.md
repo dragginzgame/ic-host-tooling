@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.6.0]
+
+- Capture wrapper commands with explicit process-group cleanup through the shared
+  bounded execution engine, stopping same-group children on exit or failure
+  ([#5](https://github.com/dragginzgame/ic-host-tooling/issues/5)).
+- **Breaking:** `ExecutionError` adds `group_error` so signalling failures remain
+  separate from the original failure and direct-child cleanup errors. Update
+  struct literals and exhaustive destructuring; ordinary capture keeps its
+  existing direct-child behavior.
+
+See [the 0.6 notes](docs/changelog/0.6.md).
+
 ## [0.5.2] - 2026-10-08
 
 - Observe child exit while retaining cleanup ownership, then explicitly hand off

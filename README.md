@@ -38,6 +38,11 @@ then reaps a successful leader without stopping the background group. See the
 [child cleanup contract](docs/changelog/0.5.md#explicit-child-and-process-group-cleanup)
 for exclusive ownership and descendant limitations.
 
+`tool::capture_group_command` combines bounded stdout/stderr capture with that
+group cleanup for commands whose descendants must be signalled on exit or
+failure. Ordinary `capture_command` retains direct-child cleanup. Both share one
+capture engine; callers retain budgets, admission and external-effect recovery.
+
 `AdmittedTool::admit_version` accepts a `VersionSpec` for caller-trusted installed
 tools without a published binary digest. It records the installed identity,
 checks the exact version and rejects byte drift before later execution. That

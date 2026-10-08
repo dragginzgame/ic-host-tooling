@@ -71,6 +71,13 @@ process groups, retries or paid-operation recovery. `ToolError::evidence` and
 `execution_error` borrow the existing capture and failure objects for consumer
 error projection; no parallel error model or automatic diagnostic output is added.
 
+`capture_group_command` opts the same capture loop into `OwnedChild` group
+cleanup. It establishes a new group and signals its remaining members before
+reaping on leader exit or failure. Original failures retain separate group,
+direct-child fallback and reap errors. This adds no retries, inherited input,
+cancellation controller, implicit handoff or paid-operation recovery. Escaped
+processes remain outside its scope; signalling does not prove descendant exit.
+
 `ic_host_process::child::OwnedChild` shares child spawn/reap/cleanup mechanics
 with the direct-child capture engine. Its public spawn establishes a new group
 while preserving caller IO and command settings. Ordinary waits reserve an exited

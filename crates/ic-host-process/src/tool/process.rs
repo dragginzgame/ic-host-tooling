@@ -13,7 +13,16 @@ use std::{
     time::{Duration, Instant},
 };
 
+#[cfg(test)]
+mod tests;
+
 const POLL_INTERVAL: Duration = Duration::from_millis(2);
+
+#[derive(Clone, Copy)]
+pub(super) enum CleanupScope {
+    DirectChild,
+    ProcessGroup,
+}
 
 pub(super) fn capture(
     path: &Path,
@@ -27,21 +36,27 @@ pub(super) fn capture(
         .current_dir(context.current_dir)
         .env_clear()
         .envs(context.environment.iter().map(|(key, value)| (key, value)));
-    capture_command(&mut command, limits)
+    capture_command(&mut command, limits, CleanupScope::DirectChild)
 }
 
 pub(super) fn capture_command(
     command: &mut Command,
     limits: OutputLimits,
+    scope: CleanupScope,
 ) -> Result<ExecutionEvidence, ExecutionError> {
     let started = Instant::now();
     command
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
-    let mut child = OwnedChild::spawn_direct(command).map_err(|source| ExecutionError {
+    let spawned = match scope {
+        CleanupScope::DirectChild => OwnedChild::spawn_direct(command),
+        CleanupScope::ProcessGroup => OwnedChild::spawn(command),
+    };
+    let mut child = spawned.map_err(|source| ExecutionError {
         failure: io_failure(ExecutionOperation::Spawn, source),
         evidence: ExecutionEvidence::default(),
+        group_error: None,
         kill_error: None,
         wait_error: None,
     })?;
@@ -109,22 +124,31 @@ pub(super) fn capture_command(
     // cause a blocking drain or leave background reader threads after a timeout.
     drop(stdout);
     drop(stderr);
+    finish_capture(child, evidence, result)
+}
+
+fn finish_capture(
+    mut child: OwnedChild,
+    mut evidence: ExecutionEvidence,
+    result: Result<(), ExecutionFailure>,
+) -> Result<ExecutionEvidence, ExecutionError> {
     match result {
         Ok(()) => Ok(evidence),
         Err(failure) => {
-            let (kill_error, wait_error) = match child.terminate() {
+            let (group_error, kill_error, wait_error) = match child.terminate() {
                 Ok(status) => {
                     evidence.status = Some(status);
-                    (None, None)
+                    (None, None, None)
                 }
                 Err(error) => {
                     evidence.status = error.status;
-                    (error.kill_error, error.wait_error)
+                    (error.group_error, error.kill_error, error.wait_error)
                 }
             };
             Err(ExecutionError {
                 failure,
                 evidence,
+                group_error,
                 kill_error,
                 wait_error,
             })

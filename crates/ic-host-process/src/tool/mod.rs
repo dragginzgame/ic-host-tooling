@@ -162,7 +162,7 @@ pub enum ExecutionOperation {
     SetPipeFlags,
     /// Read bytes from a capture pipe.
     ReadOutput,
-    /// Observe the direct child's exit status.
+    /// Observe child exit, including selected group cleanup before reaping.
     Wait,
 }
 
@@ -208,13 +208,15 @@ pub enum ExecutionFailure {
     },
 }
 
-/// A failed invocation with bounded output and direct-child cleanup evidence.
+/// A failed invocation with bounded output and separately retained cleanup errors.
 #[derive(Debug)]
 pub struct ExecutionError {
     /// Original failure; never replaced by a cleanup failure.
     pub failure: ExecutionFailure,
     /// Observed status and bounded stdout/stderr prefixes.
     pub evidence: ExecutionEvidence,
+    /// Failure signalling an explicitly owned process group; absent in direct capture.
+    pub group_error: Option<io::Error>,
     /// Failure to terminate the direct child, if termination was needed.
     pub kill_error: Option<io::Error>,
     /// Failure to reap the direct child, if reaping was needed.
@@ -333,7 +335,34 @@ pub fn capture_command(
     limits: OutputLimits,
 ) -> Result<ExecutionEvidence, ToolError> {
     validate_limits(limits)?;
-    process::capture_command(command, limits)
+    process::capture_command(command, limits, process::CleanupScope::DirectChild)
+        .map_err(|source| ToolError::Execution(Box::new(source)))
+}
+
+/// Capture one caller-configured command in a newly owned process group.
+///
+/// Uses the same bounded, fair stdout/stderr capture and deadline as
+/// [`capture_command`], with null stdin and no executable admission or retries.
+/// Preserves caller command settings except IO and process-group selection;
+/// the latter is replaced with a new owned group. On natural leader exit,
+/// timeout, overflow or IO failure, remaining group members are signalled before
+/// reaping the leader. Original failures and group/direct-child cleanup errors
+/// remain separate in [`ExecutionError`]. There is no implicit background handoff.
+///
+/// Callers must not reap the leader independently or change its group. Escaped
+/// descendants are not contained, and signalling is not proof of descendant exit
+/// or completed external effects. Synchronous spawning/setup/cleanup can exceed
+/// the deadline. Admission, budgets, inherited descriptors and recovery remain
+/// caller-owned. Use [`capture_command`] for the existing direct-child contract.
+/// # Errors
+/// Rejects invalid deadlines before modifying/spawning the command. Execution
+/// failures retain bounded output, observed status and separate cleanup errors.
+pub fn capture_group_command(
+    command: &mut Command,
+    limits: OutputLimits,
+) -> Result<ExecutionEvidence, ToolError> {
+    validate_limits(limits)?;
+    process::capture_command(command, limits, process::CleanupScope::ProcessGroup)
         .map_err(|source| ToolError::Execution(Box::new(source)))
 }
 

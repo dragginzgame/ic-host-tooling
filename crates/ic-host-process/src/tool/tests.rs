@@ -9,6 +9,7 @@ use std::os::unix::ffi::OsStringExt as _;
 
 mod capture;
 mod evidence;
+mod group;
 mod named;
 mod version;
 

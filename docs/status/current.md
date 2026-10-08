@@ -1,6 +1,87 @@
 # Current handoff
 
-## Latest work: 2026-10-08, pending 0.5.2 successful background handoff
+## Latest work: 2026-10-08, pending 0.6.0 owned-group capture
+
+The only open Host issue, [#5](https://github.com/dragginzgame/ic-host-tooling/issues/5),
+now has a concrete Toko Miner bounded-wrapper consumer. The local **0.6.0** batch
+adds `tool::capture_group_command` by selecting owned-group spawn in the existing
+capture loop. It cleans remaining group members on leader exit or failure,
+retaining the original failure, output, status and separate cleanup errors.
+Existing direct capture and admitted-tool execution retain their semantics.
+The public `ExecutionError::group_error` field requires a pre-1.0 minor release:
+update struct literals/exhaustive destructuring, using None in direct-child
+fixtures. Manifests, lock and dependency selections remain at released 0.5.2;
+no release command or version mutation ran. Both changelog views describe 0.6.0.
+
+Focused locked/offline Linux checks pass: 53 process library tests, strict
+all-target Clippy, Rust 1.88 all-target check, warning-denied Rustdoc and
+all-feature/all-target tools-consumer compilation. New coverage exercises group
+cleanup after success, failure, deadline and both output limits; fair streams,
+no-spawn validation and unchanged direct-child behavior remain covered. A
+substituted IO fault at finalization cleans a real group; a deliberate external
+reap retains original timeout plus group/reap errors. No native pipe-read fault
+is claimed. Logs are `/tmp/ic-host-group-*.log`, including the initial lint
+failures and successful corrections. No function, method or type was removed.
+
+The private `/tmp/ic-host-group-rehearsal/` runs the actual unchanged Toko Node
+wrapper with a synthetic Node fixture: direct timeout permits a late descendant
+write; group timeout and overflow do not. The actual encoder module, switched
+only to the new capture call, passes all four original tests including its real
+30-second deadline. Exact sources/lock/hashes, logs and an applicable source
+patch remain there. This is not a live encoder workload or full consumer graph
+qualification. Toko retains its environment, admission, budgets and Debug error
+projection; its staging supervisor is unchanged. Source/acceptance are delivered
+on [Host #5](https://github.com/dragginzgame/ic-host-tooling/issues/5#issuecomment-6058697111)
+and Toko Miner #33. Sibling working trees remain untouched.
+
+Candidate native macOS Intel/ARM qualification remains pending; released 0.5.2
+CI below does not qualify new bytes. Keep #5 open through delivery and actual
+consumer acceptance, with Query piped input/inherited output/cancellation still
+separate. Signalling is not a descendant-exit barrier or process-tree confinement.
+No new unsafe boundary, dependency, background handoff, retry or paid-effect
+recovery is introduced. Prior dirty handoff work was preserved. No downloads,
+broad local gate, Git commit/push, release or publication occurred.
+
+## Previous continuation: 2026-10-08, released 0.5.2 and custody convergence
+
+Remote main matches released Host 0.5.2 at
+`c7014995bf0890c1df9cd9b9a6ec14ea70f98c6f`.
+[Exact-source CI](https://github.com/dragginzgame/ic-host-tooling/actions/runs/37762087718)
+passes Linux x86-64, Rust 1.88 and native macOS 15 Intel/Apple Silicon, including
+poll_exit/handoff. This supersedes candidate-native statements below; actual
+Query bridge adoption remains separate. Registry publication was not independently
+checked in this continuation.
+
+Fresh sibling inspection found an existing owner for the next descriptor slice:
+Backup 0.7.0 `f836d5e58170c6b16dba2552c10391666f86ce7e` provides owned
+command inheritance, single dispatch, retained exact custody and quiescence.
+Its [native release CI](https://github.com/dragginzgame/ic-backup/actions/runs/37753291440)
+passes Linux/macOS Intel/ARM. Canic's current Observatory already delegates to
+Host capture_command. The remaining local raw-descriptor custody belongs to the
+consumer adoption assessment, with paid intent/recovery retained in Canic.
+
+A selected offline Linux probe at `/tmp/ic-host-custody-probe/` proves Host's
+existing capture preserves caller-configured command-fds 0.3.3 inheritance:
+parent CLOEXEC remains set, the leader is reaped, and after parent descriptor
+copies are dropped a contender stays excluded until the descendant's own stop.
+Exact source/lock digests, result and initial import-path compilation failure
+are retained. No parent-death or paid-effect recovery qualification is claimed.
+Command owns its configured clone until dropped; Backup's consuming spawn
+already prevents that clone outliving spawn. Its returned standard Child and
+Host's spawning capture entrypoint are not automatically an integrated pipeline.
+Do not bypass single-dispatch admission or invent bounded paid-command policy.
+
+[Canic #458](https://github.com/dragginzgame/canic/issues/458#issuecomment-6057856389)
+and [Host #5](https://github.com/dragginzgame/ic-host-tooling/issues/5#issuecomment-6057856823)
+record the concrete owner/deletion route and composition limit. No new Host
+wrapper, dependency, unsafe boundary or runtime change is justified by this
+mechanism alone. Query piped IO/cancellation and complete consumer acceptance
+remain open under #5. Only this handoff changed locally. No function, method
+or type was removed; no sibling mutation, download, broad local gate, commit,
+push, release or publication ran. No new release draft was created for this
+source review and documentation-only continuation.
+
+## Previous work: 2026-10-08, pending 0.5.2 successful background handoff (superseded)
 
 The compatible **0.5.2** batch adds `OwnedChild::poll_exit` and `handoff`
 for [#5](https://github.com/dragginzgame/ic-host-tooling/issues/5), based on

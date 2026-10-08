@@ -77,6 +77,7 @@ fn borrowed_execution_keeps_original_failure_and_cleanup_errors_together() {
             stdout_truncated: true,
             ..ExecutionEvidence::default()
         },
+        group_error: Some(io::ErrorKind::PermissionDenied.into()),
         kill_error: Some(io::ErrorKind::PermissionDenied.into()),
         wait_error: Some(io::ErrorKind::Interrupted.into()),
     }));
@@ -90,6 +91,10 @@ fn borrowed_execution_keeps_original_failure_and_cleanup_errors_together() {
         &raw const borrowed.evidence
     ));
     assert!(matches!(borrowed.failure, ExecutionFailure::TimedOut));
+    assert_eq!(
+        borrowed.group_error.as_ref().unwrap().kind(),
+        io::ErrorKind::PermissionDenied
+    );
     assert_eq!(
         borrowed.kill_error.as_ref().unwrap().kind(),
         io::ErrorKind::PermissionDenied
