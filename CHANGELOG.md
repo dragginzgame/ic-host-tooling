@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.8.4]
+## [0.8.4] - 2026-10-08
 
 - Open existing lock files without temporary publication or sync work, allowing
   writable locks under read-only parent directories
