@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.7.1]
+## [0.7.1] - 2026-10-08
 
 - Refresh matching local tracking refs after confirmed releases, avoiding stale
   ahead-of-origin status while preserving concurrent or unrelated refs
