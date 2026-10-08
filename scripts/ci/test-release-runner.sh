@@ -5,7 +5,10 @@ set -euo pipefail
 unset MAKEFLAGS MFLAGS MAKEOVERRIDES GNUMAKEFLAGS MAKEFILES
 export RELEASE_DELIVERY=direct
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+ROOT="${BASH_SOURCE[0]}"
+[[ "$ROOT" == /* ]] || ROOT="$PWD/$ROOT"
+ROOT="$(cd -P "${ROOT%/*}/../.." && printf '%s/.' "$PWD")"
+ROOT="${ROOT%/.}"
 FIXTURE_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/release-runner-test.XXXXXX")"
 trap 'if [[ $? == 0 ]]; then rm -rf "$FIXTURE_ROOT"; else printf "Failed release-runner fixture retained: %s\n" "$FIXTURE_ROOT" >&2; fi' EXIT
 export REAL_GIT REAL_MAKE

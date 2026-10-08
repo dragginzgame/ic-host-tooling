@@ -8,7 +8,10 @@ set -euo pipefail
 operation="${1:-}"
 [[ $# -eq 1 ]] || exit 2
 # Helper code belongs to this adapter; Cargo data belongs to the selected checkout.
-tooling_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd -P)"
+tooling_root="${BASH_SOURCE[0]}"
+[[ "$tooling_root" == /* ]] || tooling_root="$PWD/$tooling_root"
+tooling_root="$(cd -P "${tooling_root%/*}/../.." && printf '%s/.' "$PWD")"
+tooling_root="${tooling_root%/.}"
 fail() { echo "release metadata refused: $1" >&2; exit 1; }
 version() {
     local observed

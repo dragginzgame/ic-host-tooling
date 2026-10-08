@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SCRIPT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd -P)"
+SCRIPT_ROOT="${BASH_SOURCE[0]}"
+[[ "$SCRIPT_ROOT" == /* ]] || SCRIPT_ROOT="$PWD/$SCRIPT_ROOT"
+SCRIPT_ROOT="$(cd -P "${SCRIPT_ROOT%/*}/../.." && printf '%s/.' "$PWD")"
+SCRIPT_ROOT="${SCRIPT_ROOT%/.}"
 SOURCE_ROOT="$SCRIPT_ROOT"
 CONSUMER_ROOT=""
 MANIFEST_PATH=".shared-tooling.snapshot"

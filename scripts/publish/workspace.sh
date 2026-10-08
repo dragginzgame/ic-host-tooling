@@ -9,7 +9,9 @@ mode="${1:-}"
     echo 'usage: workspace.sh publish|check' >&2; exit 2;
 }
 fail() { echo "publication refused: $1" >&2; exit 1; }
-root="$(git rev-parse --show-toplevel)"
+# Preserve path newlines, removing only Git's terminating record newline.
+root="$(git rev-parse --show-toplevel && printf '/.')"
+root="${root%$'\n/.'}"
 cd "$root"
 source="$(git rev-parse --verify HEAD)"
 [[ "$source" =~ ^([0-9a-f]{40}|[0-9a-f]{64})$ ]] || fail 'invalid source identity'

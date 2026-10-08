@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
-root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd -P)"
+root="${BASH_SOURCE[0]}"
+[[ "$root" == /* ]] || root="$PWD/$root"
+root="$(cd -P "${root%/*}/../.." && printf '%s/.' "$PWD")"
+root="${root%/.}"
 cd "$root"
 # Cargo's actual normal dependency graph, excluding test-only artifact fixtures.
 response="$(cargo tree -p ic-host-tools --no-default-features --edges normal --prefix none --format '{p}' --locked --offline)"

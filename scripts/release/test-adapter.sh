@@ -4,7 +4,10 @@ set -euo pipefail
 # Exercise the consumer adapter with real locked/offline Cargo metadata. Git,
 # setup, fetching, qualification and version mutation are substitutes: no
 # commits, tags or release pushes. CI does not need cargo-edit for this fixture.
-root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd -P)"
+root="${BASH_SOURCE[0]}"
+[[ "$root" == /* ]] || root="$PWD/$root"
+root="$(cd -P "${root%/*}/../.." && printf '%s/.' "$PWD")"
+root="${root%/.}"
 fixture="$(mktemp -d "${TMPDIR:-/tmp}/ic-host-release-adapter.XXXXXX")"
 finish() {
     local status=$?
@@ -36,6 +39,18 @@ for package in ic-host-artifacts ic-host-fs ic-host-process ic-host-tools; do
     sed 's/^publish = .*/publish = false/' "$root/crates/$package/Cargo.toml" > "$fixture/crates/$package/Cargo.toml"
     : > "$fixture/crates/$package/src/lib.rs"
 done
+# Observe the real workspace through relative and absolute adapter entrypoints
+# in a physical newline-bearing tooling root, with a competing CDPATH lookup.
+tooling="$fixture/tooling"$'\n'
+mkdir -p "$tooling/scripts/release" "$tooling/scripts/ci" "$fixture/decoy/scripts/release"
+cp "$root/scripts/release/adapter.sh" "$tooling/scripts/release/"
+cp "$root/scripts/ci/read-cargo-workspace-version.sh" "$tooling/scripts/ci/"
+(
+    cd "$fixture"
+    export CDPATH="$fixture/decoy:$fixture"
+    [[ "$(bash "$tooling/scripts/release/adapter.sh" version)" == "$RELEASE_PREVIOUS" ]]
+    [[ "$(bash "${tooling#"$fixture/"}/scripts/release/adapter.sh" version)" == "$RELEASE_PREVIOUS" ]]
+)
 # Heading presentation must not detach notes from the selected release.
 printf '# Changelog\n\n## [%s] \t \n\n- Fixture notes.\n' "$RELEASE_VERSION" > "$fixture/CHANGELOG.md"
 printf '\n## [%s]\n\n- Undated imported history.\n\n## [0.0.1] - 2026-10-01\n\n- Dated history.\n' "$RELEASE_PREVIOUS" >> "$fixture/CHANGELOG.md"

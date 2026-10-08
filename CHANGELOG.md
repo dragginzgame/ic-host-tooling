@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.7.2]
+
+- Preserve checkout paths in release-adapter, publication and feature checks with an
+  inherited `CDPATH` or trailing path newlines
+  ([#23](https://github.com/dragginzgame/ic-host-tooling/issues/23),
+  [shared #67](https://github.com/dragginzgame/shared-tooling/issues/67)).
+- Refresh Shared Tooling's installer evidence fixtures and dotted snapshot-name
+  recognition in tooling counts
+  ([shared #66](https://github.com/dragginzgame/shared-tooling/issues/66),
+  [#68](https://github.com/dragginzgame/shared-tooling/issues/68),
+  [#69](https://github.com/dragginzgame/shared-tooling/issues/69)).
+
+See [the 0.7 notes](docs/changelog/0.7.md).
+
 ## [0.7.1] - 2026-10-08
 
 - Refresh matching local tracking refs after confirmed releases, avoiding stale

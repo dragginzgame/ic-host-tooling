@@ -1,6 +1,48 @@
 # Current handoff
 
-## Latest work: 2026-10-08, released 0.7.0 and pending 0.7.1 tooling refresh
+## Latest work: 2026-10-08, released 0.7.1 and pending 0.7.2 path fixes
+
+Host 0.7.1 is released at `410fee7c309e781edf6a361f0e480d71b7c11e5a`.
+The maintainer reports it live. Its
+[exact-source CI](https://github.com/dragginzgame/ic-host-tooling/actions/runs/37776708008)
+passes Linux and MSRV; both native macOS jobs were queued at inspection. This
+supersedes the pending-0.7.1 statements below, without claiming registry checks
+or native qualification of this new working tree.
+
+The compatible **0.7.2** batch fixes inherited-CDPATH and trailing-newline
+checkout handling at Host-owned adapter/publication/feature entrypoints
+([#23](https://github.com/dragginzgame/ic-host-tooling/issues/23)). The old
+read-only adapter version command fails with exit 127 under CDPATH. The old
+publication adapter also fails the new newline-checkout fixture; both controls
+and final passing results remain in `/tmp/ic-host-072-paths/`. The first expanded
+publication fixture exposed its own line-oriented evidence-path parsing; it
+now inspects the actual attempt directories. No production function was removed.
+
+The canonical exporter adopted committed Shared Tooling 0.1.27
+`b866d41041a1986eeec95bde9af4c6ba0853d2e3` from a clean private checkout.
+The 72-file selection includes four required new installer-evidence fixture
+inputs. Their missing upstream companion declarations are reported in
+[shared #73](https://github.com/dragginzgame/shared-tooling/issues/73).
+The composite action is a fixture dependency, not newly wired Host CI uploads.
+AGENTS.md and snapshot digests agree. Notes cover the path repair, installer
+evidence qualification and dotted snapshot-name LOC correction.
+
+Focused Linux checks pass: release adapter, publication, feature graphs, shared
+entrypoint paths, release runner (including disposable real-Git tracking cases),
+both installer suites with substituted payloads/downloads, tooling LOC, snapshot
+integrity and dependency declarations. Selected Bash syntax and ShellCheck pass;
+the runner's unselected PR companion requires SC1091 exclusion. Earlier lint
+attempts without that selection context are retained. Native macOS qualification
+of this candidate remains pending; upstream exact-source CI was also queued.
+
+New [Query feedback on #5](https://github.com/dragginzgame/ic-host-tooling/issues/5#issuecomment-6060063432)
+explicitly requires TERM grace and bounded reaping. Immediate KILL and synchronous
+reaping cannot replace its current runner. This is the next separate process
+owner change; the tooling batch makes no runtime/API change or adoption claim.
+Manifests, lock selections and package versions remain 0.7.1. No sibling edits,
+full local gate, real tool download, commit/push, release or publication occurred.
+
+## Previous work: 2026-10-08, released 0.7.0 and pending 0.7.1 tooling refresh (superseded)
 
 Host 0.7.0 is pushed at `491fc0e231b9650526f5f57b9ab7b1f62f02218c`.
 [Exact-source CI](https://github.com/dragginzgame/ic-host-tooling/actions/runs/37773664766)

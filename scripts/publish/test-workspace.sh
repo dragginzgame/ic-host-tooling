@@ -3,14 +3,20 @@ set -euo pipefail
 
 # Real locked/offline Cargo metadata; Git observations and publication are
 # substitutes. No registry requests, commits, tags or uploads occur.
-root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd -P)"
-fixture="$(mktemp -d "${TMPDIR:-/tmp}/ic-host-publish-test.XXXXXX")"
+root="${BASH_SOURCE[0]}"
+[[ "$root" == /* ]] || root="$PWD/$root"
+root="$(cd -P "${root%/*}/../.." && printf '%s/.' "$PWD")"
+root="${root%/.}"
+fixture_parent="$(mktemp -d "${TMPDIR:-/tmp}/ic-host-publish-test.XXXXXX")"
+# Git emits this literal checkout name followed by its own record newline.
+fixture="$fixture_parent/checkout"$'\n'
 finish() {
     local status=$?
-    if [[ "$status" == 0 ]]; then rm -rf "$fixture"
-    else echo "Publication fixtures retained: $fixture" >&2; fi
+    if [[ "$status" == 0 ]]; then rm -rf "$fixture_parent"
+    else echo "Publication fixtures retained: $fixture_parent" >&2; fi
 }
 trap finish EXIT
+mkdir "$fixture"
 export CARGO_NET_OFFLINE=true RUSTUP_AUTO_INSTALL=0
 mkdir "$fixture/bin"
 cp "$root/Cargo.toml" "$root/Cargo.lock" "$root/README.md" "$root/LICENSE" "$fixture/"
@@ -123,7 +129,10 @@ cmp expected-calls calls
 printf '%s\0' package --manifest-path "$fixture/Cargo.toml" --workspace \
     --registry crates-io --all-features --locked --no-verify --target-dir "$fixture/target" > expected-package-arguments
 cmp expected-package-arguments package-arguments
-attempt="$(awk '/^Publication evidence: / { sub(/^Publication evidence: /, ""); print }' publish.log)"
+attempts=(target/publish/publish.*)
+[[ ${#attempts[@]} == 1 ]]
+attempt="${attempts[0]}"
+successful_attempt="$attempt"
 [[ -f "$attempt/source-verified" && -f "$attempt/source-request" && -f "$attempt/ic-host-fs-vcs.json" ]]
 
 # Stop at Cargo's failure and retain the attempt's intent, log and artifacts.
@@ -132,7 +141,11 @@ status=0
 PUBLISH_CARGO_RESULT=17 invoke publish > failed.log 2>&1 || status=$?
 [[ "$status" == 17 ]] || exit 1
 cmp expected-calls calls
-attempt="$(awk '/^Publication evidence: / { sub(/^Publication evidence: /, ""); print }' failed.log)"
+attempts=(target/publish/publish.*)
+[[ ${#attempts[@]} == 2 ]]
+for attempt in "${attempts[@]}"; do
+    [[ "$attempt" == "$successful_attempt" ]] || break
+done
 [[ -f "$attempt/intent" && -f "$attempt/arguments" && -f "$attempt/cargo.log" && "$(cat "$attempt/status")" == 17 ]]
 [[ -f target/package/fixture.crate && ! -e target/publish/lock ]]
 
