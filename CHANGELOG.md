@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.9.5]
+## [0.9.5] - 2026-10-09
 
 - Reject Make modes that can hide failed release or formatting commands, and
   keep Host commands and release-command checks bound to their own checkout's
