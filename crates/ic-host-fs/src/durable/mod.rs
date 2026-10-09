@@ -13,7 +13,7 @@ pub use named::{NamedWriteError, write_named_with};
 mod stream;
 #[cfg(unix)]
 pub use stream::write_at_with;
-pub use stream::{PublicationMode, WriteOptions, write_typed_with, write_validated_with};
+pub use stream::{PublicationMode, WriteOptions, write_validated_with, write_with};
 
 #[cfg(test)]
 mod tests;
@@ -27,6 +27,8 @@ pub enum RegularFileLockError {
     NotRegular,
     /// The filesystem operation failed.
     Io(io::Error),
+    /// Durable lock-file creation failed, retaining publication and cleanup evidence.
+    Publication(NamedWriteError<io::Error>),
     #[cfg(windows)]
     /// This operation is unsupported on the selected host.
     UnsupportedPlatform,
@@ -37,6 +39,7 @@ impl fmt::Display for RegularFileLockError {
         match self {
             Self::NotRegular => formatter.write_str("lock target is not a regular file"),
             Self::Io(_) => formatter.write_str("regular file lock I/O failed"),
+            Self::Publication(_) => formatter.write_str("durable lock-file creation failed"),
             #[cfg(windows)]
             Self::UnsupportedPlatform => formatter.write_str("regular file locking is unsupported"),
         }
@@ -47,6 +50,7 @@ impl std::error::Error for RegularFileLockError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Io(source) => Some(source),
+            Self::Publication(source) => Some(source),
             Self::NotRegular => None,
             #[cfg(windows)]
             Self::UnsupportedPlatform => None,
@@ -54,12 +58,16 @@ impl std::error::Error for RegularFileLockError {
     }
 }
 
-/// Preserve native I/O identity or retain the typed admission cause at an I/O boundary.
+/// Preserve native I/O identity or retain the complete admission/publication cause.
+///
+/// Publication failures are wrapped intact with [`io::ErrorKind::Other`]; inspect
+/// the contained [`RegularFileLockError`] before deciding whether to retry.
 impl From<RegularFileLockError> for io::Error {
     fn from(error: RegularFileLockError) -> Self {
         match error {
             RegularFileLockError::Io(source) => source,
             other @ RegularFileLockError::NotRegular => Self::other(other),
+            other @ RegularFileLockError::Publication(_) => Self::other(other),
             #[cfg(windows)]
             other @ RegularFileLockError::UnsupportedPlatform => Self::other(other),
         }
@@ -85,62 +93,36 @@ const CREATE_PRIVATE_OPTIONS: WriteOptions = WriteOptions {
 /// is published. Serialization must complete before calling this helper.
 ///
 /// # Errors
-/// Returns filesystem or sync failures, including sync failures after publication.
-pub fn write_bytes(path: &Path, bytes: &[u8]) -> io::Result<()> {
+/// Retains write, cleanup and filesystem failures in [`NamedWriteError`], including
+/// the distinct after-publication state when the complete output is already visible.
+pub fn write_bytes(path: &Path, bytes: &[u8]) -> Result<(), NamedWriteError<io::Error>> {
     commit_bytes(path, bytes, REPLACE_OPTIONS)
-}
-
-/// Stream one complete file into durable atomic replacement without buffering its contents.
-///
-/// The producer writes only to the owned sibling staging file. Its return value
-/// is returned after file synchronization, rename and parent synchronization.
-/// If the producer returns an error, the previous destination is preserved and
-/// removal of owned staging is attempted. Panics or process interruption can
-/// leave staging behind.
-/// Missing parents are created and synchronized through the same path as
-/// [`write_bytes`]. Producers own encoding, input/output limits and source admission.
-///
-/// This follows caller-selected parent paths; it does not confine a root or
-/// commit several files together. Do not change the staging file's identity or
-/// retain writable descriptor clones beyond the callback.
-///
-/// # Errors
-/// Returns producer, filesystem, sync or unsupported-host errors. A sync failure
-/// after rename can leave the new complete file visible: reconcile before retrying.
-pub fn write_with<T>(
-    path: &Path,
-    write: impl FnOnce(&mut fs::File) -> io::Result<T>,
-) -> io::Result<T> {
-    #[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
-    {
-        supported::commit_with_writer_and_hook(path, REPLACE_OPTIONS, write, |_, _| Ok(()))
-    }
-    #[cfg(not(any(target_os = "linux", target_os = "android", target_vendor = "apple")))]
-    {
-        let _ = (path, write);
-        Err(io::Error::new(
-            io::ErrorKind::Unsupported,
-            "durable atomic file publication is unsupported",
-        ))
-    }
 }
 
 /// Durably create one file and its missing parent hierarchy without replacing
 /// an existing destination.
 ///
 /// # Errors
-/// Returns filesystem or sync failures, including an existing destination or a
-/// sync failure after publication.
-pub fn create_new_bytes_with_parents(path: &Path, bytes: &[u8]) -> io::Result<()> {
+/// Retains write, cleanup and filesystem failures in [`NamedWriteError`]. An existing
+/// destination is a before-publication `AlreadyExists`; a final sync failure is
+/// after-publication. Reconcile the latter before retrying.
+pub fn create_new_bytes_with_parents(
+    path: &Path,
+    bytes: &[u8],
+) -> Result<(), NamedWriteError<io::Error>> {
     commit_bytes(path, bytes, CREATE_NEW_OPTIONS)
 }
 
 /// Create owner-only bytes atomically, without replacing an existing destination.
 ///
 /// # Errors
-/// Returns filesystem or sync failures, an existing destination, or unsupported
-/// platform errors. Sync failure can occur after publication.
-pub fn create_private_bytes_with_parents(path: &Path, bytes: &[u8]) -> io::Result<()> {
+/// Retains write, cleanup and filesystem failures in [`NamedWriteError`], including
+/// an existing destination or unsupported host before publication, and a final
+/// sync failure after publication. Reconcile the latter before retrying.
+pub fn create_private_bytes_with_parents(
+    path: &Path,
+    bytes: &[u8],
+) -> Result<(), NamedWriteError<io::Error>> {
     commit_bytes(path, bytes, CREATE_PRIVATE_OPTIONS)
 }
 
@@ -235,8 +217,11 @@ pub fn open_regular_lock_file_with_parents(path: &Path) -> Result<fs::File, Regu
         Err(source) if source.kind() == io::ErrorKind::NotFound => {
             match create_new_bytes_with_parents(path, &[]) {
                 Ok(()) => {}
-                Err(source) if source.kind() == io::ErrorKind::AlreadyExists => {}
-                Err(source) => return Err(RegularFileLockError::Io(source)),
+                Err(NamedWriteError::BeforePublication {
+                    source,
+                    cleanup_error: None,
+                }) if source.kind() == io::ErrorKind::AlreadyExists => {}
+                Err(source) => return Err(RegularFileLockError::Publication(source)),
             }
             fs::symlink_metadata(path).map_err(RegularFileLockError::Io)?
         }
@@ -280,23 +265,12 @@ fn errno_to_lock_error(source: rustix::io::Errno) -> RegularFileLockError {
     RegularFileLockError::Io(io::Error::from_raw_os_error(source.raw_os_error()))
 }
 
-fn commit_bytes(path: &Path, bytes: &[u8], options: WriteOptions) -> io::Result<()> {
-    #[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
-    {
-        supported::commit_with_hook(path, bytes, options, |_, _| Ok(()))
-    }
-
-    #[cfg(not(any(target_os = "linux", target_os = "android", target_vendor = "apple")))]
-    {
-        let _ = (path, bytes, options);
-        Err(io::Error::new(
-            io::ErrorKind::Unsupported,
-            format!(
-                "durable atomic file publication is unsupported on platform {}",
-                std::env::consts::OS
-            ),
-        ))
-    }
+fn commit_bytes(
+    path: &Path,
+    bytes: &[u8],
+    options: WriteOptions,
+) -> Result<(), NamedWriteError<io::Error>> {
+    write_with(path, options, |file| std::io::Write::write_all(file, bytes))
 }
 
 #[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
@@ -305,8 +279,7 @@ mod supported {
 
     use std::{
         ffi::{OsStr, OsString},
-        fs,
-        io::{self, Write},
+        fs, io,
         path::{Path, PathBuf},
         sync::atomic::{AtomicU64, Ordering},
     };
@@ -331,29 +304,20 @@ mod supported {
         FinalParentSync,
     }
 
+    #[cfg(test)]
     pub(super) fn commit_with_hook(
         path: &Path,
         bytes: &[u8],
         options: WriteOptions,
         before: impl FnMut(FileCommitStep, &Path) -> io::Result<()>,
-    ) -> io::Result<()> {
-        commit_with_writer_and_hook(path, options, |file| file.write_all(bytes), before)
-    }
-
-    pub(super) fn commit_with_writer_and_hook<T>(
-        path: &Path,
-        options: WriteOptions,
-        write: impl FnOnce(&mut fs::File) -> io::Result<T>,
-        before: impl FnMut(FileCommitStep, &Path) -> io::Result<()>,
-    ) -> io::Result<T> {
+    ) -> Result<(), NamedWriteError<io::Error>> {
         commit_path_with_options(
             path,
             options,
-            |_, file| write(file),
-            None::<fn(&Path, &T) -> io::Result<()>>,
+            |_, file| std::io::Write::write_all(file, bytes),
+            None::<fn(&Path, &()) -> io::Result<()>>,
             before,
         )
-        .map_err(NamedWriteError::into_io)
     }
 
     pub(super) fn commit_path_with_options<T, E>(
@@ -623,12 +587,11 @@ mod supported {
         temp_name: &OsStr,
         file_name: &OsStr,
         error: rustix::io::Errno,
-    ) -> io::Result<()> {
-        let parent_fd = open_directory(parent)?;
+    ) -> Result<(), NamedWriteError<io::Error>> {
+        let parent_fd = open_directory(parent).map_err(NamedWriteError::before)?;
         finish_create_new_publication(&parent_fd, temp_name, file_name, Err(error), || {
             remove_temp(&parent_fd, temp_name)
         })
-        .map_err(NamedWriteError::into_io)
     }
 
     fn split_target(path: &Path) -> io::Result<(&Path, &OsStr)> {

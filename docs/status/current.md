@@ -1,5 +1,45 @@
 # Current handoff
 
+## Latest work: 2026-10-09, pending 0.10.0 publication hard cut
+
+Implemented the maintainer-approved pathname-writer consolidation against clean
+released 0.9.7 `ca62e66`, using the adopted Shared Tooling
+`b2646cde9abbc8861857a4379c683a0c19eba43e` module-cleanup procedure.
+The next version is **0.10.0** because the writer signatures and byte/lock error
+contracts break Rust source compatibility. Manifests and lockfile remain at 0.9.7;
+the undated root ledger and [0.10 notes](../changelog/0.10.md) select the pending release.
+
+`durable::write_with(path, options, producer)` is now the single generic pathname
+writer, renamed from `stream::write_typed_with` without a compatibility alias.
+The old two-argument I/O-only `durable::write_with` implementation,
+`durable::supported::commit_with_writer_and_hook` and
+`durable::named::NamedWriteError::into_io` were removed: all formerly projected
+away publication/cleanup evidence. No other function, method or type was removed.
+`commit_with_hook` remains solely as a typed test injection boundary.
+The three byte writers converge through the generic writer and retain
+`NamedWriteError<io::Error>`. Lock creation retains that error in the new
+`RegularFileLockError::Publication` variant, including across explicit I/O conversion.
+An existing-file race is accepted only before publication with successful cleanup.
+Named, descriptor-relative and closed-writer validation contracts remain distinct.
+
+Linux x86-64 evidence is in `/tmp/ic-host-0100/`: 68 filesystem library tests,
+strict package/all-target Clippy, Rust 1.88.0 library check and strict rustdoc pass
+against the locked cached graph. Development Rust is 1.99.0. Tests now assert
+before/after-publication phases for the byte modes, failed-producer cleanup
+evidence and lock-file creation source retention. Selected rustfmt, documentation
+links and whitespace checks pass. No new native macOS 15 Intel/Apple Silicon or
+consumer compilation evidence is claimed; neither a full gate nor release ran.
+
+Read-only caller inspection found required migration work in six consumers:
+[Canic #458](https://github.com/dragginzgame/canic/issues/458#issuecomment-6085204132),
+[Testkit #44](https://github.com/dragginzgame/ic-testkit/issues/44),
+[Query #37](https://github.com/dragginzgame/ic-query/issues/37),
+[Backup #35](https://github.com/dragginzgame/ic-backup/issues/35),
+[Memory #46](https://github.com/dragginzgame/ic-memory/issues/46) and
+[Blob Storage #46](https://github.com/dragginzgame/ic-blob-storage/issues/46).
+Those issues hold adoption follow-up; no sibling files or pins changed. Source
+remains local and uncommitted. No push, publication or tool download occurred.
+
 ## Latest work: 2026-10-09, pending 0.9.7 Make admission follow-up
 
 The [ownership/admission audit](../reports/audits/2026/10/09/ownership-admission/01/report.md)

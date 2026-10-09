@@ -15,11 +15,11 @@ fn streamed_replacement_returns_producer_value_only_after_complete_publication()
     use std::io::Write as _;
     let root = temp_root("streamed-replacement");
     let path = root.join("nested/output");
-    let value = write_with(&path, |file| {
+    let value = write_with(&path, REPLACE_OPTIONS, |file| {
         assert!(!path.exists());
         file.write_all(b"first ")?;
         file.write_all(b"second")?;
-        Ok(42)
+        Ok::<_, io::Error>(42)
     })
     .unwrap();
     assert_eq!(value, 42);
@@ -41,21 +41,30 @@ fn producer_failure_and_bounded_copy_preserve_previous_destination() {
     let root = temp_root("streamed-failure");
     let path = root.join("output");
     write_bytes(&path, b"original").unwrap();
-    let error = write_with(&path, |file| {
+    let error = write_with(&path, REPLACE_OPTIONS, |file| {
         file.write_all(b"partial")?;
         Err::<(), _>(io::Error::from(io::ErrorKind::InvalidData))
     })
     .unwrap_err();
-    assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+    assert!(
+        matches!(error, NamedWriteError::Producer { source, cleanup_error: None } if source.kind() == io::ErrorKind::InvalidData)
+    );
     assert_eq!(fs::read(&path).unwrap(), b"original");
     assert_eq!(fs::read_dir(&root).unwrap().count(), 1);
     let copy = |maximum| {
-        write_with(&path, |file| {
+        write_with(&path, REPLACE_OPTIONS, |file| {
             ic_host_artifacts::artifact::copy_reader(b"new bytes".as_slice(), file, maximum)
                 .map_err(io::Error::from)
         })
     };
     let error = copy(8).unwrap_err();
+    let NamedWriteError::Producer {
+        source: error,
+        cleanup_error: None,
+    } = error
+    else {
+        panic!("bounded-copy error must retain its producer and successful cleanup");
+    };
     assert!(matches!(
         error
             .get_ref()
@@ -65,16 +74,35 @@ fn producer_failure_and_bounded_copy_preserve_previous_destination() {
             ic_host_artifacts::artifact::ArtifactError::LimitExceeded { limit: 8 }
         ))
     ));
-    let error = write_with(&path, |file| {
+    let error = write_with(&path, REPLACE_OPTIONS, |file| {
         ic_host_artifacts::artifact::copy_reader(BrokenInput, file, 9).map_err(io::Error::from)
     })
     .unwrap_err();
-    assert_eq!(error.raw_os_error(), Some(13));
+    assert!(
+        matches!(error, NamedWriteError::Producer { source, cleanup_error: None } if source.raw_os_error() == Some(13))
+    );
     assert_eq!(fs::read(&path).unwrap(), b"original");
     let identity = copy(9).unwrap();
     assert_eq!(identity.bytes, 9);
     assert_eq!(fs::read(&path).unwrap(), b"new bytes");
     assert_eq!(fs::read_dir(&root).unwrap().count(), 1);
+    let error = write_with(&path, REPLACE_OPTIONS, |_| -> io::Result<()> {
+        let stage = fs::read_dir(&root)
+            .unwrap()
+            .map(|entry| entry.unwrap().path())
+            .find(|entry| entry != &path)
+            .unwrap();
+        fs::remove_file(&stage).unwrap();
+        fs::write(stage, b"foreign entry").unwrap();
+        Err(io::Error::from_raw_os_error(13))
+    })
+    .unwrap_err();
+    assert!(
+        matches!(error, NamedWriteError::Producer { source, cleanup_error: Some(cleanup) }
+        if source.raw_os_error() == Some(13) && cleanup.kind() == io::ErrorKind::InvalidData)
+    );
+    assert_eq!(fs::read(&path).unwrap(), b"new bytes");
+    assert_eq!(fs::read_dir(&root).unwrap().count(), 2);
     fs::remove_dir_all(root).unwrap();
 }
 
@@ -276,6 +304,38 @@ fn lock_errors_preserve_admission_and_original_io_causes() {
 
 #[cfg(unix)]
 #[test]
+fn lock_creation_preserves_publication_error_through_io_boundary() {
+    use std::error::Error as _;
+    let fixture = crate::test_support::Fixture::new();
+    let link = fixture.root.join("parent");
+    std::os::unix::fs::symlink(fixture.root.join("missing"), &link).unwrap();
+    let error = open_regular_lock_file_with_parents(&link.join("lock")).unwrap_err();
+    let RegularFileLockError::Publication(original) = &error else {
+        panic!("expected typed lock-file creation failure: {error:?}");
+    };
+    assert!(
+        matches!(original, NamedWriteError::BeforePublication { source, cleanup_error: None }
+        if source.kind() == io::ErrorKind::NotADirectory)
+    );
+    assert!(std::ptr::eq(
+        original,
+        error
+            .source()
+            .unwrap()
+            .downcast_ref::<NamedWriteError<io::Error>>()
+            .unwrap()
+    ));
+    let projected = io::Error::from(error);
+    assert!(
+        matches!(projected.get_ref().unwrap().downcast_ref::<RegularFileLockError>(),
+        Some(RegularFileLockError::Publication(NamedWriteError::BeforePublication { source, cleanup_error: None }))
+            if source.kind() == io::ErrorKind::NotADirectory)
+    );
+    assert!(!fixture.root.join("missing").exists());
+}
+
+#[cfg(unix)]
+#[test]
 fn existing_lock_admission_does_not_require_parent_write_permission() {
     use std::os::unix::fs::PermissionsExt as _;
     let fixture = crate::test_support::Fixture::new();
@@ -372,7 +432,9 @@ fn durable_create_new_with_parents_never_replaces_an_existing_file() {
     let error = create_new_bytes_with_parents(&path, b"replacement")
         .expect_err("existing output must reject");
 
-    assert_eq!(error.kind(), io::ErrorKind::AlreadyExists);
+    assert!(
+        matches!(error, NamedWriteError::BeforePublication { source, cleanup_error: None } if source.kind() == io::ErrorKind::AlreadyExists)
+    );
     assert_eq!(
         fs::read(&path).expect("read target"),
         b"first complete contents"
@@ -396,7 +458,9 @@ fn durable_create_new_with_parents_rejects_a_symlinked_parent() {
     let error = create_new_bytes_with_parents(&root.join("linked/report.json"), b"contents")
         .expect_err("symlinked parent must reject");
 
-    assert_eq!(error.kind(), io::ErrorKind::NotADirectory);
+    assert!(
+        matches!(error, NamedWriteError::BeforePublication { source, cleanup_error: None } if source.kind() == io::ErrorKind::NotADirectory)
+    );
     assert!(!outside.join("report.json").exists());
     fs::remove_dir_all(root).expect("remove temp root");
     fs::remove_dir_all(outside).expect("remove outside root");
@@ -406,7 +470,9 @@ fn durable_create_new_with_parents_rejects_a_symlinked_parent() {
 fn durable_write_rejects_a_target_without_a_file_name() {
     let error = write_bytes(Path::new("/"), b"value").expect_err("directory target must fail");
 
-    assert_eq!(error.kind(), io::ErrorKind::InvalidInput);
+    assert!(
+        matches!(error, NamedWriteError::BeforePublication { source, cleanup_error: None } if source.kind() == io::ErrorKind::InvalidInput)
+    );
 }
 
 #[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
@@ -440,7 +506,9 @@ fn prepublication_failures_preserve_old_complete_bytes_and_remove_staging() {
         )
         .expect_err("injected step must fail");
 
-        assert_eq!(error.kind(), io::ErrorKind::Other);
+        assert!(
+            matches!(error, NamedWriteError::BeforePublication { source, cleanup_error: None } if source.kind() == io::ErrorKind::Other)
+        );
         assert_eq!(
             fs::read(&path).expect("read preserved target"),
             b"old complete contents"
@@ -453,32 +521,33 @@ fn prepublication_failures_preserve_old_complete_bytes_and_remove_staging() {
 #[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
 #[test]
 fn postpublication_sync_failure_exposes_only_new_complete_bytes() {
-    let root = temp_root("postpublication");
-    fs::create_dir_all(&root).expect("create temp root");
-    let path = root.join("report.json");
-    fs::write(&path, b"old complete contents").expect("write old contents");
+    for options in [REPLACE_OPTIONS, CREATE_NEW_OPTIONS, CREATE_PRIVATE_OPTIONS] {
+        let root = temp_root("postpublication");
+        fs::create_dir_all(&root).expect("create temp root");
+        let path = root.join("report.json");
+        if options.mode == PublicationMode::Replace {
+            fs::write(&path, b"old complete contents").expect("write old contents");
+        }
 
-    let error = commit_with_hook(
-        &path,
-        b"new complete contents",
-        REPLACE_OPTIONS,
-        |step, _| {
+        let error = commit_with_hook(&path, b"new complete contents", options, |step, _| {
             if step == FileCommitStep::FinalParentSync {
                 return Err(io::Error::other("injected parent sync failure"));
             }
             Ok(())
-        },
-    )
-    .expect_err("postpublication sync must fail");
+        })
+        .expect_err("postpublication sync must fail");
 
-    assert_eq!(error.kind(), io::ErrorKind::Other);
-    assert_eq!(
-        fs::read(&path).expect("read published target"),
-        b"new complete contents"
-    );
-    assert_no_temporary_files(&root);
+        assert!(
+            matches!(error, NamedWriteError::AfterPublication { source } if source.kind() == io::ErrorKind::Other)
+        );
+        assert_eq!(
+            fs::read(&path).expect("read published target"),
+            b"new complete contents"
+        );
+        assert_no_temporary_files(&root);
 
-    fs::remove_dir_all(root).expect("remove temp root");
+        fs::remove_dir_all(root).expect("remove temp root");
+    }
 }
 
 #[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
@@ -501,7 +570,9 @@ fn create_new_publication_race_cannot_replace_the_winner() {
     )
     .expect_err("atomic create-new must reject a publication race");
 
-    assert_eq!(error.kind(), io::ErrorKind::AlreadyExists);
+    assert!(
+        matches!(error, NamedWriteError::BeforePublication { source, cleanup_error: None } if source.kind() == io::ErrorKind::AlreadyExists)
+    );
     assert_eq!(
         fs::read(&path).expect("read winning target"),
         b"raced complete contents"
@@ -554,7 +625,9 @@ fn link_publication_fallback_cannot_replace_an_existing_file() {
         publish_create_new_after_error(&root, temp_name, file_name, rustix::io::Errno::INVAL)
             .expect_err("link fallback must reject an existing destination");
 
-    assert_eq!(error.kind(), io::ErrorKind::AlreadyExists);
+    assert!(
+        matches!(error, NamedWriteError::BeforePublication { source, cleanup_error: None } if source.kind() == io::ErrorKind::AlreadyExists)
+    );
     assert_eq!(
         fs::read(&path).expect("read winning target"),
         b"raced complete contents"
@@ -595,7 +668,9 @@ fn new_parent_failures_never_create_the_final_file_or_staging() {
         )
         .expect_err("injected parent step must fail");
 
-        assert_eq!(error.kind(), io::ErrorKind::Other);
+        assert!(
+            matches!(error, NamedWriteError::BeforePublication { source, cleanup_error: None } if source.kind() == io::ErrorKind::Other)
+        );
         assert!(!path.exists());
         assert_no_temporary_files(&root);
         fs::remove_dir_all(root).expect("remove temp root");
@@ -668,7 +743,9 @@ fn private_publication_is_owner_only_before_writing_and_never_replaces() {
         Some([7; 32])
     );
     let error = create_private_bytes_with_parents(&path, &[8; 32]).unwrap_err();
-    assert_eq!(error.kind(), std::io::ErrorKind::AlreadyExists);
+    assert!(
+        matches!(error, NamedWriteError::BeforePublication { source, cleanup_error: None } if source.kind() == io::ErrorKind::AlreadyExists)
+    );
     assert_eq!(
         crate::read::read_private_bytes::<32>(&path).unwrap(),
         Some([7; 32])
@@ -684,9 +761,9 @@ fn replacement_supports_long_destination_names() {
     let path = root.join("a".repeat(255));
     fs::write(&path, b"previous").unwrap();
     write_bytes(&path, b"complete").unwrap();
-    let copied = write_with(&path, |file| {
+    let copied = write_with(&path, REPLACE_OPTIONS, |file| {
         std::io::Write::write_all(file, b"streamed")?;
-        Ok(8)
+        Ok::<_, io::Error>(8)
     })
     .unwrap();
     assert_eq!(copied, 8);
@@ -727,7 +804,9 @@ fn staging_collisions_retry_without_touching_unowned_files() {
         },
     )
     .unwrap_err();
-    assert_eq!(error.kind(), io::ErrorKind::AlreadyExists);
+    assert!(
+        matches!(error, NamedWriteError::BeforePublication { source, cleanup_error: None } if source.kind() == io::ErrorKind::AlreadyExists)
+    );
     assert!(!blocked.is_empty() && blocked.len() <= 64);
     assert_eq!(fs::read(&path).unwrap(), b"complete");
     for candidate in blocked {
@@ -757,7 +836,7 @@ fn selected_staging_namespace_destinations_remain_absent_until_publication() {
     fs::create_dir(&root).unwrap();
     for (prefix, sequence) in [(".ic-host-tmp", 0), (".IC-HOST-TMP", 2)] {
         let path = root.join(format!("{prefix}-{}-{sequence}", std::process::id()));
-        write_with(&path, |file| {
+        write_with(&path, REPLACE_OPTIONS, |file| {
             assert!(!path.exists());
             std::io::Write::write_all(file, b"complete")
         })

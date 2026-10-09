@@ -34,12 +34,12 @@ fn typed_serialization_preserves_errors_limits_and_previous_output() {
     }
     let fixture = Fixture::new();
     let path = fixture.root.join("nested/output");
-    write_typed_with(&path, REPLACE, |file| -> io::Result<_> {
+    write_with(&path, REPLACE, |file| -> io::Result<_> {
         file.write_all(b"old")?;
         Ok(42)
     })
     .unwrap();
-    let error = write_typed_with(&path, REPLACE, |file| {
+    let error = write_with(&path, REPLACE, |file| {
         serde_json::to_writer(file, &("prefix", InvalidValue))
     })
     .unwrap_err();
@@ -51,7 +51,7 @@ fn typed_serialization_preserves_errors_limits_and_previous_output() {
     assert!(
         matches!(error, NamedWriteError::Producer { source, cleanup_error: None } if source.is_data())
     );
-    let error = write_typed_with(&path, REPLACE, |file| {
+    let error = write_with(&path, REPLACE, |file| {
         serde_json::to_writer(
             ic_host_artifacts::artifact::BoundedWriter::new(file, 3),
             &"too long",
@@ -63,7 +63,7 @@ fn typed_serialization_preserves_errors_limits_and_previous_output() {
     );
     assert_eq!(fs::read(&path).unwrap(), b"old");
     assert_eq!(fs::read_dir(path.parent().unwrap()).unwrap().count(), 1);
-    write_typed_with(&path, REPLACE, |file| {
+    write_with(&path, REPLACE, |file| {
         serde_json::to_writer(file, &vec![1, 2])
     })
     .unwrap();
@@ -75,7 +75,7 @@ fn typed_serialization_preserves_errors_limits_and_previous_output() {
 fn create_only_refuses_existing_entries_and_a_competing_publication() {
     let fixture = Fixture::new();
     let path = fixture.root.join("output");
-    let error = write_typed_with(&path, CREATE, |file| -> io::Result<()> {
+    let error = write_with(&path, CREATE, |file| -> io::Result<()> {
         file.write_all(b"ours")?;
         fs::write(&path, b"winner")
     })
@@ -86,12 +86,12 @@ fn create_only_refuses_existing_entries_and_a_competing_publication() {
     assert_eq!(fs::read(&path).unwrap(), b"winner");
     assert_eq!(fs::read_dir(&fixture.root).unwrap().count(), 1);
     let fresh = fixture.root.join("fresh");
-    write_typed_with(&fresh, CREATE, |file| file.write_all(b"new")).unwrap();
+    write_with(&fresh, CREATE, |file| file.write_all(b"new")).unwrap();
     assert_eq!(fs::read(fresh).unwrap(), b"new");
     let link = fixture.root.join("link");
     symlink(&path, &link).unwrap();
     assert!(
-        matches!(write_typed_with(&link, CREATE, |file| file.write_all(b"blocked")),
+        matches!(write_with(&link, CREATE, |file| file.write_all(b"blocked")),
         Err(NamedWriteError::BeforePublication { source, .. }) if source.kind() == io::ErrorKind::AlreadyExists)
     );
     assert!(
@@ -102,7 +102,7 @@ fn create_only_refuses_existing_entries_and_a_competing_publication() {
     );
     let dir = fixture.root.join("directory");
     fs::create_dir(&dir).unwrap();
-    assert!(write_typed_with(&dir, CREATE, |file| file.write_all(b"blocked")).is_err());
+    assert!(write_with(&dir, CREATE, |file| file.write_all(b"blocked")).is_err());
     assert!(dir.is_dir());
 }
 
@@ -168,7 +168,7 @@ fn filename_and_descriptor_admission_precedes_any_producer_or_stage() {
             permissions,
             ..CREATE
         };
-        let error = write_typed_with(&path, options, |_| -> io::Result<()> {
+        let error = write_with(&path, options, |_| -> io::Result<()> {
             panic!("invalid mode dispatched")
         })
         .unwrap_err();

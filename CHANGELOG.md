@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.10.0]
+
+### Breaking
+
+- Consolidate pathname publication on `write_with(path, options, producer)`;
+  remove `write_typed_with`. Byte writers now retain publication state and
+  cleanup errors, and lock-file creation exposes `RegularFileLockError::Publication`.
+  Consumers must update writer calls and error handling before adopting 0.10.
+
+See [the 0.10 notes](docs/changelog/0.10.md).
+
 ## [0.9.7] - 2026-10-09
 
 - Accept recursive Make commands with additional arguments while preserving

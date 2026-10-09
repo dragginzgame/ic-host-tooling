@@ -119,8 +119,10 @@ prepublication admission callback, enabling executable probes while preserving
 the working destination on rejection. See the
 [closed-writer contract](docs/changelog/0.5.md#closed-writer-executable-admission).
 
-`durable::write_typed_with` retains serializer errors while streaming through
+`durable::write_with(path, options, producer)` retains serializer errors while streaming through
 the same engine, with explicit replace/create-only options and file permissions.
+Byte writers also return `NamedWriteError<io::Error>`, preserving publication
+state and separate cleanup failures. See the [0.10 migration](docs/changelog/0.10.md).
 `durable::write_at_with` borrows an admitted directory descriptor so publication
 stays anchored to it even when its original path moves. Consumers retain path
 admission, budgets and recovery; see the

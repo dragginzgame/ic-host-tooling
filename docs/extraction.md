@@ -39,7 +39,8 @@ metadata and streamed bytes have independent bounds. It rejects final symlinks,
 while existing `hash_file` continues to follow them. Ancestor confinement,
 concurrent-writer custody and exact expected-length checks remain caller-owned.
 Durable publication and locks do not own a second
-reader hierarchy. Lock errors retain typed admission and original I/O causes.
+reader hierarchy. Lock errors retain typed admission and original I/O causes;
+durable creation errors retain `NamedWriteError` in `RegularFileLockError::Publication`.
 `try_lock_regular_file_with_parents` adds one nonblocking acquisition attempt
 through the same path opener; contention retains native `WouldBlock`. Blocking
 and progress callers retain their existing behavior. No filesystem latency
@@ -53,6 +54,13 @@ Existing lock entries skip publication staging and synchronization; only missing
 entries invoke durable creation. Final descriptor checks still enforce regular
 no-follow admission, and namespace removal may return a native error without retry.
 The [0.4 notes](changelog/0.4.md) describe the required consumer changes.
+
+`durable::write_with(path, options, producer)` is the single generic pathname
+writer. Byte helpers use it and return `NamedWriteError<io::Error>` rather than
+discarding publication state or cleanup evidence. Consumers retain error projection
+and recovery decisions; an after-publication failure requires reconciliation.
+The [0.10 migration](changelog/0.10.md) replaces the old two-argument writer and
+removes the `write_typed_with` name without a compatibility alias.
 
 `durable::write_named_with` exposes an absolute owned staging pathname to external
 producers through the existing publication engine. Filesystem code owns exclusive

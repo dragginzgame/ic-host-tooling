@@ -36,17 +36,6 @@ impl<E> NamedWriteError<E> {
     }
 }
 
-impl NamedWriteError<io::Error> {
-    // Preserve the existing writer/byte entrypoints' original I/O error contract.
-    pub(super) fn into_io(self) -> io::Error {
-        match self {
-            Self::Producer { source, .. }
-            | Self::BeforePublication { source, .. }
-            | Self::AfterPublication { source } => source,
-        }
-    }
-}
-
 impl<E: fmt::Display> fmt::Display for NamedWriteError<E> {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {

@@ -27,8 +27,8 @@ pub struct WriteOptions {
 
 /// Stream a typed producer into durable publication at a caller-selected path.
 ///
-/// Uses the same parent creation, exclusive staging, file synchronization,
-/// publication and parent synchronization engine as [`super::write_with`]. The
+/// Owns parent creation, exclusive staging, file synchronization,
+/// publication and parent synchronization for pathname writes. The
 /// callback may serialize through a bounded writer and retain its own error
 /// type, without buffering a complete document or converting that error to I/O.
 /// Missing parents are created with the existing ordinary directory semantics;
@@ -45,7 +45,7 @@ pub struct WriteOptions {
 /// shared [`NamedWriteError`]. Before/after-publication filesystem failures stay
 /// distinguishable. Invalid permissions and unsupported hosts fail before the
 /// producer is called. Reconcile after-publication failures before retrying.
-pub fn write_typed_with<T, E>(
+pub fn write_with<T, E>(
     path: &Path,
     options: WriteOptions,
     produce: impl FnOnce(&mut fs::File) -> Result<T, E>,
@@ -83,7 +83,7 @@ pub fn write_typed_with<T, E>(
 /// namespace mutation. Replace mode replaces the entry itself, including a final
 /// symlink; it does not follow it. Create-new mode atomically refuses every existing
 /// entry. Neither mode is compare-and-swap against a hostile directory writer.
-/// The callback and interruption obligations of [`write_typed_with`] also apply.
+/// The callback and interruption obligations of [`write_with`] also apply.
 ///
 /// # Errors
 /// Rejects invalid filename components/permissions and non-directory descriptors before staging
@@ -122,7 +122,7 @@ pub fn write_at_with<T, E>(
 
 /// Stream, synchronize and close a writer before admitting its staged pathname.
 ///
-/// Shares [`write_typed_with`]'s engine, permissions and publication modes. After
+/// Shares [`write_with`]'s engine, permissions and publication modes. After
 /// successful production and file sync, a verified read-only descriptor retains
 /// inode custody while the library's writable descriptor is closed. `admit` then
 /// receives the absolute staged path and the producer's value before publication.
@@ -133,7 +133,7 @@ pub fn write_at_with<T, E>(
 /// before returning. The library does not choose executable versions, arguments,
 /// environment, byte limits or retries. Read permission is required when reopening
 /// the stage; execute permission is caller-selected. All parent-custody and
-/// interruption obligations of [`write_typed_with`] apply. A read-only descriptor
+/// interruption obligations of [`write_with`] apply. A read-only descriptor
 /// is not a sandbox or a guarantee against concurrent content modification.
 ///
 /// # Errors
