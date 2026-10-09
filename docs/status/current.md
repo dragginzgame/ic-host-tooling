@@ -1,5 +1,48 @@
 # Current handoff
 
+## Latest work: 2026-10-09, pending 0.8.5 installer reuse
+
+Host 0.8.4 is delivered at `97187b2a46d6f8a6964224a36a133d858ef0d223`.
+Its [exact-source CI](https://github.com/dragginzgame/ic-host-tooling/actions/runs/37818647474)
+passes Linux x86-64, macOS 15 Intel, macOS 15 Apple Silicon and Rust 1.88 MSRV.
+This supersedes the pending delivery/native statements in the historical entries
+below. Completed Host issues
+[#27](https://github.com/dragginzgame/ic-host-tooling/issues/27),
+[#28](https://github.com/dragginzgame/ic-host-tooling/issues/28),
+[#29](https://github.com/dragginzgame/ic-host-tooling/issues/29) and
+[#30](https://github.com/dragginzgame/ic-host-tooling/issues/30) are closed with
+that acceptance evidence. Testkit's separate adoption remains consumer-owned.
+
+Query's committed `edd68020d9ef8e76a241e89daf77e51155a92f57` also passes
+[native CI](https://github.com/dragginzgame/ic-query/actions/runs/37823182436)
+on all three hosts, including checks, MSRV and canister jobs. The committed
+complete gate runs the actual harness through its Host-backed process helper.
+This completes [#5](https://github.com/dragginzgame/ic-host-tooling/issues/5).
+Evidence is job/step results plus committed gate wiring; attempted per-job log
+downloads returned empty files, so no new individual fixture counts are claimed.
+
+The compatible **0.8.5** draft adopts committed Shared Tooling
+`9af82393c620e486578febed74a648523725c234`, verified in its canonical GitHub
+repository. A clean private checkout supplied the canonical exporter; the
+existing 86-file selection is unchanged. The IC installer compares validated,
+sorted pin records to reuse bundles after comment/order changes without
+rewriting receipts. Version/digest/host changes and malformed retained or caller
+pins still reject reuse before execution
+([shared #79](https://github.com/dragginzgame/shared-tooling/issues/79)).
+The local IC pin file remains byte-for-byte unchanged, including PocketIC 16.0.0.
+Package versions, lockfile and all Rust production code are unchanged. No
+function, method or type is removed. Uncommitted Shared Tooling work is excluded.
+
+Focused Linux checks pass: synthetic IC installer/retention/activation fixtures,
+86-file snapshot integrity, unchanged pin bytes, selected ShellCheck/Bash syntax,
+dependency declarations and documentation links. Synthetic host identities and
+download payloads do not qualify native macOS; this candidate needs its own CI.
+Evidence is retained under `/tmp/ic-host-085-audit/`. The source review of process
+communication, bounded artifact writers/archive admission and filesystem lock/
+read/publication boundaries found no additional confirmed defect in this pass.
+No Rust compilation, full local gate, real tool installation/download, sibling
+edit, commit, push or release occurred for this batch.
+
 ## Latest work: 2026-10-08, pending 0.8.4 lock opening and shared tooling
 
 Host 0.8.3 is released at `67d031222073f23ad437b45053156e229f86a016`,

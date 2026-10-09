@@ -132,10 +132,10 @@ native execution qualifies that host.
 
 The separate manually triggered `cargo-install-qualification.yml` workflow
 qualifies Cargo's registry binary/example mechanics on the same three native
-hosts. It records the prepared Cargo/Rust compiler identity and uses a 30-minute
-assessment step within a 40-minute job, preserving time for failed-build evidence
-collection. It does not extend the default portable gate or establish a new
-consumer installer contract. See the
+hosts. It records the prepared Cargo/Rust compiler identity and retains failed-build
+evidence. The workflow leaves build duration to the GitHub Actions defaults.
+It does not extend the default portable gate or establish a new consumer installer
+contract. See the
 [assessment procedure](local-setup.md#cargo-installation-assessment) for its
 selected fixtures, offline prerequisites and outstanding extraction boundaries.
 

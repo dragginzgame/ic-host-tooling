@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.8.5]
+
+- Reuse verified IC tools when pin-file comments or record order change, avoiding
+  unnecessary downloads while retaining checksum and version admission
+  ([shared #79](https://github.com/dragginzgame/shared-tooling/issues/79)).
+
+See [the 0.8 notes](docs/changelog/0.8.md).
+
 ## [0.8.4] - 2026-10-08
 
 - Open existing lock files without temporary publication or sync work, allowing

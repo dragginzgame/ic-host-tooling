@@ -22,6 +22,9 @@ It is excluded from subsequent shared snapshot refreshes so tooling maintenance
 does not silently change the selected PocketIC 16.0.0 server. Host library gates
 do not use that server; changing these pins and qualifying protocol consumers
 remain separate work. The shared installer still reads this one local matrix.
+Tool reuse compares validated records, so comments and record order do not
+require downloads or replace installation provenance. Changed tool selections
+and malformed records still fail admission before executable checks.
 The workflow runs on pull requests and pushes to `main`; it cannot qualify
 uncommitted local bytes. A scoped contribution PR exercises both macOS 15
 architectures and Linux against the candidate source before release. Bind
