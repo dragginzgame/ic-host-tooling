@@ -1,5 +1,27 @@
 # Current handoff
 
+## Latest work: 2026-10-09, pending 0.9.6 response cleanup
+
+Released 0.9.5 is `0f61811c88a6b6b4b026b04ca16e428409be877f`; the checkout
+was clean before this authorized audit. The
+[response/stream ownership review](../reports/audits/2026/10/09/response-streaming/01/report.md)
+traces Host and five read-only consumers using the adopted Shared 0.2.7 methods.
+No hard cut or new shared API is justified. Shared's newer Make work remains
+uncommitted and was not adopted.
+
+Removed private `ic_host_tools::response::decode_text_hex`; `decode_hex` now
+uses its existing digit-validation pass to reject empty text, preserving empty
+JSON responses and typed error precedence. Both changelog views select compatible
+0.9.6. Ten existing response tests pass before/after; selected library Clippy,
+rustfmt, docs, snapshot and whitespace checks pass. Evidence is retained in
+`/tmp/ic-host-096-audit/`; no performance improvement is claimed.
+
+No public API, manifest, lockfile, tool pin, snapshot or real Git index/config
+changed. No sibling edit, full gate, release, commit or push ran. Released 0.9.5
+Linux/MSRV CI passes; Intel and Apple Silicon macOS jobs remain queued, with
+qualification under [#42](https://github.com/dragginzgame/ic-host-tooling/issues/42)
+and existing adoption issues. Dirty 0.9.6 has no native qualification result.
+
 ## Latest work: 2026-10-09, #42 checkout-local admission repaired
 
 The authorized [#42 repair](https://github.com/dragginzgame/ic-host-tooling/issues/42)

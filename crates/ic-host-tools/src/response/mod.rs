@@ -156,22 +156,15 @@ pub fn decode(
             let hex = envelope.0.ok_or(ResponseError::MissingResponseBytes)?;
             decode_hex(hex.as_bytes(), false, limits.decoded_bytes)
         }
-        ResponseFormat::Hex => decode_text_hex(input, limits.decoded_bytes),
+        ResponseFormat::Hex => decode_hex(input, true, limits.decoded_bytes),
         ResponseFormat::LabeledHex => {
             let input = input.trim_ascii_start();
             let hex = input
                 .strip_prefix(b"response (hex):")
                 .ok_or(ResponseError::MissingHexLabel)?;
-            decode_text_hex(hex, limits.decoded_bytes)
+            decode_hex(hex, true, limits.decoded_bytes)
         }
     }
-}
-
-fn decode_text_hex(hex: &[u8], limit: usize) -> Result<Vec<u8>, ResponseError> {
-    if hex.iter().all(u8::is_ascii_whitespace) {
-        return Err(ResponseError::EmptyHex);
-    }
-    decode_hex(hex, true, limit)
 }
 
 fn decode_hex(hex: &[u8], whitespace: bool, limit: usize) -> Result<Vec<u8>, ResponseError> {
@@ -182,6 +175,10 @@ fn decode_hex(hex: &[u8], whitespace: bool, limit: usize) -> Result<Vec<u8>, Res
         } else if !(whitespace && byte.is_ascii_whitespace()) {
             return Err(ResponseError::InvalidHex { offset });
         }
+    }
+    // Only text formats require a digit; JSON permits an empty byte response.
+    if whitespace && digits == 0 {
+        return Err(ResponseError::EmptyHex);
     }
     if digits % 2 != 0 {
         return Err(ResponseError::OddHexLength);

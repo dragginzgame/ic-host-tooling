@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.6]
+
+- Simplify response hex validation by checking empty text in the existing digit
+  pass, preserving accepted formats, byte limits and typed errors.
+
+See [the 0.9 notes](docs/changelog/0.9.md).
+
 ## [0.9.5] - 2026-10-09
 
 - Reject Make modes that can hide failed release or formatting commands, and
