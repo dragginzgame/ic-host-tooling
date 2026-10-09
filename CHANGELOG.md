@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.9.6]
+## [0.9.6] - 2026-10-09
 
 - Simplify response hex validation by checking empty text in the existing digit
   pass, preserving accepted formats, byte limits and typed errors.
