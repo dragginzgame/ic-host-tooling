@@ -547,7 +547,10 @@ make this checker pass. See [#33](https://github.com/dragginzgame/shared-tooling
 
 Review the consumer's Makefile and formatting commands before execution. This
 helper executes those commands; it is not a sandbox for arbitrary Make code.
-Prerequisites must already be installed. Cargo is forced offline, rustup auto
+Prerequisites must already be installed. The selected consumer's `.tools/host/bin`,
+`.tools/ic/bin` and `.tools/rust/bin` precede inherited PATH for executable lookup;
+formatter inputs and configuration still come from the disposable checkout.
+Cargo is forced offline, rustup auto
 installation is disabled, and inherited Git/Make/logger checkout selections are
 cleared. The baseline must pass its real `fmt-check` before perturbation.
 

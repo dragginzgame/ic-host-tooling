@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.8.10]
+
+- Reject multi-document dependency-pinning exceptions through Shared Tooling
+  0.1.38, and preserve checkout-local tool lookup in isolated formatting hooks
+  ([#37](https://github.com/dragginzgame/ic-host-tooling/issues/37)).
+
+See [the 0.8 notes](docs/changelog/0.8.md).
+
 ## [0.8.9] - 2026-10-09
 
 - Prepare missing locked Cargo dependencies during release preflight before

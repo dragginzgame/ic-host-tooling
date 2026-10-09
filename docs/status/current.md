@@ -1,5 +1,81 @@
 # Current handoff
 
+## Latest work: 2026-10-09, pending 0.8.10 Shared pinning admission
+
+[#37](https://github.com/dragginzgame/ic-host-tooling/issues/37) is implemented
+locally through the canonical snapshot exporter from a clean private checkout of
+Shared 0.1.38 `926a20606591214ab29faa236b0b584e4857439e`. The 85-file roster is
+unchanged. The refresh rejects multi-document pinning exception catalogs and
+preserves checkout-local executable lookup during isolated formatting. Existing
+installer additions and policy changes were reviewed together; no installer ran.
+The compatible pending release is 0.8.10, with no Rust API or symbol removal.
+
+Focused checks pass: snapshot digests, actual Host dependency declarations,
+canonical dependency/hook fixtures, simulated Rust-tool installation fixtures,
+Host formatting-hook adoption, ShellCheck and selected documentation links.
+Dependency and installer fixtures also pass with existing Bash 3.2 on Linux.
+The initial hook-adoption fixture moved a comment while deliberately unsorting
+dependencies; its comparison failure is retained, and a dependency-only
+perturbation passes. Logs and the exact source diff remain in `/tmp/ic-host-0810/`.
+No real installation/download or Rust compilation was needed.
+
+[Shared's exact-source CI](https://github.com/dragginzgame/shared-tooling/actions/runs/37912382208)
+passes Linux regression and lint/security; both macOS jobs remain queued.
+Native macOS qualification of this Host candidate is also pending. Versions,
+Cargo.lock, pins and index are unchanged. No full gate, sibling edit, commit,
+push or release ran. Canic #501 still owns the direct Testkit URL-contract
+convergence after Toko's successful downstream adapter proof; Toko #42 retains
+its separate release-cache repair. Neither sibling was modified here.
+
+## Latest work: 2026-10-09, authorized Testkit streaming check adoption
+
+The maintainer explicitly approved editing Testkit for the proposed bundle-check
+optimization, overriding the sibling-read-only default for this scoped change.
+It is now implemented locally for compatible pending Testkit 0.25.6:
+`check_bundle` uses existing Host `hash_gzip`, with one authenticated archive-read
+helper shared with installation. No Host API or symbol was removed. The existing
+dirty Testkit lock selects Host 0.8.9 and was preserved byte-for-byte.
+
+Six focused provisioning tests, strict CLI Clippy, binary build, formatting and
+selected documentation links pass on Linux. The freshly built CLI also verifies
+the retained official 16.1.0 bundle with PATH tools disabled. Evidence and native
+macOS/delivery limitations are recorded in Testkit's `docs/hosts.md` and
+[issue #38](https://github.com/dragginzgame/ic-testkit/issues/38#issuecomment-6078004202).
+No downloads, full gate, commit or release ran. Canic's active work and the wider
+Shared PocketIC retirement remain untouched pending their qualification.
+
+## Latest review: 2026-10-09, released 0.8.9 consumer audit
+
+Host 0.8.9 is committed at `0464db5146be910a0f078447831fa2807072c75a`,
+reported delivered by the maintainer. Its [exact-source CI](https://github.com/dragginzgame/ic-host-tooling/actions/runs/37905479815)
+is queued at inspection; #36 retains native qualification. This supersedes the
+local-only delivery statement below without relabelling prior test evidence.
+
+Read-only source review traced artifact checks, publication and process adapters
+in Canic, Testkit, Query, Backup, Memory, Toko Miner and IcyDB. Root locks select
+Host 0.8.8 in Canic/Testkit/Query/Toko and 0.8.9 in Backup/Memory/IcyDB. Dirty
+consumer work is preserved; these selections do not prove released adoption.
+Canic's latest #458 evidence records local shared hashing/foreground adoption;
+Testkit's released 0.25.5 includes the shared lock opener and provisioning CLI.
+Its native CI also remains queued; Cargo-output convergence remains deferred.
+
+A concrete check-only allocation reduction is recorded on
+[Testkit #38](https://github.com/dragginzgame/ic-testkit/issues/38#issuecomment-6077681677):
+use existing Host `hash_gzip` in `check_bundle` instead of decoding up to 512 MiB
+solely to hash and discard it. Authenticate the compressed archive first through
+one helper shared with installation; retain all limits and admission contracts.
+The reviewed provisioning file matches Testkit `311c39b9a7f9cc04fec050797c3324842e338328`.
+This is source evidence, not an implemented or measured consumer optimization.
+
+The larger simplification remains Testkit's PocketIC ownership handoff, tracked
+by Testkit #38 and [Shared #76](https://github.com/dragginzgame/shared-tooling/issues/76).
+Existing consumer error projection, domain-framed hashes and confinement remain
+distinct contracts. No new Host API, hard cut or release draft is justified.
+Shared Tooling is now committed at `be550af` with further dirty installer work;
+no snapshot adoption was performed. No source edits, compilation, downloads,
+sibling mutations or release effects ran in this audit. Only this handoff and
+the existing consumer issue were updated; documentation links pass.
+
 ## Latest work: 2026-10-09, pending 0.8.9 release cache preparation
 
 The compatible **0.8.9** batch fixes
