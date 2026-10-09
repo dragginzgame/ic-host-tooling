@@ -1,5 +1,53 @@
 # Current handoff
 
+## Latest work: 2026-10-09, pending 0.9.1 capture-state cleanup
+
+The second bounded cleanup removes separate stdout/stderr EOF flags from the
+process exchange loop. `read_chunk` closes an exhausted pipe; absence now owns
+the completion state. Remaining streams, child status, cancellation, output
+bounds and observer/cleanup behavior retain their existing paths. No additional
+function, method or type is removed. The compatible pending version stays 0.9.1;
+the publication cleanup below is preserved.
+
+All 55 focused `ic-host-process` tool-module tests and strict package/all-target
+Clippy pass on Linux, including closed-stream deadlines, full-duplex capture,
+overflow, observers and retained-child cleanup. Formatting and selected
+documentation links pass. Native macOS qualification remains pending; no full
+gate, version change, sibling edit, commit or release ran.
+
+The read-only follow-up inspected gzip/archive framing, Wasm inspection,
+executable resolution/admission, Git observations, path/private reads and child
+ownership. Their remaining checks retain distinct contracts; no further removal
+was justified. Released 0.9.0's [exact-source CI](https://github.com/dragginzgame/ic-host-tooling/actions/runs/37917141870)
+is queued at inspection and does not qualify these dirty edits. Existing Shared
+adoption issues [#37](https://github.com/dragginzgame/ic-host-tooling/issues/37)
+and [#38](https://github.com/dragginzgame/ic-host-tooling/issues/38) remain open;
+0.8.10's Linux/MSRV jobs passed but its macOS jobs were cancelled. The 0.9.0
+delivery is now recorded on #38; no duplicate tracker was created.
+
+## Latest work: 2026-10-09, pending 0.9.1 publication cleanup
+
+Following released `715854b` (0.9.0), a bounded cleanup removes the private
+`durable::FileCommitMode` and
+`durable::supported::commit_with_producer_and_hook` from
+`crates/ic-host-fs/src/durable/mod.rs`. Convenience entrypoints now pass their
+existing publication/permission selections as `WriteOptions`; named producers
+call `commit_path_with_options` directly. Public contracts, unsupported-host
+errors, failure phases and the publication engine are unchanged. This is a
+compatible internal cleanup, so the pending notes select **0.9.1**.
+
+All 45 focused durable-module tests and strict package/all-target Clippy pass on
+Linux. Native macOS qualification remains for CI; no full gate or release ran.
+No sibling files, package versions, dependencies or lock selections changed.
+
+The same review rejected composing `copy_reader` through `HashingWriter`:
+optimized Linux probes were similar for full chunks but took about 40% longer
+for seven-byte sink writes because hashing ran for every short write. The
+artifact source was restored exactly. Probe binaries, source, measurements and
+the rejected diff remain in `/tmp/ic-host-copy-cleanup/`; this synthetic result
+is not a filesystem benchmark or macOS evidence. No other removal was justified
+in the inspected read, process-exchange and response-decoding boundaries.
+
 ## Latest work: 2026-10-09, pending 0.9.0 Shared 0.2.0 adoption
 
 The requested refresh adopts committed Shared Tooling 0.2.0

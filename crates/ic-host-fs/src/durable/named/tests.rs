@@ -1,8 +1,8 @@
 use super::*;
 use crate::{
     durable::{
-        FileCommitMode,
-        supported::{FileCommitStep, commit_with_producer_and_hook},
+        REPLACE_OPTIONS,
+        supported::{FileCommitStep, commit_path_with_options},
     },
     test_support::Fixture,
 };
@@ -147,13 +147,14 @@ fn sync_errors_have_correct_publication_state() {
     let fixture = Fixture::new();
     let output = fixture.root.join("output");
     fs::write(&output, b"old").unwrap();
-    let result = commit_with_producer_and_hook(
+    let result = commit_path_with_options(
         &output,
-        FileCommitMode::Replace,
+        REPLACE_OPTIONS,
         |_, file| {
             use std::io::Write as _;
             file.write_all(b"new")
         },
+        None::<fn(&Path, &()) -> io::Result<()>>,
         |step, _| {
             if step == FileCommitStep::TemporaryFileSync {
                 Err(io::Error::from_raw_os_error(5))
@@ -168,13 +169,14 @@ fn sync_errors_have_correct_publication_state() {
     assert_eq!(fs::read(&output).unwrap(), b"old");
     assert_eq!(fs::read_dir(&fixture.root).unwrap().count(), 1);
 
-    let result = commit_with_producer_and_hook(
+    let result = commit_path_with_options(
         &output,
-        FileCommitMode::Replace,
+        REPLACE_OPTIONS,
         |_, file| {
             use std::io::Write as _;
             file.write_all(b"new")
         },
+        None::<fn(&Path, &()) -> io::Result<()>>,
         |step, _| {
             if step == FileCommitStep::FinalParentSync {
                 Err(io::Error::from_raw_os_error(5))
@@ -197,14 +199,15 @@ fn replacement_after_sync_is_rejected_before_rename() {
     let output = fixture.root.join("output");
     fs::write(&output, b"old").unwrap();
     let staged_path = RefCell::new(None);
-    let result = commit_with_producer_and_hook(
+    let result = commit_path_with_options(
         &output,
-        FileCommitMode::Replace,
+        REPLACE_OPTIONS,
         |stage, file| {
             use std::io::Write as _;
             staged_path.replace(Some(stage.to_path_buf()));
             file.write_all(b"produced")
         },
+        None::<fn(&Path, &()) -> io::Result<()>>,
         |step, _| {
             if step == FileCommitStep::Publication {
                 let borrowed = staged_path.borrow();

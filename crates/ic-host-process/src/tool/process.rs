@@ -129,8 +129,6 @@ fn exchange(
         stdin.as_ref().map(nonblocking).transpose()?;
         stdout.as_ref().map(nonblocking).transpose()?;
         stderr.as_ref().map(nonblocking).transpose()?;
-        let mut stdout_eof = stdout.is_none();
-        let mut stderr_eof = stderr.is_none();
         loop {
             if cancelled() {
                 return Err(ExecutionFailure::Cancelled);
@@ -152,7 +150,6 @@ fn exchange(
                 &mut evidence.stdout,
                 limits.stdout_bytes,
                 OutputStream::Stdout,
-                &mut stdout_eof,
                 &mut evidence.stdout_truncated,
                 &mut output,
             )?;
@@ -161,15 +158,14 @@ fn exchange(
                 &mut evidence.stderr,
                 limits.stderr_bytes,
                 OutputStream::Stderr,
-                &mut stderr_eof,
                 &mut evidence.stderr_truncated,
                 &mut output,
             )?;
             evidence.status = poll_completion(child, successful_exit)
                 .map_err(|source| io_failure(ExecutionOperation::Wait, source))?;
             if let Some(status) = evidence.status
-                && stdout_eof
-                && stderr_eof
+                && stdout.is_none()
+                && stderr.is_none()
                 && stdin.is_none()
             {
                 if cancelled() {
@@ -302,21 +298,18 @@ fn read_chunk(
     bytes: &mut Vec<u8>,
     limit: usize,
     stream: OutputStream,
-    eof: &mut bool,
     truncated: &mut bool,
     output: &mut impl FnMut(OutputStream, &[u8]),
 ) -> Result<bool, ExecutionFailure> {
-    let Some(reader) = reader else {
+    let Some(pipe) = reader.as_mut() else {
         return Ok(false);
     };
-    if *eof {
-        return Ok(false);
-    }
     let mut buffer = [0; 16 * 1024];
     let allowance = (limit - bytes.len()).saturating_add(1).min(buffer.len());
-    let count = match reader.read(&mut buffer[..allowance]) {
+    let count = match pipe.read(&mut buffer[..allowance]) {
         Ok(0) => {
-            *eof = true;
+            // A closed pipe is also the completion state; never read it again.
+            drop(reader.take());
             return Ok(false);
         }
         Ok(count) => count,

@@ -106,10 +106,11 @@ pub fn write_named_with<T, E>(
     #[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
     {
         let absolute = std::path::absolute(path).map_err(NamedWriteError::before)?;
-        super::supported::commit_with_producer_and_hook(
+        super::supported::commit_path_with_options(
             &absolute,
-            super::FileCommitMode::Replace,
+            super::REPLACE_OPTIONS,
             |stage, _| produce(stage),
+            None::<fn(&Path, &T) -> Result<(), E>>,
             |_, _| Ok(()),
         )
     }

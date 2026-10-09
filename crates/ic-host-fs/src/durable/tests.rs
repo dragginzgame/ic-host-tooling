@@ -429,7 +429,7 @@ fn prepublication_failures_preserve_old_complete_bytes_and_remove_staging() {
         let error = commit_with_hook(
             &path,
             b"new complete contents",
-            FileCommitMode::Replace,
+            REPLACE_OPTIONS,
             |current, _| {
                 if current == step && !failed {
                     failed = true;
@@ -461,7 +461,7 @@ fn postpublication_sync_failure_exposes_only_new_complete_bytes() {
     let error = commit_with_hook(
         &path,
         b"new complete contents",
-        FileCommitMode::Replace,
+        REPLACE_OPTIONS,
         |step, _| {
             if step == FileCommitStep::FinalParentSync {
                 return Err(io::Error::other("injected parent sync failure"));
@@ -491,7 +491,7 @@ fn create_new_publication_race_cannot_replace_the_winner() {
     let error = commit_with_hook(
         &path,
         b"our complete contents",
-        FileCommitMode::CreateNewWithParents,
+        CREATE_NEW_OPTIONS,
         |step, _| {
             if step == FileCommitStep::Publication {
                 fs::write(&path, b"raced complete contents")?;
@@ -584,7 +584,7 @@ fn new_parent_failures_never_create_the_final_file_or_staging() {
         let error = commit_with_hook(
             &path,
             b"complete contents",
-            FileCommitMode::Replace,
+            REPLACE_OPTIONS,
             |current, _| {
                 if current == step && !failed {
                     failed = true;
@@ -656,17 +656,12 @@ fn private_publication_is_owner_only_before_writing_and_never_replaces() {
     use std::os::unix::fs::PermissionsExt as _;
     let root = temp_root("private-publication");
     let path = root.join("private/key");
-    commit_with_hook(
-        &path,
-        &[7; 32],
-        FileCommitMode::CreatePrivateWithParents,
-        |step, observed| {
-            if step == FileCommitStep::TemporaryFileWrite {
-                assert_eq!(fs::metadata(observed)?.permissions().mode() & 0o777, 0o600);
-            }
-            Ok(())
-        },
-    )
+    commit_with_hook(&path, &[7; 32], CREATE_PRIVATE_OPTIONS, |step, observed| {
+        if step == FileCommitStep::TemporaryFileWrite {
+            assert_eq!(fs::metadata(observed)?.permissions().mode() & 0o777, 0o600);
+        }
+        Ok(())
+    })
     .unwrap();
     assert_eq!(
         crate::read::read_private_bytes::<32>(&path).unwrap(),
@@ -708,18 +703,13 @@ fn staging_collisions_retry_without_touching_unowned_files() {
     let path = root.join("output");
     fs::write(&path, b"previous").unwrap();
     let mut collision = None;
-    commit_with_hook(
-        &path,
-        b"complete",
-        FileCommitMode::Replace,
-        |step, candidate| {
-            if step == FileCommitStep::TemporaryFileCreate && collision.is_none() {
-                fs::write(candidate, b"unowned")?;
-                collision = Some(candidate.to_owned());
-            }
-            Ok(())
-        },
-    )
+    commit_with_hook(&path, b"complete", REPLACE_OPTIONS, |step, candidate| {
+        if step == FileCommitStep::TemporaryFileCreate && collision.is_none() {
+            fs::write(candidate, b"unowned")?;
+            collision = Some(candidate.to_owned());
+        }
+        Ok(())
+    })
     .unwrap();
     assert_eq!(fs::read(&path).unwrap(), b"complete");
     assert_eq!(fs::read(collision.as_ref().unwrap()).unwrap(), b"unowned");
@@ -727,7 +717,7 @@ fn staging_collisions_retry_without_touching_unowned_files() {
     let error = commit_with_hook(
         &path,
         b"never publish",
-        FileCommitMode::Replace,
+        REPLACE_OPTIONS,
         |step, candidate| {
             if step == FileCommitStep::TemporaryFileCreate {
                 fs::write(candidate, b"unowned")?;

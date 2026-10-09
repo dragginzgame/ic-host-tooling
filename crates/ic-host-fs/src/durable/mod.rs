@@ -66,12 +66,18 @@ impl From<RegularFileLockError> for io::Error {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum FileCommitMode {
-    Replace,
-    CreateNewWithParents,
-    CreatePrivateWithParents,
-}
+const REPLACE_OPTIONS: WriteOptions = WriteOptions {
+    mode: PublicationMode::Replace,
+    permissions: 0o666,
+};
+const CREATE_NEW_OPTIONS: WriteOptions = WriteOptions {
+    mode: PublicationMode::CreateNew,
+    permissions: 0o666,
+};
+const CREATE_PRIVATE_OPTIONS: WriteOptions = WriteOptions {
+    mode: PublicationMode::CreateNew,
+    permissions: 0o600,
+};
 
 /// Durably replace one file through atomic publication of complete bytes.
 ///
@@ -81,7 +87,7 @@ enum FileCommitMode {
 /// # Errors
 /// Returns filesystem or sync failures, including sync failures after publication.
 pub fn write_bytes(path: &Path, bytes: &[u8]) -> io::Result<()> {
-    commit_bytes(path, bytes, FileCommitMode::Replace)
+    commit_bytes(path, bytes, REPLACE_OPTIONS)
 }
 
 /// Stream one complete file into durable atomic replacement without buffering its contents.
@@ -107,7 +113,7 @@ pub fn write_with<T>(
 ) -> io::Result<T> {
     #[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
     {
-        supported::commit_with_writer_and_hook(path, FileCommitMode::Replace, write, |_, _| Ok(()))
+        supported::commit_with_writer_and_hook(path, REPLACE_OPTIONS, write, |_, _| Ok(()))
     }
     #[cfg(not(any(target_os = "linux", target_os = "android", target_vendor = "apple")))]
     {
@@ -126,7 +132,7 @@ pub fn write_with<T>(
 /// Returns filesystem or sync failures, including an existing destination or a
 /// sync failure after publication.
 pub fn create_new_bytes_with_parents(path: &Path, bytes: &[u8]) -> io::Result<()> {
-    commit_bytes(path, bytes, FileCommitMode::CreateNewWithParents)
+    commit_bytes(path, bytes, CREATE_NEW_OPTIONS)
 }
 
 /// Create owner-only bytes atomically, without replacing an existing destination.
@@ -135,7 +141,7 @@ pub fn create_new_bytes_with_parents(path: &Path, bytes: &[u8]) -> io::Result<()
 /// Returns filesystem or sync failures, an existing destination, or unsupported
 /// platform errors. Sync failure can occur after publication.
 pub fn create_private_bytes_with_parents(path: &Path, bytes: &[u8]) -> io::Result<()> {
-    commit_bytes(path, bytes, FileCommitMode::CreatePrivateWithParents)
+    commit_bytes(path, bytes, CREATE_PRIVATE_OPTIONS)
 }
 
 /// Open and exclusively lock one durable regular no-follow file.
@@ -274,15 +280,15 @@ fn errno_to_lock_error(source: rustix::io::Errno) -> RegularFileLockError {
     RegularFileLockError::Io(io::Error::from_raw_os_error(source.raw_os_error()))
 }
 
-fn commit_bytes(path: &Path, bytes: &[u8], mode: FileCommitMode) -> io::Result<()> {
+fn commit_bytes(path: &Path, bytes: &[u8], options: WriteOptions) -> io::Result<()> {
     #[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
     {
-        supported::commit_with_hook(path, bytes, mode, |_, _| Ok(()))
+        supported::commit_with_hook(path, bytes, options, |_, _| Ok(()))
     }
 
     #[cfg(not(any(target_os = "linux", target_os = "android", target_vendor = "apple")))]
     {
-        let _ = (path, bytes, mode);
+        let _ = (path, bytes, options);
         Err(io::Error::new(
             io::ErrorKind::Unsupported,
             format!(
@@ -295,7 +301,7 @@ fn commit_bytes(path: &Path, bytes: &[u8], mode: FileCommitMode) -> io::Result<(
 
 #[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
 mod supported {
-    use super::{FileCommitMode, NamedWriteError, PublicationMode, WriteOptions};
+    use super::{NamedWriteError, PublicationMode, WriteOptions};
 
     use std::{
         ffi::{OsStr, OsString},
@@ -328,47 +334,26 @@ mod supported {
     pub(super) fn commit_with_hook(
         path: &Path,
         bytes: &[u8],
-        mode: FileCommitMode,
+        options: WriteOptions,
         before: impl FnMut(FileCommitStep, &Path) -> io::Result<()>,
     ) -> io::Result<()> {
-        commit_with_writer_and_hook(path, mode, |file| file.write_all(bytes), before)
+        commit_with_writer_and_hook(path, options, |file| file.write_all(bytes), before)
     }
 
     pub(super) fn commit_with_writer_and_hook<T>(
         path: &Path,
-        mode: FileCommitMode,
+        options: WriteOptions,
         write: impl FnOnce(&mut fs::File) -> io::Result<T>,
         before: impl FnMut(FileCommitStep, &Path) -> io::Result<()>,
     ) -> io::Result<T> {
-        commit_with_producer_and_hook(path, mode, |_, file| write(file), before)
-            .map_err(NamedWriteError::into_io)
-    }
-
-    pub(super) fn commit_with_producer_and_hook<T, E>(
-        path: &Path,
-        mode: FileCommitMode,
-        produce: impl FnOnce(&Path, &mut fs::File) -> Result<T, E>,
-        before: impl FnMut(FileCommitStep, &Path) -> io::Result<()>,
-    ) -> Result<T, NamedWriteError<E>> {
-        let options = WriteOptions {
-            mode: if mode == FileCommitMode::Replace {
-                PublicationMode::Replace
-            } else {
-                PublicationMode::CreateNew
-            },
-            permissions: if mode == FileCommitMode::CreatePrivateWithParents {
-                0o600
-            } else {
-                0o666
-            },
-        };
         commit_path_with_options(
             path,
             options,
-            produce,
-            None::<fn(&Path, &T) -> Result<(), E>>,
+            |_, file| write(file),
+            None::<fn(&Path, &T) -> io::Result<()>>,
             before,
         )
+        .map_err(NamedWriteError::into_io)
     }
 
     pub(super) fn commit_path_with_options<T, E>(

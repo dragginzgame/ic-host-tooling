@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.9.1]
+
+- Simplify durable file publication around one shared options representation,
+  preserving existing permissions and publication behavior.
+- Release captured output pipes at EOF and remove redundant completion flags.
+
+See [the 0.9 notes](docs/changelog/0.9.md).
+
 ## [0.9.0] - 2026-10-09
 
 ### Breaking
