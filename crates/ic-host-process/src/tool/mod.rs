@@ -35,6 +35,37 @@ pub struct OutputLimits {
     pub timeout: Duration,
 }
 
+/// Captured-output bounds and an optional deadline for caller-owned communication.
+///
+/// Use with [`communicate_child`] or [`communicate_child_with_observer`]. An
+/// existing [`OutputLimits`] converts to these limits with its finite deadline.
+/// Capture and executable-admission APIs continue to require `OutputLimits`.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct CommunicationLimits {
+    /// Maximum retained stdout bytes; zero permits only empty stdout.
+    pub stdout_bytes: usize,
+    /// Maximum retained stderr bytes; zero permits only empty stderr.
+    pub stderr_bytes: usize,
+    /// Positive deadline measured from communication entry, or no elapsed-time limit.
+    ///
+    /// `None` still enforces output bounds, polls cancellation and cleans up on
+    /// failure. It can wait indefinitely for child exit or pipe EOF, including
+    /// descendant-held pipes with [`SuccessfulExit::Retain`]. Choose cancellation
+    /// and successful-exit policy deliberately. Cleanup timing remains governed
+    /// by the child's [`crate::child::CleanupPolicy`].
+    pub timeout: Option<Duration>,
+}
+
+impl From<OutputLimits> for CommunicationLimits {
+    fn from(limits: OutputLimits) -> Self {
+        Self {
+            stdout_bytes: limits.stdout_bytes,
+            stderr_bytes: limits.stderr_bytes,
+            timeout: Some(limits.timeout),
+        }
+    }
+}
+
 /// Explicit process context. The child's inherited environment is cleared.
 ///
 /// No ambient PATH, HOME or credentials are added. Consumers must include any
@@ -397,7 +428,10 @@ pub enum SuccessfulExit {
 /// standard communicate semantics; command status and diagnostics remain primary.
 /// This does not guarantee the command consumed all input or applied its effects.
 ///
-/// The deadline starts on entry, excluding earlier spawn time. `cancelled` is
+/// Accepts finite [`OutputLimits`] or explicit [`CommunicationLimits`]. A selected
+/// deadline starts on entry, excluding earlier spawn time; `timeout: None` in
+/// `CommunicationLimits` imposes no elapsed-time deadline. Output bounds and
+/// cleanup remain active in either case. `cancelled` is
 /// polled between bounded IO steps and before returning success; it must return
 /// promptly. No signal handler, cancellation thread, retry or output decoding
 /// is installed. IO failure, cancellation, timeout, overflow and unsuccessful
@@ -423,7 +457,7 @@ pub enum SuccessfulExit {
 pub fn communicate_child(
     child: &mut crate::child::OwnedChild,
     input: Option<&[u8]>,
-    limits: OutputLimits,
+    limits: impl Into<CommunicationLimits>,
     successful_exit: SuccessfulExit,
     cancelled: impl FnMut() -> bool,
 ) -> Result<ExecutionEvidence, ToolError> {
@@ -441,8 +475,8 @@ pub fn communicate_child(
 ///
 /// Both callbacks run synchronously and must return promptly. `cancelled` also
 /// runs while the child is silent and may project caller-owned heartbeat events;
-/// no exact callback cadence is guaranteed. Callback time counts toward the
-/// communication deadline. A callback panic closes the pipes, attempts cleanup
+/// no exact callback cadence is guaranteed. Callback time counts toward any
+/// selected communication deadline. A callback panic closes the pipes, attempts cleanup
 /// using the child's policy and resumes the original unwind, even if the caller
 /// catches it while retaining the child. Cleanup errors cannot be returned during
 /// unwind; any unreaped child remains owned for caller recovery.
@@ -458,11 +492,12 @@ pub fn communicate_child(
 pub fn communicate_child_with_observer(
     child: &mut crate::child::OwnedChild,
     input: Option<&[u8]>,
-    limits: OutputLimits,
+    limits: impl Into<CommunicationLimits>,
     successful_exit: SuccessfulExit,
     cancelled: impl FnMut() -> bool,
     output: impl FnMut(OutputStream, &[u8]),
 ) -> Result<ExecutionEvidence, ToolError> {
+    let limits = limits.into();
     validate_limits(limits)?;
     process::communicate(child, input, limits, successful_exit, cancelled, output)
         .map_err(|source| ToolError::Execution(Box::new(source)))
@@ -706,12 +741,10 @@ fn validate_invocation(
     Ok(())
 }
 
-fn validate_limits(limits: OutputLimits) -> Result<(), ToolError> {
-    if limits.timeout.is_zero()
-        || std::time::Instant::now()
-            .checked_add(limits.timeout)
-            .is_none()
-    {
+fn validate_limits(limits: impl Into<CommunicationLimits>) -> Result<(), ToolError> {
+    if limits.into().timeout.is_some_and(|timeout| {
+        timeout.is_zero() || std::time::Instant::now().checked_add(timeout).is_none()
+    }) {
         return Err(ToolError::InvalidInvocation(InvalidInvocation::Deadline));
     }
     Ok(())

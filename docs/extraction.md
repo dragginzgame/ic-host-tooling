@@ -98,6 +98,11 @@ There are no IO worker threads, global signal handlers or retries. Errors retain
 the canonical execution/cleanup evidence. Invalid deadlines leave the existing
 owner and pipes untouched. Communication time excludes earlier spawning;
 consumers retain end-to-end timing and input-size policy.
+Communication accepts finite `OutputLimits` or explicit `CommunicationLimits`
+with `timeout: Some(duration)` or `None`. No deadline still enforces byte bounds,
+polls cancellation and applies cleanup; it may wait indefinitely for child exit
+or descendant-held pipe EOF under retained success. Capture and executable
+admission keep their mandatory finite deadlines. Cleanup timing is independent.
 
 `communicate_child_with_observer` projects nonempty retained byte chunks from
 that same engine. Per-stream ordering is retained; chunk boundaries and ordering

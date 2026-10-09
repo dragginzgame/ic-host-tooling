@@ -1,5 +1,36 @@
 # Current handoff
 
+## Latest work: 2026-10-09, pending 0.8.6 communication without a deadline
+
+Host 0.8.5 is released at `1cad3253096b6eb67be5187209e7fb606593c501`,
+reported delivered by the maintainer. The compatible **0.8.6** draft implements
+[#31](https://github.com/dragginzgame/ic-host-tooling/issues/31) locally.
+`CommunicationLimits` offers an explicit optional deadline for the two existing
+owned-child communication functions. They also accept existing `OutputLimits`
+arguments, preserving their finite behavior. Capture and executable admission
+retain that mandatory finite contract. Both choices use the existing I/O engine;
+no function, method or type is removed, aliased or deprecated.
+
+No-deadline communication retains byte bounds, cancellation, fair I/O and cleanup,
+including observer unwinding. It may wait indefinitely for exit or pipe EOF;
+consumers retain successful-exit disposition, cancellation and independent
+cleanup timing. Testkit build adoption/deletion remains in
+[#36](https://github.com/dragginzgame/ic-testkit/issues/36), and Canic foreground
+replica adoption remains in
+[#458](https://github.com/dragginzgame/canic/issues/458). Siblings remain read-only.
+
+Focused locked/offline Linux checks pass: 55 process-tool tests, strict selected
+package all-target Clippy, Rust 1.88 all-target compilation and warning-denied
+Rustdoc. Fixtures cover both deadline choices for full-duplex IO, live binary
+observation, bounded overflow, silent cancellation, descendant-pipe cleanup and
+callback unwinding. A real-child fixture supplies three hours of elapsed time
+to the engine; this is injected-clock evidence, not a multi-hour build run.
+Invalid finite deadlines preserve owner/pipes, including through the new type.
+Initial Clippy findings and final passing results remain in `/tmp/ic-host-086/`.
+Native macOS Intel/Apple Silicon qualification is pending for this candidate.
+Manifests, lockfile, pins and snapshot remain unchanged. No full gate, download,
+commit, push, release, publication or sibling source edit occurred.
+
 ## Latest work: 2026-10-09, pending 0.8.5 installer reuse
 
 Host 0.8.4 is delivered at `97187b2a46d6f8a6964224a36a133d858ef0d223`.

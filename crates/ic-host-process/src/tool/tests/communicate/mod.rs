@@ -30,49 +30,52 @@ fn assert_reaped(child: &OwnedChild) {
 #[test]
 fn full_duplex_io_is_bounded_fair_and_leaves_success_reserved() {
     let _fixture = Fixture::new();
-    // Fill both output pipes before reading input larger than a pipe capacity.
-    let mut command = command(
-        "n=0; while [ \"$n\" -lt 10000 ]; do printf 0123456789abcdef; \
+    for timeout in [Some(LIMITS.timeout), None] {
+        // Fill both output pipes before reading input larger than a pipe capacity.
+        let mut command = command(
+            "n=0; while [ \"$n\" -lt 10000 ]; do printf 0123456789abcdef; \
          printf fedcba9876543210 >&2; n=$((n + 1)); done; cat",
-    );
-    let mut child = OwnedChild::spawn(&mut command).unwrap();
-    let input = vec![b'x'; 256 * 1024];
-    let (mut stdout, mut stderr) = (Vec::new(), Vec::new());
-    let evidence = communicate_child_with_observer(
-        &mut child,
-        Some(&input),
-        OutputLimits {
-            stdout_bytes: 160_000 + input.len(),
-            ..LIMITS
-        },
-        SuccessfulExit::Retain,
-        || false,
-        |stream, bytes| match stream {
-            OutputStream::Stdout => stdout.extend_from_slice(bytes),
-            OutputStream::Stderr => stderr.extend_from_slice(bytes),
-        },
-    )
-    .unwrap();
-    assert_eq!(
-        &evidence.stdout[..160_000],
-        b"0123456789abcdef".repeat(10_000)
-    );
-    assert_eq!(&evidence.stdout[160_000..], input);
-    assert_eq!(evidence.stderr, b"fedcba9876543210".repeat(10_000));
-    assert_eq!(stdout, evidence.stdout);
-    assert_eq!(stderr, evidence.stderr);
-    assert!(evidence.status.unwrap().success());
-    let pid = Pid::from_raw(i32::try_from(child.id()).unwrap()).unwrap();
-    assert!(
-        waitid(
-            WaitId::Pid(pid),
-            WaitIdOptions::EXITED | WaitIdOptions::NOWAIT
+        );
+        let mut child = OwnedChild::spawn(&mut command).unwrap();
+        let input = vec![b'x'; 256 * 1024];
+        let (mut stdout, mut stderr) = (Vec::new(), Vec::new());
+        let evidence = communicate_child_with_observer(
+            &mut child,
+            Some(&input),
+            CommunicationLimits {
+                stdout_bytes: 160_000 + input.len(),
+                timeout,
+                ..LIMITS.into()
+            },
+            SuccessfulExit::Retain,
+            || false,
+            |stream, bytes| match stream {
+                OutputStream::Stdout => stdout.extend_from_slice(bytes),
+                OutputStream::Stderr => stderr.extend_from_slice(bytes),
+            },
         )
-        .unwrap()
-        .is_some()
-    );
-    assert!(child.wait().unwrap().success());
-    assert_reaped(&child);
+        .unwrap();
+        assert_eq!(
+            &evidence.stdout[..160_000],
+            b"0123456789abcdef".repeat(10_000)
+        );
+        assert_eq!(&evidence.stdout[160_000..], input);
+        assert_eq!(evidence.stderr, b"fedcba9876543210".repeat(10_000));
+        assert_eq!(stdout, evidence.stdout);
+        assert_eq!(stderr, evidence.stderr);
+        assert!(evidence.status.unwrap().success());
+        let pid = Pid::from_raw(i32::try_from(child.id()).unwrap()).unwrap();
+        assert!(
+            waitid(
+                WaitId::Pid(pid),
+                WaitIdOptions::EXITED | WaitIdOptions::NOWAIT
+            )
+            .unwrap()
+            .is_some()
+        );
+        assert!(child.wait().unwrap().success());
+        assert_reaped(&child);
+    }
 }
 
 #[test]
@@ -285,12 +288,28 @@ fn invalid_deadline_retains_owner_and_missing_input_pipe_cleans_it() {
             ),
             Err(ToolError::InvalidInvocation(InvalidInvocation::Deadline))
         ));
+        assert!(matches!(
+            communicate_child(
+                &mut child,
+                None,
+                CommunicationLimits {
+                    timeout: Some(timeout),
+                    ..LIMITS.into()
+                },
+                SuccessfulExit::Retain,
+                || false
+            ),
+            Err(ToolError::InvalidInvocation(InvalidInvocation::Deadline))
+        ));
     }
     assert_eq!(
         communicate_child(
             &mut child,
             Some(b"still available"),
-            LIMITS,
+            CommunicationLimits {
+                timeout: None,
+                ..LIMITS.into()
+            },
             SuccessfulExit::Retain,
             || false
         )

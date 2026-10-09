@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.8.6]
+
+- Allow caller-owned child communication without an elapsed-time deadline for
+  long builds and foreground services, retaining output bounds, cancellation
+  and cleanup ([#31](https://github.com/dragginzgame/ic-host-tooling/issues/31)).
+
+See [the 0.8 notes](docs/changelog/0.8.md).
+
 ## [0.8.5] - 2026-10-09
 
 - Reuse verified IC tools when pin-file comments or record order change, avoiding

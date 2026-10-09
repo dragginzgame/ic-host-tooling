@@ -3,6 +3,48 @@ use crate::test_support::Fixture;
 use rustix::process::{Pid, WaitId, WaitIdOptions, waitid};
 
 #[test]
+fn communication_without_deadline_accepts_long_elapsed_time() {
+    let _fixture = Fixture::new();
+    for timeout in [Some(Duration::from_secs(1)), None] {
+        let mut command = Command::new("/bin/sh");
+        command
+            .args(["-c", "cat"])
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped());
+        let mut child = OwnedChild::spawn(&mut command).unwrap();
+        let watchdog = Instant::now();
+        // Inject only elapsed time: child, pipes and cleanup are real. The
+        // fixture does not require a multi-hour build to exercise this contract.
+        let result = exchange(
+            &mut child,
+            Some(b"completed"),
+            CommunicationLimits {
+                stdout_bytes: 9,
+                stderr_bytes: 0,
+                timeout,
+            },
+            Instant::now()
+                .checked_sub(Duration::from_secs(3 * 60 * 60))
+                .unwrap(),
+            SuccessfulExit::Cleanup,
+            || watchdog.elapsed() > Duration::from_secs(5),
+            |_, _| {},
+        );
+        if timeout.is_some() {
+            assert!(matches!(
+                result.unwrap_err().failure,
+                ExecutionFailure::TimedOut
+            ));
+        } else {
+            let evidence = result.unwrap();
+            assert!(evidence.status.unwrap().success());
+            assert_eq!(evidence.stdout, b"completed");
+        }
+        assert!(!child.is_owned());
+    }
+}
+
+#[test]
 fn fragmented_capture_keeps_capacity_and_overflow_evidence_within_budget() {
     struct Fragmented<'a>(&'a [u8]);
     impl Read for Fragmented<'_> {

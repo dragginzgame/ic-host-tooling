@@ -1,6 +1,6 @@
 use super::{
-    ExecutionContext, ExecutionError, ExecutionEvidence, ExecutionFailure, ExecutionOperation,
-    OutputLimits, OutputStream, SuccessfulExit,
+    CommunicationLimits, ExecutionContext, ExecutionError, ExecutionEvidence, ExecutionFailure,
+    ExecutionOperation, OutputLimits, OutputStream, SuccessfulExit,
 };
 use crate::child::OwnedChild;
 use rustix::fs::{OFlags, fcntl_getfl, fcntl_setfl};
@@ -65,7 +65,7 @@ pub(super) fn capture_command(
     exchange(
         &mut child,
         None,
-        limits,
+        limits.into(),
         started,
         SuccessfulExit::Cleanup,
         || false,
@@ -76,7 +76,7 @@ pub(super) fn capture_command(
 pub(super) fn communicate(
     child: &mut OwnedChild,
     input: Option<&[u8]>,
-    limits: OutputLimits,
+    limits: CommunicationLimits,
     successful_exit: SuccessfulExit,
     cancelled: impl FnMut() -> bool,
     output: impl FnMut(OutputStream, &[u8]),
@@ -95,12 +95,13 @@ pub(super) fn communicate(
 fn exchange(
     child: &mut OwnedChild,
     input: Option<&[u8]>,
-    limits: OutputLimits,
+    limits: CommunicationLimits,
     started: Instant,
     successful_exit: SuccessfulExit,
     mut cancelled: impl FnMut() -> bool,
     mut output: impl FnMut(OutputStream, &[u8]),
 ) -> Result<ExecutionEvidence, ExecutionError> {
+    let timeout = limits.timeout;
     let mut evidence = ExecutionEvidence::default();
     let mut stdin = child.take_stdin();
     let mut stdout = child.take_stdout();
@@ -134,7 +135,7 @@ fn exchange(
             if cancelled() {
                 return Err(ExecutionFailure::Cancelled);
             }
-            if started.elapsed() >= limits.timeout {
+            if timeout.is_some_and(|timeout| started.elapsed() >= timeout) {
                 return Err(ExecutionFailure::TimedOut);
             }
             let progress_in = if let Some(pipe) = &mut stdin {
@@ -176,7 +177,8 @@ fn exchange(
                 }
                 // Retained success still needs timely caller admission. Ordinary
                 // capture keeps its existing synchronous-cleanup exception.
-                if successful_exit == SuccessfulExit::Retain && started.elapsed() >= limits.timeout
+                if successful_exit == SuccessfulExit::Retain
+                    && timeout.is_some_and(|timeout| started.elapsed() >= timeout)
                 {
                     return Err(ExecutionFailure::TimedOut);
                 }
@@ -187,9 +189,9 @@ fn exchange(
                 };
             }
             if !progress_in && !progress_out && !progress_err {
-                std::thread::sleep(
-                    POLL_INTERVAL.min(limits.timeout.saturating_sub(started.elapsed())),
-                );
+                std::thread::sleep(timeout.map_or(POLL_INTERVAL, |timeout| {
+                    POLL_INTERVAL.min(timeout.saturating_sub(started.elapsed()))
+                }));
             }
         }
     }));

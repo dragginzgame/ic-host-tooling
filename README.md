@@ -70,6 +70,13 @@ The cancellation callback can also emit caller-scheduled heartbeats while silent
 Callback unwinding attempts cleanup even when the borrowed owner survives the
 caller's panic handler.
 
+Both communication functions accept `CommunicationLimits { stdout_bytes,
+stderr_bytes, timeout: None }` for long builds or foreground services without
+an elapsed-time deadline. Output bounds, cancellation and cleanup still apply;
+callers choose how to end the wait. Existing `OutputLimits` arguments keep their
+finite deadlines. Capture and tool-version admission still require those finite
+limits.
+
 `AdmittedTool::admit_version` accepts a `VersionSpec` for caller-trusted installed
 tools without a published binary digest. It records the installed identity,
 checks the exact version and rejects byte drift before later execution. That
