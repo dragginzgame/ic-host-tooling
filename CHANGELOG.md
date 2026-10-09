@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.8.5]
+## [0.8.5] - 2026-10-09
 
 - Reuse verified IC tools when pin-file comments or record order change, avoiding
   unnecessary downloads while retaining checksum and version admission
