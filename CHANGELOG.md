@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.9.1]
+## [0.9.1] - 2026-10-09
 
 - Simplify durable file publication around one shared options representation,
   preserving existing permissions and publication behavior.
