@@ -1,5 +1,70 @@
 # Current handoff
 
+## Latest work: 2026-10-09, pending 0.8.9 release cache preparation
+
+The compatible **0.8.9** batch fixes
+[#36](https://github.com/dragginzgame/ic-host-tooling/issues/36) locally. Release
+preflight prepares the selected dependency graph with `cargo fetch --locked`
+after admission; standalone verification retains `--offline`. Explicit Cargo
+offline settings remain authoritative. Fetch failures preserve the adapter's
+status and stop before validation or version preparation. Saved recovery intent
+and source selection still belong to the unchanged shared runner.
+
+Real Cargo probes with separate empty caches confirm offline no-dependency
+metadata admission succeeds and offline fetch fails on a missing locked input.
+Focused Linux adapter fixtures pass for successful preparation, explicit offline
+refusal, network failure, source mismatch and unchanged source metadata. Fetch,
+setup and Git effects are substituted in those fixtures; no online fetch was
+performed. The shared release-runner command-stub suite, Bash syntax, ShellCheck,
+snapshot verification and selected documentation-link checks pass. Evidence is
+retained in `/tmp/ic-host-089/`. Native macOS qualification of this candidate
+remains pending; released 0.8.8 CI is not candidate evidence.
+
+The adopted flow-convergence and module-surface audit methods were applied to
+Host and the seven consumers identified below. Plain IO and typed publication
+callers, direct-child and group ownership, and consumer-specific aggregate hashes
+retain distinct live contracts. No further removable production owner or public
+API was confirmed; no hard cut or symbol removal is justified by this pass.
+Existing consumer adoption remains with Canic #458 and Testkit #35/#36.
+
+Shared Tooling's committed `3d33cd2` does not require a selected-helper refresh;
+its pending cache-preparation guidance remains dirty and was not adopted.
+Versions, lockfile, pins and snapshot are unchanged. No Rust compilation, full
+local gate, sibling edit, download, commit, push, release or publication ran.
+
+## Latest review: 2026-10-09, released 0.8.8 consumer convergence
+
+Host 0.8.8 is released at `ccfd7724dd31c14cfbb8ae434f683babfeabf906`.
+[Exact-source CI](https://github.com/dragginzgame/ic-host-tooling/actions/runs/37901415314)
+passes Linux x86-64, macOS 15 Intel/Apple Silicon and Rust 1.88. Host issues
+[#33](https://github.com/dragginzgame/ic-host-tooling/issues/33),
+[#34](https://github.com/dragginzgame/ic-host-tooling/issues/34) and
+[#35](https://github.com/dragginzgame/ic-host-tooling/issues/35) are closed with
+that acceptance evidence. This supersedes their pending delivery statements
+below; it does not alter the failed/cancelled 0.8.7 run's historical evidence.
+
+A bounded source review using the adopted code-hygiene method at Shared Tooling
+`ddd3e1c` traced process exchange/cleanup, no-follow reads, typed publication,
+executable resolution and bounded response/Candid handling. No new actionable
+Host defect or reusable API gap was confirmed. This is source review using the
+released CI evidence, not a fresh execution or whole-system correctness claim.
+
+The inspected root locks in Canic, Testkit, Query, Backup, Memory, Toko Miner and
+IcyDB each select only Host 0.8.8 for their included Host crates. Several consumers
+have active dirty work: lock inspection does not establish released adoption.
+Canic's dirty work on `c4c046f94` now uses the shared no-follow hasher and direct-child
+communication; [Canic #458](https://github.com/dragginzgame/canic/issues/458) owns
+its remaining qualification and delivery. Testkit's cache-lock opener now matches
+committed 0.25.4 `085756dd0e0e2304de7e4a0b6b887201918646b6`; its
+[#35](https://github.com/dragginzgame/ic-testkit/issues/35) retains consumer
+acceptance. The Cargo reader refactor remains explicitly deferred in
+[#36](https://github.com/dragginzgame/ic-testkit/issues/36).
+
+No new release draft or production edit is justified by this pass. Shared Tooling
+has committed `3d33cd2`; its PocketIC checker fix affects an unselected helper,
+and its further installer changes remain dirty. No snapshot refresh, dependency
+change, compilation, sibling edit, commit, push or release ran during this review.
+
 ## Latest work: 2026-10-09, pending 0.8.8 foreground ownership and CI fixture repair
 
 Host 0.8.7 is delivered at `8edce53c43bb872cd4aaa15659e37f0236adc203`, reported

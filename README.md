@@ -177,5 +177,10 @@ for prerequisites, retained evidence and partial-upload recovery.
 Prepare the pinned host set with make install-host-tools before release version
 queries or release entry points. make release-version uses the shared read-only
 Cargo/TOML reader; parser checks never install missing tools. Release preflight
-refreshes only host tools. The IC executable bundle remains available through
+refreshes host tools and prepares the selected Cargo cache with `cargo fetch
+--locked` before offline validation. Cargo honours an explicit
+`CARGO_NET_OFFLINE=true` or offline configuration; missing inputs then stop the
+release without switching online. Standalone verification stays offline, and
+fetching does not upgrade dependencies or change the lockfile selection.
+The IC executable bundle remains available through
 make install-ic-tools and its offline check.

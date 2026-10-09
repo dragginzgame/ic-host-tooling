@@ -62,7 +62,7 @@ cat > "$fixture/bin/git" <<'STUB'
 #!/usr/bin/env bash
 set -euo pipefail
 case "$*" in
-    'rev-parse HEAD') echo "$RELEASE_SOURCE" ;;
+    'rev-parse HEAD') echo "${ADAPTER_HEAD:-$RELEASE_SOURCE}" ;;
     'rev-parse --git-path release-state') echo release-state ;;
     "rev-parse $RELEASE_COMMIT^{commit}") echo "$RELEASE_COMMIT" ;;
     'diff --binary HEAD') ;;
@@ -92,7 +92,17 @@ case "$*" in
     'metadata --no-deps --format-version 1 --locked --offline')
         "$ADAPTER_REAL_CARGO" "$@"
         exit "${ADAPTER_METADATA_RESULT:-0}" ;;
-    'set-version --help'|'fetch --locked --offline') ;;
+    'set-version --help') ;;
+    'fetch --locked'|'fetch --locked --offline')
+        if [[ -n "${ADAPTER_CACHE:-}" && ! -e "$ADAPTER_CACHE" ]]; then
+            if [[ "$*" == *--offline || "${CARGO_NET_OFFLINE:-}" == true ]]; then
+                echo 'fixture: locked input unavailable offline' >&2; exit 101
+            fi
+            if [[ -n "${ADAPTER_FETCH_RESULT:-}" ]]; then
+                echo 'fixture: registry unavailable' >&2; exit "$ADAPTER_FETCH_RESULT"
+            fi
+            : > "$ADAPTER_CACHE"
+        fi ;;
     "set-version --workspace --offline $RELEASE_VERSION")
         for mode in manifest lock; do
             if [[ "$mode" == manifest ]]; then file=Cargo.toml; else file=Cargo.lock; fi
@@ -175,13 +185,52 @@ make --no-print-directory install-host-tools
 make --no-print-directory host-tools-check
 make --no-print-directory dependency-pins-check
 cargo set-version --help
-cargo fetch --locked --offline
+cargo fetch --locked
 EVENTS
 cmp expected "$ADAPTER_EVENTS"
 cp expected accepted-events
 cmp Cargo.toml source/Cargo.toml
 cmp Cargo.lock "$root/Cargo.lock"
 [[ ! -e release-state ]] || exit 1
+
+# Missing selected inputs are prepared only by preflight. All fetch effects here
+# are substituted; real metadata remains locked/offline even with this env unset.
+for scenario in online offline network verify source; do
+    : > "$ADAPTER_EVENTS"
+    cache="$fixture/cache-$scenario"
+    status=0
+    (
+        unset CARGO_NET_OFFLINE
+        export ADAPTER_CACHE="$cache"
+        operation=preflight
+        case "$scenario" in
+            offline) export CARGO_NET_OFFLINE=true ;;
+            network) export ADAPTER_FETCH_RESULT=73 ;;
+            verify) operation=verify ;;
+            source) export ADAPTER_HEAD=2222222222222222222222222222222222222222 ;;
+        esac
+        bash "$root/scripts/release/adapter.sh" "$operation"
+    ) > "cache-$scenario.log" 2>&1 || status=$?
+    case "$scenario" in
+        online) [[ "$status" == 0 && -f "$cache" ]]; cmp accepted-events "$ADAPTER_EVENTS" ;;
+        offline|verify) [[ "$status" == 101 && ! -e "$cache" ]] ;;
+        network) [[ "$status" == 73 && ! -e "$cache" ]] ;;
+        source) [[ "$status" != 0 && ! -e "$cache" && ! -s "$ADAPTER_EVENTS" ]] ;;
+    esac
+    if [[ "$scenario" == verify ]]; then
+        grep -Fx 'cargo fetch --locked --offline' "$ADAPTER_EVENTS" > /dev/null
+        if grep -F 'install-host-tools' "$ADAPTER_EVENTS"; then
+            echo 'Standalone verification attempted tool setup' >&2; exit 1
+        fi
+    fi
+    if grep -E '^make .* (ci|msrv)|^cargo set-version --workspace' "$ADAPTER_EVENTS"; then
+        echo 'Cache preparation dispatched validation or version mutation' >&2; exit 1
+    fi
+    [[ ! -e release-state ]]
+    cmp Cargo.lock source/Cargo.lock
+    cmp Cargo.toml source/Cargo.toml
+    cmp CHANGELOG.md source/CHANGELOG.md
+done
 
 # Complete and major.minor requirements both admit the synchronized workspace.
 # Preserve each form's precision through the actual adapter transaction below.

@@ -3,7 +3,8 @@ set -euo pipefail
 
 # Consumer-owned Cargo adapter. Requires Bash 3.2, Git, Make, awk, cargo-edit
 # (cargo set-version), prepared jq/Mike Farah yq and the provisioned Rust
-# toolchains/dependency cache.
+# toolchains. Release preflight prepares the selected locked dependency cache;
+# verification uses only offline inputs.
 # Git effects belong to the shared runner, never to this adapter.
 operation="${1:-}"
 [[ $# -eq 1 ]] || exit 2
@@ -129,7 +130,13 @@ case "$operation" in
         CARGO_NET_OFFLINE=true make --no-print-directory host-tools-check
         CARGO_NET_OFFLINE=true make --no-print-directory dependency-pins-check
         cargo set-version --help > /dev/null
-        cargo fetch --locked --offline
+        if [[ "$operation" == preflight ]]; then
+            # The selected release prepares its existing graph before validation.
+            # Cargo still honours explicit offline environment/configuration.
+            cargo fetch --locked
+        else
+            cargo fetch --locked --offline
+        fi
         if [[ "$operation" == verify ]]; then
             mkdir -p "$state"
             scratch="$(mktemp -d "$state/$RELEASE_VERSION.validation.XXXXXX")"

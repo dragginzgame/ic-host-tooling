@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.8.9]
+
+- Prepare missing locked Cargo dependencies during release preflight before
+  offline validation, while honouring explicitly offline Cargo settings
+  ([#36](https://github.com/dragginzgame/ic-host-tooling/issues/36)).
+
+See [the 0.8 notes](docs/changelog/0.8.md).
+
 ## [0.8.8] - 2026-10-09
 
 - Expose direct-child ownership for communication that preserves inherited or
