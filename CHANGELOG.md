@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.8.8]
+## [0.8.8] - 2026-10-09
 
 - Expose direct-child ownership for communication that preserves inherited or
   caller-selected process groups, enabling foreground consumers to reuse Host
