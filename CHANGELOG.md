@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.8.7]
+## [0.8.7] - 2026-10-09
 
 - Add bounded streaming file hashing that rejects final symlinks and special
   files, allowing consumers to share file admission without buffering contents
