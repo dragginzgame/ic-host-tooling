@@ -1,5 +1,66 @@
 # Current handoff
 
+## Latest work: 2026-10-09, pending 0.8.7 no-follow streaming hashes
+
+Host 0.8.6 is delivered at `9f3d9a83def91030056c78e44c9efaa489be7d12`.
+Its [exact-source CI](https://github.com/dragginzgame/ic-host-tooling/actions/runs/37896909262)
+passes Linux x86-64, macOS 15 Intel, macOS 15 Apple Silicon and Rust 1.88 MSRV.
+This completes Host [#31](https://github.com/dragginzgame/ic-host-tooling/issues/31);
+Testkit and Canic adoption remain separate consumer obligations.
+
+The compatible **0.8.7** draft implements
+[#33](https://github.com/dragginzgame/ic-host-tooling/issues/33) locally.
+`read::hash_file_no_follow` composes the existing Unix no-follow/nonblocking opener,
+descriptor metadata admission and constant-memory artifact hasher. It returns the
+existing identity/error types and independently bounds metadata and stream bytes.
+Following hashes keep their existing behavior; trusted ancestors, writer custody,
+exact expected-length checks and domain errors remain with consumers. No function,
+method or type is removed by the hashing change. Versions, dependencies and pins
+are unchanged; the shared snapshot selection change is described below.
+
+The three Canic hashing callers still match committed base
+`c4c046f947b2b28f4342cbf6efe9221ba1ed5f70`, despite unrelated dirty work.
+Their shared opening/hash mechanics can converge after release, but build-reuse
+prechecks and local-fleet early-size versus streamed-overflow classifications
+must retain their current domain contracts. Consumer adoption/deletion is tracked
+in [Canic #458](https://github.com/dragginzgame/canic/issues/458).
+
+Focused locked/offline Linux validation passes: 15 read-module tests, strict
+filesystem all-target Clippy, Rust 1.88 all-target compilation, warning-denied
+Rustdoc, selected formatting and documentation links. Coverage includes real
+regular files, empty/exact/overflow limits, final and ancestor symlinks, original
+missing-file errno, special-file refusal and a FIFO without a writer. A controlled
+growth fixture changes the actual file between descriptor metadata admission and
+the shared hasher, without racing or adding a production hook. Evidence remains
+under `/tmp/ic-host-087/`. This candidate still requires native macOS qualification.
+No full gate, sibling edits, downloads, commit, push, release or publication ran.
+
+Host [#32](https://github.com/dragginzgame/ic-host-tooling/issues/32) is now
+implemented locally in the same compatible 0.8.7 batch. The canonical Shared
+Tooling repository confirms committed 0.1.33
+`ddd3e1c01ba8aab13a56277e05679e43a8a9d88a`; a clean private checkout supplied the
+canonical exporter. The 85-file snapshot omits `scripts/dev/cloc-tooling.pl` and
+updates the common Make diagnostic/fixtures for that optional report. Host help
+and README direct fleet reporting to Shared Tooling; local LOC, setup, offline
+checks and their integration coverage remain. No consumer workflow or schedule
+calls the removed reporter. Shared Tooling retains its implementation and tests.
+
+The deleted reporter's private functions are `usage`, `capture`, `read_file`,
+`write_file`, `safe_path`, `is_linked`, `in_scope` and `load_snapshot`. Their only
+local owner was the removed file; use Shared Tooling's central report instead.
+No vendored helper was patched. Newly adopted PocketIC handoff guidance does not
+change this consumer's existing pin matrix or install a replacement.
+
+Focused Linux checks pass: 85-file snapshot integrity, common Make command
+fixtures with substitute installers/reports, actual offline local `make cloc`
+and `make host-tools-check`, the expected omitted-fleet diagnostic, selected
+ShellCheck/Bash syntax and documentation links. Tool pins, Cargo manifest and
+lockfile are byte-identical to the pre-refresh inputs. Evidence is retained in
+`/tmp/ic-host-087-shared/`; the prior Rust checks remain applicable because this
+addition changed no Rust sources. Shared Tooling's new exact-source CI was queued
+at initial review; native qualification of this Host candidate remains separate.
+No sibling edit, download/install, full gate, commit, push or release occurred.
+
 ## Latest work: 2026-10-09, pending 0.8.6 communication without a deadline
 
 Host 0.8.5 is released at `1cad3253096b6eb67be5187209e7fb606593c501`,

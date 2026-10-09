@@ -88,6 +88,11 @@ no-follow reads and typed private-file admission. Durable publication and locks
 remain under `durable`. Upgrading from 0.3 requires the
 [0.4 consumer changes](docs/changelog/0.4.md).
 
+On Unix, `read::hash_file_no_follow(path, max_bytes)` hashes regular files with
+constant working memory, rejecting final symlinks and opened special files.
+It shares the bounded stream hasher and preserves typed errors. Callers retain
+trusted ancestors, concurrent-writer custody and any exact expected-length check.
+
 `durable::try_lock_regular_file_with_parents` shares regular-file admission and
 durable creation with the blocking lock API, but returns a native `WouldBlock`
 I/O cause on contention. It preserves existing bytes and holds the lock through
@@ -148,9 +153,9 @@ The common `make/tools.mk` owns setup/check commands and selects pinned jq, yq,
 ripgrep with PCRE2 and cloc. CI uses those same targets. Run
 `make install-host-tools` after this snapshot update to prepare the expanded set;
 `make host-tools-check` verifies it offline without installing anything.
-`make cloc` reports this workspace's Rust runtime/test lines; `make cloc-tooling`
-inventories sibling tooling and separates matching shared snapshots from local
-code. `CLOC_PARENT` selects the latter's parent directory. Direct shell commands
+`make cloc` reports this workspace's Rust runtime/test lines. Run fleet tooling
+reports from Shared Tooling; this snapshot omits that optional reporter.
+Direct shell commands
 need their own PATH setup as described in [local setup](docs/local-setup.md).
 
 Shared Tooling owns rules, hooks, installers and the common release runner.

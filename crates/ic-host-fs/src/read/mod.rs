@@ -6,6 +6,8 @@ use std::{fs::File, path::Path};
 #[cfg(unix)]
 mod no_follow;
 #[cfg(unix)]
+pub use no_follow::hash_file_no_follow;
+#[cfg(unix)]
 pub use no_follow::read_file_no_follow;
 #[cfg(unix)]
 pub use no_follow::read_optional_file_no_follow;

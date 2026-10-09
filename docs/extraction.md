@@ -33,7 +33,12 @@ Within `ic-host-fs`, `read` is the sole owner of required/optional/private reads
 Following paths, final-component no-follow admission and already-open descriptor
 reads remain distinct contracts. Optional reads reuse the same bounded stream
 engine and return `ArtifactError`; private reads add typed permission, link-count
-and fixed-length rejection. Durable publication and locks do not own a second
+and fixed-length rejection. `hash_file_no_follow` combines the same Unix opener
+and descriptor admission with the artifact owner's constant-memory hash traversal;
+metadata and streamed bytes have independent bounds. It rejects final symlinks,
+while existing `hash_file` continues to follow them. Ancestor confinement,
+concurrent-writer custody and exact expected-length checks remain caller-owned.
+Durable publication and locks do not own a second
 reader hierarchy. Lock errors retain typed admission and original I/O causes.
 `try_lock_regular_file_with_parents` adds one nonblocking acquisition attempt
 through the same path opener; contention retains native `WouldBlock`. Blocking

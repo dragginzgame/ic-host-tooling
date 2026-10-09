@@ -24,7 +24,7 @@ help:
 	@echo 'Explicit setup: install-tools, install-host-tools, install-ic-tools, install-hooks'
 	@echo 'Offline setup checks: tools-check, host-tools-check, ic-tools-check'
 	@echo 'Optional Rust tool bundle: install-rust-tools, rust-tools-check'
-	@echo 'Source reports: cloc (this workspace), cloc-tooling (sibling tooling)'
+	@echo 'Source reports: cloc (this workspace); fleet reports run in Shared Tooling'
 	@echo 'Full gate: ci (explicit request or configured CI only)'
 	@echo 'Maintainer releases: release-patch, release-minor, release-major, release-resume VERSION=X.Y.Z'
 	@echo 'crates.io publication: publish-check (dry run), publish (upload); offline fixture: publish-command-check'

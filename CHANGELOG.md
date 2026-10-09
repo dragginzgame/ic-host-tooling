@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.8.7]
+
+- Add bounded streaming file hashing that rejects final symlinks and special
+  files, allowing consumers to share file admission without buffering contents
+  ([#33](https://github.com/dragginzgame/ic-host-tooling/issues/33)).
+- Keep fleet tooling reports in Shared Tooling, removing Host's unused copy
+  while retaining local LOC and setup/check commands
+  ([#32](https://github.com/dragginzgame/ic-host-tooling/issues/32)).
+
+See [the 0.8 notes](docs/changelog/0.8.md).
+
 ## [0.8.6] - 2026-10-09
 
 - Allow caller-owned child communication without an elapsed-time deadline for

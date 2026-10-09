@@ -3,7 +3,7 @@
 #[cfg(test)]
 mod tests;
 
-use super::{ArtifactError, read_opened_file};
+use super::{ArtifactError, ArtifactIdentity, check_metadata, hash_reader, read_opened_file};
 use rustix::fs::{Mode, OFlags, open};
 use std::{
     fs::{self, File},
@@ -30,6 +30,27 @@ use std::{
 /// or typed non-regular-file, metadata, size, read and allocation failures.
 pub fn read_file_no_follow(path: &Path, max_bytes: usize) -> Result<Vec<u8>, ArtifactError> {
     read_opened_file(open_no_follow(path)?, max_bytes)
+}
+
+/// Hash a regular file without following a final-component symlink.
+///
+/// Uses the same opening flags and caller-owned confinement constraints as
+/// [`read_file_no_follow`], then validates the opened descriptor's type and size.
+/// Hashes from its initial position with constant working memory through
+/// [`hash_reader`]. Metadata is an early rejection only; the stream is bounded
+/// independently to detect growth beyond `max_bytes`. Empty files accept zero.
+///
+/// Ancestor symlinks are followed. An open descriptor selects an inode, not
+/// immutable contents; concurrent-writer custody and any exact expected-length
+/// check remain caller-owned. No source bytes are written or removed.
+///
+/// # Errors
+/// Returns [`ArtifactError::Io`] with the original open/metadata/read cause,
+/// including final-symlink rejection, or typed non-regular-file/byte-limit errors.
+pub fn hash_file_no_follow(path: &Path, max_bytes: u64) -> Result<ArtifactIdentity, ArtifactError> {
+    let file = open_no_follow(path)?;
+    check_metadata(&file.metadata()?, max_bytes)?;
+    hash_reader(file, max_bytes)
 }
 
 /// Read an optional bounded regular file, rejecting final-component symlinks.

@@ -1,9 +1,12 @@
-use super::{open_optional_regular_file, read_file_no_follow, read_optional_file_no_follow};
+use super::{
+    hash_file_no_follow, open_no_follow, open_optional_regular_file, read_file_no_follow,
+    read_optional_file_no_follow,
+};
 use crate::{
-    read::{read_file, read_opened_file},
+    read::{check_metadata, hash_file, read_file, read_opened_file},
     test_support::Fixture,
 };
-use ic_host_artifacts::artifact::ArtifactError;
+use ic_host_artifacts::artifact::{ArtifactError, ArtifactIdentity, Sha256Digest, hash_reader};
 use rustix::fs::{Mode, OFlags, open};
 use std::{
     fs::{self, File},
@@ -24,6 +27,13 @@ fn exact_limits_and_empty_files_preserve_the_selected_bytes() {
     fs::write(&path, &bytes).unwrap();
     assert_eq!(read_file_no_follow(&path, bytes.len()).unwrap(), bytes);
     assert_eq!(
+        hash_file_no_follow(&path, bytes.len() as u64).unwrap(),
+        ArtifactIdentity {
+            bytes: bytes.len() as u64,
+            sha256: Sha256Digest::compute(&bytes)
+        }
+    );
+    assert_eq!(
         read_opened_file(File::open(&path).unwrap(), bytes.len()).unwrap(),
         bytes
     );
@@ -31,12 +41,27 @@ fn exact_limits_and_empty_files_preserve_the_selected_bytes() {
         read_file_no_follow(&path, bytes.len() - 1),
         Err(ArtifactError::LimitExceeded { limit: 40_000 })
     ));
+    assert!(matches!(
+        hash_file_no_follow(&path, bytes.len() as u64 - 1),
+        Err(ArtifactError::LimitExceeded { limit: 40_000 })
+    ));
     assert_eq!(fs::read(&path).unwrap(), bytes);
     fs::write(&path, []).unwrap();
     assert_eq!(read_file_no_follow(&path, 0).unwrap(), [] as [u8; 0]);
+    assert_eq!(
+        hash_file_no_follow(&path, 0).unwrap(),
+        ArtifactIdentity {
+            bytes: 0,
+            sha256: Sha256Digest::compute(&[])
+        }
+    );
     fs::write(&path, [1]).unwrap();
     assert!(matches!(
         read_file_no_follow(&path, 0),
+        Err(ArtifactError::LimitExceeded { limit: 0 })
+    ));
+    assert!(matches!(
+        hash_file_no_follow(&path, 0),
         Err(ArtifactError::LimitExceeded { limit: 0 })
     ));
 }
@@ -53,6 +78,14 @@ fn final_symlinks_are_rejected_without_changing_existing_following_reads() {
         if error.raw_os_error() == Some(rustix::io::Errno::LOOP.raw_os_error()))
     );
     assert_eq!(read_file(&link, 8).unwrap(), b"retained");
+    assert_eq!(
+        hash_file(&link, 8).unwrap().sha256,
+        Sha256Digest::compute(b"retained")
+    );
+    assert!(
+        matches!(hash_file_no_follow(&link, 8), Err(ArtifactError::Io(error))
+        if error.raw_os_error() == Some(rustix::io::Errno::LOOP.raw_os_error()))
+    );
     // Descriptor validation does not claim the opener rejected links.
     assert_eq!(
         read_opened_file(File::open(&link).unwrap(), 8).unwrap(),
@@ -63,6 +96,10 @@ fn final_symlinks_are_rejected_without_changing_existing_following_reads() {
     symlink("missing", &dangling).unwrap();
     assert!(
         matches!(read_file_no_follow(&dangling, 8), Err(ArtifactError::Io(error))
+        if error.raw_os_error() == Some(rustix::io::Errno::LOOP.raw_os_error()))
+    );
+    assert!(
+        matches!(hash_file_no_follow(&dangling, 8), Err(ArtifactError::Io(error))
         if error.raw_os_error() == Some(rustix::io::Errno::LOOP.raw_os_error()))
     );
 }
@@ -77,6 +114,12 @@ fn ancestor_symlinks_remain_an_explicit_consumer_confinement_obligation() {
     assert_eq!(
         read_file_no_follow(&fixture.root.join("alias/artifact"), 4).unwrap(),
         b"data"
+    );
+    assert_eq!(
+        hash_file_no_follow(&fixture.root.join("alias/artifact"), 4)
+            .unwrap()
+            .sha256,
+        Sha256Digest::compute(b"data")
     );
 }
 
@@ -100,14 +143,18 @@ fn fifo_without_a_writer_is_rejected_without_waiting_for_one() {
     let reader = thread::spawn(move || {
         tx.send(read_file_no_follow(&path_for_reader, 1024))
             .unwrap();
+        tx.send(hash_file_no_follow(&path_for_reader, 1024).map(|_| Vec::new()))
+            .unwrap();
     });
     // Bound a regression to a blocking FIFO open; this is a fixture deadline,
     // not a filesystem timing guarantee or performance assertion.
-    assert!(matches!(
-        rx.recv_timeout(Duration::from_secs(5))
-            .expect("FIFO read must not wait for a writer"),
-        Err(ArtifactError::NotRegularFile)
-    ));
+    for _ in 0..2 {
+        assert!(matches!(
+            rx.recv_timeout(Duration::from_secs(5))
+                .expect("FIFO read/hash must not wait for a writer"),
+            Err(ArtifactError::NotRegularFile)
+        ));
+    }
     reader.join().unwrap();
     let fd = open(
         &path,
@@ -124,6 +171,12 @@ fn fifo_without_a_writer_is_rejected_without_waiting_for_one() {
 #[test]
 fn opened_directories_and_devices_are_rejected_before_reading() {
     let fixture = Fixture::new();
+    for path in [fixture.root.as_path(), Path::new("/dev/null")] {
+        assert!(matches!(
+            hash_file_no_follow(path, 1024),
+            Err(ArtifactError::NotRegularFile)
+        ));
+    }
     assert!(matches!(
         read_file_no_follow(&fixture.root, 1024),
         Err(ArtifactError::NotRegularFile)
@@ -164,6 +217,14 @@ fn descriptor_identity_survives_path_replacement_and_reads_from_its_current_posi
 fn missing_and_invalid_paths_preserve_structured_open_failures() {
     let fixture = Fixture::new();
     assert!(
+        matches!(hash_file_no_follow(&fixture.root.join("missing"), 1024),
+        Err(ArtifactError::Io(error)) if error.raw_os_error() == Some(rustix::io::Errno::NOENT.raw_os_error()))
+    );
+    assert!(
+        matches!(hash_file_no_follow(Path::new("invalid\0path"), 1024),
+        Err(ArtifactError::Io(error)) if error.kind() == io::ErrorKind::InvalidInput)
+    );
+    assert!(
         matches!(read_file_no_follow(&fixture.root.join("missing"), 1024),
         Err(ArtifactError::Io(error)) if error.kind() == io::ErrorKind::NotFound)
     );
@@ -171,6 +232,23 @@ fn missing_and_invalid_paths_preserve_structured_open_failures() {
         matches!(read_file_no_follow(Path::new("invalid\0path"), 1024),
         Err(ArtifactError::Io(error)) if error.kind() == io::ErrorKind::InvalidInput)
     );
+}
+
+#[test]
+fn streaming_hash_rejects_growth_after_descriptor_metadata_admission() {
+    let fixture = Fixture::new();
+    let path = fixture.root.join("growing");
+    fs::write(&path, b"1234").unwrap();
+    // Coordinate growth between the production opener/metadata boundary and
+    // shared stream traversal, without a timing race or a production test hook.
+    let file = open_no_follow(&path).unwrap();
+    check_metadata(&file.metadata().unwrap(), 4).unwrap();
+    fs::write(&path, b"12345").unwrap();
+    assert!(matches!(
+        hash_reader(file, 4),
+        Err(ArtifactError::LimitExceeded { limit: 4 })
+    ));
+    assert_eq!(fs::read(&path).unwrap(), b"12345");
 }
 
 #[test]
