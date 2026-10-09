@@ -51,19 +51,26 @@ chmod +x "$fixture/local/cargo"
 . "$root/ci/tool-versions.env"
 export HOST_MAKE_SORT_VERSION="$SHARED_TOOLING_CARGO_SORT_VERSION"
 cd "$fixture/local"
-for selection in ordinary environment command nested; do
+printf 'override RELEASE_REMOTE := recursive\n' > overrides.mk
+recursive_make="$(command -v make) --no-print-directory -f Makefile -f overrides.mk"
+for selection in ordinary environment command nested recursive; do
     unset SHARED_TOOLING_ROOT
+    remote=review
     command=(make --no-print-directory -j2)
     if [[ "$selection" == environment ]]; then
         export SHARED_TOOLING_ROOT="$fixture/external"
-    elif [[ "$selection" == command || "$selection" == nested ]]; then
+    elif [[ "$selection" != ordinary ]]; then
         command+=("SHARED_TOOLING_ROOT=$fixture/external")
     fi
-    if [[ "$selection" == nested ]]; then
+    if [[ "$selection" == nested || "$selection" == recursive ]]; then
         # Keep Make's recursive command and automatic variable literal.
         # shellcheck disable=SC2016
         printf '%%:\n\t+$(MAKE) -C "%s" $@\n' "$PWD" > "$fixture/parent.mk"
         command+=(-f "$fixture/parent.mk")
+    fi
+    if [[ "$selection" == recursive ]]; then
+        command+=("MAKE=$recursive_make")
+        remote=recursive
     fi
     for target in help fmt-check release-resume; do
         : > "$HOST_MAKE_EVENTS"
@@ -73,7 +80,7 @@ for selection in ordinary environment command nested; do
         case "$target" in
             help) : > "$fixture/expected" ;;
             fmt-check) printf 'sort --workspace --check\nfmt --all -- --check\n' > "$fixture/expected" ;;
-            release-resume) printf 'resume 0.9.5 review release-review\n' > "$fixture/expected" ;;
+            release-resume) printf 'resume 0.9.5 %s release-review\n' "$remote" > "$fixture/expected" ;;
         esac
         cmp "$fixture/expected" "$HOST_MAKE_EVENTS"
         [[ ! -e "$HOST_MAKE_EXTERNAL" ]]
@@ -85,7 +92,7 @@ for mode in -i --ignore-errors -n -t -q; do
     for selection in direct inherited; do
         for target in fmt-check release-patch; do
             : > "$HOST_MAKE_EVENTS"
-            args=(--no-print-directory "$target" "FORMAT_CARGO=$PWD/cargo" "SHARED_TOOLING_ROOT=$fixture/external")
+            args=(--no-print-directory "$target" "FORMAT_CARGO=$PWD/cargo" "SHARED_TOOLING_ROOT=$fixture/external" "MAKE=$recursive_make")
             status=0
             if [[ "$selection" == direct ]]; then
                 make "$mode" "${args[@]}" > "$fixture/$selection-$mode-$target.log" 2>&1 || status=$?

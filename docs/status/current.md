@@ -1,5 +1,29 @@
 # Current handoff
 
+## Latest work: 2026-10-09, pending 0.9.7 Make admission follow-up
+
+The [ownership/admission audit](../reports/audits/2026/10/09/ownership-admission/01/report.md)
+starts from clean released 0.9.6 `6aaa4229913bafc68a443e7e855468efcca8ee7a`.
+Child and durable publication states retain distinct authority/recovery roles;
+no Rust removal or hard cut is justified. Seventeen selected child tests pass.
+
+Reproduced rejection of argument-bearing recursive Make with Host's actual
+Makefile, then canonically adopted committed Shared 0.2.8
+`b2646cde9abbc8861857a4379c683a0c19eba43e` from a clean private clone. The
+88-file roster and Host runtime-root policy remain intact. Extended the maintained
+fixture to prove recursive override selection and unsafe-mode refusal together.
+Make/release routing and real formatting-hook adoption pass on Linux with
+Make 4.3/Bash 5 and Make 3.81/Bash 3.2. Selected ShellCheck, docs, snapshot and
+whitespace checks pass. The initial stale hook-input failure and corrected
+evidence remain in `/tmp/ic-host-097-audit/`.
+
+Both changelog views select compatible 0.9.7. No function, method or type was
+removed; manifests, lockfile, pins and real Git index/config are preserved.
+No sibling edit, full gate, release, hook activation, download, commit or push ran.
+Native macOS remains separate under
+[#42](https://github.com/dragginzgame/ic-host-tooling/issues/42) and existing
+adoption issues; this dirty source has no native qualification result.
+
 ## Latest work: 2026-10-09, pending 0.9.6 response cleanup
 
 Released 0.9.5 is `0f61811c88a6b6b4b026b04ca16e428409be877f`; the checkout

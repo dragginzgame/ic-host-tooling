@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.9.7]
+
+- Accept recursive Make commands with additional arguments while preserving
+  execution-mode checks, through Shared Tooling 0.2.8
+  ([#42](https://github.com/dragginzgame/ic-host-tooling/issues/42),
+  [shared #30](https://github.com/dragginzgame/shared-tooling/issues/30)).
+
+See [the 0.9 notes](docs/changelog/0.9.md).
+
 ## [0.9.6] - 2026-10-09
 
 - Simplify response hex validation by checking empty text in the existing digit

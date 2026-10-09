@@ -1,9 +1,9 @@
 # Shared Tooling snapshot v1
 format	1
 source	https://github.com/dragginzgame/shared-tooling
-revision	47d6ae6488b8007323fa7c2e22a6efa11d77ae63
+revision	b2646cde9abbc8861857a4379c683a0c19eba43e
 file	b5a6e8fb723a861b722834675e27b4b16f3d296112622c1b40cdc8714f575404	-	rules/changelogs.md
-file	a36ffec9ac991db92030b17dc3e2a524dfed06e6b87eeebe23d6ee0655c603fb	-	docs/releases.md
+file	e9a4f50ec386838698a44946f44aa777c4ad37bcfe1c65f4d63da281058cac97	-	docs/releases.md
 file	fc689ff5d636be1049a527f6cafa74a768005211dcbecb074b8b327d8e6bab04	x	scripts/ci/run-release.sh
 file	37e028e2d9fee271ffdc06d06fc15d7a148ec524def3d9ed2afcd9910c0ec642	x	scripts/ci/next-release-version.sh
 file	e7f4c82566858b89b50c5c2f929097bdde85345a2c0c1bf553bb1170cc4f5960	-	scripts/ci/finalize-release-changelog.awk
@@ -89,4 +89,4 @@ file	f7b95816164980993403d2d6eae13336db1c476c58217c8e8d356e6d01fe9b27	-	tasks/sy
 file	dfccb5fa0194b343d140512c892a31eac902cb1a489e641feae3c18e1cf70a1c	-	scripts/dev/run-maintenance.sh
 file	f1a92a42f6e5000b40c8f44a5f89fa8c5b254f204bcc9f2af8d2bbf5f123ec15	-	make/release.mk
 file	1fd9242abe9dfcfe2dc4639644c178c59e92e55efed7ec90443b56f4590a57d8	-	make/rust-format.mk
-file	7da7d5cd82bf10041937b2fcefc0cc63c27251b2e07462b37391a49c7e988ca0	-	make/execution.mk
+file	6b3532abce23f8fe3a57a1c3327455c8975d9ba6e66529255cdc566dfbbe914e	-	make/execution.mk
