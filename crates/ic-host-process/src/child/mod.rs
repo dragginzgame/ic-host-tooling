@@ -52,6 +52,9 @@ pub enum CleanupPolicy {
 /// Successful signalling is not proof that descendants
 /// have exited or completed external effects. Only the direct child is reaped.
 /// Group signalling can succeed for only some members when credentials differ.
+/// [`Self::spawn_direct`] instead preserves the command's process-group selection
+/// and owns only the direct child. Its wait, termination and Drop never signal
+/// other group members; descendant lifetime remains with the caller.
 pub struct OwnedChild {
     child: Child,
     group: bool,
@@ -143,7 +146,23 @@ impl OwnedChild {
         Self::spawn_inner(command, true, cleanup)
     }
 
-    pub(crate) fn spawn_direct(command: &mut Command) -> io::Result<Self> {
+    /// Spawn once owning only the direct child, without changing command settings.
+    ///
+    /// Preserves inherited or explicitly configured process-group selection and
+    /// IO. This permits foreground callers to retain terminal-group membership;
+    /// it does not create a session, transfer terminal control or forward signals.
+    /// No executable admission, retry or signal handler is installed.
+    ///
+    /// Waiting reaps only this child. Termination and Drop kill only this child
+    /// and wait synchronously using [`CleanupPolicy::KillAndWait`]. Descendants
+    /// are never signalled, even if the command explicitly selects a new group.
+    /// Their lifecycle and inherited pipe writers remain caller-owned; no-deadline
+    /// communication may wait indefinitely for their EOF after the child exits.
+    /// Use [`Self::spawn`] when ownership of a new group is required.
+    ///
+    /// # Errors
+    /// Returns the native spawn/setup failure. No retries are performed.
+    pub fn spawn_direct(command: &mut Command) -> io::Result<Self> {
         Self::spawn_inner(command, false, CleanupPolicy::KillAndWait)
     }
 
@@ -287,7 +306,7 @@ impl OwnedChild {
         self.reap()
     }
 
-    /// Terminate the owned group (or internal direct child), then reap the leader.
+    /// Terminate the owned group or direct child, then reap the child.
     ///
     /// Repeated calls after reaping return the cached status and never signal a
     /// reused PID. A prior group failure still matters even if reaping succeeded;

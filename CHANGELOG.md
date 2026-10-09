@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.8.8]
+
+- Expose direct-child ownership for communication that preserves inherited or
+  caller-selected process groups, enabling foreground consumers to reuse Host
+  without changing group membership
+  ([#34](https://github.com/dragginzgame/ic-host-tooling/issues/34)).
+- Isolate the executable-admission fixture from parallel process spawns that
+  can cause intermittent Linux `Text file busy` failures
+  ([#35](https://github.com/dragginzgame/ic-host-tooling/issues/35)).
+
+See [the 0.8 notes](docs/changelog/0.8.md).
+
 ## [0.8.7] - 2026-10-09
 
 - Add bounded streaming file hashing that rejects final symlinks and special

@@ -1,5 +1,54 @@
 # Current handoff
 
+## Latest work: 2026-10-09, pending 0.8.8 foreground ownership and CI fixture repair
+
+Host 0.8.7 is delivered at `8edce53c43bb872cd4aaa15659e37f0236adc203`, reported
+live by the maintainer. Its [CI](https://github.com/dragginzgame/ic-host-tooling/actions/runs/37899468089)
+passes MSRV and macOS 15 ARM, but Linux failed in the executable-admission fixture
+and Intel macOS remains queued. Issues #32/#33 therefore remain open through
+qualification; delivered source is distinct from a passing native gate.
+
+The compatible **0.8.8** batch implements
+[#34](https://github.com/dragginzgame/ic-host-tooling/issues/34):
+`OwnedChild::spawn_direct` is promoted from crate-private to public, retaining its
+existing implementation and synchronous KillAndWait policy. It preserves command
+IO/context and inherited or explicitly selected process groups, and owns only the
+direct child. Communication uses the same engine; cancellation, overflow, unwind,
+ordinary waiting and Drop cannot acquire group ownership. Descendants, terminal
+control, signal handling and descendant-held pipes remain caller-owned.
+No function, method or type is removed, renamed or duplicated.
+
+Canic's latest [adoption evidence](https://github.com/dragginzgame/canic/issues/458#issuecomment-6076429624)
+shows its JSON publication convergence implemented in dirty work, while foreground
+replica adoption still depends on preserving terminal-group membership. The
+inspected `icp/run.rs` matches Canic base `c4c046f947b2b28f4342cbf6efe9221ba1ed5f70`.
+The new public constructor supplies that mechanism; actual interactive Ctrl-C
+qualification and consumer deletion remain in Canic #458. Testkit's reader-thread
+adoption remains in #36. No sibling source was changed or compiled.
+
+The Linux release failure is tracked and repaired locally in
+[#35](https://github.com/dragginzgame/ic-host-tooling/issues/35). The real staged
+executable test now runs alone in an exact-test subprocess, retaining execution
+before replacement and final installed execution. Parallel fork-time inheritance
+of the writable staging descriptor explains the observed ETXTBSY by source
+inspection; no offending descriptor interleaving was captured. The pre-fix exact
+test passed locally, while the failed CI log records 66 passes and one failure.
+Production admission/publication code is unchanged; no retry or sleep was added.
+
+Locked/offline Linux validation passes: all 76 process library tests, all 67
+filesystem library tests plus five further runs with 32 threads, strict selected
+package all-target Clippy, Rust 1.88 all-target compilation and process Rustdoc
+with warnings denied. Direct-child fixtures prove inherited/configured group
+identity and another live group member surviving success/cancellation/overflow/
+observer unwind/Drop. This is process-group evidence, not interactive terminal
+qualification. Formatting and documentation links pass. Evidence and the failed
+release log remain in `/tmp/ic-host-088/`. Native macOS qualification of this
+candidate remains pending; the failed released run is not relabelled as passing.
+
+Shared Tooling remains at committed `ddd3e1c` with additional dirty work excluded.
+Versions, lockfile, tool pins and snapshot are unchanged. No full local gate,
+downloads, sibling edits, commit, push, release, publication or CI rerun occurred.
+
 ## Latest work: 2026-10-09, pending 0.8.7 no-follow streaming hashes
 
 Host 0.8.6 is delivered at `9f3d9a83def91030056c78e44c9efaa489be7d12`.

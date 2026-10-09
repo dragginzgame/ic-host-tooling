@@ -96,6 +96,12 @@ cancellation controller, implicit handoff or paid-operation recovery. Escaped
 processes remain outside its scope; signalling does not prove descendant exit.
 
 `communicate_child` uses that same IO engine with an existing `OwnedChild`.
+Public `OwnedChild::spawn_direct` exposes the existing direct-child constructor
+used by ordinary capture. It preserves inherited or configured process groups
+and cleans up only the direct child, allowing foreground callers to retain group
+membership. Group-owning `spawn` remains unchanged. Terminal control, signal
+handling and descendants remain consumer-owned; communication cannot force EOF
+from descendant-held pipes under direct ownership.
 Callers configure stdin/stdout/stderr before spawn, select borrowed input and
 output budgets, and supply a prompt cancellation predicate. Piped IO is fair,
 bounded and nonblocking; absent output pipes preserve inherited/file/null IO.

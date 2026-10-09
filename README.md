@@ -63,6 +63,11 @@ group cleanup for commands whose descendants must be signalled on exit or
 failure. Ordinary `capture_command` retains direct-child cleanup. Both share one
 capture engine; callers retain budgets, admission and external-effect recovery.
 
+`OwnedChild::spawn_direct` preserves inherited or caller-selected process groups
+for foreground communication and cleans up only the direct child. It uses the
+same I/O engine; consumers retain terminal control, interruption handling and
+descendant lifetime, including any descendant-held output pipes.
+
 `tool::communicate_child_with_observer` adds live stdout/stderr observation to
 `communicate_child` for an existing owner. It reports only retained bytes, keeps
 the same hard limits and cleanup, and lets callers project progress events.

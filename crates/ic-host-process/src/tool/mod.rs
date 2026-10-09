@@ -408,7 +408,8 @@ pub fn capture_group_command(
 /// Successful leader disposition during [`communicate_child`].
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum SuccessfulExit {
-    /// Clean the owned group before reaping, then finish draining captured pipes.
+    /// Clean according to child ownership before reaping, then drain captured pipes.
+    /// Direct-child ownership never signals descendants or other group members.
     Cleanup,
     /// Reserve the successful leader through IO completion and caller admission.
     /// The caller must then explicitly wait, terminate or hand off the owner.
@@ -424,6 +425,9 @@ pub enum SuccessfulExit {
 /// apply to captured pipes. Do not take the child's pipes before this call.
 /// `Some(input)`, including empty input, requires piped stdin. `None` closes any
 /// available stdin pipe immediately; inherited stdin remains caller-selected.
+/// [`crate::child::OwnedChild::spawn_direct`] preserves process-group selection
+/// and limits cleanup to the direct child. Descendant-held pipes can still delay
+/// EOF; this function does not acquire descendant or terminal ownership.
 /// Stdin closes after input is written. An early broken pipe is accepted, like
 /// standard communicate semantics; command status and diagnostics remain primary.
 /// This does not guarantee the command consumed all input or applied its effects.
@@ -439,9 +443,9 @@ pub enum SuccessfulExit {
 /// retaining original failure and separate cleanup errors.
 ///
 /// On success, all owned pipes are closed. With [`SuccessfulExit::Cleanup`],
-/// group cleanup and reaping occur as soon as leader exit is observed. With
-/// [`SuccessfulExit::Retain`], the successful leader remains reserved and group
-/// cleanup remains armed. After admitting output and checking
+/// cleanup for the selected ownership scope and reaping occur as soon as child
+/// exit is observed. With [`SuccessfulExit::Retain`], the successful child remains
+/// reserved and its selected cleanup remains armed. After admitting output and checking
 /// application cancellation/deadlines, the caller must choose ordinary
 /// [`crate::child::OwnedChild::wait`] cleanup or explicit
 /// [`crate::child::OwnedChild::handoff`]. Rejected output can use `terminate`

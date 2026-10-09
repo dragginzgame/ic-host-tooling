@@ -350,6 +350,26 @@ fn descriptor_publication_preserves_sync_state_and_foreign_stage_cleanup_evidenc
 
 #[test]
 fn closed_writer_admission_executes_before_replacing_the_destination() {
+    const DRIVER: &str = "IC_HOST_FS_EXECUTABLE_ADMISSION_DRIVER";
+    if std::env::var_os(DRIVER).is_none() {
+        // Concurrent process creation can inherit our writable staging fd until
+        // exec, transiently preventing execution even after our writer closes.
+        // Keep the real execution proof, isolated from other test threads.
+        let thread = std::thread::current();
+        let test_name = thread.name().expect("libtest names each test thread");
+        let output = std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", test_name, "--test-threads=1"])
+            .env(DRIVER, "1")
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "isolated executable admission failed:\n{}\n{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        return;
+    }
     let fixture = Fixture::new();
     let output = fixture.root.join("executable with spaces");
     fs::write(&output, b"old").unwrap();

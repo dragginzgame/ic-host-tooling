@@ -4,6 +4,7 @@
 )]
 
 use super::*;
+mod direct;
 use crate::test_support::Fixture;
 use rustix::fs::{OFlags, fcntl_getfl, fcntl_setfl};
 use std::{
