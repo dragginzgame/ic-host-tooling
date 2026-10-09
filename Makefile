@@ -1,21 +1,17 @@
 .DEFAULT_GOAL := help
 PACKAGE ?= ic-host-artifacts
 MSRV ?= 1.88.0
-RELEASE_REMOTE ?= origin
-RELEASE_BRANCH ?= main
 RELEASE_DELIVERY ?= direct
 ifneq ($(RELEASE_DELIVERY),direct)
 $(error This repository currently qualifies RELEASE_DELIVERY=direct only)
 endif
 include ci/tool-versions.env
 include make/tools.mk
+include make/rust-format.mk
+include make/release.mk
 export YQ := $(CURDIR)/.tools/host/bin/yq
 
-ifneq ($(word 2,$(filter release-patch release-minor release-major release-resume,$(MAKECMDGOALS))),)
-$(error Select exactly one release target)
-endif
-
-.PHONY: help fmt fmt-check format-tools-check format-tools-test check clippy docs-check test test-artifacts-minimal test-tools-response tools-features-check msrv ci install-hooks tooling-command-check shared-tooling-check dependency-pins-check check-doc-links release-adapter-check publish publish-check publish-command-check release-patch release-minor release-major release-resume release-version release-preflight release-verify release-prepare-version release-prepared-check release-files release-commit-check release-committed-check release-tagged-check release-push-check
+.PHONY: help format-execution-check format-tools-test check clippy docs-check test test-artifacts-minimal test-tools-response tools-features-check msrv ci install-hooks tooling-command-check shared-tooling-check dependency-pins-check check-doc-links release-adapter-check publish publish-check publish-command-check release-version release-preflight release-verify release-prepare-version release-prepared-check release-files release-commit-check release-committed-check release-tagged-check release-push-check
 help:
 	@echo 'Selected package: check, clippy, docs-check, test, msrv (PACKAGE=<crate>)'
 	@echo 'Minimal artifact configuration: test-artifacts-minimal'
@@ -28,18 +24,11 @@ help:
 	@echo 'Full gate: ci (explicit request or configured CI only)'
 	@echo 'Maintainer releases: release-patch, release-minor, release-major, release-resume VERSION=X.Y.Z'
 	@echo 'crates.io publication: publish-check (dry run), publish (upload); offline fixture: publish-command-check'
-format-tools-check:
-	bash scripts/ci/check-format-tools.sh "$(SHARED_TOOLING_CARGO_SORT_VERSION)"
 format-tools-test:
 	bash scripts/ci/test-format-tools.sh
-fmt: format-tools-check
+fmt fmt-check: format-execution-check
+format-execution-check:
 	bash scripts/ci/check-make-execution.sh
-	cargo sort --workspace
-	cargo fmt --all
-fmt-check: format-tools-check
-	bash scripts/ci/check-make-execution.sh
-	cargo sort --workspace --check
-	cargo fmt --all -- --check
 check:
 	cargo check -p $(PACKAGE) --all-targets --all-features --locked --offline
 clippy:
@@ -69,7 +58,7 @@ release-adapter-check:
 tooling-command-check:
 	bash scripts/ci/test-tool-commands.sh
 	bash scripts/ci/test-rust-tools.sh
-	bash scripts/ci/check-release-commands.sh "$(CURDIR)" ci/tool-versions.env make/tools.mk
+	bash scripts/ci/check-release-commands.sh "$(CURDIR)" ci/tool-versions.env make/tools.mk make/rust-format.mk make/release.mk
 	bash scripts/ci/test-cloc.sh
 publish:
 	bash scripts/publish/workspace.sh publish
@@ -95,10 +84,6 @@ ci:
 		$(MAKE) --no-print-directory docs-check PACKAGE=$$package && \
 		$(MAKE) --no-print-directory test PACKAGE=$$package || exit $$?; \
 	done
-release-patch release-minor release-major:
-	+@bash scripts/ci/run-release.sh "$(@:release-%=%)" "$(RELEASE_REMOTE)" "$(RELEASE_BRANCH)"
-release-resume:
-	+@bash scripts/ci/run-release.sh resume "$(VERSION)" "$(RELEASE_REMOTE)" "$(RELEASE_BRANCH)"
 release-version:
 	@bash scripts/release/adapter.sh version
 release-preflight:

@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.9.4]
+
+- Share release and Rust formatting command definitions through Shared Tooling
+  0.2.6, preserving Host's release policy and execution guards while removing
+  duplicate recipes ([#41](https://github.com/dragginzgame/ic-host-tooling/issues/41)).
+
+See [the 0.9 notes](docs/changelog/0.9.md).
+
 ## [0.9.3] - 2026-10-09
 
 - Preserve literal hook-path selections and support formatting hooks in checkouts

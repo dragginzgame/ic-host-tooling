@@ -1,5 +1,33 @@
 # Current handoff
 
+## Latest work: 2026-10-09, pending 0.9.4 shared Make owners
+
+On released 0.9.3 `545e7236b91d84e190c80931b784f72cc4fafb11`, canonically
+adopted Shared Tooling 0.2.6 `ce13a5314916891fd239d9b199b4a91b04775054` from
+a clean private checkout. The 87-file selection adds `make/release.mk` and
+`make/rust-format.mk`; their command definitions replace equivalent Host recipes.
+Host retains direct-only release admission and its formatting execution guard
+as a local prerequisite. Isolated release checks now copy both includes.
+The compatible pending version is **0.9.4**;
+[#41](https://github.com/dragginzgame/ic-host-tooling/issues/41) owns delivery
+and native qualification.
+
+Focused Linux checks pass on Bash 5 and genuine Bash 3.2: actual Host
+increment/resume routing with a substitute runner, actual formatting-hook
+adoption with prepared Rust formatters, and upstream formatting command fixtures.
+A separate substitute check proves default help, default release arguments,
+direct-only refusal, and guard-before-format ordering/refusal in serial and
+parallel Make. Snapshot integrity, selected documentation links and whitespace
+checks pass. Evidence remains in `/tmp/ic-host-094/`.
+
+No Rust functions, methods or types were removed; the existing release and
+format target names remain available through the shared includes. Manifests,
+lockfile, pins, real Git index/configuration and sibling files are unchanged.
+No compilation, full gate, download, real release, publication, hook activation,
+commit or push ran. Native macOS qualification remains separate. Shared #90's
+newline-root formatting-check helper fix is absent from 0.2.6 and remains upstream;
+the production hook fix adopted in 0.9.3 is unchanged.
+
 ## Latest work: 2026-10-09, pending 0.9.3 hook-path fix
 
 Adopted committed Shared Tooling 0.2.5
