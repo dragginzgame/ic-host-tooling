@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.9.5]
+
+- Reject Make modes that can hide failed release or formatting commands, and
+  keep Host commands and release-command checks bound to their own checkout's
+  snapshot, adopting Shared Tooling 0.2.7
+  ([#42](https://github.com/dragginzgame/ic-host-tooling/issues/42)).
+- Support newline-ending checkout paths in formatting-hook qualification
+  ([shared #90](https://github.com/dragginzgame/shared-tooling/issues/90)).
+
+See [the 0.9 notes](docs/changelog/0.9.md).
+
 ## [0.9.4] - 2026-10-09
 
 - Share release and Rust formatting command definitions through Shared Tooling

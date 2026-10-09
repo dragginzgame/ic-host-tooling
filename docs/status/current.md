@@ -1,5 +1,126 @@
 # Current handoff
 
+## Latest work: 2026-10-09, #42 checkout-local admission repaired
+
+The authorized [#42 repair](https://github.com/dragginzgame/ic-host-tooling/issues/42)
+now binds `SHARED_TOOLING_ROOT` in Host's Makefile before loading shared includes.
+Host owns its checkout-local routing, so this completes the local fix without
+patching the 88-file Shared 0.2.7 snapshot or waiting for the generic upstream
+correction. The earlier upstream-only readiness blocker below is superseded;
+[Shared #30](https://github.com/dragginzgame/shared-tooling/issues/30) retains the
+generic include-root and argument-bearing Make concerns.
+
+The new maintained Host adoption check failed against the previous Makefile,
+then passed with the fix. It covers external environment/command-line roots,
+recursive parallel Make, exact formatter/release routing and twenty unsafe-mode
+refusals before effects. It runs through `tooling-command-check`. Both GNU Make
+4.3/Bash 5 and GNU Make 3.81/Bash 3.2 pass on Linux; the older Make required
+separate `override` and `export` declarations. Actual formatting-hook adoption
+with real prepared formatters and inherited external roots, plus release routing
+with substitute effects, pass under both tool pairs. Snapshot, ShellCheck,
+documentation and whitespace checks pass. Evidence, including failed drafts,
+is retained in `/tmp/ic-host-095-root-fix/`.
+
+The compatible draft remains 0.9.5. No Rust function, method or type was removed
+in this follow-up. Manifests, lockfile, pins, snapshot and real Git index/config
+are unchanged. No sibling edit, full gate, native macOS execution, download,
+real hook activation, release, commit or push ran. Delivery and native host
+qualification remain outstanding.
+
+## Latest review: 2026-10-09, pending 0.9.5 admission-root blocker
+
+Shared Tooling local and remote main still select 0.2.7
+`47d6ae6488b8007323fa7c2e22a6efa11d77ae63`; the pending 88-file snapshot
+verifies unchanged. A new focused reproduction using Host's actual Makefile
+shows that environment or command-line `SHARED_TOOLING_ROOT` selects an external
+admission helper during parsing, even for `make help`. An owned sentinel ran
+before Make refused; the control succeeded without invoking it.
+
+Evidence is retained in `/tmp/ic-host-095-root-review/probe-2SpEOu` and reported
+on [Host #42](https://github.com/dragginzgame/ic-host-tooling/issues/42#issuecomment-6084106030)
+and [Shared #30](https://github.com/dragginzgame/shared-tooling/issues/30#issuecomment-6084105635).
+Keep the pending adoption, but hold release readiness until a qualified,
+committed upstream correction binds admission to its reviewed companion.
+Earlier passing fixture-isolation checks do not prove this parse-time boundary.
+No vendored or Rust source changed in this review; native macOS qualification
+remains separate.
+
+## Latest work: 2026-10-09, pending 0.9.5 Make admission and fixture isolation
+
+Completed the authorized [#42 repair](https://github.com/dragginzgame/ic-host-tooling/issues/42)
+on released 0.9.4. Canonically adopted committed Shared Tooling 0.2.7
+`47d6ae6488b8007323fa7c2e22a6efa11d77ae63`, adding `make/execution.mk` for an
+88-file snapshot. Unsafe Make modes now fail at the shared entrypoint boundary;
+release-command fixtures pin their tooling root to the disposable checkout.
+Formatting-hook qualification also preserves newline-ending roots and Git
+object paths. Both changelog views select compatible **0.9.5**.
+
+Applied the prepared Host Makefile integration: isolated release checks export
+the new include and its behavioral probe; removed the redundant local
+`format-execution-check` target in favor of the shared parse-time guard.
+No Rust function, method or type was removed. Direct-only delivery policy,
+manifests, lockfile, pins, real Git index/configuration and sibling files remain
+unchanged. No commit, push, release, download, activation or full gate ran.
+
+The five upstream executable files and all relevant Host integration inputs
+match the earlier rehearsal byte-for-byte, binding its thirty unsafe-mode
+cases, external-root isolation, Bash 3.2, newline-root and parallel-Make evidence
+below to the adopted behavior. Fresh checks of the actual Host checkout pass:
+release routing with substitute effects, real formatting-hook adoption,
+88-file snapshot verification, selected ShellCheck, documentation links and
+whitespace. Evidence is retained in `/tmp/ic-host-095-adoption/` and the original
+rehearsal directory. Native macOS acceptance remains separate; dirty source has
+no remote CI result. The preceding upstream-commit blocker is resolved.
+
+## Latest preparation: 2026-10-09, #42 awaiting committed Shared fixes
+
+The authorized [#42 repair](https://github.com/dragginzgame/ic-host-tooling/issues/42)
+is prepared and rehearsed in `/tmp/ic-host-095-preparation/host`, based on
+released Host 0.9.4. Shared remote main still selects 0.2.6; its pending 0.2.7
+repairs are uncommitted. The actual Host snapshot and Makefile remain unchanged.
+The temporary checkout overlays five upstream candidate files with exact hashes
+in `upstream-inputs.json`; it is not a canonical snapshot or delivered source.
+
+The prepared `host-make.patch` adds the execution include and behavioral probe
+to isolated release-check inputs, and removes Host's redundant
+`format-execution-check` Make target in favor of the shared parse-time guard.
+It preserves direct-only release policy. Thirty direct/inherited unsafe Make
+mode cases refuse before effects; direct and parent-Make external-root sentinel
+checks remain isolated. Release routing passes under Bash 5/3.2, real Host
+formatting-hook adoption passes, and a newline-ending Host checkout passes that
+adoption helper under genuine Bash 3.2. Normal parallel formatting checks pass.
+All evidence remains under `/tmp/ic-host-095-preparation/`; initial command-CWD
+failure evidence is retained separately from passing retries.
+
+Finish by reviewing the committed upstream revision, canonically adding
+`make/execution.mk` to the snapshot, applying the prepared local change and
+maintaining compatible 0.9.5 notes. Recheck candidate bytes and actual snapshot
+integrity before reusing rehearsal evidence. No source fix is applied here yet;
+no new release draft, Rust symbol removal, full gate, build, real release, hook
+activation, commit, push or sibling edit occurred. Native macOS is unqualified.
+
+## Latest review: 2026-10-09, released 0.9.4 filesystem/process boundaries
+
+Released 0.9.4 is `4e3daebd5df07c6449279535668436024a45c02b`.
+[Delivery evidence](https://github.com/dragginzgame/ic-host-tooling/issues/41#issuecomment-6083419271)
+records passing Linux/MSRV CI and queued native macOS jobs. Shared main remains
+the adopted 0.2.6 revision; its #90 qualification-helper finding remains open.
+
+The bounded code-hygiene review used `audits/code-hygiene.md` at that Shared
+revision and the local extraction/host contracts. Traced missing-path/symlink
+normalization, required/optional/private descriptor admission, executable
+selection, process pipe exchange and lock waiting. Their different missing-file,
+permission, confinement, deadline and cleanup contracts justify the retained
+boundaries. No additional reproducible defect or safe simplification was found;
+no new release draft is justified by this pass.
+
+All seven path and fifteen read-module tests pass on Linux with locked/offline
+dependencies. Logs remain in `/tmp/ic-host-095-path-tests.log` and
+`/tmp/ic-host-095-read-tests.log`. Process paths received source review only;
+this is not native macOS or a full-gate result. No production source, dependency,
+package version or sibling changed, and no function, method or type was removed.
+Only this handoff and #41 delivery evidence were updated; no commit or release ran.
+
 ## Latest work: 2026-10-09, pending 0.9.4 shared Make owners
 
 On released 0.9.3 `545e7236b91d84e190c80931b784f72cc4fafb11`, canonically

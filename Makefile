@@ -5,13 +5,16 @@ RELEASE_DELIVERY ?= direct
 ifneq ($(RELEASE_DELIVERY),direct)
 $(error This repository currently qualifies RELEASE_DELIVERY=direct only)
 endif
+# Host commands use this checkout's reviewed snapshot, including parse-time probes.
+override SHARED_TOOLING_ROOT := $(CURDIR)
+export SHARED_TOOLING_ROOT
 include ci/tool-versions.env
 include make/tools.mk
 include make/rust-format.mk
 include make/release.mk
 export YQ := $(CURDIR)/.tools/host/bin/yq
 
-.PHONY: help format-execution-check format-tools-test check clippy docs-check test test-artifacts-minimal test-tools-response tools-features-check msrv ci install-hooks tooling-command-check shared-tooling-check dependency-pins-check check-doc-links release-adapter-check publish publish-check publish-command-check release-version release-preflight release-verify release-prepare-version release-prepared-check release-files release-commit-check release-committed-check release-tagged-check release-push-check
+.PHONY: help format-tools-test check clippy docs-check test test-artifacts-minimal test-tools-response tools-features-check msrv ci install-hooks tooling-command-check shared-tooling-check dependency-pins-check check-doc-links release-adapter-check publish publish-check publish-command-check release-version release-preflight release-verify release-prepare-version release-prepared-check release-files release-commit-check release-committed-check release-tagged-check release-push-check
 help:
 	@echo 'Selected package: check, clippy, docs-check, test, msrv (PACKAGE=<crate>)'
 	@echo 'Minimal artifact configuration: test-artifacts-minimal'
@@ -26,9 +29,6 @@ help:
 	@echo 'crates.io publication: publish-check (dry run), publish (upload); offline fixture: publish-command-check'
 format-tools-test:
 	bash scripts/ci/test-format-tools.sh
-fmt fmt-check: format-execution-check
-format-execution-check:
-	bash scripts/ci/check-make-execution.sh
 check:
 	cargo check -p $(PACKAGE) --all-targets --all-features --locked --offline
 clippy:
@@ -56,9 +56,10 @@ check-doc-links:
 release-adapter-check:
 	bash scripts/release/test-adapter.sh
 tooling-command-check:
+	bash scripts/ci/test-make-snapshot.sh
 	bash scripts/ci/test-tool-commands.sh
 	bash scripts/ci/test-rust-tools.sh
-	bash scripts/ci/check-release-commands.sh "$(CURDIR)" ci/tool-versions.env make/tools.mk make/rust-format.mk make/release.mk
+	bash scripts/ci/check-release-commands.sh "$(CURDIR)" ci/tool-versions.env make/tools.mk make/rust-format.mk make/release.mk make/execution.mk scripts/ci/check-make-execution.sh
 	bash scripts/ci/test-cloc.sh
 publish:
 	bash scripts/publish/workspace.sh publish

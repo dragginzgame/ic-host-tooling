@@ -161,6 +161,9 @@ help:
 ```
 
 The include preserves the default goal and supplies `release-resume VERSION=X.Y.Z`.
+Its adjacent `make/execution.mk` companion rejects Make ignore-errors and
+non-executing modes before recipes run, using the existing execution probe.
+Keep both the Make companion and `scripts/ci/check-make-execution.sh` selected.
 Set `SHARED_TOOLING_ROOT` before including it for a nested reviewed snapshot.
 Keep delivery admission and metadata adapters local. Attach existing admission
 prerequisites to the four entrypoints and export cache-preparation selections
@@ -175,9 +178,12 @@ Preserve any consumer post-run reconciliation when adopting; a prerequisites-onl
 conversion does not reproduce an operation that previously followed the runner.
 The include does not select PR delivery, add validation or metadata adapters,
 publish packages, or clean artifacts. Keep those contracts explicit. Include
-`make/release.mk` in the extra inputs to `check-release-commands.sh` when testing
+`make/release.mk`, `make/execution.mk` and `scripts/ci/check-make-execution.sh`
+in the extra inputs to `check-release-commands.sh` when testing
 an adopting Makefile with the runner at `scripts/ci/run-release.sh`. That smoke
-checker substitutes the root runner; nested snapshots need a caller fixture
+checker binds `SHARED_TOOLING_ROOT` to its disposable checkout, overriding parent
+environment and ordinary Makefile assignments. It substitutes the root runner;
+nested snapshots need a caller fixture
 substituting their selected runner path, as the shared include tests do.
 Direct runner invocation remains supported for specialized
 entrypoints with independently qualified behavior.
