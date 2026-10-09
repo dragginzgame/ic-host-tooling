@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.8.10]
+## [0.8.10] - 2026-10-09
 
 - Reject multi-document dependency-pinning exceptions through Shared Tooling
   0.1.38, and preserve checkout-local tool lookup in isolated formatting hooks
