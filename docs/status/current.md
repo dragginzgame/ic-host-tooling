@@ -1,5 +1,72 @@
 # Current handoff
 
+## Latest work: 2026-10-09, pending 0.9.3 hook-path fix
+
+Adopted committed Shared Tooling 0.2.5
+`04e07b4bf54e7aeb03eb7804a845cee27b7305df` through its canonical exporter from
+a clean private checkout, retaining all 85 selected files. Hook installation
+preserves literal configured paths and refuses conflicting newline-ending
+selections; installation and execution preserve newline-ending checkout paths.
+[#40](https://github.com/dragginzgame/ic-host-tooling/issues/40) owns delivery
+and qualification. The compatible pending version is **0.9.3**.
+
+The canonical hook fixtures pass under Bash 5 and genuine Bash 3.2 on Linux,
+including selected-file formatting, rejected conflicting selections and failed
+Git observations. Host's actual formatting-adoption check, snapshot integrity,
+selected ShellCheck, documentation links and whitespace checks pass. Evidence
+is retained in `/tmp/ic-host-093-adoption/`. Native macOS qualification remains
+separate; no full gate, compilation, download, hook activation or release ran.
+
+The additional bounded flow review traced artifact read/hash/copy/chunk entrypoints,
+bounded/hash/matching writers, gzip framing and tar member admission against the
+unchanged Shared flow-convergence method and `docs/extraction.md`. Traversal and
+gzip framing already converge. Separate archive digest/framing/member checks
+protect independent admission boundaries; retain the prior measured copy
+specialization. No further production change or public API is justified.
+No function, method or type was removed. Package versions, lockfile, pins, Git
+index/configuration and sibling files are preserved; changes remain uncommitted.
+
+## Latest follow-up: 2026-10-09, Backup duplicate CI fix
+
+The authorized local [Backup #33 fix](https://github.com/dragginzgame/ic-backup/issues/33#issuecomment-6081929163)
+restricts automatic pushes to main while retaining PR checks and existing manual
+exact-ref dispatch. All job bodies and native gates remain unchanged. Actionlint,
+six event/ref cases, workflow-body equality and selected documentation checks
+pass; pending Backup notes select 0.11.3. Incoming dirty lock bytes are preserved.
+Testkit, Query and Auth already contain their corresponding committed workflow
+fixes; this batch did not edit them. No Rust symbols were removed.
+
+Host 0.9.2's existing CI still has passing Linux/MSRV jobs and both macOS jobs
+queued at recheck. #37/#38 therefore retain native acceptance; no source failure
+was observed. No full gate, dispatch, commit, push or release ran in this batch.
+
+## Latest follow-up: 2026-10-09, released 0.9.2 and Canic qualification
+
+Host 0.9.2 is released at `c5decaefd17809829bfa969966729d672f609c49`.
+[#39](https://github.com/dragginzgame/ic-host-tooling/issues/39) is closed after
+consecutive main pushes retained separate CI runs. Native acceptance remains
+under #37/#38; released Host Linux/MSRV passed, while macOS remained queued.
+The [queue diagnosis](https://github.com/dragginzgame/ic-host-tooling/issues/38#issuecomment-6080329920)
+found five running and 118 queued macOS jobs across 55 accessible repositories
+at its recorded observation time. Duplicate-gate owners retain their own issues,
+including [Backup #33](https://github.com/dragginzgame/ic-backup/issues/33).
+
+With explicit maintainer authorization, the prepared Canic checkpoint-reader
+replacement and scoped 0.110.55 notes were applied in Canic. Its
+[qualification](https://github.com/dragginzgame/canic/issues/458#issuecomment-6081757333)
+now passes all eight local-fleet tests, including the real owned persistent
+PocketIC session, plus strict selected library/test Clippy on Linux. The initial
+offline cache failure remains retained; the later check used the unchanged
+incoming lock recorded in `target/review-validation/checkpoint-reader-092/`
+in Canic. No dependency changes or online fetch were performed by this work.
+Source remains uncommitted; no function, method or type was removed. Native
+macOS and broader adoption qualification remain separate.
+
+Shared Tooling 0.2.4 `ffbf665b8481c36b2d9f4d988abec557c3485fa6` was inspected:
+all required companions of Host's selected files are already present. No new
+Host defect or release draft is justified by this check; its adopted snapshot
+remains 0.2.2. No full gate, commit, push or release ran.
+
 ## Latest work: 2026-10-09, pending 0.9.2 tooling and CI fixes
 
 Adopted Shared Tooling 0.2.2 `ee48bb37c98c771e77b92fd891f0757d8c1c8b99`,

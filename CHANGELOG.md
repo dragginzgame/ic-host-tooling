@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.9.3]
+
+- Preserve literal hook-path selections and support formatting hooks in checkouts
+  whose directory names end in newlines through Shared Tooling 0.2.5
+  ([#40](https://github.com/dragginzgame/ic-host-tooling/issues/40)).
+
+See [the 0.9 notes](docs/changelog/0.9.md).
+
 ## [0.9.2] - 2026-10-09
 
 - Preserve CI qualification for each pushed commit while allowing superseded PR
