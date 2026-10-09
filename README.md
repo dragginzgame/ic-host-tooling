@@ -182,5 +182,10 @@ refreshes host tools and prepares the selected Cargo cache with `cargo fetch
 `CARGO_NET_OFFLINE=true` or offline configuration; missing inputs then stop the
 release without switching online. Standalone verification stays offline, and
 fetching does not upgrade dependencies or change the lockfile selection.
-The IC executable bundle remains available through
-make install-ic-tools and its offline check.
+The five-tool IC executable bundle (Quill, ICP CLI, didc, ic-wasm and wasm-opt)
+remains available through make install-ic-tools and its offline check. Shared
+Tooling 0.2.0 removes PocketIC from this bundle; simulator consumers use
+[IC Testkit's setup/check contract](docs/ic-tools.md#pocketic-ownership-handoff).
+Host's library gates do not need a simulator. Existing six-tool installations
+require explicit make install-ic-tools before the new offline check can pass;
+old bundles and evidence are preserved.

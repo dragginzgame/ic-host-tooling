@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.9.0]
+
+### Breaking
+
+- Adopt Shared Tooling 0.2.0's five-tool IC bundle, removing PocketIC setup and
+  pins in favour of Testkit ownership. Existing bundles require explicit
+  `make install-ic-tools` before offline checks; retained installations are
+  preserved ([#38](https://github.com/dragginzgame/ic-host-tooling/issues/38),
+  [shared #76](https://github.com/dragginzgame/shared-tooling/issues/76)).
+  Rust library APIs are unchanged.
+
+See [the 0.9 notes](docs/changelog/0.9.md).
+
 ## [0.8.10] - 2026-10-09
 
 - Reject multi-document dependency-pinning exceptions through Shared Tooling

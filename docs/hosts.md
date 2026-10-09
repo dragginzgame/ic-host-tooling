@@ -16,12 +16,14 @@ minimal artifact tests and each selected package with all features in sequence.
 The release gate uses the same host tools; installing the IC executable bundle
 is separate explicit setup and is not required for library qualification.
 CI also owns native macOS execution; Linux qualification is not macOS evidence.
-`ci/ic-tools.tsv` is a consumer-owned pin selection, retained byte-for-byte from
-the previous snapshot at `db039347d2372b877c1c46dcdd2b5c3aa9412009`.
-It is excluded from subsequent shared snapshot refreshes so tooling maintenance
-does not silently change the selected PocketIC 16.0.0 server. Host library gates
-do not use that server; changing these pins and qualifying protocol consumers
-remain separate work. The shared installer still reads this one local matrix.
+`ci/ic-tools.tsv` is a consumer-owned pin selection, excluded from automatic
+snapshot refreshes. Shared 0.2.0 adoption removes its PocketIC rows; versions and
+digests for Quill, ICP CLI, didc, ic-wasm and wasm-opt are retained. Host library
+gates have no PocketIC callers, so no simulator dependency or setup is added.
+Consumers that need a simulator use Testkit's qualified setup/check/run contract.
+The shared installer reads this one local five-tool matrix. Existing six-tool
+bundles fail the new offline check; explicit `make install-ic-tools` prepares
+the new selection while preserving previous bundles, receipts and failed evidence.
 Tool reuse compares validated records, so comments and record order do not
 require downloads or replace installation provenance. Changed tool selections
 and malformed records still fail admission before executable checks.

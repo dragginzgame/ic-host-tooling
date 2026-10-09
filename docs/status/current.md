@@ -1,5 +1,29 @@
 # Current handoff
 
+## Latest work: 2026-10-09, pending 0.9.0 Shared 0.2.0 adoption
+
+The requested refresh adopts committed Shared Tooling 0.2.0
+`8140e3dd1b44409d682c721889ab702f438c6a17` through its canonical exporter from
+a clean private checkout, preserving the 85-file roster. Host's three PocketIC
+pin rows are removed; remaining pins are unchanged. No maintained Host library,
+CI or release path uses PocketIC, and no Testkit dependency is added. The retired
+upstream checkers were never selected here. No function, method or type is removed.
+
+Pending notes select **0.9.0**, since the five-tool bundle changes the advertised
+setup/check contract. Rust APIs and package versions remain unchanged. Existing
+six-tool bundles require explicit setup before offline verification; previous
+bundles/receipts are preserved. No actual tool installation was performed.
+
+Focused Linux checks pass: IC installer and evidence fixtures under Bash 5 and
+existing Bash 3.2, Make command wiring, pin-matrix/declaration admission, snapshot
+digests, ShellCheck and documentation links. Downloads/executable identities and
+native-host selections in the fixtures are substituted; they establish refusal,
+activation and retention behavior, not real-installation/macOS qualification.
+Logs and source diff remain in `/tmp/ic-host-shared-020/`.
+[#38](https://github.com/dragginzgame/ic-host-tooling/issues/38) owns delivery and
+native acceptance. Package versions, Cargo.lock, Rust tool pins and index are
+unchanged. No full gate, compilation, downloads, sibling edits, commit or release ran.
+
 ## Latest work: 2026-10-09, pending 0.8.10 Shared pinning admission
 
 [#37](https://github.com/dragginzgame/ic-host-tooling/issues/37) is implemented

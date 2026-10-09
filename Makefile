@@ -63,7 +63,7 @@ shared-tooling-check:
 dependency-pins-check:
 	bash scripts/ci/check-dependency-pins.sh --cargo-inheritance
 check-doc-links:
-	perl scripts/ci/check-documentation-links.pl --root "$(CURDIR)" README.md AGENTS.md CHANGELOG.md docs/changelog/0.4.md docs/changelog/0.5.md docs/changelog/0.6.md docs/changelog/0.7.md docs/changelog/0.8.md docs/extraction.md docs/hosts.md docs/status/current.md docs/publishing.md
+	perl scripts/ci/check-documentation-links.pl --root "$(CURDIR)" README.md AGENTS.md CHANGELOG.md docs/changelog/0.4.md docs/changelog/0.5.md docs/changelog/0.6.md docs/changelog/0.7.md docs/changelog/0.8.md docs/changelog/0.9.md docs/extraction.md docs/hosts.md docs/status/current.md docs/publishing.md
 release-adapter-check:
 	bash scripts/release/test-adapter.sh
 tooling-command-check:
