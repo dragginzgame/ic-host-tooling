@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.9.2]
+
+- Preserve CI qualification for each pushed commit while allowing superseded PR
+  checks to be cancelled
+  ([#39](https://github.com/dragginzgame/ic-host-tooling/issues/39)).
+- Adopt Shared Tooling 0.2.2 installer fixes for pin files without a final newline
+  and destinations changed during tool installation
+  ([shared #87](https://github.com/dragginzgame/shared-tooling/issues/87),
+  [shared #88](https://github.com/dragginzgame/shared-tooling/issues/88)).
+
+See [the 0.9 notes](docs/changelog/0.9.md).
+
 ## [0.9.1] - 2026-10-09
 
 - Simplify durable file publication around one shared options representation,

@@ -1,5 +1,85 @@
 # Current handoff
 
+## Latest work: 2026-10-09, pending 0.9.2 tooling and CI fixes
+
+Adopted Shared Tooling 0.2.2 `ee48bb37c98c771e77b92fd891f0757d8c1c8b99`,
+verified against upstream main at inspection. The canonical exporter ran from a
+clean private checkout, preserving the 85-file selection and sibling dirty work.
+IC setup/check now consumes an unterminated final pin row; CI tool publication
+uses exact-path rename so a late directory cannot redirect installation and a
+late symlink's target remains untouched. No tools were downloaded or installed.
+
+[Host #39](https://github.com/dragginzgame/ic-host-tooling/issues/39#issuecomment-6079897793)
+now has a local fix: each pushed SHA receives its own CI concurrency group,
+while superseded PR revisions remain cancellable. Triggers, native matrix and
+gates are unchanged. Actionlint and event/group review pass; actual scheduling
+needs observation after authorized pushes. Released 0.9.1 CI has passing Linux
+native/MSRV jobs and queued macOS jobs at inspection. Older cancelled runs are
+not repaired by this change; #37/#38 acceptance remains separate.
+
+IC installer fixtures against adopted bytes and CI installer fixtures against
+the identical committed shared helper pass under Bash 5 and existing Bash 3.2
+on Linux. Snapshot verification, ShellCheck, selected documentation links and
+whitespace checks pass. Downloads, executable identities and Darwin selections
+are substituted in these fixtures; native macOS and real-installation evidence
+are outstanding. Logs and reviewed source remain in `/tmp/ic-host-shared-022/`.
+
+The bounded follow-up uses the unchanged Shared flow-convergence method at this
+revision, with `docs/extraction.md` and AGENTS.md as local ownership constraints.
+Ordinary/optional/private descriptor reads retain separate admission contracts;
+streaming copy/chunk hashes already use one reader traversal. No further removal
+is justified, and the prior measured copy specialization remains intact.
+The compatible pending version is **0.9.2**. No function, method or type was
+removed; Rust source, package versions, pins, dependencies and siblings are
+unchanged. No compilation, full gate, commit, push or release ran in this batch.
+
+## Latest review: 2026-10-09, released 0.9.1 consumer redundancy audit
+
+Host production source is clean at `4a016053525fa710bc13f3aedbe85a471b78f6ed` (0.9.1), reported
+pushed by the maintainer. Its [exact-source CI](https://github.com/dragginzgame/ic-host-tooling/actions/runs/37919257776)
+was queued at inspection. The source delta contains the two reviewed cleanups
+below; their prior focused Linux checks do not establish fresh native acceptance.
+
+The bounded source/lock review traced host-facing artifact, read, publication,
+lock and process paths in Canic, Testkit, Query, Backup, IcyDB, Toko Miner,
+Auth, Blob Storage, Memory and Metrics. Canic's dirty root lock retains Host
+artifacts/fs 0.8.10 through Backup 0.10.1 alongside direct Host 0.9.1; its
+concurrent Query update to 0.52.0 removed the other observed old-generation path.
+IcyDB retains all four Host 0.8.10 packages through Testkit 0.25.5
+alongside direct 0.9.0. Qualified adoption of their updated dependency owners
+removes those second generations; no Host compatibility API is needed.
+Blob's concurrent work moved to Testkit 0.26.0 and one Host 0.9.1 generation
+during inspection. These are observed local selections, not release/adoption proof.
+
+[Canic #458](https://github.com/dragginzgame/canic/issues/458#issuecomment-6079604483)
+carries the checkpoint response collector patch using existing
+`artifact::read_reader`, preserving the 64 KiB bound and Capacity/native-I/O
+projections. It passes read-only patch application checking. The selected Host
+artifacts library builds locked/offline; three Linux comparison checks pass for
+byte results/consumption across limits and short reads, original I/O causes and
+malformed input preservation. The harness uses a substitute error enum: it is
+not Canic compilation, lifecycle qualification or native macOS evidence.
+
+[IcyDB #307](https://github.com/dragginzgame/icydb/issues/307#issuecomment-6079604794)
+narrows the earlier execution recommendation: `Command::output` already delegates
+collection to the standard library. Retain it absent a demonstrated need for
+output bounds, cancellation or Host cleanup guarantees; an adapter alone adds
+complexity. The dependency convergence remains useful. Existing direct-child
+communication permits no elapsed deadline if adoption becomes warranted;
+consumer output limits, status projection and update-effect recovery stay local.
+
+Retain Query confinement/alias checks, Backup private parents and crash barriers,
+Blob partial-run evidence, Testkit domain-framed source hashes and consumer JSON
+schemas. Ordinary raw SHA use is already owned by its dependency and is not a
+reason for another Host abstraction. No new public API or release draft is
+justified by this pass. No production code, sibling files, dependencies or symbols
+were changed. Only the selected Host artifact build and standalone comparison
+harness ran; no consumer compilation, managed operation, download or release ran.
+Only this handoff and existing issues were updated. Patch and comparison evidence
+remain under `/tmp/ic-host-091-consumer-audit/checkpoint/`. Native macOS
+qualification and owning consumer acceptance remain separate from Host Linux
+and standalone projection checks.
+
 ## Latest work: 2026-10-09, pending 0.9.1 capture-state cleanup
 
 The second bounded cleanup removes separate stdout/stderr EOF flags from the
