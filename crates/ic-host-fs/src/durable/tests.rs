@@ -695,6 +695,82 @@ fn failed_replacement_removes_its_staging_file() {
     fs::remove_dir_all(root).expect("remove temp root");
 }
 
+#[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
+#[test]
+fn raced_parent_creation_completes_both_syncs_before_staging() {
+    let root = temp_root("raced-parent-sync");
+    fs::create_dir(&root).unwrap();
+    let parent = root.join("new-parent");
+    let path = parent.join("output");
+    let mut observed = Vec::new();
+    commit_with_hook(&path, b"complete", REPLACE_OPTIONS, |step, selected| {
+        match step {
+            FileCommitStep::ParentDirectoryCreate => {
+                // Another opener wins mkdir, then stops before either sync.
+                assert_eq!(selected, parent);
+                fs::create_dir(selected)?;
+            }
+            FileCommitStep::CreatedDirectorySync => {
+                assert_eq!(selected, parent);
+                observed.push(step);
+            }
+            FileCommitStep::CreatedDirectoryParentSync => {
+                assert_eq!(selected, root);
+                observed.push(step);
+            }
+            FileCommitStep::TemporaryFileCreate => {
+                assert_eq!(
+                    observed,
+                    [
+                        FileCommitStep::CreatedDirectorySync,
+                        FileCommitStep::CreatedDirectoryParentSync,
+                    ]
+                );
+            }
+            _ => {}
+        }
+        Ok(())
+    })
+    .unwrap();
+    assert_eq!(fs::read(&path).unwrap(), b"complete");
+    assert_eq!(fs::read_dir(&parent).unwrap().count(), 1);
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
+#[test]
+fn raced_parent_creation_sync_failures_stop_before_staging() {
+    for failure in [
+        FileCommitStep::CreatedDirectorySync,
+        FileCommitStep::CreatedDirectoryParentSync,
+    ] {
+        let root = temp_root("raced-parent-failure");
+        fs::create_dir(&root).unwrap();
+        let parent = root.join("new-parent");
+        let error = commit_with_hook(
+            &parent.join("output"),
+            b"never publish",
+            REPLACE_OPTIONS,
+            |step, selected| {
+                if step == FileCommitStep::ParentDirectoryCreate {
+                    fs::create_dir(selected)?;
+                }
+                if step == failure {
+                    return Err(io::Error::from_raw_os_error(5));
+                }
+                Ok(())
+            },
+        )
+        .expect_err("raced parent still requires our own synchronization");
+        assert!(
+            matches!(error, NamedWriteError::BeforePublication { source, cleanup_error: None }
+            if source.raw_os_error() == Some(5))
+        );
+        assert_eq!(fs::read_dir(&parent).unwrap().count(), 0);
+        fs::remove_dir_all(root).unwrap();
+    }
+}
+
 fn assert_no_temporary_files(root: &Path) {
     if !root.exists() {
         return;
@@ -706,7 +782,10 @@ fn assert_no_temporary_files(root: &Path) {
             assert_no_temporary_files(&path);
         } else {
             assert!(
-                !entry.file_name().to_string_lossy().contains(".canic-tmp-"),
+                !entry
+                    .file_name()
+                    .to_string_lossy()
+                    .starts_with(".ic-host-tmp-"),
                 "temporary file remains at {}",
                 path.display()
             );

@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.10.1]
+
+- Finish syncing newly created parent directories even when another writer wins
+  the creation race, so durable writes do not depend on that writer completing
+  its sync ([#43](https://github.com/dragginzgame/ic-host-tooling/issues/43)).
+
+See [the 0.10 notes](docs/changelog/0.10.md).
+
 ## [0.10.0] - 2026-10-09
 
 ### Breaking

@@ -664,7 +664,7 @@ mod supported {
         for directory in missing.into_iter().rev() {
             before(FileCommitStep::ParentDirectoryCreate, &directory)?;
             match fs::create_dir(&directory) {
-                Ok(()) => sync_created_directory(&directory, before)?,
+                Ok(()) => {}
                 Err(error) if error.kind() == io::ErrorKind::AlreadyExists => {
                     if !fs::symlink_metadata(&directory)?.is_dir() {
                         return Err(io::Error::new(
@@ -675,6 +675,9 @@ mod supported {
                 }
                 Err(error) => return Err(error),
             }
+            // A competing creator may stop after mkdir. Both paths must finish
+            // persisting this formerly missing directory and its parent link.
+            sync_created_directory(&directory, before)?;
         }
         Ok(())
     }

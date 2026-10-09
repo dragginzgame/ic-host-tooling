@@ -1,5 +1,39 @@
 # Current handoff
 
+## Follow-up: 2026-10-09, 0.10.1 cleanup assertions
+
+Reviewed adjacent publication failure paths with the pending #43 repair retained.
+Corrected `durable::tests::assert_no_temporary_files` to recognize the current
+`.ic-host-tmp-` staging namespace instead of the retired `.canic-tmp-` marker.
+Existing fault-path assertions now detect current staging leaks. No production
+behavior, API or function/method/type removal accompanies this test correction.
+Selected durable root tests pass; the log is
+`/tmp/ic-host-0101/cleanup-tests.log`. Rustfmt and whitespace checks pass.
+Pending notes remain 0.10.1. The existing native macOS qualification issues and
+consumer adoption tasks remain separate; both 0.10.0 macOS jobs are still queued.
+
+## Latest work: 2026-10-09, pending 0.10.1 parent-directory sync fix
+
+Confirmed pushed 0.10.0 `98562bea26a98993d93b80ed908bea4876c32a91` and a clean
+checkout. The [local-file review](../reports/audits/2026/10/09/parent-publication/01/report.md)
+reproduces a missing durability barrier when another creator wins an initially
+missing parent directory. Both mkdir outcomes now use the existing directory and
+parent-link sync routine before staging; sync errors retain BeforePublication.
+[Host #43](https://github.com/dragginzgame/ic-host-tooling/issues/43) owns follow-up.
+
+Selected next version is compatible **0.10.1**: no API or storage-format change,
+no consumer migration beyond 0.10.0, and no function/method/type removed. Both
+changelog views are updated; manifests and lockfile remain 0.10.0. Two regression
+tests fail before the fix; all 48 selected durable tests pass after it. Strict
+package/all-target Clippy and Rust 1.88 library check pass on Linux; evidence is
+retained in `/tmp/ic-host-0101/`. Source remains local and uncommitted.
+
+The exact 0.10.0 remote CI run passes Linux/MSRV, with both macOS jobs queued;
+it is not evidence for this dirty repair. All six existing consumer migration
+issues remain open. Shared remote main remains the adopted `b2646cd`; newer dirty
+sibling work was not adopted. No sibling mutation, full gate, tool download,
+release, publication, commit or push ran.
+
 ## Latest work: 2026-10-09, pending 0.10.0 publication hard cut
 
 Implemented the maintainer-approved pathname-writer consolidation against clean
