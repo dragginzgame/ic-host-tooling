@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.9.3]
+## [0.9.3] - 2026-10-09
 
 - Preserve literal hook-path selections and support formatting hooks in checkouts
   whose directory names end in newlines through Shared Tooling 0.2.5
