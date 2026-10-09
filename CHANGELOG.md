@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.9.4]
+## [0.9.4] - 2026-10-09
 
 - Share release and Rust formatting command definitions through Shared Tooling
   0.2.6, preserving Host's release policy and execution guards while removing
