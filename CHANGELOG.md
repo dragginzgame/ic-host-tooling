@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.8.6]
+## [0.8.6] - 2026-10-09
 
 - Allow caller-owned child communication without an elapsed-time deadline for
   long builds and foreground services, retaining output bounds, cancellation
