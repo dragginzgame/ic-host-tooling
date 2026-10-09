@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.9.7]
+## [0.9.7] - 2026-10-09
 
 - Accept recursive Make commands with additional arguments while preserving
   execution-mode checks, through Shared Tooling 0.2.8
