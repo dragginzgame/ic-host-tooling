@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.10.1]
+## [0.10.1] - 2026-10-09
 
 - Finish syncing newly created parent directories even when another writer wins
   the creation race, so durable writes do not depend on that writer completing
