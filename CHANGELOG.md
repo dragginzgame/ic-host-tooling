@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.9.2]
+## [0.9.2] - 2026-10-09
 
 - Preserve CI qualification for each pushed commit while allowing superseded PR
   checks to be cancelled
