@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.8.9]
+## [0.8.9] - 2026-10-09
 
 - Prepare missing locked Cargo dependencies during release preflight before
   offline validation, while honouring explicitly offline Cargo settings
