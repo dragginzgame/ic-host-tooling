@@ -200,7 +200,7 @@ install_selected() (
     selected_paths "$destination"
     [[ ! -e "$lock" && ! -L "$lock" ]] || { echo "Cargo tool installation locked: $lock" >&2; return 1; }
     host="$(rustc -vV | sed -n 's/^host: //p')"
-    [[ -n "$host" ]]
+    [[ -n "$host" ]] || return 1
     if [[ -e "$destination" ]]; then
         check_selected || {
             printf 'invalid selected Cargo tool: package=%s version=%s target=%s:%s profile=%s destination=%s\n' \
@@ -240,7 +240,7 @@ install_selected() (
             check_install_paths
             selected_paths "$slot"
             selected_paths "$stage"
-            [[ -x "$stage/bin/$target" ]]
+            [[ -x "$stage/bin/$target" ]] || return 1
             selected_receipt "$stage"
             [[ ! -e "$stage/selection.json" ]] || { echo 'unexpected candidate selection receipt' >&2; return 1; }
             selected_identity "$stage" > "$stage/selection.json"

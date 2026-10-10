@@ -33,7 +33,7 @@ export HOST_CARGO_EDIT_VERSION
 cat > "$fixture/bin/cargo" <<'STUB'
 #!/usr/bin/env bash
 set -euo pipefail
-[[ "$1" == install && "$2" == cargo-edit ]]
+[[ "$1" == install && "$2" == cargo-edit ]] || exit 1
 printf '%s\n' install >> "$RELEASE_TOOL_TEST_ROOT/installs"
 [[ "${RELEASE_TOOL_TEST_FAIL:-0}" == 0 ]] || exit "$RELEASE_TOOL_TEST_FAIL"
 destination=''; selected=''; target=''
@@ -45,7 +45,7 @@ while [[ $# -gt 0 ]]; do
     esac
     shift
 done
-[[ "$selected" == "=$HOST_CARGO_EDIT_VERSION" && "$target" == cargo-set-version ]]
+[[ "$selected" == "=$HOST_CARGO_EDIT_VERSION" && "$target" == cargo-set-version ]] || exit 1
 mkdir -p "$destination/bin"
 cat > "$destination/bin/$target" <<'TOOL'
 #!/usr/bin/env bash
@@ -74,33 +74,33 @@ export CARGO_NET_OFFLINE=true RUSTUP_AUTO_INSTALL=0
 cd "$fixture/consumer with spaces"
 selector="$fixture/tooling/scripts/release/tools.sh"
 if bash "$selector" check > "$fixture/missing.log" 2>&1; then exit 1; fi
-[[ ! -e "$fixture/installs" && ! -e "$fixture/global" ]]
+[[ ! -e "$fixture/installs" && ! -e "$fixture/global" ]] || exit 1
 selected="$(bash "$selector" install)"
-[[ -x "$selected" && "$selected" == "$PWD/"* ]]
-[[ "$(bash "$selector" check)" == "$selected" ]]
-[[ "$(bash "$selector" install)" == "$selected" ]]
-[[ "$(wc -l < "$fixture/installs")" == 1 ]]
+[[ -x "$selected" && "$selected" == "$PWD/"* ]] || exit 1
+[[ "$(bash "$selector" check)" == "$selected" ]] || exit 1
+[[ "$(bash "$selector" install)" == "$selected" ]] || exit 1
+[[ "$(wc -l < "$fixture/installs")" == 1 ]] || exit 1
 bash "$selector" run --workspace --offline 'literal argument'
 printf '%s\0' set-version --workspace --offline 'literal argument' > "$fixture/expected"
 cmp "$fixture/expected" "$fixture/arguments"
 status=0
 RELEASE_TOOL_TEST_RUN_STATUS=37 bash "$selector" run --help || status=$?
-[[ "$status" == 37 ]]
+[[ "$status" == 37 ]] || exit 1
 if RELEASE_TOOL_TEST_VERSION=0.0.0 bash "$selector" check > "$fixture/version.log" 2>&1; then exit 1; fi
 cp -p "$selected" "$fixture/original-tool"
 cp "$fixture/arguments" "$fixture/before-refusal"
 printf '\n# changed\n' >> "$selected"
 if bash "$selector" run --help > "$fixture/changed.log" 2>&1; then exit 1; fi
 cmp "$fixture/before-refusal" "$fixture/arguments"
-[[ ! -e "$fixture/global" && "$(wc -l < "$fixture/installs")" == 1 ]]
+[[ ! -e "$fixture/global" && "$(wc -l < "$fixture/installs")" == 1 ]] || exit 1
 cp -p "$fixture/original-tool" "$selected"
 mkdir "$fixture/failed-consumer"
 cd "$fixture/failed-consumer"
 status=0
 RELEASE_TOOL_TEST_FAIL=73 bash "$selector" install > "$fixture/install-failure.log" 2>&1 || status=$?
-[[ "$status" == 73 ]]
+[[ "$status" == 73 ]] || exit 1
 shopt -s nullglob
 retained=(.tools/rust/build/cargo-attempt.*/install.log)
-[[ ${#retained[@]} == 1 && ! -e "$fixture/global" ]]
+[[ ${#retained[@]} == 1 && ! -e "$fixture/global" ]] || exit 1
 echo 'Host release-tool selection, reuse, offline refusal and retained failures passed (substitute Cargo install)'
 completed=true

@@ -161,7 +161,7 @@ make test-tools-response checks the response-only library, and
 make tools-features-check verifies its actual production dependency exclusions
 and the default extractor's required owners.
 Prepare the declared Rust toolchain, then run `make install-tools` followed by
-`make tools-check`. Shared Tooling 0.3.6 prepares and verifies the complete common
+`make tools-check`. Shared Tooling 0.3.7 prepares and verifies the complete common
 set in order: jq, yq, ripgrep with PCRE2 and cloc; the five pinned IC executables;
 then cargo-sort, cargo-sort-derives and candid-extractor. The offline check never
 installs tools. CI and selected release preflight use these same aggregate targets;
@@ -210,7 +210,7 @@ fetching does not upgrade dependencies or change the lockfile selection.
 The five-tool IC executable bundle (Quill, ICP CLI, didc, ic-wasm and wasm-opt)
 remains available through make install-ic-tools and its offline check.
 Host's separately owned `ci/ic-tools.tsv` selects Binaryen 133 for all three
-supported hosts, matching Shared Tooling 0.3.6. Run make install-ic-tools to
+supported hosts, matching Shared Tooling 0.3.7. Run make install-ic-tools to
 prepare the selection, then make ic-tools-check; previous bundles are preserved.
 The archive-test member names are synthetic fixtures, not additional tool pins.
 Shared's Node-based optimizer qualification remains upstream; Host has no product

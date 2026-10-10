@@ -104,7 +104,7 @@ for selection in ordinary environment command nested recursive; do
         if [[ "$target" == fmt-check ]]; then
             grep -Fx 'Checking formatting... ok' "$fixture/$selection-$target.log" >/dev/null
         fi
-        [[ ! -e "$HOST_MAKE_EXTERNAL" ]]
+        [[ ! -e "$HOST_MAKE_EXTERNAL" ]] || exit 1
     done
 done
 unset SHARED_TOOLING_ROOT
@@ -140,8 +140,8 @@ for mode in install check; do
         status=0
         HOST_MAKE_TOOL_FAIL="install-$failed-tools.sh" HOST_MAKE_TOOL_FAIL_MODE="$mode" make --no-print-directory -j4 "$target" \
             "SHARED_TOOLING_ROOT=$fixture/external" > "$fixture/$target-$failed.log" 2>&1 || status=$?
-        if [[ "$failed" == none ]]; then [[ "$status" == 0 ]];
-        else [[ "$status" == 2 ]]; fi
+        if [[ "$failed" == none ]]; then [[ "$status" == 0 ]] || exit 1;
+        else [[ "$status" == 2 ]] || exit 1; fi
         : > "$fixture/expected"
         if [[ "$mode" == install ]]; then
             printf '%s\n' 'install-ic-tools.sh preflight' 'install-rust-tools.sh preflight' >> "$fixture/expected"
@@ -151,7 +151,7 @@ for mode in install check; do
             [[ "$tool" != "$failed" ]] || break
         done
         cmp "$fixture/expected" "$HOST_MAKE_EVENTS"
-        [[ ! -e "$HOST_MAKE_EXTERNAL" ]]
+        [[ ! -e "$HOST_MAKE_EXTERNAL" ]] || exit 1
     done
 done
 # Admission must finish before any of the four installation stages may run.
@@ -160,11 +160,11 @@ for failed in ic rust; do
     status=0
     HOST_MAKE_TOOL_FAIL="install-$failed-tools.sh" HOST_MAKE_TOOL_FAIL_MODE=preflight \
         make --no-print-directory -j4 install-tools > "$fixture/preflight-$failed.log" 2>&1 || status=$?
-    [[ "$status" == 2 ]]
+    [[ "$status" == 2 ]] || exit 1
     printf '%s\n' 'install-ic-tools.sh preflight' > "$fixture/expected"
     if [[ "$failed" == rust ]]; then printf '%s\n' 'install-rust-tools.sh preflight' >> "$fixture/expected"; fi
     cmp "$fixture/expected" "$HOST_MAKE_EVENTS"
-    [[ ! -e "$HOST_MAKE_EXTERNAL" ]]
+    [[ ! -e "$HOST_MAKE_EXTERNAL" ]] || exit 1
 done
 # Real pipe-descriptor admission in substituted Cargo, without compiling.
 for helper in scripts/ci/check-dependency-pins.sh scripts/release/test-tools.sh \
@@ -179,7 +179,7 @@ mkdir -p "$fixture/local/scripts/publish"
 cat > "$fixture/local/scripts/publish/workspace.sh" <<'STUB'
 #!/usr/bin/env bash
 set -euo pipefail
-[[ "$1" == publish || "$1" == check ]]
+[[ "$1" == publish || "$1" == check ]] || exit 1
 exec cargo "$1"
 STUB
 jobserver_options=(--no-print-directory -j4)
@@ -197,13 +197,13 @@ for target in fmt fmt-check; do
     status=0
     HOST_MAKE_FAIL=sort RUNNER_TEMP="$fixture" make --no-print-directory "$target" \
         "FORMAT_CARGO=$PWD/cargo" > "$fixture/$target-failure.log" 2>&1 || status=$?
-    [[ "$status" == 2 ]]
+    [[ "$status" == 2 ]] || exit 1
     grep -F 'FAILED (exit 23)' "$fixture/$target-failure.log" >/dev/null
     detail="$(sed -n 's/^Details: //p' "$fixture/$target-failure.log")"
-    [[ -f "$detail" ]]
+    [[ -f "$detail" ]] || exit 1
     printf 'formatter stdout evidence\nformatter stderr evidence\n' > "$fixture/expected-log"
     cmp "$fixture/expected-log" "$detail"
-    [[ "$(wc -l < "$HOST_MAKE_EVENTS")" == 1 ]]
+    [[ "$(wc -l < "$HOST_MAKE_EVENTS")" == 1 ]] || exit 1
 done
 # Outer Make must reject unsafe modes before any substituted effect can run.
 for mode in -i --ignore-errors -n -t -q; do
@@ -225,7 +225,7 @@ for mode in -i --ignore-errors -n -t -q; do
             else
                 MAKEFLAGS="$mode" make "${args[@]}" > "$fixture/$selection-$mode-$target.log" 2>&1 || status=$?
             fi
-            [[ "$status" == 2 && ! -s "$HOST_MAKE_EVENTS" && ! -e "$HOST_MAKE_EXTERNAL" ]]
+            [[ "$status" == 2 && ! -s "$HOST_MAKE_EVENTS" && ! -e "$HOST_MAKE_EXTERNAL" ]] || exit 1
         done
     done
 done

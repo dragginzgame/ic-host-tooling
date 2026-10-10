@@ -37,7 +37,7 @@ for backend in gnu perl; do
         expected="${!algorithm}"
         for file in 'file with spaces' '-leading-dash' 'back\slash' $'line\nbreak'; do
             actual="$(PATH="$fixture/$backend" "$BASH" "$checker" --print "$algorithm" "$file")"
-            [[ "$actual" == "$expected" ]]
+            [[ "$actual" == "$expected" ]] || exit 1
             PATH="$fixture/$backend" "$BASH" "$checker" "$algorithm" "$expected" "$file"
         done
     done
@@ -45,7 +45,7 @@ done
 expect_failure() {
     local status=0
     "$@" > "$fixture/output" 2> "$fixture/error" || status=$?
-    [[ "$status" != 0 && ! -s "$fixture/output" && -s "$fixture/error" ]]
+    [[ "$status" != 0 && ! -s "$fixture/output" && -s "$fixture/error" ]] || exit 1
 }
 expect_failure "$BASH" "$checker" --print sha256 absent
 expect_failure "$BASH" "$checker" --print sha256 "$fixture"
@@ -70,6 +70,6 @@ for output in '' abc "$sha256 extra" "$sha256  - extra" "$sha512  -" "$sha256  -
 done
 expect_failure env PATH="$fixture/fake" DIGEST_OUTPUT="$sha256  -" DIGEST_STATUS=9 \
     "$BASH" "$checker" --print sha256 'file with spaces'
-[[ "$(cat "$fixture/error")" != *'unexpected fallback'* ]]
+[[ "$(cat "$fixture/error")" != *'unexpected fallback'* ]] || exit 1
 echo 'Portable digest vectors, filenames, backend failures and verifier round trips passed'
 fixture_complete=true

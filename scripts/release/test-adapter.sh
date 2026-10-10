@@ -43,7 +43,7 @@ adapter="$adapter_root/scripts/release/adapter.sh"
 cat > "$adapter_root/scripts/release/tools.sh" <<'STUB'
 #!/usr/bin/env bash
 set -euo pipefail
-[[ "$1" == run ]]
+[[ "$1" == run ]] || exit 1
 shift
 exec cargo set-version "$@"
 STUB
@@ -72,8 +72,8 @@ cp "$root/scripts/ci/read-cargo-workspace-version.sh" "$tooling/scripts/ci/"
 (
     cd "$fixture"
     export CDPATH="$fixture/decoy:$fixture"
-    [[ "$(bash "$tooling/scripts/release/adapter.sh" version)" == "$RELEASE_PREVIOUS" ]]
-    [[ "$(bash "${tooling#"$fixture/"}/scripts/release/adapter.sh" version)" == "$RELEASE_PREVIOUS" ]]
+    [[ "$(bash "$tooling/scripts/release/adapter.sh" version)" == "$RELEASE_PREVIOUS" ]] || exit 1
+    [[ "$(bash "${tooling#"$fixture/"}/scripts/release/adapter.sh" version)" == "$RELEASE_PREVIOUS" ]] || exit 1
 )
 # Heading presentation must not detach notes from the selected release.
 printf '# Changelog\n\n## [%s] \t \n\n- Fixture notes.\n' "$RELEASE_VERSION" > "$fixture/CHANGELOG.md"
@@ -230,7 +230,7 @@ for operation in preflight verify prepare; do
     status=0
     ADAPTER_GIT_QUERY='rev-parse HEAD' bash "$adapter" "$operation" \
         > "failed-head-$operation.log" 2>&1 || status=$?
-    [[ "$status" == 23 && ! -s "$ADAPTER_EVENTS" && ! -e release-state ]]
+    [[ "$status" == 23 && ! -s "$ADAPTER_EVENTS" && ! -e release-state ]] || exit 1
     cmp source/Cargo.toml Cargo.toml
     cmp source/Cargo.lock Cargo.lock
     cmp source/CHANGELOG.md CHANGELOG.md
@@ -242,7 +242,7 @@ for reader in next-release-version.sh read-cargo-workspace-version.sh lock; do
     status=0
     ADAPTER_FAILED_READER="$reader" bash "$adapter" preflight \
         > "failed-reader-$reader.log" 2>&1 || status=$?
-    [[ "$status" == 23 && ! -e release-state ]]
+    [[ "$status" == 23 && ! -e release-state ]] || exit 1
     if grep -E '^make |^cargo (fetch|set-version)' "$ADAPTER_EVENTS"; then exit 1; fi
     cmp source/Cargo.toml Cargo.toml
     cmp source/Cargo.lock Cargo.lock
@@ -287,10 +287,10 @@ for scenario in online offline network verify source; do
         bash "$adapter" "$operation"
     ) > "cache-$scenario.log" 2>&1 || status=$?
     case "$scenario" in
-        online) [[ "$status" == 0 && -f "$cache" ]]; cmp accepted-events "$ADAPTER_EVENTS" ;;
-        offline|verify) [[ "$status" == 101 && ! -e "$cache" ]] ;;
-        network) [[ "$status" == 73 && ! -e "$cache" ]] ;;
-        source) [[ "$status" != 0 && ! -e "$cache" && ! -s "$ADAPTER_EVENTS" ]] ;;
+        online) [[ "$status" == 0 && -f "$cache" ]] || exit 1; cmp accepted-events "$ADAPTER_EVENTS" ;;
+        offline|verify) [[ "$status" == 101 && ! -e "$cache" ]] || exit 1 ;;
+        network) [[ "$status" == 73 && ! -e "$cache" ]] || exit 1 ;;
+        source) [[ "$status" != 0 && ! -e "$cache" && ! -s "$ADAPTER_EVENTS" ]] || exit 1 ;;
     esac
     if [[ "$scenario" == verify ]]; then
         grep -Fx 'cargo fetch --locked --offline' "$ADAPTER_EVENTS" > /dev/null
@@ -301,7 +301,7 @@ for scenario in online offline network verify source; do
     if grep -E '^make .* (ci|msrv)|^cargo set-version --workspace' "$ADAPTER_EVENTS"; then
         echo 'Cache preparation dispatched validation or version mutation' >&2; exit 1
     fi
-    [[ ! -e release-state ]]
+    [[ ! -e release-state ]] || exit 1
     cmp Cargo.lock source/Cargo.lock
     cmp Cargo.toml source/Cargo.toml
     cmp CHANGELOG.md source/CHANGELOG.md
@@ -395,12 +395,12 @@ for query in 'rev-parse HEAD' 'diff --binary HEAD' 'hash-object --stdin'; do
         ADAPTER_GIT_QUERY="$query" ADAPTER_GIT_FAILURE_AT="$occurrence" \
             bash "$adapter" verify > "failed-verify-$occurrence.log" 2>&1 || status=$?
         [[ "$status" == 23 && ! -e "release-state/$RELEASE_VERSION.validation" &&
-            ! -e "release-state/$RELEASE_VERSION.validation.notes" ]]
+            ! -e "release-state/$RELEASE_VERSION.validation.notes" ]] || exit 1
         if [[ "$occurrence" == 1 ]]; then
             if grep -E '^make .* (ci|msrv)' "$ADAPTER_EVENTS"; then exit 1; fi
         else
             grep -Fx 'make --no-print-directory msrv PACKAGE=ic-host-tools' "$ADAPTER_EVENTS" > /dev/null
-            [[ -f "release-state/$RELEASE_VERSION.validation.log" ]]
+            [[ -f "release-state/$RELEASE_VERSION.validation.log" ]] || exit 1
         fi
         cmp source/Cargo.toml Cargo.toml
         cmp source/Cargo.lock Cargo.lock
@@ -439,7 +439,7 @@ for operation in prepare verify; do
     ADAPTER_GIT_QUERY='rev-parse HEAD' ADAPTER_GIT_FAILURE_AT="$occurrence" \
         bash "$adapter" "$operation" \
         > "failed-receipted-$operation.log" 2>&1 || status=$?
-    [[ "$status" == 23 ]]
+    [[ "$status" == 23 ]] || exit 1
     cmp saved-receipt "$receipt"
     cmp source/CHANGELOG.md "$receipt.notes"
 done
@@ -456,7 +456,7 @@ for operation in check commit-check; do
     status=0
     ADAPTER_FAILED_READER=read-cargo-workspace-version.sh bash "$adapter" "$operation" \
         > "failed-prepared-$operation.log" 2>&1 || status=$?
-    [[ "$status" == 23 ]]
+    [[ "$status" == 23 ]] || exit 1
     cmp committed/Cargo.toml Cargo.toml
     cmp committed/Cargo.lock Cargo.lock
     cmp committed/CHANGELOG.md CHANGELOG.md
@@ -468,7 +468,7 @@ rm -f query-count
 status=0
 ADAPTER_GIT_QUERY="rev-parse $RELEASE_COMMIT^{commit}" \
     bash "$adapter" committed-check > failed-committed-query.log 2>&1 || status=$?
-[[ "$status" == 23 ]]
+[[ "$status" == 23 ]] || exit 1
 cmp saved-receipt "$receipt"
 cmp source/CHANGELOG.md "$receipt.notes"
 cmp committed/Cargo.toml Cargo.toml

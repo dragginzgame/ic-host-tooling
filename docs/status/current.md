@@ -1,6 +1,44 @@
 # Current handoff
 
-## Pending 0.12.5 — reject invalid paths and failed source observations
+## Pending 0.12.7 — Shared 0.3.7 and explicit portable assertions
+
+Released base: 0.12.6 (`5f356ef`). The canonical exporter refreshed the same
+90-file selection from clean, isolated Shared 0.3.7
+`34e5ad7aac3599306c9572bb547f2239d09df1a3`, verified against remote main.
+Current baseline references identify that source. Shared fixes mandatory Bash
+3.2 assertions in selected fixtures, the Cargo installer and evidence action.
+Host 0.12.6 already applies the adopted newest-run CI policy; its matrix remains.
+
+[Host #57](https://github.com/dragginzgame/ic-host-tooling/issues/57) tracks this
+adoption and the matching consumer-owned repair. Host's Make, release,
+publication and retention fixtures and native CI admission now explicitly reject
+failed mandatory comparisons. Intentional predicates and completion guards keep
+their contracts. The compatible tooling correction selects pending 0.12.7;
+library source, Cargo versions/lockfile and tool pins remain unchanged.
+
+Before repair, the real release-tool fixture accepted a substituted exit 36
+where it required 37 on Bash 3.2, reported success and removed its evidence.
+The maintained regression now requires failure and retained evidence. The old
+native CI snippet also accepted wrong OS, architecture and macOS version
+observations on Bash 3.2; the repaired snippet rejects each while accepting
+valid inputs on both Bash profiles. These are controlled Linux substitutions,
+not native macOS evidence.
+
+All 13 affected fixture entrypoints pass on current Bash and genuine Bash 3.2.57
+on Linux. Host/IC installer fixtures also exercise the evidence fixture and actual
+composite collector with their disposable consumers. An extra standalone call
+to that companion omitted its required arguments and returned usage; its proper
+caller-driven cases passed on both profiles. ShellCheck, actionlint, snapshot
+integrity, complete offline tool admission, dependency declarations, local links
+and diff checks pass. Package and pin checksums match the incoming checkout.
+
+Evidence: `/tmp/host-shared037.H69Dyc/`; original false-success fixture:
+`/tmp/host-fixture-retention.CjPRUu/`. Delivery and native macOS qualification
+remain separate under #57. No full gate, install, download, sibling edit,
+commit, push or release ran. Earlier handoff sections below are historical
+evidence; their queue and pending-release observations are not current status.
+
+## Historical preparation for released 0.12.5 — paths and source observations
 
 Released base: 0.12.4 (`5400f159474cebac1ec7ae7c8763abfd258bde03`).
 [Host #54](https://github.com/dragginzgame/ic-host-tooling/issues/54) is implemented

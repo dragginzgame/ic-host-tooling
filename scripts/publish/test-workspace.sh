@@ -48,7 +48,7 @@ case "$*" in
     init\ --bare\ *) mkdir -p "$3" ;;
     -C\ *\ fetch\ --no-tags\ --depth=1\ *)
         [[ "$6" == https://github.com/dragginzgame/ic-host-tooling &&
-           "$7" == 0000000000000000000000000000000000000000 ]]
+           "$7" == 0000000000000000000000000000000000000000 ]] || exit 1
         printf '%s\n' "$*" >> "$PUBLISH_FIXTURE/fetch-calls"
         exit "${PUBLISH_FETCH_RESULT:-0}" ;;
     -C\ *\ rev-parse\ --verify\ *)
@@ -87,7 +87,7 @@ case "$1" in
     publish)
         # Intent must exist before dispatch, including when Cargo then fails.
         intents=(target/publish/*/intent)
-        [[ -f "${intents[0]}" ]]
+        [[ -f "${intents[0]}" ]] || exit 1
         printf '%s\0' "$@" > "$PUBLISH_FIXTURE/arguments"
         mkdir -p target/package
         printf 'retained package\n' > target/package/fixture.crate
@@ -128,7 +128,7 @@ printf '%s\0' publish --manifest-path "$fixture/Cargo.toml" --workspace \
     --registry crates-io --all-features --locked --target-dir "$fixture/target" \
     --dry-run --allow-dirty > expected-arguments
 cmp expected-arguments arguments
-[[ ! -e fetch-calls && ! -e package-arguments ]]
+[[ ! -e fetch-calls && ! -e package-arguments ]] || exit 1
 
 : > calls
 invoke publish > publish.log 2>&1
@@ -141,10 +141,10 @@ printf '%s\0' package --manifest-path "$fixture/Cargo.toml" --workspace \
     --registry crates-io --all-features --locked --no-verify --target-dir "$fixture/target" > expected-package-arguments
 cmp expected-package-arguments package-arguments
 attempts=(target/publish/publish.*)
-[[ ${#attempts[@]} == 1 ]]
+[[ ${#attempts[@]} == 1 ]] || exit 1
 attempt="${attempts[0]}"
 successful_attempt="$attempt"
-[[ -f "$attempt/source-verified" && -f "$attempt/source-request" && -f "$attempt/ic-host-fs-vcs.json" ]]
+[[ -f "$attempt/source-verified" && -f "$attempt/source-request" && -f "$attempt/ic-host-fs-vcs.json" ]] || exit 1
 
 # Stop at Cargo's failure and retain the attempt's intent, log and artifacts.
 : > calls
@@ -153,12 +153,12 @@ PUBLISH_CARGO_RESULT=17 invoke publish > failed.log 2>&1 || status=$?
 [[ "$status" == 17 ]] || exit 1
 cmp expected-calls calls
 attempts=(target/publish/publish.*)
-[[ ${#attempts[@]} == 2 ]]
+[[ ${#attempts[@]} == 2 ]] || exit 1
 for attempt in "${attempts[@]}"; do
     [[ "$attempt" == "$successful_attempt" ]] || break
 done
-[[ -f "$attempt/intent" && -f "$attempt/arguments" && -f "$attempt/cargo.log" && "$(cat "$attempt/status")" == 17 ]]
-[[ -f target/package/fixture.crate && ! -e target/publish/lock ]]
+[[ -f "$attempt/intent" && -f "$attempt/arguments" && -f "$attempt/cargo.log" && "$(cat "$attempt/status")" == 17 ]] || exit 1
+[[ -f target/package/fixture.crate && ! -e target/publish/lock ]] || exit 1
 
 # Plausible stdout from a failed metadata query is never upload authority.
 : > calls
@@ -194,7 +194,7 @@ for scenario in package-failed vcs-missing vcs-dirty vcs-mismatch vcs-path fetch
     [[ "$status" != 0 ]] || exit 1
     printf 'metadata\npackage\n' > expected-calls
     cmp expected-calls calls
-    [[ ! -e target/publish/lock ]]
+    [[ ! -e target/publish/lock ]] || exit 1
     rm -f source-changed
 done
 # Failed observations must stop both modes, even with expected identity stdout
@@ -214,10 +214,10 @@ for mode in check publish; do
                 if [[ "$mode" == publish ]]; then printf 'package\n' >> expected-calls; fi
                 # The fixture root includes a newline; resolve by the relative attempt suffix.
                 attempt="$(sed -n 's,^/target/publish/,target/publish/,p' observation-failure.log)"
-                [[ -f "$attempt/intent" && ! -e "$attempt/cargo.log" && ! -e "$attempt/status" ]]
+                [[ -f "$attempt/intent" && ! -e "$attempt/cargo.log" && ! -e "$attempt/status" ]] || exit 1
             fi
             cmp expected-calls calls
-            [[ ! -e target/publish/lock && ! -e arguments ]]
+            [[ ! -e target/publish/lock && ! -e arguments ]] || exit 1
         done
     done
 done

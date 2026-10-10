@@ -42,11 +42,31 @@ for input in scripts/ci/test-make-snapshot.sh scripts/release/test-adapter.sh \
             > "$attempt.log" 2>&1 || status=$?
         expected=1
         [[ "$failure" != status ]] || expected=17
-        [[ "$status" == "$expected" ]]
+        [[ "$status" == "$expected" ]] || exit 1
         retained=("$attempt/"*)
-        [[ ${#retained[@]} == 1 && -d "${retained[0]}" ]]
-        [[ "$(cat "${retained[0]}/failure-marker")" == evidence ]]
+        [[ ${#retained[@]} == 1 && -d "${retained[0]}" ]] || exit 1
+        [[ "$(cat "${retained[0]}/failure-marker")" == evidence ]] || exit 1
     done
 done
-echo 'Host fixtures reject premature completion and retain failure evidence'
+# Contradict the real release-tool fixture's expected child status. Unlike an
+# early exit, a skipped assertion can reach completion and delete its evidence.
+assertion_root="$fixture/assertion-source"
+for input in scripts/release/test-tools.sh scripts/release/tools.sh \
+    scripts/dev/install-rust-tools.sh scripts/ci/verify-file-checksum.sh \
+    ci/release-tools.env; do
+    mkdir -p "$assertion_root/${input%/*}"
+    cp "$root/$input" "$assertion_root/$input"
+done
+sed 's/RELEASE_TOOL_TEST_RUN_STATUS=37 /RELEASE_TOOL_TEST_RUN_STATUS=36 /' \
+    "$root/scripts/release/test-tools.sh" > "$assertion_root/scripts/release/test-tools.sh"
+attempt="$fixture/assertion-attempt"
+mkdir "$attempt"
+status=0
+TMPDIR="$attempt" bash "$assertion_root/scripts/release/test-tools.sh" \
+    > "$fixture/assertion.log" 2>&1 || status=$?
+[[ "$status" == 1 ]] || exit 1
+retained=("$attempt/"*)
+[[ ${#retained[@]} == 1 && -f "${retained[0]}/arguments" ]] || exit 1
+if grep -F 'Host release-tool selection' "$fixture/assertion.log"; then exit 1; fi
+echo 'Host fixtures reject premature completion and wrong assertions, retaining failure evidence'
 completed=true

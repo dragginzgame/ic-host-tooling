@@ -41,10 +41,10 @@ jobs:
           EXPECTED_OS: ${{ matrix.os }}
           EXPECTED_ARCHITECTURE: ${{ matrix.architecture }}
         run: |
-          [[ "$(uname -s)" == "$EXPECTED_OS" ]]
-          [[ "$(uname -m)" == "$EXPECTED_ARCHITECTURE" ]]
+          [[ "$(uname -s)" == "$EXPECTED_OS" ]] || exit 1
+          [[ "$(uname -m)" == "$EXPECTED_ARCHITECTURE" ]] || exit 1
           if [[ "$EXPECTED_OS" == Darwin ]]; then
-            [[ "$(sw_vers -productVersion)" == 15.* ]]
+            [[ "$(sw_vers -productVersion)" == 15.* ]] || exit 1
             echo /bin >> "$GITHUB_PATH"
           fi
       # dtolnay/rust-toolchain v1

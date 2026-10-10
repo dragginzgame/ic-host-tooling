@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.12.7]
+
+- Adopt Shared Tooling 0.3.7 and make mandatory CI, installer and fixture checks
+  reject failed assertions on Bash 3.2, preserving failed-test evidence
+  ([#57](https://github.com/dragginzgame/ic-host-tooling/issues/57),
+  [Shared #107](https://github.com/dragginzgame/shared-tooling/issues/107)).
+  [Detailed notes](docs/changelog/0.12.md).
+
 ## [0.12.6] - 2026-10-10
 
 - Keep only the newest CI run per workflow and branch or PR, cancelling older
