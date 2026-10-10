@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.10.2]
+## [0.10.2] - 2026-10-10
 
 - Reject directory-suffixed publication targets instead of replacing the stripped
   filename ([#44](https://github.com/dragginzgame/ic-host-tooling/issues/44)).
