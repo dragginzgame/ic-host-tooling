@@ -1,6 +1,51 @@
 # Current handoff
 
-## Pending 0.12.3 — Shared Tooling 0.3.3 adoption
+## Pending 0.12.4 — Binaryen 133 and Shared Tooling 0.3.4
+
+Released base: 0.12.3 (`aec863191b3c96ef879e59af701cbe1451595f25`).
+Package versions remain 0.12.3. The next patch selects Binaryen 133 under the
+existing compatible setup/check contract; library APIs, Cargo selections and
+all other tool pins are unchanged. Explicit `make install-ic-tools` prepares
+this selection; offline checks never install it.
+[Host #53](https://github.com/dragginzgame/ic-host-tooling/issues/53) owns adoption
+and remaining native qualification.
+
+Canonically refreshed the unchanged 90-file selection from clean isolated Shared
+`169d77b8440568c5200eede971625126181f7bb2`, verified against remote main.
+Only the selected IC-tool and supported-host guidance changed, plus snapshot
+provenance. AGENTS, README and local host guidance identify the new baseline.
+That documentation-only refresh initially retained 132; the maintainer then
+explicitly authorized moving Host's separately owned IC pin matrix to 133.
+The original adoption evidence and incoming handoff are preserved at
+`/tmp/host-shared034.LQxPTh/`.
+
+All three retained official 133 archives match their reviewed digests. Actual
+Linux setup downloaded and verified the new bundle, and complete offline
+`make tools-check` passes. The old 132 selection was refused before setup;
+subsequent setup reuse passes with curl blocked and keeps the same new bundle.
+All files in the prior bundle remain unchanged by checksum.
+Host's selected 133 executable passes optimization at -O3, -Os and -Oz and
+Node 24.21.0 execution of the unchanged committed Shared fixture, including
+IC-shaped imports/exports, integer boundaries and reply bytes. The O0 input
+also executes correctly. Host has no product optimizer invocation or canister
+build; archive member names containing 132 remain synthetic fixture inputs.
+No Node dependency or optimizer gate was added to Host.
+
+Evidence, selected binary/pin/fixture hashes and the incoming handoff are retained
+in `/tmp/host-binaryen133.kpkq5f/`. Snapshot, dependency declaration, documentation
+link and diff checks pass. Preserved digests confirm Cargo.toml, Cargo.lock and
+the host/Cargo/release pin files are unchanged.
+No Rust build, full delivery gate, commit, push or release ran. Native Host
+macOS 15 Intel/Apple Silicon setup/check remains pending against delivered
+source; verifying macOS archive bytes on Linux does not qualify execution.
+[Shared #102](https://github.com/dragginzgame/shared-tooling/issues/102) retains
+independent producer optimizer qualification. The existing Host CI matrix
+prepares and admits the selected pins on all three native hosts.
+
+## Released 0.12.3 — Shared Tooling 0.3.3 adoption
+
+The following records original pre-release evidence; the maintainer subsequently
+released this source as 0.12.3. Current adoption is recorded above.
 
 Released base: 0.12.2 (`e1ef99e6a4c6d05f0b0d8364f8586c6cc358dadc`).
 Package versions remain 0.12.2. The next patch adopts compatible jobserver and
@@ -227,7 +272,7 @@ diagnostic-contract change therefore belongs at the next minor boundary.
 
 ## Shared baseline and evidence
 
-The current baseline is Shared 0.3.3, as recorded above and in AGENTS.md.
+The current baseline is Shared 0.3.4, as recorded above and in AGENTS.md.
 The following evidence records the earlier 0.2.13 adoption in released 0.11.0:
 `5864f468d39f8f9d1bd26fca1afe0e20f25f1b5e`, verified against remote main and exported
 from a clean isolated checkout. The existing 89-file selection is unchanged.

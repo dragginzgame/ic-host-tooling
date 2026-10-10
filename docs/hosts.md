@@ -27,9 +27,20 @@ this selection too; Linux installation and substitute installer fixtures do not
 qualify its native macOS build or execution.
 CI also owns native macOS execution; Linux qualification is not macOS evidence.
 `ci/ic-tools.tsv` is a consumer-owned pin selection, excluded from automatic
-snapshot refreshes. Shared 0.2.0 adoption removes its PocketIC rows; versions and
-digests for Quill, ICP CLI, didc, ic-wasm and wasm-opt are retained. Host library
-gates have no PocketIC callers, so no simulator dependency or setup is added.
+snapshot refreshes. Host selects Binaryen 133 for all three supported hosts,
+using the reviewed Shared 0.3.4 version and archive digests. Explicit IC setup,
+offline admission and optimization/execution smoke pass on Linux; native macOS
+setup/check remains tracked in [Host #53](https://github.com/dragginzgame/ic-host-tooling/issues/53).
+Host has no production optimizer invocation or canister build;
+archive fixtures containing `binaryen-version_132` exercise member lookup only.
+The upstream Node-based optimizer smoke is not added to this Rust library's
+validation surface. Native producer optimizer qualification remains owned by
+[Shared #102](https://github.com/dragginzgame/shared-tooling/issues/102).
+Pin changes use explicit IC setup, preserving old bundles, and need native
+acceptance independently of snapshot integrity.
+Shared 0.2.0 adoption removed its PocketIC rows while retaining the other tools.
+Host library gates have no PocketIC callers, so no simulator dependency or setup
+is added.
 Consumers that need a simulator use Testkit's qualified setup/check/run contract.
 The shared installer reads this one local five-tool matrix. Existing six-tool
 bundles fail the new offline check; explicit `make install-ic-tools` prepares

@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.12.4]
+
+- Select Binaryen 133 for Linux and both macOS architectures, using the reviewed
+  Shared Tooling 0.3.4 pins. Refresh local tools with `make install-ic-tools`;
+  previous bundles are preserved
+  ([#53](https://github.com/dragginzgame/ic-host-tooling/issues/53)).
+
+See [the 0.12 notes](docs/changelog/0.12.md).
+
 ## [0.12.3] - 2026-10-10
 
 - Adopt Shared Tooling 0.3.3, including shared Cargo jobserver forwarding and
