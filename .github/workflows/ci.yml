@@ -67,6 +67,13 @@ jobs:
           echo "$PWD/.tools/ic/bin" >> "$GITHUB_PATH"
       - name: Run native CI
         run: CARGO_NET_OFFLINE=true make ci
+      - name: Retain failure evidence
+        if: ${{ failure() }}
+        uses: ./.github/actions/retain-failure-evidence
+        with:
+          name: native-failure-${{ matrix.runner }}-${{ github.run_attempt }}
+          temp-root: ${{ runner.temp }}
+          repository-root: ${{ github.workspace }}
 
   msrv:
     runs-on: ubuntu-24.04

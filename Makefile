@@ -59,7 +59,7 @@ tooling-command-check:
 	bash scripts/ci/test-make-snapshot.sh
 	bash scripts/ci/test-tool-commands.sh
 	bash scripts/ci/test-rust-tools.sh
-	bash scripts/ci/check-release-commands.sh "$(CURDIR)" ci/tool-versions.env make/tools.mk make/rust-format.mk make/release.mk make/execution.mk scripts/ci/check-make-execution.sh
+	bash scripts/ci/check-release-commands.sh "$(CURDIR)" ci/tool-versions.env make/tools.mk make/rust-format.mk make/release.mk make/execution.mk scripts/ci/check-make-execution.sh scripts/ci/run-formatting.sh
 	bash scripts/ci/test-cloc.sh
 publish:
 	bash scripts/publish/workspace.sh publish

@@ -18,7 +18,7 @@ finish() {
 trap finish EXIT
 for input in Makefile ci/tool-versions.env make/tools.mk make/rust-format.mk \
     make/release.mk make/execution.mk scripts/ci/check-make-execution.sh \
-    scripts/ci/check-format-tools.sh; do
+    scripts/ci/check-format-tools.sh scripts/ci/run-formatting.sh; do
     parent=.
     [[ "$input" != */* ]] || parent="${input%/*}"
     mkdir -p "$fixture/local/$parent"
@@ -39,7 +39,14 @@ set -euo pipefail
 case "$*" in
     'sort --version') printf 'cargo-sort %s\n' "$HOST_MAKE_SORT_VERSION" ;;
     'fmt --version') echo rustfmt ;;
-    *) printf '%s\n' "$*" >> "$HOST_MAKE_EVENTS" ;;
+    *)
+        printf '%s\n' "$*" >> "$HOST_MAKE_EVENTS"
+        if [[ "${HOST_MAKE_FAIL:-}" == sort && "$1" == sort ]]; then
+            echo 'formatter stdout evidence'
+            echo 'formatter stderr evidence' >&2
+            exit 23
+        fi
+        ;;
 esac
 STUB
 cat > "$fixture/local/scripts/ci/run-release.sh" <<'STUB'
@@ -83,18 +90,41 @@ for selection in ordinary environment command nested recursive; do
             release-resume) printf 'resume 0.9.5 %s release-review\n' "$remote" > "$fixture/expected" ;;
         esac
         cmp "$fixture/expected" "$HOST_MAKE_EVENTS"
+        if [[ "$target" == fmt-check ]]; then
+            grep -Fx 'Checking formatting... ok' "$fixture/$selection-$target.log" >/dev/null
+        fi
         [[ ! -e "$HOST_MAKE_EXTERNAL" ]]
     done
 done
 unset SHARED_TOOLING_ROOT
+# Actual Host formatting stops after sorter failure and points at complete logs.
+for target in fmt fmt-check; do
+    : > "$HOST_MAKE_EVENTS"
+    status=0
+    HOST_MAKE_FAIL=sort RUNNER_TEMP="$fixture" make --no-print-directory "$target" \
+        "FORMAT_CARGO=$PWD/cargo" > "$fixture/$target-failure.log" 2>&1 || status=$?
+    [[ "$status" == 2 ]]
+    grep -F 'FAILED (exit 23)' "$fixture/$target-failure.log" >/dev/null
+    detail="$(sed -n 's/^Details: //p' "$fixture/$target-failure.log")"
+    [[ -f "$detail" ]]
+    printf 'formatter stdout evidence\nformatter stderr evidence\n' > "$fixture/expected-log"
+    cmp "$fixture/expected-log" "$detail"
+    [[ "$(wc -l < "$HOST_MAKE_EVENTS")" == 1 ]]
+done
 # Outer Make must reject unsafe modes before any substituted effect can run.
 for mode in -i --ignore-errors -n -t -q; do
-    for selection in direct inherited; do
-        for target in fmt-check release-patch; do
+    for selection in direct inherited cleared replaced erased; do
+        for target in fmt fmt-check release-patch release-minor release-major release-resume; do
             : > "$HOST_MAKE_EVENTS"
             args=(--no-print-directory "$target" "FORMAT_CARGO=$PWD/cargo" "SHARED_TOOLING_ROOT=$fixture/external" "MAKE=$recursive_make")
             status=0
-            if [[ "$selection" == direct ]]; then
+            if [[ "$selection" == cleared ]]; then
+                make "$mode" "${args[@]}" MAKEFLAGS= > "$fixture/$selection-$mode-$target.log" 2>&1 || status=$?
+            elif [[ "$selection" == replaced ]]; then
+                make "$mode" "${args[@]}" MAKEFLAGS=-j2 > "$fixture/$selection-$mode-$target.log" 2>&1 || status=$?
+            elif [[ "$selection" == erased ]]; then
+                make "$mode" "${args[@]}" MAKEFLAGS= MFLAGS= > "$fixture/$selection-$mode-$target.log" 2>&1 || status=$?
+            elif [[ "$selection" == direct ]]; then
                 make "$mode" "${args[@]}" > "$fixture/$selection-$mode-$target.log" 2>&1 || status=$?
             else
                 MAKEFLAGS="$mode" make "${args[@]}" > "$fixture/$selection-$mode-$target.log" 2>&1 || status=$?

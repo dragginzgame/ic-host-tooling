@@ -172,6 +172,15 @@ source_status="$(git -C "$SOURCE_ROOT" status --porcelain --untracked-files=all)
 
 source_revision="$(git -C "$SOURCE_ROOT" rev-parse HEAD)"
 [[ "$source_revision" =~ ^[0-9a-f]{40,64}$ ]] || fail "source revision is malformed"
+# Read the display version from the same immutable source as the payload, never
+# the working tree or the consumer's own VERSION. Preserve invalid extra lines.
+committed_mode "$source_revision" VERSION >/dev/null || fail "source VERSION must be a committed regular file"
+source_version="$(git -C "$SOURCE_ROOT" cat-file blob "$source_revision:VERSION" && printf '.')" ||
+    fail "cannot read committed source VERSION"
+source_version="${source_version%.}"
+source_version="${source_version%$'\n'}"
+[[ "$source_version" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]] ||
+    fail "source VERSION must contain a canonical stable version"
 source_remote="$(git -C "$SOURCE_ROOT" remote get-url origin)" ||
     fail "source checkout has no origin remote"
 [[ -n "$source_remote" ]] || fail "source origin remote is empty"
@@ -200,9 +209,15 @@ if [[ -e "$manifest" ]]; then
     manifest_format_count=0
     manifest_source_count=0
     manifest_revision_count=0
+    manifest_version_count=0
     manifest_source=""
     while IFS=$'\t' read -r record first second third extra || [[ -n "$record" ]]; do
         case "$record" in
+        '# version')
+            [[ "$first" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ && -z "$second" && -z "$third" && -z "$extra" ]] ||
+                fail "existing manifest has a malformed version annotation"
+            manifest_version_count=$((manifest_version_count + 1))
+            ;;
         '' | \#*) continue ;;
         format)
             [[ "$first" == "1" && -z "$second" && -z "$third" && -z "$extra" ]] ||
@@ -234,6 +249,7 @@ if [[ -e "$manifest" ]]; then
     [[ "$manifest_format_count" -eq 1 ]] || fail "existing manifest must contain one format record"
     [[ "$manifest_source_count" -eq 1 ]] || fail "existing manifest must contain one source record"
     [[ "$manifest_revision_count" -eq 1 ]] || fail "existing manifest must contain one revision record"
+    [[ "$manifest_version_count" -le 1 ]] || fail "existing manifest has duplicate version annotations"
     [[ "$manifest_source" == "$source_remote" ]] ||
         fail "source remote differs from the existing manifest"
 else
@@ -316,6 +332,7 @@ done
 staged_manifest="$STAGING_DIR/manifest"
 {
     echo "# Shared Tooling snapshot v1"
+    printf '# version\t%s\n' "$source_version"
     printf 'format\t1\n'
     printf 'source\t%s\n' "$source_remote"
     printf 'revision\t%s\n' "$source_revision"
@@ -396,4 +413,4 @@ bash "$staged_files/scripts/ci/verify-shared-tooling-snapshot.sh" \
     --consumer "$CONSUMER_ROOT" \
     --manifest "$MANIFEST_PATH"
 
-echo "shared-tooling snapshot refreshed: ${#files[@]} file(s) from $source_revision"
+echo "shared-tooling snapshot refreshed: ${#files[@]} file(s) from $source_version ($source_revision)"

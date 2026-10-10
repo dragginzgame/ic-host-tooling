@@ -527,3 +527,64 @@ fn link_fallback_cleanup_failure_reports_already_published_output() {
     assert_eq!(fs::read(fixture.root.join("output")).unwrap(), b"complete");
     assert_eq!(fs::read(fixture.root.join(stage)).unwrap(), b"complete");
 }
+
+#[test]
+fn pathname_writers_reject_directory_suffixes_before_any_effect() {
+    use crate::durable::{
+        create_new_bytes_with_parents, create_private_bytes_with_parents, write_bytes,
+        write_named_with,
+    };
+    use std::path::PathBuf;
+
+    let fixture = Fixture::new();
+    let existing = fixture.root.join("existing");
+    fs::write(&existing, b"preserved").unwrap();
+    // Exercise relative spellings without changing the process-wide working directory.
+    let cwd = std::env::current_dir().unwrap();
+    let mut relative_root = PathBuf::new();
+    for _ in cwd.components().skip(1) {
+        relative_root.push("..");
+    }
+    relative_root.push(fixture.root.strip_prefix("/").unwrap());
+    for root in [&fixture.root, &relative_root] {
+        for name in ["existing", "absent", "missing/child"] {
+            for suffix in ["/", "//", "/.", "/./.", "/.//"] {
+                let mut raw = root.join(name).into_os_string();
+                raw.push(suffix);
+                let path = PathBuf::from(raw);
+                for writer in 0..7 {
+                    let error = match writer {
+                        0 => write_bytes(&path, b"replacement"),
+                        1 => create_new_bytes_with_parents(&path, b"replacement"),
+                        2 => create_private_bytes_with_parents(&path, b"replacement"),
+                        3 => write_with(&path, REPLACE, |_| -> io::Result<()> {
+                            panic!("producer ran")
+                        }),
+                        4 => write_with(&path, CREATE, |_| -> io::Result<()> {
+                            panic!("producer ran")
+                        }),
+                        5 => write_named_with(&path, |_| -> io::Result<()> {
+                            panic!("producer ran")
+                        }),
+                        _ => write_validated_with(
+                            &path,
+                            REPLACE,
+                            |_| -> io::Result<()> { panic!("producer ran") },
+                            |_, ()| panic!("admission ran"),
+                        ),
+                    }
+                    .expect_err("directory-required pathname must be refused");
+                    assert!(
+                        matches!(error, NamedWriteError::BeforePublication { source, cleanup_error: None }
+                        if source.kind() == io::ErrorKind::InvalidInput)
+                    );
+                    assert_eq!(fs::read(&existing).unwrap(), b"preserved");
+                    assert_eq!(fs::read_dir(&fixture.root).unwrap().count(), 1);
+                }
+            }
+        }
+    }
+    // Ordinary current-directory components in the parent remain valid.
+    write_bytes(&fixture.root.join("./existing"), b"updated").unwrap();
+    assert_eq!(fs::read(&existing).unwrap(), b"updated");
+}

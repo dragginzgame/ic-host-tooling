@@ -94,6 +94,7 @@ pub fn write_named_with<T, E>(
 ) -> Result<T, NamedWriteError<E>> {
     #[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
     {
+        super::supported::validate_target_path(path).map_err(NamedWriteError::before)?;
         let absolute = std::path::absolute(path).map_err(NamedWriteError::before)?;
         super::supported::commit_path_with_options(
             &absolute,

@@ -1,5 +1,111 @@
 # Current handoff
 
+## Implemented: 2026-10-10, pending 0.10.2 path admission and tooling
+
+Completed the authorized compatible batch for
+[Host #44](https://github.com/dragginzgame/ic-host-tooling/issues/44),
+[#42](https://github.com/dragginzgame/ic-host-tooling/issues/42) and
+[#41](https://github.com/dragginzgame/ic-host-tooling/issues/41).
+Pathname publication refuses directory-required suffixes before normalization,
+parent creation, staging or callbacks. Named and validated writers check before
+absolute-path conversion; all retain typed BeforePublication/InvalidInput errors.
+The new regression failed before repair and passes across seven entry/mode cases,
+absolute/relative names, existing/missing targets and repeated suffixes.
+
+Canonically exported Shared 0.2.11 `83efac446348dea024798a331d77933b24b429dc`
+from a clean private checkout, extending 88 selected files to 89 with the formatter
+reporter. Updated actual Host fixtures, release-routing inputs and native CI
+failure collection. The repository description remains accurate. No private
+Make flag parser or formatter reporter was added, and no function/method/type
+was removed. The root and detailed notes select 0.10.2; package versions remain
+0.10.1 and incoming Cargo.lock SHA-256 remains
+`83c0a9b586a94676c54c171c5d945342962331e2e03d28f005ce473bc3245686`.
+
+With the maintainer's scoped approval, IcyDB's diagnostic adapter now independently
+rejects the same raw suffixes before descriptor-relative publication. Its artifact
+module and pending 0.269.2 notes are updated, preserving unrelated SQL/lock edits.
+This follow-up adds about 34 Rust lines (guard and regression), with no new helper,
+public API, schema or measured Wasm/cycles/instruction impact. Canic remains untouched.
+
+Linux evidence in `/tmp/ic-host-0102/`: 49 selected durable tests, strict filesystem
+all-target Clippy and Rust 1.88 library check; 10 IcyDB diagnostic tests and strict
+CLI/test Clippy; formatting, ShellCheck, workflow lint, snapshot and local links.
+Actual Host Make routing/admission, failure-log preservation, formatting hooks and
+release-adapter fixtures pass on modern tools and Bash 3.2/GNU Make 3.81. The actual
+reporter/collector round trip recovers complete stdout/stderr with failure status
+preserved; no upload was performed. Initial source-remote spelling refusal,
+Clippy unit-pattern warning and misplaced-comment formatter fixture failure are
+retained separately from corrected passing runs.
+
+Native macOS qualification of this dirty source, IcyDB's unavailable 1.96 toolchain
+and full CI/release gates remain unrun. Prior Host/upstream native passes do not
+qualify these changes. No download, commit, push, release, publication or cleanup
+of consumer artifacts ran.
+
+## Next-version inspection: 2026-10-10, compatible 0.10.2 candidates
+
+Recommend a patch release, with no demonstrated need for a 0.11 API break.
+[Host #44](https://github.com/dragginzgame/ic-host-tooling/issues/44) records a
+reproduced pathname publication bug: `file/` and `file/.` replace `file` after
+component normalization instead of rejecting a directory-required target.
+The isolated offline probe links current source; evidence is retained in
+`/tmp/ic-host-0102-review/`. No production repair has been applied.
+IcyDB's new descriptor adapter needs its own raw-path check, recorded on
+[its owning issue](https://github.com/dragginzgame/icydb/issues/307#issuecomment-6095497833).
+
+Shared remote main is now `83efac446348dea024798a331d77933b24b429dc` (0.2.11),
+with passing Linux, Intel/ARM macOS and lint/security CI. The existing
+[Host adoption issue](https://github.com/dragginzgame/ic-host-tooling/issues/42#issuecomment-6095496507)
+records the hidden-MAKEFLAGS repair and intervening formatting reporter for
+reviewed snapshot adoption. Host still adopts 0.2.8; upstream CI is not consumer
+qualification. No snapshot, manifest, lockfile or sibling edits occurred.
+
+## Follow-through: 2026-10-10, IcyDB applied; Canic patches only
+
+The maintainer explicitly selected “Prepare Canic patches; apply IcyDB only”.
+IcyDB diagnostic exports now use Host descriptor-relative create-only publication,
+with existing JSON, size, permission and parent-selection policies retained.
+The artifact module and both pending 0.269.2 changelog views are updated; concurrent
+SQL edits are preserved. Nine selected diagnostic tests, strict CLI/test Clippy,
+formatting, whitespace and changelog-link checks pass on Linux. Native macOS and
+IcyDB's unavailable 1.96 MSRV toolchain were not run. The
+[IcyDB issue evidence](https://github.com/dragginzgame/icydb/issues/307#issuecomment-6095266710)
+records the local, uncommitted change and validation limits.
+
+Canic remains untouched by this worker. Prepared patches for the
+[bounded config reader](https://github.com/dragginzgame/canic/issues/509#issuecomment-6095267583)
+and [pending journal](https://github.com/dragginzgame/canic/issues/458#issuecomment-6095268223)
+are attached to their issues and retained in `/tmp/canic-host-adoption-prepared/`.
+Rustfmt and dry-run application pass; consumer tests have not run. The journal
+patch proposes removing `pending_temp_path` and `sync_directory`, retaining the
+transaction lock lifetime and typed failure causes. No function/type was removed
+from an actual checkout. Canic's other worker is independently updating the Host
+migration; fresh source inspection sees the retired writer calls replaced.
+
+No Host production change or next release is warranted by this adoption work.
+Incoming Host Cargo.lock remains preserved. No commit, push, release, publication,
+full gate or download ran. Logs are `/tmp/icydb-host-export-{tests,clippy}.log` and
+`/tmp/icydb-host-export-format-check.log`.
+
+## Latest audit: 2026-10-10, sibling reuse after 0.10.1
+
+The [nine-sibling audit](../reports/audits/2026/10/10/sibling-reuse/01/report.md)
+finds no justified new Host API. Existing mechanics cover Canic's remaining
+journal/lock duplication and a possible IcyDB complete-file diagnostic export.
+Canic's dirty 0.10 manifest adoption still has retired writer calls; updated
+[Canic #458](https://github.com/dragginzgame/canic/issues/458#issuecomment-6095149839)
+and [IcyDB #307](https://github.com/dragginzgame/icydb/issues/307#issuecomment-6095149967).
+A std-only probe of Canic's config-reader body confirms successful silent
+truncation; [Canic #509](https://github.com/dragginzgame/canic/issues/509) records
+the bounded-reader fix and consumer acceptance requirements.
+
+Host 0.10.1 `c7bdc3d4e1c658957202eebd76bff2c51e22f645` passes all exact-source
+CI jobs, including both native macOS architectures; Host #43 is now closed.
+Preserved the incoming dirty Cargo.lock syn 3.0.7 update without qualification
+or edits. No sibling mutation/build, Host production change, removed symbol,
+new release draft, commit, push or publication occurred. This audit changes
+only local evidence/handoff documents and owning GitHub issues.
+
 ## Follow-up: 2026-10-09, 0.10.1 cleanup assertions
 
 Reviewed adjacent publication failure paths with the pending #43 repair retained.

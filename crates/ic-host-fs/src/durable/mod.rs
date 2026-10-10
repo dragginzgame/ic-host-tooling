@@ -594,7 +594,21 @@ mod supported {
         })
     }
 
+    pub(super) fn validate_target_path(path: &Path) -> io::Result<()> {
+        // Path components and absolute() discard trailing directory requirements.
+        // Refuse them before splitting or normalizing a file publication target.
+        let bytes = path.as_os_str().as_encoded_bytes();
+        if bytes.ends_with(b"/") || bytes.ends_with(b"/.") {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "durable write target requires a directory",
+            ));
+        }
+        Ok(())
+    }
+
     fn split_target(path: &Path) -> io::Result<(&Path, &OsStr)> {
+        validate_target_path(path)?;
         let file_name = path.file_name().ok_or_else(|| {
             io::Error::new(
                 io::ErrorKind::InvalidInput,

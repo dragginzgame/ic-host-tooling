@@ -44,7 +44,9 @@ pub struct WriteOptions {
 /// Retains the original producer error and separate cleanup failures in the
 /// shared [`NamedWriteError`]. Before/after-publication filesystem failures stay
 /// distinguishable. Invalid permissions and unsupported hosts fail before the
-/// producer is called. Reconcile after-publication failures before retrying.
+/// producer is called. Directory-required targets ending in `/` or `/.` are
+/// rejected before parent creation or staging. Reconcile after-publication
+/// failures before retrying.
 pub fn write_with<T, E>(
     path: &Path,
     options: WriteOptions,
@@ -149,6 +151,7 @@ pub fn write_validated_with<T, E>(
 ) -> Result<T, NamedWriteError<E>> {
     #[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
     {
+        super::supported::validate_target_path(path).map_err(NamedWriteError::before)?;
         let absolute = std::path::absolute(path).map_err(NamedWriteError::before)?;
         super::supported::commit_path_with_options(
             &absolute,
