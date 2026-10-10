@@ -6,11 +6,15 @@ root="$0"
 root="$(cd -P "${root%/*}/../.." && printf '%s/.' "$PWD")"
 root="${root%/.}"
 fixture="$(mktemp -d "${TMPDIR:-/tmp}/file-digests.XXXXXX")"
+fixture_complete=false
 finish() {
     local status=$?
+    # Bash 3.2 may report zero after nounset before assertions finish.
+    [[ "$fixture_complete" == true || "$status" != 0 ]] || status=1
     chmod u+r "$fixture/unreadable" 2>/dev/null || true
     if [[ "$status" == 0 ]]; then rm -rf "$fixture";
     else echo "Digest fixtures retained: $fixture" >&2; fi
+    exit "$status"
 }
 trap finish EXIT
 checker="$root/scripts/ci/verify-file-checksum.sh"
@@ -68,3 +72,4 @@ expect_failure env PATH="$fixture/fake" DIGEST_OUTPUT="$sha256  -" DIGEST_STATUS
     "$BASH" "$checker" --print sha256 'file with spaces'
 [[ "$(cat "$fixture/error")" != *'unexpected fallback'* ]]
 echo 'Portable digest vectors, filenames, backend failures and verifier round trips passed'
+fixture_complete=true

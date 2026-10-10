@@ -161,7 +161,7 @@ make test-tools-response checks the response-only library, and
 make tools-features-check verifies its actual production dependency exclusions
 and the default extractor's required owners.
 Prepare the declared Rust toolchain, then run `make install-tools` followed by
-`make tools-check`. Shared Tooling 0.3.1 prepares and verifies the complete common
+`make tools-check`. Shared Tooling 0.3.3 prepares and verifies the complete common
 set in order: jq, yq, ripgrep with PCRE2 and cloc; the five pinned IC executables;
 then cargo-sort, cargo-sort-derives and candid-extractor. The offline check never
 installs tools. CI and selected release preflight use these same aggregate targets;

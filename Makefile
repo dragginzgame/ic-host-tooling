@@ -54,31 +54,31 @@ install-release-tools:
 release-tools-check:
 	+bash scripts/release/tools.sh check
 release-tools-test:
-	bash scripts/release/test-tools.sh
+	+bash scripts/release/test-tools.sh
 install-hooks:
 	bash scripts/dev/install-git-hooks.sh
 shared-tooling-check:
 	bash scripts/ci/verify-shared-tooling-snapshot.sh
 dependency-pins-check:
-	bash scripts/ci/check-dependency-pins.sh --cargo-inheritance
+	+bash scripts/ci/check-dependency-pins.sh --cargo-inheritance
 check-doc-links:
 	perl scripts/ci/check-documentation-links.pl --root "$(CURDIR)" README.md AGENTS.md CHANGELOG.md docs/changelog/0.4.md docs/changelog/0.5.md docs/changelog/0.6.md docs/changelog/0.7.md docs/changelog/0.8.md docs/changelog/0.9.md docs/changelog/0.10.md docs/changelog/0.11.md docs/changelog/0.12.md docs/extraction.md docs/hosts.md docs/status/current.md docs/publishing.md
 release-adapter-check:
-	bash scripts/release/test-adapter.sh
+	+bash scripts/release/test-adapter.sh
 tooling-command-check:
-	bash scripts/ci/test-host-fixture-retention.sh
-	bash scripts/release/test-tools.sh
-	bash scripts/ci/test-make-snapshot.sh
-	bash scripts/ci/test-tool-commands.sh
-	bash scripts/ci/test-rust-tools.sh
-	bash scripts/ci/check-release-commands.sh "$(CURDIR)" ci/tool-versions.env make/tools.mk make/rust-format.mk make/release.mk make/execution.mk scripts/ci/check-make-execution.sh scripts/ci/run-formatting.sh
-	bash scripts/ci/test-cloc.sh
+	+bash scripts/ci/test-host-fixture-retention.sh
+	+bash scripts/release/test-tools.sh
+	+bash scripts/ci/test-make-snapshot.sh
+	+bash scripts/ci/test-tool-commands.sh
+	+bash scripts/ci/test-rust-tools.sh
+	+bash scripts/ci/check-release-commands.sh "$(CURDIR)" ci/tool-versions.env make/tools.mk make/rust-format.mk make/release.mk make/execution.mk scripts/ci/check-make-execution.sh scripts/ci/run-formatting.sh
+	+bash scripts/ci/test-cloc.sh
 publish:
 	+bash scripts/publish/workspace.sh publish
 publish-check:
 	+bash scripts/publish/workspace.sh check
 publish-command-check:
-	bash scripts/publish/test-workspace.sh
+	+bash scripts/publish/test-workspace.sh
 ci:
 	+$(MAKE) --no-print-directory shared-tooling-check
 	+$(MAKE) --no-print-directory tools-check

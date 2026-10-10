@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.12.3]
+
+- Adopt Shared Tooling 0.3.3, including shared Cargo jobserver forwarding and
+  reliable Bash 3.2 fixture failure retention
+  ([#52](https://github.com/dragginzgame/ic-host-tooling/issues/52),
+  [Shared #99](https://github.com/dragginzgame/shared-tooling/issues/99),
+  [Shared #103](https://github.com/dragginzgame/shared-tooling/issues/103)).
+- Preserve jobserver access through Host's metadata and command-check wrappers.
+
+See [the 0.12 notes](docs/changelog/0.12.md).
+
 ## [0.12.2] - 2026-10-10
 
 - Adopt Shared Tooling 0.3.1: check platform and Rust/Cargo prerequisites before

@@ -167,6 +167,14 @@ for failed in ic rust; do
     [[ ! -e "$HOST_MAKE_EXTERNAL" ]]
 done
 # Real pipe-descriptor admission in substituted Cargo, without compiling.
+for helper in scripts/ci/check-dependency-pins.sh scripts/release/test-tools.sh \
+    scripts/release/test-adapter.sh scripts/publish/test-workspace.sh \
+    scripts/ci/test-host-fixture-retention.sh scripts/ci/test-make-snapshot.sh \
+    scripts/ci/test-tool-commands.sh scripts/ci/test-rust-tools.sh \
+    scripts/ci/check-release-commands.sh scripts/ci/test-cloc.sh; do
+    mkdir -p "$fixture/local/${helper%/*}"
+    printf '#!/usr/bin/env bash\nexec cargo fixture "$@"\n' > "$fixture/local/$helper"
+done
 mkdir -p "$fixture/local/scripts/publish"
 cat > "$fixture/local/scripts/publish/workspace.sh" <<'STUB'
 #!/usr/bin/env bash
@@ -178,7 +186,8 @@ jobserver_options=(--no-print-directory -j4)
 if make --help | grep -q -- --jobserver-style; then
     jobserver_options+=(--jobserver-style=pipe)
 fi
-for target in check clippy docs-check test test-artifacts-minimal test-tools-response msrv publish publish-check; do
+for target in check clippy docs-check test test-artifacts-minimal test-tools-response msrv publish publish-check \
+    dependency-pins-check release-tools-test release-adapter-check tooling-command-check publish-command-check; do
     PATH="$fixture/local:$PATH" HOST_MAKE_VERIFY_JOBSERVER=1 make "${jobserver_options[@]}" "$target" \
         > "$fixture/jobserver-$target.log" 2>&1
 done
@@ -200,7 +209,8 @@ done
 for mode in -i --ignore-errors -n -t -q; do
     for selection in direct inherited cleared replaced erased; do
         for target in fmt fmt-check release-patch release-minor release-major release-resume \
-            check clippy docs-check test test-artifacts-minimal test-tools-response msrv install-release-tools publish publish-check; do
+            check clippy docs-check test test-artifacts-minimal test-tools-response msrv install-release-tools publish publish-check \
+            dependency-pins-check release-tools-test release-adapter-check tooling-command-check publish-command-check; do
             : > "$HOST_MAKE_EVENTS"
             args=(--no-print-directory "$target" "FORMAT_CARGO=$PWD/cargo" "SHARED_TOOLING_ROOT=$fixture/external" "MAKE=$recursive_make")
             status=0

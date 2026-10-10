@@ -1,6 +1,48 @@
 # Current handoff
 
-## Pending 0.12.2 — Shared Tooling 0.3.1 setup admission
+## Pending 0.12.3 — Shared Tooling 0.3.3 adoption
+
+Released base: 0.12.2 (`e1ef99e6a4c6d05f0b0d8364f8586c6cc358dadc`).
+Package versions remain 0.12.2. The next patch adopts compatible jobserver and
+fixture-completion fixes. Library APIs, Cargo.lock and all tool pins are unchanged.
+[Host #52](https://github.com/dragginzgame/ic-host-tooling/issues/52) owns this batch.
+
+Exported reviewed Shared 0.3.3 `d63f0cfaba8ab2961d6012064adbf051c1898bc1`
+from a clean isolated checkout, excluding the sibling's dirty source and pins.
+The 90-file snapshot adds the README freshness task referenced by the catalog;
+this activates no schedule or gate. Shared formatting/LOC/Cargo recipes now
+preserve jobserver descriptors and standalone tool includes enforce execution
+admission. Shared fixtures require explicit completion before successful cleanup.
+Host does not select the validation runner changed in Shared 0.3.3, so that
+unused runner remains excluded. Host-owned fixture corrections remain local.
+
+Real parallel command checks exposed an additional closed-descriptor warning
+through Host's own validation wrappers. Those Cargo callers now preserve the
+descriptors, and the actual Host Make fixture checks their handoff and unsafe-mode
+refusal. The corrected parallel command/dependency/publication/release checks
+pass without jobserver warnings. Actual parallel formatting prerequisites and
+complete offline tool checks pass. Bash 3.2 Make, setup/installer, formatting,
+LOC, release and retention fixtures pass; the canonical upstream retention
+fixture also passes under Bash 5 and Bash 3.2 using the isolated source checkout.
+Setup, Git and publication effects in fixtures are substitutes. ShellCheck,
+snapshot integrity, local links and unchanged-input digests pass.
+
+Evidence and the incoming handoff are retained in `/tmp/host-shared033.IGaURK/`,
+including the initial warning and corrected runs. A standalone evidence-helper
+invocation refused missing fixture arguments; its required host/IC caller runs
+passed with disposable consumer fixtures. No tool download, build, full
+delivery gate, commit, push, release or new native macOS qualification ran.
+Released 0.12.1 [CI](https://github.com/dragginzgame/ic-host-tooling/actions/runs/38050076519)
+now passes Linux/MSRV and both native macOS hosts, satisfying Host #48–#50.
+Released 0.12.2 [CI](https://github.com/dragginzgame/ic-host-tooling/actions/runs/38051203749)
+passes Linux/MSRV with both macOS jobs queued; #51 remains open for qualification.
+Exact-source [Shared CI](https://github.com/dragginzgame/shared-tooling/actions/runs/38052409053)
+is queued. These observations do not qualify pending Host source.
+
+## Released 0.12.2 — Shared Tooling 0.3.1 setup admission
+
+The following is original pre-release evidence; current delivery and qualification
+are recorded above.
 
 Released base: 0.12.1 (`e5ecfa06c14d144cfeb85ea89d65906b1bf81636`).
 Package versions remain 0.12.1. The next patch adopts compatible setup checks
@@ -185,7 +227,7 @@ diagnostic-contract change therefore belongs at the next minor boundary.
 
 ## Shared baseline and evidence
 
-The current baseline is Shared 0.3.1, as recorded above and in AGENTS.md.
+The current baseline is Shared 0.3.3, as recorded above and in AGENTS.md.
 The following evidence records the earlier 0.2.13 adoption in released 0.11.0:
 `5864f468d39f8f9d1bd26fca1afe0e20f25f1b5e`, verified against remote main and exported
 from a clean isolated checkout. The existing 89-file selection is unchanged.
