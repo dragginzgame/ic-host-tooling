@@ -2,11 +2,8 @@ use super::*;
 
 #[test]
 fn output_is_observed_before_child_exit_and_descendant_pipe_cleanup() {
-    for timeout in [Some(LIMITS.timeout), None] {
-        let limits = CommunicationLimits {
-            timeout,
-            ..LIMITS.into()
-        };
+    for timeout in [LIMITS.timeout, None] {
+        let limits = OutputLimits { timeout, ..LIMITS };
         let fixture = Fixture::new();
         let go = fixture.root.join("go");
         let mut command = command(
@@ -21,7 +18,7 @@ fn output_is_observed_before_child_exit_and_descendant_pipe_cleanup() {
             None,
             limits,
             SuccessfulExit::Cleanup,
-            || started.elapsed() > LIMITS.timeout,
+            || started.elapsed() > LIMITS.timeout.unwrap(),
             |stream, bytes| {
                 assert_eq!(stream, OutputStream::Stdout);
                 observed.extend_from_slice(bytes);
@@ -38,11 +35,8 @@ fn output_is_observed_before_child_exit_and_descendant_pipe_cleanup() {
 
 #[test]
 fn observer_receives_only_retained_prefix_on_each_stream_overflow() {
-    for timeout in [Some(LIMITS.timeout), None] {
-        let limits = CommunicationLimits {
-            timeout,
-            ..LIMITS.into()
-        };
+    for timeout in [LIMITS.timeout, None] {
+        let limits = OutputLimits { timeout, ..LIMITS };
         let _fixture = Fixture::new();
         for (script, expected) in [
             ("printf 12345; sleep 30", OutputStream::Stdout),
@@ -54,9 +48,9 @@ fn observer_receives_only_retained_prefix_on_each_stream_overflow() {
                 let error = communicate_child_with_observer(
                     &mut child,
                     None,
-                    CommunicationLimits {
-                        stdout_bytes: maximum,
-                        stderr_bytes: maximum,
+                    OutputLimits {
+                        stdout: crate::tool::OutputLimit::Terminate(maximum),
+                        stderr: crate::tool::OutputLimit::Terminate(maximum),
                         ..limits
                     },
                     SuccessfulExit::Cleanup,
@@ -78,7 +72,7 @@ fn observer_receives_only_retained_prefix_on_each_stream_overflow() {
                     OutputStream::Stderr => &execution.evidence.stderr,
                 };
                 assert_eq!(&observed, retained);
-                assert!(execution.group_error.is_none() && execution.wait_error.is_none());
+                assert!(execution.cleanup.is_none());
                 assert_reaped(&child);
             }
         }
@@ -87,11 +81,8 @@ fn observer_receives_only_retained_prefix_on_each_stream_overflow() {
 
 #[test]
 fn silent_child_allows_caller_progress_and_cancellation_without_output() {
-    for timeout in [Some(LIMITS.timeout), None] {
-        let limits = CommunicationLimits {
-            timeout,
-            ..LIMITS.into()
-        };
+    for timeout in [LIMITS.timeout, None] {
+        let limits = OutputLimits { timeout, ..LIMITS };
         let _fixture = Fixture::new();
         let mut child = OwnedChild::spawn(&mut command("sleep 30")).unwrap();
         let mut polls = 0;
@@ -122,11 +113,8 @@ fn callback_unwind_cleans_group_even_when_borrowed_owner_survives_catch() {
         io::Read,
         panic::{AssertUnwindSafe, catch_unwind},
     };
-    for timeout in [Some(LIMITS.timeout), None] {
-        let limits = CommunicationLimits {
-            timeout,
-            ..LIMITS.into()
-        };
+    for timeout in [LIMITS.timeout, None] {
+        let limits = OutputLimits { timeout, ..LIMITS };
         let _fixture = Fixture::new();
         for panic_in_output in [false, true] {
             let mut child =
@@ -170,5 +158,78 @@ fn callback_unwind_cleans_group_even_when_borrowed_owner_survives_catch() {
                 }
             }
         }
+    }
+}
+
+#[test]
+fn truncation_forwards_all_bytes_with_bounded_or_zero_storage() {
+    let _fixture = Fixture::new();
+    let input = vec![b'x'; 1024 * 1024];
+    for retained in [0, 17] {
+        let mut child = OwnedChild::spawn(&mut command("cat; printf diagnostic >&2")).unwrap();
+        let mut counts = [0, 0];
+        let evidence = communicate_child_with_observer(
+            &mut child,
+            Some(&input),
+            OutputLimits {
+                stdout: OutputLimit::Truncate(retained),
+                stderr: OutputLimit::Truncate(0),
+                timeout: LIMITS.timeout,
+            },
+            SuccessfulExit::Cleanup,
+            || false,
+            |stream, bytes| match stream {
+                OutputStream::Stdout => {
+                    assert!(bytes.iter().all(|&byte| byte == b'x'));
+                    counts[0] += bytes.len();
+                }
+                OutputStream::Stderr => counts[1] += bytes.len(),
+            },
+        )
+        .unwrap();
+        assert_eq!(counts, [input.len(), b"diagnostic".len()]);
+        assert_eq!(evidence.stdout, input[..retained]);
+        assert!(evidence.stdout.capacity() <= retained);
+        assert_eq!(evidence.stderr.capacity(), 0);
+        assert!(evidence.stdout_truncated && evidence.stderr_truncated);
+        assert!(evidence.status.unwrap().success());
+        assert_reaped(&child);
+    }
+}
+
+#[test]
+fn truncated_output_preserves_failure_and_cancellation() {
+    let _fixture = Fixture::new();
+    for cancel in [false, true] {
+        let mut child = OwnedChild::spawn(&mut command(if cancel {
+            "printf ready; sleep 30"
+        } else {
+            "printf ready; exit 7"
+        }))
+        .unwrap();
+        let observed = std::cell::Cell::new(0);
+        let error = communicate_child_with_observer(
+            &mut child,
+            None,
+            OutputLimits {
+                stdout: OutputLimit::Truncate(2),
+                ..LIMITS
+            },
+            SuccessfulExit::Cleanup,
+            || cancel && observed.get() > 0,
+            |_, bytes| observed.set(observed.get() + bytes.len()),
+        )
+        .unwrap_err();
+        let execution = error.execution_error().unwrap();
+        assert_eq!(execution.evidence.stdout, b"re");
+        assert!(execution.evidence.stdout_truncated);
+        if cancel {
+            assert!(matches!(execution.failure, ExecutionFailure::Cancelled));
+        } else {
+            assert!(matches!(execution.failure, ExecutionFailure::ExitStatus));
+            assert_eq!(execution.evidence.status.unwrap().code(), Some(7));
+        }
+        assert!(execution.cleanup.is_none());
+        assert_reaped(&child);
     }
 }

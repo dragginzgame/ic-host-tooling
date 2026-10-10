@@ -188,7 +188,10 @@ fn observe(
         GitQuery::Tree => 1,
         GitQuery::Status => 2,
     };
-    let evidence = match git.run(&arguments(query, options), context, limits) {
+    let evidence = match git
+        .run(&arguments(query, options), context, limits)
+        .and_then(ExecutionEvidence::require_complete)
+    {
         Ok(evidence) => evidence,
         Err(source) => {
             return Err(GitError {

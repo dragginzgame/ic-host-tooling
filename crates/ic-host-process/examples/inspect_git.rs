@@ -33,9 +33,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
     let executable_bytes = number()?;
     let limits = OutputLimits {
-        stdout_bytes: usize::try_from(number()?)?,
-        stderr_bytes: usize::try_from(number()?)?,
-        timeout: Duration::from_millis(number()?),
+        stdout: ic_host_process::tool::OutputLimit::Terminate(usize::try_from(number()?)?),
+        stderr: ic_host_process::tool::OutputLimit::Terminate(usize::try_from(number()?)?),
+        timeout: Some(Duration::from_millis(number()?)),
     };
     let untracked = match required()?.to_str() {
         Some("no") => UntrackedFiles::No,

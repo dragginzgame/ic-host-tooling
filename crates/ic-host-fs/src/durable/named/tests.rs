@@ -259,3 +259,31 @@ fn producer_error_retains_cleanup_rejection_and_error_source() {
     assert!(!output.exists());
     assert_eq!(fs::read_dir(&fixture.root).unwrap().count(), 1);
 }
+
+#[test]
+fn display_keeps_phase_primary_cause_and_secondary_cleanup() {
+    use std::error::Error as _;
+    for error in [
+        NamedWriteError::Producer {
+            source: io::Error::other("producer failure"),
+            cleanup_error: Some(io::Error::other("cleanup failure")),
+        },
+        NamedWriteError::BeforePublication {
+            source: io::Error::other("filesystem failure"),
+            cleanup_error: Some(io::Error::other("cleanup failure")),
+        },
+    ] {
+        let text = error.to_string();
+        assert!(text.contains(&error.source().unwrap().to_string()));
+        assert!(text.contains("staging cleanup failed: cleanup failure"));
+        match error {
+            NamedWriteError::Producer { .. } => {
+                assert!(text.starts_with("staged producer failed:"));
+            }
+            NamedWriteError::BeforePublication { .. } => {
+                assert!(text.starts_with("publication failed before rename:"));
+            }
+            NamedWriteError::AfterPublication { .. } => unreachable!(),
+        }
+    }
+}

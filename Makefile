@@ -24,7 +24,7 @@ help:
 	@echo 'Offline setup checks: tools-check, host-tools-check, ic-tools-check'
 	@echo 'Optional Rust tool bundle: install-rust-tools, rust-tools-check'
 	@echo 'Source reports: cloc (this workspace); fleet reports run in Shared Tooling'
-	@echo 'Full gate: ci (explicit request or configured CI only)'
+	@echo 'Full delivery gate: ci; declared MSRV: msrv PACKAGE=<crate>'
 	@echo 'Maintainer releases: release-patch, release-minor, release-major, release-resume VERSION=X.Y.Z'
 	@echo 'crates.io publication: publish-check (dry run), publish (upload); offline fixture: publish-command-check'
 format-tools-test:
@@ -52,7 +52,7 @@ shared-tooling-check:
 dependency-pins-check:
 	bash scripts/ci/check-dependency-pins.sh --cargo-inheritance
 check-doc-links:
-	perl scripts/ci/check-documentation-links.pl --root "$(CURDIR)" README.md AGENTS.md CHANGELOG.md docs/changelog/0.4.md docs/changelog/0.5.md docs/changelog/0.6.md docs/changelog/0.7.md docs/changelog/0.8.md docs/changelog/0.9.md docs/changelog/0.10.md docs/extraction.md docs/hosts.md docs/status/current.md docs/publishing.md
+	perl scripts/ci/check-documentation-links.pl --root "$(CURDIR)" README.md AGENTS.md CHANGELOG.md docs/changelog/0.4.md docs/changelog/0.5.md docs/changelog/0.6.md docs/changelog/0.7.md docs/changelog/0.8.md docs/changelog/0.9.md docs/changelog/0.10.md docs/changelog/0.11.md docs/extraction.md docs/hosts.md docs/status/current.md docs/publishing.md
 release-adapter-check:
 	bash scripts/release/test-adapter.sh
 tooling-command-check:

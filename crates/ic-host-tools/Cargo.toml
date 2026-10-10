@@ -26,45 +26,18 @@ serde.workspace = true
 serde_json.workspace = true
 
 [dev-dependencies]
-ic-host-artifacts = { workspace = true, features = ["archive", "wasm"] }
+ic-host-artifacts.workspace = true
+ic-host-fs.workspace = true
 sha2.workspace = true
 
 [lints]
 workspace = true
 
-# These examples use the filesystem/process owners enabled by the default profile.
+# Only Candid extraction requires the process integration feature.
 [[example]]
 name = "extract_candid"
 required-features = ["candid-extraction"]
 
 [[example]]
-name = "inspect_archive"
-required-features = ["candid-extraction"]
-
-[[example]]
-name = "inspect_artifact"
-required-features = ["candid-extraction"]
-
-[[example]]
 name = "inspect_install_limits"
 required-features = ["ic-limits"]
-
-[[example]]
-name = "inspect_git"
-required-features = ["candid-extraction"]
-
-[[example]]
-name = "inspect_gzip"
-required-features = ["candid-extraction"]
-
-[[example]]
-name = "inspect_regular_file"
-required-features = ["candid-extraction"]
-
-[[example]]
-name = "inspect_response"
-required-features = ["candid-extraction"]
-
-[[example]]
-name = "resolve_tool"
-required-features = ["candid-extraction"]

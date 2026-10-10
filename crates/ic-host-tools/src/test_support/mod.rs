@@ -16,9 +16,9 @@ static PROCESS_FIXTURES: Mutex<()> = Mutex::new(());
 static SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
 pub const LIMITS: OutputLimits = OutputLimits {
-    stdout_bytes: 256 * 1024,
-    stderr_bytes: 256 * 1024,
-    timeout: Duration::from_secs(5),
+    stdout: ic_host_process::tool::OutputLimit::Terminate(256 * 1024),
+    stderr: ic_host_process::tool::OutputLimit::Terminate(256 * 1024),
+    timeout: Some(Duration::from_secs(5)),
 };
 pub const VERSION: &str = "test-host-tool version 1";
 

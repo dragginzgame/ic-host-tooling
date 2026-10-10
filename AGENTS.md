@@ -1,7 +1,7 @@
 # IC Host Tooling Agent Rules
 
 Read docs/status/current.md first, then [DRAGGINZGAME.md](DRAGGINZGAME.md).
-The baseline is Shared Tooling revision 83efac446348dea024798a331d77933b24b429dc,
+The baseline is Shared Tooling revision 5864f468d39f8f9d1bd26fca1afe0e20f25f1b5e,
 recorded with exact file digests in [.shared-tooling.snapshot](.shared-tooling.snapshot).
 
 - Mutate only this repository. Existing sibling repositories remain read-only.
@@ -17,9 +17,9 @@ recorded with exact file digests in [.shared-tooling.snapshot](.shared-tooling.s
   inherited workspace versions/dependencies. Do not add Python tooling.
 - Preserve dirty source and artifacts. Check for active Cargo/rustc processes
   using this repository's target directory before editing or compiling.
-- During development, use selected package/module checks only. Full CI/release
-  gates require an explicit request or configured CI. Release commands require
-  explicit release authorization; never clean consumer artifacts.
+- During development, use selected package/module checks. Before delivering code
+  as ready, run the documented full validation suite under the shared baseline.
+  Release commands retain explicit release authorization; never clean consumer artifacts.
 - Linux x86-64 and macOS 15 on Intel and Apple Silicon are required hosts.
   Report native macOS qualification separately from Linux evidence.
 - Follow shared changelog rules. GitHub issues are the sole follow-up tracker;

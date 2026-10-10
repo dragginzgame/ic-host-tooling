@@ -106,8 +106,8 @@ fn caller_capture_retains_bounded_failures_and_runs_only_once() {
         let error = capture_command(
             &mut command,
             OutputLimits {
-                stdout_bytes: 17,
-                stderr_bytes: 17,
+                stdout: crate::tool::OutputLimit::Terminate(17),
+                stderr: crate::tool::OutputLimit::Terminate(17),
                 ..LIMITS
             },
         )
@@ -117,7 +117,7 @@ fn caller_capture_retains_bounded_failures_and_runs_only_once() {
             matches!(execution.failure, ExecutionFailure::OutputLimit { stream: actual } if actual == stream)
         );
         assert!(execution.evidence.status.is_some());
-        assert!(execution.kill_error.is_none() && execution.wait_error.is_none());
+        assert!(execution.cleanup.is_none());
         let evidence = error.evidence().unwrap();
         assert!(evidence.stdout.len() <= 17 && evidence.stderr.len() <= 17);
         assert_eq!(evidence.stdout_truncated, stream == OutputStream::Stdout);
@@ -134,7 +134,7 @@ fn caller_deadlines_reap_children_and_do_not_wait_for_descendant_pipe_eof() {
         let error = capture_command(
             &mut command,
             OutputLimits {
-                timeout: Duration::from_millis(100),
+                timeout: Some(Duration::from_millis(100)),
                 ..LIMITS
             },
         )
@@ -142,7 +142,7 @@ fn caller_deadlines_reap_children_and_do_not_wait_for_descendant_pipe_eof() {
         let execution = error.execution_error().unwrap();
         assert!(matches!(execution.failure, ExecutionFailure::TimedOut));
         assert!(execution.evidence.status.is_some());
-        assert!(execution.kill_error.is_none() && execution.wait_error.is_none());
+        assert!(execution.cleanup.is_none());
         if argument == "--descendant" {
             assert!(execution.evidence.status.unwrap().success());
         }
@@ -156,7 +156,14 @@ fn caller_validation_and_failed_spawn_preserve_their_distinct_evidence() {
     let mut command = Command::new(tool_path());
     command.arg("--version").env("FIXTURE_MARKER", &marker);
     for timeout in [Duration::ZERO, Duration::MAX] {
-        let error = capture_command(&mut command, OutputLimits { timeout, ..LIMITS }).unwrap_err();
+        let error = capture_command(
+            &mut command,
+            OutputLimits {
+                timeout: Some(timeout),
+                ..LIMITS
+            },
+        )
+        .unwrap_err();
         assert!(matches!(
             error,
             ToolError::InvalidInvocation(InvalidInvocation::Deadline)

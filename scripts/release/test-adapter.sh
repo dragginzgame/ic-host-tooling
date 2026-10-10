@@ -272,8 +272,13 @@ cmp expected "$ADAPTER_EVENTS"
 # Each failure must stop before setup and leave the changelog untouched.
 printf '%s\n' 'cargo locate-project --workspace --message-format plain --manifest-path Cargo.toml' \
     'cargo metadata --no-deps --format-version 1 --locked --offline' > expected
-for scenario in duplicate duplicate-whitespace competing misplaced misplaced-whitespace finalized finalized-whitespace finalized-other-date; do
+for scenario in unnumbered misplaced-unnumbered duplicate duplicate-whitespace competing misplaced misplaced-whitespace finalized finalized-whitespace finalized-other-date; do
     case "$scenario" in
+        unnumbered)
+            printf '# Changelog\n\n## [Draft]\n\n- Candidate without identity.\n' > CHANGELOG.md ;;
+        misplaced-unnumbered)
+            cp source/CHANGELOG.md CHANGELOG.md
+            printf '\n## [Draft]\n\n- Candidate without identity.\n' >> CHANGELOG.md ;;
         duplicate)
             cp source/CHANGELOG.md CHANGELOG.md
             printf '\n## [%s]\n\n- Duplicate.\n' "$RELEASE_VERSION" >> CHANGELOG.md ;;

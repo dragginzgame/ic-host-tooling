@@ -117,16 +117,21 @@ There are no IO worker threads, global signal handlers or retries. Errors retain
 the canonical execution/cleanup evidence. Invalid deadlines leave the existing
 owner and pipes untouched. Communication time excludes earlier spawning;
 consumers retain end-to-end timing and input-size policy.
-Communication accepts finite `OutputLimits` or explicit `CommunicationLimits`
-with `timeout: Some(duration)` or `None`. No deadline still enforces byte bounds,
-polls cancellation and applies cleanup; it may wait indefinitely for child exit
-or descendant-held pipe EOF under retained success. Capture and executable
-admission keep their mandatory finite deadlines. Cleanup timing is independent.
+Capture, communication and executable admission use `OutputLimits`, with
+`timeout: Some(duration)` or `None`. No deadline still enforces retention,
+polls cancellation during communication and applies cleanup; it may wait indefinitely
+for child exit or descendant-held pipe EOF. Cleanup timing is independent.
 
-`communicate_child_with_observer` projects nonempty retained byte chunks from
+`communicate_child_with_observer` projects nonempty byte chunks from
 that same engine. Per-stream ordering is retained; chunk boundaries and ordering
-between streams are unspecified. Overflow reports only the retained prefix and
-still fails with canonical evidence. Callbacks run synchronously and must return
+between streams are unspecified. Each stream chooses `OutputLimit::Terminate(n)`
+for hard overflow (only admitted bytes reach the observer), or
+`OutputLimit::Truncate(n)` to keep a bounded prefix and forward every drained byte.
+Truncation sets the corresponding evidence flag; zero retention stores no output.
+Version, Git and Candid parsing require complete evidence even if truncation was
+selected. Other consumers can call `ExecutionEvidence::require_complete`, retaining
+their own child-disposition responsibility when using retained ownership.
+Callbacks run synchronously and must return
 promptly. The cancellation callback can project caller-owned heartbeat events
 even while output is silent. Callback unwinding closes pipes and attempts the
 owner's cleanup before resuming the panic; an unreaped child remains owned for

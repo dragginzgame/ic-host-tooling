@@ -69,18 +69,27 @@ same I/O engine; consumers retain terminal control, interruption handling and
 descendant lifetime, including any descendant-held output pipes.
 
 `tool::communicate_child_with_observer` adds live stdout/stderr observation to
-`communicate_child` for an existing owner. It reports only retained bytes, keeps
-the same hard limits and cleanup, and lets callers project progress events.
+`communicate_child` for an existing owner. Each stream chooses
+`OutputLimit::Terminate(bytes)` to fail on overflow or `OutputLimit::Truncate(bytes)`
+to forward all drained output while retaining only a bounded prefix.
 The cancellation callback can also emit caller-scheduled heartbeats while silent.
 Callback unwinding attempts cleanup even when the borrowed owner survives the
 caller's panic handler.
 
-Both communication functions accept `CommunicationLimits { stdout_bytes,
-stderr_bytes, timeout: None }` for long builds or foreground services without
-an elapsed-time deadline. Output bounds, cancellation and cleanup still apply;
-callers choose how to end the wait. Existing `OutputLimits` arguments keep their
-finite deadlines. Capture and tool-version admission still require those finite
-limits.
+All capture, communication and admission functions accept one `OutputLimits`
+type with `stdout`, `stderr` and `timeout: Option<Duration>`. Select `None` for
+long builds without an elapsed-time deadline, or `Some(duration)` for a positive
+deadline. Retention and cleanup still apply; communication also polls cancellation.
+Version, Git and Candid admission reject truncated captures. Other consumers can
+use `ExecutionEvidence::require_complete` before parsing retained output.
+
+Examples live with their owners: `ic-host-artifacts` has `hash_serialized_json`;
+`ic-host-fs` has `inspect_regular_file` and
+the artifact/file compositions `inspect_archive`, `inspect_artifact`, `inspect_gzip`;
+`ic-host-process` has `inspect_git` and `resolve_tool`. `ic-host-tools` retains
+`extract_candid`, `inspect_install_limits` and `inspect_response`; the response
+example runs with `--no-default-features`. Example-only dependencies do not widen
+the tools crate's production feature graph.
 
 `AdmittedTool::admit_version` accepts a `VersionSpec` for caller-trusted installed
 tools without a published binary digest. It records the installed identity,
@@ -167,7 +176,10 @@ need their own PATH setup as described in [local setup](docs/local-setup.md).
 
 Shared Tooling owns rules, hooks, installers and the common release runner.
 This workspace consumes an exact snapshot; library ownership stays here.
-make ci is the complete configured gate, not an automatic development command.
+`make ci` is the full delivery gate; run it before reporting completed code as
+ready, with `make msrv PACKAGE=<crate>` for each affected package. Use selected
+package/module checks during development. Documentation-only changes need link,
+consistency and diff checks. These checks never authorize a release or publication.
 The standard release entry points use the shared runner for version preparation,
 commit, tag and atomic branch/tag push with `RELEASE_DELIVERY=direct`.
 This consumer rejects other delivery selections before starting a command;

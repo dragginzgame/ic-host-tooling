@@ -179,7 +179,7 @@ impl fmt::Debug for ExtractedCandid {
 /// Invoke the admitted extractor once with the absolute source path as one arg.
 ///
 /// Input regular-file hashing is bounded by `source_bytes`. Normalized text is
-/// bounded by `output.stdout_bytes`, independently of capture storage. The
+/// bounded by `output.stdout.retained_bytes()`, independently of capture storage. The
 /// source is inspected again on successful completion; observed changes reject
 /// publication. Callers must exclude concurrent writers to source/tool paths:
 /// before/after digests cannot prove that transient changes did not occur.
@@ -200,6 +200,7 @@ pub fn extract(
     let before = hash_file(source, source_bytes).map_err(ExtractionError::Input)?;
     let evidence = tool
         .run(&[source.as_os_str().to_owned()], context, output)
+        .and_then(ExecutionEvidence::require_complete)
         .map_err(ExtractionError::Tool)?;
     let after = match hash_file(source, source_bytes) {
         Ok(identity) => identity,
@@ -217,7 +218,7 @@ pub fn extract(
             evidence: Box::new(evidence),
         });
     }
-    let text = match normalize(&evidence.stdout, output.stdout_bytes) {
+    let text = match normalize(&evidence.stdout, output.stdout.retained_bytes()) {
         Ok(text) => text,
         Err(source) => {
             return Err(ExtractionError::Normalize {

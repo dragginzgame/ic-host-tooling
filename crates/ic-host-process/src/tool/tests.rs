@@ -180,8 +180,8 @@ fn output_overflow_kills_and_reaps_with_bounded_prefix_evidence() {
     ] {
         for limit in [0, 17] {
             let bounds = OutputLimits {
-                stdout_bytes: limit,
-                stderr_bytes: limit,
+                stdout: crate::tool::OutputLimit::Terminate(limit),
+                stderr: crate::tool::OutputLimit::Terminate(limit),
                 ..LIMITS
             };
             let Err(ToolError::Execution(error)) =
@@ -203,7 +203,7 @@ fn output_overflow_kills_and_reaps_with_bounded_prefix_evidence() {
                 }
             }
             assert!(error.evidence.status.is_some());
-            assert!(error.kill_error.is_none() && error.wait_error.is_none());
+            assert!(error.cleanup.is_none());
         }
     }
 }
@@ -212,8 +212,8 @@ fn output_overflow_kills_and_reaps_with_bounded_prefix_evidence() {
 fn exact_output_limits_allow_complete_output() {
     let fixture = Fixture::new();
     let limits = OutputLimits {
-        stdout_bytes: 3,
-        stderr_bytes: 0,
+        stdout: crate::tool::OutputLimit::Terminate(3),
+        stderr: crate::tool::OutputLimit::Terminate(0),
         ..LIMITS
     };
     let output = fixture
@@ -232,7 +232,7 @@ fn deadlines_cover_running_children_closed_streams_and_descendant_pipe_copies() 
     let fixture = Fixture::new();
     let tool = fixture.tool();
     let limits = OutputLimits {
-        timeout: Duration::from_millis(100),
+        timeout: Some(Duration::from_millis(100)),
         ..LIMITS
     };
     for argument in ["--wait", "--closed-wait", "--descendant"] {
@@ -243,7 +243,7 @@ fn deadlines_cover_running_children_closed_streams_and_descendant_pipe_copies() 
         };
         assert!(matches!(error.failure, ExecutionFailure::TimedOut));
         assert!(error.evidence.status.is_some());
-        assert!(error.kill_error.is_none() && error.wait_error.is_none());
+        assert!(error.cleanup.is_none());
         if argument == "--descendant" {
             assert!(error.evidence.status.is_some_and(|status| status.success()));
         }
@@ -282,7 +282,7 @@ fn invalid_invocations_are_typed_and_never_dispatched() {
             &[],
             &fixture.context(&[]),
             OutputLimits {
-                timeout: Duration::ZERO,
+                timeout: Some(Duration::ZERO),
                 ..LIMITS
             }
         ),

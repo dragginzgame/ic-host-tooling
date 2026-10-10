@@ -12,13 +12,13 @@ fn named_output_keeps_bounded_capture_and_direct_child_cleanup_evidence() {
     fs::write(&output, b"old").unwrap();
     for argument in ["--flood-stdout", "--wait"] {
         let limits = OutputLimits {
-            stdout_bytes: 32,
-            stderr_bytes: 32,
-            timeout: if argument == "--wait" {
+            stdout: crate::tool::OutputLimit::Terminate(32),
+            stderr: crate::tool::OutputLimit::Terminate(32),
+            timeout: Some(if argument == "--wait" {
                 Duration::from_millis(100)
             } else {
                 Duration::from_secs(5)
-            },
+            }),
         };
         let result = write_named_with(&output, |_| {
             tool.run(&[argument.into()], &fixture.context(&[]), limits)
@@ -44,8 +44,7 @@ fn named_output_keeps_bounded_capture_and_direct_child_cleanup_evidence() {
             assert!(failure.evidence.stdout_truncated);
         }
         assert!(failure.evidence.status.is_some());
-        assert!(failure.kill_error.is_none());
-        assert!(failure.wait_error.is_none());
+        assert!(failure.cleanup.is_none());
         assert_eq!(fs::read(&output).unwrap(), b"old");
         assert_eq!(fs::read_dir(&fixture.root).unwrap().count(), 1);
     }
@@ -97,8 +96,7 @@ fn admitted_named_output_preserves_process_evidence_and_validates_before_publica
                 assert_eq!(failure.evidence.status.unwrap().code(), Some(23));
                 assert_eq!(failure.evidence.stdout, b"producer stdout");
                 assert_eq!(failure.evidence.stderr, b"producer stderr");
-                assert!(failure.kill_error.is_none());
-                assert!(failure.wait_error.is_none());
+                assert!(failure.cleanup.is_none());
             }
             assert_eq!(fs::read(&output).unwrap(), b"old");
         }

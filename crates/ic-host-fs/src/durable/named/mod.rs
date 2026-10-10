@@ -47,7 +47,19 @@ impl<E: fmt::Display> fmt::Display for NamedWriteError<E> {
                 formatter,
                 "output published but completion failed: {source}"
             ),
+        }?;
+        if let Self::Producer {
+            cleanup_error: Some(cleanup),
+            ..
         }
+        | Self::BeforePublication {
+            cleanup_error: Some(cleanup),
+            ..
+        } = self
+        {
+            write!(formatter, "; staging cleanup failed: {cleanup}")?;
+        }
+        Ok(())
     }
 }
 

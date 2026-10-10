@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.11.0]
+
+- **Breaking:** consolidate process limits and cleanup evidence; update callers
+  to `OutputLimits` with per-stream retention policies and optional deadlines,
+  and read secondary failures from `ExecutionError::cleanup`.
+- Forward long-running output with bounded retained diagnostics, expose cleanup
+  failures in error messages, move generic examples to their owners, and retire
+  unnumbered release drafts
+  ([#46](https://github.com/dragginzgame/ic-host-tooling/issues/46)).
+- Adopt Shared Tooling 0.2.13: reject line-break directory paths during snapshot
+  refresh/verification and identify missing or invalid selected Cargo tools
+  ([#45](https://github.com/dragginzgame/ic-host-tooling/issues/45)).
+
+See [the 0.11 notes and migration guidance](docs/changelog/0.11.md).
+
 ## [0.10.2] - 2026-10-10
 
 - Reject directory-suffixed publication targets instead of replacing the stripped

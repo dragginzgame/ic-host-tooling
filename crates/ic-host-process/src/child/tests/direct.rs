@@ -1,6 +1,6 @@
 use super::*;
 use crate::tool::{
-    CommunicationLimits, ExecutionFailure, SuccessfulExit, communicate_child_with_observer,
+    ExecutionFailure, OutputLimits, SuccessfulExit, communicate_child_with_observer,
 };
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
@@ -68,9 +68,13 @@ fn direct_cleanup_preserves_other_members_of_the_selected_group() {
                 communicate_child_with_observer(
                     &mut child,
                     Some(b"start\n"),
-                    CommunicationLimits {
-                        stdout_bytes: if case == "overflow" { 1 } else { 5 },
-                        stderr_bytes: 0,
+                    OutputLimits {
+                        stdout: crate::tool::OutputLimit::Terminate(if case == "overflow" {
+                            1
+                        } else {
+                            5
+                        }),
+                        stderr: crate::tool::OutputLimit::Terminate(0),
                         timeout: None,
                     },
                     SuccessfulExit::Cleanup,
@@ -89,7 +93,7 @@ fn direct_cleanup_preserves_other_members_of_the_selected_group() {
                             || matches!(execution.failure,
                         ExecutionFailure::OutputLimit { .. } if case == "overflow")
                     );
-                    assert!(execution.group_error.is_none() && execution.wait_error.is_none());
+                    assert!(execution.cleanup.is_none());
                 }
                 "panic" => assert!(result.is_err()),
                 _ => unreachable!(),

@@ -36,6 +36,21 @@ cleanup() {
 
 trap cleanup EXIT
 
+# Check before command substitution can trim a pathname, and again after
+# resolving aliases. Absolute cd inputs avoid CDPATH lookup and output.
+resolve_directory() {
+    local path="$1" resolved
+    [[ "$path" == /* ]] || path="$PWD/$path"
+    [[ "$path" != *$'\n'* && "$path" != *$'\r'* ]] ||
+        fail "directory paths must not contain LF or CR characters"
+    resolved="$(cd -P "$path" 2>/dev/null && printf '%s/.' "$PWD")" ||
+        fail "directory does not exist: $path"
+    resolved="${resolved%/.}"
+    [[ "$resolved" != *$'\n'* && "$resolved" != *$'\r'* ]] ||
+        fail "resolved directory paths must not contain LF or CR characters"
+    printf '%s\n' "$resolved"
+}
+
 validate_relative_path() {
     local path="$1"
 
@@ -44,7 +59,7 @@ validate_relative_path() {
     *'/../'* | *'/./'* | *'//'*) fail "path is not canonical: $path" ;;
     esac
     case "$path" in
-    *$'\n'* | *$'\t'*) fail "path contains a forbidden control character" ;;
+    *$'\n'* | *$'\r'* | *$'\t'*) fail "path contains a forbidden control character" ;;
     esac
 }
 
@@ -150,21 +165,22 @@ done
 [[ -n "$CONSUMER_ROOT" ]] || { usage; exit 2; }
 validate_relative_path "$MANIFEST_PATH"
 
-SOURCE_ROOT="$(cd "$SOURCE_ROOT" 2>/dev/null && pwd -P)" ||
-    fail "source checkout does not exist: $SOURCE_ROOT"
-CONSUMER_ROOT="$(cd "$CONSUMER_ROOT" 2>/dev/null && pwd -P)" ||
-    fail "consumer repository does not exist: $CONSUMER_ROOT"
+SCRIPT_ROOT="$(resolve_directory "$SCRIPT_ROOT")"
+SOURCE_ROOT="$(resolve_directory "$SOURCE_ROOT")"
+CONSUMER_ROOT="$(resolve_directory "$CONSUMER_ROOT")"
 [[ "$CONSUMER_ROOT" != "/" ]] || fail "consumer repository may not be the filesystem root"
 [[ "$SOURCE_ROOT" != "$CONSUMER_ROOT" ]] || fail "source and consumer repositories must differ"
 
-source_top="$(git -C "$SOURCE_ROOT" rev-parse --show-toplevel 2>/dev/null)" ||
+source_top="$(git -C "$SOURCE_ROOT" rev-parse --show-toplevel 2>/dev/null && printf '.')" ||
     fail "source is not a Git checkout"
-source_top="$(cd "$source_top" && pwd -P)"
+source_top="${source_top%.}"
+source_top="$(resolve_directory "${source_top%$'\n'}")"
 [[ "$source_top" == "$SOURCE_ROOT" ]] || fail "--source must name the checkout root"
 
-consumer_top="$(git -C "$CONSUMER_ROOT" rev-parse --show-toplevel 2>/dev/null)" ||
+consumer_top="$(git -C "$CONSUMER_ROOT" rev-parse --show-toplevel 2>/dev/null && printf '.')" ||
     fail "consumer is not a Git checkout"
-consumer_top="$(cd "$consumer_top" && pwd -P)"
+consumer_top="${consumer_top%.}"
+consumer_top="$(resolve_directory "${consumer_top%$'\n'}")"
 [[ "$consumer_top" == "$CONSUMER_ROOT" ]] || fail "--consumer must name the checkout root"
 
 source_status="$(git -C "$SOURCE_ROOT" status --porcelain --untracked-files=all)"
@@ -280,7 +296,7 @@ for index in "${!files[@]}"; do
     source_file="$SOURCE_ROOT/$path"
     [[ -f "$source_file" && ! -L "$source_file" ]] ||
         fail "source file is missing or symlinked: $path"
-    source_parent="$(cd "$(dirname "$source_file")" && pwd -P)"
+    source_parent="$(resolve_directory "${source_file%/*}")"
     case "$source_parent/" in
     "$SOURCE_ROOT/"*) ;;
     *) fail "source file escapes the source checkout: $path" ;;

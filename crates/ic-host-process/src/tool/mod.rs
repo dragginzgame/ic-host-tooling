@@ -22,31 +22,36 @@ use std::{
     time::Duration,
 };
 
-/// Caller-selected stdout/stderr storage bounds and capture deadline.
+/// Retention and overflow behavior for one output stream.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum OutputLimit {
+    /// Retain at most this many bytes; excess output fails and cleans up the child.
+    Terminate(usize),
+    /// Retain this prefix, drain the rest, and report every byte to an observer.
+    /// Truncation is recorded in evidence, without failing the command.
+    Truncate(usize),
+}
+
+impl OutputLimit {
+    /// Maximum retained bytes, independently of overflow behavior.
+    #[must_use]
+    pub const fn retained_bytes(self) -> usize {
+        match self {
+            Self::Terminate(bytes) | Self::Truncate(bytes) => bytes,
+        }
+    }
+}
+
+/// Caller-selected output retention and optional elapsed-time deadline.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct OutputLimits {
-    /// Maximum retained stdout bytes; zero permits only empty stdout.
-    pub stdout_bytes: usize,
-    /// Maximum retained stderr bytes; zero permits only empty stderr.
-    pub stderr_bytes: usize,
+    /// Standard output retention and overflow behavior.
+    pub stdout: OutputLimit,
+    /// Standard error retention and overflow behavior.
+    pub stderr: OutputLimit,
     /// Positive deadline from immediately before spawning through output EOF,
     /// or from entry to [`communicate_child`] for an already spawned child.
     /// Verification reads, spawning syscalls and kill/reap may take longer.
-    pub timeout: Duration,
-}
-
-/// Captured-output bounds and an optional deadline for caller-owned communication.
-///
-/// Use with [`communicate_child`] or [`communicate_child_with_observer`]. An
-/// existing [`OutputLimits`] converts to these limits with its finite deadline.
-/// Capture and executable-admission APIs continue to require `OutputLimits`.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct CommunicationLimits {
-    /// Maximum retained stdout bytes; zero permits only empty stdout.
-    pub stdout_bytes: usize,
-    /// Maximum retained stderr bytes; zero permits only empty stderr.
-    pub stderr_bytes: usize,
-    /// Positive deadline measured from communication entry, or no elapsed-time limit.
     ///
     /// `None` still enforces output bounds, polls cancellation and cleans up on
     /// failure. It can wait indefinitely for child exit or pipe EOF, including
@@ -54,16 +59,6 @@ pub struct CommunicationLimits {
     /// and successful-exit policy deliberately. Cleanup timing remains governed
     /// by the child's [`crate::child::CleanupPolicy`].
     pub timeout: Option<Duration>,
-}
-
-impl From<OutputLimits> for CommunicationLimits {
-    fn from(limits: OutputLimits) -> Self {
-        Self {
-            stdout_bytes: limits.stdout_bytes,
-            stderr_bytes: limits.stderr_bytes,
-            timeout: Some(limits.timeout),
-        }
-    }
 }
 
 /// Explicit process context. The child's inherited environment is cleared.
@@ -166,6 +161,29 @@ pub struct ExecutionEvidence {
     pub stderr_truncated: bool,
 }
 
+impl ExecutionEvidence {
+    /// Require complete output before parsing or treating it as an identity.
+    ///
+    /// # Errors
+    /// Returns an output-limit failure with the original evidence if either
+    /// stream was truncated. This does not perform child cleanup; callers using
+    /// retained ownership still own the child's disposition.
+    pub fn require_complete(self) -> Result<Self, ToolError> {
+        let stream = if self.stdout_truncated {
+            OutputStream::Stdout
+        } else if self.stderr_truncated {
+            OutputStream::Stderr
+        } else {
+            return Ok(self);
+        };
+        Err(ToolError::Execution(Box::new(ExecutionError {
+            failure: ExecutionFailure::OutputLimit { stream },
+            evidence: self,
+            cleanup: None,
+        })))
+    }
+}
+
 impl fmt::Debug for ExecutionEvidence {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("ExecutionEvidence")
@@ -250,14 +268,8 @@ pub struct ExecutionError {
     pub failure: ExecutionFailure,
     /// Observed status and bounded stdout/stderr prefixes.
     pub evidence: ExecutionEvidence,
-    /// Failure signalling TERM under the caller-selected child cleanup policy.
-    pub term_error: Option<io::Error>,
-    /// Failure signalling KILL to an owned process group; absent in direct capture.
-    pub group_error: Option<io::Error>,
-    /// Failure to terminate the direct child, if termination was needed.
-    pub kill_error: Option<io::Error>,
-    /// Failure to reap the direct child, if reaping was needed.
-    pub wait_error: Option<io::Error>,
+    /// Cleanup failures retained by the child owner, if cleanup failed.
+    pub cleanup: Option<Box<crate::child::CleanupError>>,
 }
 
 impl fmt::Display for ExecutionError {
@@ -275,7 +287,11 @@ impl fmt::Display for ExecutionError {
             ExecutionFailure::Allocation { stream, .. } => {
                 write!(f, "tool {stream:?} allocation failed")
             }
+        }?;
+        if let Some(cleanup) = &self.cleanup {
+            write!(f, "; cleanup failed: {cleanup}")?;
         }
+        Ok(())
     }
 }
 impl std::error::Error for ExecutionError {
@@ -432,9 +448,8 @@ pub enum SuccessfulExit {
 /// standard communicate semantics; command status and diagnostics remain primary.
 /// This does not guarantee the command consumed all input or applied its effects.
 ///
-/// Accepts finite [`OutputLimits`] or explicit [`CommunicationLimits`]. A selected
-/// deadline starts on entry, excluding earlier spawn time; `timeout: None` in
-/// `CommunicationLimits` imposes no elapsed-time deadline. Output bounds and
+/// A selected deadline starts on entry, excluding earlier spawn time;
+/// `timeout: None` imposes no elapsed-time deadline. Output retention and
 /// cleanup remain active in either case. `cancelled` is
 /// polled between bounded IO steps and before returning success; it must return
 /// promptly. No signal handler, cancellation thread, retry or output decoding
@@ -461,20 +476,22 @@ pub enum SuccessfulExit {
 pub fn communicate_child(
     child: &mut crate::child::OwnedChild,
     input: Option<&[u8]>,
-    limits: impl Into<CommunicationLimits>,
+    limits: OutputLimits,
     successful_exit: SuccessfulExit,
     cancelled: impl FnMut() -> bool,
 ) -> Result<ExecutionEvidence, ToolError> {
     communicate_child_with_observer(child, input, limits, successful_exit, cancelled, |_, _| {})
 }
 
-/// Communicate with an owned child while observing retained output bytes live.
+/// Communicate with an owned child while observing output bytes live.
 ///
 /// Uses the same bounds, pipe handling and cleanup as [`communicate_child`].
 /// `output` receives nonempty borrowed chunks after retention, in order within
 /// each stream; chunk boundaries and ordering between streams are unspecified.
-/// The bytes concatenate to the corresponding returned evidence, including the
-/// retained prefix on overflow. Bytes beyond a selected limit are never reported.
+/// With [`OutputLimit::Terminate`], only the retained prefix is reported before
+/// overflow fails. With [`OutputLimit::Truncate`], every drained byte is reported,
+/// while evidence retains only the selected prefix. A zero retained-byte budget
+/// can therefore forward output without storing it.
 /// Output is raw bytes, not necessarily complete lines or UTF-8.
 ///
 /// Both callbacks run synchronously and must return promptly. `cancelled` also
@@ -486,7 +503,7 @@ pub fn communicate_child(
 /// unwind; any unreaped child remains owned for caller recovery.
 ///
 /// Callers own event schemas, scheduling, output budgets and diagnostic rendering.
-/// Observation does not change hard overflow into truncation-and-continue.
+/// Each stream explicitly selects hard overflow or truncation-and-continue.
 ///
 /// # Panics
 /// Resumes callback panics after attempting cleanup with the selected policy.
@@ -496,12 +513,11 @@ pub fn communicate_child(
 pub fn communicate_child_with_observer(
     child: &mut crate::child::OwnedChild,
     input: Option<&[u8]>,
-    limits: impl Into<CommunicationLimits>,
+    limits: OutputLimits,
     successful_exit: SuccessfulExit,
     cancelled: impl FnMut() -> bool,
     output: impl FnMut(OutputStream, &[u8]),
 ) -> Result<ExecutionEvidence, ToolError> {
-    let limits = limits.into();
     validate_limits(limits)?;
     process::communicate(child, input, limits, successful_exit, cancelled, output)
         .map_err(|source| ToolError::Execution(Box::new(source)))
@@ -616,7 +632,8 @@ impl AdmittedTool {
         let path = fs::canonicalize(spec.executable).map_err(ToolError::Io)?;
         let identity = verify_executable(&path, spec.executable_bytes, expected)?;
         let evidence = process::capture(&path, spec.version_arguments, context, limits)
-            .map_err(|source| ToolError::Execution(Box::new(source)))?;
+            .map_err(|source| ToolError::Execution(Box::new(source)))?
+            .require_complete()?;
         let version = match std::str::from_utf8(&evidence.stdout) {
             Ok(version) => version.trim(),
             Err(source) => {
@@ -745,8 +762,8 @@ fn validate_invocation(
     Ok(())
 }
 
-fn validate_limits(limits: impl Into<CommunicationLimits>) -> Result<(), ToolError> {
-    if limits.into().timeout.is_some_and(|timeout| {
+fn validate_limits(limits: OutputLimits) -> Result<(), ToolError> {
+    if limits.timeout.is_some_and(|timeout| {
         timeout.is_zero() || std::time::Instant::now().checked_add(timeout).is_none()
     }) {
         return Err(ToolError::InvalidInvocation(InvalidInvocation::Deadline));

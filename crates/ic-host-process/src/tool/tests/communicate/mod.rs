@@ -30,7 +30,7 @@ fn assert_reaped(child: &OwnedChild) {
 #[test]
 fn full_duplex_io_is_bounded_fair_and_leaves_success_reserved() {
     let _fixture = Fixture::new();
-    for timeout in [Some(LIMITS.timeout), None] {
+    for timeout in [LIMITS.timeout, None] {
         // Fill both output pipes before reading input larger than a pipe capacity.
         let mut command = command(
             "n=0; while [ \"$n\" -lt 10000 ]; do printf 0123456789abcdef; \
@@ -42,10 +42,10 @@ fn full_duplex_io_is_bounded_fair_and_leaves_success_reserved() {
         let evidence = communicate_child_with_observer(
             &mut child,
             Some(&input),
-            CommunicationLimits {
-                stdout_bytes: 160_000 + input.len(),
+            OutputLimits {
+                stdout: crate::tool::OutputLimit::Terminate(160_000 + input.len()),
                 timeout,
-                ..LIMITS.into()
+                ..LIMITS
             },
             SuccessfulExit::Retain,
             || false,
@@ -104,8 +104,8 @@ fn absent_input_closes_piped_stdin_and_caller_io_is_preserved() {
         &mut child,
         None,
         OutputLimits {
-            stdout_bytes: 0,
-            stderr_bytes: 0,
+            stdout: crate::tool::OutputLimit::Terminate(0),
+            stderr: crate::tool::OutputLimit::Terminate(0),
             ..LIMITS
         },
         SuccessfulExit::Retain,
@@ -178,11 +178,7 @@ fn cancellation_interrupts_blocked_input_and_reaps_the_group() {
     let execution = error.execution_error().unwrap();
     assert!(matches!(execution.failure, ExecutionFailure::Cancelled));
     assert!(execution.evidence.status.is_some());
-    assert!(
-        execution.group_error.is_none()
-            && execution.kill_error.is_none()
-            && execution.wait_error.is_none()
-    );
+    assert!(execution.cleanup.is_none());
     assert_reaped(&child);
     std::thread::sleep(Duration::from_millis(100));
     assert!(!late.exists());
@@ -248,8 +244,8 @@ fn held_pipe_deadline_and_overflow_keep_cleanup_armed_after_leader_exit() {
             &mut child,
             None,
             OutputLimits {
-                stdout_bytes: 4,
-                timeout: Duration::from_secs(1),
+                stdout: crate::tool::OutputLimit::Terminate(4),
+                timeout: Some(Duration::from_secs(1)),
                 ..LIMITS
             },
             SuccessfulExit::Retain,
@@ -268,7 +264,7 @@ fn held_pipe_deadline_and_overflow_keep_cleanup_armed_after_leader_exit() {
         } else {
             assert!(matches!(execution.failure, ExecutionFailure::TimedOut));
         }
-        assert!(execution.group_error.is_none() && execution.wait_error.is_none());
+        assert!(execution.cleanup.is_none());
         assert_reaped(&child);
     }
 }
@@ -282,19 +278,9 @@ fn invalid_deadline_retains_owner_and_missing_input_pipe_cleans_it() {
             communicate_child(
                 &mut child,
                 None,
-                OutputLimits { timeout, ..LIMITS },
-                SuccessfulExit::Retain,
-                || { false }
-            ),
-            Err(ToolError::InvalidInvocation(InvalidInvocation::Deadline))
-        ));
-        assert!(matches!(
-            communicate_child(
-                &mut child,
-                None,
-                CommunicationLimits {
+                OutputLimits {
                     timeout: Some(timeout),
-                    ..LIMITS.into()
+                    ..LIMITS
                 },
                 SuccessfulExit::Retain,
                 || false
@@ -306,9 +292,9 @@ fn invalid_deadline_retains_owner_and_missing_input_pipe_cleans_it() {
         communicate_child(
             &mut child,
             Some(b"still available"),
-            CommunicationLimits {
+            OutputLimits {
                 timeout: None,
-                ..LIMITS.into()
+                ..LIMITS
             },
             SuccessfulExit::Retain,
             || false
@@ -395,7 +381,7 @@ fn communication_uses_owned_term_grace_with_blocked_input_and_held_pipes() {
             &mut child,
             Some(&input),
             OutputLimits {
-                timeout: Duration::from_millis(100),
+                timeout: Some(Duration::from_millis(100)),
                 ..LIMITS
             },
             SuccessfulExit::Retain,
@@ -410,12 +396,7 @@ fn communication_uses_owned_term_grace_with_blocked_input_and_held_pipes() {
             assert_eq!(execution.evidence.stdout, b"prefix");
         }
         assert!(started.elapsed() >= grace);
-        assert!(
-            execution.term_error.is_none()
-                && execution.group_error.is_none()
-                && execution.kill_error.is_none()
-                && execution.wait_error.is_none()
-        );
+        assert!(execution.cleanup.is_none());
         assert_reaped(&child);
         assert!(child.handoff().is_err());
     }

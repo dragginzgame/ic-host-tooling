@@ -1,6 +1,6 @@
 use super::{
-    CommunicationLimits, ExecutionContext, ExecutionError, ExecutionEvidence, ExecutionFailure,
-    ExecutionOperation, OutputLimits, OutputStream, SuccessfulExit,
+    ExecutionContext, ExecutionError, ExecutionEvidence, ExecutionFailure, ExecutionOperation,
+    OutputLimit, OutputLimits, OutputStream, SuccessfulExit,
 };
 use crate::child::OwnedChild;
 use rustix::fs::{OFlags, fcntl_getfl, fcntl_setfl};
@@ -57,15 +57,12 @@ pub(super) fn capture_command(
     let mut child = spawned.map_err(|source| ExecutionError {
         failure: io_failure(ExecutionOperation::Spawn, source),
         evidence: ExecutionEvidence::default(),
-        term_error: None,
-        group_error: None,
-        kill_error: None,
-        wait_error: None,
+        cleanup: None,
     })?;
     exchange(
         &mut child,
         None,
-        limits.into(),
+        limits,
         started,
         SuccessfulExit::Cleanup,
         || false,
@@ -76,7 +73,7 @@ pub(super) fn capture_command(
 pub(super) fn communicate(
     child: &mut OwnedChild,
     input: Option<&[u8]>,
-    limits: CommunicationLimits,
+    limits: OutputLimits,
     successful_exit: SuccessfulExit,
     cancelled: impl FnMut() -> bool,
     output: impl FnMut(OutputStream, &[u8]),
@@ -95,7 +92,7 @@ pub(super) fn communicate(
 fn exchange(
     child: &mut OwnedChild,
     input: Option<&[u8]>,
-    limits: CommunicationLimits,
+    limits: OutputLimits,
     started: Instant,
     successful_exit: SuccessfulExit,
     mut cancelled: impl FnMut() -> bool,
@@ -148,7 +145,7 @@ fn exchange(
             let progress_out = read_chunk(
                 &mut stdout,
                 &mut evidence.stdout,
-                limits.stdout_bytes,
+                limits.stdout,
                 OutputStream::Stdout,
                 &mut evidence.stdout_truncated,
                 &mut output,
@@ -156,7 +153,7 @@ fn exchange(
             let progress_err = read_chunk(
                 &mut stderr,
                 &mut evidence.stderr,
-                limits.stderr_bytes,
+                limits.stderr,
                 OutputStream::Stderr,
                 &mut evidence.stderr_truncated,
                 &mut output,
@@ -230,28 +227,20 @@ fn finish_capture(
     match result {
         Ok(()) => Ok(evidence),
         Err(failure) => {
-            let (term_error, group_error, kill_error, wait_error) = match child.terminate() {
+            let cleanup = match child.terminate() {
                 Ok(status) => {
                     evidence.status = Some(status);
-                    (None, None, None, None)
+                    None
                 }
                 Err(error) => {
                     evidence.status = error.status;
-                    (
-                        error.term_error,
-                        error.group_error,
-                        error.kill_error,
-                        error.wait_error,
-                    )
+                    Some(Box::new(error))
                 }
             };
             Err(ExecutionError {
                 failure,
                 evidence,
-                term_error,
-                group_error,
-                kill_error,
-                wait_error,
+                cleanup,
             })
         }
     }
@@ -296,7 +285,7 @@ fn nonblocking(pipe: &impl AsFd) -> Result<(), ExecutionFailure> {
 fn read_chunk(
     reader: &mut Option<impl Read>,
     bytes: &mut Vec<u8>,
-    limit: usize,
+    policy: OutputLimit,
     stream: OutputStream,
     truncated: &mut bool,
     output: &mut impl FnMut(OutputStream, &[u8]),
@@ -305,7 +294,13 @@ fn read_chunk(
         return Ok(false);
     };
     let mut buffer = [0; 16 * 1024];
-    let allowance = (limit - bytes.len()).saturating_add(1).min(buffer.len());
+    let limit = policy.retained_bytes();
+    let terminate = matches!(policy, OutputLimit::Terminate(_));
+    let allowance = if terminate {
+        (limit - bytes.len()).saturating_add(1).min(buffer.len())
+    } else {
+        buffer.len()
+    };
     let count = match pipe.read(&mut buffer[..allowance]) {
         Ok(0) => {
             // A closed pipe is also the completion state; never read it again.
@@ -334,12 +329,15 @@ fn read_chunk(
             .map_err(|source| ExecutionFailure::Allocation { stream, source })?;
     }
     bytes.extend_from_slice(&buffer[..retained]);
-    if retained != 0 {
-        output(stream, &buffer[..retained]);
+    let observed = if terminate { retained } else { count };
+    if observed != 0 {
+        output(stream, &buffer[..observed]);
     }
     if retained != count {
         *truncated = true;
-        return Err(ExecutionFailure::OutputLimit { stream });
+        if terminate {
+            return Err(ExecutionFailure::OutputLimit { stream });
+        }
     }
     Ok(true)
 }

@@ -42,7 +42,7 @@ finalize_notes() {
     # candidate selection, complete-ledger conflict checks and heading rewriting.
     heading="$(awk '/^##[ \t]+/ { sub(/[ \t]+$/, ""); gsub(/[ \t]+/, " "); print; exit }' "$input")"
     case "$heading" in
-        '## [Draft]'|"## [$RELEASE_VERSION]"|"## [$RELEASE_PREVIOUS]"|"## [$RELEASE_PREVIOUS] - "*) ;;
+        "## [$RELEASE_VERSION]"|"## [$RELEASE_PREVIOUS]"|"## [$RELEASE_PREVIOUS] - "*) ;;
         *) fail "top changelog entry conflicts with selected release" ;;
     esac
     # A candidate belongs at the top; do not let the shared selector relocate
@@ -51,7 +51,8 @@ finalize_notes() {
         /^##[ \t]+/ {
             sub(/[ \t]+$/, "")
             gsub(/[ \t]+/, " ")
-            if (++headings > 1 && ($0 == "## [Draft]" || $0 == heading || index($0, heading " - ") == 1)) exit 1
+            if ($0 == "## [Draft]") exit 1
+            if (++headings > 1 && ($0 == heading || index($0, heading " - ") == 1)) exit 1
         }
     ' "$input" || fail "duplicate or misplaced current release entry"
     awk -v version="$RELEASE_VERSION" -v previous="$RELEASE_PREVIOUS" \

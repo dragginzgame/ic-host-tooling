@@ -136,7 +136,7 @@ fn retains_prior_captures_on_process_failure_and_bounds_output() {
         &context,
         OPTIONS,
         OutputLimits {
-            stdout_bytes: 10,
+            stdout: crate::tool::OutputLimit::Terminate(10),
             ..LIMITS
         },
     )
@@ -156,4 +156,27 @@ fn retains_prior_captures_on_process_failure_and_bounds_output() {
     ));
     assert_eq!(source.evidence.stdout.len(), 10);
     assert!(source.evidence.stdout_truncated);
+}
+
+#[test]
+fn truncated_empty_status_cannot_claim_a_clean_tree() {
+    let fixture = Fixture::new();
+    let context = fixture.context(&[]);
+    let git = admit(&fixture_tool(), &context, VERSION).unwrap();
+    let error = observe(
+        &git,
+        &context,
+        OPTIONS,
+        OutputLimits {
+            stdout: crate::tool::OutputLimit::Truncate(0),
+            ..LIMITS
+        },
+        GitQuery::Status,
+    )
+    .unwrap_err();
+    let GitFailure::Tool(error) = error.failure else {
+        panic!("incomplete capture must fail")
+    };
+    assert!(error.evidence().unwrap().stdout_truncated);
+    assert_eq!(error.evidence().unwrap().stdout, []);
 }

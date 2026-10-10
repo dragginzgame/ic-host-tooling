@@ -156,8 +156,8 @@ fn version_capture_keeps_output_and_deadline_limits() {
             },
             &fixture.context(&[]),
             OutputLimits {
-                stdout_bytes: 17,
-                timeout: Duration::from_millis(100),
+                stdout: crate::tool::OutputLimit::Terminate(17),
+                timeout: Some(Duration::from_millis(100)),
                 ..LIMITS
             },
         ) else {
@@ -176,6 +176,39 @@ fn version_capture_keeps_output_and_deadline_limits() {
             assert!(matches!(error.failure, ExecutionFailure::TimedOut));
         }
         assert!(error.evidence.status.is_some());
-        assert!(error.kill_error.is_none() && error.wait_error.is_none());
+        assert!(error.cleanup.is_none());
     }
+}
+
+#[test]
+fn truncated_matching_version_prefix_cannot_admit_an_executable() {
+    let fixture = Fixture::new();
+    let path = tool_path();
+    let environment = [("FIXTURE_VERSION".into(), format!("{VERSION}-wrong").into())];
+    let result = AdmittedTool::admit_version(
+        &VersionSpec {
+            executable: &path,
+            executable_bytes: 1024 * 1024,
+            version_arguments: &["--version".into()],
+            version_identity: VERSION,
+        },
+        &fixture.context(&environment),
+        OutputLimits {
+            stdout: OutputLimit::Truncate(VERSION.len()),
+            timeout: None,
+            ..LIMITS
+        },
+    );
+    let Err(ToolError::Execution(error)) = result else {
+        panic!("a matching retained prefix is not complete version evidence");
+    };
+    assert!(matches!(
+        error.failure,
+        ExecutionFailure::OutputLimit {
+            stream: OutputStream::Stdout
+        }
+    ));
+    assert_eq!(error.evidence.stdout, VERSION.as_bytes());
+    assert!(error.evidence.stdout_truncated);
+    assert!(error.evidence.status.unwrap().success());
 }

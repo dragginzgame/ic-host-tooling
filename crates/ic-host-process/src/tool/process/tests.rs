@@ -18,9 +18,9 @@ fn communication_without_deadline_accepts_long_elapsed_time() {
         let result = exchange(
             &mut child,
             Some(b"completed"),
-            CommunicationLimits {
-                stdout_bytes: 9,
-                stderr_bytes: 0,
+            OutputLimits {
+                stdout: crate::tool::OutputLimit::Terminate(9),
+                stderr: crate::tool::OutputLimit::Terminate(0),
                 timeout,
             },
             Instant::now()
@@ -63,7 +63,7 @@ fn fragmented_capture_keeps_capacity_and_overflow_evidence_within_budget() {
                 read_chunk(
                     &mut reader,
                     &mut bytes,
-                    limit,
+                    OutputLimit::Terminate(limit),
                     OutputStream::Stdout,
                     &mut truncated,
                     &mut |_, _| {},
@@ -76,7 +76,7 @@ fn fragmented_capture_keeps_capacity_and_overflow_evidence_within_budget() {
             read_chunk(
                 &mut reader,
                 &mut bytes,
-                limit,
+                OutputLimit::Terminate(limit),
                 OutputStream::Stdout,
                 &mut truncated,
                 &mut |_, _| {},
@@ -118,9 +118,7 @@ fn io_failure_cleans_the_group_and_keeps_the_original_error() {
     assert!(
         matches!(&error.failure, ExecutionFailure::Io { operation: ExecutionOperation::ReadOutput, source } if source.raw_os_error() == Some(5))
     );
-    assert!(
-        error.group_error.is_none() && error.kill_error.is_none() && error.wait_error.is_none()
-    );
+    assert!(error.cleanup.is_none());
     assert!(error.evidence.status.is_some());
     let deadline = Instant::now() + Duration::from_secs(5);
     loop {
@@ -154,12 +152,26 @@ fn cleanup_ownership_failure_does_not_replace_original_timeout() {
     .unwrap_err();
     assert!(matches!(error.failure, ExecutionFailure::TimedOut));
     assert_eq!(
-        error.group_error.unwrap().raw_os_error(),
+        error
+            .cleanup
+            .as_ref()
+            .unwrap()
+            .group_error
+            .as_ref()
+            .unwrap()
+            .raw_os_error(),
         Some(rustix::io::Errno::CHILD.raw_os_error())
     );
-    assert!(error.kill_error.is_none());
+    assert!(error.cleanup.as_ref().unwrap().kill_error.is_none());
     assert_eq!(
-        error.wait_error.unwrap().raw_os_error(),
+        error
+            .cleanup
+            .as_ref()
+            .unwrap()
+            .wait_error
+            .as_ref()
+            .unwrap()
+            .raw_os_error(),
         Some(rustix::io::Errno::CHILD.raw_os_error())
     );
 }
@@ -189,11 +201,15 @@ fn bounded_cleanup_retains_term_kill_and_reap_failures_beside_cancellation() {
     .unwrap_err();
     assert!(matches!(error.failure, ExecutionFailure::Cancelled));
     assert_eq!(error.evidence.stdout, b"prefix");
-    for failure in [error.term_error, error.group_error, error.wait_error] {
+    for failure in [
+        &error.cleanup.as_ref().unwrap().term_error,
+        &error.cleanup.as_ref().unwrap().group_error,
+        &error.cleanup.as_ref().unwrap().wait_error,
+    ] {
         assert_eq!(
-            failure.unwrap().raw_os_error(),
+            failure.as_ref().unwrap().raw_os_error(),
             Some(rustix::io::Errno::CHILD.raw_os_error())
         );
     }
-    assert!(error.kill_error.is_none());
+    assert!(error.cleanup.as_ref().unwrap().kill_error.is_none());
 }

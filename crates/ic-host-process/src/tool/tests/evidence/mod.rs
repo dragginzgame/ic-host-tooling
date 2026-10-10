@@ -77,10 +77,13 @@ fn borrowed_execution_keeps_original_failure_and_cleanup_errors_together() {
             stdout_truncated: true,
             ..ExecutionEvidence::default()
         },
-        term_error: Some(io::ErrorKind::PermissionDenied.into()),
-        group_error: Some(io::ErrorKind::PermissionDenied.into()),
-        kill_error: Some(io::ErrorKind::PermissionDenied.into()),
-        wait_error: Some(io::ErrorKind::Interrupted.into()),
+        cleanup: Some(Box::new(crate::child::CleanupError {
+            status: None,
+            term_error: Some(io::ErrorKind::PermissionDenied.into()),
+            group_error: Some(io::ErrorKind::PermissionDenied.into()),
+            kill_error: Some(io::ErrorKind::PermissionDenied.into()),
+            wait_error: Some(io::ErrorKind::Interrupted.into()),
+        })),
     }));
     let ToolError::Execution(retained) = &error else {
         unreachable!()
@@ -93,22 +96,54 @@ fn borrowed_execution_keeps_original_failure_and_cleanup_errors_together() {
     ));
     assert!(matches!(borrowed.failure, ExecutionFailure::TimedOut));
     assert_eq!(
-        borrowed.term_error.as_ref().unwrap().kind(),
+        borrowed
+            .cleanup
+            .as_ref()
+            .unwrap()
+            .term_error
+            .as_ref()
+            .unwrap()
+            .kind(),
         io::ErrorKind::PermissionDenied
     );
     assert_eq!(
-        borrowed.group_error.as_ref().unwrap().kind(),
+        borrowed
+            .cleanup
+            .as_ref()
+            .unwrap()
+            .group_error
+            .as_ref()
+            .unwrap()
+            .kind(),
         io::ErrorKind::PermissionDenied
     );
     assert_eq!(
-        borrowed.kill_error.as_ref().unwrap().kind(),
+        borrowed
+            .cleanup
+            .as_ref()
+            .unwrap()
+            .kill_error
+            .as_ref()
+            .unwrap()
+            .kind(),
         io::ErrorKind::PermissionDenied
     );
     assert_eq!(
-        borrowed.wait_error.as_ref().unwrap().kind(),
+        borrowed
+            .cleanup
+            .as_ref()
+            .unwrap()
+            .wait_error
+            .as_ref()
+            .unwrap()
+            .kind(),
         io::ErrorKind::Interrupted
     );
     assert!(borrowed.evidence.stdout_truncated);
     assert_eq!(borrowed.evidence.stdout, b"retained prefix");
     assert!(!format!("{error:?}").contains("retained prefix"));
+    let display = error.to_string();
+    assert!(display.starts_with("tool capture exceeded its deadline; cleanup failed:"));
+    assert!(display.contains(&borrowed.cleanup.as_ref().unwrap().to_string()));
+    assert!(!display.contains("retained prefix"));
 }

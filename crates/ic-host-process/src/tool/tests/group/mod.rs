@@ -27,9 +27,9 @@ fn group_capture_cleans_wrapper_descendants_on_exit_timeout_and_overflow() {
         let output = capture_group_command(
             &mut command,
             OutputLimits {
-                stdout_bytes: 32,
-                stderr_bytes: 32,
-                timeout: Duration::from_secs(1),
+                stdout: crate::tool::OutputLimit::Terminate(32),
+                stderr: crate::tool::OutputLimit::Terminate(32),
+                timeout: Some(Duration::from_secs(1)),
             },
         );
         // Release any surviving fixture before asserting, including on regression.
@@ -64,9 +64,7 @@ fn group_capture_cleans_wrapper_descendants_on_exit_timeout_and_overflow() {
                     );
                 }
             }
-            assert!(execution.group_error.is_none());
-            assert!(execution.kill_error.is_none());
-            assert!(execution.wait_error.is_none());
+            assert!(execution.cleanup.is_none());
             assert!(execution.evidence.status.is_some());
             assert!(execution.evidence.stdout.len() <= 32);
             assert!(execution.evidence.stderr.len() <= 32);
@@ -90,8 +88,14 @@ fn group_capture_retains_fair_streams_and_refuses_invalid_deadlines_before_spawn
     assert_eq!(evidence.stderr.len(), 160_000);
     assert_eq!(fs::read(&marker).unwrap(), b"invoked\n");
     for timeout in [Duration::ZERO, Duration::MAX] {
-        let error =
-            capture_group_command(&mut command, OutputLimits { timeout, ..LIMITS }).unwrap_err();
+        let error = capture_group_command(
+            &mut command,
+            OutputLimits {
+                timeout: Some(timeout),
+                ..LIMITS
+            },
+        )
+        .unwrap_err();
         assert!(matches!(
             error,
             ToolError::InvalidInvocation(InvalidInvocation::Deadline)
@@ -109,7 +113,7 @@ fn group_capture_retains_fair_streams_and_refuses_invalid_deadlines_before_spawn
         }
     ));
     assert!(execution.evidence.status.is_none());
-    assert!(execution.group_error.is_none());
+    assert!(execution.cleanup.is_none());
 }
 
 #[test]

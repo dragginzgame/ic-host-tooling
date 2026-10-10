@@ -126,7 +126,7 @@ fn extractor_failure_invalid_utf8_and_output_overflow_keep_bounded_evidence() {
         &fixture.context(&[]),
         8,
         OutputLimits {
-            stdout_bytes: 10,
+            stdout: ic_host_process::tool::OutputLimit::Terminate(10),
             ..LIMITS
         },
     );
@@ -151,7 +151,7 @@ fn normalized_output_overflow_retains_successful_raw_extractor_bytes() {
         &fixture.context(&environment),
         8,
         OutputLimits {
-            stdout_bytes: b"service : {}".len(),
+            stdout: ic_host_process::tool::OutputLimit::Terminate(b"service : {}".len()),
             ..LIMITS
         },
     );
@@ -269,4 +269,24 @@ fn source_paths_with_spaces_shell_characters_and_non_utf8_are_literal_arguments(
         assert_eq!(fs::read(&source).unwrap(), b"\0asm\x01\0\0\0");
         assert_eq!(fs::read(marker).unwrap(), b"invoked\n");
     }
+}
+
+#[test]
+fn truncated_extractor_output_cannot_be_published_as_candid() {
+    let fixture = Fixture::new();
+    let error = extract(
+        &fixture.tool(),
+        &fixture.source(),
+        &fixture.context(&[]),
+        1024,
+        OutputLimits {
+            stdout: ic_host_process::tool::OutputLimit::Truncate(0),
+            ..LIMITS
+        },
+    )
+    .unwrap_err();
+    let ExtractionError::Tool(error) = error else {
+        panic!("incomplete capture must fail")
+    };
+    assert!(error.evidence().unwrap().stdout_truncated);
 }
