@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.12.0]
+## [0.12.0] - 2026-10-10
 
 - **Breaking:** adopt Shared Tooling 0.3.0. Setup, CI and release preflight now
   require the complete host, IC and Cargo toolsets; run `make install-tools`
