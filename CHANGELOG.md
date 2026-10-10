@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.12.1]
+## [0.12.1] - 2026-10-10
 
 - Provision and verify the pinned release executable through normal setup,
   removing the undeclared global `cargo-set-version` prerequisite
