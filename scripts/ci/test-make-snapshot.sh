@@ -203,7 +203,7 @@ for target in fmt fmt-check; do
     [[ -f "$detail" ]] || exit 1
     printf 'formatter stdout evidence\nformatter stderr evidence\n' > "$fixture/expected-log"
     cmp "$fixture/expected-log" "$detail"
-    [[ "$(wc -l < "$HOST_MAKE_EVENTS")" == 1 ]] || exit 1
+    [[ "$(wc -l < "$HOST_MAKE_EVENTS")" -eq 1 ]] || exit 1
 done
 # Outer Make must reject unsafe modes before any substituted effect can run.
 for mode in -i --ignore-errors -n -t -q; do

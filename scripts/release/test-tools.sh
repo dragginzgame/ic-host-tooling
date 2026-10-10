@@ -71,7 +71,7 @@ STUB
 chmod +x "$fixture/bin/"*
 export PATH="$fixture/bin:$root/.tools/host/bin:$PATH"
 export CARGO_NET_OFFLINE=true RUSTUP_AUTO_INSTALL=0
-cd "$fixture/consumer with spaces"
+cd -P "$fixture/consumer with spaces"
 selector="$fixture/tooling/scripts/release/tools.sh"
 if bash "$selector" check > "$fixture/missing.log" 2>&1; then exit 1; fi
 [[ ! -e "$fixture/installs" && ! -e "$fixture/global" ]] || exit 1
@@ -79,7 +79,7 @@ selected="$(bash "$selector" install)"
 [[ -x "$selected" && "$selected" == "$PWD/"* ]] || exit 1
 [[ "$(bash "$selector" check)" == "$selected" ]] || exit 1
 [[ "$(bash "$selector" install)" == "$selected" ]] || exit 1
-[[ "$(wc -l < "$fixture/installs")" == 1 ]] || exit 1
+[[ "$(wc -l < "$fixture/installs")" -eq 1 ]] || exit 1
 bash "$selector" run --workspace --offline 'literal argument'
 printf '%s\0' set-version --workspace --offline 'literal argument' > "$fixture/expected"
 cmp "$fixture/expected" "$fixture/arguments"
@@ -92,7 +92,7 @@ cp "$fixture/arguments" "$fixture/before-refusal"
 printf '\n# changed\n' >> "$selected"
 if bash "$selector" run --help > "$fixture/changed.log" 2>&1; then exit 1; fi
 cmp "$fixture/before-refusal" "$fixture/arguments"
-[[ ! -e "$fixture/global" && "$(wc -l < "$fixture/installs")" == 1 ]] || exit 1
+[[ ! -e "$fixture/global" && "$(wc -l < "$fixture/installs")" -eq 1 ]] || exit 1
 cp -p "$fixture/original-tool" "$selected"
 mkdir "$fixture/failed-consumer"
 cd "$fixture/failed-consumer"

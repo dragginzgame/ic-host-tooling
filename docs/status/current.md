@@ -1,6 +1,98 @@
 # Current handoff
 
-## Pending 0.12.8 — native hook qualification
+## Pending 0.12.9 — macOS fixture portability and evidence capture
+
+Released base remains 0.12.8 `c810c299acd0c41001a046c8e8ad0ee6daceefc0`.
+Its [Apple Silicon job](https://github.com/dragginzgame/ic-host-tooling/actions/runs/38068134110/job/114259932124)
+passed setup, formatting hooks and release-adapter checks, then failed the Host
+fixture-retention check. Linux and MSRV pass; Intel remains queued at inspection.
+[Issue #57](https://github.com/dragginzgame/ic-host-tooling/issues/57) owns the
+failure, local repair and remaining native acceptance.
+
+The release-tool fixture now compares physical consumer paths and numeric line
+counts. The neighboring Make fixture had the same padded-count defect and is
+repaired too. Maintained coverage runs the real release-tool fixture through a
+symlinked temporary root and padded counts, requiring both successful completion
+and retained evidence on a deliberately wrong child status. Native CI selects
+the shared collector's existing `portable-fixtures` directory as `TMPDIR`.
+The compatible validation-only batch selects pending 0.12.9; no library contract
+or package version changes.
+
+Focused release-tool, retention and Make fixtures pass on Linux with current
+Bash and genuine Bash 3.2.57. Old release and Make fixtures fail the new inputs;
+repaired fixtures pass. The actual workflow snippet, with substituted failing
+Make, preserves exit 37; the actual shared collector archives its failure marker.
+ShellCheck, actionlint, snapshot integrity, local links and diff checks pass.
+Evidence: `/tmp/host-0129-portability.gpGbOU/`. These results do not establish
+native macOS qualification; no full CI/release gate was run locally.
+
+The incoming Shared 0.3.8 adoption, `serde_json` 1.0.152 lockfile selection, real
+index and all pins were preserved. No active Cargo/rustc process was present.
+No sibling changes, downloads, commit, push, release or publication were performed.
+
+## Historical maintenance review — filesystem and process boundaries
+
+Local HEAD remains released 0.12.8
+`c810c299acd0c41001a046c8e8ad0ee6daceefc0`. The maintainer reports the work
+live, but the Shared 0.3.8 documentation adoption below is still uncommitted in
+this checkout; its incoming bytes were verified unchanged before this handoff
+update. Remote Shared main still matches the adopted
+`67285b28a98b7c4211ad32de726709d4e87edea4`. No new Host PR or issue appeared;
+the current native CI run remains queued and earlier superseded runs cancelled.
+
+The bounded code-hygiene review covered regular/private/no-follow reads,
+missing-path and executable resolution, lock waiting, durable staging identity
+and publication errors, bounded process capture and owned-child cleanup/reaping.
+Admission, mutation order, retained causes, cancellation and ownership remain
+distinct at their existing owners. No new actionable defect or extraction was
+established. The selected library checks pass on Linux with all features and
+locked/offline dependencies: 73 filesystem tests and 80 process tests.
+This does not establish native macOS qualification or a full delivery gate.
+
+Evidence and incoming dirty work: `/tmp/host-fs-process-review.NCFn51/`.
+Cargo selections, pins, the real index and the incoming Shared adoption are
+preserved. Only this handoff changes in this pass; no new release candidate,
+production change, sibling edit, install, full suite, commit, push or release
+was justified or performed. The open GitHub issues retain their native acceptance
+obligations; no unavailable/cancelled check was treated as success.
+
+## Maintenance review — released 0.12.8, Shared 0.3.8
+
+Released source: `c810c299acd0c41001a046c8e8ad0ee6daceefc0`; the maintainer
+reports 0.12.8 live. The checkout was clean and no Cargo/rustc process was active.
+Exact-source [CI](https://github.com/dragginzgame/ic-host-tooling/actions/runs/38068134110)
+passes Linux and Rust 1.88 MSRV; both macOS jobs were queued at inspection.
+The new hook gate is delivered and runs in native CI. Its remaining native
+acceptance stays with [#55](https://github.com/dragginzgame/ic-host-tooling/issues/55);
+queued or cancelled earlier checks do not provide that evidence.
+
+Adopted committed Shared 0.3.8 `67285b28a98b7c4211ad32de726709d4e87edea4`,
+verified against remote main, through the canonical exporter from an isolated
+clean checkout. The upstream dirty changelog is excluded. The 92-file selection
+is unchanged; selected changes are guidance for coordinated package archive
+qualification and the fleet report's timezone prerequisite. Host's scripts,
+package versions, lockfile and tool pins remain unchanged. No demonstrated
+same-version packaging failure calls for adding a local archive qualifier here.
+This governance-only adoption does not create another pending release entry.
+
+A bounded review using the shared code-hygiene method covered artifact read,
+write, copy, hashing, chunking, gzip and archive boundaries: byte allowances,
+short/invalid I/O counts, completion, typed causes and publication ownership.
+No new actionable defect was established. All 65 artifact library tests pass
+with all features and locked/offline dependencies on Linux. This is a selected
+package check, not a full gate or native macOS qualification.
+
+Read-only consumer samples show Canic already using `gzip_matches`,
+`chunk_digests` and `BoundedWriter`, and Testkit using `hash_gzip` for admitted
+archive/executable identity. Their policy and publication remain consumer-owned;
+no new extraction was justified by these samples. Sibling dirty work was left
+untouched, with source identities and selected file hashes retained as evidence.
+Snapshot integrity, dependency declarations, documentation links and diff checks
+pass. Cargo, pins and the real index match incoming checksums.
+Evidence: `/tmp/host-post0128.9X4GlI/`. No full suite, installation, publication,
+sibling edit, commit, push, release or CI dispatch ran.
+
+## Historical preparation for released 0.12.8 — native hook qualification
 
 Released base: 0.12.7 (`7c31035ccf9922f914ba6c63096f2437a30e1e03`).
 Its [CI](https://github.com/dragginzgame/ic-host-tooling/actions/runs/38065200009)

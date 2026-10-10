@@ -1,10 +1,10 @@
 # Shared Tooling snapshot v1
-# version	0.3.7
+# version	0.3.8
 format	1
 source	https://github.com/dragginzgame/shared-tooling
-revision	34e5ad7aac3599306c9572bb547f2239d09df1a3
+revision	67285b28a98b7c4211ad32de726709d4e87edea4
 file	b5a6e8fb723a861b722834675e27b4b16f3d296112622c1b40cdc8714f575404	-	rules/changelogs.md
-file	7162b12e73d3b89a604fc1a4963245454c61ca3b8568d7b879d0c18693be6c0b	-	docs/releases.md
+file	8b302f055416e2cce84cd036811e1e1c39311e890bc9cfca592201992abd4839	-	docs/releases.md
 file	fc689ff5d636be1049a527f6cafa74a768005211dcbecb074b8b327d8e6bab04	x	scripts/ci/run-release.sh
 file	37e028e2d9fee271ffdc06d06fc15d7a148ec524def3d9ed2afcd9910c0ec642	x	scripts/ci/next-release-version.sh
 file	e7f4c82566858b89b50c5c2f929097bdde85345a2c0c1bf553bb1170cc4f5960	-	scripts/ci/finalize-release-changelog.awk
@@ -16,10 +16,10 @@ file	2b3961ce271d95c2b8d93dcd92cfee42481aa9cb3d5d4eae0d867f2b52fa69fb	-	docs/pri
 file	90eb28392912af63593a3773eff903c5ef77ebab2b9199e3c720be25a3fcbbbf	-	docs/principles/rust-code-hygiene.md
 file	457fd38e0073c91ba470b918d4facd9faac3c5200ebd38c97e9d6b76acdaea55	-	docs/principles/simplicity-and-maintainability.md
 file	a825ee270d5a9adefa7fec56e9c506ba2a62a7dd021c6e55b3590d8632a953c8	-	docs/consuming-snapshots.md
-file	6cde051bf2d723743d356a771c21ed41ebd16e4ee0d0005babd981e6cf3dc3ed	-	docs/supported-hosts.md
+file	71a50dfd1fb9646559902852f759f28d6c7e541d5d24fa997dcfbfe7d4fd491f	-	docs/supported-hosts.md
 file	4c981184847462ab3c01cac087e28309f8e054253fd95c7bbe56f643877aa708	x	scripts/ci/verify-file-checksum.sh
 file	71d1c69a25f190bc4b2b1df66d3359f172638371caa722142e820a8294d1938e	x	scripts/ci/verify-shared-tooling-snapshot.sh
-file	84db20c3fa0b7a524bcd10b875a11100ed00be27c9f329ce93c79f5ab8f1f40d	-	rules/cargo-dependencies.md
+file	bb2c1617f9171f96363f2fc6bb3955d34d8dce305c6b43961fbe08a7536d24f7	-	rules/cargo-dependencies.md
 file	dae76214fb4c8c698530b141a418ceab44f4c14fc8452b7a545bfe2e0c0c84fd	-	rules/git-hooks.md
 file	29e1b926f5374bac5e4ac8ff4bf76e69fb61dfc6cb09f30bb140462ce00094e6	x	.githooks/pre-commit
 file	c1fcf72754976d3d2e5203226e97ef5f50eff4b5c0dabeb2a9b00cfcf0326645	x	scripts/dev/install-git-hooks.sh
@@ -56,7 +56,7 @@ file	e1b8e9dfbcc7524065d7597e643a3157a80450fa2d477457ad8d8e8fa5b985bd	x	scripts/
 file	082bac89eca9973d33ea36c71500a7bc1320369791fd36960554448049b768bd	x	scripts/distribution/refresh-consumer.sh
 file	a52db278800a9f02d85a6b8a780a9b1eed860c49d5442cef9db1f7f9d7ddee0a	x	scripts/ci/check-format-tools.sh
 file	cca5f05a0a603624d02647320821f18ae1066d9647cac0664d36bd86687b9e9a	x	scripts/ci/test-format-tools.sh
-file	289473e702bd636cbf545afffdd837979dfc41fc0a530e31e110f8b88d01d337	-	rules/rust-workspaces.md
+file	44d81399d40869f2494db425447705abf0b06b155c32defa939baeb115f1ed7c	-	rules/rust-workspaces.md
 file	af5b07687010864336277406f2a3faf06c868765897b4ab046acc05918ad60a2	-	scripts/distribution/governance-files.txt
 file	9e32385247296ce95d2b15b1290c64e6b6dff15716c1c139f21ab5e5128f4be3	x	scripts/ci/check-make-execution.sh
 file	e15dbf4612dddffa925e57e878db8bcbd7765c7b350ebbe41635e3df4d38bee5	x	scripts/ci/install-ci-tool.sh

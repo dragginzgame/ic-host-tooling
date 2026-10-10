@@ -48,8 +48,8 @@ for input in scripts/ci/test-make-snapshot.sh scripts/release/test-adapter.sh \
         [[ "$(cat "${retained[0]}/failure-marker")" == evidence ]] || exit 1
     done
 done
-# Contradict the real release-tool fixture's expected child status. Unlike an
-# early exit, a skipped assertion can reach completion and delete its evidence.
+# Exercise the real release-tool fixture through an aliased temporary directory
+# and padded line counts, as on macOS, before contradicting its child status.
 assertion_root="$fixture/assertion-source"
 for input in scripts/release/test-tools.sh scripts/release/tools.sh \
     scripts/dev/install-rust-tools.sh scripts/ci/verify-file-checksum.sh \
@@ -57,12 +57,30 @@ for input in scripts/release/test-tools.sh scripts/release/tools.sh \
     mkdir -p "$assertion_root/${input%/*}"
     cp "$root/$input" "$assertion_root/$input"
 done
+mkdir "$fixture/bin" "$fixture/physical-attempt"
+HOST_FIXTURE_REAL_WC="$(command -v wc)"
+export HOST_FIXTURE_REAL_WC
+cat > "$fixture/bin/wc" <<'STUB'
+#!/usr/bin/env bash
+set -euo pipefail
+if [[ "$*" == -l ]]; then
+    count="$("$HOST_FIXTURE_REAL_WC" "$@")" || exit "$?"
+    printf '%8d\n' "$count"
+else
+    exec "$HOST_FIXTURE_REAL_WC" "$@"
+fi
+STUB
+chmod +x "$fixture/bin/wc"
+attempt="$fixture/assertion-attempt"
+ln -s "$fixture/physical-attempt" "$attempt"
+PATH="$fixture/bin:$PATH" TMPDIR="$attempt" bash "$assertion_root/scripts/release/test-tools.sh" \
+    > "$fixture/portable-tools.log" 2>&1
+# Unlike an early exit, a skipped assertion can claim completion and delete
+# its evidence. The same portable inputs must still reject a wrong status.
 sed 's/RELEASE_TOOL_TEST_RUN_STATUS=37 /RELEASE_TOOL_TEST_RUN_STATUS=36 /' \
     "$root/scripts/release/test-tools.sh" > "$assertion_root/scripts/release/test-tools.sh"
-attempt="$fixture/assertion-attempt"
-mkdir "$attempt"
 status=0
-TMPDIR="$attempt" bash "$assertion_root/scripts/release/test-tools.sh" \
+PATH="$fixture/bin:$PATH" TMPDIR="$attempt" bash "$assertion_root/scripts/release/test-tools.sh" \
     > "$fixture/assertion.log" 2>&1 || status=$?
 [[ "$status" == 1 ]] || exit 1
 retained=("$attempt/"*)

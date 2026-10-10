@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.9]
+
+- Fix macOS test assumptions about temporary paths and padded line counts, and
+  include failed native fixtures in CI evidence uploads
+  ([#57](https://github.com/dragginzgame/ic-host-tooling/issues/57)).
+  [Detailed notes](docs/changelog/0.12.md).
+
 ## [0.12.8] - 2026-10-10
 
 - Exercise the actual pre-commit hook and Host formatting in native CI, covering
