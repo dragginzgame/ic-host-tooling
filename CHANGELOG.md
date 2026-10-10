@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.12.7]
+## [0.12.7] - 2026-10-10
 
 - Adopt Shared Tooling 0.3.7 and make mandatory CI, installer and fixture checks
   reject failed assertions on Bash 3.2, preserving failed-test evidence
