@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.11.0]
+## [0.11.0] - 2026-10-10
 
 - **Breaking:** consolidate process limits and cleanup evidence; update callers
   to `OutputLimits` with per-stream retention policies and optional deadlines,
