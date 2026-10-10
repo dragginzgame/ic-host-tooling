@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.12.8]
+## [0.12.8] - 2026-10-10
 
 - Exercise the actual pre-commit hook and Host formatting in native CI, covering
   failed Git observations and preservation of staging and working edits
