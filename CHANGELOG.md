@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.12.6]
+## [0.12.6] - 2026-10-10
 
 - Keep only the newest CI run per workflow and branch or PR, cancelling older
   queued and running checks while retaining the existing host matrix and gates
