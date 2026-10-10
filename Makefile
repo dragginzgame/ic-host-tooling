@@ -22,6 +22,7 @@ help:
 	@echo 'Minimal artifact configuration: test-artifacts-minimal'
 	@echo 'Response-only configuration: test-tools-response and tools-features-check'
 	@echo 'Formatting and metadata: fmt, fmt-check, shared-tooling-check, dependency-pins-check, check-doc-links, release-adapter-check'
+	@echo 'Hook qualification: formatting-hook-check (disposable Git fixtures; prepared formatters required)'
 	@echo 'Complete setup: install-tools (host, IC, Cargo and pinned release tool); install-hooks is separate'
 	@echo 'Offline setup checks: tools-check (complete set), host-tools-check, ic-tools-check, rust-tools-check'
 	@echo 'Individual setup: install-host-tools, install-ic-tools, install-rust-tools, install-release-tools'
@@ -32,6 +33,10 @@ help:
 	@echo 'crates.io publication: publish-check (dry run), publish (upload); offline fixture: publish-command-check'
 format-tools-test:
 	bash scripts/ci/test-format-tools.sh
+.PHONY: formatting-hook-check
+formatting-hook-check:
+	+bash scripts/ci/test-git-hooks.sh
+	+bash scripts/ci/check-host-formatting.sh
 check:
 	+cargo check -p $(PACKAGE) --all-targets --all-features --locked --offline
 clippy:
@@ -85,6 +90,7 @@ ci:
 	+$(MAKE) --no-print-directory dependency-pins-check
 	+$(MAKE) --no-print-directory fmt-check
 	+$(MAKE) --no-print-directory format-tools-test
+	+$(MAKE) --no-print-directory formatting-hook-check
 	+$(MAKE) --no-print-directory check-doc-links
 	+$(MAKE) --no-print-directory release-adapter-check
 	+$(MAKE) --no-print-directory tooling-command-check

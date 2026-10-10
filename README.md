@@ -179,6 +179,9 @@ remains independent.
 Individual `install-host-tools`, `install-ic-tools` and `install-rust-tools`
 targets and their offline checks remain available. `make install-hooks`
 separately activates the repository-local formatter using the pinned cargo-sort.
+`make formatting-hook-check` exercises the actual hook and Host formatting in
+disposable checkouts, including failed Git observations and index preservation.
+It uses prepared tools and runs in native CI without activating Host's local hook.
 The removed `--with-ripgrep` and `--with-cloc` installer flags are no longer needed.
 `make cloc` reports this workspace's Rust runtime/test lines. Run fleet tooling
 reports from Shared Tooling; this snapshot omits that optional reporter.

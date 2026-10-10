@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.8]
+
+- Exercise the actual pre-commit hook and Host formatting in native CI, covering
+  failed Git observations and preservation of staging and working edits
+  ([#55](https://github.com/dragginzgame/ic-host-tooling/issues/55)).
+  [Detailed notes](docs/changelog/0.12.md).
+
 ## [0.12.7] - 2026-10-10
 
 - Adopt Shared Tooling 0.3.7 and make mandatory CI, installer and fixture checks

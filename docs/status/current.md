@@ -1,6 +1,40 @@
 # Current handoff
 
-## Pending 0.12.7 — Shared 0.3.7 and explicit portable assertions
+## Pending 0.12.8 — native hook qualification
+
+Released base: 0.12.7 (`7c31035ccf9922f914ba6c63096f2437a30e1e03`).
+Its [CI](https://github.com/dragginzgame/ic-host-tooling/actions/runs/38065200009)
+passes Linux and MSRV; both macOS jobs were queued at inspection. Shared remote
+main remains the adopted 0.3.7 `34e5ad7aac3599306c9572bb547f2239d09df1a3`.
+The checkout was clean, with no active Cargo/rustc processes or open Host PRs.
+
+[Host #55](https://github.com/dragginzgame/ic-host-tooling/issues/55) identified
+that native CI did not execute its focused hook acceptance. The new
+`make formatting-hook-check` target runs canonical Shared hook regressions and
+the shared adoption checker using Host's real formatting inputs. Native CI calls
+it on every required host. Two canonical companions are added to the snapshot
+through the clean exporter, bringing its selection to 92 files at the same
+revision. Host owns only input selection; no hook or shared fixture is forked.
+This compatible validation improvement selects pending 0.12.8. Cargo package
+versions/lockfile, library code, tool pins and local hook activation remain intact.
+
+The new target passes with `make -j4` on current Bash and genuine Bash 3.2.57 on
+Linux, including the actual failed-observation cases and real Cargo sorting and
+rustfmt. No builds or tool installations are involved. Native macOS qualification
+still requires execution of this added target on delivered source; a green older
+workflow cannot prove a check it did not run. The expanded failure-retention
+fixture passes on both Bash profiles; existing Make routing, ShellCheck,
+snapshot integrity, documentation links and diff checks pass. Incoming index,
+Cargo files and tool pin checksums match after qualification.
+Evidence and preserved inputs: `/tmp/host-0128-hook.2OOTqO/`.
+
+The old 0.12.5 run used the previous concurrency identity and remained queued.
+After verifying source ancestry and retained workflow checks, cancellation was
+completed under the maintainer's earlier superseded-run authorization. The current
+0.12.7 run was preserved. No full gate, sibling mutation, commit, push or release
+ran. Earlier sections are historical preparation evidence.
+
+## Historical preparation for released 0.12.7 — Shared and portable assertions
 
 Released base: 0.12.6 (`5f356ef`). The canonical exporter refreshed the same
 90-file selection from clean, isolated Shared 0.3.7

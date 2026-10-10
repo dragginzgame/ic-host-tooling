@@ -10,7 +10,8 @@ archive and Wasm features; production filesystem dependencies select none of the
 Check target-directory ownership before compilation. Preserve failure logs and artifacts.
 
 Native CI prepares pinned Rust and the complete common toolsets, then verifies
-the shared snapshot, declarations, formatter prerequisites, release adapter,
+the shared snapshot, declarations, formatter prerequisites, actual hook behavior,
+release adapter,
 common tool/LOC command wiring,
 minimal artifact tests and each selected package with all features in sequence.
 The release gate uses the same complete host, IC and Cargo toolsets, even though
@@ -18,6 +19,15 @@ the libraries do not invoke every tool. Explicit setup runs `make install-tools`
 `make tools-check` verifies the set offline. Selected release preflight prepares
 it; standalone verification never installs tools. Existing bundles and failed
 evidence are retained. Rust toolchain bootstrap remains explicit.
+`make formatting-hook-check` runs the canonical shared hook regressions and the
+shared adoption checker with Host's real Cargo manifest, Rust input and Make
+formatters. Failed Git observations, partial staging, formatting failures and
+unrelated edits are covered in disposable checkouts; the real index, working
+files and hook configuration are preserved. The shared frontend helper is a
+companion of the canonical regression fixture, not a Host frontend build step.
+Both native macOS jobs run this same target through `make ci`; local Linux and
+Bash 3.2 passes remain separate evidence under
+[Host #55](https://github.com/dragginzgame/ic-host-tooling/issues/55).
 Shared 0.3.1 setup checks IC platform/catalog admission and Rust/Cargo
 availability before downloading common tools. These preflight checks do not
 install a toolchain or replace the offline verification of installed tools.

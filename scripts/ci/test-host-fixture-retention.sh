@@ -19,7 +19,7 @@ finish() {
 trap finish EXIT
 for input in scripts/ci/test-make-snapshot.sh scripts/release/test-adapter.sh \
     scripts/release/test-tools.sh scripts/publish/test-workspace.sh \
-    scripts/ci/test-host-fixture-retention.sh; do
+    scripts/ci/test-host-fixture-retention.sh scripts/ci/check-host-formatting.sh; do
     name="${input##*/}"
     awk '
         { print }

@@ -93,3 +93,5 @@ file	a6aff0f26b5dc0d95209232f8de01630d2b0f6f9af2522184843771857ae1578	-	make/rus
 file	cebc0fa4ee9944550350a492a3bc1084e28820e2c915e20351c336d87ce0359f	-	make/execution.mk
 file	4ff0a961d5fb8639edf798d64bbe3abc0fcd83c6f703d7a6875c6f5174e76201	x	scripts/ci/run-formatting.sh
 file	227ce86878264ff60aa24a70bb20140b8ef3c8332be640186e96f93805ed1062	-	tasks/readme-freshness.md
+file	0c1c69cfee63be997d8dfc7d08f5486cc64c73ac3c5342784c89085825ea3bf3	x	scripts/ci/test-git-hooks.sh
+file	69dbd1c286a9f8787bb5559493e9428c139c285f80417470f37d2153b6f17123	-	scripts/dev/format-frontend.sh
