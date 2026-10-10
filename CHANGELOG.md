@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.12.2]
+## [0.12.2] - 2026-10-10
 
 - Adopt Shared Tooling 0.3.1: check platform and Rust/Cargo prerequisites before
   setup downloads, and identify the exact tool and repair command on failure
