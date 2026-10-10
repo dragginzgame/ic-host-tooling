@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.12.4]
+## [0.12.4] - 2026-10-10
 
 - Select Binaryen 133 for Linux and both macOS architectures, using the reviewed
   Shared Tooling 0.3.4 pins. Refresh local tools with `make install-ic-tools`;
