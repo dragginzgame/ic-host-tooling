@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.12.6]
+
+- Keep only the newest CI run per workflow and branch or PR, cancelling older
+  queued and running checks while retaining the existing host matrix and gates
+  ([Shared #108](https://github.com/dragginzgame/shared-tooling/issues/108)).
+
+See [the 0.12 notes](docs/changelog/0.12.md).
+
 ## [0.12.5] - 2026-10-10
 
 - Reject NUL-containing publication paths before creating parent directories
