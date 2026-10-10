@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.12.5]
+## [0.12.5] - 2026-10-10
 
 - Reject NUL-containing publication paths before creating parent directories
   ([#54](https://github.com/dragginzgame/ic-host-tooling/issues/54)).
