@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.12.3]
+## [0.12.3] - 2026-10-10
 
 - Adopt Shared Tooling 0.3.3, including shared Cargo jobserver forwarding and
   reliable Bash 3.2 fixture failure retention
