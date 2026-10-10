@@ -9,6 +9,8 @@ endif
 override SHARED_TOOLING_ROOT := $(CURDIR)
 export SHARED_TOOLING_ROOT
 include ci/tool-versions.env
+LOCAL_TOOL_INSTALL_TARGETS += install-release-tools
+LOCAL_TOOL_CHECK_TARGETS += release-tools-check
 include make/tools.mk
 include make/rust-format.mk
 include make/release.mk
@@ -20,9 +22,10 @@ help:
 	@echo 'Minimal artifact configuration: test-artifacts-minimal'
 	@echo 'Response-only configuration: test-tools-response and tools-features-check'
 	@echo 'Formatting and metadata: fmt, fmt-check, shared-tooling-check, dependency-pins-check, check-doc-links, release-adapter-check'
-	@echo 'Complete setup: install-tools (host, IC, then Cargo tools); install-hooks is separate'
+	@echo 'Complete setup: install-tools (host, IC, Cargo and pinned release tool); install-hooks is separate'
 	@echo 'Offline setup checks: tools-check (complete set), host-tools-check, ic-tools-check, rust-tools-check'
-	@echo 'Individual setup: install-host-tools, install-ic-tools, install-rust-tools'
+	@echo 'Individual setup: install-host-tools, install-ic-tools, install-rust-tools, install-release-tools'
+	@echo 'Release tool: release-tools-check (offline); release-tools-test (substitute installer)'
 	@echo 'Source reports: cloc (this workspace); fleet reports run in Shared Tooling'
 	@echo 'Full delivery gate: ci; declared MSRV: msrv PACKAGE=<crate>'
 	@echo 'Maintainer releases: release-patch, release-minor, release-major, release-resume VERSION=X.Y.Z'
@@ -30,21 +33,28 @@ help:
 format-tools-test:
 	bash scripts/ci/test-format-tools.sh
 check:
-	cargo check -p $(PACKAGE) --all-targets --all-features --locked --offline
+	+cargo check -p $(PACKAGE) --all-targets --all-features --locked --offline
 clippy:
-	cargo clippy -p $(PACKAGE) --all-targets --all-features --locked --offline -- -D warnings
+	+cargo clippy -p $(PACKAGE) --all-targets --all-features --locked --offline -- -D warnings
 docs-check:
-	RUSTDOCFLAGS="-D warnings" cargo doc -p $(PACKAGE) --all-features --locked --offline --no-deps
+	+RUSTDOCFLAGS="-D warnings" cargo doc -p $(PACKAGE) --all-features --locked --offline --no-deps
 test:
-	cargo test -p $(PACKAGE) --all-targets --all-features --locked --offline
+	+cargo test -p $(PACKAGE) --all-targets --all-features --locked --offline
 test-artifacts-minimal:
-	cargo test -p ic-host-artifacts --no-default-features --lib --locked --offline
+	+cargo test -p ic-host-artifacts --no-default-features --lib --locked --offline
 test-tools-response:
-	cargo test -p ic-host-tools --no-default-features --all-targets --locked --offline
+	+cargo test -p ic-host-tools --no-default-features --all-targets --locked --offline
 tools-features-check:
-	bash scripts/ci/check-tools-features.sh
+	+bash scripts/ci/check-tools-features.sh
 msrv:
-	cargo +$(MSRV) check -p $(PACKAGE) --all-targets --all-features --locked --offline
+	+cargo +$(MSRV) check -p $(PACKAGE) --all-targets --all-features --locked --offline
+.PHONY: install-release-tools release-tools-check release-tools-test
+install-release-tools:
+	+bash scripts/release/tools.sh install
+release-tools-check:
+	+bash scripts/release/tools.sh check
+release-tools-test:
+	bash scripts/release/test-tools.sh
 install-hooks:
 	bash scripts/dev/install-git-hooks.sh
 shared-tooling-check:
@@ -56,15 +66,17 @@ check-doc-links:
 release-adapter-check:
 	bash scripts/release/test-adapter.sh
 tooling-command-check:
+	bash scripts/ci/test-host-fixture-retention.sh
+	bash scripts/release/test-tools.sh
 	bash scripts/ci/test-make-snapshot.sh
 	bash scripts/ci/test-tool-commands.sh
 	bash scripts/ci/test-rust-tools.sh
 	bash scripts/ci/check-release-commands.sh "$(CURDIR)" ci/tool-versions.env make/tools.mk make/rust-format.mk make/release.mk make/execution.mk scripts/ci/check-make-execution.sh scripts/ci/run-formatting.sh
 	bash scripts/ci/test-cloc.sh
 publish:
-	bash scripts/publish/workspace.sh publish
+	+bash scripts/publish/workspace.sh publish
 publish-check:
-	bash scripts/publish/workspace.sh check
+	+bash scripts/publish/workspace.sh check
 publish-command-check:
 	bash scripts/publish/test-workspace.sh
 ci:
@@ -86,18 +98,18 @@ ci:
 		$(MAKE) --no-print-directory test PACKAGE=$$package || exit $$?; \
 	done
 release-version:
-	@bash scripts/release/adapter.sh version
+	+@bash scripts/release/adapter.sh version
 release-preflight:
-	@bash scripts/release/adapter.sh preflight
+	+@bash scripts/release/adapter.sh preflight
 release-verify:
 	+@bash scripts/release/adapter.sh verify
 release-prepare-version:
-	@bash scripts/release/adapter.sh prepare
+	+@bash scripts/release/adapter.sh prepare
 release-prepared-check:
-	@bash scripts/release/adapter.sh check
+	+@bash scripts/release/adapter.sh check
 release-files:
 	@printf '%s\0' Cargo.toml Cargo.lock CHANGELOG.md
 release-commit-check:
-	@bash scripts/release/adapter.sh commit-check
+	+@bash scripts/release/adapter.sh commit-check
 release-committed-check release-tagged-check release-push-check:
 	@bash scripts/release/adapter.sh committed-check

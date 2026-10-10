@@ -10,10 +10,14 @@ root="${root%/.}"
 fixture_parent="$(mktemp -d "${TMPDIR:-/tmp}/ic-host-publish-test.XXXXXX")"
 # Git emits this literal checkout name followed by its own record newline.
 fixture="$fixture_parent/checkout"$'\n'
+completed=false
 finish() {
     local status=$?
+    # Bash 3.2 may enter EXIT with status zero after a nounset error.
+    [[ "$completed" == true || "$status" != 0 ]] || status=1
     if [[ "$status" == 0 ]]; then rm -rf "$fixture_parent"
     else echo "Publication fixtures retained: $fixture_parent" >&2; fi
+    exit "$status"
 }
 trap finish EXIT
 mkdir "$fixture"
@@ -193,3 +197,4 @@ rmdir target/publish/lock
 printf 'consumer artifact\n' > expected-retained
 cmp expected-retained target/retained
 echo 'Publication command checks passed (Git and upload effects substituted).'
+completed=true

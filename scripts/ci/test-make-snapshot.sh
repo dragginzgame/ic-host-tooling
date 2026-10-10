@@ -10,10 +10,14 @@ root="${root%/.}"
 unset MAKEFLAGS MFLAGS MAKEOVERRIDES GNUMAKEFLAGS MAKEFILES
 unset SHARED_TOOLING_ROOT
 fixture="$(mktemp -d "${TMPDIR:-/tmp}/host-make-snapshot.XXXXXX")"
+completed=false
 finish() {
     local status=$?
+    # Bash 3.2 may enter EXIT with status zero after a nounset error.
+    [[ "$completed" == true || "$status" != 0 ]] || status=1
     if [[ "$status" == 0 ]]; then rm -rf "$fixture";
     else echo "Host Make evidence retained: $fixture" >&2; fi
+    exit "$status"
 }
 trap finish EXIT
 for input in Makefile ci/tool-versions.env make/tools.mk make/rust-format.mk \
@@ -36,6 +40,13 @@ done
 cat > "$fixture/local/cargo" <<'STUB'
 #!/usr/bin/env bash
 set -euo pipefail
+if [[ "${HOST_MAKE_VERIFY_JOBSERVER:-}" == 1 ]]; then
+    perl -e '
+        ($ENV{MAKEFLAGS} // "") =~ /--jobserver-(?:auth|fds)=(\d+),(\d+)/ or die "missing pipe jobserver\n";
+        open my $reader, "<&=$1" or die "closed jobserver read descriptor: $!\n";
+        open my $writer, ">&=$2" or die "closed jobserver write descriptor: $!\n";
+    '
+fi
 case "$*" in
     'sort --version') printf 'cargo-sort %s\n' "$HOST_MAKE_SORT_VERSION" ;;
     'fmt --version') echo rustfmt ;;
@@ -113,10 +124,17 @@ printf '%s %s\n' "$name" "$mode" >> "$HOST_MAKE_EVENTS"
 if [[ "${HOST_MAKE_TOOL_FAIL:-}" == "$name" ]]; then exit 23; fi
 STUB
 done
+mkdir -p "$fixture/local/scripts/release"
+cat > "$fixture/local/scripts/release/tools.sh" <<'STUB'
+#!/usr/bin/env bash
+set -euo pipefail
+printf 'install-release-tools.sh %s\n' "$1" >> "$HOST_MAKE_EVENTS"
+[[ "${HOST_MAKE_TOOL_FAIL:-}" != install-release-tools.sh ]] || exit 23
+STUB
 for mode in install check; do
     target=install-tools
     [[ "$mode" != check ]] || target=tools-check
-    for failed in none host ic rust; do
+    for failed in none host ic rust release; do
         : > "$HOST_MAKE_EVENTS"
         status=0
         HOST_MAKE_TOOL_FAIL="install-$failed-tools.sh" make --no-print-directory -j4 "$target" \
@@ -124,13 +142,29 @@ for mode in install check; do
         if [[ "$failed" == none ]]; then [[ "$status" == 0 ]];
         else [[ "$status" == 2 ]]; fi
         : > "$fixture/expected"
-        for tool in host ic rust; do
+        for tool in host ic rust release; do
             printf 'install-%s-tools.sh %s\n' "$tool" "$mode" >> "$fixture/expected"
             [[ "$tool" != "$failed" ]] || break
         done
         cmp "$fixture/expected" "$HOST_MAKE_EVENTS"
         [[ ! -e "$HOST_MAKE_EXTERNAL" ]]
     done
+done
+# Real pipe-descriptor admission in substituted Cargo, without compiling.
+mkdir -p "$fixture/local/scripts/publish"
+cat > "$fixture/local/scripts/publish/workspace.sh" <<'STUB'
+#!/usr/bin/env bash
+set -euo pipefail
+[[ "$1" == publish || "$1" == check ]]
+exec cargo "$1"
+STUB
+jobserver_options=(--no-print-directory -j4)
+if make --help | grep -q -- --jobserver-style; then
+    jobserver_options+=(--jobserver-style=pipe)
+fi
+for target in check clippy docs-check test test-artifacts-minimal test-tools-response msrv publish publish-check; do
+    PATH="$fixture/local:$PATH" HOST_MAKE_VERIFY_JOBSERVER=1 make "${jobserver_options[@]}" "$target" \
+        > "$fixture/jobserver-$target.log" 2>&1
 done
 # Actual Host formatting stops after sorter failure and points at complete logs.
 for target in fmt fmt-check; do
@@ -149,7 +183,8 @@ done
 # Outer Make must reject unsafe modes before any substituted effect can run.
 for mode in -i --ignore-errors -n -t -q; do
     for selection in direct inherited cleared replaced erased; do
-        for target in fmt fmt-check release-patch release-minor release-major release-resume; do
+        for target in fmt fmt-check release-patch release-minor release-major release-resume \
+            check clippy docs-check test test-artifacts-minimal test-tools-response msrv install-release-tools publish publish-check; do
             : > "$HOST_MAKE_EVENTS"
             args=(--no-print-directory "$target" "FORMAT_CARGO=$PWD/cargo" "SHARED_TOOLING_ROOT=$fixture/external" "MAKE=$recursive_make")
             status=0
@@ -169,3 +204,4 @@ for mode in -i --ignore-errors -n -t -q; do
     done
 done
 echo 'Host Make snapshot routing and execution admission passed (substitute effects)'
+completed=true

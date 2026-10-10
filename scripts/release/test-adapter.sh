@@ -9,10 +9,14 @@ root="${BASH_SOURCE[0]}"
 root="$(cd -P "${root%/*}/../.." && printf '%s/.' "$PWD")"
 root="${root%/.}"
 fixture="$(mktemp -d "${TMPDIR:-/tmp}/ic-host-release-adapter.XXXXXX")"
+completed=false
 finish() {
     local status=$?
+    # Bash 3.2 may enter EXIT with status zero after a nounset error.
+    [[ "$completed" == true || "$status" != 0 ]] || status=1
     if [[ "$status" == 0 ]]; then rm -rf "$fixture"
     else echo "Release adapter fixtures retained: $fixture" >&2; fi
+    exit "$status"
 }
 trap finish EXIT
 unset MAKEFLAGS MFLAGS MAKEOVERRIDES GNUMAKEFLAGS MAKEFILES
@@ -23,6 +27,23 @@ export ADAPTER_METADATA_REWRITE="$root/scripts/release/metadata-version.awk"
 export ADAPTER_EVENTS="$fixture/events"
 export RELEASE_SOURCE=0000000000000000000000000000000000000000
 export RELEASE_DATE=2026-10-06 RELEASE_KIND=minor
+adapter_root="$fixture/adapter"
+for input in scripts/release/adapter.sh scripts/release/metadata-version.awk \
+    scripts/ci/read-cargo-workspace-version.sh scripts/ci/check-release-source.sh \
+    scripts/ci/next-release-version.sh scripts/ci/finalize-release-changelog.awk; do
+    mkdir -p "$adapter_root/${input%/*}"
+    cp "$root/$input" "$adapter_root/$input"
+done
+adapter="$adapter_root/scripts/release/adapter.sh"
+# The real selector/installer boundary is covered by test-tools.sh. Here the
+# selected release executable uses the existing version-mutation substitute.
+cat > "$adapter_root/scripts/release/tools.sh" <<'STUB'
+#!/usr/bin/env bash
+set -euo pipefail
+[[ "$1" == run ]]
+shift
+exec cargo set-version "$@"
+STUB
 RELEASE_PREVIOUS="$(cd "$root" && bash scripts/release/adapter.sh version)"
 export RELEASE_PREVIOUS
 RELEASE_VERSION="$(bash "$root/scripts/ci/next-release-version.sh" "$RELEASE_PREVIOUS" "$RELEASE_KIND")"
@@ -43,7 +64,7 @@ done
 # in a physical newline-bearing tooling root, with a competing CDPATH lookup.
 tooling="$fixture/tooling"$'\n'
 mkdir -p "$tooling/scripts/release" "$tooling/scripts/ci" "$fixture/decoy/scripts/release"
-cp "$root/scripts/release/adapter.sh" "$tooling/scripts/release/"
+cp "$adapter" "$tooling/scripts/release/"
 cp "$root/scripts/ci/read-cargo-workspace-version.sh" "$tooling/scripts/ci/"
 (
     cd "$fixture"
@@ -135,12 +156,12 @@ exit 17
 STUB
 chmod +x failed-parser-bin/jq
 : > "$ADAPTER_EVENTS"
-if PATH="$fixture/failed-parser-bin:$PATH" bash "$root/scripts/release/adapter.sh" version \
+if PATH="$fixture/failed-parser-bin:$PATH" bash "$adapter" version \
     > failed-reader-version.log 2>&1; then
     echo 'Version observation accepted failed parser output' >&2; exit 1
 fi
 [[ ! -s failed-reader-version.log ]] || exit 1
-if PATH="$fixture/failed-parser-bin:$PATH" bash "$root/scripts/release/adapter.sh" preflight \
+if PATH="$fixture/failed-parser-bin:$PATH" bash "$adapter" preflight \
     > rejected-parser.log 2>&1; then
     echo 'Preflight accepted failed parser output' >&2; exit 1
 fi
@@ -162,7 +183,7 @@ for scenario in failed-locate duplicate-version unsynchronized-path; do
                 source/Cargo.toml > Cargo.toml ;;
     esac
     cp Cargo.toml rejected-input
-    if bash "$root/scripts/release/adapter.sh" preflight > "rejected-$scenario.log" 2>&1; then
+    if bash "$adapter" preflight > "rejected-$scenario.log" 2>&1; then
         echo "Preflight accepted $scenario manifest" >&2; exit 1
     fi
     unset ADAPTER_LOCATE_RESULT
@@ -177,7 +198,7 @@ cp source/Cargo.toml Cargo.toml
 # The copied member manifests retain publish=false. Preflight must reach setup
 # and dependency admission without modifying their metadata or creating intent.
 : > "$ADAPTER_EVENTS"
-bash "$root/scripts/release/adapter.sh" preflight > accepted.log 2>&1
+bash "$adapter" preflight > accepted.log 2>&1
 cat > expected <<'EVENTS'
 cargo locate-project --workspace --message-format plain --manifest-path Cargo.toml
 cargo metadata --no-deps --format-version 1 --locked --offline
@@ -209,7 +230,7 @@ for scenario in online offline network verify source; do
             verify) operation=verify ;;
             source) export ADAPTER_HEAD=2222222222222222222222222222222222222222 ;;
         esac
-        bash "$root/scripts/release/adapter.sh" "$operation"
+        bash "$adapter" "$operation"
     ) > "cache-$scenario.log" 2>&1 || status=$?
     case "$scenario" in
         online) [[ "$status" == 0 && -f "$cache" ]]; cmp accepted-events "$ADAPTER_EVENTS" ;;
@@ -240,7 +261,7 @@ for requirement in "$RELEASE_PREVIOUS" "${RELEASE_PREVIOUS%.*}"; do
         { print }
     ' source/Cargo.toml > Cargo.toml
     : > "$ADAPTER_EVENTS"
-    bash "$root/scripts/release/adapter.sh" preflight > "accepted-$requirement.log" 2>&1
+    bash "$adapter" preflight > "accepted-$requirement.log" 2>&1
     cmp accepted-events "$ADAPTER_EVENTS"
 done
 cp source/Cargo.toml Cargo.toml
@@ -248,7 +269,7 @@ cp source/Cargo.toml Cargo.toml
 # A failed Cargo query may print valid metadata: its failure must still stop
 # preflight before any setup or fetch is attempted.
 : > "$ADAPTER_EVENTS"
-if ADAPTER_METADATA_RESULT=17 bash "$root/scripts/release/adapter.sh" preflight > rejected-metadata.log 2>&1; then
+if ADAPTER_METADATA_RESULT=17 bash "$adapter" preflight > rejected-metadata.log 2>&1; then
     echo 'Preflight accepted failed metadata validation' >&2; exit 1
 fi
 printf '%s\n' 'cargo locate-project --workspace --message-format plain --manifest-path Cargo.toml' \
@@ -259,7 +280,7 @@ cmp expected "$ADAPTER_EVENTS"
 : > "$ADAPTER_EVENTS"
 if ADAPTER_DIRTY_PATH=crates/ic-host-tools/src/lib.rs ADAPTER_STAGED_PATH=Cargo.lock \
     ADAPTER_UNTRACKED_PATH='unexpected source.rs' \
-    bash "$root/scripts/release/adapter.sh" preflight > rejected-source.log 2>&1; then
+    bash "$adapter" preflight > rejected-source.log 2>&1; then
     echo 'Preflight accepted uncommitted source' >&2; exit 1
 fi
 grep -F 'unstaged: crates/ic-host-tools/src/lib.rs' rejected-source.log > /dev/null
@@ -302,7 +323,7 @@ for scenario in unnumbered misplaced-unnumbered duplicate duplicate-whitespace c
     esac
     cp CHANGELOG.md before
     : > "$ADAPTER_EVENTS"
-    if bash "$root/scripts/release/adapter.sh" preflight > "rejected-$scenario.log" 2>&1; then
+    if bash "$adapter" preflight > "rejected-$scenario.log" 2>&1; then
         echo "Preflight accepted $scenario changelog" >&2; exit 1
     fi
     cmp expected "$ADAPTER_EVENTS"
@@ -313,7 +334,7 @@ cp source/CHANGELOG.md CHANGELOG.md
 # Verification qualifies the source without installing tools. The gate and
 # MSRV checks are substitutes; saved notes and receipt handling are real.
 : > "$ADAPTER_EVENTS"
-bash "$root/scripts/release/adapter.sh" verify > verified.log 2>&1
+bash "$adapter" verify > verified.log 2>&1
 cat > expected <<'EVENTS'
 cargo locate-project --workspace --message-format plain --manifest-path Cargo.toml
 cargo metadata --no-deps --format-version 1 --locked --offline
@@ -334,9 +355,9 @@ cmp source/CHANGELOG.md "$receipt.notes"
 # The prepared fixture must preserve both undated and dated historical notes
 # through saved receipts; real locked/offline Cargo admits its updated graph.
 printf '# Changelog\n\n## [%s] - %s\n\n- Fixture notes.\n\n## [%s]\n\n- Undated imported history.\n\n## [0.0.1] - 2026-10-01\n\n- Dated history.\n' "$RELEASE_VERSION" "$RELEASE_DATE" "$RELEASE_PREVIOUS" > expected-notes
-bash "$root/scripts/release/adapter.sh" prepare > prepared.log 2>&1
+bash "$adapter" prepare > prepared.log 2>&1
 cmp expected-notes CHANGELOG.md
-bash "$root/scripts/release/adapter.sh" check > checked.log 2>&1
+bash "$adapter" check > checked.log 2>&1
 cp Cargo.toml Cargo.lock CHANGELOG.md committed/
 
 # Recovery observes the selected committed payload beneath newer working notes;
@@ -344,14 +365,14 @@ cp Cargo.toml Cargo.lock CHANGELOG.md committed/
 printf '# Newer working notes\n' > CHANGELOG.md
 printf '# Newer working metadata\n' > Cargo.toml
 printf '# Newer working lockfile\n' > Cargo.lock
-bash "$root/scripts/release/adapter.sh" committed-check > committed.log 2>&1
+bash "$adapter" committed-check > committed.log 2>&1
 printf '\nAltered historical notes.\n' >> committed/CHANGELOG.md
-if bash "$root/scripts/release/adapter.sh" committed-check > rejected-committed.log 2>&1; then
+if bash "$adapter" committed-check > rejected-committed.log 2>&1; then
     echo 'Committed check accepted an altered release payload' >&2; exit 1
 fi
 cp expected-notes committed/CHANGELOG.md
 printf '\n' >> "$receipt"
-if bash "$root/scripts/release/adapter.sh" committed-check > rejected-receipt.log 2>&1; then
+if bash "$adapter" committed-check > rejected-receipt.log 2>&1; then
     echo 'Committed check accepted conflicting validation evidence' >&2; exit 1
 fi
 
@@ -360,10 +381,10 @@ fi
 cp source/Cargo.toml source/Cargo.lock .
 printf '# Changelog\n\n## [%s]\n\n- Undated imported history.\n' "$RELEASE_PREVIOUS" > CHANGELOG.md
 : > "$ADAPTER_EVENTS"
-bash "$root/scripts/release/adapter.sh" preflight > history-only-preflight.log 2>&1
+bash "$adapter" preflight > history-only-preflight.log 2>&1
 cmp accepted-events "$ADAPTER_EVENTS"
-bash "$root/scripts/release/adapter.sh" verify > history-only-verify.log 2>&1
-bash "$root/scripts/release/adapter.sh" prepare > history-only-prepare.log 2>&1
+bash "$adapter" verify > history-only-verify.log 2>&1
+bash "$adapter" prepare > history-only-prepare.log 2>&1
 printf '# Changelog\n\n## [%s] - %s\n\n## [%s]\n\n- Undated imported history.\n' "$RELEASE_VERSION" "$RELEASE_DATE" "$RELEASE_PREVIOUS" > expected-notes
 cmp expected-notes CHANGELOG.md
 
@@ -371,9 +392,10 @@ cmp expected-notes CHANGELOG.md
 # a final newline. Admission and preparation must agree on the same candidate.
 cp source/Cargo.toml source/Cargo.lock .
 printf '# Changelog\n\n##\t [%s] \t\n\n- Candidate.\n\n## [%s]\n\n- History without final LF.' "$RELEASE_VERSION" "$RELEASE_PREVIOUS" > CHANGELOG.md
-bash "$root/scripts/release/adapter.sh" preflight > whitespace-preflight.log 2>&1
-bash "$root/scripts/release/adapter.sh" verify > whitespace-verify.log 2>&1
-bash "$root/scripts/release/adapter.sh" prepare > whitespace-prepare.log 2>&1
+bash "$adapter" preflight > whitespace-preflight.log 2>&1
+bash "$adapter" verify > whitespace-verify.log 2>&1
+bash "$adapter" prepare > whitespace-prepare.log 2>&1
 printf '# Changelog\n\n## [%s] - %s\n\n- Candidate.\n\n## [%s]\n\n- History without final LF.' "$RELEASE_VERSION" "$RELEASE_DATE" "$RELEASE_PREVIOUS" > expected-notes
 cmp expected-notes CHANGELOG.md
 echo 'Release adapter checks passed (setup, qualification and Git effects substituted).'
+completed=true

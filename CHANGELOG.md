@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.12.1]
+
+- Provision and verify the pinned release executable through normal setup,
+  removing the undeclared global `cargo-set-version` prerequisite
+  ([#48](https://github.com/dragginzgame/ic-host-tooling/issues/48)).
+- Preserve Make jobserver access for Host-owned Cargo, release and publication
+  recipes ([#50](https://github.com/dragginzgame/ic-host-tooling/issues/50));
+  shared formatting and installer recipes remain tracked separately under
+  [Shared #99](https://github.com/dragginzgame/shared-tooling/issues/99).
+- Reject premature fixture exits on Bash 3.2 and preserve their failure evidence
+  ([#49](https://github.com/dragginzgame/ic-host-tooling/issues/49)).
+
+See [the 0.12 notes](docs/changelog/0.12.md).
+
 ## [0.12.0] - 2026-10-10
 
 - **Breaking:** adopt Shared Tooling 0.3.0. Setup, CI and release preflight now

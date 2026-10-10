@@ -18,6 +18,10 @@ the libraries do not invoke every tool. Explicit setup runs `make install-tools`
 `make tools-check` verifies the set offline. Selected release preflight prepares
 it; standalone verification never installs tools. Existing bundles and failed
 evidence are retained. Rust toolchain bootstrap remains explicit.
+Host extends the aggregate with its pinned `cargo-set-version` executable,
+using the shared installer and receipt checks. Native CI prepares and checks
+this selection too; Linux installation and substitute installer fixtures do not
+qualify its native macOS build or execution.
 CI also owns native macOS execution; Linux qualification is not macOS evidence.
 `ci/ic-tools.tsv` is a consumer-owned pin selection, excluded from automatic
 snapshot refreshes. Shared 0.2.0 adoption removes its PocketIC rows; versions and

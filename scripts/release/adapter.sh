@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Consumer-owned Cargo adapter. Requires Bash 3.2, Git, Make, awk, cargo-edit
-# (cargo set-version), prepared jq/Mike Farah yq and the provisioned Rust
+# Consumer-owned Cargo adapter. Requires Bash 3.2, Git, Make, awk, the selected
+# local cargo-set-version, prepared jq/Mike Farah yq and the provisioned Rust
 # toolchains. Release preflight prepares the selected locked dependency cache;
 # verification uses only offline inputs.
 # Git effects belong to the shared runner, never to this adapter.
@@ -130,7 +130,7 @@ case "$operation" in
         fi
         CARGO_NET_OFFLINE=true make --no-print-directory tools-check
         CARGO_NET_OFFLINE=true make --no-print-directory dependency-pins-check
-        cargo set-version --help > /dev/null
+        bash "$tooling_root/scripts/release/tools.sh" run --help > /dev/null
         if [[ "$operation" == preflight ]]; then
             # The selected release prepares its existing graph before validation.
             # Cargo still honours explicit offline environment/configuration.
@@ -167,7 +167,7 @@ case "$operation" in
         trap 'rm -rf "$scratch"' EXIT
         cp -p CHANGELOG.md "$scratch/notes"
         finalize_notes "$notes" > "$scratch/notes"
-        cargo set-version --workspace --offline "$RELEASE_VERSION"
+        bash "$tooling_root/scripts/release/tools.sh" run --workspace --offline "$RELEASE_VERSION"
         mv "$scratch/notes" CHANGELOG.md
         check_prepared
         ;;

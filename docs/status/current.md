@@ -1,11 +1,66 @@
 # Current handoff
 
-## Pending 0.12.0 — Shared Tooling 0.3.0 adoption
+## Pending 0.12.1 — explicit release prerequisite and Cargo jobserver access
+
+Released base: 0.12.0 (`1ba4591868a83b367d56bae9e3c213418c66a192`).
+Package versions remain 0.12.0. The next patch repairs the implicit release-tool
+prerequisite and Make descriptor forwarding; library APIs and MSRV are unchanged.
+
+Host pins cargo-edit 0.13.13 and installs only `cargo-set-version` through the
+shared selected-Cargo installer. Ordered setup/check aggregates include this
+local extension. The release adapter admits its receipt, digest and version,
+then uses its absolute executable path without global PATH fallback.
+[Host #48](https://github.com/dragginzgame/ic-host-tooling/issues/48) owns this fix.
+Host-owned Cargo, release and publication recipes now preserve jobserver
+descriptors while retaining the shared unsafe-Make-mode refusal
+([Host #50](https://github.com/dragginzgame/ic-host-tooling/issues/50)).
+The four Host fixtures require explicit completion before successful cleanup;
+unset-variable failures on Bash 3.2 and other premature exits retain evidence
+and return failure ([Host #49](https://github.com/dragginzgame/ic-host-tooling/issues/49)).
+
+Focused Linux checks pass: actual offline installation from cached dependencies,
+complete `make tools-check`, parallel release-tool admission, ShellCheck,
+snapshot integrity, local links, release-tool/adapter and actual Make fixtures.
+Release-tool and adapter fixtures also pass with Bash 3.2 on Linux. Fixtures
+substitute installation, Git and release effects; separate real-executable
+qualification changed a disposable workspace and lockfile with an empty Cargo
+home and no global release CLI on PATH. Evidence is retained in
+`/tmp/host-release-tool-fix/` and `/tmp/host-real-release-tool.VNmbcA/`.
+No package release, commit, push, full delivery gate or new native macOS
+qualification ran. This is focused local evidence, not full release readiness.
+
+Follow-up evidence in `/tmp/host-0121-fixes/`: fault injection into actual fixture
+copies passes for unset variables, failing commands, explicit nonzero exits and
+premature zero exits. Normal Make, release-tool, release-adapter and publication
+fixtures pass under Bash 5 and Bash 3.2 on Linux. Publication descriptor checks
+and unsafe-Make-mode refusal use substitutes; no registry effects or builds ran.
+ShellCheck, links, dependency declarations and snapshot integrity pass.
+
+Shared remote main remains `88a73139a0f083344c41a6f6f4b5c3a8aca7dc1d`
+at the follow-up check. The sibling has uncommitted work; no sibling files were
+changed and the adopted 89-file snapshot is intact. Shared formatting and Cargo
+installer jobserver fixes remain owned by
+[Shared #99](https://github.com/dragginzgame/shared-tooling/issues/99), pending a
+reviewable upstream commit. Do not treat the Host recipe fix as closing it.
+The same Bash 3.2 completion defect was reproduced in Shared's unchanged
+formatter fixture and reported in
+[Shared #103](https://github.com/dragginzgame/shared-tooling/issues/103).
+Its correction belongs upstream before canonical adoption.
+
+## Released 0.12.0 — Shared Tooling 0.3.0 adoption
+
+The following records pre-release adoption evidence; the package version is now
+0.12.0 and the installed complete toolset passes the current offline check above.
+Released-source [CI](https://github.com/dragginzgame/ic-host-tooling/actions/runs/38045025680)
+now reports success for Linux x86-64, MSRV and macOS 15 Intel/Apple Silicon.
+This qualifies released 0.12.0, not pending 0.12.1. The nine older delivered Host
+issues were reconciled against their acceptance notes, current source and this
+native result; downstream obligations and older run outcomes remain separate.
 
 Reviewed remote main `88a73139a0f083344c41a6f6f4b5c3a8aca7dc1d` and exported
 the same 89-file selection from a clean isolated checkout. The dirty sibling
 dashboard script was excluded. Source/tool pin catalogs, Rust APIs, Cargo.lock
-and package versions are unchanged; the package version remains 0.11.0.
+and package versions were unchanged during adoption, before release preparation.
 
 The shared setup/check aggregates now require host, IC and Cargo tools in order.
 Host CI and selected release preflight use the complete aggregate, replacing
@@ -13,8 +68,8 @@ CI's separate global cargo-sort installation. Ordinary CI and standalone release
 verification only check prepared tools. Actual Host Make fixtures cover parallel
 ordering and stopping at each failed toolset; the release fixture covers setup
 only in preflight. Setup guidance and the retained-evidence collector are aligned.
-The next notes select 0.12.0 because the setup-command and prerequisite contracts
-change; see [the migration notes](../changelog/0.12.md) and
+The release selected 0.12.0 because the setup-command and prerequisite contracts
+changed; see [the migration notes](../changelog/0.12.md) and
 [Host #47](https://github.com/dragginzgame/ic-host-tooling/issues/47).
 
 Focused Linux checks pass: snapshot integrity, documentation links, ShellCheck,
@@ -34,7 +89,7 @@ at inspection; upstream results remain distinct from Host adoption qualification
 ## Released 0.11.0 — approved maintenance decisions
 
 Released source: 0.11.0 (`1d768c80a5bb87e3330a6b7bacfdfc543063968f`).
-The maintainer reports publication complete. Package versions are 0.11.0;
+The maintainer reported publication complete. Package versions were 0.11.0;
 the limits, process cleanup fields and example commands changed public contracts.
 [Host #46](https://github.com/dragginzgame/ic-host-tooling/issues/46) owns this batch;
 [the 0.11 notes](../changelog/0.11.md) contain consumer migration instructions.

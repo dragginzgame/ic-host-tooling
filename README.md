@@ -166,6 +166,13 @@ set in order: jq, yq, ripgrep with PCRE2 and cloc; the five pinned IC executable
 then cargo-sort, cargo-sort-derives and candid-extractor. The offline check never
 installs tools. CI and selected release preflight use these same aggregate targets;
 standalone release verification only checks the prepared set.
+Host appends its release prerequisite: cargo-edit 0.13.13, installing only
+`cargo-set-version` through the shared selected-tool installer. The pin lives in
+`ci/release-tools.env`; `make install-release-tools` prepares it and
+`make release-tools-check` checks its receipt, digest and version offline.
+The release adapter uses that admitted local executable, with no global PATH
+fallback. Build it with the declared development toolchain; the library MSRV
+remains independent.
 Individual `install-host-tools`, `install-ic-tools` and `install-rust-tools`
 targets and their offline checks remain available. `make install-hooks`
 separately activates the repository-local formatter using the pinned cargo-sort.
@@ -192,7 +199,7 @@ for prerequisites, retained evidence and partial-upload recovery.
 Prepare the complete pinned set with make install-tools before release entry
 points. The read-only make release-version query needs the host parsers;
 parser checks never install missing tools. Release preflight
-prepares all common tools and the selected Cargo cache with `cargo fetch
+prepares all common tools, the pinned release executable and the selected Cargo cache with `cargo fetch
 --locked` before offline validation. Cargo honours an explicit
 `CARGO_NET_OFFLINE=true` or offline configuration; missing inputs then stop the
 release without switching online. Standalone verification stays offline, and
