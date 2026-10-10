@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.12.9]
+## [0.12.9] - 2026-10-10
 
 - Fix macOS test assumptions about temporary paths and padded line counts, and
   include failed native fixtures in CI evidence uploads
