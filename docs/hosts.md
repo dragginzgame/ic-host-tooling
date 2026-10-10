@@ -18,6 +18,9 @@ the libraries do not invoke every tool. Explicit setup runs `make install-tools`
 `make tools-check` verifies the set offline. Selected release preflight prepares
 it; standalone verification never installs tools. Existing bundles and failed
 evidence are retained. Rust toolchain bootstrap remains explicit.
+Shared 0.3.1 setup checks IC platform/catalog admission and Rust/Cargo
+availability before downloading common tools. These preflight checks do not
+install a toolchain or replace the offline verification of installed tools.
 Host extends the aggregate with its pinned `cargo-set-version` executable,
 using the shared installer and receipt checks. Native CI prepares and checks
 this selection too; Linux installation and substitute installer fixtures do not

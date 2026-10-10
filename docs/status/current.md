@@ -1,6 +1,40 @@
 # Current handoff
 
-## Pending 0.12.1 — explicit release prerequisite and Cargo jobserver access
+## Pending 0.12.2 — Shared Tooling 0.3.1 setup admission
+
+Released base: 0.12.1 (`e5ecfa06c14d144cfeb85ea89d65906b1bf81636`).
+Package versions remain 0.12.1. The next patch adopts compatible setup checks
+and diagnostics; library APIs, lockfile and all tool pins are unchanged.
+[Host #51](https://github.com/dragginzgame/ic-host-tooling/issues/51) owns adoption.
+
+Canonically exported the same 89-file selection from clean isolated Shared
+`fa452afaa5012866eb1c20820dfa8038c106e7ec`, matching remote main. Nine selected
+files changed. The moving sibling's uncommitted fixes were excluded. Setup now
+checks IC platform/catalog and Rust/Cargo availability before common downloads,
+then preserves host, IC, Rust and local release-tool order. Host's actual Make
+fixture covers both preflight failures before installation, each later failure,
+parallel ordering and the existing unsafe-mode refusal.
+
+Focused Linux checks pass: actual IC/Rust preflight, complete installed-tool
+offline admission, snapshot/dependency/link checks, ShellCheck, Host Make,
+common aggregate, host/IC/Rust installer, selected release-tool and release
+adapter fixtures. Host Make, aggregate, host/IC installer and both release
+fixtures also pass on Bash 3.2 on Linux. Installer, Git and release effects in
+fixtures are substitutes. Logs and the incoming handoff are retained in
+`/tmp/host-shared031.bRHSeI/`. No download, build, full delivery gate, commit,
+release or new native macOS qualification ran.
+
+Released 0.12.1 [CI](https://github.com/dragginzgame/ic-host-tooling/actions/runs/38050076519)
+has passing Linux and MSRV jobs; Apple Silicon is running and Intel queued at
+inspection. Host #48–#50 remain open for that qualification. Exact-source
+[Shared CI](https://github.com/dragginzgame/shared-tooling/actions/runs/38049622600)
+is also incomplete. Neither result qualifies these pending Host bytes.
+Shared #99 and #103 fixes are still uncommitted and remain upstream obligations.
+
+## Released 0.12.1 — explicit release prerequisite and Cargo jobserver access
+
+The following is the original pre-release evidence; delivery and current
+qualification are recorded above.
 
 Released base: 0.12.0 (`1ba4591868a83b367d56bae9e3c213418c66a192`).
 Package versions remain 0.12.0. The next patch repairs the implicit release-tool
@@ -151,7 +185,7 @@ diagnostic-contract change therefore belongs at the next minor boundary.
 
 ## Shared baseline and evidence
 
-The current baseline is Shared 0.3.0, as recorded above and in AGENTS.md.
+The current baseline is Shared 0.3.1, as recorded above and in AGENTS.md.
 The following evidence records the earlier 0.2.13 adoption in released 0.11.0:
 `5864f468d39f8f9d1bd26fca1afe0e20f25f1b5e`, verified against remote main and exported
 from a clean isolated checkout. The existing 89-file selection is unchanged.

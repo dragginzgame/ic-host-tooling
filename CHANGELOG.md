@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.12.2]
+
+- Adopt Shared Tooling 0.3.1: check platform and Rust/Cargo prerequisites before
+  setup downloads, and identify the exact tool and repair command on failure
+  ([#51](https://github.com/dragginzgame/ic-host-tooling/issues/51),
+  [Shared #101](https://github.com/dragginzgame/shared-tooling/issues/101)).
+
+See [the 0.12 notes](docs/changelog/0.12.md).
+
 ## [0.12.1] - 2026-10-10
 
 - Provision and verify the pinned release executable through normal setup,

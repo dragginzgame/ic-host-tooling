@@ -161,11 +161,14 @@ make test-tools-response checks the response-only library, and
 make tools-features-check verifies its actual production dependency exclusions
 and the default extractor's required owners.
 Prepare the declared Rust toolchain, then run `make install-tools` followed by
-`make tools-check`. Shared Tooling 0.3.0 prepares and verifies the complete common
+`make tools-check`. Shared Tooling 0.3.1 prepares and verifies the complete common
 set in order: jq, yq, ripgrep with PCRE2 and cloc; the five pinned IC executables;
 then cargo-sort, cargo-sort-derives and candid-extractor. The offline check never
 installs tools. CI and selected release preflight use these same aggregate targets;
 standalone release verification only checks the prepared set.
+Setup checks the supported IC platform/catalog and availability of the declared
+Rust/Cargo toolchain before downloading common tools. Host-tool failures identify
+the tool, expected version, selected path and repair command.
 Host appends its release prerequisite: cargo-edit 0.13.13, installing only
 `cargo-set-version` through the shared selected-tool installer. The pin lives in
 `ci/release-tools.env`; `make install-release-tools` prepares it and

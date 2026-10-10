@@ -119,9 +119,10 @@ name="${0##*/}"
 mode=install
 for argument in "$@"; do
     if [[ "$argument" == --check ]]; then mode=check; fi
+    if [[ "$argument" == --preflight ]]; then mode=preflight; fi
 done
 printf '%s %s\n' "$name" "$mode" >> "$HOST_MAKE_EVENTS"
-if [[ "${HOST_MAKE_TOOL_FAIL:-}" == "$name" ]]; then exit 23; fi
+if [[ "${HOST_MAKE_TOOL_FAIL:-}" == "$name" && "${HOST_MAKE_TOOL_FAIL_MODE:-}" == "$mode" ]]; then exit 23; fi
 STUB
 done
 mkdir -p "$fixture/local/scripts/release"
@@ -137,11 +138,14 @@ for mode in install check; do
     for failed in none host ic rust release; do
         : > "$HOST_MAKE_EVENTS"
         status=0
-        HOST_MAKE_TOOL_FAIL="install-$failed-tools.sh" make --no-print-directory -j4 "$target" \
+        HOST_MAKE_TOOL_FAIL="install-$failed-tools.sh" HOST_MAKE_TOOL_FAIL_MODE="$mode" make --no-print-directory -j4 "$target" \
             "SHARED_TOOLING_ROOT=$fixture/external" > "$fixture/$target-$failed.log" 2>&1 || status=$?
         if [[ "$failed" == none ]]; then [[ "$status" == 0 ]];
         else [[ "$status" == 2 ]]; fi
         : > "$fixture/expected"
+        if [[ "$mode" == install ]]; then
+            printf '%s\n' 'install-ic-tools.sh preflight' 'install-rust-tools.sh preflight' >> "$fixture/expected"
+        fi
         for tool in host ic rust release; do
             printf 'install-%s-tools.sh %s\n' "$tool" "$mode" >> "$fixture/expected"
             [[ "$tool" != "$failed" ]] || break
@@ -149,6 +153,18 @@ for mode in install check; do
         cmp "$fixture/expected" "$HOST_MAKE_EVENTS"
         [[ ! -e "$HOST_MAKE_EXTERNAL" ]]
     done
+done
+# Admission must finish before any of the four installation stages may run.
+for failed in ic rust; do
+    : > "$HOST_MAKE_EVENTS"
+    status=0
+    HOST_MAKE_TOOL_FAIL="install-$failed-tools.sh" HOST_MAKE_TOOL_FAIL_MODE=preflight \
+        make --no-print-directory -j4 install-tools > "$fixture/preflight-$failed.log" 2>&1 || status=$?
+    [[ "$status" == 2 ]]
+    printf '%s\n' 'install-ic-tools.sh preflight' > "$fixture/expected"
+    if [[ "$failed" == rust ]]; then printf '%s\n' 'install-rust-tools.sh preflight' >> "$fixture/expected"; fi
+    cmp "$fixture/expected" "$HOST_MAKE_EVENTS"
+    [[ ! -e "$HOST_MAKE_EXTERNAL" ]]
 done
 # Real pipe-descriptor admission in substituted Cargo, without compiling.
 mkdir -p "$fixture/local/scripts/publish"
