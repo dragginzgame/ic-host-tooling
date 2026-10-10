@@ -44,9 +44,9 @@ pub struct WriteOptions {
 /// Retains the original producer error and separate cleanup failures in the
 /// shared [`NamedWriteError`]. Before/after-publication filesystem failures stay
 /// distinguishable. Invalid permissions and unsupported hosts fail before the
-/// producer is called. Directory-required targets ending in `/` or `/.` are
-/// rejected before parent creation or staging. Reconcile after-publication
-/// failures before retrying.
+/// producer is called. Paths containing NUL and directory-required targets ending
+/// in `/` or `/.` are rejected before parent creation or staging. Reconcile
+/// after-publication failures before retrying.
 pub fn write_with<T, E>(
     path: &Path,
     options: WriteOptions,

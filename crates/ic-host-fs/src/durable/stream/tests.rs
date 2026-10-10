@@ -529,6 +529,45 @@ fn link_fallback_cleanup_failure_reports_already_published_output() {
 }
 
 #[test]
+fn pathname_writers_reject_nul_before_creating_parents() {
+    use crate::durable::{
+        create_new_bytes_with_parents, create_private_bytes_with_parents, write_bytes,
+        write_named_with,
+    };
+
+    let fixture = Fixture::new();
+    for name in ["invalid\0name", "invalid\0parent/output", "invalid/child\0"] {
+        let path = fixture.root.join("missing/nested").join(name);
+        for writer in 0..7 {
+            let error = match writer {
+                0 => write_bytes(&path, b"contents"),
+                1 => create_new_bytes_with_parents(&path, b"contents"),
+                2 => create_private_bytes_with_parents(&path, b"contents"),
+                3 => write_with(&path, REPLACE, |_| -> io::Result<()> {
+                    panic!("producer ran")
+                }),
+                4 => write_with(&path, CREATE, |_| -> io::Result<()> {
+                    panic!("producer ran")
+                }),
+                5 => write_named_with(&path, |_| -> io::Result<()> { panic!("producer ran") }),
+                _ => write_validated_with(
+                    &path,
+                    REPLACE,
+                    |_| -> io::Result<()> { panic!("producer ran") },
+                    |_, ()| panic!("admission ran"),
+                ),
+            }
+            .expect_err("NUL-containing pathname must be refused");
+            assert!(
+                matches!(error, NamedWriteError::BeforePublication { source, cleanup_error: None }
+                if source.kind() == io::ErrorKind::InvalidInput)
+            );
+            assert_eq!(fs::read_dir(&fixture.root).unwrap().count(), 0);
+        }
+    }
+}
+
+#[test]
 fn pathname_writers_reject_directory_suffixes_before_any_effect() {
     use crate::durable::{
         create_new_bytes_with_parents, create_private_bytes_with_parents, write_bytes,

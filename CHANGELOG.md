@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.12.5]
+
+- Reject NUL-containing publication paths before creating parent directories
+  ([#54](https://github.com/dragginzgame/ic-host-tooling/issues/54)).
+- Stop release and publication commands when source or version observations fail,
+  even if their output appears valid
+  ([#56](https://github.com/dragginzgame/ic-host-tooling/issues/56)).
+- Adopt Shared Tooling 0.3.6: stop formatting on failed Git observations,
+  retain incomplete-check evidence, and support lockfile-selected Cargo tools
+  ([#55](https://github.com/dragginzgame/ic-host-tooling/issues/55),
+  [Shared #106](https://github.com/dragginzgame/shared-tooling/issues/106),
+  [Shared #103](https://github.com/dragginzgame/shared-tooling/issues/103),
+  [Shared #96](https://github.com/dragginzgame/shared-tooling/issues/96)).
+
+See [the 0.12 notes](docs/changelog/0.12.md).
+
 ## [0.12.4] - 2026-10-10
 
 - Select Binaryen 133 for Linux and both macOS architectures, using the reviewed

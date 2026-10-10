@@ -13,9 +13,9 @@ fail() { echo "publication refused: $1" >&2; exit 1; }
 root="$(git rev-parse --show-toplevel && printf '/.')"
 root="${root%$'\n/.'}"
 cd "$root"
-source="$(git rev-parse --verify HEAD)"
+source="$(git rev-parse --verify HEAD)" || exit $?
 [[ "$source" =~ ^([0-9a-f]{40}|[0-9a-f]{64})$ ]] || fail 'invalid source identity'
-dirty="$(git status --porcelain --untracked-files=all)"
+dirty="$(git status --porcelain --untracked-files=all)" || exit $?
 [[ "$mode" != publish || -z "$dirty" ]] || fail 'commit workspace changes before publishing'
 [[ -f LICENSE && ! -L LICENSE ]] || fail 'expected a regular root license notice'
 for package in ic-host-artifacts ic-host-fs ic-host-process ic-host-tools; do
@@ -83,8 +83,9 @@ if [[ "$mode" == publish ]]; then
     [[ "$retrieved" == "$source" ]] || fail 'retrieved source differs from package provenance'
     printf '%s\n' "$retrieved" > "$attempt/source-verified"
 fi
-[[ "$(git rev-parse --verify HEAD)" == "$source" &&
-    "$(git status --porcelain --untracked-files=all)" == "$dirty" ]] || fail 'source changed before publication'
+observed_source="$(git rev-parse --verify HEAD)" || exit $?
+observed_dirty="$(git status --porcelain --untracked-files=all)" || exit $?
+[[ "$observed_source" == "$source" && "$observed_dirty" == "$dirty" ]] || fail 'source changed before publication'
 status=0
 cargo "${arguments[@]}" 2>&1 | tee "$attempt/cargo.log" || status=$?
 printf '%s\n' "$status" > "$attempt/status"

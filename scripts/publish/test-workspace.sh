@@ -55,6 +55,13 @@ case "$*" in
         echo "${PUBLISH_RETRIEVED_SOURCE:-0000000000000000000000000000000000000000}" ;;
     *) echo "Unexpected Git operation: $*" >&2; exit 2 ;;
 esac
+if [[ "$*" == "${PUBLISH_GIT_QUERY:-}" ]]; then
+    count=0
+    if [[ -f "$PUBLISH_FIXTURE/query-count" ]]; then read -r count < "$PUBLISH_FIXTURE/query-count"; fi
+    count=$((count + 1))
+    printf '%s\n' "$count" > "$PUBLISH_FIXTURE/query-count"
+    if [[ "$count" == "$PUBLISH_GIT_FAILURE_AT" ]]; then exit 23; fi
+fi
 STUB
 cat > bin/cargo <<'STUB'
 #!/usr/bin/env bash
@@ -189,6 +196,30 @@ for scenario in package-failed vcs-missing vcs-dirty vcs-mismatch vcs-path fetch
     cmp expected-calls calls
     [[ ! -e target/publish/lock ]]
     rm -f source-changed
+done
+# Failed observations must stop both modes, even with expected identity stdout
+# or an empty clean-status result. Later failures retain their attempt evidence.
+for mode in check publish; do
+    for query in 'rev-parse --verify HEAD' 'status --porcelain --untracked-files=all'; do
+        for occurrence in 1 2; do
+            : > calls
+            rm -f query-count arguments
+            status=0
+            PUBLISH_GIT_QUERY="$query" PUBLISH_GIT_FAILURE_AT="$occurrence" \
+                invoke "$mode" > observation-failure.log 2>&1 || status=$?
+            [[ "$status" == 23 ]] || { echo 'Failed Git observation was not propagated' >&2; exit 1; }
+            : > expected-calls
+            if [[ "$occurrence" == 2 ]]; then
+                printf 'metadata\n' >> expected-calls
+                if [[ "$mode" == publish ]]; then printf 'package\n' >> expected-calls; fi
+                # The fixture root includes a newline; resolve by the relative attempt suffix.
+                attempt="$(sed -n 's,^/target/publish/,target/publish/,p' observation-failure.log)"
+                [[ -f "$attempt/intent" && ! -e "$attempt/cargo.log" && ! -e "$attempt/status" ]]
+            fi
+            cmp expected-calls calls
+            [[ ! -e target/publish/lock && ! -e arguments ]]
+        done
+    done
 done
 mkdir target/publish/lock
 refuse publish

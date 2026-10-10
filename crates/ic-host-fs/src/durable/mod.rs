@@ -595,9 +595,15 @@ mod supported {
     }
 
     pub(super) fn validate_target_path(path: &Path) -> io::Result<()> {
+        let bytes = path.as_os_str().as_encoded_bytes();
+        if bytes.contains(&0) {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "durable write target contains NUL",
+            ));
+        }
         // Path components and absolute() discard trailing directory requirements.
         // Refuse them before splitting or normalizing a file publication target.
-        let bytes = path.as_os_str().as_encoded_bytes();
         if bytes.ends_with(b"/") || bytes.ends_with(b"/.") {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidInput,

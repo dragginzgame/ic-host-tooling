@@ -28,9 +28,11 @@ admit_files() {
         fail 'commit refused source paths before releasing'
 }
 selections() {
+    local selected_version
     [[ "${RELEASE_SOURCE:?}" =~ ^[0-9a-f]{40,64}$ ]] || fail "invalid source identity"
     [[ "${RELEASE_DATE:?}" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] || fail "invalid release date"
-    [[ "$(bash "$tooling_root/scripts/ci/next-release-version.sh" "${RELEASE_PREVIOUS:?}" "${RELEASE_KIND:?}")" == "${RELEASE_VERSION:?}" ]] || fail "conflicting release selection"
+    selected_version="$(bash "$tooling_root/scripts/ci/next-release-version.sh" "${RELEASE_PREVIOUS:?}" "${RELEASE_KIND:?}")" || exit $?
+    [[ "$selected_version" == "${RELEASE_VERSION:?}" ]] || fail "conflicting release selection"
     state="$(git rev-parse --git-path release-state)"
     [[ ! -L "$state" ]] || fail "symlinked release evidence directory"
     receipt="$state/$RELEASE_VERSION.validation"
@@ -68,9 +70,10 @@ check_receipt() {
     receipt_header | cmp - "$receipt"
 }
 check_prepared() {
-    local mode file
+    local mode file observed_version
     check_receipt
-    [[ "$(version)" == "$RELEASE_VERSION" ]] || fail "workspace version differs from candidate"
+    observed_version="$(version)" || exit $?
+    [[ "$observed_version" == "$RELEASE_VERSION" ]] || fail "workspace version differs from candidate"
     for mode in manifest lock; do
         if [[ "$mode" == manifest ]]; then file=Cargo.toml; else file=Cargo.lock; fi
         [[ -f "$file" && ! -L "$file" ]] || fail "missing or symlinked Cargo metadata"
@@ -87,7 +90,8 @@ check_committed() (
     # Its evidence binds the selected payload, never the current working files.
     check_receipt
     [[ "${RELEASE_COMMIT:-}" =~ ^[0-9a-f]{40,64}$ ]] || fail "invalid release commit identity"
-    [[ "$(git rev-parse "$RELEASE_COMMIT^{commit}")" == "$RELEASE_COMMIT" ]] || fail "release commit is unavailable"
+    observed_commit="$(git rev-parse "$RELEASE_COMMIT^{commit}")" || exit $?
+    [[ "$observed_commit" == "$RELEASE_COMMIT" ]] || fail "release commit is unavailable"
     scratch="$(mktemp -d "$state/$RELEASE_VERSION.committed.XXXXXX")"
     trap 'rm -rf "$scratch"' EXIT
     for mode in manifest lock; do
@@ -107,7 +111,10 @@ case "$operation" in
 esac
 case "$operation" in
     preflight|verify)
-        [[ "$(git rev-parse HEAD)" == "$RELEASE_SOURCE" && "$(version)" == "$RELEASE_PREVIOUS" ]] || fail "source/version changed"
+        observed_source="$(git rev-parse HEAD)" || exit $?
+        [[ "$observed_source" == "$RELEASE_SOURCE" ]] || fail "source changed"
+        observed_version="$(version)" || exit $?
+        [[ "$observed_version" == "$RELEASE_PREVIOUS" ]] || fail "workspace version changed"
         for file in Cargo.toml Cargo.lock CHANGELOG.md; do
             [[ -f "$file" && ! -L "$file" ]] || fail "missing or symlinked release metadata"
         done
@@ -116,7 +123,8 @@ case "$operation" in
         awk -v mode=manifest -v replacement="$RELEASE_PREVIOUS" \
             -f "$tooling_root/scripts/release/metadata-version.awk" Cargo.toml |
             cmp - Cargo.toml || fail "unsupported or unsynchronized release metadata"
-        [[ "$(awk -v mode=lock -v read_version=1 -f "$tooling_root/scripts/release/metadata-version.awk" Cargo.lock)" == "$RELEASE_PREVIOUS" ]] || fail "lockfile version differs"
+        observed_lock_version="$(awk -v mode=lock -v read_version=1 -f "$tooling_root/scripts/release/metadata-version.awk" Cargo.lock)" || exit $?
+        [[ "$observed_lock_version" == "$RELEASE_PREVIOUS" ]] || fail "lockfile version differs"
         admit_files
         # Git releases and registry publication are separate effects. Validate
         # the workspace without requiring its packages to permit publication.
@@ -143,7 +151,7 @@ case "$operation" in
             scratch="$(mktemp -d "$state/$RELEASE_VERSION.validation.XXXXXX")"
             trap 'rm -rf "$scratch"' EXIT
             cp -p CHANGELOG.md "$scratch/notes"
-            before="$(git diff --binary HEAD | git hash-object --stdin)"
+            before="$(git diff --binary HEAD | git hash-object --stdin)" || exit $?
             {
                 receipt_header
                 CARGO_NET_OFFLINE=true make --no-print-directory ci
@@ -151,7 +159,9 @@ case "$operation" in
                     CARGO_NET_OFFLINE=true make --no-print-directory msrv PACKAGE="$package"
                 done
             } 2>&1 | tee -a "$receipt.log"
-            [[ "$(git rev-parse HEAD)" == "$RELEASE_SOURCE" && "$(git diff --binary HEAD | git hash-object --stdin)" == "$before" ]] || fail "source changed during validation"
+            observed_source="$(git rev-parse HEAD)" || exit $?
+            after="$(git diff --binary HEAD | git hash-object --stdin)" || exit $?
+            [[ "$observed_source" == "$RELEASE_SOURCE" && "$after" == "$before" ]] || fail "source changed during validation"
             admit_files
             cmp "$scratch/notes" CHANGELOG.md
             receipt_header > "$scratch/receipt"
@@ -160,7 +170,10 @@ case "$operation" in
         fi
         ;;
     prepare)
-        [[ "$(git rev-parse HEAD)" == "$RELEASE_SOURCE" && "$(version)" == "$RELEASE_PREVIOUS" ]] || fail "preparation source/version changed"
+        observed_source="$(git rev-parse HEAD)" || exit $?
+        [[ "$observed_source" == "$RELEASE_SOURCE" ]] || fail "preparation source changed"
+        observed_version="$(version)" || exit $?
+        [[ "$observed_version" == "$RELEASE_PREVIOUS" ]] || fail "preparation workspace version changed"
         check_receipt
         cmp "$notes" CHANGELOG.md
         scratch="$(mktemp -d "$state/$RELEASE_VERSION.prepare.XXXXXX")"

@@ -364,5 +364,124 @@ wait "$first"
 bash "$installer" "${next_args[@]}" > "$fixture/concurrent-retry"
 cmp "$fixture/concurrent-first.log" "$fixture/concurrent-retry"
 cmp "$RUST_TOOL_FIXTURE_LOG" "$fixture/before-contention"
+
+# Select from a real TOML lock with prepared yq/jq, without Cargo resolution.
+locked_consumer="$fixture/locked consumer"
+mkdir -p "$locked_consumer/graph"
+locked_file="$locked_consumer/graph/Cargo.lock"
+cat > "$locked_file" <<'LOCK'
+version = 4
+
+[[package]]
+name = "sample"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "unrelated"
+version = "1.0.0"
+LOCK
+cp "$locked_file" "$fixture/good.lock"
+locked_args=(--consumer "$locked_consumer" --package sample --lockfile graph/Cargo.lock --bin prepare --profile release)
+cp "$RUST_TOOL_FIXTURE_LOG" "$fixture/locked-before"
+if bash "$installer" "${locked_args[@]}" --check > "$fixture/locked-missing.log" 2>&1; then exit 1; fi
+cmp "$RUST_TOOL_FIXTURE_LOG" "$fixture/locked-before"
+[[ ! -e "$locked_consumer/.tools" ]] || exit 1
+bash "$installer" "${locked_args[@]}" > "$fixture/locked-path"
+locked_slot="$locked_consumer/.tools/rust/sample-2.0.0-bin-prepare-release/installed"
+[[ "$(cat "$fixture/locked-path")" == "$locked_slot/bin/prepare" ]] || exit 1
+cp "$locked_slot/selection.json" "$fixture/locked-receipt"
+cp "$RUST_TOOL_FIXTURE_LOG" "$fixture/locked-installs"
+bash "$installer" "${locked_args[@]}" --check > "$fixture/locked-check"
+bash "$installer" "${locked_args[@]}" > "$fixture/locked-reuse"
+cmp "$fixture/locked-path" "$fixture/locked-check"
+cmp "$fixture/locked-path" "$fixture/locked-reuse"
+cmp "$RUST_TOOL_FIXTURE_LOG" "$fixture/locked-installs"
+cmp "$locked_file" "$fixture/good.lock"
+
+# Failed parsers cannot supply an apparently valid selection to setup/check.
+for parser in yq jq; do
+    real_parser="$(command -v "$parser")"
+    cat > "$fixture/bin/$parser" <<'PARSER'
+#!/usr/bin/env bash
+"$LOCK_TEST_PARSER" "$@" || exit $?
+echo 'injected lock parser failure' >&2
+exit 23
+PARSER
+    chmod +x "$fixture/bin/$parser"
+    for mode in setup check; do
+        mode_args=()
+        [[ "$mode" != check ]] || mode_args=(--check)
+        status=0
+        LOCK_TEST_PARSER="$real_parser" bash "$installer" "${locked_args[@]}" ${mode_args[@]+"${mode_args[@]}"} \
+            > "$fixture/parser-$parser-$mode.out" 2> "$fixture/parser-$parser-$mode.log" || status=$?
+        [[ "$status" == 23 && ! -s "$fixture/parser-$parser-$mode.out" ]] || exit 1
+        cmp "$RUST_TOOL_FIXTURE_LOG" "$fixture/locked-installs"
+    done
+    rm "$fixture/bin/$parser"
+done
+
+# Absolute lock paths and example targets use the same selection contract.
+sed 's/2.0.0/1.2.3/' "$fixture/good.lock" > "$fixture/example.lock"
+bash "$installer" --consumer "$fixture/selected" --package sample --lockfile "$fixture/example.lock" \
+    --example prepare --profile debug --check > "$fixture/locked-example"
+cmp "$fixture/selected-path" "$fixture/locked-example"
+
+for invalid in missing symlink directory malformed absent duplicate git path registry prerelease build number newline conflicting; do
+    cp "$fixture/good.lock" "$locked_file"
+    extra=()
+    case "$invalid" in
+        missing) rm "$locked_file" ;;
+        symlink) rm "$locked_file"; ln -s "$fixture/good.lock" "$locked_file" ;;
+        directory) rm "$locked_file"; mkdir "$locked_file" ;;
+        malformed) printf '[[package\n' > "$locked_file" ;;
+        absent) sed 's/name = "sample"/name = "absent"/' "$fixture/good.lock" > "$locked_file" ;;
+        duplicate) sed -n '/^\[\[package\]\]/,$p' "$fixture/good.lock" >> "$locked_file" ;;
+        git) sed 's,registry+https://github.com/rust-lang/crates.io-index,git+https://example.invalid/repo#123,' "$fixture/good.lock" > "$locked_file" ;;
+        path) sed '/^source =/d' "$fixture/good.lock" > "$locked_file" ;;
+        registry) sed 's,crates.io-index,other-index,' "$fixture/good.lock" > "$locked_file" ;;
+        prerelease) sed 's/2.0.0/2.0.0-rc.1/' "$fixture/good.lock" > "$locked_file" ;;
+        build) sed 's/2.0.0/2.0.0+build/' "$fixture/good.lock" > "$locked_file" ;;
+        number) sed 's/"2.0.0"/2/' "$fixture/good.lock" > "$locked_file" ;;
+        newline) sed 's/2.0.0/2.0.0\\n/' "$fixture/good.lock" > "$locked_file" ;;
+        conflicting) extra=(--version 2.0.0) ;;
+    esac
+    for mode in setup check; do
+        mode_args=()
+        [[ "$mode" != check ]] || mode_args=(--check)
+        if bash "$installer" "${locked_args[@]}" ${extra[@]+"${extra[@]}"} ${mode_args[@]+"${mode_args[@]}"} \
+            > "$fixture/lock-$invalid-$mode.out" 2> "$fixture/lock-$invalid-$mode.log"; then exit 1; fi
+        [[ ! -s "$fixture/lock-$invalid-$mode.out" ]] || exit 1
+        cmp "$RUST_TOOL_FIXTURE_LOG" "$fixture/locked-installs"
+        cmp "$locked_slot/selection.json" "$fixture/locked-receipt"
+    done
+    if [[ "$invalid" == directory ]]; then rmdir "$locked_file"
+    else rm -f "$locked_file"; fi
+done
+
+# A lock change chooses a new slot; offline admission never installs it.
+sed 's/2.0.0/2.0.1/' "$fixture/good.lock" > "$locked_file"
+if bash "$installer" "${locked_args[@]}" --check > "$fixture/lock-updated.log" 2>&1; then exit 1; fi
+cmp "$RUST_TOOL_FIXTURE_LOG" "$fixture/locked-installs"
+grep -F 'version=2.0.1' "$fixture/lock-updated.log" > /dev/null
+
+# Selection changes during Cargo installation retain the attempt, not activation.
+mkdir "$fixture/lock-pause"
+SELECTED_PAUSE="$fixture/lock-pause" bash "$installer" "${locked_args[@]}" > "$fixture/lock-changed.out" 2> "$fixture/lock-changed.log" &
+first=$!
+for ((attempt=0; attempt<200; attempt++)); do
+    [[ ! -e "$fixture/lock-pause/started" ]] || break
+    sleep 0.1
+done
+[[ -e "$fixture/lock-pause/started" ]] || exit 1
+cp "$fixture/good.lock" "$locked_file"
+touch "$fixture/lock-pause/continue"
+if wait "$first"; then exit 1; fi
+[[ ! -s "$fixture/lock-changed.out" && ! -e "$locked_consumer/.tools/rust/sample-2.0.1-bin-prepare-release/installed" ]] || exit 1
+grep -F 'lock selection changed' "$fixture/lock-changed.log" > /dev/null
+[[ "$(find "$locked_consumer/.tools/rust/build" -name evidence | wc -l | tr -d ' ')" == 1 ]] || exit 1
+cmp "$locked_slot/selection.json" "$fixture/locked-receipt"
+bash "$installer" "${locked_args[@]}" --check > "$fixture/locked-after-change"
+cmp "$fixture/locked-path" "$fixture/locked-after-change"
 echo 'Selected Cargo binary/example admission, offline reuse, failure retention and locking passed (substitute Cargo)'
 fixture_complete=true

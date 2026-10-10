@@ -23,6 +23,9 @@ unset MAKEFLAGS MFLAGS MAKEOVERRIDES GNUMAKEFLAGS MAKEFILES
 export CARGO_NET_OFFLINE=true RUSTUP_AUTO_INSTALL=0
 ADAPTER_REAL_CARGO="$(command -v cargo)"
 export ADAPTER_REAL_CARGO
+ADAPTER_REAL_BASH="$(command -v bash)"
+ADAPTER_REAL_AWK="$(command -v awk)"
+export ADAPTER_REAL_BASH ADAPTER_REAL_AWK
 export ADAPTER_METADATA_REWRITE="$root/scripts/release/metadata-version.awk"
 export ADAPTER_EVENTS="$fixture/events"
 export RELEASE_SOURCE=0000000000000000000000000000000000000000
@@ -101,6 +104,13 @@ case "$*" in
         if [[ -n "${ADAPTER_UNTRACKED_PATH:-}" ]]; then printf '?? %s\0' "$ADAPTER_UNTRACKED_PATH"; fi ;;
     *) echo "Unexpected Git operation: $*" >&2; exit 2 ;;
 esac
+if [[ "$*" == "${ADAPTER_GIT_QUERY:-}" ]]; then
+    count=0
+    if [[ -f query-count ]]; then read -r count < query-count; fi
+    count=$((count + 1))
+    printf '%s\n' "$count" > query-count
+    if [[ "$count" == "${ADAPTER_GIT_FAILURE_AT:-1}" ]]; then exit 23; fi
+fi
 STUB
 cat > "$fixture/bin/cargo" <<'STUB'
 #!/usr/bin/env bash
@@ -144,6 +154,23 @@ case "$*" in
 esac
 STUB
 chmod +x "$fixture/bin/git" "$fixture/bin/cargo" "$fixture/bin/make"
+# Delegate normally, then fail selected readers after their valid stdout.
+printf '#!%s\n' "$ADAPTER_REAL_BASH" > "$fixture/bin/bash"
+cat >> "$fixture/bin/bash" <<'STUB'
+set -euo pipefail
+if [[ "${1##*/}" == "${ADAPTER_FAILED_READER:-}" ]]; then
+    "$ADAPTER_REAL_BASH" "$@"
+    exit 23
+fi
+exec "$ADAPTER_REAL_BASH" "$@"
+STUB
+cat > "$fixture/bin/awk" <<'STUB'
+#!/usr/bin/env bash
+set -euo pipefail
+"$ADAPTER_REAL_AWK" "$@"
+if [[ "${ADAPTER_FAILED_READER:-}" == lock && "$*" == '-v mode=lock -v read_version=1 '* ]]; then exit 23; fi
+STUB
+chmod +x "$fixture/bin/bash" "$fixture/bin/awk"
 export PATH="$fixture/bin:$PATH"
 cd "$fixture"
 
@@ -194,6 +221,33 @@ for scenario in failed-locate duplicate-version unsynchronized-path; do
     [[ ! -e release-state ]] || exit 1
 done
 cp source/Cargo.toml Cargo.toml
+
+# Plausible stdout never overrides a failed Git observation. Admission failures
+# must stop before setup, qualification or version mutation in every entrypoint.
+for operation in preflight verify prepare; do
+    : > "$ADAPTER_EVENTS"
+    rm -f query-count
+    status=0
+    ADAPTER_GIT_QUERY='rev-parse HEAD' bash "$adapter" "$operation" \
+        > "failed-head-$operation.log" 2>&1 || status=$?
+    [[ "$status" == 23 && ! -s "$ADAPTER_EVENTS" && ! -e release-state ]]
+    cmp source/Cargo.toml Cargo.toml
+    cmp source/Cargo.lock Cargo.lock
+    cmp source/CHANGELOG.md CHANGELOG.md
+done
+
+# Release selection, manifest and lockfile readers have the same status boundary.
+for reader in next-release-version.sh read-cargo-workspace-version.sh lock; do
+    : > "$ADAPTER_EVENTS"
+    status=0
+    ADAPTER_FAILED_READER="$reader" bash "$adapter" preflight \
+        > "failed-reader-$reader.log" 2>&1 || status=$?
+    [[ "$status" == 23 && ! -e release-state ]]
+    if grep -E '^make |^cargo (fetch|set-version)' "$ADAPTER_EVENTS"; then exit 1; fi
+    cmp source/Cargo.toml Cargo.toml
+    cmp source/Cargo.lock Cargo.lock
+    cmp source/CHANGELOG.md CHANGELOG.md
+done
 
 # The copied member manifests retain publish=false. Preflight must reach setup
 # and dependency admission without modifying their metadata or creating intent.
@@ -331,6 +385,29 @@ for scenario in unnumbered misplaced-unnumbered duplicate duplicate-whitespace c
 done
 cp source/CHANGELOG.md CHANGELOG.md
 
+# Initial and post-validation diff observations must preserve producer status,
+# including a failed diff whose downstream hash command still prints a match.
+for query in 'rev-parse HEAD' 'diff --binary HEAD' 'hash-object --stdin'; do
+    for occurrence in 1 2; do
+        : > "$ADAPTER_EVENTS"
+        rm -f query-count
+        status=0
+        ADAPTER_GIT_QUERY="$query" ADAPTER_GIT_FAILURE_AT="$occurrence" \
+            bash "$adapter" verify > "failed-verify-$occurrence.log" 2>&1 || status=$?
+        [[ "$status" == 23 && ! -e "release-state/$RELEASE_VERSION.validation" &&
+            ! -e "release-state/$RELEASE_VERSION.validation.notes" ]]
+        if [[ "$occurrence" == 1 ]]; then
+            if grep -E '^make .* (ci|msrv)' "$ADAPTER_EVENTS"; then exit 1; fi
+        else
+            grep -Fx 'make --no-print-directory msrv PACKAGE=ic-host-tools' "$ADAPTER_EVENTS" > /dev/null
+            [[ -f "release-state/$RELEASE_VERSION.validation.log" ]]
+        fi
+        cmp source/Cargo.toml Cargo.toml
+        cmp source/Cargo.lock Cargo.lock
+        cmp source/CHANGELOG.md CHANGELOG.md
+    done
+done
+
 # Verification qualifies the source without installing tools. The gate and
 # MSRV checks are substitutes; saved notes and receipt handling are real.
 : > "$ADAPTER_EVENTS"
@@ -352,6 +429,21 @@ cmp expected "$ADAPTER_EVENTS"
 receipt="release-state/$RELEASE_VERSION.validation"
 cmp source/CHANGELOG.md "$receipt.notes"
 
+# Failed preparation and requalification preserve an existing receipt verbatim.
+cp "$receipt" saved-receipt
+for operation in prepare verify; do
+    rm -f query-count
+    status=0
+    occurrence=1
+    if [[ "$operation" == verify ]]; then occurrence=2; fi
+    ADAPTER_GIT_QUERY='rev-parse HEAD' ADAPTER_GIT_FAILURE_AT="$occurrence" \
+        bash "$adapter" "$operation" \
+        > "failed-receipted-$operation.log" 2>&1 || status=$?
+    [[ "$status" == 23 ]]
+    cmp saved-receipt "$receipt"
+    cmp source/CHANGELOG.md "$receipt.notes"
+done
+
 # The prepared fixture must preserve both undated and dated historical notes
 # through saved receipts; real locked/offline Cargo admits its updated graph.
 printf '# Changelog\n\n## [%s] - %s\n\n- Fixture notes.\n\n## [%s]\n\n- Undated imported history.\n\n## [0.0.1] - 2026-10-01\n\n- Dated history.\n' "$RELEASE_VERSION" "$RELEASE_DATE" "$RELEASE_PREVIOUS" > expected-notes
@@ -359,6 +451,29 @@ bash "$adapter" prepare > prepared.log 2>&1
 cmp expected-notes CHANGELOG.md
 bash "$adapter" check > checked.log 2>&1
 cp Cargo.toml Cargo.lock CHANGELOG.md committed/
+
+for operation in check commit-check; do
+    status=0
+    ADAPTER_FAILED_READER=read-cargo-workspace-version.sh bash "$adapter" "$operation" \
+        > "failed-prepared-$operation.log" 2>&1 || status=$?
+    [[ "$status" == 23 ]]
+    cmp committed/Cargo.toml Cargo.toml
+    cmp committed/Cargo.lock Cargo.lock
+    cmp committed/CHANGELOG.md CHANGELOG.md
+done
+
+# Recovery must also reject a failed lookup of an otherwise matching commit.
+cp "$receipt" saved-receipt
+rm -f query-count
+status=0
+ADAPTER_GIT_QUERY="rev-parse $RELEASE_COMMIT^{commit}" \
+    bash "$adapter" committed-check > failed-committed-query.log 2>&1 || status=$?
+[[ "$status" == 23 ]]
+cmp saved-receipt "$receipt"
+cmp source/CHANGELOG.md "$receipt.notes"
+cmp committed/Cargo.toml Cargo.toml
+cmp committed/Cargo.lock Cargo.lock
+cmp committed/CHANGELOG.md CHANGELOG.md
 
 # Recovery observes the selected committed payload beneath newer working notes;
 # it must not reinterpret current files or accept edits to the selected history.

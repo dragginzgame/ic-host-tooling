@@ -1,6 +1,108 @@
 # Current handoff
 
-## Pending 0.12.4 — Binaryen 133 and Shared Tooling 0.3.4
+## Pending 0.12.5 — reject invalid paths and failed source observations
+
+Released base: 0.12.4 (`5400f159474cebac1ec7ae7c8763abfd258bde03`).
+[Host #54](https://github.com/dragginzgame/ic-host-tooling/issues/54) is implemented
+locally: the shared pathname validator rejects NUL before parent creation,
+normalization, staging or producer/admission callbacks. The same typed
+`BeforePublication` / `InvalidInput` result is retained. This is a compatible
+validation-order fix, so the pending candidate is 0.12.5; package versions,
+lockfile and tool pins remain unchanged.
+
+[Host #56](https://github.com/dragginzgame/ic-host-tooling/issues/56) is also
+implemented locally. Host's release and publication adapters check observation
+status before accepting source/version output. Failed Git, version-reader and
+lockfile observations stop guarded effects; failed diff producers propagate
+through the hash pipeline. Saved receipts and publication evidence are preserved.
+This repairs existing guards without changing successful command contracts,
+so it extends the same compatible 0.12.5 candidate.
+
+Both command fixtures failed against the old guards and pass after repair on
+Bash 5 and Bash 3.2 on Linux. They cover initial and final observations, failed
+readers with plausible stdout, empty failed clean-status output, preparation,
+receipt replacement and committed-release recovery. Cargo metadata is real and
+locked/offline; setup, qualification, Git and upload effects are substituted.
+ShellCheck, documentation links, snapshot integrity and diff checks pass.
+Evidence and preserved incoming work: `/tmp/host-0125-observation-fix/`.
+
+[Host #55](https://github.com/dragginzgame/ic-host-tooling/issues/55) is now
+adopted locally from committed Shared 0.3.6
+`0604bfd730ec7ec288cd2cfdad217a0d42bf256b`, verified against remote main.
+The canonical exporter refreshed the same 90-file selection from an isolated
+clean checkout. Six selected files changed: the hook, formatting adoption checker,
+Cargo installer and its fixture, and their guidance. AGENTS and current local
+guidance identify the new baseline; no vendor file was patched independently.
+The adopted hook rejects failed index observations
+([Shared #106](https://github.com/dragginzgame/shared-tooling/issues/106));
+the checker retains evidence after premature completion
+([Shared #103](https://github.com/dragginzgame/shared-tooling/issues/103)).
+The new optional lockfile-selected Cargo installer mode is qualified by its
+substitute fixture ([Shared #96](https://github.com/dragginzgame/shared-tooling/issues/96));
+Host's release tool retains its explicit consumer pin.
+
+Host's actual hook passes initial, post-snapshot and post-format failure injection,
+normal refresh, mismatch and preservation cases on Bash 5 and Bash 3.2 on Linux.
+The real Host formatting adoption check, Cargo installer and canonical upstream
+retention fixtures pass on both Bash versions. The release-tool fixture and
+actual complete offline tool admission also pass. The initial deliberately
+unsorted manifest fixture attached a comment to a different dependency; corrected
+fixture input preserves that attachment and passes. Production source was unaffected.
+ShellCheck, snapshot integrity, dependency declarations, local links and diff
+checks pass. Checksums preserve the incoming filesystem and adapter fixes,
+package selections and all pins. Evidence and incoming work are retained at
+`/tmp/host-shared036.6eY7la/`. Native macOS qualification and delivery remain
+separate; no install, download, full gate, commit, push or release ran.
+
+The new public-boundary regression failed before the repair because a missing
+parent was created, then passed after it. It covers all six pathname APIs,
+both streamed publication modes, and NUL in filenames and parent components.
+All 73 filesystem library tests pass on Linux, including existing native-name,
+directory-suffix, publication, cleanup and lock cases. Selected all-target,
+all-feature Clippy with warnings denied, formatting, documentation links and
+diff checks pass. Original reproduction: `/tmp/host-pathname-admission.NwZvzO/`;
+before/after logs and preserved incoming handoff: `/tmp/host-0125-nul-path/`.
+
+Released 0.12.4 [CI](https://github.com/dragginzgame/ic-host-tooling/actions/runs/38055667305)
+passes Linux and MSRV; both macOS jobs remain queued. This does not qualify the
+pending fix. The other open issues retain their native acceptance obligations;
+no additional implementation failure was established. No full delivery gate,
+native macOS execution, sibling mutation, dependency update, commit, push or
+release ran. The incoming handoff edit is preserved below as historical evidence.
+
+## Previous maintenance check — released 0.12.4
+
+The following records the preceding inspection, before the pending repair above.
+
+Released source: `5400f159474cebac1ec7ae7c8763abfd258bde03`; the maintainer reports
+0.12.4 live. The checkout was clean at inspection. Shared remote main remains the
+adopted 0.3.4 `169d77b8440568c5200eede971625126181f7bb2`.
+Exact-source [Host CI](https://github.com/dragginzgame/ic-host-tooling/actions/runs/38055667305)
+is queued; delivery does not establish native qualification.
+
+A bounded review of process capture, child ownership, executable resolution and
+Git observation found no new actionable defect. The selected process library's
+80 tests pass on Linux with the locked dependencies and Rust 1.99.0. This covers
+the existing cancellation, no-deadline, bounded output, cleanup and retained
+ownership regressions; it is not a full delivery gate or native macOS evidence.
+Method: shared [code hygiene](../../audits/code-hygiene.md), current snapshot and
+AGENTS overlay; product contracts remain in [extraction](../extraction.md).
+Evidence and inspected source/consumer identities: `/tmp/host-0124-process-review/`.
+
+Read-only consumer inspection confirms Testkit's bounded Cargo diagnostics and
+complete probe captures are implemented; its remaining acceptance is owned by
+[Testkit #49](https://github.com/dragginzgame/ic-testkit/issues/49).
+Canic's working tree still has unbounded Git/Cargo provenance captures covered
+by the existing proposal in [Canic #458](https://github.com/dragginzgame/canic/issues/458#issuecomment-6096150261).
+Both use Host 0.12 requirements; requirements alone do not prove qualification.
+Dirty sibling work was preserved; no sibling edits or builds ran. No new Host
+API or numbered release candidate is justified by this inspection. Only this
+handoff changes; package versions, lockfile, pins and library source remain intact.
+
+## Released 0.12.4 — Binaryen 133 and Shared Tooling 0.3.4
+
+The following preserves the original pre-release evidence. The maintainer
+subsequently released it as 0.12.4; current delivery and qualification are above.
 
 Released base: 0.12.3 (`aec863191b3c96ef879e59af701cbe1451595f25`).
 Package versions remain 0.12.3. The next patch selects Binaryen 133 under the
