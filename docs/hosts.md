@@ -9,12 +9,15 @@ make docs-check or make test. Artifact checks use its actual enabled gzip,
 archive and Wasm features; production filesystem dependencies select none of them.
 Check target-directory ownership before compilation. Preserve failure logs and artifacts.
 
-Native CI prepares pinned Rust/cargo-sort and local host tools, then verifies
+Native CI prepares pinned Rust and the complete common toolsets, then verifies
 the shared snapshot, declarations, formatter prerequisites, release adapter,
 common tool/LOC command wiring,
 minimal artifact tests and each selected package with all features in sequence.
-The release gate uses the same host tools; installing the IC executable bundle
-is separate explicit setup and is not required for library qualification.
+The release gate uses the same complete host, IC and Cargo toolsets, even though
+the libraries do not invoke every tool. Explicit setup runs `make install-tools`;
+`make tools-check` verifies the set offline. Selected release preflight prepares
+it; standalone verification never installs tools. Existing bundles and failed
+evidence are retained. Rust toolchain bootstrap remains explicit.
 CI also owns native macOS execution; Linux qualification is not macOS evidence.
 `ci/ic-tools.tsv` is a consumer-owned pin selection, excluded from automatic
 snapshot refreshes. Shared 0.2.0 adoption removes its PocketIC rows; versions and

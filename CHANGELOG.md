@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.12.0]
+
+- **Breaking:** adopt Shared Tooling 0.3.0. Setup, CI and release preflight now
+  require the complete host, IC and Cargo toolsets; run `make install-tools`
+  followed by `make tools-check`. Retire the optional ripgrep/cloc installer flags
+  ([#47](https://github.com/dragginzgame/ic-host-tooling/issues/47)).
+
+See [the 0.12 setup migration notes](docs/changelog/0.12.md).
+
 ## [0.11.0] - 2026-10-10
 
 - **Breaking:** consolidate process limits and cleanup evidence; update callers

@@ -123,12 +123,12 @@ case "$operation" in
         cargo metadata --no-deps --format-version 1 --locked --offline > /dev/null ||
             fail "locked workspace metadata validation failed"
         finalize_notes CHANGELOG.md > /dev/null
-        # Library qualification needs only the pinned host parsers. The IC
-        # executable bundle remains explicit setup; verification stays offline.
+        # Selected releases prepare the complete common toolset in shared order.
+        # Standalone verification checks the prepared set without installation.
         if [[ "$operation" == preflight ]]; then
-            make --no-print-directory install-host-tools
+            make --no-print-directory install-tools
         fi
-        CARGO_NET_OFFLINE=true make --no-print-directory host-tools-check
+        CARGO_NET_OFFLINE=true make --no-print-directory tools-check
         CARGO_NET_OFFLINE=true make --no-print-directory dependency-pins-check
         cargo set-version --help > /dev/null
         if [[ "$operation" == preflight ]]; then

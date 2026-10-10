@@ -160,15 +160,16 @@ features; native CI runs it alongside the all-feature package checks.
 make test-tools-response checks the response-only library, and
 make tools-features-check verifies its actual production dependency exclusions
 and the default extractor's required owners.
-make install-host-tools and make install-ic-tools are explicit setup commands;
-their offline checks never install tools. make install-hooks activates the
-repository-local formatter after provisioning cargo-sort 2.1.4.
-The optional `make install-rust-tools` bundle has its own offline
-`make rust-tools-check`; neither runs as part of the aggregate setup/check targets.
-The common `make/tools.mk` owns setup/check commands and selects pinned jq, yq,
-ripgrep with PCRE2 and cloc. CI uses those same targets. Run
-`make install-host-tools` after this snapshot update to prepare the expanded set;
-`make host-tools-check` verifies it offline without installing anything.
+Prepare the declared Rust toolchain, then run `make install-tools` followed by
+`make tools-check`. Shared Tooling 0.3.0 prepares and verifies the complete common
+set in order: jq, yq, ripgrep with PCRE2 and cloc; the five pinned IC executables;
+then cargo-sort, cargo-sort-derives and candid-extractor. The offline check never
+installs tools. CI and selected release preflight use these same aggregate targets;
+standalone release verification only checks the prepared set.
+Individual `install-host-tools`, `install-ic-tools` and `install-rust-tools`
+targets and their offline checks remain available. `make install-hooks`
+separately activates the repository-local formatter using the pinned cargo-sort.
+The removed `--with-ripgrep` and `--with-cloc` installer flags are no longer needed.
 `make cloc` reports this workspace's Rust runtime/test lines. Run fleet tooling
 reports from Shared Tooling; this snapshot omits that optional reporter.
 Direct shell commands
@@ -188,10 +189,10 @@ Registry publication is separate:
 make publish-check performs a Cargo dry run, and make publish uploads the
 committed workspace to crates.io. Read [the publication procedure](docs/publishing.md)
 for prerequisites, retained evidence and partial-upload recovery.
-Prepare the pinned host set with make install-host-tools before release version
-queries or release entry points. make release-version uses the shared read-only
-Cargo/TOML reader; parser checks never install missing tools. Release preflight
-refreshes host tools and prepares the selected Cargo cache with `cargo fetch
+Prepare the complete pinned set with make install-tools before release entry
+points. The read-only make release-version query needs the host parsers;
+parser checks never install missing tools. Release preflight
+prepares all common tools and the selected Cargo cache with `cargo fetch
 --locked` before offline validation. Cargo honours an explicit
 `CARGO_NET_OFFLINE=true` or offline configuration; missing inputs then stop the
 release without switching online. Standalone verification stays offline, and

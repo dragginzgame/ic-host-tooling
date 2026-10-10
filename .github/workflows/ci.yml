@@ -55,16 +55,13 @@ jobs:
           components: rustfmt, clippy
       - name: Prepare locked dependency cache
         run: cargo fetch --locked
-      - name: Prepare pinned manifest formatter
-        run: |
-          source ci/tool-versions.env
-          cargo install cargo-sort --version "$SHARED_TOOLING_CARGO_SORT_VERSION" --locked
       - name: Prepare pinned local tools
         run: |
-          make --no-print-directory install-host-tools
-          make --no-print-directory host-tools-check
+          make --no-print-directory install-tools
+          make --no-print-directory tools-check
           echo "$PWD/.tools/host/bin" >> "$GITHUB_PATH"
           echo "$PWD/.tools/ic/bin" >> "$GITHUB_PATH"
+          echo "$PWD/.tools/rust/bin" >> "$GITHUB_PATH"
       - name: Run native CI
         run: CARGO_NET_OFFLINE=true make ci
       - name: Retain failure evidence

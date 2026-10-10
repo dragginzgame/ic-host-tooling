@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Qualify Host's checkout-local routing using its actual Makefile and snapshot.
-# Only the formatter and release effects are replaced in the disposable copy.
+# Formatter, tool setup/check and release effects use disposable substitutes.
 root="$0"
 [[ "$root" == /* ]] || root="$PWD/$root"
 root="$(cd -P "${root%/*}/../.." && printf '%s/.' "$PWD")"
@@ -97,6 +97,41 @@ for selection in ordinary environment command nested recursive; do
     done
 done
 unset SHARED_TOOLING_ROOT
+# Exercise the actual Host aggregate under parallel Make. Each stage must run
+# once in shared order, and a failure must prevent every later stage.
+mkdir -p "$fixture/local/scripts/dev"
+for tool in host ic rust; do
+    cat > "$fixture/local/scripts/dev/install-$tool-tools.sh" <<'STUB'
+#!/usr/bin/env bash
+set -euo pipefail
+name="${0##*/}"
+mode=install
+for argument in "$@"; do
+    if [[ "$argument" == --check ]]; then mode=check; fi
+done
+printf '%s %s\n' "$name" "$mode" >> "$HOST_MAKE_EVENTS"
+if [[ "${HOST_MAKE_TOOL_FAIL:-}" == "$name" ]]; then exit 23; fi
+STUB
+done
+for mode in install check; do
+    target=install-tools
+    [[ "$mode" != check ]] || target=tools-check
+    for failed in none host ic rust; do
+        : > "$HOST_MAKE_EVENTS"
+        status=0
+        HOST_MAKE_TOOL_FAIL="install-$failed-tools.sh" make --no-print-directory -j4 "$target" \
+            "SHARED_TOOLING_ROOT=$fixture/external" > "$fixture/$target-$failed.log" 2>&1 || status=$?
+        if [[ "$failed" == none ]]; then [[ "$status" == 0 ]];
+        else [[ "$status" == 2 ]]; fi
+        : > "$fixture/expected"
+        for tool in host ic rust; do
+            printf 'install-%s-tools.sh %s\n' "$tool" "$mode" >> "$fixture/expected"
+            [[ "$tool" != "$failed" ]] || break
+        done
+        cmp "$fixture/expected" "$HOST_MAKE_EVENTS"
+        [[ ! -e "$HOST_MAKE_EXTERNAL" ]]
+    done
+done
 # Actual Host formatting stops after sorter failure and points at complete logs.
 for target in fmt fmt-check; do
     : > "$HOST_MAKE_EVENTS"

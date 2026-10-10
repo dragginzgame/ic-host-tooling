@@ -117,7 +117,7 @@ cat > "$fixture/bin/make" <<'STUB'
 #!/usr/bin/env bash
 set -euo pipefail
 case "$*" in
-    '--no-print-directory install-host-tools'|'--no-print-directory host-tools-check'|'--no-print-directory dependency-pins-check'|'--no-print-directory ci'|--no-print-directory\ msrv\ PACKAGE=ic-host-*)
+    '--no-print-directory install-tools'|'--no-print-directory tools-check'|'--no-print-directory dependency-pins-check'|'--no-print-directory ci'|--no-print-directory\ msrv\ PACKAGE=ic-host-*)
         printf 'make %s\n' "$*" >> "$ADAPTER_EVENTS" ;;
     *) echo "Unexpected Make operation: $*" >&2; exit 2 ;;
 esac
@@ -181,8 +181,8 @@ bash "$root/scripts/release/adapter.sh" preflight > accepted.log 2>&1
 cat > expected <<'EVENTS'
 cargo locate-project --workspace --message-format plain --manifest-path Cargo.toml
 cargo metadata --no-deps --format-version 1 --locked --offline
-make --no-print-directory install-host-tools
-make --no-print-directory host-tools-check
+make --no-print-directory install-tools
+make --no-print-directory tools-check
 make --no-print-directory dependency-pins-check
 cargo set-version --help
 cargo fetch --locked
@@ -219,7 +219,7 @@ for scenario in online offline network verify source; do
     esac
     if [[ "$scenario" == verify ]]; then
         grep -Fx 'cargo fetch --locked --offline' "$ADAPTER_EVENTS" > /dev/null
-        if grep -F 'install-host-tools' "$ADAPTER_EVENTS"; then
+        if grep -F 'install-tools' "$ADAPTER_EVENTS"; then
             echo 'Standalone verification attempted tool setup' >&2; exit 1
         fi
     fi
@@ -317,7 +317,7 @@ bash "$root/scripts/release/adapter.sh" verify > verified.log 2>&1
 cat > expected <<'EVENTS'
 cargo locate-project --workspace --message-format plain --manifest-path Cargo.toml
 cargo metadata --no-deps --format-version 1 --locked --offline
-make --no-print-directory host-tools-check
+make --no-print-directory tools-check
 make --no-print-directory dependency-pins-check
 cargo set-version --help
 cargo fetch --locked --offline

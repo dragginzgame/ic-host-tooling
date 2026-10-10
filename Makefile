@@ -20,9 +20,9 @@ help:
 	@echo 'Minimal artifact configuration: test-artifacts-minimal'
 	@echo 'Response-only configuration: test-tools-response and tools-features-check'
 	@echo 'Formatting and metadata: fmt, fmt-check, shared-tooling-check, dependency-pins-check, check-doc-links, release-adapter-check'
-	@echo 'Explicit setup: install-tools, install-host-tools, install-ic-tools, install-hooks'
-	@echo 'Offline setup checks: tools-check, host-tools-check, ic-tools-check'
-	@echo 'Optional Rust tool bundle: install-rust-tools, rust-tools-check'
+	@echo 'Complete setup: install-tools (host, IC, then Cargo tools); install-hooks is separate'
+	@echo 'Offline setup checks: tools-check (complete set), host-tools-check, ic-tools-check, rust-tools-check'
+	@echo 'Individual setup: install-host-tools, install-ic-tools, install-rust-tools'
 	@echo 'Source reports: cloc (this workspace); fleet reports run in Shared Tooling'
 	@echo 'Full delivery gate: ci; declared MSRV: msrv PACKAGE=<crate>'
 	@echo 'Maintainer releases: release-patch, release-minor, release-major, release-resume VERSION=X.Y.Z'
@@ -52,7 +52,7 @@ shared-tooling-check:
 dependency-pins-check:
 	bash scripts/ci/check-dependency-pins.sh --cargo-inheritance
 check-doc-links:
-	perl scripts/ci/check-documentation-links.pl --root "$(CURDIR)" README.md AGENTS.md CHANGELOG.md docs/changelog/0.4.md docs/changelog/0.5.md docs/changelog/0.6.md docs/changelog/0.7.md docs/changelog/0.8.md docs/changelog/0.9.md docs/changelog/0.10.md docs/changelog/0.11.md docs/extraction.md docs/hosts.md docs/status/current.md docs/publishing.md
+	perl scripts/ci/check-documentation-links.pl --root "$(CURDIR)" README.md AGENTS.md CHANGELOG.md docs/changelog/0.4.md docs/changelog/0.5.md docs/changelog/0.6.md docs/changelog/0.7.md docs/changelog/0.8.md docs/changelog/0.9.md docs/changelog/0.10.md docs/changelog/0.11.md docs/changelog/0.12.md docs/extraction.md docs/hosts.md docs/status/current.md docs/publishing.md
 release-adapter-check:
 	bash scripts/release/test-adapter.sh
 tooling-command-check:
@@ -69,7 +69,7 @@ publish-command-check:
 	bash scripts/publish/test-workspace.sh
 ci:
 	+$(MAKE) --no-print-directory shared-tooling-check
-	+$(MAKE) --no-print-directory host-tools-check
+	+$(MAKE) --no-print-directory tools-check
 	+$(MAKE) --no-print-directory dependency-pins-check
 	+$(MAKE) --no-print-directory fmt-check
 	+$(MAKE) --no-print-directory format-tools-test
