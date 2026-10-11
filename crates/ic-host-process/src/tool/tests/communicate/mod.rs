@@ -5,6 +5,19 @@ use std::{process::Stdio, time::Instant};
 
 mod observe;
 
+#[test]
+fn nonzero_retained_leader_cleans_descendant_pipes_and_refuses_handoff() {
+    let _fixture = Fixture::new();
+    let mut child = OwnedChild::spawn(&mut command("sleep 30 & printf done; exit 17")).unwrap();
+    let output =
+        communicate_child(&mut child, None, LIMITS, SuccessfulExit::Retain, || false).unwrap();
+    assert_eq!(output.status.code(), Some(17));
+    assert_eq!(output.stdout, b"done");
+    assert!(!child.is_owned());
+    assert!(child.handoff().is_err());
+    assert_reaped(&child);
+}
+
 fn command(script: &str) -> Command {
     let mut command = Command::new("/bin/sh");
     command
@@ -49,9 +62,12 @@ fn full_duplex_io_is_bounded_fair_and_leaves_success_reserved() {
             },
             SuccessfulExit::Retain,
             || false,
-            |stream, bytes| match stream {
-                OutputStream::Stdout => stdout.extend_from_slice(bytes),
-                OutputStream::Stderr => stderr.extend_from_slice(bytes),
+            |stream, bytes| {
+                match stream {
+                    OutputStream::Stdout => stdout.extend_from_slice(bytes),
+                    OutputStream::Stderr => stderr.extend_from_slice(bytes),
+                }
+                Ok(())
             },
         )
         .unwrap();
@@ -63,7 +79,7 @@ fn full_duplex_io_is_bounded_fair_and_leaves_success_reserved() {
         assert_eq!(evidence.stderr, b"fedcba9876543210".repeat(10_000));
         assert_eq!(stdout, evidence.stdout);
         assert_eq!(stderr, evidence.stderr);
-        assert!(evidence.status.unwrap().success());
+        assert!(evidence.status.success());
         let pid = Pid::from_raw(i32::try_from(child.id()).unwrap()).unwrap();
         assert!(
             waitid(
@@ -133,19 +149,15 @@ fn early_stdin_close_preserves_command_status_and_diagnostics() {
             SuccessfulExit::Retain,
             || false,
         );
-        let evidence = if code == 0 {
-            let evidence = result.unwrap();
+        let evidence = result.unwrap();
+        if code == 0 {
             child.wait().unwrap();
-            evidence
         } else {
-            let ToolError::Execution(error) = result.unwrap_err() else {
-                panic!("execution failure")
-            };
-            assert!(matches!(error.failure, ExecutionFailure::ExitStatus));
-            error.evidence
-        };
+            assert!(!child.is_owned());
+            assert!(child.handoff().is_err());
+        }
         assert_eq!(evidence.stderr, b"diagnostic");
-        assert_eq!(evidence.status.unwrap().code(), Some(code));
+        assert_eq!(evidence.status.code(), Some(code));
         assert_reaped(&child);
     }
 }

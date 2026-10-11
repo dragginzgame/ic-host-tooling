@@ -7,7 +7,7 @@
 #[cfg(test)]
 mod tests;
 
-use crate::tool::{AdmittedTool, ExecutionContext, ExecutionEvidence, OutputLimits, ToolError};
+use crate::tool::{AdmittedTool, CompletedExecution, ExecutionContext, OutputLimits, ToolError};
 use ic_host_artifacts::artifact::{ArtifactIdentity, Sha256Digest};
 use std::{ffi::OsString, fmt};
 
@@ -75,7 +75,7 @@ pub struct GitError {
     pub failure: GitFailure,
     /// Revision, tree and status captures in order. `None` means no successful
     /// process capture for that query. Malformed successful output is retained.
-    pub completed: Box<[Option<ExecutionEvidence>; 3]>,
+    pub completed: Box<[Option<CompletedExecution>; 3]>,
 }
 
 impl fmt::Display for GitError {
@@ -107,11 +107,11 @@ pub struct GitObservations {
     /// Admitted Git executable identity.
     pub tool_identity: ArtifactIdentity,
     /// Original bounded revision output and diagnostics.
-    pub revision_evidence: ExecutionEvidence,
+    pub revision_evidence: CompletedExecution,
     /// Original bounded tree output and diagnostics.
-    pub tree_evidence: ExecutionEvidence,
+    pub tree_evidence: CompletedExecution,
     /// Original bounded status output, including arbitrary pathname bytes.
-    pub status_evidence: ExecutionEvidence,
+    pub status_evidence: CompletedExecution,
 }
 
 impl GitObservations {
@@ -181,7 +181,7 @@ fn observe(
     options: StatusOptions,
     limits: OutputLimits,
     query: GitQuery,
-) -> Result<ExecutionEvidence, GitError> {
+) -> Result<CompletedExecution, GitError> {
     let mut completed = [None, None, None];
     let index = match query {
         GitQuery::Revision => 0,
@@ -190,7 +190,8 @@ fn observe(
     };
     let evidence = match git
         .run(&arguments(query, options), context, limits)
-        .and_then(ExecutionEvidence::require_complete)
+        .and_then(CompletedExecution::require_success)
+        .and_then(CompletedExecution::require_complete)
     {
         Ok(evidence) => evidence,
         Err(source) => {

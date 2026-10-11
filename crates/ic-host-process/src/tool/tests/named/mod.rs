@@ -63,16 +63,18 @@ fn admitted_named_output_preserves_process_evidence_and_validates_before_publica
         ("complete", "0", true),
     ] {
         let result = write_named_with(&output, |stage| {
-            let evidence = tool.run(
-                &[
-                    OsString::from("--named-output"),
-                    stage.as_os_str().to_owned(),
-                    payload.into(),
-                    exit.into(),
-                ],
-                &fixture.context(&[]),
-                LIMITS,
-            )?;
+            let evidence = tool
+                .run(
+                    &[
+                        OsString::from("--named-output"),
+                        stage.as_os_str().to_owned(),
+                        payload.into(),
+                        exit.into(),
+                    ],
+                    &fixture.context(&[]),
+                    LIMITS,
+                )?
+                .require_success()?;
             let bytes = read_file_no_follow(stage, 8).map_err(ToolError::Artifact)?;
             if bytes != b"complete" {
                 return Err(ToolError::Io(io::Error::from(io::ErrorKind::InvalidData)));

@@ -27,7 +27,10 @@ fn direct_spawn_preserves_inherited_group_context_and_io() {
         crate::test_support::LIMITS,
         SuccessfulExit::Cleanup,
         || false,
-        |_, bytes| observed.extend_from_slice(bytes),
+        |_, bytes| {
+            observed.extend_from_slice(bytes);
+            Ok(())
+        },
     )
     .unwrap();
     assert_eq!(
@@ -35,7 +38,7 @@ fn direct_spawn_preserves_inherited_group_context_and_io() {
         format!("input|direct|{}", fixture.root.display()).as_bytes()
     );
     assert_eq!(evidence.stdout, observed);
-    assert!(evidence.status.unwrap().success());
+    assert!(evidence.status.success());
     assert_reaped(pid);
 }
 
@@ -79,7 +82,10 @@ fn direct_cleanup_preserves_other_members_of_the_selected_group() {
                     },
                     SuccessfulExit::Cleanup,
                     || case == "cancel",
-                    |_, _| assert_ne!(case, "panic", "observer panic"),
+                    |_, _| {
+                        assert_ne!(case, "panic", "observer panic");
+                        Ok(())
+                    },
                 )
             }));
             match case {

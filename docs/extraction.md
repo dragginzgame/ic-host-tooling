@@ -101,6 +101,12 @@ reconstructing commands and dropping consumer-owned setup. Neither entry owns
 process groups, retries or paid-operation recovery. `ToolError::evidence` and
 `execution_error` borrow the existing capture and failure objects for consumer
 error projection; no parallel error model or automatic diagnostic output is added.
+Completed invocation APIs return `CompletedExecution` with a required exit status,
+including nonzero and signalled exits. `ExecutionEvidence` retains optional status
+for failures. Strict callers use `require_success`; version, Git and Candid
+admission apply it before interpreting output. A completion does not imply that
+external effects succeeded or transfer a retained child. Nonzero/signalled leaders
+always undergo the selected ownership's cleanup and reaping, even in retain mode.
 
 `capture_group_command` opts the same capture loop into `OwnedChild` group
 cleanup. It establishes a new group and signals its remaining members before
@@ -135,8 +141,12 @@ for hard overflow (only admitted bytes reach the observer), or
 `OutputLimit::Truncate(n)` to keep a bounded prefix and forward every drained byte.
 Truncation sets the corresponding evidence flag; zero retention stores no output.
 Version, Git and Candid parsing require complete evidence even if truncation was
-selected. Other consumers can call `ExecutionEvidence::require_complete`, retaining
+selected. Other consumers can call `CompletedExecution::require_complete`, retaining
 their own child-disposition responsibility when using retained ownership.
+Observers return `io::Result<()>`; the first sink error becomes
+`ExecutionFailure::Observer` and stops observation through the same cleanup path.
+Retained bytes, observed truncation and secondary cleanup failures remain available.
+Observer rejection takes precedence over hard overflow in the same chunk.
 Callbacks run synchronously and must return
 promptly. The cancellation callback can project caller-owned heartbeat events
 even while output is silent. Callback unwinding closes pipes and attempts the

@@ -1,14 +1,14 @@
 # Shared Tooling snapshot v1
-# version	0.6.1
+# version	0.6.2
 format	1
 source	https://github.com/dragginzgame/shared-tooling
-revision	731909525038c58d6f80b498e80f8630b11c685d
+revision	7f1ca16b0dfa98021d2671017ecb7de767409b0e
 file	e7c1c56549860efff6a579913a1632eb19868d5e2e5e5e1ed2ba3ea7171db881	-	rules/changelogs.md
-file	786abdd7653a2e49a3b9237438b4c516b37c1455f1f0845458d165cb69fedf66	-	docs/releases.md
-file	fc689ff5d636be1049a527f6cafa74a768005211dcbecb074b8b327d8e6bab04	x	scripts/ci/run-release.sh
+file	a11c5304d3bb8cd78af81b1c1f046c56e7f677bd0c9302a1f65e09cbffef6254	-	docs/releases.md
+file	e1d40984915456fb5b0837462f5ee9c88e1bd7798620b49d34a8e1926ae3cec0	x	scripts/ci/run-release.sh
 file	37e028e2d9fee271ffdc06d06fc15d7a148ec524def3d9ed2afcd9910c0ec642	x	scripts/ci/next-release-version.sh
 file	e7f4c82566858b89b50c5c2f929097bdde85345a2c0c1bf553bb1170cc4f5960	-	scripts/ci/finalize-release-changelog.awk
-file	6e48da795503f730fe9a90e14635d73133719f901ba7baea899007cd196722b4	x	scripts/ci/test-release-runner.sh
+file	d744acdce6cec8407df521387dfb805d8a482e5b11e20ae517d7402a9e7f00cf	x	scripts/ci/test-release-runner.sh
 file	e0e2b283d0bece7ad63bc21b0fca1495865ef04c0a522ac303c4d96cfd384685	-	DRAGGINZGAME.md
 file	59f6cb0b47fcfa698396776bbb391737292ebf34457ad7c65803fe7b36961499	-	docs/principles/README.md
 file	9315c9faffa4f36cfab496342535bf49d728ddd2111e8e127cbc44b3fac89ce7	-	docs/principles/decision-artifact-discipline.md
@@ -35,7 +35,7 @@ file	ffdca09602c44c8aff8fc2a17588b20eb6a56e2e71fb6d42ad75087fdd65819b	-	audits/c
 file	1b64cf2ba0393ab329ec29eb05a696d47ef5933f5ab9bff6e1fe4a7e7b294075	-	audits/module-surface-hardening.md
 file	b33ecebfb524f9af496c0f4f4b24650b97833e20f1fca56eedb8604a0660e109	-	audits/module-cleanup.md
 file	15315edad497b9b165671c3f57e9f56e6ba1d206bbc635eb0ff51afaa8456bb3	-	docs/provenance.md
-file	6659598f12a44d58ed0ca1cef6bcabf0b275a6a9ecdd998734c70707b5403443	-	docs/local-setup.md
+file	87f826b16f1078f2d905cb02a8d78582d44654acfaa6b26492214ac4f07dad4c	-	docs/local-setup.md
 file	bc9014d8e70a309cf2f65658a7c1ea29303375bbe5087150a4087a187efd9b41	-	docs/ic-tools.md
 file	82892e25292fe47c26035a0031aa4ad1996fcf181732163e75039bd657f2f84b	-	ci/tool-versions.env
 file	ef7259172673b035dc2cd8d4f231469d5d3f03a2edd3dacfac75458d3655e3ad	x	scripts/dev/install-host-tools.sh

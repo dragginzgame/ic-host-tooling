@@ -1,6 +1,92 @@
 # Current handoff
 
-## Pending 0.13.5 — Shared 0.6.1 failure and macOS fixture corrections
+## Pending 0.14.0 — completed execution and fallible observers
+
+Implemented the approved [process contract change](https://github.com/dragginzgame/ic-host-tooling/issues/66)
+on released Host 0.13.5 `b32021c67515f0a0dcf35f1dd0b2029b9599ac75`, preserving
+the incoming Shared 0.6.2 adoption. The combined unpublished batch selects
+0.14.0 because capture, communication, admitted runs and completed Git/Candid
+evidence now expose `CompletedExecution` with required status. Ordinary nonzero
+and signalled exits return completion; explicit `require_success()` owns strict
+admission. Version, Git, Candid and the named-producer fixture retain success
+checks before interpretation/publication. Partial failure evidence stays optional-status.
+
+Output observers return `io::Result<()>`; their first error retains its stream,
+original sink cause, admitted bytes, truncation and separate cleanup failures.
+One IO engine still owns pipe closure and child cleanup. Nonzero retained leaders
+are cleaned/reaped and cannot hand off. Successful retained leaders, optional
+deadlines, panic cleanup and caller-owned recovery retain their contracts.
+The pending 0.13.6 notes moved into the sole 0.14.0 entry; published history,
+package versions, dependencies, pins and staging are unchanged.
+
+Full Linux `CARGO_NET_OFFLINE=true make ci` passes, including 84 process tests,
+22 IC-tool tests, package Clippy/rustdoc, all feature profiles, real formatting
+and tooling fixtures. Affected process/tools checks also pass Rust 1.88. New
+cases cover signalled completion, nonzero retained-leader descendant cleanup,
+both observer streams, zero/hard retention, original sink causes and failed
+cleanup evidence. Native 0.14 macOS qualification remains outstanding. Released
+0.13.5 now passes Linux, MSRV and ARM macOS; Intel is running at inspection,
+which does not qualify the unpublished source.
+
+Concrete consumer source patches are recorded under
+[Canic #458](https://github.com/dragginzgame/canic/issues/458#issuecomment-6109845273),
+[Testkit #61](https://github.com/dragginzgame/ic-testkit/issues/61) and
+[Query #46](https://github.com/dragginzgame/ic-query/issues/46).
+They are Rustfmt-clean and pass apply checks against the reviewed source, but
+remain unapplied and uncompiled. Consumers own dependency selection after Host
+publication and their own native qualification; Testkit's public Host reexports
+require its minor boundary. No sibling source/artifact edit or build ran.
+Evidence, initial compiler/lint failures and final passing logs are retained in
+`/tmp/host014-work/`. No staging, manifest bump, commit, push or release ran.
+
+## Historical preparation for 0.13.6 — carried into 0.14.0
+
+Adopted Shared Tooling 0.6.2 `7f1ca16b0dfa98021d2671017ecb7de767409b0e`
+through canonical preview/refresh from a clean isolated checkout. The same
+95-file selection changes four files: release conflict diagnostics, its fixture,
+release recovery guidance and Audit/Machete invocation examples. Notes select
+compatible 0.13.6; Cargo versions, dependencies, pins and library APIs are unchanged.
+Existing verified 0.6.1 installations pass admission without reinstalling.
+Host does not journal every preparation mutation; missing journal evidence alone
+cannot satisfy the new maintainer recovery procedure's no-effect proof.
+
+Full Linux `CARGO_NET_OFFLINE=true make ci` passes. The release-runner substitute
+fixture also passes under genuine Bash 3.2.57. ShellCheck passes with the optional
+upstream PR helper resolved from the exact source checkout; the initial focused
+invocation reported only its absent optional source. Snapshot, links, formatting
+and preservation checks pass. Evidence: `/tmp/host-shared062-adopt.DTEiG9/`.
+The incoming handoff is preserved below and in that evidence directory. No
+staging, package version, commit, release, installation or sibling edit ran.
+
+Native qualification remains separate: at inspection, released Host 0.13.5 and
+upstream Shared 0.6.2 pass Linux, with ARM macOS running and Intel queued.
+[Host #65](https://github.com/dragginzgame/ic-host-tooling/issues/65) retains
+native acceptance; those runs do not qualify the unpublished Host adoption.
+
+## Released 0.13.5 — native acceptance and consumer follow-through
+
+Local released HEAD is `b32021c67515f0a0dcf35f1dd0b2029b9599ac75`, clean at
+inspection. Its [CI](https://github.com/dragginzgame/ic-host-tooling/actions/runs/38142886238)
+passes MSRV, with Linux running and both macOS jobs queued. Shared main remains
+adopted 0.6.1 `731909525038c58d6f80b498e80f8630b11c685d`; no refresh is needed.
+The completed 0.13.4 native failure logs are now available: both Apple jobs stop
+after the first common Cargo path in the old fixture, consistent with the padded
+count defect corrected in 0.13.5. This is old-source failure evidence, not
+qualification of the correction. Host #64/#65 retain native acceptance.
+
+A bounded read-only `audits/code-hygiene.md` review under this Shared baseline
+and the Host overlay traced private-sidecar admission into Canic. Canic now
+delegates admission to Host 0.13.4 and reports nine focused Linux acceptance
+cases, preserving command locking and descendant custody. Its dirty consumer
+test still calls rustix's Apple-excluded `mkfifoat`; the selected rustix 1.1.5
+source confirms the compile gap. [Canic #515](https://github.com/dragginzgame/canic/issues/515)
+contains a minimal portable FIFO fixture patch, passing apply/format checks in
+a disposable copy. No consumer source or artifact was changed or compiled.
+This review covered the adoption boundary and fixture portability, not a full
+sibling audit or runtime/lifecycle qualification. No new Host production defect
+was established; no next release notes, build, setup or broad gate were needed.
+
+## Historical preparation for 0.13.5 — Shared 0.6.1 failure and macOS fixture corrections
 
 The sidecar batch is released as Host 0.13.4
 `46483b96c21419aa41ee2cbcdfa2e8efbbfdab21`; the incoming checkout was clean.

@@ -142,7 +142,7 @@ pub enum OutputStream {
     Stderr,
 }
 
-/// Bounded evidence from one invocation, including interrupted invocations.
+/// Bounded evidence retained after an invocation or admission failure.
 ///
 /// Bytes are available explicitly to the caller; formatting prints only lengths
 /// and status. Error messages never include command arguments or environment.
@@ -161,7 +161,38 @@ pub struct ExecutionEvidence {
     pub stderr_truncated: bool,
 }
 
-impl ExecutionEvidence {
+/// One completed invocation, with a required exit status and bounded output.
+///
+/// Completion includes nonzero exits and signals. It does not imply successful
+/// application effects. Use [`Self::require_success`] before success-only parsing.
+/// A retained successful child still requires caller-owned disposition.
+pub struct CompletedExecution {
+    /// Direct-child exit status, including nonzero exits and signals.
+    pub status: ExitStatus,
+    /// Retained stdout prefix.
+    pub stdout: Vec<u8>,
+    /// Retained stderr prefix.
+    pub stderr: Vec<u8>,
+    /// More stdout bytes were observed than retained.
+    pub stdout_truncated: bool,
+    /// More stderr bytes were observed than retained.
+    pub stderr_truncated: bool,
+}
+
+impl CompletedExecution {
+    /// Require a successful exit while preserving output on rejection.
+    ///
+    /// # Errors
+    /// Returns [`ExecutionFailure::ExitStatus`] for a nonzero or signalled exit.
+    /// This does not perform child cleanup or transfer retained ownership.
+    pub fn require_success(self) -> Result<Self, ToolError> {
+        if self.status.success() {
+            Ok(self)
+        } else {
+            Err(self.failure(ExecutionFailure::ExitStatus))
+        }
+    }
+
     /// Require complete output before parsing or treating it as an identity.
     ///
     /// # Errors
@@ -176,11 +207,39 @@ impl ExecutionEvidence {
         } else {
             return Ok(self);
         };
-        Err(ToolError::Execution(Box::new(ExecutionError {
-            failure: ExecutionFailure::OutputLimit { stream },
-            evidence: self,
+        Err(self.failure(ExecutionFailure::OutputLimit { stream }))
+    }
+
+    fn failure(self, failure: ExecutionFailure) -> ToolError {
+        ToolError::Execution(Box::new(ExecutionError {
+            failure,
+            evidence: self.into(),
             cleanup: None,
-        })))
+        }))
+    }
+}
+
+impl From<CompletedExecution> for ExecutionEvidence {
+    fn from(completed: CompletedExecution) -> Self {
+        Self {
+            status: Some(completed.status),
+            stdout: completed.stdout,
+            stderr: completed.stderr,
+            stdout_truncated: completed.stdout_truncated,
+            stderr_truncated: completed.stderr_truncated,
+        }
+    }
+}
+
+impl fmt::Debug for CompletedExecution {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("CompletedExecution")
+            .field("status", &self.status)
+            .field("stdout_bytes", &self.stdout.len())
+            .field("stderr_bytes", &self.stderr.len())
+            .field("stdout_truncated", &self.stdout_truncated)
+            .field("stderr_truncated", &self.stderr_truncated)
+            .finish()
     }
 }
 
@@ -234,12 +293,19 @@ impl fmt::Display for ExecutionOperation {
 /// Why an invocation failed, independently of its retained output.
 #[derive(Debug)]
 pub enum ExecutionFailure {
-    /// The direct child completed unsuccessfully; its status is in evidence.
+    /// An explicit success check rejected the completed status in evidence.
     ExitStatus,
     /// Child exit or pipe EOF was not observed before the caller's deadline.
     TimedOut,
     /// The caller's cancellation predicate requested cleanup.
     Cancelled,
+    /// The output observer rejected a chunk; its original sink error is retained.
+    Observer {
+        /// Stream being observed.
+        stream: OutputStream,
+        /// Caller-provided output-sink failure.
+        source: io::Error,
+    },
     /// A stream emitted more bytes than allowed.
     OutputLimit {
         /// Stream whose bound was exceeded.
@@ -280,6 +346,9 @@ impl fmt::Display for ExecutionError {
             }
             ExecutionFailure::TimedOut => f.write_str("tool capture exceeded its deadline"),
             ExecutionFailure::Cancelled => f.write_str("tool communication cancelled"),
+            ExecutionFailure::Observer { stream, .. } => {
+                write!(f, "tool {stream:?} observer failed")
+            }
             ExecutionFailure::OutputLimit { stream } => {
                 write!(f, "tool {stream:?} exceeded its byte limit")
             }
@@ -297,7 +366,9 @@ impl fmt::Display for ExecutionError {
 impl std::error::Error for ExecutionError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match &self.failure {
-            ExecutionFailure::Io { source, .. } => Some(source),
+            ExecutionFailure::Io { source, .. } | ExecutionFailure::Observer { source, .. } => {
+                Some(source)
+            }
             ExecutionFailure::Allocation { source, .. } => Some(source),
             _ => None,
         }
@@ -384,11 +455,13 @@ impl ToolError {
 ///
 /// # Errors
 /// Rejects an invalid deadline before touching or spawning the command. Spawn,
-/// capture, nonzero exit, overflow and deadline failures retain bounded evidence.
+/// capture, overflow and deadline failures retain bounded evidence. Ordinary
+/// nonzero/signalled exits return [`CompletedExecution`]; select
+/// [`CompletedExecution::require_success`] when the caller requires zero exit.
 pub fn capture_command(
     command: &mut Command,
     limits: OutputLimits,
-) -> Result<ExecutionEvidence, ToolError> {
+) -> Result<CompletedExecution, ToolError> {
     validate_limits(limits)?;
     process::capture_command(command, limits, process::CleanupScope::DirectChild)
         .map_err(|source| ToolError::Execution(Box::new(source)))
@@ -415,7 +488,7 @@ pub fn capture_command(
 pub fn capture_group_command(
     command: &mut Command,
     limits: OutputLimits,
-) -> Result<ExecutionEvidence, ToolError> {
+) -> Result<CompletedExecution, ToolError> {
     validate_limits(limits)?;
     process::capture_command(command, limits, process::CleanupScope::ProcessGroup)
         .map_err(|source| ToolError::Execution(Box::new(source)))
@@ -453,11 +526,14 @@ pub enum SuccessfulExit {
 /// cleanup remain active in either case. `cancelled` is
 /// polled between bounded IO steps and before returning success; it must return
 /// promptly. No signal handler, cancellation thread, retry or output decoding
-/// is installed. IO failure, cancellation, timeout, overflow and unsuccessful
-/// exit close pipes and terminate/reap through the child's existing owner,
+/// is installed. IO failure, cancellation, timeout and overflow
+/// close pipes and terminate/reap through the child's existing owner,
 /// retaining original failure and separate cleanup errors.
 ///
-/// On success, all owned pipes are closed. With [`SuccessfulExit::Cleanup`],
+/// Completed zero/nonzero/signalled exits return a required status with all
+/// owned pipes closed. Nonzero/signalled leaders always undergo ordinary cleanup
+/// and reaping, including with [`SuccessfulExit::Retain`]; they cannot be handed off.
+/// With [`SuccessfulExit::Cleanup`],
 /// cleanup for the selected ownership scope and reaping occur as soon as child
 /// exit is observed. With [`SuccessfulExit::Retain`], the successful child remains
 /// reserved and its selected cleanup remains armed. After admitting output and checking
@@ -479,8 +555,10 @@ pub fn communicate_child(
     limits: OutputLimits,
     successful_exit: SuccessfulExit,
     cancelled: impl FnMut() -> bool,
-) -> Result<ExecutionEvidence, ToolError> {
-    communicate_child_with_observer(child, input, limits, successful_exit, cancelled, |_, _| {})
+) -> Result<CompletedExecution, ToolError> {
+    communicate_child_with_observer(child, input, limits, successful_exit, cancelled, |_, _| {
+        Ok(())
+    })
 }
 
 /// Communicate with an owned child while observing output bytes live.
@@ -493,6 +571,11 @@ pub fn communicate_child(
 /// while evidence retains only the selected prefix. A zero retained-byte budget
 /// can therefore forward output without storing it.
 /// Output is raw bytes, not necessarily complete lines or UTF-8.
+/// The observer returns `io::Result<()>`. Its first error stops observation,
+/// closes pipes and attempts cleanup, preserving the original sink error as
+/// [`ExecutionFailure::Observer`] alongside retained bytes and cleanup failures.
+/// A chunk is retained and any truncation recorded before observation; rejection
+/// takes precedence over a hard overflow detected in that same chunk.
 ///
 /// Both callbacks run synchronously and must return promptly. `cancelled` also
 /// runs while the child is silent and may project caller-owned heartbeat events;
@@ -516,8 +599,8 @@ pub fn communicate_child_with_observer(
     limits: OutputLimits,
     successful_exit: SuccessfulExit,
     cancelled: impl FnMut() -> bool,
-    output: impl FnMut(OutputStream, &[u8]),
-) -> Result<ExecutionEvidence, ToolError> {
+    output: impl FnMut(OutputStream, &[u8]) -> io::Result<()>,
+) -> Result<CompletedExecution, ToolError> {
     validate_limits(limits)?;
     process::communicate(child, input, limits, successful_exit, cancelled, output)
         .map_err(|source| ToolError::Execution(Box::new(source)))
@@ -633,19 +716,20 @@ impl AdmittedTool {
         let identity = verify_executable(&path, spec.executable_bytes, expected)?;
         let evidence = process::capture(&path, spec.version_arguments, context, limits)
             .map_err(|source| ToolError::Execution(Box::new(source)))?
+            .require_success()?
             .require_complete()?;
         let version = match std::str::from_utf8(&evidence.stdout) {
             Ok(version) => version.trim(),
             Err(source) => {
                 return Err(ToolError::VersionUtf8 {
                     source,
-                    evidence: Box::new(evidence),
+                    evidence: Box::new(evidence.into()),
                 });
             }
         };
         if version != spec.version_identity {
             return Err(ToolError::VersionMismatch {
-                evidence: Box::new(evidence),
+                evidence: Box::new(evidence.into()),
             });
         }
         Ok(Self {
@@ -684,6 +768,8 @@ impl AdmittedTool {
     /// handles are closed without waiting for descendants to close their copies.
     /// Descendant processes remain caller-owned. This must not be interpreted
     /// as a rollback or safe automatic retry of a command with external effects.
+    /// Nonzero/signalled exits are completed results. Call
+    /// [`CompletedExecution::require_success`] before success-only interpretation.
     ///
     /// # Errors
     /// Returns invalid-input or identity failures before execution, or an
@@ -693,7 +779,7 @@ impl AdmittedTool {
         arguments: &[OsString],
         context: &ExecutionContext<'_>,
         limits: OutputLimits,
-    ) -> Result<ExecutionEvidence, ToolError> {
+    ) -> Result<CompletedExecution, ToolError> {
         validate_invocation(arguments, context, limits)?;
         verify_executable(
             &self.path,

@@ -28,7 +28,7 @@ fn communication_without_deadline_accepts_long_elapsed_time() {
                 .unwrap(),
             SuccessfulExit::Cleanup,
             || watchdog.elapsed() > Duration::from_secs(5),
-            |_, _| {},
+            |_, _| Ok(()),
         );
         if timeout.is_some() {
             assert!(matches!(
@@ -37,7 +37,7 @@ fn communication_without_deadline_accepts_long_elapsed_time() {
             ));
         } else {
             let evidence = result.unwrap();
-            assert!(evidence.status.unwrap().success());
+            assert!(evidence.status.success());
             assert_eq!(evidence.stdout, b"completed");
         }
         assert!(!child.is_owned());
@@ -66,7 +66,7 @@ fn fragmented_capture_keeps_capacity_and_overflow_evidence_within_budget() {
                     OutputLimit::Terminate(limit),
                     OutputStream::Stdout,
                     &mut truncated,
-                    &mut |_, _| {},
+                    &mut |_, _| Ok(()),
                 )
                 .unwrap()
             );
@@ -79,7 +79,7 @@ fn fragmented_capture_keeps_capacity_and_overflow_evidence_within_budget() {
                 OutputLimit::Terminate(limit),
                 OutputStream::Stdout,
                 &mut truncated,
-                &mut |_, _| {},
+                &mut |_, _| Ok(()),
             ),
             Err(ExecutionFailure::OutputLimit {
                 stream: OutputStream::Stdout
@@ -174,6 +174,35 @@ fn cleanup_ownership_failure_does_not_replace_original_timeout() {
             .raw_os_error(),
         Some(rustix::io::Errno::CHILD.raw_os_error())
     );
+}
+
+#[test]
+fn observer_cause_survives_cleanup_failure() {
+    let _fixture = Fixture::new();
+    let mut child = OwnedChild::spawn(Command::new("/bin/sh").args(["-c", "exit 0"])).unwrap();
+    let pid = Pid::from_raw(i32::try_from(child.id()).unwrap()).unwrap();
+    // Deliberately break exclusive reaping, as above, at the shared finalizer.
+    waitid(WaitId::Pid(pid), WaitIdOptions::EXITED).unwrap();
+    assert!(child.poll_exit().is_err());
+    let error = finish_capture(
+        &mut child,
+        ExecutionEvidence {
+            stdout: b"prefix".to_vec(),
+            ..ExecutionEvidence::default()
+        },
+        Err(ExecutionFailure::Observer {
+            stream: OutputStream::Stdout,
+            source: io::Error::from_raw_os_error(rustix::io::Errno::PIPE.raw_os_error()),
+        }),
+    )
+    .unwrap_err();
+    assert!(
+        matches!(&error.failure, ExecutionFailure::Observer { source, .. }
+        if source.kind() == io::ErrorKind::BrokenPipe)
+    );
+    assert_eq!(error.evidence.stdout, b"prefix");
+    assert!(error.cleanup.as_ref().unwrap().group_error.is_some());
+    assert!(error.cleanup.as_ref().unwrap().wait_error.is_some());
 }
 
 #[test]

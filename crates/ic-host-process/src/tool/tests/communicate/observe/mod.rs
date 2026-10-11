@@ -1,6 +1,93 @@
 use super::*;
 
 #[test]
+fn observer_failure_preserves_sink_cause_and_cleans_descendants() {
+    use std::io::Read;
+    for (script, stream) in [
+        ("sleep 30 & printf ready; wait", OutputStream::Stdout),
+        ("sleep 30 & printf ready >&2; wait", OutputStream::Stderr),
+    ] {
+        for policy in [OutputLimit::Truncate(0), OutputLimit::Terminate(2)] {
+            let _fixture = Fixture::new();
+            let mut child = OwnedChild::spawn(&mut command(script)).unwrap();
+            // Keep the other pipe to prove descendants release their writers.
+            let mut other: Box<dyn Read> = match stream {
+                OutputStream::Stdout => {
+                    let pipe = child.take_stderr().unwrap();
+                    let flags = rustix::fs::fcntl_getfl(&pipe).unwrap();
+                    rustix::fs::fcntl_setfl(&pipe, flags | rustix::fs::OFlags::NONBLOCK).unwrap();
+                    Box::new(pipe)
+                }
+                OutputStream::Stderr => {
+                    let pipe = child.take_stdout().unwrap();
+                    let flags = rustix::fs::fcntl_getfl(&pipe).unwrap();
+                    rustix::fs::fcntl_setfl(&pipe, flags | rustix::fs::OFlags::NONBLOCK).unwrap();
+                    Box::new(pipe)
+                }
+            };
+            let mut calls = 0;
+            let error = communicate_child_with_observer(
+                &mut child,
+                None,
+                OutputLimits {
+                    stdout: policy,
+                    stderr: policy,
+                    ..LIMITS
+                },
+                SuccessfulExit::Retain,
+                || false,
+                |observed, bytes| {
+                    calls += 1;
+                    assert_eq!(observed, stream);
+                    assert_ne!(bytes, []);
+                    Err(io::Error::from_raw_os_error(
+                        rustix::io::Errno::PIPE.raw_os_error(),
+                    ))
+                },
+            )
+            .unwrap_err();
+            assert_eq!(calls, 1);
+            let execution = error.execution_error().unwrap();
+            assert!(
+                matches!(&execution.failure, ExecutionFailure::Observer { stream: observed, source }
+                if *observed == stream && source.kind() == io::ErrorKind::BrokenPipe)
+            );
+            let source = std::error::Error::source(execution).unwrap();
+            assert_eq!(
+                source.downcast_ref::<io::Error>().unwrap().raw_os_error(),
+                Some(rustix::io::Errno::PIPE.raw_os_error())
+            );
+            let (bytes, truncated) = match stream {
+                OutputStream::Stdout => (
+                    &execution.evidence.stdout,
+                    execution.evidence.stdout_truncated,
+                ),
+                OutputStream::Stderr => (
+                    &execution.evidence.stderr,
+                    execution.evidence.stderr_truncated,
+                ),
+            };
+            assert_eq!(bytes, &b"ready"[..policy.retained_bytes()]);
+            assert!(truncated);
+            assert!(execution.evidence.status.is_some());
+            assert!(execution.cleanup.is_none());
+            assert_reaped(&child);
+            let deadline = Instant::now() + Duration::from_secs(5);
+            loop {
+                match other.read(&mut [0]) {
+                    Ok(0) => break,
+                    Err(error) if error.kind() == io::ErrorKind::WouldBlock => {
+                        assert!(Instant::now() < deadline);
+                        std::thread::sleep(Duration::from_millis(2));
+                    }
+                    other => panic!("unexpected pipe result: {other:?}"),
+                }
+            }
+        }
+    }
+}
+
+#[test]
 fn output_is_observed_before_child_exit_and_descendant_pipe_cleanup() {
     for timeout in [LIMITS.timeout, None] {
         let limits = OutputLimits { timeout, ..LIMITS };
@@ -23,12 +110,13 @@ fn output_is_observed_before_child_exit_and_descendant_pipe_cleanup() {
                 assert_eq!(stream, OutputStream::Stdout);
                 observed.extend_from_slice(bytes);
                 fs::write(&go, b"go").unwrap();
+                Ok(())
             },
         )
         .unwrap();
         assert_eq!(observed, [255]);
         assert_eq!(evidence.stdout, observed);
-        assert!(evidence.status.unwrap().success());
+        assert!(evidence.status.success());
         assert_reaped(&child);
     }
 }
@@ -59,6 +147,7 @@ fn observer_receives_only_retained_prefix_on_each_stream_overflow() {
                         assert_eq!(stream, expected);
                         assert_ne!(bytes, []);
                         observed.extend_from_slice(bytes);
+                        Ok(())
                     },
                 )
                 .unwrap_err();
@@ -178,12 +267,15 @@ fn truncation_forwards_all_bytes_with_bounded_or_zero_storage() {
             },
             SuccessfulExit::Cleanup,
             || false,
-            |stream, bytes| match stream {
-                OutputStream::Stdout => {
-                    assert!(bytes.iter().all(|&byte| byte == b'x'));
-                    counts[0] += bytes.len();
+            |stream, bytes| {
+                match stream {
+                    OutputStream::Stdout => {
+                        assert!(bytes.iter().all(|&byte| byte == b'x'));
+                        counts[0] += bytes.len();
+                    }
+                    OutputStream::Stderr => counts[1] += bytes.len(),
                 }
-                OutputStream::Stderr => counts[1] += bytes.len(),
+                Ok(())
             },
         )
         .unwrap();
@@ -192,7 +284,7 @@ fn truncation_forwards_all_bytes_with_bounded_or_zero_storage() {
         assert!(evidence.stdout.capacity() <= retained);
         assert_eq!(evidence.stderr.capacity(), 0);
         assert!(evidence.stdout_truncated && evidence.stderr_truncated);
-        assert!(evidence.status.unwrap().success());
+        assert!(evidence.status.success());
         assert_reaped(&child);
     }
 }
@@ -217,8 +309,12 @@ fn truncated_output_preserves_failure_and_cancellation() {
             },
             SuccessfulExit::Cleanup,
             || cancel && observed.get() > 0,
-            |_, bytes| observed.set(observed.get() + bytes.len()),
+            |_, bytes| {
+                observed.set(observed.get() + bytes.len());
+                Ok(())
+            },
         )
+        .and_then(CompletedExecution::require_success)
         .unwrap_err();
         let execution = error.execution_error().unwrap();
         assert_eq!(execution.evidence.stdout, b"re");

@@ -38,31 +38,28 @@ fn group_capture_cleans_wrapper_descendants_on_exit_timeout_and_overflow() {
             ready.exists(),
             "descendant must have started before capture ended"
         );
-        if mode == "success" {
+        if mode == "success" || mode == "failure" {
             let evidence = output.unwrap();
             assert_eq!(evidence.stdout, b"output");
             assert_eq!(evidence.stderr, b"diagnostic");
-            assert!(evidence.status.unwrap().success());
+            assert_eq!(
+                evidence.status.code(),
+                Some(if mode == "success" { 0 } else { 17 })
+            );
         } else {
             let error = output.unwrap_err();
             let execution = error.execution_error().unwrap();
-            match mode {
-                "failure" => {
-                    assert!(matches!(execution.failure, ExecutionFailure::ExitStatus));
-                    assert_eq!(execution.evidence.status.unwrap().code(), Some(17));
-                    assert_eq!(execution.evidence.stderr, b"diagnostic");
-                }
-                "timeout" => assert!(matches!(execution.failure, ExecutionFailure::TimedOut)),
-                _ => {
-                    let expected = if mode == "stdout" {
-                        OutputStream::Stdout
-                    } else {
-                        OutputStream::Stderr
-                    };
-                    assert!(
-                        matches!(execution.failure, ExecutionFailure::OutputLimit { stream } if stream == expected)
-                    );
-                }
+            if mode == "timeout" {
+                assert!(matches!(execution.failure, ExecutionFailure::TimedOut));
+            } else {
+                let expected = if mode == "stdout" {
+                    OutputStream::Stdout
+                } else {
+                    OutputStream::Stderr
+                };
+                assert!(
+                    matches!(execution.failure, ExecutionFailure::OutputLimit { stream } if stream == expected)
+                );
             }
             assert!(execution.cleanup.is_none());
             assert!(execution.evidence.status.is_some());
@@ -131,7 +128,6 @@ fn direct_capture_still_leaves_descendant_lifetime_to_the_caller() {
         capture_command(&mut command, LIMITS)
             .unwrap()
             .status
-            .unwrap()
             .success()
     );
     let deadline = Instant::now() + Duration::from_secs(5);

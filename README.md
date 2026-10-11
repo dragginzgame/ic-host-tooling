@@ -41,6 +41,9 @@ the consumer owns executable admission. It shares bounded capture and direct-chi
 cleanup with `AdmittedTool`, whose exact digest/version checks remain in place.
 `ToolError::evidence` and `execution_error` borrow retained diagnostics without
 copying output; callers own presentation and recovery.
+Capture and communication return `CompletedExecution` with a required exit
+status, including nonzero and signalled exits. Use `require_success()` when zero
+exit is required. Interrupted execution retains optional status in `ExecutionEvidence`.
 
 `child::OwnedChild::spawn` starts a caller-configured command in a new owned
 process group. It preserves command IO and supports polling, waiting, explicit
@@ -75,13 +78,15 @@ to forward all drained output while retaining only a bounded prefix.
 The cancellation callback can also emit caller-scheduled heartbeats while silent.
 Callback unwinding attempts cleanup even when the borrowed owner survives the
 caller's panic handler.
+Output observers return `io::Result<()>`; a sink error retains its original cause
+and triggers the same child cleanup without a caller-side cancellation workaround.
 
 All capture, communication and admission functions accept one `OutputLimits`
 type with `stdout`, `stderr` and `timeout: Option<Duration>`. Select `None` for
 long builds without an elapsed-time deadline, or `Some(duration)` for a positive
 deadline. Retention and cleanup still apply; communication also polls cancellation.
 Version, Git and Candid admission reject truncated captures. Other consumers can
-use `ExecutionEvidence::require_complete` before parsing retained output.
+use `CompletedExecution::require_complete` before parsing retained output.
 
 Examples live with their owners: `ic-host-artifacts` has `hash_serialized_json`;
 `ic-host-fs` has `inspect_regular_file` and
@@ -178,7 +183,9 @@ rerun explicit Rust setup and update their shell PATH; see the
 [0.13 setup notes](docs/changelog/0.13.md). Previous installations are retained.
 Shared Tooling stores verified host, IC and Cargo tools per user; checkout
 references select exact bundles while keeping the existing command paths.
-Run `make install-tools` after adopting Shared 0.6.1, then `make tools-check`.
+When upgrading from before Shared 0.6.1, run `make install-tools`, then
+`make tools-check`. The adopted 0.6.2 retains 0.6.1's tool build policy;
+existing verified installations need no reinstall for this update.
 Cargo tools use a standard build environment and reuse matching compiler,
 native-environment, package and packaged-lock identities across checkouts;
 application compiler flags and wrappers do not configure these tool builds.

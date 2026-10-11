@@ -9,7 +9,7 @@
 use ic_host_artifacts::artifact::{ArtifactError, ArtifactIdentity};
 use ic_host_fs::read::hash_file;
 use ic_host_process::tool::{
-    AdmittedTool, ExecutionContext, ExecutionEvidence, OutputLimits, ToolError,
+    AdmittedTool, CompletedExecution, ExecutionContext, OutputLimits, ToolError,
 };
 use std::{fmt, path::Path};
 
@@ -110,7 +110,7 @@ pub enum ExtractionError {
         /// Inspection failure.
         source: ArtifactError,
         /// Bounded successful process output.
-        evidence: Box<ExecutionEvidence>,
+        evidence: Box<CompletedExecution>,
     },
     /// Source bytes changed between preflight and post-extraction observation.
     SourceChanged {
@@ -119,14 +119,14 @@ pub enum ExtractionError {
         /// Identity observed after invocation.
         after: ArtifactIdentity,
         /// Bounded process output that must not be published as valid extraction.
-        evidence: Box<ExecutionEvidence>,
+        evidence: Box<CompletedExecution>,
     },
     /// Successful output could not be normalized under the selected bound.
     Normalize {
         /// Normalization failure.
         source: NormalizationError,
         /// Exact bounded process output, including invalid UTF-8 when present.
-        evidence: Box<ExecutionEvidence>,
+        evidence: Box<CompletedExecution>,
     },
 }
 
@@ -162,7 +162,7 @@ pub struct ExtractedCandid {
     /// Tool bytes admitted by the consumer.
     pub tool_identity: ArtifactIdentity,
     /// Original stdout/stderr and successful direct-child exit status.
-    pub evidence: ExecutionEvidence,
+    pub evidence: CompletedExecution,
 }
 
 impl fmt::Debug for ExtractedCandid {
@@ -200,7 +200,8 @@ pub fn extract(
     let before = hash_file(source, source_bytes).map_err(ExtractionError::Input)?;
     let evidence = tool
         .run(&[source.as_os_str().to_owned()], context, output)
-        .and_then(ExecutionEvidence::require_complete)
+        .and_then(CompletedExecution::require_success)
+        .and_then(CompletedExecution::require_complete)
         .map_err(ExtractionError::Tool)?;
     let after = match hash_file(source, source_bytes) {
         Ok(identity) => identity,

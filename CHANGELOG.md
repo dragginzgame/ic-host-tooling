@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.14.0]
+
+- **Breaking:** Return completed process results with a required exit status;
+  select `require_success()` for zero-exit admission. Output observers now return
+  `io::Result<()>`, preserving sink failures and cleanup evidence
+  ([#66](https://github.com/dragginzgame/ic-host-tooling/issues/66)).
+- Adopt Shared Tooling 0.6.2 for actionable interrupted-release source conflicts
+  and clarified Audit/Machete invocation guidance
+  ([Shared #126](https://github.com/dragginzgame/shared-tooling/issues/126),
+  [Shared #123](https://github.com/dragginzgame/shared-tooling/issues/123)).
+  [Detailed notes](docs/changelog/0.14.md).
+
 ## [0.13.5] - 2026-10-11
 
 - Adopt Shared Tooling 0.6.1: fix macOS Cargo-tool fixture counts and stop setup

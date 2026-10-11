@@ -139,11 +139,16 @@ fn nonzero_exit_retains_bytes_without_automatic_logging_or_retry() {
         ),
         (OsString::from("FIXTURE_SECRET"), OsString::from(secret)),
     ];
-    let Err(ToolError::Execution(error)) = tool.run(
-        &[OsString::from("--fail")],
-        &fixture.context(&environment),
-        LIMITS,
-    ) else {
+    let completed = tool
+        .run(
+            &[OsString::from("--fail")],
+            &fixture.context(&environment),
+            LIMITS,
+        )
+        .unwrap();
+    assert_eq!(completed.status.code(), Some(23));
+    assert!(!format!("{completed:?}").contains(secret));
+    let Err(ToolError::Execution(error)) = completed.require_success() else {
         panic!("expected execution failure");
     };
     assert!(matches!(error.failure, ExecutionFailure::ExitStatus));

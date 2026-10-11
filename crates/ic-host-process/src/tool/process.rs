@@ -1,6 +1,6 @@
 use super::{
-    ExecutionContext, ExecutionError, ExecutionEvidence, ExecutionFailure, ExecutionOperation,
-    OutputLimit, OutputLimits, OutputStream, SuccessfulExit,
+    CompletedExecution, ExecutionContext, ExecutionError, ExecutionEvidence, ExecutionFailure,
+    ExecutionOperation, OutputLimit, OutputLimits, OutputStream, SuccessfulExit,
 };
 use crate::child::OwnedChild;
 use rustix::fs::{OFlags, fcntl_getfl, fcntl_setfl};
@@ -30,7 +30,7 @@ pub(super) fn capture(
     arguments: &[OsString],
     context: &ExecutionContext<'_>,
     limits: OutputLimits,
-) -> Result<ExecutionEvidence, ExecutionError> {
+) -> Result<CompletedExecution, ExecutionError> {
     let mut command = Command::new(path);
     command
         .args(arguments)
@@ -44,7 +44,7 @@ pub(super) fn capture_command(
     command: &mut Command,
     limits: OutputLimits,
     scope: CleanupScope,
-) -> Result<ExecutionEvidence, ExecutionError> {
+) -> Result<CompletedExecution, ExecutionError> {
     let started = Instant::now();
     command
         .stdin(Stdio::null())
@@ -66,7 +66,7 @@ pub(super) fn capture_command(
         started,
         SuccessfulExit::Cleanup,
         || false,
-        |_, _| {},
+        |_, _| Ok(()),
     )
 }
 
@@ -76,8 +76,8 @@ pub(super) fn communicate(
     limits: OutputLimits,
     successful_exit: SuccessfulExit,
     cancelled: impl FnMut() -> bool,
-    output: impl FnMut(OutputStream, &[u8]),
-) -> Result<ExecutionEvidence, ExecutionError> {
+    output: impl FnMut(OutputStream, &[u8]) -> io::Result<()>,
+) -> Result<CompletedExecution, ExecutionError> {
     exchange(
         child,
         input,
@@ -96,8 +96,8 @@ fn exchange(
     started: Instant,
     successful_exit: SuccessfulExit,
     mut cancelled: impl FnMut() -> bool,
-    mut output: impl FnMut(OutputStream, &[u8]),
-) -> Result<ExecutionEvidence, ExecutionError> {
+    mut output: impl FnMut(OutputStream, &[u8]) -> io::Result<()>,
+) -> Result<CompletedExecution, ExecutionError> {
     let timeout = limits.timeout;
     let mut evidence = ExecutionEvidence::default();
     let mut stdin = child.take_stdin();
@@ -175,11 +175,7 @@ fn exchange(
                 {
                     return Err(ExecutionFailure::TimedOut);
                 }
-                return if status.success() {
-                    Ok(())
-                } else {
-                    Err(ExecutionFailure::ExitStatus)
-                };
+                return Ok(status);
             }
             if !progress_in && !progress_out && !progress_err {
                 std::thread::sleep(timeout.map_or(POLL_INTERVAL, |timeout| {
@@ -222,10 +218,16 @@ fn poll_completion(
 fn finish_capture(
     child: &mut OwnedChild,
     mut evidence: ExecutionEvidence,
-    result: Result<(), ExecutionFailure>,
-) -> Result<ExecutionEvidence, ExecutionError> {
+    result: Result<ExitStatus, ExecutionFailure>,
+) -> Result<CompletedExecution, ExecutionError> {
     match result {
-        Ok(()) => Ok(evidence),
+        Ok(status) => Ok(CompletedExecution {
+            status,
+            stdout: evidence.stdout,
+            stderr: evidence.stderr,
+            stdout_truncated: evidence.stdout_truncated,
+            stderr_truncated: evidence.stderr_truncated,
+        }),
         Err(failure) => {
             let cleanup = match child.terminate() {
                 Ok(status) => {
@@ -288,7 +290,7 @@ fn read_chunk(
     policy: OutputLimit,
     stream: OutputStream,
     truncated: &mut bool,
-    output: &mut impl FnMut(OutputStream, &[u8]),
+    output: &mut impl FnMut(OutputStream, &[u8]) -> io::Result<()>,
 ) -> Result<bool, ExecutionFailure> {
     let Some(pipe) = reader.as_mut() else {
         return Ok(false);
@@ -329,15 +331,15 @@ fn read_chunk(
             .map_err(|source| ExecutionFailure::Allocation { stream, source })?;
     }
     bytes.extend_from_slice(&buffer[..retained]);
+    // Preserve observed overflow even when the sink rejects this chunk.
+    *truncated |= retained != count;
     let observed = if terminate { retained } else { count };
     if observed != 0 {
-        output(stream, &buffer[..observed]);
+        output(stream, &buffer[..observed])
+            .map_err(|source| ExecutionFailure::Observer { stream, source })?;
     }
-    if retained != count {
-        *truncated = true;
-        if terminate {
-            return Err(ExecutionFailure::OutputLimit { stream });
-        }
+    if retained != count && terminate {
+        return Err(ExecutionFailure::OutputLimit { stream });
     }
     Ok(true)
 }

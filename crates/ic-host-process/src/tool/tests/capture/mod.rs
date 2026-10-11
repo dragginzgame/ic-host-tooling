@@ -1,4 +1,22 @@
 use super::*;
+
+#[test]
+fn signalled_exit_is_completed_and_success_check_preserves_output() {
+    use std::os::unix::process::ExitStatusExt as _;
+    let _fixture = Fixture::new();
+    let mut command = Command::new("/bin/sh");
+    command.args(["-c", "printf out; printf err >&2; kill -TERM $$"]);
+    let completed = capture_command(&mut command, LIMITS).unwrap();
+    assert_eq!(completed.status.signal(), Some(15));
+    assert_eq!(completed.stdout, b"out");
+    assert_eq!(completed.stderr, b"err");
+    let error = completed.require_success().unwrap_err();
+    let execution = error.execution_error().unwrap();
+    assert!(matches!(execution.failure, ExecutionFailure::ExitStatus));
+    assert_eq!(execution.evidence.status.unwrap().signal(), Some(15));
+    assert_eq!(execution.evidence.stdout, b"out");
+    assert!(execution.cleanup.is_none());
+}
 use std::{
     os::unix::process::CommandExt as _,
     process::{Command, Stdio},
@@ -91,7 +109,9 @@ fn caller_capture_retains_bounded_failures_and_runs_only_once() {
     let marker = fixture.root.join("invocations");
     let mut command = Command::new(tool_path());
     command.arg("--fail").env("FIXTURE_MARKER", &marker);
-    let error = capture_command(&mut command, LIMITS).unwrap_err();
+    let completed = capture_command(&mut command, LIMITS).unwrap();
+    assert_eq!(completed.status.code(), Some(23));
+    let error = completed.require_success().unwrap_err();
     let execution = error.execution_error().unwrap();
     assert!(matches!(execution.failure, ExecutionFailure::ExitStatus));
     assert_eq!(execution.evidence.status.unwrap().code(), Some(23));

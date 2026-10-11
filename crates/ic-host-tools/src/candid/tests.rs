@@ -62,12 +62,7 @@ fn extraction_retains_source_tool_and_original_output_evidence() {
     assert_eq!(candid.source_identity, hash_file(&source, 8).unwrap());
     assert_eq!(candid.tool_identity, tool.identity());
     assert!(candid.evidence.stdout.contains(&b'\r'));
-    assert!(
-        candid
-            .evidence
-            .status
-            .is_some_and(|status| status.success())
-    );
+    assert!(candid.evidence.status.success());
     assert_eq!(fs::read(source).unwrap(), original);
 }
 
@@ -156,7 +151,7 @@ fn normalized_output_overflow_retains_successful_raw_extractor_bytes() {
         },
     );
     assert!(
-        matches!(error, Err(ExtractionError::Normalize { source: NormalizationError::OutputLimit { .. }, evidence }) if evidence.stdout == b"service : {}" && evidence.status.is_some_and(|status| status.success()))
+        matches!(error, Err(ExtractionError::Normalize { source: NormalizationError::OutputLimit { .. }, evidence }) if evidence.stdout == b"service : {}" && evidence.status.success())
     );
 }
 
