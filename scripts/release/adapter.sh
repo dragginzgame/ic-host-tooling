@@ -69,6 +69,25 @@ check_receipt() {
     [[ -f "$receipt" && ! -L "$receipt" && -f "$notes" && ! -L "$notes" ]] || fail "source-bound validation evidence is missing"
     receipt_header | cmp - "$receipt"
 }
+archive_validation_evidence() {
+    local file archive=""
+    # Admission precedes any copy or log append. The release runner owns the
+    # enclosing release lock; standalone callers must exclude concurrent writers.
+    for file in "$receipt" "$notes" "$receipt.log"; do
+        if [[ -e "$file" || -L "$file" ]]; then
+            [[ -f "$file" && ! -L "$file" ]] || fail 'validation evidence is not a regular file'
+        fi
+    done
+    for file in "$receipt" "$notes" "$receipt.log"; do
+        [[ -e "$file" ]] || continue
+        if [[ -z "$archive" ]]; then
+            archive="$(mktemp -d "$state/$RELEASE_VERSION.validation-attempt.XXXXXX")" ||
+                fail 'cannot create validation evidence archive'
+        fi
+        cp -p "$file" "$archive/${file##*/}" || fail 'cannot preserve validation evidence'
+        cmp "$file" "$archive/${file##*/}" || fail 'validation evidence copy differs'
+    done
+}
 check_prepared() {
     local mode file observed_version
     check_receipt
@@ -152,6 +171,7 @@ case "$operation" in
             trap 'rm -rf "$scratch"' EXIT
             cp -p CHANGELOG.md "$scratch/notes"
             before="$(git diff --binary HEAD | git hash-object --stdin)" || exit $?
+            archive_validation_evidence
             {
                 receipt_header
                 CARGO_NET_OFFLINE=true make --no-print-directory ci

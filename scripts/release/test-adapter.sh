@@ -152,7 +152,8 @@ cat > "$fixture/bin/make" <<'STUB'
 set -euo pipefail
 case "$*" in
     '--no-print-directory install-tools'|'--no-print-directory tools-check'|'--no-print-directory dependency-pins-check'|'--no-print-directory ci'|--no-print-directory\ msrv\ PACKAGE=ic-host-*)
-        printf 'make %s\n' "$*" >> "$ADAPTER_EVENTS" ;;
+        printf 'make %s\n' "$*" >> "$ADAPTER_EVENTS"
+        if [[ "$*" == '--no-print-directory ci' ]]; then exit "${ADAPTER_GATE_RESULT:-0}"; fi ;;
     *) echo "Unexpected Make operation: $*" >&2; exit 2 ;;
 esac
 STUB
@@ -446,6 +447,79 @@ for operation in prepare verify; do
     cmp saved-receipt "$receipt"
     cmp source/CHANGELOG.md "$receipt.notes"
 done
+
+# Unsafe existing evidence must refuse before archiving, appending or validation.
+for suffix in '' .notes .log; do
+    for kind in symlink directory; do
+        evidence="$receipt$suffix"
+        mv "$evidence" held-evidence
+        if [[ "$kind" == symlink ]]; then ln -s "$fixture/absent-evidence" "$evidence"
+        else mkdir "$evidence"; fi
+        : > "$ADAPTER_EVENTS"
+        if bash "$adapter" verify > refused-evidence.log 2>&1; then exit 1; fi
+        if grep -E '^make .* (ci|msrv)' "$ADAPTER_EVENTS"; then exit 1; fi
+        if [[ "$kind" == symlink ]]; then
+            [[ -L "$evidence" && ! -e "$fixture/absent-evidence" ]] || exit 1
+            rm "$evidence"
+        else rmdir "$evidence"; fi
+        mv held-evidence "$evidence"
+    done
+done
+
+# A failed archive copy cannot dispatch validation or change active evidence.
+mkdir failed-copy-bin copy-expected
+cp "$receipt" "$receipt.notes" "$receipt.log" copy-expected/
+export ADAPTER_REAL_CP
+ADAPTER_REAL_CP="$(command -v cp)"
+cat > failed-copy-bin/cp <<'STUB'
+#!/usr/bin/env bash
+set -euo pipefail
+case "${*: -1}" in *.validation-attempt.*/*) exit 19 ;; esac
+exec "$ADAPTER_REAL_CP" "$@"
+STUB
+chmod +x failed-copy-bin/cp
+: > "$ADAPTER_EVENTS"
+if PATH="$fixture/failed-copy-bin:$PATH" bash "$adapter" verify > failed-copy.log 2>&1; then exit 1; fi
+if grep -E '^make .* (ci|msrv)' "$ADAPTER_EVENTS"; then exit 1; fi
+for suffix in '' .notes .log; do cmp "copy-expected/${receipt##*/}$suffix" "$receipt$suffix"; done
+
+# Same-candidate revalidation retains old receipt, notes and log on failure and
+# success. Only Git/setup/gates are substitutes; preservation uses real files.
+(
+    export RELEASE_SOURCE=1111111111111111111111111111111111111111
+    printf '\nNew committed notes.\n' >> CHANGELOG.md
+    for gate_result in 17 0; do
+        expected_dir="revalidation-$gate_result"
+        mkdir "$expected_dir"
+        printf 'previous attempt marker %s\n' "$gate_result" >> "$receipt.log"
+        cp "$receipt" "$receipt.notes" "$receipt.log" "$expected_dir/"
+        status=0
+        ADAPTER_GATE_RESULT="$gate_result" bash "$adapter" verify > "$expected_dir/result.log" 2>&1 || status=$?
+        [[ "$status" == "$gate_result" ]] || exit 1
+        retained=false
+        for archive in release-state/"$RELEASE_VERSION".validation-attempt.*; do
+            if [[ -f "$archive/${receipt##*/}.log" ]] &&
+                cmp -s "$expected_dir/${receipt##*/}.log" "$archive/${receipt##*/}.log"; then
+                for suffix in '' .notes .log; do
+                    cmp "$expected_dir/${receipt##*/}$suffix" "$archive/${receipt##*/}$suffix"
+                done
+                retained=true
+            fi
+        done
+        [[ "$retained" == true ]] || exit 1
+        if [[ "$gate_result" != 0 ]]; then
+            cmp "$expected_dir/${receipt##*/}" "$receipt"
+            cmp "$expected_dir/${receipt##*/}.notes" "$receipt.notes"
+        else
+            [[ "$(sed -n '2p' "$receipt")" == "$RELEASE_SOURCE" ]] || exit 1
+            cmp CHANGELOG.md "$receipt.notes"
+        fi
+    done
+)
+# Return to the original fixture source through fresh validation, preserving the
+# new-source evidence too, before exercising exact-source preparation below.
+cp source/CHANGELOG.md CHANGELOG.md
+bash "$adapter" verify > original-source-revalidated.log 2>&1
 
 # The prepared fixture must preserve both undated and dated historical notes
 # through saved receipts; real locked/offline Cargo admits its updated graph.

@@ -1,6 +1,41 @@
 # Current handoff
 
-## Pending 0.14.0 — completed execution and fallible observers
+## Pending 0.14.1 — Shared 0.6.3 and retained validation attempts
+
+Adopted Shared Tooling 0.6.3 `4fd979d13c32adb3cb2f51f213ebfc4f98339b3d`
+through canonical preview/refresh from a clean isolated checkout, retaining the
+same 95-file selection. Direct preparation can restart from clean descendant
+commits with fresh validation under the canonical recovery contract. Host's
+[receipt fix](https://github.com/dragginzgame/ic-host-tooling/issues/67) first
+archives existing validation receipts, saved notes and logs into unique attempt
+directories, verifying identical bytes before validation can append or replace
+them. Unsafe entries and failed preservation refuse before the gate. Failed
+validation retains the prior active receipt and notes.
+
+During this task the maintainer released 0.14.0 at
+`4723befe8d65c760c00e05c42652759d691fbd5e`. That release and its process APIs
+are preserved; this compatible tooling update selects pending 0.14.1. Rust
+source, released Cargo metadata and pins retain their captured hashes. Existing
+verified 0.6.1 tool installations need no reinstall. No sibling edit, staging,
+package bump, commit, push or release was performed by this adoption task.
+
+Full Linux `CARGO_NET_OFFLINE=true make ci` passes. The Host adapter and canonical
+runner fixtures pass under genuine Bash 3.2.57; the exact upstream real-Git
+tracking/restart fixture also passes under Bash 3.2 in disposable repositories.
+Host adapter fixtures substitute Git/setup/gates while exercising actual evidence
+preservation for successful and failed same-candidate revalidation, unsafe paths
+and failed copies. ShellCheck, snapshot and preservation checks pass. Evidence:
+`/tmp/host-shared063-adopt.D8GMrT/`.
+
+Native acceptance remains open in [Host #65](https://github.com/dragginzgame/ic-host-tooling/issues/65)
+and #67. Released 0.14.0 [CI](https://github.com/dragginzgame/ic-host-tooling/actions/runs/38146341421)
+passes Linux/MSRV with both macOS jobs queued at inspection. Upstream 0.6.3
+[CI](https://github.com/dragginzgame/shared-tooling/actions/runs/38145666246)
+passes Linux/lint, with Intel macOS running and ARM queued. Neither run qualifies
+the pending Host adoption. Producer recovery acceptance remains with
+[Shared #126](https://github.com/dragginzgame/shared-tooling/issues/126).
+
+## Historical preparation for 0.14.0 — completed execution and fallible observers
 
 Implemented the approved [process contract change](https://github.com/dragginzgame/ic-host-tooling/issues/66)
 on released Host 0.13.5 `b32021c67515f0a0dcf35f1dd0b2029b9599ac75`, preserving

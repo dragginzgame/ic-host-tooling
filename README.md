@@ -184,7 +184,7 @@ rerun explicit Rust setup and update their shell PATH; see the
 Shared Tooling stores verified host, IC and Cargo tools per user; checkout
 references select exact bundles while keeping the existing command paths.
 When upgrading from before Shared 0.6.1, run `make install-tools`, then
-`make tools-check`. The adopted 0.6.2 retains 0.6.1's tool build policy;
+`make tools-check`. The adopted 0.6.3 retains 0.6.1's tool build policy;
 existing verified installations need no reinstall for this update.
 Cargo tools use a standard build environment and reuse matching compiler,
 native-environment, package and packaged-lock identities across checkouts;

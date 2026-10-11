@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.14.1]
+
+- Adopt Shared Tooling 0.6.3 to restart interrupted direct preparation from
+  committed metadata, preserving prior Host validation receipts, notes and logs
+  before revalidation ([#67](https://github.com/dragginzgame/ic-host-tooling/issues/67),
+  [Shared #126](https://github.com/dragginzgame/shared-tooling/issues/126)).
+  [Detailed notes](docs/changelog/0.14.md).
+
 ## [0.14.0] - 2026-10-11
 
 - **Breaking:** Return completed process results with a required exit status;
