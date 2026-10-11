@@ -1,6 +1,67 @@
 # Current handoff
 
-## Latest adoption — Shared 0.3.11, hard cut remains local
+## Pending 0.13.1 follow-up — Host fixture path stability
+
+The bounded code-hygiene review of Host-owned fixture roots reproduced four
+failures with an existing caller-relative TMPDIR: Make loses its event path,
+release tools lose their selector/log paths, the release adapter's nested metadata
+probe cannot create its temporary directory, and publication loses substitute
+command resolution. Physical fixture roots and an anchored inherited TMPDIR now
+preserve the selected location through directory changes. The retention harness
+uses the same anchoring and executes the real fixtures through relative symlinks,
+including its existing wrong-status and premature-completion failures.
+[Host #62](https://github.com/dragginzgame/ic-host-tooling/issues/62) owns delivery
+and native qualification of this compatible addition to 0.13.1.
+
+The extended retention regression passes on Linux under current Bash and genuine
+Bash 3.2.57. ShellCheck, links and diff checks pass. Release/publication effects
+are substituted; metadata uses the locked offline workspace. The deliberate
+newline-named publication checkout remains covered. Failed pre-fix attempts and
+passing logs are retained at `/tmp/host-relative-fixtures.QTPEV6/`.
+The incoming Shared adoption, Cargo files, pins and real index are preserved.
+No Rust build, full local gate, native macOS run, sibling edit, download, commit,
+push or release occurred. No function, method or type was removed.
+
+## Pending 0.13.1 — formatting-adoption temporary paths
+
+Released Host 0.13.0 `7c58c92c72789139ec460475c429f9090581008f` is now
+local HEAD and remote main; the incoming working tree was clean and no Cargo/rustc
+process was active. Its [CI](https://github.com/dragginzgame/ic-host-tooling/actions/runs/38122069573)
+passes Linux, MSRV and both native macOS 15 architectures. The native logs confirm
+the affected tooling fixtures and 73 filesystem tests pass; issues #59 and #60
+are closed with exact-source evidence. The earlier delivery observations below
+are historical, not current checkout status.
+
+Adopted committed Shared 0.3.12 `52e846369c39a1da371eac47ff97d94da925217e`
+through its canonical exporter from a clean isolated checkout. Only the formatting
+adoption checker and its regression fixture change among the same 92 selected
+files; dirty sibling governance edits are excluded. The checker anchors inherited
+TMPDIR before changing directories. The compatible tooling fix selects pending
+0.13.1, with no library, Cargo selection or tool-pin change.
+[Host #61](https://github.com/dragginzgame/ic-host-tooling/issues/61) owns delivery
+and native acceptance separately from the released batch.
+
+Canonical hook regressions pass on Linux under current Bash and genuine Bash 3.2.57.
+The actual Host formatting adapter passes under both shells from an external caller
+with a relative symlinked temporary root. Snapshot/declaration/link checks, ShellCheck and diff
+checks pass. Cargo files, pins and the real index retain incoming hashes.
+Evidence: `/tmp/host-shared0312.f8CgSp/`. No full local gate, native macOS execution,
+download, sibling edit, commit, push or release ran.
+
+A bounded read-only convergence review used the adopted
+`audits/flow-convergence-and-duplication.md` method and `docs/extraction.md` ownership
+contract. The six sampled sibling manifests select Host 0.13; no Rust caller of
+the removed lock-progress wrapper remains in their crate trees. Canic's owning
+[migration evidence](https://github.com/dragginzgame/canic/issues/458#issuecomment-6106919245)
+reports passing focused checks; its adaptation remains dirty. Testkit's lock
+waiting and Memory's publication paths already delegate to Host. Query's sampled
+hashing uses sha2 directly or constructs application-specific identity encodings;
+neither warrants a generic Host replacement. Host's hashing writer and chunk
+digests already converge through their bounded writer/reader owners. No additional
+API extraction or removal is justified by this scope. Sibling compilation, runtime
+qualification and unrelated process/publication families were outside this pass.
+
+## Historical adoption — Shared 0.3.11, hard cut prepared locally
 
 Remote Host main remains released 0.12.10
 `5074de1792f920112c6539629605a6624f573863`, whose native CI is fully green.

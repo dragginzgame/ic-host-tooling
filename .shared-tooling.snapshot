@@ -1,8 +1,8 @@
 # Shared Tooling snapshot v1
-# version	0.3.11
+# version	0.3.12
 format	1
 source	https://github.com/dragginzgame/shared-tooling
-revision	db143ae9ae140eb66826c413360723d23c078f66
+revision	52e846369c39a1da371eac47ff97d94da925217e
 file	b5a6e8fb723a861b722834675e27b4b16f3d296112622c1b40cdc8714f575404	-	rules/changelogs.md
 file	8b302f055416e2cce84cd036811e1e1c39311e890bc9cfca592201992abd4839	-	docs/releases.md
 file	fc689ff5d636be1049a527f6cafa74a768005211dcbecb074b8b327d8e6bab04	x	scripts/ci/run-release.sh
@@ -49,7 +49,7 @@ file	6fe7da8acbeb862b26047d08c63a95a5d2b93223bb9c929d65c56dd2f30551ac	x	scripts/
 file	a04ef3105e7851b83bb682120873e29a6c3c604183c275bc53051dd9e4b300a7	x	scripts/ci/check-documentation-links.pl
 file	7ccdd181e517e563e8541b341c1313fa5e25094ee45f8fee81843471a65893bd	x	scripts/ci/test-documentation-links.pl
 file	10c35fa17b31aecbaeda81a0fc09e9f575376ea2c44281355c59d6e590eacaff	x	scripts/ci/test-file-digests.sh
-file	6c49b569e82b8ac3307409bd59d51498f37cff0594c6e6e400177532ae930a03	x	scripts/ci/check-formatting-hooks.sh
+file	aaa3d329c2f2377b4359ef7910d58fdab78c62d48b747a96538e19da5527fa67	x	scripts/ci/check-formatting-hooks.sh
 file	1063002468575e2f821cfec71524bde06a64634bf30455d64d2d9fed872969d6	-	docs/tag-maintenance.md
 file	40f31a19d6115411ebffe7c26e3ed30b8af7eead10dd4830de8d5a9312291222	x	scripts/ci/read-cargo-workspace-version.sh
 file	e1b8e9dfbcc7524065d7597e643a3157a80450fa2d477457ad8d8e8fa5b985bd	x	scripts/ci/test-cargo-metadata.sh
@@ -93,5 +93,5 @@ file	a6aff0f26b5dc0d95209232f8de01630d2b0f6f9af2522184843771857ae1578	-	make/rus
 file	cebc0fa4ee9944550350a492a3bc1084e28820e2c915e20351c336d87ce0359f	-	make/execution.mk
 file	4ff0a961d5fb8639edf798d64bbe3abc0fcd83c6f703d7a6875c6f5174e76201	x	scripts/ci/run-formatting.sh
 file	227ce86878264ff60aa24a70bb20140b8ef3c8332be640186e96f93805ed1062	-	tasks/readme-freshness.md
-file	0c1c69cfee63be997d8dfc7d08f5486cc64c73ac3c5342784c89085825ea3bf3	x	scripts/ci/test-git-hooks.sh
+file	0000596d8a9d16bbbe619dbfecea87425e75a9a21a2204fa0206ebfdecd34645	x	scripts/ci/test-git-hooks.sh
 file	69dbd1c286a9f8787bb5559493e9428c139c285f80417470f37d2153b6f17123	-	scripts/dev/format-frontend.sh

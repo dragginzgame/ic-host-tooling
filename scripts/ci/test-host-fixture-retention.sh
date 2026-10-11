@@ -17,6 +17,9 @@ finish() {
     exit "$status"
 }
 trap finish EXIT
+fixture="$(cd -P "$fixture" && printf '%s/.' "$PWD")"
+fixture="${fixture%/.}"
+export TMPDIR="${fixture%/*}"
 for input in scripts/ci/test-make-snapshot.sh scripts/release/test-adapter.sh \
     scripts/release/test-tools.sh scripts/publish/test-workspace.sh \
     scripts/ci/test-host-fixture-retention.sh scripts/ci/check-host-formatting.sh; do
@@ -48,6 +51,17 @@ for input in scripts/ci/test-make-snapshot.sh scripts/release/test-adapter.sh \
         [[ "$(cat "${retained[0]}/failure-marker")" == evidence ]] || exit 1
     done
 done
+# Each real fixture must survive changing directories with a relative aliased
+# temporary parent. These use substitutes for release/publication effects.
+mkdir "$fixture/relative-parent"
+ln -s "$fixture/relative-parent" "$fixture/relative-alias"
+for input in scripts/ci/test-make-snapshot.sh scripts/release/test-adapter.sh \
+    scripts/publish/test-workspace.sh; do
+    (cd "$fixture"; TMPDIR=relative-alias bash "$root/$input") \
+        > "$fixture/relative-${input##*/}.log" 2>&1
+    remaining=("$fixture/relative-parent/"*)
+    [[ ! -e "${remaining[0]}" ]] || exit 1
+done
 # Exercise the real release-tool fixture through an aliased temporary directory
 # and padded line counts, as on macOS, before contradicting its child status.
 assertion_root="$fixture/assertion-source"
@@ -73,14 +87,16 @@ STUB
 chmod +x "$fixture/bin/wc"
 attempt="$fixture/assertion-attempt"
 ln -s "$fixture/physical-attempt" "$attempt"
-PATH="$fixture/bin:$PATH" TMPDIR="$attempt" bash "$assertion_root/scripts/release/test-tools.sh" \
+(cd "$fixture"; PATH="$fixture/bin:$PATH" TMPDIR=assertion-attempt \
+    bash "$assertion_root/scripts/release/test-tools.sh") \
     > "$fixture/portable-tools.log" 2>&1
 # Unlike an early exit, a skipped assertion can claim completion and delete
 # its evidence. The same portable inputs must still reject a wrong status.
 sed 's/RELEASE_TOOL_TEST_RUN_STATUS=37 /RELEASE_TOOL_TEST_RUN_STATUS=36 /' \
     "$root/scripts/release/test-tools.sh" > "$assertion_root/scripts/release/test-tools.sh"
 status=0
-PATH="$fixture/bin:$PATH" TMPDIR="$attempt" bash "$assertion_root/scripts/release/test-tools.sh" \
+(cd "$fixture"; PATH="$fixture/bin:$PATH" TMPDIR=assertion-attempt \
+    bash "$assertion_root/scripts/release/test-tools.sh") \
     > "$fixture/assertion.log" 2>&1 || status=$?
 [[ "$status" == 1 ]] || exit 1
 retained=("$attempt/"*)

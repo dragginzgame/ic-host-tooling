@@ -20,6 +20,9 @@ finish() {
     exit "$status"
 }
 trap finish EXIT
+fixture="$(cd -P "$fixture" && printf '%s/.' "$PWD")"
+fixture="${fixture%/.}"
+export TMPDIR="${fixture%/*}"
 for input in Makefile ci/tool-versions.env make/tools.mk make/rust-format.mk \
     make/release.mk make/execution.mk scripts/ci/check-make-execution.sh \
     scripts/ci/check-format-tools.sh scripts/ci/run-formatting.sh; do

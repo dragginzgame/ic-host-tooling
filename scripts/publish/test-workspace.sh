@@ -8,8 +8,6 @@ root="${BASH_SOURCE[0]}"
 root="$(cd -P "${root%/*}/../.." && printf '%s/.' "$PWD")"
 root="${root%/.}"
 fixture_parent="$(mktemp -d "${TMPDIR:-/tmp}/ic-host-publish-test.XXXXXX")"
-# Git emits this literal checkout name followed by its own record newline.
-fixture="$fixture_parent/checkout"$'\n'
 completed=false
 finish() {
     local status=$?
@@ -20,6 +18,11 @@ finish() {
     exit "$status"
 }
 trap finish EXIT
+fixture_parent="$(cd -P "$fixture_parent" && printf '%s/.' "$PWD")"
+fixture_parent="${fixture_parent%/.}"
+export TMPDIR="${fixture_parent%/*}"
+# Git emits this literal checkout name followed by its own record newline.
+fixture="$fixture_parent/checkout"$'\n'
 mkdir "$fixture"
 export CARGO_NET_OFFLINE=true RUSTUP_AUTO_INSTALL=0
 mkdir "$fixture/bin"

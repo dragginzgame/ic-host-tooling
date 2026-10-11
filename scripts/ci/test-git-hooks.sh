@@ -563,8 +563,39 @@ GIT_INDEX_FILE="$FIXTURE/incorrect-index" MAKEFLAGS='--just-print' \
     consumer/Cargo.toml "$FIXTURE/unsorted-consumer.toml" "${overlays[@]}"
 # alpha has no dependency tables; qualify the same real formatter without
 # inventing dependencies or weakening manifest/index preservation checks.
-bash "$ROOT/scripts/ci/check-formatting-hooks.sh" "$PWD" alpha/src/lib.rs \
-    alpha/Cargo.toml --no-dependency-tables "${overlays[@]}"
+mkdir "$FIXTURE/adoption-temp"
+ln -s "$FIXTURE/adoption-temp" "$FIXTURE/adoption-temp-alias"
+temp_parent="$(cd -P "$FIXTURE/adoption-temp" && printf '%s/.' "$PWD")"
+temp_parent="${temp_parent%/.}"
+consumer="$PWD"
+cp .git/index "$FIXTURE/adoption-index"
+cp alpha/src/lib.rs "$FIXTURE/adoption-source"
+for spelling in absolute relative alias; do
+    case "$spelling" in
+        absolute) selected_tmp="$FIXTURE/adoption-temp" ;;
+        relative) selected_tmp=adoption-temp ;;
+        alias) selected_tmp=adoption-temp-alias ;;
+    esac
+    (cd "$FIXTURE"; unset RUNNER_TEMP; TMPDIR="$selected_tmp" \
+        bash "$ROOT/scripts/ci/check-formatting-hooks.sh" "$consumer" alpha/src/lib.rs \
+        alpha/Cargo.toml --no-dependency-tables "${overlays[@]}") \
+        > "$FIXTURE/adoption-$spelling.log" 2>&1
+    [[ -z "$(ls -A "$FIXTURE/adoption-temp")" ]] || exit 1
+done
+# A genuine baseline failure still retains its checkout and diagnostic log under
+# that same physical parent, without modifying the consumer's source or index.
+printf '#!/usr/bin/env bash\necho fixture-prerequisite-failed >&2\nexit 23\n' > .tools/host/bin/hook-fixture-prerequisite
+if (cd "$FIXTURE"; unset RUNNER_TEMP; TMPDIR=adoption-temp-alias \
+    bash "$ROOT/scripts/ci/check-formatting-hooks.sh" "$consumer" alpha/src/lib.rs \
+    alpha/Cargo.toml --no-dependency-tables "${overlays[@]}") \
+    > "$FIXTURE/adoption-failure.log" 2>&1; then
+    echo 'formatting adoption accepted a failed prerequisite' >&2; exit 1
+fi
+retained="$(sed -n 's/^Formatting adoption evidence retained: //p' "$FIXTURE/adoption-failure.log")"
+[[ "$retained" == "$temp_parent/"* && -s "$retained/baseline.log" ]] || exit 1
+grep -Fx fixture-prerequisite-failed "$retained/baseline.log" >/dev/null
+cmp .git/index "$FIXTURE/adoption-index"
+cmp alpha/src/lib.rs "$FIXTURE/adoption-source"
 # Mixed frontend selection uses prepared tools but only snapshot file inputs.
 new_fixture frontend
 mkdir frontend

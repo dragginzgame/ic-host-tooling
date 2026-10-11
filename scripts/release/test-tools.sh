@@ -18,6 +18,9 @@ finish() {
     exit "$status"
 }
 trap finish EXIT
+fixture="$(cd -P "$fixture" && printf '%s/.' "$PWD")"
+fixture="${fixture%/.}"
+export TMPDIR="${fixture%/*}"
 mkdir -p "$fixture/tooling/scripts/release" "$fixture/tooling/scripts/dev" \
     "$fixture/tooling/scripts/ci" "$fixture/tooling/ci" "$fixture/bin" "$fixture/consumer with spaces"
 cp "$root/scripts/release/tools.sh" "$fixture/tooling/scripts/release/"

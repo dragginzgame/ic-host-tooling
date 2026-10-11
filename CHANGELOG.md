@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.13.1]
+
+- Keep Host's Make, release and publication test fixtures working with relative
+  temporary directories, including retained failure evidence
+  ([#62](https://github.com/dragginzgame/ic-host-tooling/issues/62)).
+- Adopt Shared Tooling 0.3.12 so formatting-hook qualification accepts relative
+  and symlinked temporary directories while preserving failure diagnostics
+  ([Shared #116](https://github.com/dragginzgame/shared-tooling/issues/116),
+  [#61](https://github.com/dragginzgame/ic-host-tooling/issues/61)).
+  [Detailed notes](docs/changelog/0.13.md).
+
 ## [0.13.0] - 2026-10-11
 
 - **Breaking:** Remove `durable::lock_file_with_progress`. Compose

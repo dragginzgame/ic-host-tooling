@@ -48,6 +48,9 @@ finish() {
     exit "$status"
 }
 trap finish EXIT
+# Hooks and formatters change directories inside the disposable checkout.
+# Keep their temporary files under the caller's selected physical parent.
+export TMPDIR="${fixture%/*}"
 mkdir "$fixture/templates"
 export GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null GIT_TEMPLATE_DIR="$fixture/templates"
 objects="$(git -C "$root" rev-parse --git-path objects && printf '.')"

@@ -19,6 +19,9 @@ finish() {
     exit "$status"
 }
 trap finish EXIT
+fixture="$(cd -P "$fixture" && printf '%s/.' "$PWD")"
+fixture="${fixture%/.}"
+export TMPDIR="${fixture%/*}"
 unset MAKEFLAGS MFLAGS MAKEOVERRIDES GNUMAKEFLAGS MAKEFILES
 export CARGO_NET_OFFLINE=true RUSTUP_AUTO_INSTALL=0
 ADAPTER_REAL_CARGO="$(command -v cargo)"
