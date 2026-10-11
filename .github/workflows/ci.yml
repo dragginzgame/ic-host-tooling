@@ -60,7 +60,7 @@ jobs:
           make --no-print-directory tools-check
           echo "$PWD/.tools/host/bin" >> "$GITHUB_PATH"
           echo "$PWD/.tools/ic/bin" >> "$GITHUB_PATH"
-          echo "$PWD/.tools/rust/bin" >> "$GITHUB_PATH"
+          echo "$PWD/.tools/rust/common/bin" >> "$GITHUB_PATH"
       - name: Run native CI
         env:
           TMPDIR: ${{ runner.temp }}/portable-fixtures

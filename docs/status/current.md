@@ -1,6 +1,143 @@
 # Current handoff
 
-## Pending 0.13.1 follow-up — Host fixture path stability
+## Pending 0.13.2 — Shared 0.5.0 host/IC storage adoption
+
+Adopted requested committed Shared 0.5.0
+`a306180ce534227fcb98b882fba9a526d5d747e0` from a clean isolated checkout.
+The first preview correctly reported two required companions; adding the store
+helper and its fixture through canonical refresh produces a complete 94-file
+snapshot. The incoming unpublished 0.13.2 batch is preserved and updated. Library
+APIs, MSRV, dependency selections, package versions and tool pins are unchanged.
+
+Canonical `make install-tools` prepared checksum-pinned host/IC bundles in the
+default per-user store, `/home/adam/.local/share/shared-tooling/tools`.
+Checkout `.tools/host` and `.tools/ic` retain their command paths via references
+to exact generations. A disposable second checkout selected the same physical
+bundles with curl disabled. Complete offline admission passes. Original physical
+local bundles remain present with matching executable hashes; no manual relocation
+or cleanup occurred. Cargo slots/build output remain local under `.tools/rust`.
+The old policy-only storage description below is historical.
+
+Complete Linux `CARGO_NET_OFFLINE=true make ci` passed. The adopted IC installer
+fixture was then added to Host's native tooling gate beside the host installer,
+closing an observed coverage gap. Its Make routing fixture was updated, and the
+complete affected `tooling-command-check` gate passed again. Unchanged package,
+formatting and publication evidence is reused. Host/IC storage fixtures and the
+amended Make fixture pass under genuine Bash 3.2.57. The storage tests include
+reuse, pin/platform isolation, corruption, locks, retained failures and actual
+collector behavior. Snapshot/declaration/link checks, ShellCheck, actionlint and
+diff checks pass. Cargo files, pins and real index retain incoming hashes.
+Evidence: `/tmp/host-shared050.qPhAha/`.
+
+[Host #63](https://github.com/dragginzgame/ic-host-tooling/issues/63) remains open
+for delivery and native acceptance. Shared 0.5.0's native matrix is still pending;
+Host 0.13.1 passes Linux/MSRV/Apple Silicon with Intel running at inspection, and
+does not qualify these pending bytes. Setup downloaded pinned host/IC assets
+through the canonical installers. No sibling source edit, package version edit,
+staging, commit, push or release ran.
+
+## Historical preparation — Shared 0.4.2 and shared-storage ownership
+
+Adopted the explicitly requested Shared 0.4.2
+`8db24059613c63ba9be36d4225fb74f598f49df2` through preview and canonical refresh
+from a clean isolated checkout. The same 92-file selection is complete. Compared
+with the incoming 0.4 implementation, only five selected policy/documentation
+files and snapshot metadata change; executable installer bytes are unchanged.
+The canonical version annotation now correctly says 0.4.2, resolving Shared #119.
+
+The maintainer clarified that contributor tooling does not break this library's
+consumer contract. Pending notes are corrected to 0.13.2 and consolidated into
+`docs/changelog/0.13.md`; the unpublished 0.14 detail file is retired. Published
+0.13.1 history, package versions, dependencies, APIs and MSRV remain unchanged.
+The earlier minor-release classification below is superseded by this decision.
+
+Shared Tooling owns the planned per-user verified executable store under
+[Shared #120](https://github.com/dragginzgame/shared-tooling/issues/120).
+It is not implemented in 0.4.2. Host retains the canonical repository-local
+`.tools` storage and `.tools/rust/common/bin` selection until upstream delivers
+and qualifies shared storage. No files were relocated or deleted from `.tools`,
+no sibling PATH or independent installer/store was introduced, and no installation
+was repeated for these unchanged installer bytes.
+
+The complete local `CARGO_NET_OFFLINE=true make ci` gate passes on Linux: offline
+tool admission, snapshot/dependency/link checks, formatting and real hook checks,
+release/tool/publication fixtures, feature profiles, package Clippy/rustdoc and
+all-target tests. This supersedes the earlier focused-only validation limit.
+Cargo files, pins, installer bytes, original in-place tools/receipts and real index
+retain incoming hashes. Evidence: `/tmp/host-shared042.pLii0F/`; earlier installed
+slot/reuse and Bash 3.2 evidence remains `/tmp/host-shared040.9885UM/`.
+
+[Host #63](https://github.com/dragginzgame/ic-host-tooling/issues/63) retains
+delivery/native qualification. Released Host 0.13.1 passes Linux, MSRV and Apple
+Silicon, with Intel queued at inspection. Shared's preceding 0.4.1 hosted native
+retention fixture failed before producing its qualification marker; that unchanged
+upstream-only fixture is not selected by Host, and its repair remains under
+[Shared #118](https://github.com/dragginzgame/shared-tooling/issues/118).
+No upstream or local Linux evidence is relabelled as new native macOS acceptance.
+No sibling edit, download, staging, package-version edit, commit, push or release ran.
+
+## Historical preparation — earlier Shared 0.4 adoption and version classification
+
+At the maintainer's explicit adoption request, refreshed the same 92-file snapshot
+from clean isolated Shared commit `e0acfdbb2cef9c29462686d3454c1bd993963627`,
+matching remote main. Its read-only preview required no companion additions.
+The commit is named 0.4.0 but committed VERSION remains 0.3.12; the exporter-owned
+annotation is preserved, with [Shared #119](https://github.com/dragginzgame/shared-tooling/issues/119)
+tracking correction. The incoming handoff edit is retained below.
+
+Shared Make, hook/check callers, installer, documentation and evidence action now
+share the versioned-slot common-tool contract. Host's local CI PATH selects
+`.tools/rust/common/bin`; the existing selected cargo-edit adapter and pin remain
+unchanged. The developer setup/PATH hard cut selects pending 0.14.0 notes; package
+versions, Cargo selections, four library APIs and release defaults are unchanged.
+No compatibility fallback or artifact cleanup was introduced.
+
+Real Linux common-tool installation succeeded using cached locked dependencies
+with network disabled. The full offline `tools-check` passes. Repeated setup with
+a refusing Cargo substitute succeeds without dispatch, proving admitted-slot reuse.
+Old in-place tool files/receipts, Cargo files, pins and the real index retain their
+incoming hashes. Canonical installer and hook fixtures plus actual Host formatting
+pass on current Bash and genuine Bash 3.2.57. Host's retained-failure fixture passes,
+covering its selected cargo-edit adapter and real metadata/substituted effects.
+The actual adopted evidence collector retains sample slot receipts/build files
+without following an external symlink. Snapshot/declaration/link checks, ShellCheck,
+actionlint and diff checks pass. Evidence: `/tmp/host-shared040.9885UM/`.
+
+[Host #63](https://github.com/dragginzgame/ic-host-tooling/issues/63) remains open
+for delivery and native acceptance. Shared's exact-source macOS jobs are queued;
+Host 0.13.1 passes Linux/MSRV, with Apple Silicon running and Intel queued at the
+final check. These earlier-source results do not qualify the new snapshot.
+No full local gate, native macOS execution, network download, sibling edit, staging,
+package version edit, commit, push or release ran. No named function/type was removed.
+
+## Released 0.13.1 — next adoption preparation
+
+Local HEAD and remote main are released 0.13.1
+`95fa4828996a6116e84b5ed01909b6e8590a355d`; the incoming checkout was clean,
+with no active Cargo/rustc process. Its
+[CI](https://github.com/dragginzgame/ic-host-tooling/actions/runs/38127809605)
+passes Linux and MSRV; both macOS jobs are queued at inspection. The preceding
+release's native acceptance does not qualify this source.
+
+Shared main remains adopted 0.3.12 `52e846369c39a1da371eac47ff97d94da925217e`.
+The installer/PATH hard cut is still dirty upstream. Prepared the concrete Host
+owner map under [#63](https://github.com/dragginzgame/ic-host-tooling/issues/63#issuecomment-6107727678):
+one consumer-owned CI PATH selection, coordinated canonical snapshot callers and
+evidence collection, and retention of the already-delegating cargo-edit selector.
+No dirty upstream helper was executed or adopted. Implementation awaits reviewed
+committed upstream source and native acceptance; no next release is selected yet.
+
+A bounded code-hygiene review covered executable resolution and exact version/byte
+admission, including search precedence, typed errors, explicit environment,
+pre-execution rejection and later identity rechecks. No new defect was established.
+Nine resolution and five version-admission tests pass on Linux with locked/offline
+dependencies and all features. This is module evidence, not a full process audit,
+installer qualification or native macOS result. Evidence: `/tmp/host-post0131.rlWyuk/`.
+Cargo files, tool pins, snapshot and real index retain incoming hashes. Only this
+handoff changes; no library change, sibling edit, installation, download, full
+local gate, commit, push or release occurred.
+
+## Historical preparation for 0.13.1 — Host fixture path stability
 
 The bounded code-hygiene review of Host-owned fixture roots reproduced four
 failures with an existing caller-relative TMPDIR: Make loses its event path,

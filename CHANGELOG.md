@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.13.2]
+
+- Adopt Shared Tooling 0.5.0: host and IC tools share verified per-user bundles,
+  while Cargo tools retain local slots. Run `make install-tools`, then
+  `make tools-check`; use `.tools/rust/common/bin` for Rust tools on your PATH.
+  Existing installations are retained;
+  library APIs are unchanged
+  ([#63](https://github.com/dragginzgame/ic-host-tooling/issues/63)).
+  [Detailed notes](docs/changelog/0.13.md).
+
 ## [0.13.1] - 2026-10-11
 
 - Keep Host's Make, release and publication test fixtures working with relative

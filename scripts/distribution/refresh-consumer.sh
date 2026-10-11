@@ -9,17 +9,20 @@ SOURCE_ROOT="$SCRIPT_ROOT"
 CONSUMER_ROOT=""
 MANIFEST_PATH=".shared-tooling.snapshot"
 STAGING_DIR=""
+preview=false
 requested_files=()
 added_files=()
 
 usage() {
     cat >&2 <<'USAGE'
-usage: refresh-consumer.sh [--source <shared-tooling-checkout>] --consumer <repository> [--manifest <relative-path>] [--file <relative-path>]... [--add-file <relative-path>]...
+usage: refresh-consumer.sh [--preview] [--source <shared-tooling-checkout>] --consumer <repository> [--manifest <relative-path>] [--file <relative-path>]... [--add-file <relative-path>]...
 
 Use --file only when creating the initial snapshot. Later refreshes read the
 declared file set from the existing consumer manifest.
 Use --add-file to explicitly extend an existing selection; repeated additions
 are idempotent. Required companions are checked, never added implicitly.
+--preview leaves the consumer untouched and reports the proposed selection,
+including all missing companions. Exit 2 means explicit additions are required.
 USAGE
 }
 
@@ -126,6 +129,11 @@ check_index_unchanged() {
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
+    --preview)
+        preview=true
+        export GIT_OPTIONAL_LOCKS=0
+        shift
+        ;;
     --source)
         [[ $# -ge 2 ]] || { usage; exit 2; }
         SOURCE_ROOT="$2"
@@ -207,7 +215,15 @@ esac
 manifest="$CONSUMER_ROOT/$MANIFEST_PATH"
 check_consumer_parent "$MANIFEST_PATH"
 [[ ! -L "$manifest" ]] || fail "consumer manifest may not be a symlink"
-STAGING_DIR="$(mktemp -d "$CONSUMER_ROOT/.shared-tooling-refresh.XXXXXX")"
+if [[ "$preview" == true ]]; then
+    preview_tmp="$(resolve_directory "${TMPDIR:-/tmp}")"
+    case "$preview_tmp/" in
+        "$SOURCE_ROOT/"*|"$CONSUMER_ROOT/"*) fail "preview temporary directory must be outside source and consumer" ;;
+    esac
+    STAGING_DIR="$(mktemp -d "$preview_tmp/shared-tooling-preview.XXXXXX")"
+else
+    STAGING_DIR="$(mktemp -d "$CONSUMER_ROOT/.shared-tooling-refresh.XXXXXX")"
+fi
 manifest_state="$(consumer_state "$MANIFEST_PATH")" || fail "cannot inspect consumer manifest"
 git -C "$CONSUMER_ROOT" --literal-pathspecs ls-files --stage -z -- "$MANIFEST_PATH" > "$STAGING_DIR/index-manifest" ||
     fail "cannot inspect consumer manifest index"
@@ -284,11 +300,51 @@ for path in ${added_files[@]+"${added_files[@]}"}; do
 done
 
 [[ ${#files[@]} -gt 0 ]] || fail "snapshot file set is empty"
+consumer_states=()
+selected_count=${#files[@]}
+for index in "${!files[@]}"; do
+    path="${files[$index]}"
+    validate_relative_path "$path"
+    consumer_states[index]="$(consumer_state "$path")" || fail "cannot inspect consumer input: $path"
+    git -C "$CONSUMER_ROOT" --literal-pathspecs ls-files --stage -z -- "$path" > "$STAGING_DIR/index-$index" ||
+        fail "cannot inspect consumer index: $path"
+done
+
+# Follow the selected revision's explicit companion graph, including cycles,
+# without executing inspected files or silently extending a real refresh.
+proposed=("${files[@]}")
+missing=()
+cursor=0
+while [[ "$cursor" -lt "${#proposed[@]}" ]]; do
+    path="${proposed[$cursor]}"
+    validate_relative_path "$path"
+    committed_mode "$source_revision" "$path" > /dev/null || fail "cannot read committed companion source: $path"
+    git -C "$SOURCE_ROOT" cat-file blob "$source_revision:$path" > "$STAGING_DIR/companion-source" || fail "cannot inspect companions: $path"
+    declaration="$(sed -n '2s/^# Shared companions: //p' "$STAGING_DIR/companion-source")"
+    companions=()
+    read -r -a companions <<< "$declaration"
+    for companion in ${companions[@]+"${companions[@]}"}; do
+        validate_relative_path "$companion"
+        selected=false
+        for existing in "${proposed[@]}"; do
+            [[ "$existing" != "$companion" ]] || selected=true
+        done
+        if [[ "$selected" == false ]]; then
+            printf '%s requires selected companion: %s (add it explicitly)\n' "$path" "$companion" >&2
+            missing+=("$companion")
+            proposed+=("$companion")
+        fi
+    done
+    cursor=$((cursor + 1))
+done
+if [[ ${#missing[@]} -gt 0 ]]; then
+    [[ "$preview" == true ]] || fail "snapshot selection is incomplete; use --preview to review all required additions"
+    files=("${proposed[@]}")
+fi
 
 checksum_tool_declared=false
 snapshot_verifier_declared=false
 source_modes=()
-consumer_states=()
 for index in "${!files[@]}"; do
     path="${files[$index]}"
     validate_relative_path "$path"
@@ -302,9 +358,11 @@ for index in "${!files[@]}"; do
     *) fail "source file escapes the source checkout: $path" ;;
     esac
     source_modes[index]="$(committed_mode "$source_revision" "$path")" || fail "cannot read committed mode: $path"
-    consumer_states[index]="$(consumer_state "$path")" || fail "cannot inspect consumer input: $path"
-    git -C "$CONSUMER_ROOT" --literal-pathspecs ls-files --stage -z -- "$path" > "$STAGING_DIR/index-$index" ||
-        fail "cannot inspect consumer index: $path"
+    if [[ "$index" -ge "$selected_count" ]]; then
+        consumer_states[index]="$(consumer_state "$path")" || fail "cannot inspect consumer input: $path"
+        git -C "$CONSUMER_ROOT" --literal-pathspecs ls-files --stage -z -- "$path" > "$STAGING_DIR/index-$index" ||
+            fail "cannot inspect consumer index: $path"
+    fi
     [[ "$path" != "scripts/ci/verify-file-checksum.sh" ]] || checksum_tool_declared=true
     [[ "$path" != "scripts/ci/verify-shared-tooling-snapshot.sh" ]] || snapshot_verifier_declared=true
 
@@ -326,23 +384,6 @@ for index in "${!files[@]}"; do
     git -C "$SOURCE_ROOT" cat-file blob "$source_revision:$path" >"$staged_files/$path" ||
         fail "cannot export committed source file: $path"
     chmod "${source_modes[$index]#100}" "$staged_files/$path"
-done
-
-# Companions are declared by the selected committed source, not guessed from
-# shell syntax or this exporter's revision. Only the exact second-line marker
-# is metadata; declarations inside a test's heredoc are ordinary source bytes.
-for path in "${files[@]}"; do
-    declaration="$(sed -n '2s/^# Shared companions: //p' "$staged_files/$path")"
-    companions=()
-    read -r -a companions <<< "$declaration"
-    for companion in ${companions[@]+"${companions[@]}"}; do
-        validate_relative_path "$companion"
-        selected=false
-        for existing in "${files[@]}"; do
-            [[ "$existing" != "$companion" ]] || selected=true
-        done
-        [[ "$selected" == true ]] || fail "$path requires selected companion: $companion (add it explicitly)"
-    done
 done
 
 staged_manifest="$STAGING_DIR/manifest"
@@ -410,6 +451,27 @@ for index in "${!files[@]}"; do
     check_consumer_unchanged "${files[$index]}" "${consumer_states[$index]}"
     check_index_unchanged "$index" "${files[$index]}"
 done
+
+if [[ "$preview" == true ]]; then
+    printf 'source\t%s\t%s\n' "$source_version" "$source_revision"
+    printf 'manifest\t%s\n' "$MANIFEST_PATH"
+    for path in "${files[@]}"; do
+        action=UPDATE
+        destination="$CONSUMER_ROOT/$path"
+        if [[ ! -e "$destination" ]]; then action=ADD
+        elif cmp -s "$staged_files/$path" "$destination" &&
+            { { [[ -x "$destination" ]] && [[ -x "$staged_files/$path" ]]; } ||
+              { [[ ! -x "$destination" ]] && [[ ! -x "$staged_files/$path" ]]; }; }; then action=KEEP
+        fi
+        selection=selected
+        for companion in ${missing[@]+"${missing[@]}"}; do
+            [[ "$path" != "$companion" ]] || selection=required
+        done
+        printf '%s\t%s\t%s\n' "$action" "$selection" "$path"
+    done
+    [[ ${#missing[@]} == 0 ]] || exit 2
+    exit 0
+fi
 
 # Prepare a custom manifest's parent before replacing any consumer files.
 mkdir -p "$(dirname "$manifest")" || fail "cannot create consumer manifest directory"

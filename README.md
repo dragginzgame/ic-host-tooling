@@ -168,6 +168,12 @@ set in order: jq, yq, ripgrep with PCRE2 and cloc; the five pinned IC executable
 then cargo-sort, cargo-sort-derives and candid-extractor. The offline check never
 installs tools. CI and selected release preflight use these same aggregate targets;
 standalone release verification only checks the prepared set.
+The common Rust tools now use `.tools/rust/common/bin`. Existing checkouts must
+rerun explicit Rust setup and update their shell PATH; see the
+[0.13.2 setup notes](docs/changelog/0.13.md). Previous installations are retained.
+Shared Tooling stores verified host and IC bundles per user; `.tools/host` and
+`.tools/ic` select those bundles. Cargo tool slots remain local under `.tools/rust`.
+Run explicit setup in each checkout to select its pins; matching bundles are reused.
 Setup checks the supported IC platform/catalog and availability of the declared
 Rust/Cargo toolchain before downloading common tools. Host-tool failures identify
 the tool, expected version, selected path and repair command.

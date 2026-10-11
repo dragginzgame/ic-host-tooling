@@ -41,6 +41,7 @@ new_fixture() {
     cp "$ROOT/.githooks/pre-commit" .githooks/pre-commit
     cp "$ROOT/scripts/ci/check-make-execution.sh" scripts/ci/check-make-execution.sh
     cp "$ROOT/scripts/dev/install-git-hooks.sh" scripts/dev/install-git-hooks.sh
+    cp "$ROOT/make/tools.mk" make/tools.mk
     cat > Makefile <<'MAKE'
 .PHONY: fmt
 fmt:
@@ -66,7 +67,7 @@ esac
 [[ "${FORMAT_TEST_FAIL:-}" != yes ]] || exit 1
 FORMAT
     printf 'unformatted\n' > Cargo.toml
-    git add Makefile scripts/fixture-fmt.sh scripts/ci/check-make-execution.sh Cargo.toml
+    git add Makefile make/tools.mk scripts/fixture-fmt.sh scripts/ci/check-make-execution.sh Cargo.toml
 }
 expect_failure() {
     if "$@" > output 2>&1; then
@@ -101,8 +102,8 @@ bash .githooks/pre-commit > output
 # The tools are untracked; formatter inputs still come from the selected index.
 for tools in prepared missing wrong; do
     new_fixture "local tools $tools"
-    mkdir -p .tools/host/bin .tools/ic/bin .tools/rust/bin
-    cat > .tools/rust/bin/hook-fixture-cargo <<'TOOL'
+    mkdir -p .tools/host/bin .tools/ic/bin .tools/rust/common/bin
+    cat > .tools/rust/common/bin/hook-fixture-cargo <<'TOOL'
 #!/usr/bin/env bash
 set -euo pipefail
 case "$*" in
@@ -115,12 +116,12 @@ case "$*" in
     *) exit 1 ;;
 esac
 TOOL
-    printf '%s\n' "$SHARED_TOOLING_CARGO_SORT_VERSION" > .tools/rust/bin/version
+    printf '%s\n' "$SHARED_TOOLING_CARGO_SORT_VERSION" > .tools/rust/common/bin/version
     for kind in host ic; do
         printf '#!/usr/bin/env bash\nexit 0\n' > ".tools/$kind/bin/hook-fixture-$kind"
         chmod +x ".tools/$kind/bin/hook-fixture-$kind"
     done
-    chmod +x .tools/rust/bin/hook-fixture-cargo
+    chmod +x .tools/rust/common/bin/hook-fixture-cargo
     cat > Makefile <<'MAKE'
 include make/tools.mk
 .PHONY: fmt
@@ -138,8 +139,8 @@ MAKE
     printf 'unformatted unrelated working edit\n' > README.md
     tree="$(git write-tree)"
     case "$tools" in
-        missing) rm .tools/rust/bin/hook-fixture-cargo ;;
-        wrong) printf '0.0.0\n' > .tools/rust/bin/version ;;
+        missing) rm .tools/rust/common/bin/hook-fixture-cargo ;;
+        wrong) printf '0.0.0\n' > .tools/rust/common/bin/version ;;
     esac
     if [[ "$tools" == prepared ]]; then
         PATH=/usr/bin:/bin "$BASH" .githooks/pre-commit > output
