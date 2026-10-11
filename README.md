@@ -120,6 +120,11 @@ runs only when the entry is missing.
 The [0.13 migration](docs/changelog/0.13.md) replaces the fixed-cadence pathname
 progress helper with this composition; callers keep polling and reporting policy.
 
+`durable::open_private_regular_lock_file` instead creates a missing sidecar with
+owner-only permissions in an existing parent. It preserves existing bytes, inode
+and permissions, returns an unlocked close-on-exec descriptor, and performs no
+durability syncs. Callers retain locking, trusted ancestors and descriptor custody.
+
 `durable::write_named_with` lets an external tool write to an owned absolute
 staging path, then shares the normal durable publication engine. Callers validate
 bounded output before success and retain typed producer/cleanup errors. See the

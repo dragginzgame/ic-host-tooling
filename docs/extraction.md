@@ -54,6 +54,11 @@ opening does not establish root confinement or lock ownership.
 Existing lock entries skip publication staging and synchronization; only missing
 entries invoke durable creation. Final descriptor checks still enforce regular
 no-follow admission, and namespace removal may return a native error without retry.
+`open_private_regular_lock_file` reuses that descriptor admission for direct
+owner-only sidecar creation in an existing parent, without staging or durability
+syncs. It preserves existing bytes, inode and permissions. The caller owns lock
+acquisition, namespace trust, descriptor inheritance and descendant custody;
+adding this opener does not transfer command lifecycle or recovery to Host.
 The [0.4 notes](changelog/0.4.md) describe the required consumer changes.
 
 `durable::write_with(path, options, producer)` is the single generic pathname

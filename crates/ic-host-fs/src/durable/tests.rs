@@ -251,6 +251,130 @@ fn durable_write_creates_parents_and_replaces_complete_contents() {
 
 #[cfg(unix)]
 #[test]
+fn private_lock_creation_is_owner_only_with_permissive_umask() {
+    use std::{os::unix::fs::PermissionsExt, process::Command};
+    const DRIVER: &str = "IC_HOST_PRIVATE_LOCK_UMASK_CHILD";
+    if std::env::var_os(DRIVER).is_none() {
+        // Change umask only in a child, never in the parallel test process.
+        let thread = std::thread::current();
+        let name = thread.name().unwrap();
+        let output = Command::new("/bin/sh")
+            .arg("-c")
+            .arg("umask 000; exec \"$@\"")
+            .arg("private-sidecar-fixture")
+            .arg(std::env::current_exe().unwrap())
+            .args(["--exact", name, "--nocapture"])
+            .env(DRIVER, "1")
+            .output()
+            .unwrap();
+        assert!(output.status.success(), "{output:?}");
+        assert!(String::from_utf8_lossy(&output.stdout).contains("PRIVATE_SIDECAR_CHECKED"));
+        return;
+    }
+    let fixture = crate::test_support::Fixture::new();
+    let path = fixture.root.join("command.lock");
+    let file = open_private_regular_lock_file(&path).unwrap();
+    let metadata = file.metadata().unwrap();
+    assert!(metadata.is_file());
+    assert_eq!(metadata.len(), 0);
+    assert_eq!(metadata.permissions().mode() & 0o777, 0o600);
+    assert!(
+        rustix::io::fcntl_getfd(&file)
+            .unwrap()
+            .contains(rustix::io::FdFlags::CLOEXEC)
+    );
+    assert_eq!(fs::read_dir(&fixture.root).unwrap().count(), 1);
+    println!("PRIVATE_SIDECAR_CHECKED");
+}
+
+#[cfg(unix)]
+#[test]
+fn private_lock_preserves_existing_identity_and_caller_owned_acquisition() {
+    use rustix::fs::{FlockOperation::NonBlockingLockExclusive, flock};
+    use std::os::unix::fs::{MetadataExt, PermissionsExt};
+    let fixture = crate::test_support::Fixture::new();
+    let path = fixture.root.join("command.lock");
+    fs::write(&path, b"custody evidence").unwrap();
+    fs::set_permissions(&path, fs::Permissions::from_mode(0o640)).unwrap();
+    let before = fs::metadata(&path).unwrap();
+    let first = open_private_regular_lock_file(&path).unwrap();
+    let second = open_private_regular_lock_file(&path).unwrap();
+    // Admission is unlocked. A second descriptor can acquire before the first.
+    flock(&second, NonBlockingLockExclusive).unwrap();
+    let error = flock(&first, NonBlockingLockExclusive).unwrap_err();
+    let projected = io::Error::from(errno_to_lock_error(error));
+    assert_eq!(projected.kind(), io::ErrorKind::WouldBlock);
+    for after in [
+        first.metadata().unwrap(),
+        second.metadata().unwrap(),
+        fs::metadata(&path).unwrap(),
+    ] {
+        assert_eq!((before.dev(), before.ino()), (after.dev(), after.ino()));
+        assert_eq!(before.permissions().mode(), after.permissions().mode());
+    }
+    assert_eq!(fs::read(&path).unwrap(), b"custody evidence");
+    drop(second);
+    flock(&first, NonBlockingLockExclusive).unwrap();
+    drop(first);
+    let reopened = open_private_regular_lock_file(&path).unwrap();
+    flock(&reopened, NonBlockingLockExclusive).unwrap();
+    assert_eq!(fs::read(&path).unwrap(), b"custody evidence");
+}
+
+#[cfg(unix)]
+#[test]
+fn private_lock_refuses_missing_parents_and_unsafe_entries_without_changes() {
+    use std::os::unix::fs::{MetadataExt, symlink};
+    let fixture = crate::test_support::Fixture::new();
+    let missing = fixture.root.join("missing/nested/command.lock");
+    assert!(matches!(open_private_regular_lock_file(&missing),
+        Err(RegularFileLockError::Io(error)) if error.kind() == io::ErrorKind::NotFound));
+    assert_eq!(fs::read_dir(&fixture.root).unwrap().count(), 0);
+    assert!(
+        matches!(open_private_regular_lock_file(&fixture.root.join("invalid\0path")),
+        Err(RegularFileLockError::Io(error)) if error.kind() == io::ErrorKind::InvalidInput)
+    );
+    let target = fixture.root.join("target");
+    fs::write(&target, b"original target").unwrap();
+    let link = fixture.root.join("link");
+    symlink(&target, &link).unwrap();
+    let dangling = fixture.root.join("dangling");
+    symlink(&missing, &dangling).unwrap();
+    let fifo = fixture.root.join("fifo");
+    assert!(
+        std::process::Command::new("/usr/bin/mkfifo")
+            .arg(&fifo)
+            .status()
+            .unwrap()
+            .success()
+    );
+    for path in [&link, &dangling, &fixture.root, &fifo] {
+        let before = fs::symlink_metadata(path).unwrap();
+        assert!(matches!(
+            open_private_regular_lock_file(path),
+            Err(RegularFileLockError::NotRegular)
+        ));
+        let after = fs::symlink_metadata(path).unwrap();
+        assert_eq!((before.dev(), before.ino()), (after.dev(), after.ino()));
+        assert_eq!(before.mode(), after.mode());
+    }
+    // Even if a special entry appears after the path observation, the shared
+    // descriptor boundary refuses it without following or blocking on it.
+    assert!(matches!(
+        open_regular_lock_descriptor(&fifo, Some(rustix::fs::Mode::RUSR)),
+        Err(RegularFileLockError::NotRegular)
+    ));
+    assert!(matches!(
+        open_regular_lock_descriptor(&link, Some(rustix::fs::Mode::RUSR)),
+        Err(RegularFileLockError::Io(_))
+    ));
+    assert_eq!(fs::read(&target).unwrap(), b"original target");
+    assert!(!fixture.root.join("missing").exists());
+    assert_eq!(fs::read_dir(&fixture.root).unwrap().count(), 4);
+}
+
+#[cfg(unix)]
+#[test]
 fn lock_errors_preserve_admission_and_original_io_causes() {
     use std::error::Error as _;
     let fixture = crate::test_support::Fixture::new();

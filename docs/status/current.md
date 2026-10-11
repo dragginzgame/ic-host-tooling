@@ -1,6 +1,39 @@
 # Current handoff
 
-## Pending 0.13.3 — Shared 0.6.0 Cargo storage adoption
+## Pending 0.13.4 — private sidecar admission
+
+Released base is Host 0.13.3 `66c5df4c13ec500b4935d919420360bb0b8986ef`;
+the incoming checkout was clean. Its CI passes Linux/MSRV, with both macOS jobs
+queued at inspection. Those results do not qualify this unpublished change.
+
+Implemented [Host #64](https://github.com/dragginzgame/ic-host-tooling/issues/64)
+with the additive `durable::open_private_regular_lock_file`. New sidecars use
+0600 before umask in existing parents; existing bytes, inode and permissions
+are preserved. It returns an unlocked descriptor through the same no-follow,
+nonblocking, close-on-exec regular-file admission as the existing durable opener.
+The existing parent-creating/publication APIs retain their behavior. Direct
+creation adds no durability syncs, retry policy or lifecycle owner. Callers retain
+lock acquisition and descriptor/descendant custody. Pending 0.13.4 is compatible;
+package versions, dependencies, pins, snapshot and real index are unchanged.
+
+All 76 filesystem tests and examples pass on Linux. The new cases exercise
+child-only permissive umask, missing parents, unsafe entries, original I/O errors,
+descriptor admission, retained inode/bytes/mode, CLOEXEC and caller-owned
+acquisition/contention/release. Rust 1.88 MSRV checking for ic-host-fs passes.
+Complete `CARGO_NET_OFFLINE=true make ci` passes, including formatting/hooks,
+tooling/publication fixtures, feature profiles, Clippy, rustdoc and package tests.
+Evidence is retained through `/tmp/host-private-lock-current`.
+
+[Host #65](https://github.com/dragginzgame/ic-host-tooling/issues/65) remains blocked
+on [Shared #124](https://github.com/dragginzgame/shared-tooling/issues/124): remote
+Shared main is still adopted `75180980a0c4e4252d8a915aaecfaefd92bf9a4e`, with no
+committed padded-count correction to adopt. The snapshot is intact. Native
+macOS qualification of both changes remains outstanding. Canic adoption is
+tracked under [Canic #513](https://github.com/dragginzgame/canic/issues/513);
+its source and lockfile remain untouched. No download, staging, package bump,
+commit, push or release ran.
+
+## Historical preparation for 0.13.3 — Shared 0.6.0 Cargo storage adoption
 
 Released base is Host 0.13.2 `b7ef6ecff3be330c16c0f013e567a553b8517972`.
 Its exact-source CI passes Linux, MSRV and both native macOS 15 architectures;

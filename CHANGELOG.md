@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.13.4]
+
+- Add `durable::open_private_regular_lock_file` for owner-only sidecar creation
+  in an existing parent, preserving existing files and caller-owned locking
+  ([#64](https://github.com/dragginzgame/ic-host-tooling/issues/64)).
+  [Detailed notes](docs/changelog/0.13.md).
+
 ## [0.13.3] - 2026-10-11
 
 - Adopt Shared Tooling 0.6.0 to reuse verified Cargo tools across checkouts,

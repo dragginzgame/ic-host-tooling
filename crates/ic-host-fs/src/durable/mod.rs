@@ -203,31 +203,70 @@ pub fn open_regular_lock_file_with_parents(path: &Path) -> Result<fs::File, Regu
 
     #[cfg(not(windows))]
     {
-        use rustix::{
-            fd::OwnedFd,
-            fs::{FileType, Mode, OFlags, fstat, open},
-        };
-
-        // Path metadata selects creation and rejects known special entries; the
-        // no-follow/nonblocking open and descriptor check still own admission
-        // if the path changes between observations.
-        let fd: OwnedFd = open(
-            path,
-            OFlags::RDWR | OFlags::NOFOLLOW | OFlags::NONBLOCK | OFlags::CLOEXEC,
-            Mode::empty(),
-        )
-        .map_err(errno_to_lock_error)?;
-        let metadata = fstat(&fd).map_err(errno_to_lock_error)?;
-        if FileType::from_raw_mode(metadata.st_mode) != FileType::RegularFile {
-            return Err(RegularFileLockError::NotRegular);
-        }
-        Ok(fs::File::from(fd))
+        open_regular_lock_descriptor(path, None)
     }
 
     #[cfg(windows)]
     {
         Err(RegularFileLockError::UnsupportedPlatform)
     }
+}
+
+/// Open an unlocked regular no-follow sidecar in an existing parent directory.
+///
+/// A missing file is created read/write with mode `0o600` before umask. Missing
+/// parents are never created. Existing bytes, inode and permissions are preserved;
+/// existing files are not required to have private permissions. The returned
+/// descriptor is close-on-exec. No lock is acquired; callers choose acquisition,
+/// contention handling and descriptor lifetime (including clones and inheritance).
+///
+/// Creation is a direct open, without publication staging or durability syncs.
+/// The sidecar may remain after a later admission or lock failure. Callers own
+/// trusted parents and namespace stability: only the final component is opened
+/// without following symlinks. This is not root confinement or a wall-clock bound.
+///
+/// # Errors
+/// Returns [`RegularFileLockError::NotRegular`] for observed special entries,
+/// or the original I/O cause for open/metadata failures (including missing parents
+/// and a symlink encountered during open). Unsupported hosts are rejected.
+pub fn open_private_regular_lock_file(path: &Path) -> Result<fs::File, RegularFileLockError> {
+    #[cfg(not(windows))]
+    {
+        match fs::symlink_metadata(path) {
+            Ok(metadata) if metadata.file_type().is_file() => {}
+            Ok(_) => return Err(RegularFileLockError::NotRegular),
+            Err(source) if source.kind() == io::ErrorKind::NotFound => {}
+            Err(source) => return Err(RegularFileLockError::Io(source)),
+        }
+        open_regular_lock_descriptor(path, Some(rustix::fs::Mode::RUSR | rustix::fs::Mode::WUSR))
+    }
+    #[cfg(windows)]
+    {
+        let _ = path;
+        Err(RegularFileLockError::UnsupportedPlatform)
+    }
+}
+
+#[cfg(not(windows))]
+fn open_regular_lock_descriptor(
+    path: &Path,
+    create_permissions: Option<rustix::fs::Mode>,
+) -> Result<fs::File, RegularFileLockError> {
+    use rustix::fs::{FileType, Mode, OFlags, fstat, open};
+
+    // Path checks reject known special entries; descriptor admission still owns
+    // safety if the final entry changes between observations.
+    let mut flags = OFlags::RDWR | OFlags::NOFOLLOW | OFlags::NONBLOCK | OFlags::CLOEXEC;
+    if create_permissions.is_some() {
+        flags |= OFlags::CREATE;
+    }
+    let fd = open(path, flags, create_permissions.unwrap_or(Mode::empty()))
+        .map_err(errno_to_lock_error)?;
+    let metadata = fstat(&fd).map_err(errno_to_lock_error)?;
+    if FileType::from_raw_mode(metadata.st_mode) != FileType::RegularFile {
+        return Err(RegularFileLockError::NotRegular);
+    }
+    Ok(fs::File::from(fd))
 }
 
 #[cfg(not(windows))]
