@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.14.2]
+## [0.14.2] - 2026-10-11
 
 - Adopt Shared Tooling 0.6.4's common Make entrypoint for setup, formatting,
   hooks, snapshot checks and releases, preserving Host's existing commands and
