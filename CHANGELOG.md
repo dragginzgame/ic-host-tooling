@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.12.10]
+
+- Adopt Shared Tooling 0.3.9 so Rust tool preflight, installation and offline
+  checks consistently use the selected consumer's toolchain and Cargo configuration
+  ([#58](https://github.com/dragginzgame/ic-host-tooling/issues/58),
+  [Shared #101](https://github.com/dragginzgame/shared-tooling/issues/101)).
+  [Detailed notes](docs/changelog/0.12.md).
+
 ## [0.12.9] - 2026-10-10
 
 - Fix macOS test assumptions about temporary paths and padded line counts, and

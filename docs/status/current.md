@@ -1,6 +1,33 @@
 # Current handoff
 
-## Pending 0.12.9 — macOS fixture portability and evidence capture
+## Pending 0.12.10 — Shared Rust tool context
+
+Released Host 0.12.9 `8cc85c53cdd59701a7352f566425b3faf195a37b` matches remote
+main; the incoming checkout was clean, with no active Cargo/rustc processes.
+Its [CI](https://github.com/dragginzgame/ic-host-tooling/actions/runs/38073002651)
+passes Linux, MSRV and Apple Silicon, including the repaired macOS fixture checks.
+Intel is still running at inspection. Earlier checks are not relabelled as green.
+
+Adopted committed Shared 0.3.9 `1ed2ca523186641e0e0cdf77e3cb10814c22a430`,
+verified against remote main, using the canonical exporter from an isolated clean
+checkout. The 92-file selection is unchanged. The Rust installer now establishes
+one consumer working directory for preflight, setup and offline checks; caller
+catalog and consumer lockfile resolution remain explicit. Only its fixture and
+setup guidance also change among selected files. The unrelated Shared validation
+output runner is not selected. Compatible tooling behavior selects pending 0.12.10.
+[Host #58](https://github.com/dragginzgame/ic-host-tooling/issues/58) tracks this
+adoption independently of [Shared #101](https://github.com/dragginzgame/shared-tooling/issues/101).
+
+The shared Rust installer fixture and Host release-tool/retention fixtures pass
+on Linux with current Bash and genuine Bash 3.2.57. Actual offline common and
+release-tool admission accepts the existing installations. No new dependencies,
+tools or toolchains are fetched or installed. Snapshot integrity, declaration
+checks, local links, ShellCheck and diff checks pass. Cargo files, pins and the
+real index retain their incoming checksums. Evidence: `/tmp/host-shared039.B4nRrH/`.
+No full local gate, sibling edit, commit, push or release ran. Native qualification
+of this new snapshot remains separate from 0.12.9's previous snapshot results.
+
+## Historical preparation for released 0.12.9 — macOS fixture portability and evidence capture
 
 Released base remains 0.12.8 `c810c299acd0c41001a046c8e8ad0ee6daceefc0`.
 Its [Apple Silicon job](https://github.com/dragginzgame/ic-host-tooling/actions/runs/38068134110/job/114259932124)
