@@ -275,6 +275,7 @@ impl PocketIcStartupConfig {
                 timeout: Some(timeout),
             },
         )
+        .and_then(ic_host_process::tool::CompletedExecution::require_success)
         .map_err(|source| {
             PocketIcStartupError::new(PocketIcStartupFailure::ServerVersionProbe { source })
         })?;

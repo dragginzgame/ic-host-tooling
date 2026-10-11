@@ -6,6 +6,24 @@ documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.34.0]
+
+### Breaking
+
+- Adopt IC Host 0.14 through the public re-exports. Align direct Host dependencies,
+  use completed process results, return `io::Result<()>` from output observers,
+  and require success before interpreting or publishing producer output
+  ([#61](https://github.com/dragginzgame/ic-testkit/issues/61)).
+
+### Fixed
+
+- Adopt Shared Tooling 0.6.3 so normal direct releases restart stale preparation
+  after a clean descendant commit, preserving the old intent and running fresh
+  validation from the current version. Conflicting state still refuses recovery
+  ([Shared #126](https://github.com/dragginzgame/shared-tooling/issues/126)).
+
+[Migration and tooling details](crates/ic-testkit/CHANGELOG.md#0340)
+
 ## [0.33.8] - 2026-10-11
 
 ### Changed

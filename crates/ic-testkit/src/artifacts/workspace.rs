@@ -45,31 +45,24 @@ fn locate_workspace(command: &mut Command) -> io::Result<PathBuf> {
             timeout: None,
         },
     )
-    .and_then(ic_host_process::tool::ExecutionEvidence::require_complete)
+    .and_then(ic_host_process::tool::CompletedExecution::require_complete)
     .map_err(|error| {
-        if let Some(execution) = error.execution_error()
-            && matches!(execution.failure, ExecutionFailure::ExitStatus)
-            && execution.cleanup.is_none()
-        {
-            return io::Error::new(
-                io::ErrorKind::InvalidInput,
-                format!(
-                    "Cargo workspace discovery failed ({}): {}",
-                    execution
-                        .evidence
-                        .status
-                        .expect("failed command has a status"),
-                    String::from_utf8_lossy(&execution.evidence.stderr).trim()
-                ),
-            );
-        }
         let kind = match error.execution_error().map(|execution| &execution.failure) {
             Some(ExecutionFailure::Io { source, .. }) => source.kind(),
-            Some(ExecutionFailure::ExitStatus) => io::ErrorKind::InvalidInput,
             _ => io::ErrorKind::Other,
         };
         io::Error::new(kind, error)
     })?;
+    if !output.status.success() {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            format!(
+                "Cargo workspace discovery failed ({}): {}",
+                output.status,
+                String::from_utf8_lossy(&output.stderr).trim()
+            ),
+        ));
+    }
     let response: serde_json::Value = serde_json::from_slice(&output.stdout)
         .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))?;
     let manifest = response

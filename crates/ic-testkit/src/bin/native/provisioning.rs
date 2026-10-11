@@ -183,18 +183,26 @@ pub(super) fn setup(directory: &Path) -> Result<PathBuf> {
                 stderr: OutputLimit::Terminate(64 * 1024),
                 timeout: Some(Duration::from_secs(310)),
             },
-        );
-        if let Some(evidence) = outcome
+        )
+        .and_then(ic_testkit::ic_host_process::tool::CompletedExecution::require_success);
+        if let Some(stderr) = outcome
             .as_ref()
             .ok()
-            .or_else(|| outcome.as_ref().err().and_then(|error| error.evidence()))
+            .map(|completed| &completed.stderr)
+            .or_else(|| {
+                outcome
+                    .as_ref()
+                    .err()
+                    .and_then(|error| error.evidence())
+                    .map(|evidence| &evidence.stderr)
+            })
         {
             durable::write_bytes(
                 &archive
                     .parent()
                     .ok_or("missing archive parent")?
                     .join("download.stderr"),
-                &evidence.stderr,
+                stderr,
             )?;
         }
         outcome?;

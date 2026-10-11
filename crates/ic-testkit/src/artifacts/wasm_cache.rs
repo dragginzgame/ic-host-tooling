@@ -1,8 +1,8 @@
 use ic_host_process::{
     child::OwnedChild,
     tool::{
-        ExecutionFailure, ExecutionOperation, OutputLimit, OutputLimits, OutputStream,
-        SuccessfulExit, ToolError, capture_command, communicate_child_with_observer,
+        CompletedExecution, ExecutionFailure, ExecutionOperation, OutputLimit, OutputLimits,
+        OutputStream, SuccessfulExit, ToolError, capture_command, communicate_child_with_observer,
     },
 };
 use serde_json::Value;
@@ -13,7 +13,7 @@ use std::{
     fs::{self, File},
     io,
     path::{Component, Path, PathBuf},
-    process::{Command, ExitStatus, Output, Stdio},
+    process::{Command, ExitStatus, Stdio},
     sync::{
         Arc, RwLock,
         atomic::{AtomicUsize, Ordering},
@@ -3700,7 +3700,7 @@ fn capture_probe_output(
     command: &mut Command,
     phase: WasmBuildPhase,
     stdout_bytes: usize,
-) -> Result<Output, WasmBuildError> {
+) -> Result<CompletedExecution, WasmBuildError> {
     let result = capture_command(
         command,
         OutputLimits {
@@ -3709,14 +3709,9 @@ fn capture_probe_output(
             timeout: None,
         },
     )
-    .and_then(ic_host_process::tool::ExecutionEvidence::require_complete);
+    .and_then(CompletedExecution::require_complete);
     let evidence = match result {
         Ok(evidence) => evidence,
-        Err(ToolError::Execution(error))
-            if matches!(error.failure, ExecutionFailure::ExitStatus) && error.cleanup.is_none() =>
-        {
-            error.evidence
-        }
         Err(ToolError::Execution(error))
             if matches!(
                 error.failure,
@@ -3743,11 +3738,7 @@ fn capture_probe_output(
             });
         }
     };
-    Ok(Output {
-        status: evidence.status.expect("completed probe has a status"),
-        stdout: evidence.stdout,
-        stderr: evidence.stderr,
-    })
+    Ok(evidence)
 }
 
 fn metadata_arguments(arguments: &[OsString]) -> Vec<OsString> {
@@ -4882,10 +4873,11 @@ fn communicate_cargo_build(
                     bytes: bytes.to_vec(),
                 });
             }
+            Ok(())
         },
     );
     let status = match &result {
-        Ok(evidence) => evidence.status,
+        Ok(evidence) => Some(evidence.status),
         Err(error) => error.evidence().and_then(|evidence| evidence.status),
     };
     if let Some(status) = status {
@@ -4899,11 +4891,6 @@ fn communicate_cargo_build(
     }
     let evidence = match result {
         Ok(evidence) => evidence,
-        Err(ToolError::Execution(error))
-            if matches!(error.failure, ExecutionFailure::ExitStatus) && error.cleanup.is_none() =>
-        {
-            error.evidence
-        }
         Err(error) => {
             return Err(WasmBuildError::Io {
                 operation: "communicate with cargo build",
@@ -4913,9 +4900,7 @@ fn communicate_cargo_build(
             });
         }
     };
-    let status = evidence
-        .status
-        .expect("completed Cargo communication has a status");
+    let status = evidence.status;
     if status.success() {
         return Ok(());
     }
@@ -4935,7 +4920,10 @@ fn cargo_diagnostic(bytes: &[u8], truncated: bool) -> String {
     text
 }
 
-fn ensure_command_success(phase: WasmBuildPhase, output: Output) -> Result<Output, WasmBuildError> {
+fn ensure_command_success(
+    phase: WasmBuildPhase,
+    output: CompletedExecution,
+) -> Result<CompletedExecution, WasmBuildError> {
     if output.status.success() {
         return Ok(output);
     }

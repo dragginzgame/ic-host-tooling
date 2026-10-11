@@ -1,5 +1,98 @@
 # Host support and qualification
 
+## Host 0.14 completed-result adoption for pending 0.34.0
+
+On released Testkit 0.33.8 `f17892332f4b100ffea4b28528927bfb0b4e1c5c`, the
+pending source adopts published Host 0.14.0
+`4723befe8d65c760c00e05c42652759d691fbd5e`
+([#61](https://github.com/dragginzgame/ic-testkit/issues/61)). All four root Host
+requirements and selected lock entries advance together; unrelated lock selections
+are preserved. The public re-exports require a Testkit minor release. Both pending
+changelog views use 0.34.0, carrying the compatible Shared 0.6.3 work below;
+the maintainer-owned package version remains 0.33.8.
+
+Cargo/probe and workspace discovery paths use required completed status, removing
+nonzero-exit error unpacking and completed-status assertions. Progress observation
+returns success through Host's fallible callback. Strict producer success admission
+is explicit in PocketIC downloads, server-version probes, the transactional cache
+example, its module documentation and composition fixtures. No cache layout,
+installed bundle policy, Cargo deadline or observer output limit changes.
+
+Explicit `cargo fetch --locked` prepared the selected graph. Linux all-target
+compilation and 20 focused regressions pass: observed Cargo success/failure,
+parallel output, descendant cleanup and panic; diagnostic truncation and complete
+probe limits; Cargo workspace discovery/membership; Host/cache composition;
+PocketIC version admission and cleanup; provisioning; and the actual CLI's failed
+download retry/evidence retention. The CLI download test substitutes only curl,
+uses the real setup/evidence path and compares its retained primary failure with
+Host's typed nonzero/signalled process result. No real download was attempted.
+Selected strict Clippy, warning-denied Rustdoc, artifact composition doctest and
+actual Rust 1.88 library/CLI compilation also pass. Logs use
+`/tmp/ic-testkit-host014-*.log`.
+
+The migrated real `transactional_artifact_cache` executable separately refuses
+publication and reuse after a producer writes staged output then exits 7 or is
+terminated by SIGTERM, with each failure retried. A successful control publishes
+and repeats without rerunning the producer. Six example commands produce five
+producer invocations. Source/input/binary digests, results, streams and trace are
+retained in `/tmp/ic-testkit-host014-publication.z0s5i1qr/proof.json`. This is Linux
+execution of the example, distinct from the curl substitute and from native macOS
+acceptance. The real index, release metadata, installations and sibling source
+remain untouched.
+
+[Exact-source Host CI](https://github.com/dragginzgame/ic-host-tooling/actions/runs/38146341421)
+passes Linux native and MSRV; both macOS jobs are queued at inspection. That run
+does not qualify pending Testkit 0.34.0. Full consumer gates, native CI, publication
+and downstream adoption remain separate acceptance obligations.
+
+A focused #61 follow-up carries Host's `CompletedExecution` through the complete
+probe/success-projection path instead of reconstructing `std::process::Output`.
+The added native composition regression executes authenticated producers through
+Host, checks their actual staged Wasm bytes, then requires success before commit.
+Nonzero and SIGTERM cases each run twice, retain the original typed exit failure,
+preserve the prior public artifact and cannot reuse failed output. Existing
+successful composition/reuse controls also pass. This module is already selected
+in portable CI on all three supported hosts; Linux execution does not establish
+macOS acceptance.
+
+All three composition tests, the complete probe regression, selected strict Clippy
+and actual Rust 1.88 library compilation pass. Initial qualification above remains
+bound to its earlier inputs; focused follow-up logs use
+`/tmp/ic-testkit-host014-followup{2,3}-*.log`, with final input digests recorded in
+`/tmp/ic-testkit-host014-followup-inputs.json`. No additional function/type owner or
+public API was added for this cleanup; the pending version stays 0.34.0.
+
+## Shared 0.6.3 committed preparation restart for pending 0.34.0
+
+On released 0.33.8 `f17892332f4b100ffea4b28528927bfb0b4e1c5c`, clean canonical
+preview/export advances the existing 88-file snapshot to pushed Shared 0.6.3
+`4fd979d13c32adb3cb2f51f213ebfc4f98339b3d`
+([Shared #126](https://github.com/dragginzgame/shared-tooling/issues/126)).
+Normal direct releases can archive pre-staging preparation after a clean descendant
+commit, then select the requested increment from current metadata and revalidate.
+Explicit resume, staging, destination and source-conflict refusals retain their
+separate contracts. Consumer transaction checks still own retained metadata.
+
+Canonical simulations pass on modern Bash and genuine Bash 3.2.57 for unchanged
+or bumped committed metadata, all increments, changed requested kind, preserved
+intent/evidence, failed fresh validation and rejected conflicting state. Consumer
+release/metadata fixtures pass on both shells. The new consumer case rejects the
+old source's receipt, preserves receipts/logs/build evidence after failed
+revalidation, and binds successful validation/preparation to the new source.
+Shared simulations own descendant admission; consumer fixtures substitute Git
+and the full gate while exercising the actual metadata callbacks. Snapshot,
+formatting and ShellCheck pass. Logs use `/tmp/ic-testkit-shared063-*`.
+
+The unchanged Cargo build policy needs no tool reinstall. The Shared adoption
+left package metadata, lock selection, real index, release plans and refs untouched.
+It is compatible contributor work carried into the pending 0.34.0 Host migration;
+full gates and release remain maintainer-owned.
+At inspection, [0.33.8 CI](https://github.com/dragginzgame/ic-testkit/actions/runs/38144433459)
+passes all four Linux jobs and Apple Silicon checks, with seven macOS jobs queued.
+[Shared 0.6.3 CI](https://github.com/dragginzgame/shared-tooling/actions/runs/38145666246)
+passes lint; portable/native acceptance is unfinished. These runs do not qualify
+the pending consumer source's complete native matrix.
+
 ## Shared 0.6.2 release diagnostics and Host 0.13.5 for pending 0.33.8
 
 The unchanged 88-file selection now binds pushed Shared Tooling 0.6.2

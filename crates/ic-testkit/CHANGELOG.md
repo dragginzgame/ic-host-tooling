@@ -8,6 +8,54 @@ This file ships in the crate archive so upgrades can be completed without the
 repository checkout. The complete historical changelog remains at
 <https://github.com/dragginzgame/ic-testkit/blob/main/CHANGELOG.md>.
 
+## [0.34.0]
+
+### Breaking: IC Host 0.14 completed process results
+
+All four public Host re-exports select IC Host 0.14. Align direct dependencies
+when their types cross the Testkit boundary
+([#61](https://github.com/dragginzgame/ic-testkit/issues/61),
+[Host #66](https://github.com/dragginzgame/ic-host-tooling/issues/66)).
+Capture, communication and `AdmittedTool::run` return `CompletedExecution`, whose
+`status` is a required `ExitStatus`. Nonzero and signalled completion are results;
+spawn, IO, cancellation and cleanup failures still retain optional-status
+`ExecutionEvidence`. Replace completed-status assertions and nonzero-exit error
+unpacking with direct status handling. Completed evidence in version admission,
+Git provenance and Candid extraction also uses the new type.
+
+Call `require_success()` before treating an external producer's output as valid
+or committing its artifact transaction. Use `require_complete()` on completed
+results before parsing bounded output as an identity or structured response.
+Output observers return `io::Result<()>`; infallible progress observers finish
+with `Ok(())`. Host now retains a sink failure as `ExecutionFailure::Observer`
+with the stream, original cause and secondary cleanup evidence; update exhaustive
+failure matches. No compatibility entry points are retained.
+
+Testkit's Cargo paths now project completed status directly while preserving
+phase errors, all output events, bounded diagnostic retention and builds with no
+deadline. PocketIC downloads and server-version probes, as well as the artifact
+composition example, explicitly require success before admission/publication.
+Failed download retries retain each partial archive, stderr and original process
+failure. Existing retained caches and installed bundles need no reset or reinstall.
+
+Native artifact composition coverage rejects valid staged Wasm from nonzero and
+signalled producers, preserves the prior public artifact, and verifies that each
+failed acquisition is executed again rather than reused.
+
+### Fixed: restart committed release preparation
+
+Developer tooling adopts Shared Tooling 0.6.3. A normal direct release can archive
+a stale preparation intent after a clean descendant commit, select the requested
+increment from current package metadata, and repeat preflight and full validation.
+Dirty or divergent source, staging evidence and identity/destination conflicts
+remain refusals. Explicit resume stays bound to its saved source and version
+([Shared #126](https://github.com/dragginzgame/shared-tooling/issues/126)).
+
+Consumer qualification covers rejection of the previous source's validation,
+retained receipts/logs/build evidence after failed revalidation, and fresh-source
+binding before metadata preparation. Existing contributor tool installations need
+no reinstall; this tooling update leaves the product CLI unchanged.
+
 ## [0.33.8] - 2026-10-11
 
 ### Fixed: Cargo-tool installation failures

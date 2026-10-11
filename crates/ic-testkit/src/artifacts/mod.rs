@@ -45,7 +45,7 @@
 //!         ArtifactCachePreparation::Reused(record) => ArtifactCacheOutcome::Reused(record),
 //!         ArtifactCachePreparation::Build(transaction) => {
 //!             let output = transaction.output_path("deploy")?;
-//!             optimizer.run(&[input.into(), "-o".into(), output.clone().into()], context, limits)?;
+//!             optimizer.run(&[input.into(), "-o".into(), output.clone().into()], context, limits)?.require_success()?;
 //!             hash_reader(std::fs::File::open(&output)?, max_output_bytes as u64)?;
 //!             transaction.commit()?
 //!         }

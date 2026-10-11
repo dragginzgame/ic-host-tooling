@@ -614,6 +614,35 @@ adapter prepare
 [[ "$(wc -l < gate-trace)" -eq 3 ]] || fail "fixture invariant in $PWD at line $LINENO"
 cmp passed-log "$first_log"
 
+new_fixture committed-source-revalidation
+adapter verify
+cp ".release-state/$RELEASE_VERSION.validation" passed-receipt
+logs=(.release-state/"$RELEASE_VERSION".validation.*/validation.log)
+first_log="${logs[0]}"
+cp "$first_log" passed-log
+cp artifact retained-artifact
+export RELEASE_SOURCE=eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
+# The shared runner owns descendant/clean-checkout admission. The metadata
+# owner must reject the previous source's receipt and retain it on revalidation.
+expect_failure prepare
+adapter preflight
+ADAPTER_GATE_STATUS=23 expect_failure verify
+[[ ! -e ".release-state/$RELEASE_VERSION.validation" ]] || fail 'failed revalidation left an active receipt'
+expect_failure prepare
+receipts=(.release-state/"$RELEASE_VERSION".validation.*/prior-validation)
+cmp passed-receipt "${receipts[0]}"
+cmp passed-log "$first_log"
+cmp artifact retained-artifact
+adapter verify
+[[ "$(sed -n '2p' ".release-state/$RELEASE_VERSION.validation")" == "$RELEASE_SOURCE" ]] \
+  || fail 'fresh validation belongs to the previous source'
+adapter prepare
+[[ "$(sed -n '2p' ".release-state/$RELEASE_VERSION.metadata/ready")" == "$RELEASE_SOURCE" ]] \
+  || fail 'prepared metadata belongs to the previous source'
+[[ "$(wc -l < gate-trace)" -eq 3 ]] || fail 'committed source restart skipped fresh validation'
+cmp passed-log "$first_log"
+cmp artifact retained-artifact
+
 new_fixture failed-input-inspection
 adapter verify
 cp ".release-state/$RELEASE_VERSION.validation" inspected-receipt

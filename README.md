@@ -1393,10 +1393,13 @@ resolution, execution and Git provenance belong to `ic_host_process`; Candid
 extraction and response decoding belong to `ic_host_tools`. Execution, resolution,
 Candid and provenance are Unix-only.
 Structural Wasm inspection does not replace PocketIC's runtime validation.
-The host-crate re-exports select IC Host 0.13. Align direct Host dependencies
-where their types cross the Testkit boundary. Replace the removed pathname
-progress-lock helper with descriptor-based locking, as described in the
-[Host 0.13 upgrade guidance](crates/ic-testkit/CHANGELOG.md#0334).
+The host-crate re-exports select IC Host 0.14. Align direct Host dependencies
+where their types cross the Testkit boundary. Process execution returns completed
+results even for nonzero exits: call `require_success()` before admitting or
+publishing producer output, and return `io::Result<()>` from output observers.
+The [Host 0.14 migration guide](crates/ic-testkit/CHANGELOG.md#0340) covers the
+completed-result and failure types. Descriptor-based locking replaced the pathname
+progress-lock helper in the [Host 0.13 upgrade](crates/ic-testkit/CHANGELOG.md#0334).
 Durable writers retain typed publication phase and cleanup evidence; the
 [0.28 migration guide](crates/ic-testkit/CHANGELOG.md#0280) covers those earlier
 writer changes.

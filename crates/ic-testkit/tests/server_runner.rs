@@ -426,6 +426,62 @@ fn managed_idle_ttl_allows_preclient_work_beyond_server_default() {
 }
 
 #[test]
+fn failed_download_retains_partial_archive_and_original_process_failure() {
+    use ic_testkit::ic_host_process::tool::{OutputLimit, OutputLimits, capture_group_command};
+
+    for ending in ["exit 23", "kill -TERM \"$$\""] {
+        let fixture = Fixture::new();
+        let store = fixture.0.canonicalize().unwrap().join("store");
+        support::executable::write_executable_script(
+            &fixture.0.join("curl"),
+            format!(
+                "#!/bin/sh\nwhile [ \"$1\" != --output ]; do shift; done\nprintf partial > \"$2\"\nprintf 'download diagnostic' >&2\n{ending}\n"
+            ),
+        );
+        let expected = capture_group_command(
+            Command::new("/bin/sh").args(["-c", ending]),
+            OutputLimits {
+                stdout: OutputLimit::Terminate(128),
+                stderr: OutputLimit::Terminate(128),
+                timeout: Some(Duration::from_secs(5)),
+            },
+        )
+        .unwrap()
+        .require_success()
+        .unwrap_err()
+        .to_string();
+        for count in 1..=2 {
+            let output = Command::new(env!("CARGO_BIN_EXE_ic-testkit-server"))
+                .env("PATH", &fixture.0)
+                .args(["setup", "--directory"])
+                .arg(&store)
+                .output()
+                .unwrap();
+            assert_eq!(output.status.code(), Some(1));
+            assert_eq!(output.stdout, [] as [u8; 0]);
+            let attempts = fs::read_dir(&store)
+                .unwrap()
+                .map(|entry| entry.unwrap().path())
+                .filter(|path| path.is_dir())
+                .collect::<Vec<_>>();
+            assert_eq!(attempts.len(), count);
+            for attempt in attempts {
+                assert_eq!(fs::read(attempt.join("archive.gz")).unwrap(), b"partial");
+                assert_eq!(
+                    fs::read(attempt.join("download.stderr")).unwrap(),
+                    b"download diagnostic"
+                );
+                assert_eq!(
+                    fs::read_to_string(attempt.join("failure.txt")).unwrap(),
+                    expected
+                );
+                assert!(!attempt.join("pocket-ic").exists());
+            }
+        }
+    }
+}
+
+#[test]
 fn offline_check_and_run_refuse_missing_setup_without_executing_tools() {
     let fixture = Fixture::new();
     let missing = fixture.0.join("missing");

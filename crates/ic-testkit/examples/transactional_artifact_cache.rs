@@ -67,11 +67,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         ArtifactCachePreparation::Reused(record) => ArtifactCacheOutcome::Reused(record),
         ArtifactCachePreparation::Build(transaction) => {
             let staged_output = transaction.output_path("result")?;
-            admitted.run(
-                &[input.into_os_string(), staged_output.into_os_string()],
-                &context,
-                limits,
-            )?;
+            admitted
+                .run(
+                    &[input.into_os_string(), staged_output.into_os_string()],
+                    &context,
+                    limits,
+                )?
+                .require_success()?;
             transaction.commit()?
         }
     };
