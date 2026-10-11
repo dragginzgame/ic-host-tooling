@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.13.1]
+## [0.13.1] - 2026-10-11
 
 - Keep Host's Make, release and publication test fixtures working with relative
   temporary directories, including retained failure evidence
