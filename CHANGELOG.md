@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.13.5]
+## [0.13.5] - 2026-10-11
 
 - Adopt Shared Tooling 0.6.1: fix macOS Cargo-tool fixture counts and stop setup
   on lock, validation or activation failures. Run `make install-tools`, then
