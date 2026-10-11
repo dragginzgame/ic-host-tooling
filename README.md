@@ -103,7 +103,7 @@ Host-side test crates normally add:
 
 ```toml
 [dev-dependencies]
-ic-testkit = "0.33"
+ic-testkit = "0.34"
 ```
 
 Canister crates that emit benchmark markers can add the same version under
