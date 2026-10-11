@@ -8,6 +8,34 @@ This file ships in the crate archive so upgrades can be completed without the
 repository checkout. The complete historical changelog remains at
 <https://github.com/dragginzgame/ic-testkit/blob/main/CHANGELOG.md>.
 
+## [0.33.6]
+
+### Changed: shared host and IC tool storage
+
+Developer setup adopts Shared Tooling 0.5.0's per-user verified store. Matching
+host and IC selections reuse physical bundles across checkouts, while each
+checkout keeps its pins and its `.tools/host/bin` and `.tools/ic/bin` paths.
+After refreshing, explicitly run:
+
+```sh
+make install-host-tools
+make install-ic-tools
+make host-tools-check ic-tools-check
+```
+
+Use the same `SHARED_TOOLING_STORE` setting for setup, checks and evidence
+collection when overriding the default per-user store. Previous local bundles
+and failed attempts remain available; offline checks do not accept the old
+physical layout or repair installations. Rust tool slots and PocketIC storage
+keep their existing owners and paths. The library API, consumer build
+requirements and product CLI contract are unchanged.
+
+Consumer archive qualification now creates selections through the canonical
+installer. Failure archives retain referenced failed/corrupt shared generations
+and exclude unrelated store entries; verified active sets can remain compact
+([#58](https://github.com/dragginzgame/ic-testkit/issues/58),
+[Shared #120](https://github.com/dragginzgame/shared-tooling/issues/120)).
+
 ## [0.33.5] - 2026-10-11
 
 ### Changed: prepared developer tool layout

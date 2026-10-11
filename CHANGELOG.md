@@ -6,6 +6,19 @@ documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.33.6]
+
+### Changed
+
+- Adopt Shared Tooling 0.5.0 to reuse verified host and IC tools across
+  checkouts. Rerun host/IC setup and their offline checks; command paths stay
+  the same. Failure archives retain referenced shared evidence without
+  collecting unrelated installations
+  ([#58](https://github.com/dragginzgame/ic-testkit/issues/58),
+  [Shared #120](https://github.com/dragginzgame/shared-tooling/issues/120)).
+
+[Setup details](crates/ic-testkit/CHANGELOG.md#0336)
+
 ## [0.33.5] - 2026-10-11
 
 ### Changed

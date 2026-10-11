@@ -1,5 +1,46 @@
 # Host support and qualification
 
+## Shared 0.5.0 storage adoption for pending 0.33.6
+
+On released base `12959b1ecb110a94584e9c0dde9dfd2cbc55d187`, the reviewed
+snapshot selects 87 files from Shared Tooling 0.5.0
+`a306180ce534227fcb98b882fba9a526d5d747e0`
+([#58](https://github.com/dragginzgame/ic-testkit/issues/58),
+[Shared #120](https://github.com/dragginzgame/shared-tooling/issues/120)).
+Preview identified the store engine and sourced store fixture as required
+companions; both were added explicitly before canonical export. The interrupted
+0.4.2 policy-only refresh was preserved and advanced from its committed source.
+
+Explicit host and IC setup now selects verified bundles in the default per-user
+store through the existing command paths. IC setup first refused a held shared
+installation lock; retry succeeded after the lock cleared, without reclaiming it.
+A disposable second checkout, with curl replaced by a refusing recorder, reused
+the exact physical host/IC bundles with zero downloads and no local payload copies.
+Checks passed in both checkouts. Digests confirm that all 110 recorded files in
+the earlier physical local bundles are unchanged. Rust slots and the prepared
+PocketIC 16.1.0 retain their existing paths.
+
+Shared host/IC fixtures pass on Linux Bash 5 and genuine Bash 3.2.57, covering
+store reuse, independent selections, corruption, locks, explicit repair and
+offline refusal. The consumer archive fixture now delegates active selection
+creation to the canonical installer with substitute transport. Its actual
+collector, standalone readback and failed-verification retention pass on both
+shells. The upload artifact includes referenced shared failed-generation bytes;
+unrelated generations are excluded, corrupt selections remain full, and Rust
+evidence survives host compaction. Actual hook checks pass on both shells.
+Aggregate offline tools, snapshot, declaration pins, formatting and selected
+ShellCheck pass. The missing owner CLI was rebuilt offline with `--locked` after
+explicit fetch. Index, package metadata, lock selection and published notes remain
+unchanged. Contributor-only adoption uses pending 0.33.6 patch notes.
+
+Evidence uses `/tmp/ic-testkit-shared050-*`: preview/refresh, setup and refused
+attempts, real reuse, installer fixtures, final consumer archive checks, hooks,
+ShellCheck, cache preparation, CLI build and final checks. Old local payloads and
+owning inputs are separately digest-recorded. No broad local gate, sibling edit
+or release ran. [Exact Shared CI](https://github.com/dragginzgame/shared-tooling/actions/runs/38132790945)
+passes Linux portable and lint/security at inspection; both native macOS jobs are
+queued. Native acceptance of this pending consumer batch remains outstanding.
+
 ## Shared 0.4.0 adoption for pending 0.33.5
 
 On released base `e32ef7e9dcf023cfacf53a0a7a5bbdfb4e69d226`, the reviewed

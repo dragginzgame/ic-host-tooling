@@ -63,6 +63,11 @@ bundle path. IC checks also retain `pins.tsv`, `host` and `files.sha256`; host
 sets have no equivalent bundle receipt, so caller configuration and check evidence
 remain explicit. Tiny tool fixtures can grow because diagnostic metadata exceeds
 the omitted payload. Archive size and collection time depend on the actual sets.
+For shared host/IC storage, the selector retains local references and explicitly
+selects their admitted physical bundles under the configured store. It never
+scans unrelated store entries or follows arbitrary links. Use the same
+`SHARED_TOOLING_STORE` setting as setup; preserved local bundles remain eligible
+for full evidence retention, even though installers no longer admit them as active.
 The selector requires Perl core modules and the declared host/IC check companions;
 it never installs or downloads tools. Invalid selections refuse before dispatch.
 

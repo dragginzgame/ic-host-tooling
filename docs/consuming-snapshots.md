@@ -12,6 +12,27 @@ using these commands; existing artifacts are not renamed or deleted automaticall
 Spaces and ordinary physical aliases remain supported. Snapshot-relative file
 and manifest paths also reject LF, CR and tab characters.
 
+## Shared host and IC storage adoption in 0.5.0
+
+Refresh both host/IC installers and their new `scripts/dev/tool-store.sh`
+companion together with `scripts/ci/select-tool-evidence.sh` and the failure
+evidence action. If you select the installer fixtures, add their
+`scripts/ci/test-tool-store.sh` companion too. Preview the refresh to identify
+the complete required selection before applying it.
+
+Run `make install-host-tools`, `make install-ic-tools`, then their offline
+checks. Existing command/PATH entries remain `.tools/host/bin` and
+`.tools/ic/bin`; these now resolve to shared bundles. The previous physical
+checkout-local bundles remain retained but no longer pass active installation
+checks. Use one explicit store setting for setup, checks and failure collection;
+see [storage configuration and retention](local-setup.md#shared-executable-storage).
+Consumers must not copy payloads or invent their own cache/link manager. Rust
+tool installation and PocketIC ownership are unchanged in this batch.
+
+This storage-admission change requires a Shared Tooling minor release. A consumer
+library adopting it still classifies its own release by its published contract;
+setup changes alone do not require a library minor release.
+
 ## Initial snapshot
 
 Run the refresh helper from a clean Shared Tooling checkout:
@@ -389,7 +410,7 @@ documentation adoption alone does not call for full CI or native builds.
 
 After the new files are committed and reviewed, add `ci/ic-tools.tsv`,
 `scripts/dev/install-ic-tools.sh`, `scripts/ci/ic-tool-pins.awk`,
-`scripts/ci/verify-evidence-checksums.sh` and
+`scripts/dev/tool-store.sh`, `scripts/ci/verify-evidence-checksums.sh` and
 `scripts/ci/verify-file-checksum.sh` to the snapshot, with `docs/ic-tools.md`.
 Also include `make/tools.mk`, `make/execution.mk`,
 `scripts/ci/check-make-execution.sh`, `scripts/dev/install-host-tools.sh`,
@@ -502,8 +523,9 @@ Defaults use scripts and pins at the checkout root. For a snapshot stored below
 that root, set `SHARED_TOOLING_ROOT` to its reviewed local directory before the
 include, and include its `make/tools.mk`. `HOST_TOOL_VERSIONS` and `IC_TOOL_PINS`
 select consumer-owned pin exceptions; their defaults remain the checkout's
-`ci/tool-versions.env` and `ci/ic-tools.tsv`. Installations always target the
-consumer checkout. Include `make/tools.mk` in any isolated Makefile export,
+`ci/tool-versions.env` and `ci/ic-tools.tsv`. Command selections target the
+consumer checkout; host/IC payloads use the [shared per-user store](local-setup.md#shared-executable-storage).
+Include `make/tools.mk` in any isolated Makefile export,
 including the extra inputs to `check-release-commands.sh`.
 
 Two optional includes centralize further command wiring without owning product

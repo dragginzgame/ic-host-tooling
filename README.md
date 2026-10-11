@@ -1724,6 +1724,10 @@ CLI and prepares PocketIC. The Cargo set includes `cargo-sort`,
 `cargo-sort-derives` and `candid-extractor`. `make tools-check` verifies all
 selections and the prepared server offline, without compiling or installing
 the owner CLI. Prepare the declared Rust toolchain before explicit setup.
+Host and IC paths select verified bundles in Shared Tooling's per-user store.
+After adopting that storage layout, rerun `make install-host-tools`, then
+`make install-ic-tools`, followed by their offline checks. See
+[store configuration and retention](docs/local-setup.md#shared-executable-storage).
 After adopting the Rust slot layout, rerun `make install-rust-tools`, then
 `make rust-tools-check`; previous installations remain available for inspection.
 Make and the formatting hook select these local tool directories; direct Cargo

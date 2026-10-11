@@ -26,6 +26,12 @@ verify_archive() {
     [[ "$(cat "$payload")" == retained ]] || exit 1
     [[ "$(perl -e 'printf "%o", (stat($ARGV[0]))[2] & 0777' "$payload")" == 640 ]] || exit 1
     [[ -x "$fixture/unpacked/.tools/host-set.fixture/bin/probe" ]] || exit 1
+    local shared_reference stored_slot
+    shared_reference="$(readlink "$fixture/unpacked/.tools/host-set.failed")"
+    stored_slot="${shared_reference%/*}"; stored_slot="${stored_slot##*/}"
+    [[ "$stored_slot" =~ ^host-[0-9a-f]{64}$ && "${shared_reference##*/}" == set.failed ]] || exit 1
+    [[ "$(cat "$fixture/unpacked/$stored_slot/set.failed/install.log")" == 'failed shared attempt' ]] || exit 1
+    [[ ! -e "$fixture/unpacked/$stored_slot/set.unrelated" ]] || exit 1
     [[ -L "$fixture/unpacked/ic-testkit-portable-fixtures/link" ]] || exit 1
     [[ "$(readlink "$fixture/unpacked/ic-testkit-portable-fixtures/link")" == ../outside ]] || exit 1
     [[ ! -e "$fixture/unpacked/ic-testkit-portable-fixtures/link" ]] || exit 1
@@ -50,6 +56,8 @@ if [[ $# == 2 && "$1" == verify ]]; then
     exit 0
 fi
 [[ $# == 0 ]] || exit 2
+# Every setup/evidence operation below uses this fixture's private store.
+export SHARED_TOOLING_STORE="$fixture/shared-store"
 # Exercise physical roots ending in newlines, not only unusual archive members.
 export GITHUB_WORKSPACE="$fixture/"$'workspace\n' RUNNER_TEMP="$fixture/"$'temp\n'
 mkdir -p "$GITHUB_WORKSPACE/.tools/host-set.fixture/bin" "$RUNNER_TEMP"
@@ -86,6 +94,100 @@ printf diagnostic > "$GITHUB_WORKSPACE/target/validation-failures/latest.log"
 mkdir "$RUNNER_TEMP/ic-testkit-archive-proof" "$RUNNER_TEMP/ic-testkit-archive-downloaded"
 printf 'qualification source' > "$RUNNER_TEMP/ic-testkit-archive-proof/evidence.tar.gz"
 printf 'qualification download' > "$RUNNER_TEMP/ic-testkit-archive-downloaded/evidence.tar.gz"
+# Exercise the real shared selector through this consumer's collector. Synthetic
+# authenticated tools keep the fixture offline and independent of installed sets.
+# Installers reject newline-bearing consumer paths; archive roots above still
+# exercise those names independently of installation admission.
+mv "$GITHUB_WORKSPACE" "$fixture/workspace"
+export GITHUB_WORKSPACE="$fixture/workspace"
+case "$(uname -s):$(uname -m)" in
+    Linux:x86_64|Linux:amd64) host=LINUX_AMD64; target=x86_64-unknown-linux-musl ;;
+    Linux:aarch64|Linux:arm64) host=LINUX_ARM64; target=aarch64-unknown-linux-musl ;;
+    Darwin:x86_64) host=DARWIN_AMD64; target=x86_64-apple-darwin ;;
+    Darwin:arm64|Darwin:aarch64) host=DARWIN_ARM64; target=aarch64-apple-darwin ;;
+    *) echo 'unsupported evidence fixture host' >&2; exit 1 ;;
+esac
+mkdir -p "$fixture/assets" "$fixture/bin" "$GITHUB_WORKSPACE/ci" "$fixture/ripgrep-1.0.0-$target"
+for tool in jq yq rg cloc; do
+    case "$tool" in
+        jq) version='jq-1.0.0' ;;
+        yq) version='yq (https://github.com/mikefarah/yq/) version v1.0.0' ;;
+        rg) version='ripgrep 1.0.0' ;;
+        cloc) version='1.0.0' ;;
+    esac
+    printf '#!/bin/sh\necho "%s"\n' "$version" > "$fixture/assets/$tool"
+    chmod 755 "$fixture/assets/$tool"
+done
+cp "$fixture/assets/rg" "$fixture/ripgrep-1.0.0-$target/rg"
+tar -czf "$fixture/assets/ripgrep.tar.gz" -C "$fixture" "ripgrep-1.0.0-$target/rg"
+pins="$GITHUB_WORKSPACE/ci/tool-versions.env"
+for tool in JQ YQ RIPGREP CLOC; do
+    printf 'export SHARED_TOOLING_%s_VERSION=1.0.0\n' "$tool" >> "$pins"
+    case "$tool" in
+        JQ) input="$fixture/assets/jq" ;;
+        YQ) input="$fixture/assets/yq" ;;
+        RIPGREP) input="$fixture/assets/ripgrep.tar.gz" ;;
+        CLOC) input="$fixture/assets/cloc" ;;
+    esac
+    digest="$(bash "$root/scripts/ci/verify-file-checksum.sh" --print sha256 "$input")"
+    suffix="_$host"; [[ "$tool" != CLOC ]] || suffix=''
+    printf 'export SHARED_TOOLING_%s_SHA256%s=%s\n' "$tool" "$suffix" "$digest" >> "$pins"
+done
+# Substitute transport only; the canonical installer owns slots and references.
+cat > "$fixture/bin/curl" <<'CURL'
+#!/usr/bin/env bash
+set -euo pipefail
+while [[ $# -gt 0 ]]; do
+    case "$1" in -o) output="$2"; shift 2 ;; https://*) asset="${1##*/}"; shift ;; *) shift ;; esac
+done
+case "$asset" in jq-*) tool=jq ;; yq_*) tool=yq ;; cloc-*) tool=cloc ;; ripgrep-*) tool=ripgrep.tar.gz ;; *) exit 2 ;; esac
+cp "$IC_TESTKIT_EVIDENCE_ASSETS/$tool" "$output"
+CURL
+chmod +x "$fixture/bin/curl"
+IC_TESTKIT_EVIDENCE_ASSETS="$fixture/assets" PATH="$fixture/bin:$PATH" \
+    bash "$root/scripts/dev/install-host-tools.sh" --consumer "$GITHUB_WORKSPACE" --versions "$pins"
+verified="$GITHUB_WORKSPACE/.tools/$(readlink "$GITHUB_WORKSPACE/.tools/host")"
+physical="$(cd "$verified" && pwd -P)"
+stored_parent="${physical%/*}"
+stored_path="${stored_parent##*/}/${physical##*/}"
+# Retain only referenced failed generations, excluding other checkouts' payloads.
+(umask 077; mkdir "$stored_parent/set.failed" "$stored_parent/set.unrelated")
+printf 'failed shared attempt' > "$stored_parent/set.failed/install.log"
+printf 'other checkout' > "$stored_parent/set.unrelated/payload"
+ln -s "$stored_parent/set.failed" "$GITHUB_WORKSPACE/.tools/host-set.failed"
+mkdir "$fixture/compact-temp" "$fixture/compact-unpacked"
+compact="$(RUNNER_TEMP="$fixture/compact-temp" bash "$collector" checks)"
+tar -xzf "$compact" -C "$fixture/compact-unpacked"
+[[ ! -e "$fixture/compact-unpacked/.tools/${verified##*/}" && ! -e "$fixture/compact-unpacked/$stored_path" ]] || exit 1
+cmp "$stored_parent/set.failed/install.log" "$fixture/compact-unpacked/${stored_parent##*/}/set.failed/install.log"
+[[ -L "$fixture/compact-unpacked/.tools/host-set.failed" && ! -e "$fixture/compact-unpacked/${stored_parent##*/}/set.unrelated" ]] || exit 1
+[[ -x "$fixture/compact-unpacked/.tools/host-set.fixture/bin/probe" ]] || exit 1
+[[ -s "$fixture/compact-unpacked/tool-evidence/host/check.log" ]] || exit 1
+cmp "$pins" "$fixture/compact-unpacked/tool-evidence/host/caller-pins"
+[[ "$(cat "$fixture/compact-unpacked/tool-evidence/host/selection.txt")" == "$verified" ]] || exit 1
+cmp "$GITHUB_WORKSPACE/.tools/rust/tool-1.0.0-bin-tool-release/installed/selection.json" \
+    "$fixture/compact-unpacked/.tools/rust/tool-1.0.0-bin-tool-release/installed/selection.json"
+cmp "$GITHUB_WORKSPACE/.tools/rust/build/cargo-attempt.fixture/install.log" \
+    "$fixture/compact-unpacked/.tools/rust/build/cargo-attempt.fixture/install.log"
+# A redirected Rust root must not read external receipts or build evidence.
+mv "$GITHUB_WORKSPACE/.tools/rust" "$fixture/external-rust"
+ln -s "$fixture/external-rust" "$GITHUB_WORKSPACE/.tools/rust"
+mkdir "$fixture/redirected-rust-temp" "$fixture/redirected-rust-unpacked"
+redirected="$(RUNNER_TEMP="$fixture/redirected-rust-temp" bash "$collector" checks)"
+tar -xzf "$redirected" -C "$fixture/redirected-rust-unpacked"
+[[ ! -e "$fixture/redirected-rust-unpacked/.tools/rust" ]] || exit 1
+cmp "$fixture/compact-unpacked/.tools/rust/build/cargo-attempt.fixture/install.log" \
+    "$fixture/external-rust/build/cargo-attempt.fixture/install.log"
+rm "$GITHUB_WORKSPACE/.tools/rust"
+mv "$fixture/external-rust" "$GITHUB_WORKSPACE/.tools/rust"
+# A selected installation that now fails admission must retain its full bytes.
+printf '\nchanged\n' >> "$verified/bin/jq"
+mkdir "$fixture/changed-temp" "$fixture/changed-unpacked"
+changed="$(RUNNER_TEMP="$fixture/changed-temp" bash "$collector" checks)"
+tar -xzf "$changed" -C "$fixture/changed-unpacked"
+cmp "$verified/bin/jq" "$fixture/changed-unpacked/$stored_path/bin/jq"
+[[ -L "$fixture/changed-unpacked/.tools/${verified##*/}" && ! -e "$fixture/changed-unpacked/${stored_parent##*/}/set.unrelated" ]] || exit 1
+[[ -s "$fixture/changed-unpacked/tool-evidence/host/check.log" ]] || exit 1
 archive="$(TAR_OPTIONS=--dereference bash "$collector" portable)"
 verify_archive "$archive"
 # Qualify the same separate entry point used after hosted artifact readback.
@@ -134,75 +236,8 @@ ln -s real-target "$GITHUB_WORKSPACE/target"
 if RUNNER_TEMP="$fixture/linked-temp" bash "$collector" checks; then exit 1; fi
 [[ ! -e "$fixture/linked-temp/ic-testkit-checks-failure/evidence.tar.gz" ]] || exit 1
 rm "$GITHUB_WORKSPACE/target"
-# Exercise the real shared selector through this consumer's collector. Synthetic
-# authenticated tools keep the fixture offline and independent of installed sets.
-case "$(uname -s):$(uname -m)" in
-    Linux:x86_64|Linux:amd64) host=LINUX_AMD64; target=x86_64-unknown-linux-musl ;;
-    Linux:aarch64|Linux:arm64) host=LINUX_ARM64; target=aarch64-unknown-linux-gnu ;;
-    Darwin:x86_64) host=DARWIN_AMD64; target=x86_64-apple-darwin ;;
-    Darwin:arm64|Darwin:aarch64) host=DARWIN_ARM64; target=aarch64-apple-darwin ;;
-    *) echo 'unsupported evidence fixture host' >&2; exit 1 ;;
-esac
-verified="$GITHUB_WORKSPACE/.tools/host-set.verified"
-mkdir -p "$verified/bin" "$GITHUB_WORKSPACE/ci" "$fixture/ripgrep-1.0.0-$target"
-for tool in jq yq rg cloc; do
-    case "$tool" in
-        jq) version='jq-1.0.0' ;;
-        yq) version='yq (https://github.com/mikefarah/yq/) version v1.0.0' ;;
-        rg) version='ripgrep 1.0.0' ;;
-        cloc) version='1.0.0' ;;
-    esac
-    printf '#!/bin/sh\necho "%s"\n' "$version" > "$verified/bin/$tool"
-    chmod 755 "$verified/bin/$tool"
-done
-cp "$verified/bin/rg" "$fixture/ripgrep-1.0.0-$target/rg"
-tar -czf "$verified/ripgrep.tar.gz" -C "$fixture" "ripgrep-1.0.0-$target/rg"
-pins="$GITHUB_WORKSPACE/ci/tool-versions.env"
-for tool in JQ YQ RIPGREP CLOC; do
-    printf 'export SHARED_TOOLING_%s_VERSION=1.0.0\n' "$tool" >> "$pins"
-    case "$tool" in
-        JQ) input="$verified/bin/jq" ;;
-        YQ) input="$verified/bin/yq" ;;
-        RIPGREP) input="$verified/ripgrep.tar.gz" ;;
-        CLOC) input="$verified/bin/cloc" ;;
-    esac
-    digest="$(bash "$root/scripts/ci/verify-file-checksum.sh" --print sha256 "$input")"
-    suffix="_$host"; [[ "$tool" != CLOC ]] || suffix=''
-    printf 'export SHARED_TOOLING_%s_SHA256%s=%s\n' "$tool" "$suffix" "$digest" >> "$pins"
-done
-ln -s host-set.verified "$GITHUB_WORKSPACE/.tools/host"
-mkdir "$fixture/compact-temp" "$fixture/compact-unpacked"
-compact="$(RUNNER_TEMP="$fixture/compact-temp" bash "$collector" checks)"
-tar -xzf "$compact" -C "$fixture/compact-unpacked"
-[[ ! -e "$fixture/compact-unpacked/.tools/host-set.verified" ]] || exit 1
-[[ -x "$fixture/compact-unpacked/.tools/host-set.fixture/bin/probe" ]] || exit 1
-[[ -s "$fixture/compact-unpacked/tool-evidence/host/check.log" ]] || exit 1
-cmp "$pins" "$fixture/compact-unpacked/tool-evidence/host/caller-pins"
-[[ "$(cat "$fixture/compact-unpacked/tool-evidence/host/selection.txt")" == "$verified" ]] || exit 1
-cmp "$GITHUB_WORKSPACE/.tools/rust/tool-1.0.0-bin-tool-release/installed/selection.json" \
-    "$fixture/compact-unpacked/.tools/rust/tool-1.0.0-bin-tool-release/installed/selection.json"
-cmp "$GITHUB_WORKSPACE/.tools/rust/build/cargo-attempt.fixture/install.log" \
-    "$fixture/compact-unpacked/.tools/rust/build/cargo-attempt.fixture/install.log"
-# A redirected Rust root must not read external receipts or build evidence.
-mv "$GITHUB_WORKSPACE/.tools/rust" "$fixture/external-rust"
-ln -s "$fixture/external-rust" "$GITHUB_WORKSPACE/.tools/rust"
-mkdir "$fixture/redirected-rust-temp" "$fixture/redirected-rust-unpacked"
-redirected="$(RUNNER_TEMP="$fixture/redirected-rust-temp" bash "$collector" checks)"
-tar -xzf "$redirected" -C "$fixture/redirected-rust-unpacked"
-[[ ! -e "$fixture/redirected-rust-unpacked/.tools/rust" ]] || exit 1
-cmp "$fixture/compact-unpacked/.tools/rust/build/cargo-attempt.fixture/install.log" \
-    "$fixture/external-rust/build/cargo-attempt.fixture/install.log"
-rm "$GITHUB_WORKSPACE/.tools/rust"
-mv "$fixture/external-rust" "$GITHUB_WORKSPACE/.tools/rust"
-# A selected installation that now fails admission must retain its full bytes.
-printf '\nchanged\n' >> "$verified/bin/jq"
-mkdir "$fixture/changed-temp" "$fixture/changed-unpacked"
-changed="$(RUNNER_TEMP="$fixture/changed-temp" bash "$collector" checks)"
-tar -xzf "$changed" -C "$fixture/changed-unpacked"
-cmp "$verified/bin/jq" "$fixture/changed-unpacked/.tools/host-set.verified/bin/jq"
-[[ -s "$fixture/changed-unpacked/tool-evidence/host/check.log" ]] || exit 1
 # A failed archiver retains its partial output and original evidence.
-mkdir "$fixture/bin" "$fixture/failed-temp"
+mkdir "$fixture/failed-temp"
 printf '#!%s\nprintf partial\nexit 23\n' "$BASH" > "$fixture/bin/tar"
 chmod +x "$fixture/bin/tar"
 if PATH="$fixture/bin:$PATH" RUNNER_TEMP="$fixture/failed-temp" bash "$collector" checks; then exit 1; fi

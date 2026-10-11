@@ -89,9 +89,54 @@ Fleet reports such as `make cloc-tooling` normally run in Shared Tooling; consum
 need not vendor those reporters or run their regression suites. See the
 [optional fleet selection](consuming-snapshots.md#local-ic-tool-adoption).
 
+## Shared executable storage
+
+Shared Tooling owns storage for the common executable sets. Host and IC setup
+reuse verified bundles in a per-user store across checkouts with the same host
+and pins. Each repository retains its own pins and command
+selection; changing one repository's selection must not change another's.
+Providing every common command does not require duplicating its binary in every
+checkout. Consumers must adopt the canonical implementation through reviewed
+snapshots rather than create independent stores or new bespoke `.tools`
+installers. Reviewed script snapshots remain repository-local.
+
+The default store is `${XDG_DATA_HOME:-$HOME/.local/share}/shared-tooling/tools`.
+Set `SHARED_TOOLING_STORE` to an absolute directory to choose another location;
+use the same setting for setup, checks and evidence collection. Fixtures use
+isolated temporary stores. Store directories must be owned by the current user,
+physical, and not writable by other users. Existing ancestor aliases such as
+macOS `/var` are resolved; managed directories and payloads cannot redirect
+outside their admitted locations. CR/LF paths are refused.
+
+The existing `.tools/host/bin` and `.tools/ic/bin` command paths remain, backed
+by lightweight local references to exact shared bundle generations. No new host
+or IC payload is stored inside the checkout. A complete matching bundle is
+verified again before reuse without downloads. Changed pins or platforms select
+a different store entry; updating its reusable selection never retargets other
+checkouts. Locks protect setup across repositories as well as local activation.
+Offline checks never install or repair tools. Corrupt bundles are refused;
+explicit setup can prepare a fresh generation without overwriting retained ones.
+
+Adoption requires refreshed installers, `scripts/dev/tool-store.sh`, and the
+evidence selector, followed by `make install-host-tools`, `make install-ic-tools`
+and their offline checks. Older physical checkout-local bundles are preserved
+but no longer admitted as active installations. Do not manually relocate them
+or delete them during adoption. Failed attempts and earlier selections remain
+referenced from the originating checkout for evidence collection. The collector
+archives those admitted shared bundles, not the entire machine's store. Deleting
+a checkout or a reference does not reclaim its stored payload; cleanup remains
+an explicitly authorized separate operation.
+
+Cargo tool slots and their build output still live under `.tools/rust`.
+Cross-repository reuse of compiled tools requires matching compiler, dependency,
+target, profile and relevant build configuration; a package version alone is
+insufficient. That remaining work and native qualification are tracked in
+[#120](https://github.com/dragginzgame/shared-tooling/issues/120).
+
 ## Diagnosing a missing command
 
-Installing tools in Shared Tooling does not install them in another checkout.
+Installing tools in Shared Tooling does not select them in another checkout.
+Run setup in each checkout; matching host/IC bundles reuse the shared store.
 From the affected repository's root, compare:
 
 ```bash
@@ -136,9 +181,11 @@ Host setup downloads official native binaries for Linux x86-64/ARM64 and macOS
 Intel/Apple Silicon and cloc's portable standalone Perl script. It checks their
 pinned SHA-256 values and exact versions, and
 atomically activates the selected set. Previous sets and failed candidates
-remain under `.tools/host-set.*`. A lock prevents simultaneous installations;
+remain in the shared store, referenced by `.tools/host-set.*`. Locks prevent
+simultaneous installation of the same shared selection and local activation;
 inspect `.tools/.host-tools.lock/owner` and confirm its process has stopped before
-removing an abandoned lock. Cleanup remains explicit. The `--versions` option
+removing an abandoned lock; shared slots also retain `install.lock/owner`.
+Cleanup remains explicit. The `--versions` option
 selects a reviewed shell file, which is executable code like a Makefile.
 
 Setup and offline checks admit the literal `.tools/host` link target. Malformed
