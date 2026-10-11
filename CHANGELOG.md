@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.14.0]
+## [0.14.0] - 2026-10-11
 
 - **Breaking:** Return completed process results with a required exit status;
   select `require_success()` for zero-exit admission. Output observers now return
