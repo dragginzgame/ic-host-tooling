@@ -8,6 +8,35 @@ This file ships in the crate archive so upgrades can be completed without the
 repository checkout. The complete historical changelog remains at
 <https://github.com/dragginzgame/ic-testkit/blob/main/CHANGELOG.md>.
 
+## [0.33.8]
+
+### Fixed: Cargo-tool installation failures
+
+Developer tooling adopts Shared Tooling 0.6.2. Common Cargo-tool setup now
+propagates lock, validation and activation failures instead of continuing and
+reporting success. Cleanup releases only acquired locks, and failed setup keeps
+the previous common selection and retained attempts
+([#60](https://github.com/dragginzgame/ic-testkit/issues/60),
+[Shared #120](https://github.com/dragginzgame/shared-tooling/issues/120)).
+
+Run `make install-rust-tools`, then `make rust-tools-check` to select the corrected
+build policy. Contributor PATHs remain unchanged, previous installations stay
+retained, and library and product CLI contracts are unchanged.
+
+### Fixed: interrupted-release source diagnostics
+
+Release retries report the saved plan, phase, base/candidate versions and both
+source commits when HEAD differs from the validated source. Preparation conflicts
+point to the [guarded maintainer recovery procedure](https://github.com/dragginzgame/ic-testkit/blob/main/docs/releases.md#source-changes-after-saved-preparation-intent).
+Old validation cannot qualify the changed source, and the runner preserves the
+saved intent and evidence instead of automatically discarding them
+([Shared #126](https://github.com/dragginzgame/shared-tooling/issues/126)).
+
+### Changed: IC host dependencies
+
+The locked IC host crates advance to the compatible 0.13.5 release, including
+Host's additive private regular sidecar opener.
+
 ## [0.33.7] - 2026-10-11
 
 ### Changed: shared Cargo-tool storage

@@ -1,5 +1,68 @@
 # Host support and qualification
 
+## Shared 0.6.2 release diagnostics and Host 0.13.5 for pending 0.33.8
+
+The unchanged 88-file selection now binds pushed Shared Tooling 0.6.2
+`7f1ca16b0dfa98021d2671017ecb7de767409b0e` through clean canonical preview/export.
+Release source conflicts report the saved plan, phase, versions and both commits;
+prepare conflicts point to guarded maintainer recovery
+([Shared #126](https://github.com/dragginzgame/shared-tooling/issues/126)).
+No real release plan, validation receipt or ref was changed. The Cargo setup fix
+and build policy are unchanged from the qualified 0.6.1 adoption below. The new
+Audit/Machete guidance requires no local adapter: Testkit selects neither tool.
+
+Canonical release simulations and consumer release/metadata adapter fixtures
+pass on Linux modern Bash and genuine Bash 3.2.57, including preservation of
+source-conflict evidence and fresh validation after simulated retirement. All
+release effects remain isolated or substituted. Snapshot, dependency-pin and
+ShellCheck checks pass. Logs use `/tmp/ic-testkit-shared062-*`.
+
+The maintainer's lockfile already selects all four published Host 0.13.5 crates.
+Explicit locked cache preparation, offline all-target compilation and all ten
+focused cache-filesystem tests pass (`/tmp/ic-testkit-host0135-{check,cache}.log`).
+Review of the upstream Rust delta finds the additive private sidecar opener;
+Testkit's existing cache callers require durable creation with missing parents,
+so they keep their established Host descriptor APIs. The selected lockfile,
+package manifest and real index remain byte-for-byte unchanged during this work.
+
+At inspection, Host 0.13.5 Linux native and MSRV jobs pass; its macOS jobs are
+queued. Shared 0.6.2 lint passes, Linux and Apple Silicon portable jobs are running,
+and Intel macOS is queued. These observations do not establish complete native
+acceptance of this pending compatible 0.33.8 batch.
+
+## Shared 0.6.1 setup repair for pending 0.33.8
+
+The canonical 88-file snapshot selects committed Shared Tooling 0.6.1
+`731909525038c58d6f80b498e80f8630b11c685d`
+([#60](https://github.com/dragginzgame/ic-testkit/issues/60),
+[Shared #120](https://github.com/dragginzgame/shared-tooling/issues/120)).
+The export uses a clean isolated source checkout; the sibling's unfinished
+release-runner work is excluded. Cargo setup explicitly propagates failures and
+cleans up only acquired locks. Activation requires both installation locks.
+
+Explicit native `make install-rust-tools` and offline Rust/host/IC checks pass.
+A second checkout with the exact prepared compiler path reuses all three shared
+Rust executables under explicit offline policy, without local payload copies.
+The first reuse attempt selected the distinct `stable` compiler directory; it
+was stopped with its unsuccessful build evidence retained, and is not reuse
+proof. No sibling build or foreign owner lock was interrupted.
+
+Canonical Rust and host/IC fixtures, including lock/activation failure propagation,
+and consumer failure-archive/readback fixtures pass on Linux modern Bash and
+genuine Bash 3.2.57. The store companion runs through its host/IC parent fixtures;
+it has no standalone invocation. Snapshot, formatting and ShellCheck checks pass.
+All 2,373 recorded physical local tool files and maintainer inputs are preserved.
+Logs and digests use `/tmp/ic-testkit-shared061-*`; the successful native reuse
+log is `reuse-pinned.log`.
+
+Correction to the historical report below: the linked Shared 0.6.0 adoption
+section was present in the committed guide. Its absence was incorrectly reported.
+At inspection, all four Linux jobs of [0.33.7 CI](https://github.com/dragginzgame/ic-testkit/actions/runs/38141969782)
+and both Linux jobs of [Shared 0.6.1 CI](https://github.com/dragginzgame/shared-tooling/actions/runs/38141614488)
+pass; native macOS jobs remain queued. This qualifies focused local adoption,
+not the pending source's complete hosted/native matrix. The compatible 0.33.8
+notes leave package metadata and Host 0.13.3 dependency selection unchanged.
+
 ## Shared 0.6.0 Cargo storage adoption for pending 0.33.7
 
 The canonical 88-file snapshot selects pushed Shared Tooling 0.6.0

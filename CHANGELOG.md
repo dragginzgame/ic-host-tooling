@@ -6,6 +6,25 @@ documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.33.8]
+
+### Changed
+
+- Update locked IC host dependencies to 0.13.5.
+
+### Fixed
+
+- Adopt Shared Tooling 0.6.2 so Cargo-tool setup stops on lock, validation or
+  activation failures and preserves the previous selection. Rerun
+  `make install-rust-tools`, then `make rust-tools-check`; existing installations
+  remain retained ([#60](https://github.com/dragginzgame/ic-testkit/issues/60),
+  [Shared #120](https://github.com/dragginzgame/shared-tooling/issues/120)).
+- Explain interrupted-release source conflicts with exact plan and commit
+  identities, and provide guarded maintainer recovery guidance
+  ([Shared #126](https://github.com/dragginzgame/shared-tooling/issues/126)).
+
+[Setup details](crates/ic-testkit/CHANGELOG.md#0338)
+
 ## [0.33.7] - 2026-10-11
 
 ### Changed
