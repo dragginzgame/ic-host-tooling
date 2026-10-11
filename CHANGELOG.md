@@ -6,6 +6,19 @@ documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.33.3]
+
+### Fixed
+
+- Adopt Shared Tooling 0.3.12 so snapshot exports report the corrected source
+  version, retaining the existing portability fixes
+  ([shared #114](https://github.com/dragginzgame/shared-tooling/issues/114)).
+- Keep temporary files from child hooks and formatters under the selected physical
+  parent when qualification starts with a relative or symlinked `TMPDIR`; preserve
+  failure diagnostics and source/index checks
+  ([#55](https://github.com/dragginzgame/ic-testkit/issues/55),
+  [shared #116](https://github.com/dragginzgame/shared-tooling/issues/116)).
+
 ## [0.33.2] - 2026-10-11
 
 ### Fixed

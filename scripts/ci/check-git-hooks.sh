@@ -31,6 +31,8 @@ fail() { echo "hook qualification failed: $*" >&2; exit 1; }
 # macOS temporary paths and caller-supplied TMPDIR may be logical aliases.
 # Keep private fixture identities physical across subsequent Git operations.
 fixture="$(cd "$fixture" && pwd -P)"
+# Child hooks change directory; preserve the selected physical temp parent.
+export TMPDIR="${fixture%/*}"
 source_commit="$(git -C "$root" rev-parse HEAD)"
 source_objects="$(git -C "$root" rev-parse --git-path objects)"
 case "$source_objects" in /*) ;; *) source_objects="$root/$source_objects" ;; esac

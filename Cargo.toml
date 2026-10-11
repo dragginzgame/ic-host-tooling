@@ -19,10 +19,10 @@ readme = "README.md"
 candid = { version = "0.10", default-features = false }
 fs2 = "0.4"
 ic-cdk = "0.20.2"
-ic-host-artifacts = { version = "0.12", features = ["archive", "wasm"] }
-ic-host-fs = "0.12"
-ic-host-process = "0.12"
-ic-host-tools = "0.12"
+ic-host-artifacts = { version = "0.13", features = ["archive", "wasm"] }
+ic-host-fs = "0.13"
+ic-host-process = "0.13"
+ic-host-tools = "0.13"
 ic-testkit = { path = "crates/ic-testkit" }
 libc = "0.2"
 pocket-ic = "16.1"

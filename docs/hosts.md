@@ -1,5 +1,71 @@
 # Host support and qualification
 
+## Shared 0.3.12 and consumer hook temp paths for pending 0.33.3
+
+Reviewed clean committed Shared source is
+`52e846369c39a1da371eac47ff97d94da925217e` (0.3.12). The canonical isolated
+export retains the same 85-file selection; selected shared file bytes are
+unchanged and the snapshot records the new revision/version. The changed
+producer formatting-adoption checker and hook regression are not selected in
+this consumer's roster, so no unused duplicate fixture/helper is added.
+
+The consumer-owned `check-git-hooks.sh` reproduces the same inherited relative
+TMPDIR defect: after entering its private checkout, the real hook cannot create
+`alias/pre-commit-format.XXXXXX`. The original attempt and scratch remain at
+`/tmp/ic-testkit-shared0312-before-hooks.log` and
+`/tmp/ic-testkit-shared0312-paths/physical/ic-testkit-git-hooks.ylYzXd`.
+The local correction exports the physical fixture parent before child hooks run,
+without changing the caller's selected location, formatting targets or checks
+([#55](https://github.com/dragginzgame/ic-testkit/issues/55),
+[Shared #116](https://github.com/dragginzgame/shared-tooling/issues/116)).
+
+Focused Linux checks pass against Testkit's actual formatter targets with
+absolute and relative TMPDIR on Bash 5 and a relative symlink alias on genuine
+Bash 3.2. Existing partial-staging, missing/wrong formatter, failed formatter,
+lock/source/index preservation and activation checks remain intact. The unmodified
+committed upstream hook suite also passes under both Bash profiles, including
+absolute/relative/alias adoption and failed prerequisite retention under the
+physical parent. Its initial formatting effects are substitutes; its adoption
+checks use real prepared formatting tools. No product Cargo build or dependency
+resolution is performed. Snapshot, declaration pins, formatting and selected
+ShellCheck pass. Logs use `/tmp/ic-testkit-shared0312-{export,hooks,hooks-bash32,
+hooks-absolute,upstream-hooks,upstream-hooks-bash32,checks,shellcheck}.log`.
+
+[Matching Shared CI](https://github.com/dragginzgame/shared-tooling/actions/runs/38123325760)
+is queued at inspection. Local Bash 3.2 is not native macOS acceptance of this
+pending consumer source. Both changelogs retain compatible 0.33.3. Incoming Host
+manifest/lock changes retain the exact hashes recorded in the preceding 0.3.11
+proof below and remain separate, uncompiled work. No tool installation, broad
+gate, package-version bump, sibling edit, release or CI dispatch ran here.
+
+## Shared 0.3.11 identity refresh for pending 0.33.3
+
+The clean committed source `db143ae9ae140eb66826c413360723d23c078f66`
+corrects Shared's canonical VERSION to 0.3.11
+([Shared #114](https://github.com/dragginzgame/shared-tooling/issues/114)).
+An isolated canonical export preserves the same 85-file selection. All selected
+file bytes and modes are unchanged from released Testkit 0.33.2's prior Shared
+revision; only the snapshot revision/version annotation changes. The existing
+portable path fixes and derive-macro guidance remain intact. Dirty upstream
+hook/checker edits are excluded from this committed-source adoption.
+
+The strengthened, unmodified producer validation-runner fixture passes on Linux
+under Bash 5 and genuine Bash 3.2, including nested interpreter selection. It
+separates each diagnostic beyond neighboring context windows and exercises rg
+and grep summaries against byte-identical selected runner code. It is not added
+to the consumer roster. Snapshot, declaration-pin and non-mutating formatting
+checks pass. Logs are `/tmp/ic-testkit-shared0311-{export,runner,runner-bash32,
+checks}.log`. [Matching upstream CI](https://github.com/dragginzgame/shared-tooling/actions/runs/38121526696)
+is in progress at inspection; local Bash 3.2 is not native macOS proof.
+
+Incoming Host 0.13 manifest/lock changes remain untouched and are not qualified
+by this Shared-only refresh. Their SHA-256 values are respectively
+`bc2bc804c933d2cc751c87218db67d4c43b889a78652db734d6bff6ae5bd2e33`
+and `701b8f248f69b16ce19146225081a51c6fb3fcb6c0a6634419bf208fe1ba6375`.
+This Shared identity update is compatible and requires no API/format/reset change;
+both changelogs select pending 0.33.3. No Cargo compilation, dependency fetch,
+broad gate, tool installation, source-version bump, sibling edit or release ran.
+
 ## Shared temporary-path fixes for pending 0.33.2
 
 The reviewed committed pending 0.3.10 batch is

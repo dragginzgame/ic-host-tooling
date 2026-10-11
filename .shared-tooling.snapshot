@@ -1,8 +1,8 @@
 # Shared Tooling snapshot v1
-# version	0.3.9
+# version	0.3.12
 format	1
 source	https://github.com/dragginzgame/shared-tooling
-revision	37af29b2f8fb4532744b600c5f85ce716a8b57cf
+revision	52e846369c39a1da371eac47ff97d94da925217e
 file	429b7f96a30b4d890c6e7cd4e95db9d38af24d918c032b6232eba0c9f214ce8c	-	DRAGGINZGAME.md
 file	59f6cb0b47fcfa698396776bbb391737292ebf34457ad7c65803fe7b36961499	-	docs/principles/README.md
 file	9315c9faffa4f36cfab496342535bf49d728ddd2111e8e127cbc44b3fac89ce7	-	docs/principles/decision-artifact-discipline.md
