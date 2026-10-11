@@ -1728,8 +1728,11 @@ Host and IC paths select verified bundles in Shared Tooling's per-user store.
 After adopting that storage layout, rerun `make install-host-tools`, then
 `make install-ic-tools`, followed by their offline checks. See
 [store configuration and retention](docs/local-setup.md#shared-executable-storage).
-After adopting the Rust slot layout, rerun `make install-rust-tools`, then
-`make rust-tools-check`; previous installations remain available for inspection.
+After adopting Shared Tooling 0.6.0's shared Cargo storage, rerun
+`make install-rust-tools`, then `make rust-tools-check`. Exact compiler, native
+environment and packaged source/lock identities control reuse. Tool builds use
+the shared standard environment; application flags and wrappers stay local.
+Previous installations and failed build evidence remain retained.
 Make and the formatting hook select these local tool directories; direct Cargo
 commands should export them explicitly:
 

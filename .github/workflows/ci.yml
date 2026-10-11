@@ -86,8 +86,10 @@ jobs:
         env:
           IC_TESTKIT_FAILURE_STEPS: ${{ toJSON(steps) }}
         run: |
-          archive="$(bash scripts/ci/collect-failure-evidence.sh checks)"
-          echo "archive=$archive" >> "$GITHUB_OUTPUT"
+          status=0
+          archive="$(bash scripts/ci/collect-failure-evidence.sh checks)" || status=$?
+          if [[ -n "$archive" ]]; then echo "archive=$archive" >> "$GITHUB_OUTPUT"; fi
+          exit "$status"
       - name: Retain failed validation and installer evidence
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
@@ -199,8 +201,10 @@ jobs:
         env:
           IC_TESTKIT_FAILURE_STEPS: ${{ toJSON(steps) }}
         run: |
-          archive="$(bash scripts/ci/collect-failure-evidence.sh portable)"
-          echo "archive=$archive" >> "$GITHUB_OUTPUT"
+          status=0
+          archive="$(bash scripts/ci/collect-failure-evidence.sh portable)" || status=$?
+          if [[ -n "$archive" ]]; then echo "archive=$archive" >> "$GITHUB_OUTPUT"; fi
+          exit "$status"
       - name: Retain failed portable and installer evidence
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7

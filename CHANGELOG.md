@@ -6,6 +6,25 @@ documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.33.7]
+
+### Changed
+
+- Adopt Shared Tooling 0.6.0's shared Cargo-tool storage and evidence selection.
+  Rerun Rust-tool setup and offline checks; contributor PATHs stay the same and
+  previous installations remain retained
+  ([#60](https://github.com/dragginzgame/ic-testkit/issues/60),
+  [Shared #120](https://github.com/dragginzgame/shared-tooling/issues/120)).
+
+### Fixed
+
+- Keep local CI failure evidence uploadable when shared tool-store selection
+  fails, while preserving the failure status and recording incomplete shared
+  collection ([#59](https://github.com/dragginzgame/ic-testkit/issues/59),
+  [Shared #121](https://github.com/dragginzgame/shared-tooling/issues/121)).
+
+[Retention details](crates/ic-testkit/CHANGELOG.md#0337)
+
 ## [0.33.6] - 2026-10-11
 
 ### Changed

@@ -32,6 +32,12 @@ verify_archive() {
     [[ "$stored_slot" =~ ^host-[0-9a-f]{64}$ && "${shared_reference##*/}" == set.failed ]] || exit 1
     [[ "$(cat "$fixture/unpacked/$stored_slot/set.failed/install.log")" == 'failed shared attempt' ]] || exit 1
     [[ ! -e "$fixture/unpacked/$stored_slot/set.unrelated" ]] || exit 1
+    local rust_reference rust_slot
+    rust_reference="$(readlink "$fixture/unpacked/.tools/rust/rust-set.failed")"
+    rust_slot="${rust_reference%/*}"; rust_slot="${rust_slot##*/}"
+    [[ "$rust_slot" =~ ^rust-[0-9a-f]{64}$ && "${rust_reference##*/}" == set.failed ]] || exit 1
+    [[ "$(cat "$fixture/unpacked/$rust_slot/set.failed/build/evidence")" == 'failed shared Cargo build' ]] || exit 1
+    [[ ! -e "$fixture/unpacked/$rust_slot/set.unrelated" ]] || exit 1
     [[ -L "$fixture/unpacked/ic-testkit-portable-fixtures/link" ]] || exit 1
     [[ "$(readlink "$fixture/unpacked/ic-testkit-portable-fixtures/link")" == ../outside ]] || exit 1
     [[ ! -e "$fixture/unpacked/ic-testkit-portable-fixtures/link" ]] || exit 1
@@ -155,6 +161,13 @@ stored_path="${stored_parent##*/}/${physical##*/}"
 printf 'failed shared attempt' > "$stored_parent/set.failed/install.log"
 printf 'other checkout' > "$stored_parent/set.unrelated/payload"
 ln -s "$stored_parent/set.failed" "$GITHUB_WORKSPACE/.tools/host-set.failed"
+# The shared selector now owns both the physical local Rust tree and its
+# admitted shared attempts. The consumer collector must not duplicate selection.
+rust_slot="$SHARED_TOOLING_STORE/rust-$(printf '0%.0s' {1..64})"
+(umask 077; mkdir -p "$rust_slot/set.failed/build" "$rust_slot/set.unrelated")
+printf 'failed shared Cargo build' > "$rust_slot/set.failed/build/evidence"
+printf 'other checkout' > "$rust_slot/set.unrelated/payload"
+ln -s "$rust_slot/set.failed" "$GITHUB_WORKSPACE/.tools/rust/rust-set.failed"
 mkdir "$fixture/compact-temp" "$fixture/compact-unpacked"
 compact="$(RUNNER_TEMP="$fixture/compact-temp" bash "$collector" checks)"
 tar -xzf "$compact" -C "$fixture/compact-unpacked"
@@ -169,6 +182,69 @@ cmp "$GITHUB_WORKSPACE/.tools/rust/tool-1.0.0-bin-tool-release/installed/selecti
     "$fixture/compact-unpacked/.tools/rust/tool-1.0.0-bin-tool-release/installed/selection.json"
 cmp "$GITHUB_WORKSPACE/.tools/rust/build/cargo-attempt.fixture/install.log" \
     "$fixture/compact-unpacked/.tools/rust/build/cargo-attempt.fixture/install.log"
+cmp "$rust_slot/set.failed/build/evidence" \
+    "$fixture/compact-unpacked/${rust_slot##*/}/set.failed/build/evidence"
+[[ ! -e "$fixture/compact-unpacked/${rust_slot##*/}/set.unrelated" ]] || exit 1
+# Execute the actual workflow collector steps with a rejected store. Both must
+# publish a completed local archive while preserving the selector's failure.
+ln -s "$SHARED_TOOLING_STORE" "$fixture/redirected-store"
+mkdir "$GITHUB_WORKSPACE/scripts"
+ln -s "$root/scripts/ci" "$GITHUB_WORKSPACE/scripts/ci"
+for mode in checks portable; do
+    mkdir "$fixture/rejected-$mode-temp" "$fixture/rejected-$mode-unpacked"
+    printf 'failed' > "$fixture/rejected-$mode-temp/ic-testkit-tools-install.log"
+    awk -v id="$mode-evidence" '
+        index($0, "id: " id) { selected=1 }
+        selected && /^        run: \|$/ { body=1; next }
+        body && /^          / { print substr($0, 11); next }
+        body { exit }
+    ' "$root/.github/workflows/ci.yml" > "$fixture/workflow-$mode.sh"
+    [[ -s "$fixture/workflow-$mode.sh" ]] || exit 1
+    status=0
+    (cd "$GITHUB_WORKSPACE" && SHARED_TOOLING_STORE="$fixture/redirected-store" \
+        RUNNER_TEMP="$fixture/rejected-$mode-temp" GITHUB_OUTPUT="$fixture/workflow-$mode.output" \
+        bash -e -u -o pipefail "$fixture/workflow-$mode.sh") \
+        > "$fixture/workflow-$mode.log" 2>&1 || status=$?
+    [[ "$status" == 1 ]] || exit 1
+    rejected="$(cat "$fixture/workflow-$mode.output")"
+    [[ "$rejected" == archive=* ]] || exit 1
+    tar -xzf "${rejected#archive=}" -C "$fixture/rejected-$mode-unpacked"
+    rejected="$fixture/rejected-$mode-unpacked"
+    cmp "$GITHUB_WORKSPACE/.tools/rust/build/cargo-attempt.fixture/install.log" \
+        "$rejected/.tools/rust/build/cargo-attempt.fixture/install.log"
+    cmp "$GITHUB_WORKSPACE/.tools/rust/tool-1.0.0-bin-tool-release/installed/selection.json" \
+        "$rejected/.tools/rust/tool-1.0.0-bin-tool-release/installed/selection.json"
+    [[ -x "$rejected/.tools/host-set.fixture/bin/probe" ]] || exit 1
+    [[ "$(readlink "$rejected/.tools/host-set.failed")" == "$stored_parent/set.failed" ]] || exit 1
+    [[ ! -e "$rejected/$stored_path" && ! -e "$rejected/outside" && ! -e "$rejected/unrelated" ]] || exit 1
+    [[ ! -e "$rejected/${rust_slot##*/}" && -L "$rejected/.tools/rust/rust-set.failed" ]] || exit 1
+    [[ -L "$rejected/.tools/rust/build/external" && ! -e "$rejected/.tools/rust/build/external" ]] || exit 1
+    [[ "$(cat "$rejected/ic-testkit-tools-install.log")" == failed ]] || exit 1
+    [[ "$(cat "$rejected/step-outcomes.json")" == "$IC_TESTKIT_FAILURE_STEPS" ]] || exit 1
+    [[ "$(cat "$rejected/tool-evidence/selection-status")" == 1 ]] || exit 1
+    [[ "$(cat "$rejected/tool-evidence/collection-status")" == shared_collection=incomplete ]] || exit 1
+    [[ -s "$rejected/tool-evidence/selection.log" ]] || exit 1
+done
+# A failed selector may emit partial pairs: archive them as diagnostics, never
+# use them to read even an otherwise accessible outside payload.
+mkdir "$fixture/partial-collector" "$fixture/partial-temp" "$fixture/partial-unpacked"
+cp "$collector" "$root/scripts/ci/archive-evidence.sh" "$fixture/partial-collector/"
+cat > "$fixture/partial-collector/select-tool-evidence.sh" <<'SELECTOR'
+#!/usr/bin/env bash
+printf '%s\0%s\0' "$IC_TESTKIT_EVIDENCE_OUTSIDE" unrelated
+echo 'injected selection failure' >&2
+exit 23
+SELECTOR
+status=0
+partial="$(IC_TESTKIT_EVIDENCE_OUTSIDE="$GITHUB_WORKSPACE" RUNNER_TEMP="$fixture/partial-temp" \
+    bash "$fixture/partial-collector/collect-failure-evidence.sh" checks)" || status=$?
+[[ "$status" == 23 ]] || exit 1
+tar -xzf "$partial" -C "$fixture/partial-unpacked"
+[[ ! -e "$fixture/partial-unpacked/unrelated" ]] || exit 1
+[[ -s "$fixture/partial-unpacked/tool-evidence/selections.nul" ]] || exit 1
+[[ "$(cat "$fixture/partial-unpacked/tool-evidence/selection-status")" == 23 ]] || exit 1
+cmp "$GITHUB_WORKSPACE/.tools/rust/build/cargo-attempt.fixture/install.log" \
+    "$fixture/partial-unpacked/.tools/rust/build/cargo-attempt.fixture/install.log"
 # A redirected Rust root must not read external receipts or build evidence.
 mv "$GITHUB_WORKSPACE/.tools/rust" "$fixture/external-rust"
 ln -s "$fixture/external-rust" "$GITHUB_WORKSPACE/.tools/rust"

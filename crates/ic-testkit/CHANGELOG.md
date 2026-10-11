@@ -8,6 +8,39 @@ This file ships in the crate archive so upgrades can be completed without the
 repository checkout. The complete historical changelog remains at
 <https://github.com/dragginzgame/ic-testkit/blob/main/CHANGELOG.md>.
 
+## [0.33.7]
+
+### Changed: shared Cargo-tool storage
+
+Developer tooling adopts Shared Tooling 0.6.0. Cargo-built tools now use the
+canonical per-user store with exact source/packaged-lock, compiler, native
+environment, executable and profile identities. Tool builds use a standard
+environment; application flags and wrappers remain local. Explicit offline
+policy is preserved. Refresh setup with `make install-rust-tools`, then run
+`make rust-tools-check`; the common PATH stays `.tools/rust/common/bin`.
+Previous installations and failed attempts remain retained, while offline checks
+require the new shared selections.
+
+The canonical selector owns local Rust evidence and referenced shared Cargo
+generations, including failed builds. Consumer archives exclude unrelated
+generations without duplicating local Rust selections
+([#60](https://github.com/dragginzgame/ic-testkit/issues/60),
+[Shared #120](https://github.com/dragginzgame/shared-tooling/issues/120)).
+
+### Fixed: failure evidence after rejected shared selection
+
+CI retains local installation logs, Rust receipts/build attempts, tool references
+and step outcomes even when the shared selector fails. The archive records the
+original selector status, diagnostic log and partial output, marks shared
+collection incomplete, and excludes rejected shared payloads and link targets.
+Partial selections never authorize filesystem reads. Both failure collectors
+publish the completed archive path before returning the original failure status,
+so the upload step can retain it without reporting collection as successful
+([#59](https://github.com/dragginzgame/ic-testkit/issues/59),
+[Shared #121](https://github.com/dragginzgame/shared-tooling/issues/121)).
+
+This is contributor tooling only; library and product CLI contracts are unchanged.
+
 ## [0.33.6] - 2026-10-11
 
 ### Changed: shared host and IC tool storage

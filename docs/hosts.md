@@ -1,5 +1,75 @@
 # Host support and qualification
 
+## Shared 0.6.0 Cargo storage adoption for pending 0.33.7
+
+The canonical 88-file snapshot selects pushed Shared Tooling 0.6.0
+`75180980a0c4e4252d8a915aaecfaefd92bf9a4e`
+([#60](https://github.com/dragginzgame/ic-testkit/issues/60),
+[Shared #120](https://github.com/dragginzgame/shared-tooling/issues/120)).
+Preview identified `cargo-tool-build.sh` as a required companion; it was reviewed
+and added explicitly before export. Cargo tools use the standard shared build
+environment and exact source/lock, compiler and native identities. Paths remain
+unchanged. The shared selector now owns local Rust and referenced shared Cargo
+evidence; the consumer removes its duplicate Rust selection. Archive/readback
+qualification includes failed shared Cargo bytes and excludes unrelated Rust
+generations, while preserving the incomplete-collection contract from #59.
+
+Snapshot verification, canonical Rust fixtures and final consumer archive
+fixtures pass on Linux modern Bash and genuine Bash 3.2.57. Updated host/IC
+fixtures pass on both shells too. Formatting, ShellCheck, actionlint and local
+documentation links pass. Digests preserve all 15 recorded prior local Rust
+files and the real index, package manifest and maintainer's Host 0.13.2 lockfile
+selection. Evidence uses `/tmp/ic-testkit-shared060-*`.
+
+Actual Rust setup is **not qualified**. It reported the Host checkout's held
+shared installation lock and an attempted `/selected` activation, but returned
+zero. Aggregate and same-native-host Rust admission then refused candid-extractor.
+The upstream conditional common-setup failure propagation defect is independently
+reproduced on both shells using unchanged canonical helpers with substitute
+Cargo: held-lock setup reports activation failure yet returns zero. The extra
+assertion correctly fails and retains `/tmp/rust-tools-test.53xa12` and
+`/tmp/rust-tools-test.CyS3Ig`; the actual attempt and refusal logs remain separate.
+No owner lock or sibling process was removed or interrupted. A scoped stop was
+attempted only for our setup tree, but it had already completed.
+
+The defect and missing linked 0.6 adoption section are reported at
+[Shared #120](https://github.com/dragginzgame/shared-tooling/issues/120#issuecomment-6108732532).
+Adopt a pushed canonical correction before qualifying setup/reuse and exact-source
+native/hosted acceptance. No local installer fork, alternate store or old-path
+fallback is introduced. Library/product contracts and release metadata stay
+unchanged; contributor-only adoption extends pending 0.33.7. Full gates and
+release execution remain maintainer-owned.
+
+## Local evidence after failed shared selection for pending 0.33.7
+
+On released base `5a6cd1fbf819d5a07652deea46276cb2763b6e7e`, the consumer
+collector now archives local evidence even when shared selection fails
+([#59](https://github.com/dragginzgame/ic-testkit/issues/59),
+[Shared #121](https://github.com/dragginzgame/shared-tooling/issues/121)).
+It captures the original selector status, stderr and partial output; only a
+successful selection authorizes store reads. Failure retains the physical local
+tool tree without following links, records incomplete shared collection, then
+returns the original failure status after emitting the completed archive path.
+Both workflow collector steps publish that path before failing, allowing their
+existing failure-only upload steps to retain the archive. No admission rule or
+vendored helper is changed.
+
+The actual checks/portable workflow collector blocks pass focused Linux
+qualification on modern Bash and genuine Bash 3.2.57 with a symlinked store.
+Extracted local log/build/receipt bytes, references and outcomes are retained;
+shared payloads and outside link targets are excluded. An injected selector's
+partial ROOT/PATH output remains diagnostic data and its status 23 propagates.
+Existing valid compaction, corrupt/failed generation retention, standalone
+readback, and failed verification/archiver evidence still pass. ShellCheck and
+actionlint pass. Logs use `/tmp/ic-testkit-0337-{evidence,evidence-bash32,
+shellcheck,actionlint}.log`. This contributor-only repair uses patch notes;
+package metadata, lock selection, real index and sibling source remain unchanged.
+
+All four Linux jobs of [released 0.33.6 CI](https://github.com/dragginzgame/ic-testkit/actions/runs/38134933464)
+pass at inspection; all eight native macOS jobs are queued. This does not qualify
+the pending repair's native execution or hosted upload/readback. Those remain
+outstanding; no broad local gate or release ran.
+
 ## Shared 0.5.0 storage adoption for pending 0.33.6
 
 On released base `12959b1ecb110a94584e9c0dde9dfd2cbc55d187`, the reviewed

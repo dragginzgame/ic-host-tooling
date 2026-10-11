@@ -47,19 +47,26 @@ done
 if [[ -e "$workspace/target/validation-failures" || -L "$workspace/target/validation-failures" ]]; then
     arguments+=("$workspace" target/validation-failures)
 fi
-# Rust slots carry admitted receipts/builds and failed attempts. Preserve the
-# physical tree independently of compact host/IC selection, without following links.
-if [[ ! -L "$workspace/.tools/rust" && -d "$workspace/.tools/rust" ]]; then
-    arguments+=("$workspace" .tools/rust)
-fi
 diagnostics="$bundle/tool-evidence"
 mkdir "$diagnostics"
+selector_status=0
 bash "${archiver%/*}/select-tool-evidence.sh" compact "$workspace" "$diagnostics" \
-    "$workspace/ci/tool-versions.env" "$workspace/ci/ic-tools.tsv" > "$diagnostics/selections.nul"
-while IFS= read -r -d '' selected_root && IFS= read -r -d '' selected_path; do
-    arguments+=("$selected_root" "$selected_path")
-done < "$diagnostics/selections.nul"
-if [[ -d "$diagnostics/host" || -d "$diagnostics/ic" ]]; then
+    "$workspace/ci/tool-versions.env" "$workspace/ci/ic-tools.tsv" \
+    > "$diagnostics/selections.nul" 2> "$diagnostics/selection.log" || selector_status=$?
+printf '%s\n' "$selector_status" > "$diagnostics/selection-status"
+if [[ "$selector_status" == 0 ]]; then
+    while IFS= read -r -d '' selected_root && IFS= read -r -d '' selected_path; do
+        arguments+=("$selected_root" "$selected_path")
+    done < "$diagnostics/selections.nul"
+else
+    # A failed selector's partial output is diagnostic data, never authority to
+    # traverse a store. Retain the physical checkout's tools and links themselves.
+    printf 'shared_collection=incomplete\n' > "$diagnostics/collection-status"
+    cat "$diagnostics/selection.log" >&2
+    echo 'Shared evidence collection incomplete; retaining local evidence and diagnostics.' >&2
+    if [[ -d "$workspace/.tools" ]]; then arguments+=("$workspace" .tools); fi
+fi
+if [[ "$selector_status" != 0 || -d "$diagnostics/host" || -d "$diagnostics/ic" ]]; then
     arguments+=("$bundle" tool-evidence)
 fi
 # Never follow links or include Git metadata. Failed archives and all source
@@ -68,3 +75,5 @@ TAR_OPTIONS='' bash "$archiver" \
     "$bundle/evidence.tar.gz.partial" "${arguments[@]}" >/dev/null
 mv "$bundle/evidence.tar.gz.partial" "$bundle/evidence.tar.gz"
 printf '%s\n' "$bundle/evidence.tar.gz"
+# CI publishes the archive path before propagating this failure to the step.
+exit "$selector_status"
