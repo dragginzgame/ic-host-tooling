@@ -65,9 +65,7 @@ done
 # Exercise the real release-tool fixture through an aliased temporary directory
 # and padded line counts, as on macOS, before contradicting its child status.
 assertion_root="$fixture/assertion-source"
-for input in scripts/release/test-tools.sh scripts/release/tools.sh \
-    scripts/dev/install-rust-tools.sh scripts/ci/verify-file-checksum.sh \
-    ci/release-tools.env; do
+for input in scripts/release/test-tools.sh scripts/release/tools.sh ci/release-tools.env; do
     mkdir -p "$assertion_root/${input%/*}"
     cp "$root/$input" "$assertion_root/$input"
 done

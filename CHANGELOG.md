@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.13.3]
+
+- Adopt Shared Tooling 0.6.0 to reuse verified Cargo tools across checkouts,
+  retain local failure evidence when shared storage cannot be admitted, and
+  identify installation-lock conflicts. Run `make install-tools`, then
+  `make tools-check`; command paths and library APIs are unchanged
+  ([#65](https://github.com/dragginzgame/ic-host-tooling/issues/65),
+  [Shared #120](https://github.com/dragginzgame/shared-tooling/issues/120),
+  [Shared #121](https://github.com/dragginzgame/shared-tooling/issues/121)).
+  [Detailed notes](docs/changelog/0.13.md).
+
 ## [0.13.2] - 2026-10-11
 
 - Adopt Shared Tooling 0.5.0: host and IC tools share verified per-user bundles,

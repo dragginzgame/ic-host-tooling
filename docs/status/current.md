@@ -1,6 +1,44 @@
 # Current handoff
 
-## Pending 0.13.2 — Shared 0.5.0 host/IC storage adoption
+## Pending 0.13.3 — Shared 0.6.0 Cargo storage adoption
+
+Released base is Host 0.13.2 `b7ef6ecff3be330c16c0f013e567a553b8517972`.
+Its exact-source CI passes Linux, MSRV and both native macOS 15 architectures;
+[Host #63](https://github.com/dragginzgame/ic-host-tooling/issues/63) is closed.
+Those results qualify the preceding snapshot only.
+
+Adopted requested Shared 0.6.0
+`75180980a0c4e4252d8a915aaecfaefd92bf9a4e` from a clean isolated checkout through
+canonical preview/refresh. The required Cargo-build companion brings the snapshot
+to 95 files. Pending notes select compatible 0.13.3; no library API, dependency,
+MSRV, package version or tool pin changed. Host's release adapter already uses
+the installer's returned path. Its fixture now tests the Host-owned invocation,
+returned path, version and failure contract, while adopted shared fixtures own
+receipt/storage admission and retention. The retention harness follows that split.
+
+Canonical `make install-tools` completed with pinned package downloads and
+builds in the default per-user store. Offline setup in a disposable second
+checkout selects the same physical generations for all three common Cargo tools
+and cargo-set-version. Prior local executable/receipt hashes remain unchanged.
+Cargo files, pins and real index retain their incoming hashes; no artifact cleanup
+or manual binary relocation ran.
+
+Complete Linux `CARGO_NET_OFFLINE=true make ci` passes, including tool admission,
+formatting/hooks, tooling/publication fixtures, feature profiles, package Clippy,
+rustdoc and all-target tests. Snapshot/declaration/link checks, ShellCheck and
+actionlint pass. Host/IC/Cargo fixtures and the Host retention harness also pass
+on Linux under genuine Bash 3.2.57. Evidence: `/tmp/host-shared060.yd8mhI/`.
+
+The new canonical Cargo fixture fails with macOS-style padded `wc -l` output.
+A disposable four-comparison numeric correction passes under Bash 3.2.57 with
+the same padded-output substitute. The snapshot is intact; the proposed patch
+and evidence are reported in [Shared #124](https://github.com/dragginzgame/shared-tooling/issues/124).
+Native macOS readiness remains blocked on the committed correction and actual
+consumer CI. [Host #65](https://github.com/dragginzgame/ic-host-tooling/issues/65)
+tracks delivery/qualification. No sibling edit, staging, package bump, commit,
+push or release ran.
+
+## Historical preparation for 0.13.2 — Shared 0.5.0 host/IC storage adoption
 
 Adopted requested committed Shared 0.5.0
 `a306180ce534227fcb98b882fba9a526d5d747e0` from a clean isolated checkout.
