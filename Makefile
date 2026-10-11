@@ -11,9 +11,7 @@ export SHARED_TOOLING_ROOT
 include ci/tool-versions.env
 LOCAL_TOOL_INSTALL_TARGETS += install-release-tools
 LOCAL_TOOL_CHECK_TARGETS += release-tools-check
-include make/tools.mk
-include make/rust-format.mk
-include make/release.mk
+include make/consumer.mk
 export YQ := $(CURDIR)/.tools/host/bin/yq
 
 .PHONY: help format-tools-test check clippy docs-check test test-artifacts-minimal test-tools-response tools-features-check msrv ci install-hooks tooling-command-check shared-tooling-check dependency-pins-check check-doc-links release-adapter-check publish publish-check publish-command-check release-version release-preflight release-verify release-prepare-version release-prepared-check release-files release-commit-check release-committed-check release-tagged-check release-push-check
@@ -60,10 +58,6 @@ release-tools-check:
 	+bash scripts/release/tools.sh check
 release-tools-test:
 	+bash scripts/release/test-tools.sh
-install-hooks:
-	bash scripts/dev/install-git-hooks.sh
-shared-tooling-check:
-	bash scripts/ci/verify-shared-tooling-snapshot.sh
 dependency-pins-check:
 	+bash scripts/ci/check-dependency-pins.sh --cargo-inheritance
 check-doc-links:
@@ -74,11 +68,12 @@ tooling-command-check:
 	+bash scripts/ci/test-host-fixture-retention.sh
 	+bash scripts/release/test-tools.sh
 	+bash scripts/ci/test-make-snapshot.sh
+	+bash scripts/ci/test-make-consumer.sh
 	+bash scripts/ci/test-tool-commands.sh
 	+bash scripts/ci/test-host-tools.sh
 	+bash scripts/ci/test-ic-tools.sh
 	+bash scripts/ci/test-rust-tools.sh
-	+bash scripts/ci/check-release-commands.sh "$(CURDIR)" ci/tool-versions.env make/tools.mk make/rust-format.mk make/release.mk make/execution.mk scripts/ci/check-make-execution.sh scripts/ci/run-formatting.sh
+	+bash scripts/ci/check-release-commands.sh "$(CURDIR)" ci/tool-versions.env make/consumer.mk make/tools.mk make/rust-format.mk make/release.mk make/execution.mk scripts/ci/check-make-execution.sh scripts/ci/run-formatting.sh
 	+bash scripts/ci/test-cloc.sh
 publish:
 	+bash scripts/publish/workspace.sh publish

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Shared companions: .githooks/pre-commit scripts/dev/install-git-hooks.sh scripts/ci/check-make-execution.sh scripts/ci/check-format-tools.sh scripts/ci/run-formatting.sh scripts/ci/check-formatting-hooks.sh scripts/dev/format-frontend.sh make/tools.mk make/rust-format.mk make/execution.mk ci/tool-versions.env
+# Shared companions: .githooks/pre-commit scripts/dev/install-git-hooks.sh scripts/ci/check-make-execution.sh scripts/ci/check-format-tools.sh scripts/ci/run-formatting.sh scripts/ci/check-formatting-hooks.sh scripts/dev/format-frontend.sh make/consumer.mk make/tools.mk make/release.mk make/rust-format.mk make/execution.mk ci/tool-versions.env
 set -euo pipefail
 
 unset MAKEFLAGS MFLAGS MAKEOVERRIDES GNUMAKEFLAGS MAKEFILES
@@ -368,10 +368,10 @@ expect_failure bash scripts/dev/install-git-hooks.sh
 # Qualify the optional shared formatter against real Cargo and the actual hook,
 # including the adoption checker's partial-stage and preservation cases.
 new_fixture $'shared-format-include\n'
-cp "$ROOT/make/rust-format.mk" "$ROOT/make/execution.mk" make/
+cp "$ROOT/make/consumer.mk" "$ROOT/make/release.mk" "$ROOT/make/rust-format.mk" "$ROOT/make/execution.mk" make/
 cp "$ROOT/scripts/ci/check-format-tools.sh" "$ROOT/scripts/ci/run-formatting.sh" scripts/ci/
 cat > Makefile <<'MAKE'
-include make/tools.mk make/rust-format.mk
+include make/consumer.mk
 MAKE
 cat > Cargo.toml <<'CARGO'
 [package]
@@ -383,13 +383,13 @@ edition = "2021"
 CARGO
 mkdir -p src
 printf 'pub fn fixture( ){}\n' > src/lib.rs
-git add Makefile Cargo.toml src/lib.rs make/rust-format.mk make/execution.mk scripts/ci/check-format-tools.sh scripts/ci/run-formatting.sh
+git add Makefile Cargo.toml src/lib.rs make/consumer.mk make/release.mk make/rust-format.mk make/execution.mk scripts/ci/check-format-tools.sh scripts/ci/run-formatting.sh
 bash .githooks/pre-commit > output
 [[ "$(git show :src/lib.rs)" == 'pub fn fixture() {}' ]] || exit 1
 cp .git/index "$FIXTURE/newline-index"
 cp src/lib.rs "$FIXTURE/newline-source"
 CDPATH="$FIXTURE" bash "$ROOT/scripts/ci/check-formatting-hooks.sh" "$PWD" src/lib.rs Cargo.toml --no-dependency-tables \
-    make/tools.mk make/rust-format.mk make/execution.mk ci/tool-versions.env scripts/ci/check-format-tools.sh scripts/ci/run-formatting.sh
+    make/consumer.mk make/tools.mk make/release.mk make/rust-format.mk make/execution.mk ci/tool-versions.env scripts/ci/check-format-tools.sh scripts/ci/run-formatting.sh
 cmp .git/index "$FIXTURE/newline-index"
 cmp src/lib.rs "$FIXTURE/newline-source"
 

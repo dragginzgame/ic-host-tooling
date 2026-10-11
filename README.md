@@ -155,94 +155,37 @@ decoded bytes exactly with an expected slice. All retain explicit input/payload
 bounds and strict single-member integrity checks; see the
 [gzip contract](docs/changelog/0.4.md#gzip-identities-and-exact-representation-comparison).
 
-The four-crate workspace permits crates.io publication; a Git release does not
-establish registry availability. Release qualification is recorded in the handoff.
-The original local checkout has been removed after a verified full backup.
+The four crates support Linux x86-64 and macOS 15 on Intel and Apple Silicon,
+with Rust **1.88.0** as their MSRV. See [host qualification](docs/hosts.md) for
+validation commands and native evidence requirements.
+
+For development, prepare the toolchain selected in
+[rust-toolchain.toml](rust-toolchain.toml) and the
+[bootstrap prerequisites and shell PATH](docs/local-setup.md), then run:
+
+```sh
+make install-tools
+make tools-check
+make install-hooks
+make test PACKAGE=ic-host-artifacts
+```
+
+Setup is explicit; `tools-check` verifies prepared tools offline. Hook installation
+separately activates the repository-local formatter. Shared Tooling owns these
+[common commands](docs/make-interface.md) and executable installation; this
+workspace owns the four libraries, package checks and publication policy.
+
+Use `make check`, `make clippy`, `make docs-check` or `make test` with
+`PACKAGE=<crate>` for focused work. Before delivering code, run `make ci` and
+`make msrv PACKAGE=<crate>` for each affected package. Documentation-only changes
+need link, consistency and diff checks. The [host guide](docs/hosts.md) describes
+feature-specific and hook checks; `make help` lists the available commands.
+
+Git release and crates.io publication are separate operations; a tag does not
+establish registry availability. Read the [release and publication guide](docs/publishing.md)
+for prerequisites, explicit command effects and retained-evidence recovery.
 Consumers adopt and qualify registry selections independently.
 
-Read [the extraction contract](docs/extraction.md), [host qualification](docs/hosts.md),
-[the handoff](docs/status/current.md) and [agent rules](AGENTS.md).
-Human and agent contributions follow the [PR contribution rules](rules/contributions.md).
-
-Use cargo test -p ic-host-artifacts --all-features --lib --locked --offline
-or select the corresponding filesystem, process or IC adapter package.
-make check, make clippy and make docs-check accept PACKAGE=<crate>.
-make test-artifacts-minimal exercises the artifact library without optional
-features; native CI runs it alongside the all-feature package checks.
-make test-tools-response checks the response-only library, and
-make tools-features-check verifies its actual production dependency exclusions
-and the default extractor's required owners.
-Prepare the declared Rust toolchain, then run `make install-tools` followed by
-`make tools-check`. The reviewed Shared snapshot prepares and verifies the complete common
-set in order: jq, yq, ripgrep with PCRE2 and cloc; the five pinned IC executables;
-then cargo-sort, cargo-sort-derives and candid-extractor. The offline check never
-installs tools. CI and selected release preflight use these same aggregate targets;
-standalone release verification only checks the prepared set.
-The common Rust tools now use `.tools/rust/common/bin`. Existing checkouts must
-rerun explicit Rust setup and update their shell PATH; see the
-[0.13 setup notes](docs/changelog/0.13.md). Previous installations are retained.
-Shared Tooling stores verified host, IC and Cargo tools per user; checkout
-references select exact bundles while keeping the existing command paths.
-When upgrading from before Shared 0.6.1, run `make install-tools`, then
-`make tools-check`. The adopted 0.6.3 retains 0.6.1's tool build policy;
-existing verified installations need no reinstall for this update.
-Cargo tools use a standard build environment and reuse matching compiler,
-native-environment, package and packaged-lock identities across checkouts;
-application compiler flags and wrappers do not configure these tool builds.
-Setup checks the supported IC platform/catalog and availability of the declared
-Rust/Cargo toolchain before downloading common tools. Host-tool failures identify
-the tool, expected version, selected path and repair command.
-Host appends its release prerequisite: cargo-edit 0.13.13, installing only
-`cargo-set-version` through the shared selected-tool installer. The pin lives in
-`ci/release-tools.env`; `make install-release-tools` prepares it and
-`make release-tools-check` checks its receipt, digest and version offline.
-The release adapter uses that admitted local executable, with no global PATH
-fallback. Build it with the declared development toolchain; the library MSRV
-remains independent.
-Individual `install-host-tools`, `install-ic-tools` and `install-rust-tools`
-targets and their offline checks remain available. `make install-hooks`
-separately activates the repository-local formatter using the pinned cargo-sort.
-`make formatting-hook-check` exercises the actual hook and Host formatting in
-disposable checkouts, including failed Git observations and index preservation.
-It uses prepared tools and runs in native CI without activating Host's local hook.
-The removed `--with-ripgrep` and `--with-cloc` installer flags are no longer needed.
-`make cloc` reports this workspace's Rust runtime/test lines. Run fleet tooling
-reports from Shared Tooling; this snapshot omits that optional reporter.
-Direct shell commands
-need their own PATH setup as described in [local setup](docs/local-setup.md).
-
-Shared Tooling owns rules, hooks, installers and the common release runner.
-This workspace consumes an exact snapshot; library ownership stays here.
-`make ci` is the full delivery gate; run it before reporting completed code as
-ready, with `make msrv PACKAGE=<crate>` for each affected package. Use selected
-package/module checks during development. Documentation-only changes need link,
-consistency and diff checks. These checks never authorize a release or publication.
-The standard release entry points use the shared runner for version preparation,
-commit, tag and atomic branch/tag push with `RELEASE_DELIVERY=direct`.
-This consumer rejects other delivery selections before starting a command;
-Shared Tooling's optional PR release flow needs separate adapter qualification.
-Registry publication is separate:
-make publish-check performs a Cargo dry run, and make publish uploads the
-committed workspace to crates.io. Read [the publication procedure](docs/publishing.md)
-for prerequisites, retained evidence and partial-upload recovery.
-Prepare the complete pinned set with make install-tools before release entry
-points. The read-only make release-version query needs the host parsers;
-parser checks never install missing tools. Release preflight
-prepares all common tools, the pinned release executable and the selected Cargo cache with `cargo fetch
---locked` before offline validation. Cargo honours an explicit
-`CARGO_NET_OFFLINE=true` or offline configuration; missing inputs then stop the
-release without switching online. Standalone verification stays offline, and
-fetching does not upgrade dependencies or change the lockfile selection.
-The five-tool IC executable bundle (Quill, ICP CLI, didc, ic-wasm and wasm-opt)
-remains available through make install-ic-tools and its offline check.
-Host's separately owned `ci/ic-tools.tsv` selects Binaryen 133 for all three
-supported hosts, matching the reviewed Shared snapshot. Run make install-ic-tools to
-prepare the selection, then make ic-tools-check; previous bundles are preserved.
-The archive-test member names are synthetic fixtures, not additional tool pins.
-Shared's Node-based optimizer qualification remains upstream; Host has no product
-optimizer caller.
-Shared Tooling 0.2.0 removes PocketIC from this bundle; simulator consumers use
-[IC Testkit's setup/check contract](docs/ic-tools.md#pocketic-ownership-handoff).
-Host's library gates do not need a simulator. Existing six-tool installations
-require explicit make install-ic-tools before the new offline check can pass;
-old bundles and evidence are preserved.
+Read [the extraction contract](docs/extraction.md), [the handoff](docs/status/current.md)
+and [agent rules](AGENTS.md). Human and agent contributions follow the
+[PR contribution rules](rules/contributions.md).

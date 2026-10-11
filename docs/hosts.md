@@ -4,10 +4,15 @@ Required hosts are Linux x86-64 and macOS 15 on Intel and Apple Silicon.
 The imported filesystem/process APIs retain their platform gates; unsupported
 platforms receive their existing explicit refusal rather than simulated behavior.
 
-Select one changed crate with PACKAGE=<crate> for make check, make clippy,
-make docs-check or make test. Artifact checks use its actual enabled gzip,
+Select one changed crate with `PACKAGE=<crate>` for `make check`, `make clippy`,
+`make docs-check` or `make test`. Artifact checks use its actual enabled gzip,
 archive and Wasm features; production filesystem dependencies select none of them.
 Check target-directory ownership before compilation. Preserve failure logs and artifacts.
+
+`make test-artifacts-minimal` checks the artifact library without optional
+features. `make test-tools-response` checks the response-only library, and
+`make tools-features-check` verifies its production dependency exclusions and
+the default extractor's required owners. Native CI includes these profiles.
 
 Native CI prepares pinned Rust and the complete common toolsets, then verifies
 the shared snapshot, declarations, formatter prerequisites, actual hook behavior,
@@ -31,7 +36,7 @@ Bash 3.2 passes remain separate evidence under
 Shared 0.3.1 setup checks IC platform/catalog admission and Rust/Cargo
 availability before downloading common tools. These preflight checks do not
 install a toolchain or replace the offline verification of installed tools.
-Host extends the aggregate with its pinned `cargo-set-version` executable,
+Host extends the aggregate with its [release executable](publishing.md#git-releases),
 using the shared installer and receipt checks. Native CI prepares and checks
 this selection too; Linux installation and substitute installer fixtures do not
 qualify its native macOS build or execution.

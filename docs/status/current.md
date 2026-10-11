@@ -1,6 +1,49 @@
 # Current handoff
 
-## Pending 0.14.1 — Shared 0.6.3 and retained validation attempts
+## Pending 0.14.2 — Shared 0.6.4 common Make entrypoint
+
+Adopted Shared Tooling 0.6.4 `6fc8eb9a94f83fb0b9d0a26377d4232508cdbe2d`,
+matching remote main at inspection, through canonical preview/refresh from a
+clean isolated checkout. The 98-file selection adds the common Make entrypoint,
+its guide and its fixture. Host now uses that entrypoint instead of three
+component includes and duplicate hook/snapshot-check recipes. Ordered release-tool
+setup, direct-delivery admission, package gates and publication remain Host-owned.
+Actual hook/Make/release fixture exports include the new entrypoint; Host's routing
+fixture also checks hook activation and snapshot checks with substitute effects.
+
+Full Linux `CARGO_NET_OFFLINE=true make ci` passes, including real formatting and
+staged-hook preservation, release/tool fixtures, feature profiles, package Clippy,
+rustdoc and tests. Host/common Make fixtures and the actual Makefile's isolated
+release-routing check also pass under genuine Bash 3.2.57. Snapshot, documentation
+links, ShellCheck and diff checks pass. Rust source, Cargo metadata, tool pins and
+the release adapter retain captured hashes. Existing verified tools need no
+reinstall. Evidence: `/tmp/host-shared064.stLzXm/`.
+
+The same pending patch addresses [Host #68](https://github.com/dragginzgame/ic-host-tooling/issues/68):
+README setup now links to the existing Host and shared owners. Host-specific
+release-tool, direct-delivery, cache and recovery details live in `docs/publishing.md`;
+feature-specific checks live in `docs/hosts.md`. Product reference content stays
+in the README. This documentation-only follow-up passes all local link checks,
+command/source consistency review and diff checks; the previous complete CI
+evidence still applies to unchanged executable inputs. Logs:
+`/tmp/host0142-readme-checks.log` and `/tmp/host0142-readme-help.log`.
+
+Released 0.14.1 `f766121c7282a78753ca32bdb4d069ba8424b517` records Shared
+0.6.3 and passes [exact-source CI](https://github.com/dragginzgame/ic-host-tooling/actions/runs/38149531883)
+on Linux, MSRV and both macOS 15 architectures. That completes
+[Host #67](https://github.com/dragginzgame/ic-host-tooling/issues/67), now closed.
+The same released filesystem tests also complete
+[Host #64](https://github.com/dragginzgame/ic-host-tooling/issues/64)'s private
+sidecar native acceptance; independent consumer custody remains consumer-owned.
+The new Make adoption remains under [Host #65](https://github.com/dragginzgame/ic-host-tooling/issues/65)
+and [Shared #130](https://github.com/dragginzgame/shared-tooling/issues/130), with
+delivery and native qualification outstanding. Upstream 0.6.4
+[CI](https://github.com/dragginzgame/shared-tooling/actions/runs/38155574308)
+passes lint, with Linux running and both macOS jobs queued at inspection. Older
+native results do not qualify this pending adoption. No sibling edit, staging,
+package bump, commit, push, installation or release ran.
+
+## Historical preparation for 0.14.1 — Shared 0.6.3 and retained validation attempts
 
 Adopted Shared Tooling 0.6.3 `4fd979d13c32adb3cb2f51f213ebfc4f98339b3d`
 through canonical preview/refresh from a clean isolated checkout, retaining the

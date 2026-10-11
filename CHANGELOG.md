@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.14.2]
+
+- Adopt Shared Tooling 0.6.4's common Make entrypoint for setup, formatting,
+  hooks, snapshot checks and releases, preserving Host's existing commands and
+  release-tool extension ([Shared #130](https://github.com/dragginzgame/shared-tooling/issues/130)).
+- Consolidate developer setup and release guidance at their existing documentation
+  owners, keeping a short README quick start ([#68](https://github.com/dragginzgame/ic-host-tooling/issues/68)).
+  [Detailed notes](docs/changelog/0.14.md).
+
 ## [0.14.1] - 2026-10-11
 
 - Adopt Shared Tooling 0.6.3 to restart interrupted direct preparation from

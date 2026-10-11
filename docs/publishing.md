@@ -1,4 +1,41 @@
-# Publishing the workspace
+# Releasing and publishing the workspace
+
+## Git releases
+
+The maintainer-operated `make release-patch`, `make release-minor` and
+`make release-major` commands use the [shared release contract](releases.md).
+Host selects `RELEASE_DELIVERY=direct`: preparation, commit, tag and atomic
+branch/tag push. Other delivery selections are rejected before execution;
+the shared runner's optional PR flow is not qualified by this adapter.
+These commands do not publish crates to a registry.
+
+Prepare the development toolchain selected in [rust-toolchain.toml](../rust-toolchain.toml),
+then run `make install-tools` and `make tools-check`. Shared Tooling owns
+[common setup and executable storage](local-setup.md); Host adds one ordered
+release prerequisite, `cargo-set-version` from the cargo-edit version pinned in
+[ci/release-tools.env](../ci/release-tools.env). `make install-release-tools`
+prepares this executable through the shared selected-tool installer, and
+`make release-tools-check` verifies its receipt, digest and version offline.
+The release adapter uses the installer's admitted path without a global PATH
+fallback. The development toolchain is separate from the library MSRV.
+
+The read-only `make release-version` query needs prepared host parsers and never
+installs them. Selected release preflight prepares the complete toolset and
+fetches the selected dependencies with `cargo fetch --locked` before offline
+validation. Cargo honours explicit offline settings: missing inputs stop the
+release without an online retry. Standalone `make release-verify` checks prepared
+inputs offline and requires the runner's selected release environment; it is not
+a standalone release command. Neither cache preparation nor validation changes
+the selected dependency versions.
+
+Follow the [shared recovery procedure](releases.md#source-changes-after-saved-preparation-intent)
+for interrupted preparation and exact-version resume. Host preserves prior
+validation receipts, notes and logs before fresh verification. Retain unfinished
+plans, earlier tool installations and failed artifacts; a retry must not relabel
+old evidence as validation of new source. Native qualification belongs to the
+[host guide](hosts.md), independently of release and publication effects.
+
+## Registry publication
 
 `make publish-check` runs Cargo's workspace publication checks with all features
 and `--locked --registry crates-io --dry-run`. It packages and verifies all four

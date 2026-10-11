@@ -31,6 +31,6 @@ awk '
 ' "$root/Cargo.toml" > "$fixture/unsorted.toml"
 bash "$root/scripts/ci/check-formatting-hooks.sh" "$root" \
     crates/ic-host-fs/src/durable/mod.rs Cargo.toml "$fixture/unsorted.toml" \
-    make/tools.mk make/rust-format.mk make/release.mk make/execution.mk \
+    make/consumer.mk make/tools.mk make/rust-format.mk make/release.mk make/execution.mk \
     ci/tool-versions.env scripts/ci/check-format-tools.sh scripts/ci/run-formatting.sh
 completed=true

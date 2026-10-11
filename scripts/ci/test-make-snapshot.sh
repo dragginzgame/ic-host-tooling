@@ -23,7 +23,7 @@ trap finish EXIT
 fixture="$(cd -P "$fixture" && printf '%s/.' "$PWD")"
 fixture="${fixture%/.}"
 export TMPDIR="${fixture%/*}"
-for input in Makefile ci/tool-versions.env make/tools.mk make/rust-format.mk \
+for input in Makefile ci/tool-versions.env make/consumer.mk make/tools.mk make/rust-format.mk \
     make/release.mk make/execution.mk scripts/ci/check-make-execution.sh \
     scripts/ci/check-format-tools.sh scripts/ci/run-formatting.sh; do
     parent=.
@@ -67,6 +67,13 @@ cat > "$fixture/local/scripts/ci/run-release.sh" <<'STUB'
 #!/usr/bin/env bash
 printf '%s\n' "$*" >> "$HOST_MAKE_EVENTS"
 STUB
+mkdir -p "$fixture/local/scripts/dev"
+for helper in scripts/dev/install-git-hooks.sh scripts/ci/verify-shared-tooling-snapshot.sh; do
+    cat > "$fixture/local/$helper" <<'STUB'
+#!/usr/bin/env bash
+printf '%s %s\n' "${0##*/}" "$*" >> "$HOST_MAKE_EVENTS"
+STUB
+done
 chmod +x "$fixture/local/cargo"
 # shellcheck source=/dev/null
 . "$root/ci/tool-versions.env"
@@ -93,7 +100,7 @@ for selection in ordinary environment command nested recursive; do
         command+=("MAKE=$recursive_make")
         remote=recursive
     fi
-    for target in help fmt-check release-resume; do
+    for target in help fmt-check release-resume install-hooks shared-tooling-check; do
         : > "$HOST_MAKE_EVENTS"
         "${command[@]}" "$target" "FORMAT_CARGO=$PWD/cargo" \
             VERSION=0.9.5 RELEASE_REMOTE=review RELEASE_BRANCH=release-review \
@@ -102,6 +109,8 @@ for selection in ordinary environment command nested recursive; do
             help) : > "$fixture/expected" ;;
             fmt-check) printf 'sort --workspace --check\nfmt --all -- --check\n' > "$fixture/expected" ;;
             release-resume) printf 'resume 0.9.5 %s release-review\n' "$remote" > "$fixture/expected" ;;
+            install-hooks) printf 'install-git-hooks.sh --consumer %s\n' "$PWD" > "$fixture/expected" ;;
+            shared-tooling-check) printf 'verify-shared-tooling-snapshot.sh --consumer %s --manifest .shared-tooling.snapshot\n' "$PWD" > "$fixture/expected" ;;
         esac
         cmp "$fixture/expected" "$HOST_MAKE_EVENTS"
         if [[ "$target" == fmt-check ]]; then
@@ -172,7 +181,7 @@ done
 # Real pipe-descriptor admission in substituted Cargo, without compiling.
 for helper in scripts/ci/check-dependency-pins.sh scripts/release/test-tools.sh \
     scripts/release/test-adapter.sh scripts/publish/test-workspace.sh \
-    scripts/ci/test-host-fixture-retention.sh scripts/ci/test-make-snapshot.sh \
+    scripts/ci/test-host-fixture-retention.sh scripts/ci/test-make-snapshot.sh scripts/ci/test-make-consumer.sh \
     scripts/ci/test-tool-commands.sh scripts/ci/test-host-tools.sh scripts/ci/test-ic-tools.sh scripts/ci/test-rust-tools.sh \
     scripts/ci/check-release-commands.sh scripts/ci/test-cloc.sh; do
     mkdir -p "$fixture/local/${helper%/*}"
