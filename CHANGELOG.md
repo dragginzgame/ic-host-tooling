@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.12.10]
+## [0.12.10] - 2026-10-11
 
 - Adopt Shared Tooling 0.3.9 so Rust tool preflight, installation and offline
   checks consistently use the selected consumer's toolchain and Cargo configuration
