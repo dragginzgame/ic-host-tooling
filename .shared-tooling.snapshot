@@ -1,8 +1,8 @@
 # Shared Tooling snapshot v1
-# version	0.3.9
+# version	0.3.11
 format	1
 source	https://github.com/dragginzgame/shared-tooling
-revision	37af29b2f8fb4532744b600c5f85ce716a8b57cf
+revision	db143ae9ae140eb66826c413360723d23c078f66
 file	b5a6e8fb723a861b722834675e27b4b16f3d296112622c1b40cdc8714f575404	-	rules/changelogs.md
 file	8b302f055416e2cce84cd036811e1e1c39311e890bc9cfca592201992abd4839	-	docs/releases.md
 file	fc689ff5d636be1049a527f6cafa74a768005211dcbecb074b8b327d8e6bab04	x	scripts/ci/run-release.sh

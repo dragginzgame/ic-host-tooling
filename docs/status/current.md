@@ -1,6 +1,60 @@
 # Current handoff
 
-## Pending 0.12.11 — requested Shared 0.3.10 adoption
+## Latest adoption — Shared 0.3.11, hard cut remains local
+
+Remote Host main remains released 0.12.10
+`5074de1792f920112c6539629605a6624f573863`, whose native CI is fully green.
+Local HEAD is still preparation commit `3326dfe`; the approved 0.13 hard cut
+described below remains uncommitted. The maintainer's report of a push does not
+match this remote's source identity. No additional API removal was needed.
+
+Adopted committed Shared 0.3.11 `db143ae9ae140eb66826c413360723d23c078f66`,
+verified against remote main and exported from an isolated clean checkout.
+The 92 selected files are byte-for-byte unchanged from the previous snapshot;
+only its revision/version metadata advances. The canonical annotation now correctly
+reports 0.3.11, resolving [Shared #114](https://github.com/dragginzgame/shared-tooling/issues/114).
+The other upstream change affects an unselected validation-runner test.
+
+Snapshot, declaration, documentation-link and diff checks pass. The hard-cut
+source/tests, Makefile, Cargo files, pins and real index retain incoming hashes,
+so the preceding 73-test filesystem, Clippy and rustdoc evidence remains applicable.
+No additional compilation or full local gate was needed. Canic's migration remains
+prepared under its owning issue; no sibling files were changed. Pending release
+notes remain 0.13.0. Evidence: `/tmp/host-shared0311.UEoMi1/`.
+No install, download, commit, push or release ran.
+
+## Pending 0.13.0 — caller-owned lock progress
+
+The maintainer approved the proposed public-API hard cut. Local base is the clean
+preparation commit `3326dfe` above released 0.12.10; no 0.12.11 release tag exists.
+The undated 0.12.11 notes and Shared qualification work now belong to the single
+pending 0.13.0 entry. Package versions, lockfile, tool pins and release defaults
+remain unchanged; actual release preparation must select the minor increment.
+
+The fixed-cadence pathname progress wrapper is removed without a compatibility
+alias. Consumers compose the admitted regular descriptor opener with the existing
+descriptor wait, choosing their own polling/report policy. The cross-process test
+uses that composition and retains callback-error, nonblocking-contention, held-lock
+and drop/reacquisition assertions. Existing descriptor-owner tests remain intact.
+The migration notes describe error projection, timing and descriptor lifetime;
+no lock-file, journal or recovery-state reset is required.
+[Host #60](https://github.com/dragginzgame/ic-host-tooling/issues/60) tracks delivery
+and native qualification; [#59](https://github.com/dragginzgame/ic-host-tooling/issues/59)
+retains the separate Shared adoption acceptance in this minor-release batch.
+
+All 73 filesystem library tests and its example targets pass on Linux with locked
+offline dependencies. Selected-package Clippy and rustdoc pass with warnings denied;
+snapshot integrity, local links, formatting and diff checks pass. No full local
+CI/release gate or native macOS test ran. Evidence: `/tmp/host-lock-policy-cut.WsLViQ/`.
+
+Canic's current build-reuse lock source was preserved, including unrelated dirty
+work in its checkout. The prepared patch keeps its existing timing and cancellation
+semantics, passes apply/format checks, and is posted under
+[Canic #458](https://github.com/dragginzgame/canic/issues/458). It can use the existing
+0.12 APIs before a dependency upgrade. It is not applied or consumer-build-qualified.
+No sibling mutation, download, installation, commit, push or release was performed.
+
+## Historical preparation — Shared 0.3.10 adoption (carried into 0.13.0)
 
 Released Host 0.12.10 `5074de1792f920112c6539629605a6624f573863` matches remote
 main. Its [CI](https://github.com/dragginzgame/ic-host-tooling/actions/runs/38120032068)

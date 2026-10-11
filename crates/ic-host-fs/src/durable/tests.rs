@@ -168,13 +168,18 @@ fn durable_lock_reports_wait_for_another_process_and_retains_exclusion() {
     // wait for it to exit, and the failed attempt did not truncate its file.
     assert!(child.try_wait().unwrap().is_none());
     assert_eq!(fs::read(&path).unwrap(), b"existing lock contents");
-    assert!(matches!(
-        lock_file_with_progress(&path, |_, _| Err(io::ErrorKind::PermissionDenied.into())),
-        Err(RegularFileLockError::Io(error)) if error.kind() == io::ErrorKind::PermissionDenied
-    ));
+    let lock = open_regular_lock_file_with_parents(&path).unwrap();
+    assert_eq!(
+        lock_exclusive_with_wait(&lock, Duration::from_millis(1), |_| Err(
+            io::ErrorKind::PermissionDenied.into()
+        ))
+        .unwrap_err()
+        .kind(),
+        io::ErrorKind::PermissionDenied
+    );
     let started = Instant::now();
     let mut progress = None;
-    let lock = lock_file_with_progress(&path, |_, elapsed| {
+    let waited = lock_exclusive_with_wait(&lock, Duration::from_millis(1), |elapsed| {
         if progress.is_none() {
             progress = Some(elapsed);
             child
@@ -188,7 +193,7 @@ fn durable_lock_reports_wait_for_another_process_and_retains_exclusion() {
     })
     .unwrap();
     assert!(child.wait().unwrap().success());
-    assert!(progress.unwrap() >= Duration::from_secs(1));
+    assert!(waited >= progress.unwrap());
     assert!(started.elapsed() >= progress.unwrap());
     let contender = fs::File::open(&path).unwrap();
     assert_eq!(
@@ -275,10 +280,6 @@ fn lock_errors_preserve_admission_and_original_io_causes() {
         ));
         assert!(matches!(
             lock_regular_file_with_parents(path),
-            Err(RegularFileLockError::NotRegular)
-        ));
-        assert!(matches!(
-            lock_file_with_progress(path, |_, _| panic!("admission failed")),
             Err(RegularFileLockError::NotRegular)
         ));
     }

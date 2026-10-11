@@ -43,7 +43,8 @@ reader hierarchy. Lock errors retain typed admission and original I/O causes;
 durable creation errors retain `NamedWriteError` in `RegularFileLockError::Publication`.
 `try_lock_regular_file_with_parents` adds one nonblocking acquisition attempt
 through the same path opener; contention retains native `WouldBlock`. Blocking
-and progress callers retain their existing behavior. No filesystem latency
+callers retain their existing behavior. Observed waits compose the opener with
+`lock_exclusive_with_wait` and caller-owned polling/reporting intervals. No filesystem latency
 deadline, retry controller or stale-lock removal is introduced.
 `open_regular_lock_file_with_parents` is that single admission owner, exposed
 without acquisition so consumers can choose shared locks or descriptor waiting.
@@ -228,9 +229,11 @@ Additional reusable mechanics are extracted from committed sibling source:
   concurrent pathname revalidation remain consumer-owned.
 - `ic_host_fs::durable::lock_exclusive_with_wait` acquires a caller-owned regular
   descriptor with explicit polling and contention observations, retrying
-  interrupted acquisition. The existing pathname progress helper delegates to
-  it with its one-second report cadence. Opening, deadlines, lock namespace,
-  descriptor clones and final-owner unlock remain consumer-owned.
+  interrupted acquisition. Pathname callers first use
+  `open_regular_lock_file_with_parents` and retain that descriptor through the
+  wait and protected operation. Polling and report cadence, opening, deadlines,
+  lock namespace, descriptor clones and final-owner unlock remain consumer-owned.
+  The [0.13 migration](changelog/0.13.md) removes the fixed-cadence pathname wrapper.
 
 The exact source revisions, file digests and selected mechanics are recorded in
 [source provenance](../ci/extraction-sources.json). These APIs add no JSON schema,

@@ -1,14 +1,19 @@
 # Changelog
 
-## [0.12.11]
+## [0.13.0]
 
-- Adopt Shared's temporary-path fixes so host-tool fixtures accept symlinked roots
+- **Breaking:** Remove `durable::lock_file_with_progress`. Compose
+  `open_regular_lock_file_with_parents` with `lock_exclusive_with_wait` and select
+  polling/reporting intervals in the caller
+  ([#60](https://github.com/dragginzgame/ic-host-tooling/issues/60)).
+
+- Adopt Shared 0.3.11's temporary-path fixes so host-tool fixtures accept symlinked roots
   and release-command checks handle relative temporary directories
   ([Shared #111](https://github.com/dragginzgame/shared-tooling/issues/111),
   [Shared #112](https://github.com/dragginzgame/shared-tooling/issues/112)).
   Run the host-tool regression in native CI
   ([#59](https://github.com/dragginzgame/ic-host-tooling/issues/59)).
-  [Detailed notes](docs/changelog/0.12.md).
+  [Detailed notes](docs/changelog/0.13.md).
 
 ## [0.12.10] - 2026-10-11
 

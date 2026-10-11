@@ -162,36 +162,6 @@ pub fn try_lock_regular_file_with_parents(path: &Path) -> Result<fs::File, Regul
     Ok(file)
 }
 
-/// Acquire the same exclusive lock, reporting contention while preserving its lifetime.
-///
-/// Errors retain their admission category or original I/O cause, including a
-/// failed progress callback. No callback or lock error is converted to text.
-/// Consumers own diagnostic formatting and whether to retry.
-///
-/// # Errors
-/// Returns file admission, creation, sync, lock acquisition or callback failures.
-pub fn lock_file_with_progress(
-    path: &Path,
-    mut waiting: impl FnMut(&fs::File, std::time::Duration) -> io::Result<()>,
-) -> Result<fs::File, RegularFileLockError> {
-    let started = std::time::Instant::now();
-    let file = open_regular_lock_file_with_parents(path)?;
-    #[cfg(not(windows))]
-    {
-        let mut next_report = std::time::Duration::from_secs(1);
-        lock_exclusive_with_wait(&file, std::time::Duration::from_millis(100), |_| {
-            let elapsed = started.elapsed();
-            if elapsed >= next_report {
-                waiting(&file, elapsed)?;
-                next_report = elapsed + std::time::Duration::from_secs(1);
-            }
-            Ok(())
-        })
-        .map_err(RegularFileLockError::Io)?;
-    }
-    Ok(file)
-}
-
 /// Open an unlocked regular no-follow lock file, durably creating missing parents
 /// and the file first. Existing file bytes are preserved.
 ///
