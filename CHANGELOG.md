@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.14.1]
+## [0.14.1] - 2026-10-11
 
 - Adopt Shared Tooling 0.6.3 to restart interrupted direct preparation from
   committed metadata, preserving prior Host validation receipts, notes and logs
