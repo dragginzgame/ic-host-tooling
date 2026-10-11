@@ -130,6 +130,33 @@ These declarations belong to the selected source revision. Older files without
 them retain integrity checks but provide no dependency-completeness guarantee.
 Conditional features and consumer configuration still need adoption review.
 
+### Preview before refreshing
+
+Add `--preview` to the same initial or refresh command to inspect the complete
+proposed selection without writing in the consumer, including its Git index:
+
+```bash
+/path/to/shared-tooling/scripts/distribution/refresh-consumer.sh \
+  --preview --consumer /path/to/consumer
+```
+
+The preview uses external temporary scratch and the same clean, committed source
+and destination admission checks as refresh. A `TMPDIR` inside either checkout
+(including through an alias) is rejected before creating scratch files.
+It prints source version/revision,
+the manifest path, and tab-separated `ADD`, `UPDATE` or `KEEP` rows for every
+proposed file. The second column distinguishes already `selected` paths from
+`required` additions. Companion discovery follows the committed declarations
+transitively, including cycles, and reports every missing companion in one pass.
+Changes include executable-mode differences. Local conflicts still refuse.
+
+Exit 0 means the selected files are complete; exit 2 with a preview means the
+listed required paths must be added explicitly (`--file` for an initial selection,
+`--add-file` for an existing one). Other admission failures return nonzero without
+a completed preview. Review those additions, then rerun without `--preview`.
+This is an observation, not saved authorization or validation: apply rechecks
+the actual source and consumer. Neither command silently extends the selection.
+
 The optional `scripts/ci/test-installers.sh` fixture exercises all five CI
 installer wrappers: actionlint, gitleaks, ShellCheck, yq and sccache. Selecting
 that fixture requires all five wrappers, their shared `install-ci-tool.sh` engine
@@ -400,6 +427,29 @@ explicit local selection; see [Cargo tool setup](local-setup.md#consumer-selecte
 Retire synthetic Cargo resolvers only after qualifying the selected package and
 profile. Source-checkout builds and application executable overrides stay local.
 
+### Rust installation adoption in 0.4.0
+
+This is a breaking installation contract for Shared Tooling. Consumer libraries
+whose published contracts remain unchanged should use compatible patch notes
+for adoption, even though contributors must reinstall tools and change PATH.
+Do not mirror Shared's minor bump. Assess independent product changes under the
+[package-impact rules](../rules/changelogs.md#classify-the-released-packages-own-impact).
+
+For the 0.4 Rust installation hard cut, also follow the
+[current slot and PATH contract](local-setup.md#rust-development-tools): refresh
+`scripts/dev/install-rust-tools.sh`, `make/tools.mk`, `.githooks/pre-commit`,
+`scripts/ci/check-formatting-hooks.sh` and the retained-evidence action together
+where selected, along with their declared companions and applicable fixtures.
+Change consumer-owned CI, shell exports and documentation from `.tools/rust/bin`
+to `.tools/rust/common/bin`. Run explicit `make install-rust-tools` followed by
+`make rust-tools-check`, then qualify formatting and complete tool setup on the
+supported native hosts. Standalone Rust setup now needs prepared shared host
+tools; `make install-tools` already orders these prerequisites. Retain old
+installations and failed evidence; do not add fallback paths or copy old binaries
+into slots. Selected product CLI paths remain unchanged, and Testkit still owns
+PocketIC. Remove duplicated installation recipes only after their callers use
+the shared owner. Upstream acceptance and consumer adoption remain distinct.
+
 ### Complete toolset adoption in 0.3.0
 
 Refresh the host installer, `make/tools.mk`, Cargo installer/checksum companion,
@@ -514,7 +564,7 @@ Review pins against existing qualified versions before activation. A local
 exception uses its own explicitly selected matrix outside the snapshot; remove
 superseded pin ownership rather than maintaining two independent selections.
 Update local setup/CI callers to use `.tools/host/bin` and `.tools/ic/bin`, plus
-`.tools/rust/bin` when adopting the Cargo-installed set; CI
+`.tools/rust/common/bin` when adopting the Cargo-installed set; CI
 must invoke the same Make installation/check targets and put these paths on its
 own PATH after explicit setup. Document the shell export for direct interactive commands;
 installation and Make exports do not change the user's terminal PATH. Remove

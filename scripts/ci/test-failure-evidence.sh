@@ -33,6 +33,10 @@ verify_archive() {
     [[ ! -e "$fixture/unpacked/outside" && ! -e "$fixture/unpacked/unrelated" ]] || exit 1
     [[ "$(cat "$fixture/unpacked/ic-testkit-tools-install.log")" == failed ]] || exit 1
     [[ "$(cat "$fixture/unpacked/formatting.fixture")" == 'formatter diagnostic' ]] || exit 1
+    [[ "$(cat "$fixture/unpacked/.tools/rust/build/cargo-attempt.fixture/install.log")" == 'failed Cargo attempt' ]] || exit 1
+    [[ "$(cat "$fixture/unpacked/.tools/rust/tool-1.0.0-bin-tool-release/installed/selection.json")" == 'admitted receipt' ]] || exit 1
+    [[ -L "$fixture/unpacked/.tools/rust/common" && "$(readlink "$fixture/unpacked/.tools/rust/common")" == common-set.fixture ]] || exit 1
+    [[ -L "$fixture/unpacked/.tools/rust/build/external" && ! -e "$fixture/unpacked/.tools/rust/build/external" ]] || exit 1
     [[ "$(cat "$fixture/unpacked/target/validation-failures/latest.log")" == diagnostic ]] || exit 1
     [[ "$(cat "$fixture/unpacked/ic-testkit-archive-proof/evidence.tar.gz")" == 'qualification source' ]] || exit 1
     [[ "$(cat "$fixture/unpacked/ic-testkit-archive-downloaded/evidence.tar.gz")" == 'qualification download' ]] || exit 1
@@ -70,6 +74,13 @@ printf unrelated > "$GITHUB_WORKSPACE/unrelated"
 ln -s ../outside "$RUNNER_TEMP/ic-testkit-portable-fixtures/link"
 printf failed > "$RUNNER_TEMP/ic-testkit-tools-install.log"
 printf 'formatter diagnostic' > "$RUNNER_TEMP/formatting.fixture"
+mkdir -p "$GITHUB_WORKSPACE/.tools/rust/build/cargo-attempt.fixture" \
+    "$GITHUB_WORKSPACE/.tools/rust/tool-1.0.0-bin-tool-release/installed" \
+    "$GITHUB_WORKSPACE/.tools/rust/common-set.fixture/bin"
+printf 'failed Cargo attempt' > "$GITHUB_WORKSPACE/.tools/rust/build/cargo-attempt.fixture/install.log"
+printf 'admitted receipt' > "$GITHUB_WORKSPACE/.tools/rust/tool-1.0.0-bin-tool-release/installed/selection.json"
+ln -s common-set.fixture "$GITHUB_WORKSPACE/.tools/rust/common"
+ln -s ../../../unrelated "$GITHUB_WORKSPACE/.tools/rust/build/external"
 printf validation > "$RUNNER_TEMP/ic-testkit-validation.log"
 printf diagnostic > "$GITHUB_WORKSPACE/target/validation-failures/latest.log"
 mkdir "$RUNNER_TEMP/ic-testkit-archive-proof" "$RUNNER_TEMP/ic-testkit-archive-downloaded"
@@ -109,6 +120,8 @@ mkdir "$fixture/checks"
 tar -xzf "$checks" -C "$fixture/checks"
 [[ "$(cat "$fixture/checks/ic-testkit-validation.log")" == validation ]] || exit 1
 [[ "$(cat "$fixture/checks/formatting.fixture")" == 'formatter diagnostic' ]] || exit 1
+cmp "$GITHUB_WORKSPACE/.tools/rust/build/cargo-attempt.fixture/install.log" \
+    "$fixture/checks/.tools/rust/build/cargo-attempt.fixture/install.log"
 [[ ! -e "$fixture/checks/ic-testkit-portable-fixtures" ]] || exit 1
 [[ ! -e "$fixture/checks/ic-testkit-archive-proof" && ! -e "$fixture/checks/ic-testkit-archive-downloaded" ]] || exit 1
 # Do not overwrite a previous attempt or follow intermediate directory links.
@@ -166,6 +179,21 @@ tar -xzf "$compact" -C "$fixture/compact-unpacked"
 [[ -s "$fixture/compact-unpacked/tool-evidence/host/check.log" ]] || exit 1
 cmp "$pins" "$fixture/compact-unpacked/tool-evidence/host/caller-pins"
 [[ "$(cat "$fixture/compact-unpacked/tool-evidence/host/selection.txt")" == "$verified" ]] || exit 1
+cmp "$GITHUB_WORKSPACE/.tools/rust/tool-1.0.0-bin-tool-release/installed/selection.json" \
+    "$fixture/compact-unpacked/.tools/rust/tool-1.0.0-bin-tool-release/installed/selection.json"
+cmp "$GITHUB_WORKSPACE/.tools/rust/build/cargo-attempt.fixture/install.log" \
+    "$fixture/compact-unpacked/.tools/rust/build/cargo-attempt.fixture/install.log"
+# A redirected Rust root must not read external receipts or build evidence.
+mv "$GITHUB_WORKSPACE/.tools/rust" "$fixture/external-rust"
+ln -s "$fixture/external-rust" "$GITHUB_WORKSPACE/.tools/rust"
+mkdir "$fixture/redirected-rust-temp" "$fixture/redirected-rust-unpacked"
+redirected="$(RUNNER_TEMP="$fixture/redirected-rust-temp" bash "$collector" checks)"
+tar -xzf "$redirected" -C "$fixture/redirected-rust-unpacked"
+[[ ! -e "$fixture/redirected-rust-unpacked/.tools/rust" ]] || exit 1
+cmp "$fixture/compact-unpacked/.tools/rust/build/cargo-attempt.fixture/install.log" \
+    "$fixture/external-rust/build/cargo-attempt.fixture/install.log"
+rm "$GITHUB_WORKSPACE/.tools/rust"
+mv "$fixture/external-rust" "$GITHUB_WORKSPACE/.tools/rust"
 # A selected installation that now fails admission must retain its full bytes.
 printf '\nchanged\n' >> "$verified/bin/jq"
 mkdir "$fixture/changed-temp" "$fixture/changed-unpacked"

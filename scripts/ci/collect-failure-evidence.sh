@@ -47,6 +47,11 @@ done
 if [[ -e "$workspace/target/validation-failures" || -L "$workspace/target/validation-failures" ]]; then
     arguments+=("$workspace" target/validation-failures)
 fi
+# Rust slots carry admitted receipts/builds and failed attempts. Preserve the
+# physical tree independently of compact host/IC selection, without following links.
+if [[ ! -L "$workspace/.tools/rust" && -d "$workspace/.tools/rust" ]]; then
+    arguments+=("$workspace" .tools/rust)
+fi
 diagnostics="$bundle/tool-evidence"
 mkdir "$diagnostics"
 bash "${archiver%/*}/select-tool-evidence.sh" compact "$workspace" "$diagnostics" \

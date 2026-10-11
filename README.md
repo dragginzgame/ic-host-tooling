@@ -1719,16 +1719,18 @@ make tools-check dependency-pins-check
 The selected versions are recorded in `ci/tool-versions.env` and `ci/ic-tools.tsv`
 and used by CI too. `make install-tools` prepares pinned jq/yq, ripgrep with
 PCRE2, cloc, common IC executables and the Cargo toolset in order under
-`.tools/host/bin`, `.tools/ic/bin` and `.tools/rust/bin`, then builds the owning
+`.tools/host/bin`, `.tools/ic/bin` and `.tools/rust/common/bin`, then builds the owning
 CLI and prepares PocketIC. The Cargo set includes `cargo-sort`,
 `cargo-sort-derives` and `candid-extractor`. `make tools-check` verifies all
 selections and the prepared server offline, without compiling or installing
 the owner CLI. Prepare the declared Rust toolchain before explicit setup.
+After adopting the Rust slot layout, rerun `make install-rust-tools`, then
+`make rust-tools-check`; previous installations remain available for inspection.
 Make and the formatting hook select these local tool directories; direct Cargo
 commands should export them explicitly:
 
 ```bash
-export PATH="$PWD/.tools/host/bin:$PWD/.tools/ic/bin:$PWD/.tools/rust/bin:$PATH"
+export PATH="$PWD/.tools/host/bin:$PWD/.tools/ic/bin:$PWD/.tools/rust/common/bin:$PATH"
 server="$(target/debug/ic-testkit-server check)" || exit
 export POCKET_IC_BIN="$server"
 ```

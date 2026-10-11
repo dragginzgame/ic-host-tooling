@@ -8,11 +8,11 @@ root="${BASH_SOURCE[0]}"
 root="$(cd -P "${root%/*}/../.." && printf '%s/.' "$PWD")"
 root="${root%/.}"
 # Exercise checkout-local discovery without inheriting Make's prepared PATH.
-for tool_directory in host ic rust; do
-    PATH="${PATH//"$root/.tools/$tool_directory/bin:"/}"
+for tool_directory in host/bin ic/bin rust/common/bin; do
+    PATH="${PATH//"$root/.tools/$tool_directory:"/}"
 done
 export PATH
-export IC_TESTKIT_HOOK_CARGO_SORT="$root/.tools/rust/bin/cargo-sort"
+export IC_TESTKIT_HOOK_CARGO_SORT="$root/.tools/rust/common/bin/cargo-sort"
 fixture="$(mktemp -d "${TMPDIR:-/tmp}/ic-testkit-git-hooks.XXXXXX")"
 fixture_complete=false
 cleanup() {
@@ -59,14 +59,14 @@ new_fixture() {
     done
     # Prepared tools are not part of the staged export. The hook must discover
     # this original fixture's local executable even when the shell omits it.
-    mkdir -p .tools/rust/bin
-    cat > .tools/rust/bin/cargo-sort <<'FORMATTER'
+    mkdir -p .tools/rust/common/bin
+    cat > .tools/rust/common/bin/cargo-sort <<'FORMATTER'
 #!/usr/bin/env bash
 set -euo pipefail
-printf '%s\n' "$*" >> "${BASH_SOURCE[0]%/*}/../../../cargo-sort-used"
+printf '%s\n' "$*" >> "${BASH_SOURCE[0]%/*}/../../../../cargo-sort-used"
 exec "$IC_TESTKIT_HOOK_CARGO_SORT" "$@"
 FORMATTER
-    chmod +x .tools/rust/bin/cargo-sort
+    chmod +x .tools/rust/common/bin/cargo-sort
     cp Cargo.lock selected-lock
 }
 expect_failure() {

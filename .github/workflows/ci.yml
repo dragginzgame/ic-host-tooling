@@ -71,7 +71,7 @@ jobs:
         shell: bash
         run: |
           make install-tools 2>&1 | tee "$RUNNER_TEMP/ic-testkit-tools-install.log"
-          printf '%s\n' "$GITHUB_WORKSPACE/.tools/host/bin" "$GITHUB_WORKSPACE/.tools/ic/bin" "$GITHUB_WORKSPACE/.tools/rust/bin" >> "$GITHUB_PATH"
+          printf '%s\n' "$GITHUB_WORKSPACE/.tools/host/bin" "$GITHUB_WORKSPACE/.tools/ic/bin" "$GITHUB_WORKSPACE/.tools/rust/common/bin" >> "$GITHUB_PATH"
           server="$(target/debug/ic-testkit-server check)"
           echo "POCKET_IC_BIN=$server" >> "$GITHUB_ENV"
       - name: Prepare selected dependencies
@@ -120,7 +120,7 @@ jobs:
         shell: /bin/bash --noprofile --norc -e -u -o pipefail {0}
         run: |
           make install-tools 2>&1 | tee "$RUNNER_TEMP/ic-testkit-tools-install.log"
-          printf '%s\n' "$GITHUB_WORKSPACE/.tools/host/bin" "$GITHUB_WORKSPACE/.tools/ic/bin" "$GITHUB_WORKSPACE/.tools/rust/bin" >> "$GITHUB_PATH"
+          printf '%s\n' "$GITHUB_WORKSPACE/.tools/host/bin" "$GITHUB_WORKSPACE/.tools/ic/bin" "$GITHUB_WORKSPACE/.tools/rust/common/bin" >> "$GITHUB_PATH"
           server="$(target/debug/ic-testkit-server check)"
           echo "POCKET_IC_BIN=$server" >> "$GITHUB_ENV"
       - name: Select system Bash on macOS

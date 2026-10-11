@@ -6,6 +6,25 @@ documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.33.5]
+
+### Changed
+
+- Adopt Shared Tooling's verified Rust installation slots. Developer and CI
+  PATHs now select `.tools/rust/common/bin`; rerun `make install-rust-tools`,
+  then `make rust-tools-check`. Prior installations remain available for
+  inspection and are no longer selected
+  ([#57](https://github.com/dragginzgame/ic-testkit/issues/57),
+  [Shared #118](https://github.com/dragginzgame/shared-tooling/issues/118)).
+
+### Fixed
+
+- Retain Rust installation receipts, completed slots and failed build attempts
+  in CI failure archives, including when host and IC evidence is compacted
+  ([#57](https://github.com/dragginzgame/ic-testkit/issues/57)).
+
+[Setup details](crates/ic-testkit/CHANGELOG.md#0335)
+
 ## [0.33.4] - 2026-10-11
 
 ### Fixed

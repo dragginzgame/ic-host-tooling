@@ -72,8 +72,10 @@ absolute caller pin files, defaulting to the repository's common configuration.
 Its native CI control uploads/downloads successful-set diagnostics alongside a
 failed candidate, separately from the existing full-failure control. Native
 acceptance requires matching executed jobs; a configured control is not evidence
-of a successful hosted transport. Rust build evidence and original logs retain
-their independent collection contract. Consumers adopt the selector only from a
+of a successful hosted transport. The full physical `.tools/rust` tree (admitted
+slots, receipts, builds and failed attempts) and original logs retain their
+independent collection contract; links are archived without following targets.
+Consumers adopt the selector only from a
 reviewed committed snapshot, rather than recreating its classifier locally.
 
 ## Runner disk capacity
@@ -550,7 +552,7 @@ make this checker pass. See [#33](https://github.com/dragginzgame/shared-tooling
 Review the consumer's Makefile and formatting commands before execution. This
 helper executes those commands; it is not a sandbox for arbitrary Make code.
 Prerequisites must already be installed. The selected consumer's `.tools/host/bin`,
-`.tools/ic/bin` and `.tools/rust/bin` precede inherited PATH for executable lookup;
+`.tools/ic/bin` and `.tools/rust/common/bin` precede inherited PATH for executable lookup;
 formatter inputs and configuration still come from the disposable checkout.
 Cargo is forced offline, rustup auto
 installation is disabled, and inherited Git/Make/logger checkout selections are

@@ -1,5 +1,48 @@
 # Host support and qualification
 
+## Shared 0.4.0 adoption for pending 0.33.5
+
+On released base `e32ef7e9dcf023cfacf53a0a7a5bbdfb4e69d226`, the reviewed
+85-file selection now records Shared Tooling 0.4.0
+`b2a77f4b0454bc8b00003a2053f9d9ec2cbcc286`
+([#57](https://github.com/dragginzgame/ic-testkit/issues/57),
+[Shared #118](https://github.com/dragginzgame/shared-tooling/issues/118)).
+Both exports used a clean isolated checkout with the canonical source remote.
+Preview required no companion additions; the final preview preserved the real
+index and manifest digests before explicit refresh. The final source adds the
+package-impact clarification to the initial `e0acfdb` installation batch;
+installer, Make, hook, fixture and CI bytes are identical between those sources.
+
+Explicit `make install-rust-tools` prepares the three existing pins in verified
+slots and selects `.tools/rust/common/bin`. An offline setup retry preserves the
+same complete set and slot receipts. Digests confirm that the retired in-place
+executables and Cargo receipts remain unchanged. Missing common-set admission
+was observed before setup; no old-path fallback or automatic retirement runs.
+CI PATHs, interactive guidance and the actual consumer hook fixture use the new
+path. The consumer failure collector now retains the complete physical Rust
+tree independently of compact host/IC evidence.
+
+Focused Linux checks pass on Bash 5 and genuine Bash 3.2.57: the shared Rust
+fixture exercises receipt/byte corruption, partial upgrades, held locks,
+redirected paths and failure retention with substitute Cargo; actual consumer
+hooks exercise formatting, lockfile/index preservation and rejected staging.
+Consumer archive qualification retains failed attempts, admitted receipts and
+common links, preserves compact host evidence, and skips redirected Rust roots
+without traversing external targets. Snapshot, prepared tools, declaration pins,
+formatting, selected ShellCheck and actionlint checks pass. The missing owner CLI
+was rebuilt offline with `--locked` after explicit cache preparation; its check
+reuses the prepared PocketIC 16.1.0. The maintainer's existing Host 0.13.1 lock
+selection and all package metadata remain unchanged by this adoption.
+
+Evidence uses `/tmp/ic-testkit-shared040-{preview-new-rules,refresh-new-rules,
+install-rust,reuse,rust-fixture,rust-fixture-bash32,hooks,hooks-bash32,evidence,
+evidence-bash32,checks,tools,pins-format,shellcheck,actionlint,fetch,build-cli}.log`;
+old executables/receipts and current owning inputs are separately digest-recorded.
+Pending 0.33.5 follows the updated package-impact rules: contributor setup changes
+do not change the library's published contract. Native Intel/Apple Silicon macOS
+and complete hosted acceptance remain outstanding; Linux Bash 3.2 evidence is
+not native qualification. No broad gate, sibling edit or release ran.
+
 ## Hosted acceptance readback for released 0.33.3
 
 Exact-source [Shared 0.3.12 CI](https://github.com/dragginzgame/shared-tooling/actions/runs/38123325760)

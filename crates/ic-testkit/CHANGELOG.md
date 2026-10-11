@@ -8,6 +8,25 @@ This file ships in the crate archive so upgrades can be completed without the
 repository checkout. The complete historical changelog remains at
 <https://github.com/dragginzgame/ic-testkit/blob/main/CHANGELOG.md>.
 
+## [0.33.5]
+
+### Changed: prepared developer tool layout
+
+Shared Tooling's common Rust tools now use verified, versioned installation
+slots, activated together at `.tools/rust/common/bin`. Update interactive PATHs
+to that directory and explicitly run `make install-rust-tools`, followed by
+`make rust-tools-check`. CI and formatting hooks use the same selection. The
+installer retains earlier executables, receipts and build evidence; offline
+checks do not accept the previous `.tools/rust/bin` layout or repair it.
+Existing product CLI and PocketIC selections keep their paths
+([#57](https://github.com/dragginzgame/ic-testkit/issues/57),
+[Shared #118](https://github.com/dragginzgame/shared-tooling/issues/118)).
+
+CI failure archives retain the physical Rust installation tree, including
+admitted slots and failed attempts, independently of compact host/IC evidence.
+Links remain archived as links without reading their external targets
+([#57](https://github.com/dragginzgame/ic-testkit/issues/57)).
+
 ## [0.33.4] - 2026-10-11
 
 ### Fixed: release and publication temporary paths
