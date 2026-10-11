@@ -1,5 +1,97 @@
 # Host support and qualification
 
+## Shared temporary-path fixes for pending 0.33.2
+
+The reviewed committed pending 0.3.10 batch is
+`37af29b2f8fb4532744b600c5f85ce716a8b57cf`. Its committed `VERSION` remains
+0.3.9, so the canonical export preserves that version annotation and binds the
+exact new revision in the unchanged 85-file snapshot. This is committed-source
+adoption, not a claim that 0.3.10 has been released. An isolated clean source
+export updates the selected host fixture, release-command checker and shared
+formatter guidance. Tool pins and production formatter behavior are unchanged.
+Testkit has no dollar-prefixed derive/cfg_attr paths or macro definitions needing
+the documented scoped protection; the producer-only frontend fixture is not
+added or run in this consumer.
+
+Focused Linux qualification passes under Bash 5 and genuine Bash 3.2, including
+nested interpreter selection. The actual selected host fixture runs with an
+aliased TMPDIR, covering physical diagnostic paths, substituted installation,
+negative admission and the actual evidence collector. The actual release-command
+checker runs against Testkit's real Make inputs with relative TMPDIR on current
+Bash and a relative alias on Bash 3.2. The unmodified committed producer command
+fixture also passes under both profiles, exercising aliased/relative roots,
+nested Make and broken-adapter refusal with retained failure logs against
+byte-identical selected checker code. All downloads and release effects in
+these checks are substitutes; no actual setup, commit, tag or push occurs.
+Snapshot, declaration pins, formatting and selected ShellCheck pass. Logs use
+`/tmp/ic-testkit-0332-shared0310-{export,host,host-bash32,commands,
+commands-bash32,command-fixtures,command-fixtures-bash32,checks,shellcheck}.log`.
+
+At inspection [exact-source Shared CI](https://github.com/dragginzgame/shared-tooling/actions/runs/38120869060)
+is queued. Bash 3.2 on Linux and simulated Darwin selections are not native
+macOS proof. Existing Host selection and the pending archive-verification repair
+remain byte-identical to the earlier proof below; their checks are not rerun
+merely for this snapshot update. Both changelogs keep compatible pending 0.33.2.
+No Cargo compilation, broad gate, package-version change, sibling edit or release
+ran in this adoption slice. Feedback remains with
+[Shared #111](https://github.com/dragginzgame/shared-tooling/issues/111) and
+[Shared #112](https://github.com/dragginzgame/shared-tooling/issues/112).
+
+## Shared 0.3.9, Host 0.12.9 and evidence verification for pending 0.33.2
+
+Reviewed Shared source is `1ed2ca523186641e0e0cdf77e3cb10814c22a430` (0.3.9),
+adopted through an isolated clean canonical export with the unchanged 85-file
+roster. The selected Rust installer and fixture use the consumer working directory
+for preflight, installation and offline probes, while retaining explicit toolchain
+overrides and documented catalog/lock path resolution. The validation runner
+shares its live/retained diagnostic predicate. The unmodified committed upstream
+runner fixture exercises identical adopted runner bytes under both Bash profiles,
+including rg and grep selection, early diagnostic families and neutral context.
+No unused producer regression suite or coordinated-archive adapter was added;
+Testkit has one published package and does not need that multi-crate archive route.
+
+The incoming maintainer lock selects all four Host crates at 0.12.9 and
+serde_json 1.0.152. Reviewed Host source is
+`8cc85c53cdd59701a7352f566425b3faf195a37b`; crate Rust source is unchanged
+from the previous selected 0.12.7. Dirty sibling adoption work is excluded.
+Lock SHA-256 remains `8782ca01e0af8c6e92dd7b943ec100245e172589d9d04fadc136764ba7cfae23`.
+Explicit locked fetch, offline all-target compilation and actual Rust 1.88
+library/CLI compilation pass without dependency resolution or metadata changes.
+Logs are `/tmp/ic-testkit-0332-host0129-{fetch,check,msrv}.log`.
+
+The actual released archive verifier reproduces [#53](https://github.com/dragginzgame/ic-testkit/issues/53):
+it prints success, then returns 1 because its verify branch lacks completion.
+Pre-fix proof/archive/logs remain at `/tmp/ic-testkit-0332-before-*`.
+The local repair marks successful readback complete and explicitly fails archive
+comparisons on Bash 3.2. Normal and separate readback entry points now pass under
+Bash 5 and genuine Bash 3.2. Corrupted payload and outcome archives fail with
+status 1 and retain extracted original bytes. Successful readback removes only
+its scratch; no-overwrite, links, permissions, selection and failed partial
+archive retention remain covered. An inherited CDPATH and aliased TMPDIR case
+also passes on Bash 3.2. These are local round trips, not hosted artifact readback.
+
+Focused Linux Rust-tool fixtures pass under both Bash profiles with substitute
+Cargo effects. The committed runner fixture also passes under both profiles;
+selected ShellCheck, snapshot, dependency pins, formatting and prepared offline
+Rust-tool admission pass. Logs use `/tmp/ic-testkit-0332-{shared039-export,
+archive,archive-bash32,archive-alias,verify,verify-bash32,rust,rust-bash32,runner,
+runner-bash32,shellcheck,tooling}.log`. No real tool installation, sibling edit,
+broad gate, release, CI dispatch or package-version bump ran. Both changelogs
+select compatible 0.33.2; APIs and retained formats require no migration/reset.
+
+Matching [Shared 0.3.9 CI](https://github.com/dragginzgame/shared-tooling/actions/runs/38075978465)
+and [Host 0.12.9 CI](https://github.com/dragginzgame/ic-host-tooling/actions/runs/38073002651)
+pass Linux and both native macOS architectures. Those upstream results do not
+qualify this pending consumer source. The delivered
+[Testkit 0.33.1 run](https://github.com/dragginzgame/ic-testkit/actions/runs/38066303813)
+passes all native complete checks, MSRV and real concurrency jobs, plus portable
+setup/operator and archive-creation qualification. All three portable jobs then
+fail the separate readback completion branch repaired here. Complete native-check
+logs explicitly pass transport/diagnostic units and all six synthetic teardown
+parent cases with subprocesses, including actual OS ConnectionReset query and
+creation requests. This qualifies the retained transport fix on 0.33.1; it does
+not relabel the entire failed workflow or earlier revisions as passing.
+
 ## Shared 0.3.7 and Host 0.12.6 for pending 0.33.1
 
 The unchanged 85-file canonical roster selects clean committed Shared

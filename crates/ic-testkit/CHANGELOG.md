@@ -8,6 +8,48 @@ This file ships in the crate archive so upgrades can be completed without the
 repository checkout. The complete historical changelog remains at
 <https://github.com/dragginzgame/ic-testkit/blob/main/CHANGELOG.md>.
 
+## [0.33.2]
+
+### Fixed: downloaded-evidence completion
+
+Successful verification of the workflow's downloaded archive marks the fixture
+complete before its EXIT guard runs. All mandatory archive comparisons fail
+explicitly under Bash 3.2. The maintained fixture invokes this separate entry
+point with valid and deliberately corrupted payload/outcome archives, requiring
+valid verification to clean its scratch and failures to retain extracted bytes
+([#53](https://github.com/dragginzgame/ic-testkit/issues/53)).
+Archive selection, hosted artifact identity and production publication remain
+unchanged.
+
+### Fixed: shared setup and validation diagnostics
+
+The adopted Shared Tooling revision runs Rust preflight, installation and offline
+probes from the selected consumer's directory. Caller-relative version catalogs and
+consumer-relative lockfiles preserve their documented resolution; explicit
+Rustup toolchain overrides remain authoritative
+([shared #101](https://github.com/dragginzgame/shared-tooling/issues/101)).
+Live highlighting and retained validation summaries share one diagnostic
+predicate, so fatal, LLVM and missing-file errors before a long output tail
+remain visible. Neutral Rust test names and context remain unclassified
+([shared #110](https://github.com/dragginzgame/shared-tooling/issues/110)).
+
+### Fixed: portable temporary-directory selection
+
+Host-tool fixtures normalize temporary roots before comparing physical installer
+paths. Release-command qualification anchors relative and symlinked temporary
+roots before changing directory and passes the same physical parent to nested
+Make probes. Failure assertions, retained evidence and substitute-only release
+routing remain intact
+([shared #111](https://github.com/dragginzgame/shared-tooling/issues/111),
+[shared #112](https://github.com/dragginzgame/shared-tooling/issues/112)).
+
+### Changed: Host selection
+
+All four Host crates select 0.12.9. Their Rust source and public APIs are unchanged
+from 0.12.7; these upstream releases improve native development-tool qualification
+and retention. No public Testkit API, retained format or installation reset changes
+are required.
+
 ## [0.33.1] - 2026-10-10
 
 ### Fixed: formatting-hook observation failures

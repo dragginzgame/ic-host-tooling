@@ -6,6 +6,29 @@ documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.33.2]
+
+### Fixed
+
+- Let downloaded-evidence verification succeed after all archive checks finish;
+  reject corrupted payloads and outcomes explicitly on Bash 3.2 and retain failed
+  evidence ([#53](https://github.com/dragginzgame/ic-testkit/issues/53)).
+- Use Shared Tooling to run Rust tool setup and offline probes in the
+  selected consumer directory, and keep early fatal, LLVM and missing-file
+  diagnostics visible in retained validation summaries
+  ([shared #101](https://github.com/dragginzgame/shared-tooling/issues/101),
+  [shared #110](https://github.com/dragginzgame/shared-tooling/issues/110)).
+
+- Accept symlinked temporary roots in host-tool fixtures and relative temporary
+  roots in release-command qualification, including nested Make probes
+  ([shared #111](https://github.com/dragginzgame/shared-tooling/issues/111),
+  [shared #112](https://github.com/dragginzgame/shared-tooling/issues/112)).
+
+### Changed
+
+- Select Host 0.12.9 for all four crates; their Rust source and public APIs are
+  unchanged from 0.12.7.
+
 ## [0.33.1] - 2026-10-10
 
 ### Fixed
