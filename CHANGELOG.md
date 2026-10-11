@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.13.4]
+## [0.13.4] - 2026-10-11
 
 - Add `durable::open_private_regular_lock_file` for owner-only sidecar creation
   in an existing parent, preserving existing files and caller-owned locking
