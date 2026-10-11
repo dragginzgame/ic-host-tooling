@@ -1,5 +1,100 @@
 # Host support and qualification
 
+## Hosted acceptance readback for released 0.33.3
+
+Exact-source [Shared 0.3.12 CI](https://github.com/dragginzgame/shared-tooling/actions/runs/38123325760)
+(`52e846369c39a1da371eac47ff97d94da925217e`) and
+[Host 0.13.0 CI](https://github.com/dragginzgame/ic-host-tooling/actions/runs/38122069573)
+(`7c58c92c72789139ec460475c429f9090581008f`) now pass Linux and both native
+macOS architectures. Reviewed Shared portable logs pass physical/aliased tool
+roots, nested release-command admission, hook preservation and the strengthened
+diagnostic runner regression. This is upstream acceptance, distinct from pending
+consumer bytes.
+
+On Testkit `464eb3847d8443511ed3e95fda6ac39d20695c45`,
+[Linux portable tooling](https://github.com/dragginzgame/ic-testkit/actions/runs/38124211113/job/114425061330)
+and [Apple Silicon portable tooling](https://github.com/dragginzgame/ic-testkit/actions/runs/38124211113/job/114425061162)
+pass actual hook checks and hosted archive download/readback. Their downloaded
+artifacts are 11696398408 and 11696912429; verification completes successfully
+after checking bytes, modes, links and outcomes. All four Linux jobs pass. Seven
+other macOS jobs remain queued without assigned runners at inspection, including
+Intel portable tooling. The workflow is not yet fully accepted, and these logs
+do not qualify the pending 0.33.4 release/publication fixture changes below.
+
+## Consumer release temporary paths for pending 0.33.4
+
+On released base `464eb3847d8443511ed3e95fda6ac39d20695c45`, with the pending
+Host guidance corrections present, the unmodified consumer release guard fails
+from a caller-relative symlinked TMPDIR. Its first valid installation check
+changes directory, then the version reader cannot create
+`alias/workspace-version.XXXXXX`. The failed guard and direct child reproduction
+are retained at `/tmp/ic-testkit-0334-before-{guards,guard-child}.log`; original
+scratch remains at `/tmp/ic-testkit-0334-temp-paths/physical/tmp.u3rg9AREEw/`.
+Source review identifies the same relative scratch/PATH/trace ownership in the
+metadata and publication fixtures; no live publication reproduction was attempted
+([#56](https://github.com/dragginzgame/ic-testkit/issues/56)).
+
+All three consumer fixtures now physically anchor their scratch roots and export
+that parent as TMPDIR before child execution. Actual release-guard suites pass
+from the relative alias on Bash 5 and genuine Bash 3.2.57. The guard's explicit
+`/bin/bash` metadata child uses this Linux host's Bash 5; a separate actual
+metadata invocation passes on Bash 3.2 with a caller-relative physical TMPDIR.
+Nested env-selected Bash calls use the matching prepared Bash 3.2 shim. Actual
+publication suites pass with an absolute parent on Bash 5 and the relative alias
+on Bash 3.2. Git, registry, installation and release effects remain substitutes;
+real Cargo metadata is offline and no product compilation or registry resolution
+is performed. Successful fixtures clean their own scratch.
+
+Twelve controlled copies inject premature success or status 23 after path
+selection, then change directory. Both shells preserve the required nonzero
+status and original sentinel bytes in physically identified failure directories.
+These injections qualify cleanup boundaries, separately from normal full fixture
+execution. Logs use `/tmp/ic-testkit-0334-{guards-alias,guards-bash32-alias,
+metadata-bash32-relative,publish-absolute,publish-bash32-alias,retention,
+shellcheck}.log`. Selected ShellCheck and diff checks pass. Shared 0.3.12 and
+Host 0.13 selections, owning manifests/lock, tool receipts and server installations
+are unchanged. The compatible pending release remains 0.33.4. Local Linux Bash
+3.2 is not native macOS acceptance; no broad gate, sibling edit or release ran.
+
+## Host 0.13 qualification on released 0.33.3
+
+Released Testkit source `464eb3847d8443511ed3e95fda6ac39d20695c45` already
+selects all four Host crates at 0.13.0. Reviewed clean upstream source is
+`7c58c92c72789139ec460475c429f9090581008f`. Its Rust delta from 0.12.10 removes
+only the pathname progress-lock wrapper; Testkit already composes descriptor
+admission and waiting with its own reporting policy. The root public re-exports
+expose the removed Host API and distinct dependency identities. This was a
+breaking change shipped in a patch release, rather than the required minor
+boundary. The corrective upgrade guidance documents the existing cut without
+rewriting published history or introducing a compatibility alias
+([#54](https://github.com/dragginzgame/ic-testkit/issues/54)).
+
+Explicit locked cache preparation, offline all-target compilation and actual
+Rust 1.88 library/CLI compilation pass. The selected dependency tree contains
+only 0.13.0 for all four Host packages. Focused Linux execution passes ten cache
+filesystem tests, two Host adapter tests, the observed cache-lock heartbeat,
+cross-process exact-artifact exclusion, six CLI provisioning/recovery tests and
+nine synthetic command-runner tests. The rebuilt owner CLI admits the retained
+official PocketIC 16.1.0 bundle with PATH unavailable, then its real command-scoped
+subprocess test and all nine live concurrency cases pass. The first live CLI
+attempt is retained separately: sandbox loopback binding was denied; the same
+test passes with authorized socket access. Existing server bytes are reused;
+no new server installation or download is performed.
+
+Logs are `/tmp/ic-testkit-host013-{fetch,tree,check,msrv,locks,host,heartbeat,
+process-locks,provisioning,runner,cli-build,cli-check,live-cli,
+live-cli-authorized,live-concurrency}.log`. Manifest and lock SHA-256 values
+remain `5566911f4331a32809337fd8b1bc87f0fc648fc277fb81a5885100ee5d8be940`
+and `8b98e5624394363f9c3c7414f7093ecac0ad553d26da2cd5cfbcbbee89e1bf0c`.
+These Linux results do not establish native macOS acceptance. At inspection,
+[Testkit's matching run](https://github.com/dragginzgame/ic-testkit/actions/runs/38124211113)
+and [Host's matching run](https://github.com/dragginzgame/ic-host-tooling/actions/runs/38122069573)
+are queued; earlier Host 0.12 results do not qualify 0.13. Shared 0.3.12 remains
+the latest reviewed snapshot, with no selected-file changes in this batch.
+This Host qualification slice corrects documentation only; no source API,
+retained format, dependency selection, package version, sibling file or release
+effect changes.
+
 ## Shared 0.3.12 and consumer hook temp paths for pending 0.33.3
 
 Reviewed clean committed Shared source is

@@ -8,6 +8,38 @@ This file ships in the crate archive so upgrades can be completed without the
 repository checkout. The complete historical changelog remains at
 <https://github.com/dragginzgame/ic-testkit/blob/main/CHANGELOG.md>.
 
+## [0.33.4]
+
+### Fixed: release and publication temporary paths
+
+Release-guard, release-metadata and publication fixtures physically anchor their
+scratch roots and pass that parent to child helpers before changing directory.
+Relative or symlinked `TMPDIR` selections preserve temporary-file placement,
+substitute command selection and failed evidence
+([#56](https://github.com/dragginzgame/ic-testkit/issues/56)).
+Qualification still substitutes Git, registry, installation and release effects.
+
+### Fixed: Host 0.13 upgrade guidance
+
+Testkit 0.33.3 already selects Host 0.13 for all four public host-crate re-exports.
+This documentation correction changes no dependency selection or API
+([#54](https://github.com/dragginzgame/ic-testkit/issues/54)).
+
+When upgrading from 0.33.2 or earlier, align direct `ic-host-artifacts`,
+`ic-host-fs`, `ic-host-process` and `ic-host-tools` dependencies with 0.13 wherever
+their types cross the Testkit boundary. Host 0.12 and 0.13 types have distinct
+dependency identities.
+
+Host 0.13 removes `ic_host_fs::durable::lock_file_with_progress`. Open the lock
+with `open_regular_lock_file_with_parents`, then pass that retained descriptor to
+`lock_exclusive_with_wait`, selecting polling and progress-reporting intervals
+in the caller. Testkit's cache already uses these descriptor APIs. Existing lock
+contents, cache formats and server installations require no reset.
+
+The public Host cut shipped under 0.33.3, although a breaking pre-1.0 change
+requires a minor release. These notes document that existing incompatibility;
+they do not reclassify the published release or restore the removed API.
+
 ## [0.33.3] - 2026-10-11
 
 ### Fixed

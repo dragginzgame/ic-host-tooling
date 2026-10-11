@@ -6,6 +6,20 @@ documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.33.4]
+
+### Fixed
+
+- Correct upgrade guidance for the breaking Host 0.13 selection already shipped
+  in 0.33.3.
+  Align direct Host dependencies and replace the removed pathname progress-lock
+  helper with descriptor-based locking
+  ([#54](https://github.com/dragginzgame/ic-testkit/issues/54)).
+- Keep release and publication qualification scratch paths, child temporary files
+  and substitute commands under the selected physical parent when `TMPDIR` is
+  relative or symlinked; retain failed evidence
+  ([#56](https://github.com/dragginzgame/ic-testkit/issues/56)).
+
 ## [0.33.3] - 2026-10-11
 
 ### Fixed

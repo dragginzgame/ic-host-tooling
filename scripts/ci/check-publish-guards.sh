@@ -15,6 +15,12 @@ cleanup() {
   exit "$status"
 }
 trap cleanup EXIT
+# Child helpers change directory; keep scratch paths and TMPDIR physical.
+[[ "$work_dir" == /* ]] || work_dir="$PWD/$work_dir"
+work_dir="$(cd -P "$work_dir" && printf '%s/.' "$PWD")"
+work_dir="${work_dir%/.}"
+export TMPDIR="${work_dir%/*}"
+
 fail() { echo "publication qualification failed: $*" >&2; exit 1; }
 mkdir -p "$work_dir/bin" "$work_dir/state"
 export QUALIFICATION_CARGO
