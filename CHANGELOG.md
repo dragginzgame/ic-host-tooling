@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.13.5]
+
+- Adopt Shared Tooling 0.6.1: fix macOS Cargo-tool fixture counts and stop setup
+  on lock, validation or activation failures. Run `make install-tools`, then
+  `make tools-check` to select the updated build policy
+  ([#65](https://github.com/dragginzgame/ic-host-tooling/issues/65),
+  [Shared #120](https://github.com/dragginzgame/shared-tooling/issues/120),
+  [Shared #124](https://github.com/dragginzgame/shared-tooling/issues/124)).
+  [Detailed notes](docs/changelog/0.13.md).
+
 ## [0.13.4] - 2026-10-11
 
 - Add `durable::open_private_regular_lock_file` for owner-only sidecar creation

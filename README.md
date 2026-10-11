@@ -178,7 +178,7 @@ rerun explicit Rust setup and update their shell PATH; see the
 [0.13 setup notes](docs/changelog/0.13.md). Previous installations are retained.
 Shared Tooling stores verified host, IC and Cargo tools per user; checkout
 references select exact bundles while keeping the existing command paths.
-Run `make install-tools` after adopting Shared 0.6.0, then `make tools-check`.
+Run `make install-tools` after adopting Shared 0.6.1, then `make tools-check`.
 Cargo tools use a standard build environment and reuse matching compiler,
 native-environment, package and packaged-lock identities across checkouts;
 application compiler flags and wrappers do not configure these tool builds.

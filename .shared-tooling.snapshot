@@ -1,8 +1,8 @@
 # Shared Tooling snapshot v1
-# version	0.6.0
+# version	0.6.1
 format	1
 source	https://github.com/dragginzgame/shared-tooling
-revision	75180980a0c4e4252d8a915aaecfaefd92bf9a4e
+revision	731909525038c58d6f80b498e80f8630b11c685d
 file	e7c1c56549860efff6a579913a1632eb19868d5e2e5e5e1ed2ba3ea7171db881	-	rules/changelogs.md
 file	786abdd7653a2e49a3b9237438b4c516b37c1455f1f0845458d165cb69fedf66	-	docs/releases.md
 file	fc689ff5d636be1049a527f6cafa74a768005211dcbecb074b8b327d8e6bab04	x	scripts/ci/run-release.sh
@@ -66,8 +66,8 @@ file	8a14c80cec16a2cb07454c4e0f741150bc8385cd51ebc720a84ee3af1cc63043	x	scripts/
 file	2a1d4b41b41e09523b44033211810fb89590a8a2ad7a86305fa5c67566ea1098	x	scripts/ci/test-tool-commands.sh
 file	aa9ad7cbac6fe5cef0aa78a322be56a71d07011749c05af5992277b8409798c9	x	scripts/ci/test-cloc.sh
 file	775da89f655a3781059f433f80470ee6db9675e08942a805c111614183322fe1	-	scripts/ci/ic-tool-pins.awk
-file	c7ba68be7e4a058a036c73147a80e3731aea3637315656887d9f721885488251	x	scripts/dev/install-rust-tools.sh
-file	869a921aab99c6d5ac46c7aa5bf863d2ab0c17584e8122825e0e95fb80eee557	x	scripts/ci/test-rust-tools.sh
+file	022de88d3905b3b008785100b02455a0230fac7b88d8b7541015dda940453c74	x	scripts/dev/install-rust-tools.sh
+file	8fba3b5db2ca97e2df129955ac7ecc0914291d5e9ec77d8972fffd03c1309c15	x	scripts/ci/test-rust-tools.sh
 file	8d32526932bdaf88a6c78ccc2358fb92a49bd89b7631572766deea51923d8f58	-	rules/contributions.md
 file	2c1d5d40d481790aaa9c10a5cf29ec061cdc0c4840824851140b4c9c8e7d455b	x	scripts/ci/test-tool-evidence.sh
 file	50875aa80c211f8f5fded06bf75c7a9fc1fc99aac7590480de9be17d4753bf7f	x	scripts/ci/select-tool-evidence.sh
@@ -95,6 +95,6 @@ file	4ff0a961d5fb8639edf798d64bbe3abc0fcd83c6f703d7a6875c6f5174e76201	x	scripts/
 file	227ce86878264ff60aa24a70bb20140b8ef3c8332be640186e96f93805ed1062	-	tasks/readme-freshness.md
 file	f583668a931a10bc23ba15bdabde4960bf7125de851457247185108d6e8e10b3	x	scripts/ci/test-git-hooks.sh
 file	69dbd1c286a9f8787bb5559493e9428c139c285f80417470f37d2153b6f17123	-	scripts/dev/format-frontend.sh
-file	1cf93faf09a8e4afe9e165b5bf6fb0884119165d38c7d0726c67a685b07e1d1a	-	scripts/dev/tool-store.sh
+file	d09d1ef8b6e5544832bb321eca736a407d9657ce25fe2ced0b35de0e8ad8792b	-	scripts/dev/tool-store.sh
 file	7011492452420a3cc651ffb52a559b6c36f9158936b96ea5652ee6a520b0871f	-	scripts/ci/test-tool-store.sh
-file	e0767020f19949ad5ff35855a83fa94549486ff614cf5d1f044c3688db3576d0	-	scripts/dev/cargo-tool-build.sh
+file	2d49252710ac5edf62cc9c3196147f544c5e2df9a0c4d2402e599452d2655eb6	-	scripts/dev/cargo-tool-build.sh

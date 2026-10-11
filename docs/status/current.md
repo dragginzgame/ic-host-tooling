@@ -1,6 +1,42 @@
 # Current handoff
 
-## Pending 0.13.4 — private sidecar admission
+## Pending 0.13.5 — Shared 0.6.1 failure and macOS fixture corrections
+
+The sidecar batch is released as Host 0.13.4
+`46483b96c21419aa41ee2cbcdfa2e8efbbfdab21`; the incoming checkout was clean.
+Adopted latest committed Shared 0.6.1
+`731909525038c58d6f80b498e80f8630b11c685d`, matching remote main, through canonical
+preview/refresh from a clean isolated checkout. The same 95-file selection adds
+explicit Cargo setup failure propagation, lock-guarded activation and the numeric
+padded-count fixture correction. The upstream tag-maintenance fixture is outside
+Host's selection. Notes select compatible 0.13.5; no package version, dependency,
+pin or library API changed. Released sidecar source retains its incoming hashes.
+
+Canonical `CARGO_NET_OFFLINE=true make install-tools` completed from the managed
+cache under the changed build-policy digest. Old binary hashes are preserved.
+A disposable second checkout reuses the exact same physical generations for all
+four Cargo tools offline. Its first attempt refused a shared preparation lock;
+the attempt is retained, and retry succeeded after observing the lock released
+and completing CI. No lock was removed or bypassed. No downloads, manual binary
+relocation or artifact cleanup ran. Staging remains empty; the index file's
+metadata hash changed without a staged content change.
+
+Full Linux `CARGO_NET_OFFLINE=true make ci` passes, including the 76 filesystem
+tests, feature profiles, package Clippy/rustdoc, real formatting/hooks and tooling
+fixtures. Host/IC/Cargo fixtures also pass under genuine Bash 3.2.57; the Cargo
+fixture always exercises padded counts. Snapshot/declaration/link checks,
+ShellCheck and diff checks pass. Evidence: `/tmp/host-shared061.iVAfU0/`.
+
+The source correction for [Shared #124](https://github.com/dragginzgame/shared-tooling/issues/124)
+is now adopted. [Host #65](https://github.com/dragginzgame/ic-host-tooling/issues/65)
+remains open for delivery and native qualification. Upstream 0.6.1 Linux passes;
+both native macOS jobs are queued. Released Host 0.13.4 uses the older snapshot:
+Linux/MSRV pass, ARM failed and Intel is running. Its selected failed log is not
+yet exposed while the run is incomplete, so this inspection does not attribute
+its cause. These old-source results do not qualify the pending update. No sibling
+source edit, staging, package bump, commit, push or release ran.
+
+## Historical preparation for 0.13.4 — private sidecar admission
 
 Released base is Host 0.13.3 `66c5df4c13ec500b4935d919420360bb0b8986ef`;
 the incoming checkout was clean. Its CI passes Linux/MSRV, with both macOS jobs
