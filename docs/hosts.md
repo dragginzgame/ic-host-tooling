@@ -38,9 +38,11 @@ qualify its native macOS build or execution.
 CI also owns native macOS execution; Linux qualification is not macOS evidence.
 `ci/ic-tools.tsv` is a consumer-owned pin selection, excluded from automatic
 snapshot refreshes. Host selects Binaryen 133 for all three supported hosts,
-using the reviewed Shared 0.3.9 version and archive digests. Explicit IC setup,
-offline admission and optimization/execution smoke pass on Linux; native macOS
-setup/check remains tracked in [Host #53](https://github.com/dragginzgame/ic-host-tooling/issues/53).
+using the reviewed Shared snapshot's version and archive digests. Explicit IC setup,
+offline admission and optimization/execution smoke pass on Linux. Both native
+macOS setup/check jobs passed on Host 0.12.9
+([Host #53](https://github.com/dragginzgame/ic-host-tooling/issues/53)); later
+changes retain their own qualification obligation.
 Host has no production optimizer invocation or canister build;
 archive fixtures containing `binaryen-version_132` exercise member lookup only.
 The upstream Node-based optimizer smoke is not added to this Rust library's

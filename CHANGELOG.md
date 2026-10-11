@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.12.11]
+
+- Adopt Shared's temporary-path fixes so host-tool fixtures accept symlinked roots
+  and release-command checks handle relative temporary directories
+  ([Shared #111](https://github.com/dragginzgame/shared-tooling/issues/111),
+  [Shared #112](https://github.com/dragginzgame/shared-tooling/issues/112)).
+  Run the host-tool regression in native CI
+  ([#59](https://github.com/dragginzgame/ic-host-tooling/issues/59)).
+  [Detailed notes](docs/changelog/0.12.md).
+
 ## [0.12.10] - 2026-10-11
 
 - Adopt Shared Tooling 0.3.9 so Rust tool preflight, installation and offline

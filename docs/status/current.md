@@ -1,6 +1,46 @@
 # Current handoff
 
-## Pending 0.12.10 — Shared Rust tool context
+## Pending 0.12.11 — requested Shared 0.3.10 adoption
+
+Released Host 0.12.10 `5074de1792f920112c6539629605a6624f573863` matches remote
+main. Its [CI](https://github.com/dragginzgame/ic-host-tooling/actions/runs/38120032068)
+now passes Linux, MSRV and both native macOS 15 architectures. The preceding
+0.12.9 run also completed on all hosts; its native logs were reviewed against
+the earlier fixes. Issues #52–#56 and #58 are closed with source-bound acceptance.
+No earlier cancelled run was relabelled as passing.
+
+The clean checkout adopted Shared commit `37af29b2f8fb4532744b600c5f85ce716a8b57cf`
+through the canonical exporter from an isolated clean source. This is the requested
+0.3.10 commit, but its committed VERSION is still 0.3.9; the canonical snapshot
+annotation preserves that value. [Shared #114](https://github.com/dragginzgame/shared-tooling/issues/114)
+tracks the producer metadata discrepancy. The 92-file selection is unchanged.
+The adopted host/release fixtures normalize alias/relative temporary paths;
+new derive-macro guidance needs no Host source workaround because Host has no
+affected macros and does not run that formatter in its formatting path.
+
+Host's native tooling gate now invokes the already-selected host-tool fixture,
+closing its previously missing CI route. The existing release-command route stays
+in place. Both canonical checks pass on Linux with alias/relative temporary roots
+under current Bash and genuine Bash 3.2.57; the amended Host Make routing fixture
+also passes on both. The first relative-root probe used a nonexistent path and
+was refused; its log is retained separately from the corrected passing probes.
+Snapshot, dependency declarations, links, ShellCheck and diff checks pass.
+[Host #59](https://github.com/dragginzgame/ic-host-tooling/issues/59) owns delivery
+and native acceptance of this compatible 0.12.11 batch. No full local gate ran.
+
+The requested hard-cut review inspected public lock/process/admission boundaries
+and read-only callers in Canic, Testkit, Query, Memory, IcyDB and Toko Miner.
+The fixed-cadence progress-lock helper has one observed production consumer in
+Canic; moving its timing policy there is a possible future minor-release cut.
+Byte-writer helpers and distinct process ownership/admission contracts have active
+callers and already share their underlying engines. No public API was removed or
+breaking change selected. Canic's in-progress edits were left untouched.
+
+Evidence: `/tmp/host-shared0310.5KfKGs/`. Cargo files, tool pins and the real index
+retain incoming checksums. No active Cargo/rustc process was present. No sibling
+source, installation, download, commit, push, publication or release was performed.
+
+## Historical preparation for released 0.12.10 — Shared Rust tool context
 
 Released Host 0.12.9 `8cc85c53cdd59701a7352f566425b3faf195a37b` matches remote
 main; the incoming checkout was clean, with no active Cargo/rustc processes.
