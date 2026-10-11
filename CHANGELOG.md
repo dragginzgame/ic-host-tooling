@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.13.3]
+## [0.13.3] - 2026-10-11
 
 - Adopt Shared Tooling 0.6.0 to reuse verified Cargo tools across checkouts,
   retain local failure evidence when shared storage cannot be admitted, and
