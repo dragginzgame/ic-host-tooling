@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.13.2]
+## [0.13.2] - 2026-10-11
 
 - Adopt Shared Tooling 0.5.0: host and IC tools share verified per-user bundles,
   while Cargo tools retain local slots. Run `make install-tools`, then
