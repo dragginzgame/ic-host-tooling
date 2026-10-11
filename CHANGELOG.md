@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.13.0]
+## [0.13.0] - 2026-10-11
 
 - **Breaking:** Remove `durable::lock_file_with_progress`. Compose
   `open_regular_lock_file_with_parents` with `lock_exclusive_with_wait` and select
