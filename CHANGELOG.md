@@ -6,6 +6,21 @@ documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.34.5]
+
+### Changed
+
+- Adopt Shared Tooling 0.9.0, adding Cargo tool freshness reports and JSON LOC
+  output, and hardening snapshot parsing, build diagnostics and formatter selection
+  ([#60](https://github.com/dragginzgame/ic-testkit/issues/60),
+  [Shared #135](https://github.com/dragginzgame/shared-tooling/issues/135),
+  [Shared #136](https://github.com/dragginzgame/shared-tooling/issues/136),
+  [Shared #131](https://github.com/dragginzgame/shared-tooling/issues/131),
+  [Shared #133](https://github.com/dragginzgame/shared-tooling/issues/133)).
+- Update locked IC Host dependencies to 0.14.7.
+
+[Tooling details](crates/ic-testkit/CHANGELOG.md#0345)
+
 ## [0.34.4] - 2026-10-12
 
 ### Changed

@@ -1751,11 +1751,23 @@ See [bootstrap prerequisites](docs/local-setup.md#bootstrap-prerequisites) and
 [IC tool identities](docs/ic-tools.md). Offline checks verify the prepared
 tools and dependency declarations without downloading or upgrading anything.
 Setup installs tools explicitly; formatting never installs or fetches them.
+For an optional online Cargo tool freshness report, run:
+
+```bash
+perl scripts/dev/check-cargo-tool-versions.pl --consumer "$PWD"
+```
+
+It compares pins and installation receipts with stable crates.io releases,
+retains registry evidence, and distinguishes missing tools from unavailable
+observations. Add `--json` for structured output; see the
+[freshness task](tasks/cargo-tool-versions.md) for prerequisites and statuses.
 The reviewed [consumer Make interface](docs/make-interface.md) owns common setup,
 offline checks, formatting, hook installation, snapshot checks and release
 routing through `make/consumer.mk`. PocketIC setup and product validation stay
 local. Run fleet tooling reports from Shared Tooling. Existing
 checkouts must rerun explicit setup to prepare the newly selected tools.
+Run `make cloc` for this workspace's Rust LOC and test counts, or
+`bash scripts/dev/cloc.sh --json` for per-crate rows and numeric totals.
 Hook activation and formatting checks reject missing formatter prerequisites.
 `make fmt` sorts every workspace Cargo manifest before formatting all Rust code.
 `make fmt-check` performs the matching checks without changing files.

@@ -1,5 +1,146 @@
 # Host support and qualification
 
+## Shared 0.9.0 for pending 0.34.5
+
+Canonical preview and genuine Bash 3.2 export select committed Shared Tooling
+0.9.0 `aec7a149f581a42b9531fc747b46024fc0314fcf`, retaining 62 roots and 93
+payloads ([#60](https://github.com/dragginzgame/ic-testkit/issues/60),
+[Shared #133](https://github.com/dragginzgame/shared-tooling/issues/133)). Only
+the verifier and adoption guide change from 0.8.4. The immutable detached source
+matches the published GitHub commit. Fleet reporters remain centrally owned and
+are not added to this consumer. Existing v1 snapshots retain their layout.
+
+Focused private controls pass on modern Bash and genuine Bash 3.2.57. The old
+0.8.4 verifier accepts an embedded NUL; the new verifier rejects it. Syntax reads
+preserve record order and literal spaces without a checksum backend or payloads.
+Unknown, duplicate, missing, extra-field, noncanonical-path and NUL records emit
+no output. Unreadable input refuses even with an inherited capture value; mixed
+modes and symlinked manifests refuse. Ordinary integrity checks still reject
+changed payload bytes, executable modes and symlinks, and never execute the
+inspected helpers. These are private failure controls rather than the complete
+upstream distribution suite.
+
+Both-shell private refresh controls reject malformed manifests and false
+retirement ownership without modifying payloads or the input manifest. Restoring
+the valid manifest allows an unchanged same-source retry. Initial qualification
+attempts are retained separately: the mixed-mode usage check needed a normal
+PATH for its diagnostic, and the ownership control needed a retirement request
+rather than an already-identical payload refresh.
+
+Actual snapshot integrity, both-shell record reads, stable repeat previews,
+selected ShellCheck, documentation links, exact canonical bytes and diff checks
+pass. Inputs and logs are bound in
+`/tmp/ic-testkit-0345-shared090-qualification.json`; logs use
+`/tmp/ic-testkit-0345-shared090-*`, and the source and private control roots are
+recorded in `/tmp/ic-testkit-shared090-{source,reader,refresh}-path`. Prior
+qualification remains bound to unchanged inputs. Own metadata, selected Host
+lock, staged contents, workflow and published history are preserved. No tool
+installation, Cargo compilation or dependency resolution runs. These are focused
+Linux checks; native consumer CI and full gates remain maintainer-owned.
+
+## Shared 0.8.4 for pending 0.34.5
+
+Canonical preview and Bash 3.2 export select Shared Tooling 0.8.4
+`dca2bdd018afa6be598f03bb3cce1bab79c66973`, retaining 62 roots and 93 payloads
+([#60](https://github.com/dragginzgame/ic-testkit/issues/60)). Only the workspace
+LOC helper and snapshot-adoption guide change from 0.8.3. An immutable detached
+clone supplies committed bytes; newer uncommitted sibling exporter, verifier and
+fleet-reporter work remains intact and is excluded from adoption. Upstream's
+changelog archival does not change this repository's published history.
+
+The committed upstream LOC fixture passes on modern Bash and genuine Bash 3.2.57
+using private workspaces, real offline Cargo metadata and prepared LOC tools.
+It checks JSON totals against the human report, independent workspace selection,
+and a substituted late count failure returning status 23 with no partial JSON.
+The fixture is executed from the immutable source and is not added to this
+consumer snapshot. The actual consumer helper has identical committed bytes.
+Actual `make cloc` and both-shell JSON reports agree for both workspace packages:
+21,048 runtime lines, 10,765 test lines, 347 test functions and 122 inline test
+functions. This is a source-count observation, not a runtime performance result.
+
+Snapshot integrity, unchanged repeat previews, selected ShellCheck, documentation
+links and diff checks pass. Logs use `/tmp/ic-testkit-0345-shared084-*`; the
+source path is recorded in `/tmp/ic-testkit-shared084-source-path`. Prior 0.8.2
+and 0.8.3 qualification remains bound to its unchanged inputs. These are focused
+Linux and Bash 3.2 checks; matching native consumer CI remains separate. Own
+package metadata, the selected Host lock, staged index contents and pending
+portable workflow change are preserved. No tool installation, dependency
+resolution or compilation runs; full gates remain maintainer-owned.
+
+## Shared 0.8.3 for pending 0.34.5
+
+Canonical preview/export advances the existing 62 roots and 93 payloads to
+Shared Tooling 0.8.3 `8cca7e67b03ce6e701b6e7dcec2e9753eb98337e`
+([#60](https://github.com/dragginzgame/ic-testkit/issues/60),
+[Shared #135](https://github.com/dragginzgame/shared-tooling/issues/135),
+[Shared #136](https://github.com/dragginzgame/shared-tooling/issues/136),
+[Shared #131](https://github.com/dragginzgame/shared-tooling/issues/131)). The
+committed `VERSION` identifies 0.8.3 despite the commit message's 0.8.2 label.
+An immutable detached source exports exact committed bytes; no files are added
+or retired by this refresh. Interrupted peer payload files are ignored at any
+depth by `.shared-tooling-payload.*`.
+
+Modern Bash and genuine Bash 3.2.57 pass the updated Rust/host installer fixtures.
+Redirected observation leaves refuse before writing, preserve outside bytes and
+the prior selection, and archive the links without following their targets.
+Successful PCRE2 probes remain quiet while failed probes retain diagnostics.
+The focused canonical Make fixture on both shells checks split host/Rust catalogs
+and rejects mismatched formatter selections before formatter execution; its
+release effects are replaced with private stubs.
+
+A focused private export control interrupts copying into the peer temporary
+file with status 27. Both shells leave the original payload and manifest intact,
+remove partial scratch, then complete a same-source retry. Inputs remain at
+`/tmp/ic-testkit-shared083-atomic.yk_n_k1e/`; its log is
+`/tmp/ic-testkit-0345-shared083-atomic.log`. This qualifies the selected atomic
+replacement behavior, not the complete upstream distribution suite.
+
+Actual prepared host/Rust checks and formatting pass. The consumer's actual
+isolated hook qualification passes on both shells, as do snapshot integrity,
+stable repeat previews, selected ShellCheck, documentation links, ignore-pattern
+admission and diff checks. Logs use `/tmp/ic-testkit-0345-shared083-*.log`; source
+scratch is recorded in `/tmp/ic-testkit-shared083-source-path`. These are focused
+Linux checks with private/synthetic installations, not native consumer acceptance.
+Existing freshness-checker evidence remains applicable to its unchanged inputs.
+Own package metadata, selected Host lock, staged index contents and pending portable
+workflow change are preserved. Read-only Git inspection refreshes index stat-cache
+bytes without staging changes. No tool installation, dependency resolution or Cargo
+compilation runs in this adoption; full gates remain maintainer-owned.
+
+## Shared 0.8.2 for pending 0.34.5
+
+Canonical preview/export selects committed Shared Tooling 0.8.2
+`aaf75a37717357dd62f4b0b15001eaa3ba1629cf`
+([#60](https://github.com/dragginzgame/ic-testkit/issues/60)). The sibling checkout
+has ongoing installer, formatter and exporter edits; an immutable detached clone
+exports only the selected committed bytes. The snapshot adds the canonical Cargo
+freshness checker, task and fixture, retaining every prior payload: 62 roots and
+93 files. The task/governance index changes are also adopted.
+
+The optional consumer command is
+`perl scripts/dev/check-cargo-tool-versions.pl --consumer "$PWD"`. The committed
+0.8.2 Make freshness target belongs to Shared Tooling's root Makefile; consumer
+adoption uses the supported checker CLI. Registry inspection is explicit and
+online, separate from offline prepared-tool admission. No live query, installer,
+pin change or schedule is invoked by this qualification.
+
+The maintained fixture passes on modern Bash and genuine Bash 3.2.57 using
+private receipts and substitute registry transport. It covers non-yanked stable
+selection, local/global/pinned differences, missing tools, failed HTTP/transport,
+malformed or mismatched registry data, unsupported receipts, minimum curl and
+nonliteral pins without execution. Portable CI now invokes that same offline
+fixture. Canonical Bash 3.2 apply, snapshot integrity, stable repeat previews,
+Perl syntax/help, selected ShellCheck, workflow lint, documentation links and diff
+checks pass. Logs use `/tmp/ic-testkit-0345-shared082-*.log`; source scratch is
+recorded in `/tmp/ic-testkit-shared082-source-path`. Native consumer acceptance
+remains separate from these focused Linux checks.
+
+The maintainer's pending Host 0.14.7 lock selection is preserved; source review
+finds no crate implementation delta from 0.14.6. This Perl/tooling adoption runs
+no Cargo compilation or dependency resolution and supplies no new native graph
+qualification. Package metadata, real index and sibling dirty work are preserved;
+full CI and release gates remain maintainer-owned.
+
 ## Shared 0.8.1 and Host 0.14.6 for pending 0.34.4
 
 Canonical preview/export selects Shared Tooling 0.8.1

@@ -141,6 +141,7 @@ jobs:
           /bin/bash scripts/ci/test-host-tools.sh
           /bin/bash scripts/ci/test-ic-tools.sh
           /bin/bash scripts/ci/test-rust-tools.sh
+          /bin/bash scripts/ci/test-cargo-tool-versions.sh
           /bin/bash scripts/ci/test-dependency-pins.sh
           CDPATH="$PWD" /bin/bash scripts/ci/check-release-guards.sh
           CDPATH="$PWD" /bin/bash scripts/ci/test-release-runner.sh

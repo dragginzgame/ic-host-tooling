@@ -8,6 +8,62 @@ This file ships in the crate archive so upgrades can be completed without the
 repository checkout. The complete historical changelog remains at
 <https://github.com/dragginzgame/ic-testkit/blob/main/CHANGELOG.md>.
 
+## [0.34.5]
+
+### Changed: Shared Tooling 0.9.0
+
+The reviewed snapshot selects Shared Tooling 0.9.0
+`aec7a149f581a42b9531fc747b46024fc0314fcf`
+([#60](https://github.com/dragginzgame/ic-testkit/issues/60)). The selection adds
+the canonical freshness checker, its task guide and fixture. Tool pins and
+prepared selections remain unchanged.
+
+Snapshot refresh and verification now share one manifest reader, which rejects
+NUL bytes before parsing the captured input
+([Shared #133](https://github.com/dragginzgame/shared-tooling/issues/133)).
+`bash scripts/ci/verify-shared-tooling-snapshot.sh --read-manifest FILE` emits
+validated records only after the entire manifest passes syntax checks, preserving
+record order and literal field bytes. It establishes syntax, while ordinary
+verification still checks payload bytes and modes and refresh separately proves
+ownership. Existing v1 snapshots need no conversion or tool reinstall.
+
+Formatting admission now reads `RUST_TOOL_VERSIONS`, matching installation even
+when host and Rust catalogs are separate
+([Shared #135](https://github.com/dragginzgame/shared-tooling/issues/135)). Failed
+Cargo builds refuse redirected observation files before recording diagnostics,
+preserving outside bytes, failed evidence and the previous tool selection
+([Shared #136](https://github.com/dragginzgame/shared-tooling/issues/136)).
+
+Snapshot refresh atomically replaces each admitted payload before publishing
+the manifest, so an interrupted copy preserves complete destination bytes and
+can be retried. Minimal Make selections now derive their common installers and
+default LOC helper automatically
+([Shared #131](https://github.com/dragginzgame/shared-tooling/issues/131)). Ignore
+`.shared-tooling-payload.*` scratch files after an ungraceful interruption.
+Successful ripgrep PCRE2 checks are quiet; failed probes retain diagnostics.
+
+Run `bash scripts/dev/cloc.sh --json` for numeric workspace LOC and test counts,
+including per-crate rows and totals. JSON appears only after all counts succeed;
+a failed count preserves its failure status and emits no partial document. The
+default human-readable report remains available through `make cloc`. Snapshot
+guidance now consistently distinguishes explicitly selected roots from the
+script companions derived by the exporter.
+
+Run `perl scripts/dev/check-cargo-tool-versions.pl --consumer "$PWD"` for an
+explicit online report, or add `--json` for structured output. It compares catalog
+pins, checkout receipts and user Cargo receipts with non-yanked stable crates.io
+releases, retaining registry responses and reporting missing or unavailable
+observations separately. It uses Perl core modules and curl 8.4 or newer and
+does not execute installed tools. Receipts describe versions; `make rust-tools-check`
+continues to authenticate prepared bytes and build identities. See the
+[task guide](../../tasks/cargo-tool-versions.md) for statuses and alternate inputs.
+Portable CI exercises the checker with substitute registry responses, including
+outdated/missing selections and incomplete observations.
+
+The maintainer's lock update selects all four Host crates at 0.14.7. This patch
+changes contributor tooling; its crate implementation is unchanged from 0.14.6.
+Library contracts and MSRV remain compatible.
+
 ## [0.34.4] - 2026-10-12
 
 ### Changed: Shared Tooling 0.8.1 and locked Host 0.14.6
