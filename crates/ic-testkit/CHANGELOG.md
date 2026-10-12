@@ -8,7 +8,7 @@ This file ships in the crate archive so upgrades can be completed without the
 repository checkout. The complete historical changelog remains at
 <https://github.com/dragginzgame/ic-testkit/blob/main/CHANGELOG.md>.
 
-## [0.34.4]
+## [0.34.4] - 2026-10-12
 
 ### Changed: Shared Tooling 0.8.1 and locked Host 0.14.6
 
