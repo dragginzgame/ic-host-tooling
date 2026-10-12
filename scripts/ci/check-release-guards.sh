@@ -267,7 +267,7 @@ EOF
 )
 
 bash "${repo_root}/scripts/ci/check-release-commands.sh" "${repo_root}" \
-  make/tools.mk make/release.mk make/rust-format.mk make/execution.mk \
+  make/consumer.mk make/tools.mk make/release.mk make/rust-format.mk make/execution.mk \
   scripts/ci/check-make-execution.sh scripts/ci/run-formatting.sh
 
 # Qualify the actual consumer's complete aggregates with substituted installers,
@@ -298,13 +298,30 @@ STUB
   cat > "$TOOL_ROOT/bin/cargo" <<'STUB'
 #!/usr/bin/env bash
 set -euo pipefail
-[[ "$1" == build && "$*" == *--locked* ]] || exit 97
-printf 'cargo:build\n' >> "$TOOL_TRACE"
+[[ "$1" != +* ]] || shift
+[[ "$1" != --version ]] || exit 0
+[[ "$*" == *--locked* ]] || exit 97
+[[ "$1" != test || "${POCKET_IC_BIN:-}" == /prepared/server ]] || exit 97
+jobserver=''
+for option in ${MAKEFLAGS:-}; do
+  case "$option" in
+    --jobserver-auth=* | --jobserver-fds=*) jobserver="${option#*=}" ;;
+  esac
+done
+case "$jobserver" in
+  fifo:*) [[ -p "${jobserver#fifo:}" ]] || exit 97 ;;
+  *,*) : <&"${jobserver%,*}"; : >&"${jobserver#*,}" ;;
+  *) exit 97 ;;
+esac
+printf 'cargo:%s\n' "$1" >> "$TOOL_TRACE"
+[[ "${TOOL_FAIL:-}" != "cargo:$1" ]] || exit 23
+[[ "$1" == build ]] || exit 0
 mkdir -p "$TOOL_ROOT/target/debug"
 cat > "$TOOL_ROOT/target/debug/ic-testkit-server" <<'SERVER'
 #!/usr/bin/env bash
 set -euo pipefail
 printf 'server:%s\n' "$1" >> "$TOOL_TRACE"
+[[ "${TOOL_FAIL:-}" != "server:$1" ]] || exit 23
 case "$1" in
   setup) printf 'retained server bytes\n' > "$TOOL_ROOT/server-bytes" ;;
   check) [[ -f "$TOOL_ROOT/server-bytes" ]]; printf '/prepared/server\n' ;;
@@ -313,7 +330,8 @@ esac
 SERVER
 chmod +x "$TOOL_ROOT/target/debug/ic-testkit-server"
 STUB
-  chmod +x "$TOOL_ROOT/bin/cargo"
+  printf '#!/usr/bin/env bash\nexit 0\n' > "$TOOL_ROOT/bin/rustc"
+  chmod +x "$TOOL_ROOT/bin/cargo" "$TOOL_ROOT/bin/rustc"
   export PATH="$TOOL_ROOT/bin:$PATH"
   "$make_bin" --no-print-directory -C "$TOOL_ROOT" > "$TOOL_ROOT/help.log"
   [[ ! -e "$TOOL_TRACE" ]] || fail 'default goal dispatched tools'
@@ -330,6 +348,28 @@ STUB
   printf '%s\n' host:check ic:check rust:check server:check > "$TOOL_ROOT/expected"
   cmp "$TOOL_TRACE" "$TOOL_ROOT/expected" || fail 'complete offline check rebuilt or installed'
   cmp "$TOOL_ROOT/server-bytes" "$TOOL_ROOT/retained-server"
+  # The real product recipes must pass Make's jobserver to every Cargo build,
+  # including shell chains, without losing CLI admission or failure ordering.
+  for target in check check-wasm clippy docs-check msrv package publish-dry-run \
+    build-test-canisters test test-canisters; do
+    : > "$TOOL_TRACE"
+    "$make_bin" --no-print-directory -j4 -C "$TOOL_ROOT" "$target" > "$TOOL_ROOT/$target.log" 2>&1
+  done
+  printf '%s\n' cargo:build server:check cargo:test > "$TOOL_ROOT/expected"
+  cmp "$TOOL_TRACE" "$TOOL_ROOT/expected" || fail 'canister test bypassed owner admission'
+  : > "$TOOL_TRACE"
+  "$make_bin" --no-print-directory -j4 -C "$TOOL_ROOT" test > "$TOOL_ROOT/test.log" 2>&1
+  printf '%s\n' cargo:build server:check cargo:test cargo:test > "$TOOL_ROOT/expected"
+  cmp "$TOOL_TRACE" "$TOOL_ROOT/expected" || fail 'full test target omitted separate-process qualification'
+  for stage in server:check cargo:test; do
+    : > "$TOOL_TRACE"
+    status=0
+    TOOL_FAIL="$stage" "$make_bin" --no-print-directory -j4 -C "$TOOL_ROOT" test > "$TOOL_ROOT/test-failure-${stage#*:}.log" 2>&1 || status=$?
+    [[ "$status" == 2 ]] || fail 'test admission or Cargo failure status lost'
+    printf '%s\n' cargo:build server:check > "$TOOL_ROOT/expected"
+    [[ "$stage" != cargo:test ]] || printf '%s\n' cargo:test >> "$TOOL_ROOT/expected"
+    cmp "$TOOL_TRACE" "$TOOL_ROOT/expected" || fail 'failed test dispatched later Cargo work'
+  done
   : > "$TOOL_TRACE"
   status=0
   TOOL_FAIL=rust:setup "$make_bin" --no-print-directory -j4 -C "$TOOL_ROOT" install-tools > "$TOOL_ROOT/failed.log" 2>&1 || status=$?

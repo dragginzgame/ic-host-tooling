@@ -196,14 +196,19 @@ pub(super) fn setup(directory: &Path) -> Result<PathBuf> {
                     .and_then(|error| error.evidence())
                     .map(|evidence| &evidence.stderr)
             })
-        {
-            durable::write_bytes(
+            && let Err(record_error) = durable::write_bytes(
                 &archive
                     .parent()
                     .ok_or("missing archive parent")?
                     .join("download.stderr"),
                 stderr,
-            )?;
+            )
+        {
+            if outcome.is_ok() {
+                return Err(record_error.into());
+            }
+            // Recording evidence must not replace the failed download's cause.
+            eprintln!("could not record download stderr: {record_error}");
         }
         outcome?;
         Ok(())

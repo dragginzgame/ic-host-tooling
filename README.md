@@ -1749,8 +1749,10 @@ See [bootstrap prerequisites](docs/local-setup.md#bootstrap-prerequisites) and
 [IC tool identities](docs/ic-tools.md). Offline checks verify the prepared
 tools and dependency declarations without downloading or upgrading anything.
 Setup installs tools explicitly; formatting never installs or fetches them.
-The reviewed `make/tools.mk` owns setup, offline checks, `make cloc` for this
-workspace. Run fleet tooling reports from Shared Tooling. Existing
+The reviewed [consumer Make interface](docs/make-interface.md) owns common setup,
+offline checks, formatting, hook installation, snapshot checks and release
+routing through `make/consumer.mk`. PocketIC setup and product validation stay
+local. Run fleet tooling reports from Shared Tooling. Existing
 checkouts must rerun explicit setup to prepare the newly selected tools.
 Hook activation and formatting checks reject missing formatter prerequisites.
 `make fmt` sorts every workspace Cargo manifest before formatting all Rust code.

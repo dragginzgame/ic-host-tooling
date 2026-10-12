@@ -6,6 +6,33 @@ documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.34.1]
+
+### Changed
+
+- Adopt Shared Tooling 0.6.4's common Make interface, removing duplicate hook and
+  snapshot-check recipes while preserving PocketIC setup and formatter admission
+  ([#60](https://github.com/dragginzgame/ic-testkit/issues/60),
+  [Shared #130](https://github.com/dragginzgame/shared-tooling/issues/130)).
+
+### Fixed
+
+- Forward Make's parallel job controls to local Cargo recipes and use one
+  PocketIC CLI path for build callers
+  ([#63](https://github.com/dragginzgame/ic-testkit/issues/63)).
+- Preserve PocketIC download failures when saving stderr also fails, reporting
+  the recording error separately and retaining failed setup evidence
+  ([#62](https://github.com/dragginzgame/ic-testkit/issues/62)).
+
+### Testing
+
+- Extend CI artifact readback to cover failed shared-tool selections, verifying
+  exact retained diagnostics and original failure status for both collector
+  modes while excluding shared payloads
+  ([#59](https://github.com/dragginzgame/ic-testkit/issues/59)).
+
+[Evidence qualification details](crates/ic-testkit/CHANGELOG.md#0341)
+
 ## [0.34.0] - 2026-10-11
 
 ### Breaking

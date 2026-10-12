@@ -8,6 +8,63 @@ This file ships in the crate archive so upgrades can be completed without the
 repository checkout. The complete historical changelog remains at
 <https://github.com/dragginzgame/ic-testkit/blob/main/CHANGELOG.md>.
 
+## [0.34.1]
+
+### Changed: Shared Tooling 0.6.4 Make interface
+
+The reviewed snapshot advances to Shared Tooling 0.6.4
+`6fc8eb9a94f83fb0b9d0a26377d4232508cdbe2d`. Its common Make entrypoint now owns
+setup/check, formatting, hook installation, snapshot verification and release
+routing, replacing separate includes and duplicate local recipes
+([#60](https://github.com/dragginzgame/ic-testkit/issues/60),
+[Shared #130](https://github.com/dragginzgame/shared-tooling/issues/130)).
+Hook setup still requires prepared formatters. Ordered PocketIC installation and
+offline verification, the default help command, product gates and release and
+publication adapters stay local. Isolated hook/release exports include the new
+entrypoint. Existing tools need no reinstall for this adoption, and no public
+command, library API or retained format changes.
+
+### Fixed: local Make job controls
+
+Product Cargo recipes now inherit Make's parallel job controls, including test
+shell chains and the publication adapter
+([#63](https://github.com/dragginzgame/ic-testkit/issues/63)). The local owner CLI
+has one absolute executable path shared by setup, offline checks and tests.
+Existing locked dependency selection, setup ordering, offline admission and
+separate-process test coverage remain intact. Contributor tooling changes are
+compatible; library APIs and package versions are unchanged.
+
+### Fixed: primary PocketIC download failure
+
+Failed setup retains curl's original nonzero or signalled process error even
+when its stderr cannot be saved. The recording failure is reported separately;
+`failure.txt` and the CLI retain the download failure as the primary cause
+([#62](https://github.com/dragginzgame/ic-testkit/issues/62)). Partial archives,
+failed attempts and existing bundles remain intact on retries. A successful
+download still stops before installation if recording stderr fails. This is a
+compatible error-reporting fix; no CLI arguments, formats or limits change.
+
+### Testing: hosted failed-selection evidence readback
+
+CI's existing artifact round trip now includes the normal qualification archive
+and the checks/portable archives produced by rejected shared-tool selection
+([#59](https://github.com/dragginzgame/ic-testkit/issues/59)). The separate verifier
+consumes their proof directory and applies common checks for local build
+logs/receipts, formatter and validation diagnostics, links, original selector
+status, incomplete collection and step outcomes. It also checks validation logs
+for checks archives and portable fixture/readback files for portable archives.
+Rejected shared payloads, unrelated link targets and the other mode's diagnostics
+stay excluded.
+
+Corrupt payload, outcome and selector-status controls reject the proof and retain
+extracted evidence. Readback compares exact expected bytes, including trailing
+newlines; added-newline controls cover normal payloads and rejected-selection
+build logs. Missing validation diagnostics and portable payloads also reject the
+proof while retaining extracted evidence. All three archives use the existing
+pinned upload/download actions, exact returned artifact identity and digest
+admission. Library, server
+CLI, installed tool selections and retained formats are unchanged.
+
 ## [0.34.0] - 2026-10-11
 
 ### Breaking: IC Host 0.14 completed process results

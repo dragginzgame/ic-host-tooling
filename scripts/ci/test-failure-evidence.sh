@@ -19,45 +19,70 @@ fixture="$(cd -P "$fixture" && printf '%s/.' "$PWD")"
 fixture="${fixture%/.}"
 
 verify_archive() {
+    local mode="$2" selector_status="$3"
     mkdir "$fixture/unpacked"
     # Only extract this workflow's own qualification artifact, never arbitrary input.
     tar -xzf "$1" -C "$fixture/unpacked"
-    local payload="$fixture/unpacked/ic-testkit-portable-fixtures/Linux:x86_64/"$'line\nbreak'
-    [[ "$(cat "$payload")" == retained ]] || exit 1
-    [[ "$(perl -e 'printf "%o", (stat($ARGV[0]))[2] & 0777' "$payload")" == 640 ]] || exit 1
+    cmp -s "$fixture/unpacked/tool-evidence/selection-status" <(printf '%s\n' "$selector_status") || exit 1
+    if [[ "$selector_status" == 1 ]]; then
+        cmp -s "$fixture/unpacked/tool-evidence/collection-status" <(printf 'shared_collection=incomplete\n') || exit 1
+        [[ -s "$fixture/unpacked/tool-evidence/selection.log" ]] || exit 1
+    else
+        [[ ! -e "$fixture/unpacked/tool-evidence/collection-status" ]] || exit 1
+    fi
+    if [[ "$mode" == portable ]]; then
+        local payload="$fixture/unpacked/ic-testkit-portable-fixtures/Linux:x86_64/"$'line\nbreak'
+        cmp -s "$payload" <(printf retained) || exit 1
+        [[ "$(perl -e 'printf "%o", (stat($ARGV[0]))[2] & 0777' "$payload")" == 640 ]] || exit 1
+        [[ -L "$fixture/unpacked/ic-testkit-portable-fixtures/link" ]] || exit 1
+        [[ "$(readlink "$fixture/unpacked/ic-testkit-portable-fixtures/link")" == ../outside ]] || exit 1
+        [[ ! -e "$fixture/unpacked/ic-testkit-portable-fixtures/link" ]] || exit 1
+        [[ ! -e "$fixture/unpacked/ic-testkit-portable-fixtures/.git" ]] || exit 1
+        cmp -s "$fixture/unpacked/ic-testkit-archive-proof/evidence.tar.gz" <(printf 'qualification source') || exit 1
+        cmp -s "$fixture/unpacked/ic-testkit-archive-downloaded/evidence.tar.gz" <(printf 'qualification download') || exit 1
+        [[ ! -e "$fixture/unpacked/ic-testkit-validation.log" ]] || exit 1
+    else
+        cmp -s "$fixture/unpacked/ic-testkit-validation.log" <(printf validation) || exit 1
+        [[ ! -e "$fixture/unpacked/ic-testkit-portable-fixtures" ]] || exit 1
+        [[ ! -e "$fixture/unpacked/ic-testkit-archive-proof" && ! -e "$fixture/unpacked/ic-testkit-archive-downloaded" ]] || exit 1
+    fi
     [[ -x "$fixture/unpacked/.tools/host-set.fixture/bin/probe" ]] || exit 1
     local shared_reference stored_slot
     shared_reference="$(readlink "$fixture/unpacked/.tools/host-set.failed")"
     stored_slot="${shared_reference%/*}"; stored_slot="${stored_slot##*/}"
     [[ "$stored_slot" =~ ^host-[0-9a-f]{64}$ && "${shared_reference##*/}" == set.failed ]] || exit 1
-    [[ "$(cat "$fixture/unpacked/$stored_slot/set.failed/install.log")" == 'failed shared attempt' ]] || exit 1
     [[ ! -e "$fixture/unpacked/$stored_slot/set.unrelated" ]] || exit 1
     local rust_reference rust_slot
     rust_reference="$(readlink "$fixture/unpacked/.tools/rust/rust-set.failed")"
     rust_slot="${rust_reference%/*}"; rust_slot="${rust_slot##*/}"
     [[ "$rust_slot" =~ ^rust-[0-9a-f]{64}$ && "${rust_reference##*/}" == set.failed ]] || exit 1
-    [[ "$(cat "$fixture/unpacked/$rust_slot/set.failed/build/evidence")" == 'failed shared Cargo build' ]] || exit 1
     [[ ! -e "$fixture/unpacked/$rust_slot/set.unrelated" ]] || exit 1
-    [[ -L "$fixture/unpacked/ic-testkit-portable-fixtures/link" ]] || exit 1
-    [[ "$(readlink "$fixture/unpacked/ic-testkit-portable-fixtures/link")" == ../outside ]] || exit 1
-    [[ ! -e "$fixture/unpacked/ic-testkit-portable-fixtures/link" ]] || exit 1
-    [[ ! -e "$fixture/unpacked/ic-testkit-portable-fixtures/.git" ]] || exit 1
+    if [[ "$selector_status" == 0 ]]; then
+        cmp -s "$fixture/unpacked/$stored_slot/set.failed/install.log" <(printf 'failed shared attempt') || exit 1
+        cmp -s "$fixture/unpacked/$rust_slot/set.failed/build/evidence" <(printf 'failed shared Cargo build') || exit 1
+    else
+        [[ ! -e "$fixture/unpacked/$stored_slot" && ! -e "$fixture/unpacked/$rust_slot" ]] || exit 1
+    fi
     [[ ! -e "$fixture/unpacked/outside" && ! -e "$fixture/unpacked/unrelated" ]] || exit 1
-    [[ "$(cat "$fixture/unpacked/ic-testkit-tools-install.log")" == failed ]] || exit 1
-    [[ "$(cat "$fixture/unpacked/formatting.fixture")" == 'formatter diagnostic' ]] || exit 1
-    [[ "$(cat "$fixture/unpacked/.tools/rust/build/cargo-attempt.fixture/install.log")" == 'failed Cargo attempt' ]] || exit 1
-    [[ "$(cat "$fixture/unpacked/.tools/rust/tool-1.0.0-bin-tool-release/installed/selection.json")" == 'admitted receipt' ]] || exit 1
+    cmp -s "$fixture/unpacked/ic-testkit-tools-install.log" <(printf failed) || exit 1
+    cmp -s "$fixture/unpacked/formatting.fixture" <(printf 'formatter diagnostic') || exit 1
+    cmp -s "$fixture/unpacked/.tools/rust/build/cargo-attempt.fixture/install.log" <(printf 'failed Cargo attempt') || exit 1
+    cmp -s "$fixture/unpacked/.tools/rust/tool-1.0.0-bin-tool-release/installed/selection.json" <(printf 'admitted receipt') || exit 1
     [[ -L "$fixture/unpacked/.tools/rust/common" && "$(readlink "$fixture/unpacked/.tools/rust/common")" == common-set.fixture ]] || exit 1
     [[ -L "$fixture/unpacked/.tools/rust/build/external" && ! -e "$fixture/unpacked/.tools/rust/build/external" ]] || exit 1
-    [[ "$(cat "$fixture/unpacked/target/validation-failures/latest.log")" == diagnostic ]] || exit 1
-    [[ "$(cat "$fixture/unpacked/ic-testkit-archive-proof/evidence.tar.gz")" == 'qualification source' ]] || exit 1
-    [[ "$(cat "$fixture/unpacked/ic-testkit-archive-downloaded/evidence.tar.gz")" == 'qualification download' ]] || exit 1
-    [[ "$(cat "$fixture/unpacked/step-outcomes.json")" == '{"prepare":{"outcome":"failure","status":23}}' ]] || exit 1
+    cmp -s "$fixture/unpacked/target/validation-failures/latest.log" <(printf diagnostic) || exit 1
+    cmp -s "$fixture/unpacked/step-outcomes.json" <(printf '%s\n' '{"prepare":{"outcome":"failure","status":23}}') || exit 1
     rm -rf "$fixture/unpacked"
 }
+verify_proof() {
+    # These are this workflow's own qualification archives, not arbitrary input.
+    verify_archive "$1/evidence.tar.gz" portable 0
+    verify_archive "$1/checks-rejected.tar.gz" checks 1
+    verify_archive "$1/portable-rejected.tar.gz" portable 1
+}
 if [[ $# == 2 && "$1" == verify ]]; then
-    verify_archive "$2"
-    echo 'Downloaded evidence archive bytes, modes, links and outcomes passed'
+    verify_proof "$2"
+    echo 'Downloaded normal/rejected-selection evidence bytes, modes, links, statuses and outcomes passed'
     fixture_complete=true
     exit 0
 fi
@@ -192,7 +217,11 @@ mkdir "$GITHUB_WORKSPACE/scripts"
 ln -s "$root/scripts/ci" "$GITHUB_WORKSPACE/scripts/ci"
 for mode in checks portable; do
     mkdir "$fixture/rejected-$mode-temp" "$fixture/rejected-$mode-unpacked"
-    printf 'failed' > "$fixture/rejected-$mode-temp/ic-testkit-tools-install.log"
+    # Both modes see the same available diagnostics; each selects only its scope.
+    cp -p "$RUNNER_TEMP/ic-testkit-tools-install.log" "$RUNNER_TEMP/ic-testkit-validation.log" \
+        "$RUNNER_TEMP/formatting.fixture" "$RUNNER_TEMP/outside" "$fixture/rejected-$mode-temp/"
+    cp -R -P -p "$RUNNER_TEMP/ic-testkit-portable-fixtures" "$RUNNER_TEMP/ic-testkit-archive-proof" \
+        "$RUNNER_TEMP/ic-testkit-archive-downloaded" "$fixture/rejected-$mode-temp/"
     awk -v id="$mode-evidence" '
         index($0, "id: " id) { selected=1 }
         selected && /^        run: \|$/ { body=1; next }
@@ -265,33 +294,62 @@ cmp "$verified/bin/jq" "$fixture/changed-unpacked/$stored_path/bin/jq"
 [[ -L "$fixture/changed-unpacked/.tools/${verified##*/}" && ! -e "$fixture/changed-unpacked/${stored_parent##*/}/set.unrelated" ]] || exit 1
 [[ -s "$fixture/changed-unpacked/tool-evidence/host/check.log" ]] || exit 1
 archive="$(TAR_OPTIONS=--dereference bash "$collector" portable)"
-verify_archive "$archive"
+mkdir "$fixture/proof"
+cp "$archive" "$fixture/proof/evidence.tar.gz"
+for mode in checks portable; do
+    rejected="$(cat "$fixture/workflow-$mode.output")"
+    cp "${rejected#archive=}" "$fixture/proof/$mode-rejected.tar.gz"
+done
+verify_proof "$fixture/proof"
 # Qualify the same separate entry point used after hosted artifact readback.
 mkdir "$fixture/verify-valid"
-TMPDIR="$fixture/verify-valid" bash "$root/scripts/ci/test-failure-evidence.sh" verify "$archive" \
+TMPDIR="$fixture/verify-valid" bash "$root/scripts/ci/test-failure-evidence.sh" verify "$fixture/proof" \
     > "$fixture/verify-valid.log" 2>&1
 set -- "$fixture/verify-valid"/*
 [[ ! -e "$1" ]] || exit 1
-# Contradict payload and outcome observations without changing verifier code.
+# Contradict payload, outcome and selector-status observations without changing verifier code.
+# Appended newlines must not disappear through command-substitution normalization.
 # Failed verification must preserve extracted evidence, including on Bash 3.2.
-for invalid in payload outcomes; do
-    mkdir "$fixture/corrupt-$invalid" "$fixture/verify-$invalid"
-    tar -xzf "$archive" -C "$fixture/corrupt-$invalid"
+for invalid in payload outcomes selection-status payload-newline rejected-log-newline missing-diagnostic missing-portable; do
+    mkdir "$fixture/corrupt-$invalid" "$fixture/verify-$invalid" "$fixture/corrupt-$invalid-proof"
+    cp "$fixture/proof/"*.tar.gz "$fixture/corrupt-$invalid-proof/"
+    case "$invalid" in
+        selection-status|missing-diagnostic) corrupt_archive='checks-rejected.tar.gz' ;;
+        rejected-log-newline|missing-portable) corrupt_archive='portable-rejected.tar.gz' ;;
+        *) corrupt_archive=evidence.tar.gz ;;
+    esac
+    tar -xzf "$fixture/proof/$corrupt_archive" -C "$fixture/corrupt-$invalid"
     if [[ "$invalid" == payload ]]; then
         printf changed > "$fixture/corrupt-$invalid/ic-testkit-portable-fixtures/Linux:x86_64/"$'line\nbreak'
-    else
+    elif [[ "$invalid" == outcomes ]]; then
         printf '{"prepare":{"outcome":"success","status":0}}' > "$fixture/corrupt-$invalid/step-outcomes.json"
+    elif [[ "$invalid" == selection-status ]]; then
+        printf 0 > "$fixture/corrupt-$invalid/tool-evidence/selection-status"
+    elif [[ "$invalid" == payload-newline ]]; then
+        printf '\n' >> "$fixture/corrupt-$invalid/ic-testkit-portable-fixtures/Linux:x86_64/"$'line\nbreak'
+    elif [[ "$invalid" == rejected-log-newline ]]; then
+        printf '\n' >> "$fixture/corrupt-$invalid/.tools/rust/build/cargo-attempt.fixture/install.log"
+    elif [[ "$invalid" == missing-diagnostic ]]; then
+        rm "$fixture/corrupt-$invalid/target/validation-failures/latest.log"
+    else
+        rm "$fixture/corrupt-$invalid/ic-testkit-portable-fixtures/Linux:x86_64/"$'line\nbreak'
     fi
-    TAR_OPTIONS='' tar -czf "$fixture/corrupt-$invalid.tar.gz" -C "$fixture/corrupt-$invalid" .
+    TAR_OPTIONS='' tar -czf "$fixture/corrupt-$invalid-proof/$corrupt_archive" -C "$fixture/corrupt-$invalid" .
     status=0
     TMPDIR="$fixture/verify-$invalid" bash "$root/scripts/ci/test-failure-evidence.sh" \
-        verify "$fixture/corrupt-$invalid.tar.gz" > "$fixture/verify-$invalid.log" 2>&1 || status=$?
+        verify "$fixture/corrupt-$invalid-proof" > "$fixture/verify-$invalid.log" 2>&1 || status=$?
     [[ "$status" == 1 ]] || exit 1
     set -- "$fixture/verify-$invalid"/ic-testkit-evidence-test.*
     [[ $# == 1 && -d "$1/unpacked" ]] || exit 1
     cmp "$fixture/corrupt-$invalid/step-outcomes.json" "$1/unpacked/step-outcomes.json"
-    cmp "$fixture/corrupt-$invalid/ic-testkit-portable-fixtures/Linux:x86_64/"$'line\nbreak' \
-        "$1/unpacked/ic-testkit-portable-fixtures/Linux:x86_64/"$'line\nbreak'
+    if [[ "$corrupt_archive" != evidence.tar.gz ]]; then
+        cmp "$fixture/corrupt-$invalid/tool-evidence/selection-status" "$1/unpacked/tool-evidence/selection-status"
+        cmp "$fixture/corrupt-$invalid/.tools/rust/build/cargo-attempt.fixture/install.log" \
+            "$1/unpacked/.tools/rust/build/cargo-attempt.fixture/install.log"
+    else
+        cmp "$fixture/corrupt-$invalid/ic-testkit-portable-fixtures/Linux:x86_64/"$'line\nbreak' \
+            "$1/unpacked/ic-testkit-portable-fixtures/Linux:x86_64/"$'line\nbreak'
+    fi
 done
 checks="$(bash "$collector" checks)"
 mkdir "$fixture/checks"
@@ -321,7 +379,7 @@ if PATH="$fixture/bin:$PATH" RUNNER_TEMP="$fixture/failed-temp" bash "$collector
 [[ -f "$payload" && ! -e "$fixture/failed-temp/ic-testkit-checks-failure/evidence.tar.gz" ]] || exit 1
 if [[ -n "${IC_TESTKIT_ARCHIVE_PROOF_DIR:-}" ]]; then
     mkdir "$IC_TESTKIT_ARCHIVE_PROOF_DIR"
-    cp "$archive" "$IC_TESTKIT_ARCHIVE_PROOF_DIR/evidence.tar.gz"
+    cp "$fixture/proof/"*.tar.gz "$IC_TESTKIT_ARCHIVE_PROOF_DIR/"
 fi
 echo 'Failure evidence selections, archive round trips and failure retention passed'
 fixture_complete=true

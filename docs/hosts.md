@@ -1,5 +1,143 @@
 # Host support and qualification
 
+## Rejected-selection artifact proof for pending 0.34.1
+
+On released 0.34.0 `ccfd0dbc47a527e330cd55d91b1d02f83cb7a9f2`, the remaining
+hosted readback boundary from [#59](https://github.com/dragginzgame/ic-testkit/issues/59)
+now has maintained CI qualification. The existing fixture exports normal evidence
+and both archives produced by actual checks/portable collector blocks after
+Shared rejects a symlinked store. The workflow's existing pinned actions upload
+these three archives together and read them back by exact artifact ID with digest
+admission. The standalone verifier consumes the downloaded proof directory;
+there is one current interface and no archive-file fallback.
+
+Modern Bash and genuine Bash 3.2.57 pass the complete fixture and standalone local
+readback: retained local build/receipt bytes, executable modes, non-followed links,
+original selector status, incomplete collection and outcomes. Shared payloads and
+unrelated files remain excluded. A control changing rejected selection to status
+zero fails verification and retains extracted evidence; existing corrupt-payload,
+corrupt-outcome and failed-archive controls still pass. ShellCheck and actionlint
+pass. Fixture logs use `/tmp/ic-testkit-0341-final-*.log`; all three exported
+archives remain in `/tmp/ic-testkit-0341-final-proof{,-bash32}/`.
+
+A further byte-preservation check demonstrated that appending a newline to the
+normal payload still passed the earlier readback comparison. Exact comparisons
+now preserve newline significance for expected payloads, logs, receipts, statuses
+and outcomes. The same altered archive now fails and retains its extracted
+evidence (`/tmp/ic-testkit-0341-newline-before.w97GpH/`). Added controls append
+newlines to the normal payload and portable rejected-selection build log; both
+reject without losing their extracted bytes. The complete fixture passes on
+modern Bash and genuine Bash 3.2.57, with logs
+`/tmp/ic-testkit-0341-bytes-{modern,bash32}.log` and exported archives
+`/tmp/ic-testkit-0341-bytes-proof{,-bash32}/`. ShellCheck passes.
+
+Scope qualification then demonstrated that removing validation failure diagnostics
+from a rejected-selection archive still passed
+(`/tmp/ic-testkit-0341-missing-diagnostic-before.IMZnF2/`). A common readback flow
+now checks local tools, formatter/validation diagnostics and outcomes for all
+three archives, with checks/portable scope and shared-selection status supplied
+by the proof caller. Both workflow fixtures offer the same logs, portable data
+and prior readback files so retained and excluded content can be checked together.
+Controls removing checks validation diagnostics or a portable payload now fail
+without losing extracted evidence. A separate missing-diagnostic attempt retains
+its proof and surviving build log under
+`/tmp/ic-testkit-0341-missing-diagnostic-after.cxxSC4/`.
+
+The complete fixture and standalone verifier pass on modern Bash and genuine
+Bash 3.2.57. Final logs use `/tmp/ic-testkit-0341-scope-final-*.log`; exported
+proof sets remain in `/tmp/ic-testkit-0341-scope-final-proof{,-bash32}/`.
+ShellCheck passes. This extends consumer-owned qualification without changing
+the collector or reviewed Shared helpers.
+
+These runs execute the real collector/workflow shell blocks with synthetic tools
+and substitute download transport. Local copies/readback do not establish hosted
+artifact-service acceptance or native macOS behavior; those need the matching
+next CI run. Contributor qualification is compatible 0.34.1 work. These archive
+changes preserve library/CLI behavior, package versions, real index/refs and
+release state. Their earlier Shared 0.6.3 and maintainer-selected Host 0.14.1,
+cc 1.8.0 and serde_json 1.0.153 inputs remain bound to those logs; no Cargo job or
+dependency resolution ran for that archive change. Separate runtime and Shared
+0.6.4 work is qualified below.
+
+At inspection, [released 0.34.0 CI](https://github.com/dragginzgame/ic-testkit/actions/runs/38150408955)
+passes all four Linux jobs, Apple macOS checks, and Intel macOS portable/MSRV.
+Intel macOS checks are running; four macOS jobs remain queued. The newest run
+cancelled unfinished 0.33.8 jobs; their earlier individual successes remain bound
+to that older source. This run qualifies released 0.34.0, not pending 0.34.1.
+
+## Shared 0.6.4 Make interface for pending 0.34.1
+
+On released 0.34.0 `ccfd0dbc47a527e330cd55d91b1d02f83cb7a9f2`, canonical
+preview/export selects committed Shared 0.6.4
+`6fc8eb9a94f83fb0b9d0a26377d4232508cdbe2d` with 90 files
+([#60](https://github.com/dragginzgame/ic-testkit/issues/60),
+[Shared #130](https://github.com/dragginzgame/shared-tooling/issues/130)).
+The root Makefile uses its common entrypoint and removes duplicate local
+hook/snapshot-check recipes. Formatter admission still precedes hook setup;
+ordered owner PocketIC extensions, product validation, publication and release
+metadata adapters remain local. The default command still shows help. Isolated
+hook and release exports include the new entrypoint.
+
+Snapshot integrity and actual formatting pass. Consumer hook qualification passes
+on modern Bash and genuine Bash 3.2.57 with the prepared formatter: staged-only
+formatting, lock/unrelated-byte preservation, failed prerequisites, and isolated
+activation/refusal. Consumer release guards also pass on both shells, exercising
+actual Make routing with substitute runner, compiler, installer and complete-gate
+effects, plus isolated metadata/retry preservation. These fixtures never execute
+the real release flow or install tools. Logs use
+`/tmp/ic-testkit-0341-shared064-*.log`. Bare Make, ShellCheck and diff checks pass.
+No tool reinstall is needed; previous tools and release evidence remain intact.
+Matching delivered-source native CI and the maintainer's full gate remain separate.
+
+## Local Make job controls for pending 0.34.1
+
+A disposable copy of the actual consumer Makefile showed `make -j2 check`
+advertising pipe jobserver descriptors but closing them before the Cargo
+substitute could inspect them
+([#63](https://github.com/dragginzgame/ic-testkit/issues/63)). The standard Make
+`+` handoff now applies to local compiling Cargo recipes, test shell chains and
+the publication adapter. The same descriptor check passes, including through a
+substitute publication adapter. Setup, checks and tests share one absolute owner
+CLI path. Original and repaired proofs remain in
+`/tmp/ic-testkit-0341-make-jobserver-{before,after}.log` and
+`/tmp/ic-testkit-0341-make-publish-jobserver.log`.
+
+Consumer release guards pass on modern Bash and genuine Bash 3.2.57. Their
+extended isolated routing fixture checks jobserver access for product Cargo
+recipes, the PocketIC environment, both test invocations, stopping after owner
+admission or Cargo failure, and existing ordered setup/offline checks. Logs use
+`/tmp/ic-testkit-0341-make-guards-{modern,bash32}.log`. Publication guards pass
+with substituted registry transport, Cargo and Git. Compiler, installer and
+complete-gate effects are substitutes; no real full suite, release, publication
+or tool setup ran. Matching delivered native qualification remains separate.
+This compatible contributor repair preserves package versions and lock selection.
+
+## PocketIC download error precedence for pending 0.34.1
+
+On released 0.34.0 `ccfd0dbc47a527e330cd55d91b1d02f83cb7a9f2`, an actual CLI
+regression substitutes curl to write a partial archive, obstruct `download.stderr`
+with a directory, then exit 23. Before the fix, `failure.txt` reports the recording
+error instead of Host's independently obtained process failure
+([#62](https://github.com/dragginzgame/ic-testkit/issues/62)). The failed attempt
+log remains at `/tmp/ic-testkit-0341-download-before.log`.
+
+Setup now reports failed stderr persistence separately when downloading already
+failed, returning the original typed Host cause to the CLI and `failure.txt`.
+Successful curl still stops setup on a recording failure before authentication
+or publication. No new wrapper, format, limit, timeout or dependency is introduced.
+Focused actual-CLI checks cover exit 23 and SIGTERM, successful/obstructed recording,
+two failed retries retaining partial archives and original causes, and successful
+curl with failed recording refusing installation. Six provisioning unit fixtures
+also pass; these use authenticated synthetic gzip/executables, not a real download.
+
+The maintainer lock update was preserved. Explicit locked fetch prepares the
+selected graph without upgrades; current qualification selects Host 0.14.1,
+cc 1.8.0, serde_json 1.0.154 and syn 3.0.8. Focused CLI/provisioning tests and
+strict selected Clippy and actual Rust 1.88 CLI compilation pass. Logs use
+`/tmp/ic-testkit-0341-download-current-*.log`; earlier attempts retain their
+original log identities. Native macOS evidence and
+the full maintainer gate remain separate from these Linux checks.
+
 ## Host 0.14 completed-result adoption for pending 0.34.0
 
 On released Testkit 0.33.8 `f17892332f4b100ffea4b28528927bfb0b4e1c5c`, the

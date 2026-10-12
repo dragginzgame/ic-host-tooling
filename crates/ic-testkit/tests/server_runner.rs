@@ -429,13 +429,23 @@ fn managed_idle_ttl_allows_preclient_work_beyond_server_default() {
 fn failed_download_retains_partial_archive_and_original_process_failure() {
     use ic_testkit::ic_host_process::tool::{OutputLimit, OutputLimits, capture_group_command};
 
-    for ending in ["exit 23", "kill -TERM \"$$\""] {
+    for (ending, block_stderr) in [
+        ("exit 23", false),
+        ("kill -TERM \"$$\"", false),
+        ("exit 23", true),
+        ("kill -TERM \"$$\"", true),
+    ] {
         let fixture = Fixture::new();
         let store = fixture.0.canonicalize().unwrap().join("store");
+        let obstruction = if block_stderr {
+            "/bin/mkdir \"${2%/*}/download.stderr\""
+        } else {
+            ""
+        };
         support::executable::write_executable_script(
             &fixture.0.join("curl"),
             format!(
-                "#!/bin/sh\nwhile [ \"$1\" != --output ]; do shift; done\nprintf partial > \"$2\"\nprintf 'download diagnostic' >&2\n{ending}\n"
+                "#!/bin/sh\nwhile [ \"$1\" != --output ]; do shift; done\nprintf partial > \"$2\"\n{obstruction}\nprintf 'download diagnostic' >&2\n{ending}\n"
             ),
         );
         let expected = capture_group_command(
@@ -459,6 +469,7 @@ fn failed_download_retains_partial_archive_and_original_process_failure() {
                 .unwrap();
             assert_eq!(output.status.code(), Some(1));
             assert_eq!(output.stdout, [] as [u8; 0]);
+            assert!(String::from_utf8_lossy(&output.stderr).contains(&expected));
             let attempts = fs::read_dir(&store)
                 .unwrap()
                 .map(|entry| entry.unwrap().path())
@@ -467,10 +478,22 @@ fn failed_download_retains_partial_archive_and_original_process_failure() {
             assert_eq!(attempts.len(), count);
             for attempt in attempts {
                 assert_eq!(fs::read(attempt.join("archive.gz")).unwrap(), b"partial");
-                assert_eq!(
-                    fs::read(attempt.join("download.stderr")).unwrap(),
-                    b"download diagnostic"
-                );
+                if block_stderr {
+                    assert!(attempt.join("download.stderr").is_dir());
+                    let record_error = ic_testkit::ic_host_fs::durable::write_bytes(
+                        &attempt.join("download.stderr"),
+                        b"download diagnostic",
+                    )
+                    .unwrap_err();
+                    assert!(
+                        String::from_utf8_lossy(&output.stderr).contains(&record_error.to_string())
+                    );
+                } else {
+                    assert_eq!(
+                        fs::read(attempt.join("download.stderr")).unwrap(),
+                        b"download diagnostic"
+                    );
+                }
                 assert_eq!(
                     fs::read_to_string(attempt.join("failure.txt")).unwrap(),
                     expected
@@ -479,6 +502,42 @@ fn failed_download_retains_partial_archive_and_original_process_failure() {
             }
         }
     }
+}
+
+#[test]
+fn successful_download_stops_when_stderr_cannot_be_recorded() {
+    let fixture = Fixture::new();
+    let store = fixture.0.canonicalize().unwrap().join("store");
+    support::executable::write_executable_script(
+        &fixture.0.join("curl"),
+        "#!/bin/sh\nwhile [ \"$1\" != --output ]; do shift; done\nprintf partial > \"$2\"\n/bin/mkdir \"${2%/*}/download.stderr\"\nprintf 'download diagnostic' >&2\n",
+    );
+    let output = Command::new(env!("CARGO_BIN_EXE_ic-testkit-server"))
+        .env("PATH", &fixture.0)
+        .args(["setup", "--directory"])
+        .arg(&store)
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(output.stdout, [] as [u8; 0]);
+    let attempts = fs::read_dir(&store)
+        .unwrap()
+        .map(|entry| entry.unwrap().path())
+        .filter(|path| path.is_dir())
+        .collect::<Vec<_>>();
+    assert_eq!(attempts.len(), 1);
+    let attempt = &attempts[0];
+    assert_eq!(fs::read(attempt.join("archive.gz")).unwrap(), b"partial");
+    let expected = ic_testkit::ic_host_fs::durable::write_bytes(
+        &attempt.join("download.stderr"),
+        b"download diagnostic",
+    )
+    .unwrap_err();
+    assert_eq!(
+        fs::read_to_string(attempt.join("failure.txt")).unwrap(),
+        expected.to_string()
+    );
+    assert!(!attempt.join("pocket-ic").exists());
 }
 
 #[test]

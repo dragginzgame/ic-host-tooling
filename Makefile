@@ -1,41 +1,40 @@
 .PHONY: \
 	build-test-canisters check check-wasm ci clean \
 	clippy docs-check ensure-clean git-hooks-check help \
-	install-hooks installation-check msrv package publish \
+	installation-check msrv package publish \
 	publish-dry-run publish-guards-check release-check \
 	release-guards-check \
 	release-version release-preflight release-verify release-prepare-version \
 	release-prepared-check release-files release-commit-check release-committed-check \
 	release-tagged-check release-push-check \
-	release-tag-check shared-tooling-check tags test test-canisters version
+	release-tag-check tags test test-canisters version
 
 REPO_ROOT := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
+SERVER_CLI := $(REPO_ROOT)target/debug/ic-testkit-server
 IC_TOOL_PINS ?= $(REPO_ROOT)ci/ic-tools.tsv
 HOST_TOOL_VERSIONS ?= $(REPO_ROOT)ci/tool-versions.env
 
-SHARED_TOOLING_ROOT := $(REPO_ROOT)
+.DEFAULT_GOAL := help
+override SHARED_TOOLING_ROOT := $(REPO_ROOT)
 LOCAL_TOOL_INSTALL_TARGETS := install-server
 LOCAL_TOOL_CHECK_TARGETS := server-check
-include $(REPO_ROOT)make/tools.mk
-include $(REPO_ROOT)make/release.mk
-include $(REPO_ROOT)make/rust-format.mk
+include $(REPO_ROOT)make/consumer.mk
 
 .PHONY: dependency-pins-check
 .PHONY: build-server-cli install-server server-check
 
 build-server-cli:
-	cargo build -p ic-testkit --locked --bin ic-testkit-server --target-dir "$(REPO_ROOT)target"
+	+cargo build -p ic-testkit --locked --bin ic-testkit-server --target-dir "$(REPO_ROOT)target"
 
 install-server: build-server-cli
-	target/debug/ic-testkit-server setup
+	"$(SERVER_CLI)" setup
 
 server-check:
-	@test -x "$(REPO_ROOT)target/debug/ic-testkit-server" || { \
+	@test -x "$(SERVER_CLI)" || { \
 		echo 'Owner CLI missing; run make install-tools during explicit setup.' >&2; exit 1; }
-	target/debug/ic-testkit-server check
+	"$(SERVER_CLI)" check
 
 MSRV ?= 1.88.0
-.DEFAULT_GOAL := help
 CI_TARGETS := shared-tooling-check tools-check format-tools-check dependency-pins-check installation-check publish-guards-check \
 	release-guards-check git-hooks-check fmt-check check check-wasm clippy docs-check test \
 	package publish-dry-run
@@ -89,47 +88,43 @@ tags:
 	@git tag --sort=-version:refname | head -10
 
 test: build-server-cli
-	@server="$$(target/debug/ic-testkit-server check)" || exit $$?; \
+	+@server="$$("$(SERVER_CLI)" check)" || exit $$?; \
 		POCKET_IC_BIN="$$server" cargo test -p ic-testkit --locked && \
 		POCKET_IC_BIN="$$server" cargo test -p ic-testkit --locked --test server_runner real_server_runs_a_separate_process_using_environment_startup -- --ignored --exact
 
 build-test-canisters:
-	CARGO_TARGET_DIR=target/pic-wasm cargo build --locked --target wasm32-unknown-unknown -p ic_testkit_perf_probe
+	+CARGO_TARGET_DIR=target/pic-wasm cargo build --locked --target wasm32-unknown-unknown -p ic_testkit_perf_probe
 
 test-canisters: build-server-cli
-	@server="$$(target/debug/ic-testkit-server check)" || exit $$?; \
+	+@server="$$("$(SERVER_CLI)" check)" || exit $$?; \
 		POCKET_IC_BIN="$$server" cargo test -p ic-testkit --locked --test canister_benchmark -- --nocapture
 
 dependency-pins-check:
 	bash scripts/ci/check-dependency-pins.sh --cargo-inheritance
 
 install-hooks: format-tools-check
-	bash scripts/dev/install-git-hooks.sh
 
 git-hooks-check: format-tools-check
 	bash scripts/ci/check-git-hooks.sh
 
 check:
-	cargo check -p ic-testkit --locked
+	+cargo check -p ic-testkit --locked
 
 check-wasm:
-	cargo check -p ic-testkit --locked --target wasm32-unknown-unknown
+	+cargo check -p ic-testkit --locked --target wasm32-unknown-unknown
 
 clippy:
-	cargo clippy -p ic-testkit --all-targets --locked -- -D warnings
+	+cargo clippy -p ic-testkit --all-targets --locked -- -D warnings
 
 docs-check:
-	RUSTDOCFLAGS="-D warnings" cargo doc -p ic-testkit --locked --no-deps
-
-shared-tooling-check:
-	bash scripts/ci/verify-shared-tooling-snapshot.sh
+	+RUSTDOCFLAGS="-D warnings" cargo doc -p ic-testkit --locked --no-deps
 
 msrv:
 	rustc +$(MSRV) --version
 	cargo +$(MSRV) --version
-	cargo +$(MSRV) check -p ic-testkit --locked
-	cargo +$(MSRV) check -p ic-testkit --lib --target wasm32-unknown-unknown --locked
-	cargo +$(MSRV) check -p ic_testkit_perf_probe --lib --target wasm32-unknown-unknown --locked
+	+cargo +$(MSRV) check -p ic-testkit --locked
+	+cargo +$(MSRV) check -p ic-testkit --lib --target wasm32-unknown-unknown --locked
+	+cargo +$(MSRV) check -p ic_testkit_perf_probe --lib --target wasm32-unknown-unknown --locked
 
 installation-check:
 	bash scripts/ci/check-installation-version.sh
@@ -141,10 +136,10 @@ release-guards-check:
 	bash scripts/ci/check-release-guards.sh
 
 package:
-	cargo package -p ic-testkit --locked --allow-dirty
+	+cargo package -p ic-testkit --locked --allow-dirty
 
 publish-dry-run:
-	cargo publish -p ic-testkit --locked --dry-run --allow-dirty
+	+cargo publish -p ic-testkit --locked --dry-run --allow-dirty
 
 ci:
 	+@bash scripts/ci/run-validation-targets.sh --fail-fast $(CI_TARGETS)
@@ -153,7 +148,7 @@ release-check:
 	+@bash scripts/ci/run-validation-targets.sh --fail-fast $(RELEASE_CHECK_TARGETS)
 
 publish: ensure-clean release-tag-check
-	bash scripts/release/publish-workspace.sh
+	+bash scripts/release/publish-workspace.sh
 
 release-version:
 	@bash scripts/ci/read-cargo-workspace-version.sh --stable Cargo.toml
