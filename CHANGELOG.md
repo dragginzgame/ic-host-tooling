@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.14.6]
+## [0.14.6] - 2026-10-12
 
 - Adopt Shared Tooling 0.8.1's explicit snapshot entrypoints, automatic companion
   selection and automatic retirement of unchanged obsolete files, retaining
