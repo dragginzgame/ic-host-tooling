@@ -1,8 +1,8 @@
 # Shared Tooling snapshot v1
-# version	0.9.2
+# version	0.9.4
 format	1
 source	https://github.com/dragginzgame/shared-tooling
-revision	c118062a070a2e238f1eb3989b6fd700f369ce1e
+revision	4532b66c1b43bab331978523ee97d29fe11a2f50
 # entrypoint	DRAGGINZGAME.md
 # entrypoint	docs/principles/README.md
 # entrypoint	docs/principles/decision-artifact-discipline.md
@@ -86,8 +86,8 @@ file	35fd87d36a09ed0971841abf28535d43470c713a82581c2251b924da1ab8f484	-	audits/f
 file	b33ecebfb524f9af496c0f4f4b24650b97833e20f1fca56eedb8604a0660e109	-	audits/module-cleanup.md
 file	1b64cf2ba0393ab329ec29eb05a696d47ef5933f5ab9bff6e1fe4a7e7b294075	-	audits/module-surface-hardening.md
 file	7c1b2849ffce4e4b28fabe5eba2f7608b38dd08dc1478c25505ebd50c4e5d8a2	-	ci/tool-versions.env
-file	0cf7402d1b38d04f19fb890595f8c6fcbc7c8730a2e1f8da2f5b7705257aed02	-	docs/local-setup.md
-file	bc9014d8e70a309cf2f65658a7c1ea29303375bbe5087150a4087a187efd9b41	-	docs/ic-tools.md
+file	347901dc444808c8fcf0448bf9021cc0da3f5bce0eb460260f33dcbb8d54f69c	-	docs/local-setup.md
+file	922d482affa0a2538e3fca2a3eb07b266c7e07aabf96a71d8b8e987d97ff216a	-	docs/ic-tools.md
 file	15315edad497b9b165671c3f57e9f56e6ba1d206bbc635eb0ff51afaa8456bb3	-	docs/provenance.md
 file	4692d760ea97861b52c183bb69e24c929d9baf7c292795c61d65ea3166368787	-	rules/dependency-pinning.md
 file	13d5252ff4d8f67dd190db1692deaa893a5c0abcf0f9d16b4270f47e4e88cc29	x	scripts/ci/test-host-tools.sh
@@ -106,7 +106,7 @@ file	e7647e72465b1caf790d8312fc276dda0efc2a8f7dacf1c0ff519ee5b7f1640a	x	scripts/
 file	94a934651d5cb0c6f77fa429df277856dbda4c1a7441b2b8563e678c416258f6	-	audits/ic-canister-applications.md
 file	1720dcb88c80e7e8b67392e6b42f137a48d18f808de30add3469ec2eea4daff5	x	scripts/ci/test-rust-tools.sh
 file	8d32526932bdaf88a6c78ccc2358fb92a49bd89b7631572766deea51923d8f58	-	rules/contributions.md
-file	fc40c8ad1c4ab850fda0e60b8cb0b3201724d020966e4d7e5d07620781f5e814	-	scripts/ci/release-pr.sh
+file	338b9de481659f34e3c90f302427047e4a24a80e6f8adc11d9c156c7c5cffa9e	-	scripts/ci/release-pr.sh
 file	eb2419a5762a3cb02f25811d93becb6b18ca520df0bc3448ea35dfa187a034b4	-	tasks/cargo-machete.md
 file	b20211ec1c39ef262c8ab266b207db43c44cd1474acde18297586590c7885810	-	tasks/msrv.md
 file	ed8d04d20a6e5bd77aece468a5f44f7d9e1c8a52411431d24e052e20c39038f3	-	tasks/rust-toolchain.md
@@ -119,7 +119,7 @@ file	f99365d4045c620ae186c06a86a8f898a534d2ad9d8d01d783706c192c7813e3	-	tasks/lo
 file	d26462d2d6e9c1e991a6f1f45f2a12ce919a29eab987665438af530f51b6fee5	-	tasks/systemd/shared-tooling-maintenance.service
 file	f7b95816164980993403d2d6eae13336db1c476c58217c8e8d356e6d01fe9b27	-	tasks/systemd/shared-tooling-maintenance.timer
 file	dfccb5fa0194b343d140512c892a31eac902cb1a489e641feae3c18e1cf70a1c	-	scripts/dev/run-maintenance.sh
-file	2b8bff6fc708214b8e82b870bdd661f3482286f6a94d0e7aff5c556de7aa5a0a	x	scripts/ci/test-release-runner.sh
+file	6b6056813ebe0ec725c790a3c6026f75a11feb5c266e38119a76a29cf1771983	x	scripts/ci/test-release-runner.sh
 file	a3af7084956384262842be33100f91a22fdd82b0f91b6091a00e90f8726f67fe	x	scripts/ci/check-release-source.sh
 file	05da2ac2b805c7cf9597d4af75983efc1268d619a0fb1e42c7f6d3fdb481880b	-	ci/ic-tools.tsv
 file	227ce86878264ff60aa24a70bb20140b8ef3c8332be640186e96f93805ed1062	-	tasks/readme-freshness.md
@@ -128,20 +128,20 @@ file	68b77e120fe6ca0bac3bfa0499c27bd280471129c3dd66afa02715ccff9a21e3	-	docs/mak
 file	a9ed416a02f737d420723642935de94ffdd53cf92f75bb06ab4b0bc1c68430dc	-	tasks/cargo-tool-versions.md
 file	7909f8dc3f27cb897187f86eea44eb624cd25303606ef8d376af534bce5ce4a2	x	scripts/ci/test-cargo-tool-versions.sh
 file	4c981184847462ab3c01cac087e28309f8e054253fd95c7bbe56f643877aa708	x	scripts/ci/verify-file-checksum.sh
-file	f0404c1c56d253ff5cb07b9f1c453af67ddc930578667108f73b89b0082dd104	x	scripts/ci/verify-shared-tooling-snapshot.sh
+file	a4682503812f210b951aede536cdd65642bfe266b02ab532853a1aeff64f9742	x	scripts/ci/verify-shared-tooling-snapshot.sh
 file	2c1d5d40d481790aaa9c10a5cf29ec061cdc0c4840824851140b4c9c8e7d455b	x	scripts/ci/test-tool-evidence.sh
-file	7f05d3b9c62c358a679f308850c5cd3f61395b4ed6d249d4e6992734ef607f63	-	scripts/ci/test-tool-store.sh
+file	24d54f814ae4e3323d8a20dd6c503ad0e5e13d4d61159a4dbee57cf8674c98ce	-	scripts/ci/test-tool-store.sh
 file	de68acd7ba25355c73fa3e9a32cbde5525debf081862c1f1a52eccb4a66c48de	x	scripts/ci/check-dependency-pins.sh
 file	9e32385247296ce95d2b15b1290c64e6b6dff15716c1c139f21ab5e5128f4be3	x	scripts/ci/check-make-execution.sh
 file	8135ff6e3bc11be17afd3b9c43eb70864037c8e0bbdda7b8aa931f502daf515d	x	scripts/dev/install-rust-tools.sh
 file	2d49252710ac5edf62cc9c3196147f544c5e2df9a0c4d2402e599452d2655eb6	-	scripts/dev/cargo-tool-build.sh
-file	59798f0ea1613e177e1c627018d2f20531722d3588eba99796b8a2d21c8d1412	-	scripts/dev/tool-store.sh
+file	07e333d082e734d367167299c48410cab6ca24bc37f545e1300ecfbf93767bbd	-	scripts/dev/tool-store.sh
 file	50875aa80c211f8f5fded06bf75c7a9fc1fc99aac7590480de9be17d4753bf7f	x	scripts/ci/select-tool-evidence.sh
 file	5be336cb3e8045b2d2d536542a94944b376ee812b03f786a90b9d962ab697f13	x	scripts/ci/archive-evidence.sh
 file	d70f32239de9ea0d2d2a3a0eebd2fa862746807cd797f512f95b2e46fc5faa67	x	.githooks/pre-commit
 file	98aeae603f663bc79e6fc025621d472f5abec5a13a24075457cda2d8cae8fe5d	-	tasks/README.md
 file	59e1a1c641b49879f13dc211fd9081a7ad1d5ee0932dcb9844338a2b8f061afd	-	tasks/maintenance-prompt.md
-file	49b6618e46345b780ab9fc09e6bb7260a62df8103e48a15e97d3e099e7b0cc94	x	scripts/ci/run-release.sh
+file	43703e79b998184c498dd871572f6b1a5b9a3dff6ea36367e69d1b85d5aa54b7	x	scripts/ci/run-release.sh
 file	37e028e2d9fee271ffdc06d06fc15d7a148ec524def3d9ed2afcd9910c0ec642	x	scripts/ci/next-release-version.sh
 file	e7f4c82566858b89b50c5c2f929097bdde85345a2c0c1bf553bb1170cc4f5960	-	scripts/ci/finalize-release-changelog.awk
 file	6f8fcf904d038e1a6ae6e5ce4c812762ba05d937c775aacc1601f131ffc2032c	-	make/tools.mk
@@ -151,8 +151,8 @@ file	0f86b831af02072f89b74477c73e378fd451f81116def1271a0c0a4552e278bb	x	scripts/
 file	6f52e1e4ec9a42de29d1639dcdb4f157e40f6fc16826f760257c31205e549214	x	scripts/dev/check-cargo-tool-versions.pl
 file	820c46f7fbbf3d4790f8bbce5b646c6506a3c4750ebab9525360fbc75c115b01	-	.github/actions/retain-failure-evidence/action.yml
 file	3d56ca1b0c5952b9534ece61b6754ca39e6ec1980d929f09de3dbd967a0c4977	-	scripts/ci/dependency-pins.jq
-file	7d18d04ccfa65b81ad2af3a6a460ad58f2f6e5601d02b3eae772a3ce970264c3	x	scripts/dev/install-host-tools.sh
-file	7a862c4330448e89e225969fad7125d114ab4e5d5c0567a3f1d7180c1d0bfd3d	x	scripts/dev/install-ic-tools.sh
+file	301e4afa6fc418918d84b6f92b83d8c1b463331ce4865e88e5763ff850082c1d	x	scripts/dev/install-host-tools.sh
+file	426d785a3813d08e91ce3e7d1be60b4cb1b9e603049b9e40849e86d2d8642f39	x	scripts/dev/install-ic-tools.sh
 file	cebc0fa4ee9944550350a492a3bc1084e28820e2c915e20351c336d87ce0359f	-	make/execution.mk
 file	a52db278800a9f02d85a6b8a780a9b1eed860c49d5442cef9db1f7f9d7ddee0a	x	scripts/ci/check-format-tools.sh
 file	4ff0a961d5fb8639edf798d64bbe3abc0fcd83c6f703d7a6875c6f5174e76201	x	scripts/ci/run-formatting.sh

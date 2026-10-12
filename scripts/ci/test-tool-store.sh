@@ -166,6 +166,32 @@ HOST_SHARED_STORE="$fixture/failed-store" IC_SHARED_STORE="$fixture/failed-store
 [[ -d "$failed_bundle" && ! -e "${failed_bundle%/*}/install.lock" &&
    ! -e "$STORE_TEST_CHECKOUT_LOCK" &&
    "$(cd "$consumer/.tools/$store_test_kind" && pwd -P)" != "$failed_bundle" ]] || exit 1
+
+# Curl owns retries; a final HTTP error must not restart setup, alter the old
+# selection or remove its failed candidate. Exercise both real installer callers.
+cat > "$fixture/lifecycle-bin/curl" <<'SCRIPT'
+#!/usr/bin/env bash
+echo called >> "$STORE_TEST_DOWNLOAD_CALLS"
+exit 22
+SCRIPT
+export STORE_TEST_DOWNLOAD_CALLS="$fixture/http-download-calls"
+consumer="$fixture/http-failure"; mkdir -p "$consumer/.tools"
+ln -s "$first_bundle" "$consumer/.tools/$store_test_kind-set.previous"
+ln -s "$store_test_kind-set.previous" "$consumer/.tools/$store_test_kind"
+status=0
+HOST_SHARED_STORE="$fixture/http-failure-store" IC_SHARED_STORE="$fixture/http-failure-store" \
+    PATH="$fixture/lifecycle-bin:$PATH" install || status=$?
+[[ "$status" == 22 && "$(wc -l < "$STORE_TEST_DOWNLOAD_CALLS")" -eq 1 &&
+   ! -e "$consumer/.tools/.$store_test_kind-tools.lock" &&
+   "$(cd "$consumer/.tools/$store_test_kind" && pwd -P)" == "$first_bundle" ]] || exit 1
+retained_candidates=0
+for reference in "$consumer/.tools/$store_test_kind-set."*; do
+    [[ "$reference" != *-set.previous ]] || continue
+    failed_bundle="$(cd "$reference" && pwd -P)"
+    [[ -d "$failed_bundle" && ! -e "${failed_bundle%/*}/install.lock" ]] || exit 1
+    retained_candidates=$((retained_candidates + 1))
+done
+[[ "$retained_candidates" == 1 ]] || exit 1
 consumer="$first_consumer"
 install --check
 printf 'Shared %s storage reuse, isolated selections, corruption, locks and offline refusal passed\n' "$store_test_kind"

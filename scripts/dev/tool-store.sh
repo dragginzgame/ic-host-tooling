@@ -3,6 +3,14 @@
 # shellcheck disable=SC2154 # Caller owns consumer, tool_root, lock and active.
 # Sourced by installers and evidence selection. No effects until a function is called.
 
+# Only explicit host/IC asset setup retries, inside curl's transient classifier.
+# The retry window limits new attempts; an in-flight attempt keeps its own cap.
+tool_store_download() {
+    curl --proto '=https' --proto-redir '=https' --tlsv1.2 -fsSL \
+        --connect-timeout 15 --max-time 300 \
+        --retry 3 --retry-delay 2 --retry-max-time 60 -o "$2" "$1"
+}
+
 # Resolve the configured root without creating it. Existing ancestor aliases
 # (notably macOS /var) are allowed; the managed root itself may not be a link.
 tool_store_root() {

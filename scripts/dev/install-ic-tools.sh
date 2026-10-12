@@ -180,9 +180,7 @@ while IFS=$'\t' read -r tool version selected_host digest || [[ -n "$tool" ]]; d
     ic_asset
     archive="$scratch/$asset"
     echo "Installing $tool $version ($host)" >&2
-    curl --proto '=https' --proto-redir '=https' --tlsv1.2 -fsSL \
-        --connect-timeout 15 --max-time 300 -o "$archive" \
-        "https://github.com/$repo/releases/download/$tag/$asset"
+    tool_store_download "https://github.com/$repo/releases/download/$tag/$asset" "$archive"
     bash "$ROOT/scripts/ci/verify-file-checksum.sh" sha256 "$digest" "$archive"
     case "$format" in
         raw) cp "$archive" "$stage/bin/$tool" ;;

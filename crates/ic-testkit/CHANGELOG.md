@@ -8,6 +8,34 @@ This file ships in the crate archive so upgrades can be completed without the
 repository checkout. The complete historical changelog remains at
 <https://github.com/dragginzgame/ic-testkit/blob/main/CHANGELOG.md>.
 
+## [0.34.7]
+
+### Fixed: transient contributor-tool downloads
+
+The reviewed snapshot selects Shared Tooling 0.9.4
+`4532b66c1b43bab331978523ee97d29fe11a2f50`
+([#60](https://github.com/dragginzgame/ic-testkit/issues/60),
+[Shared #138](https://github.com/dragginzgame/shared-tooling/issues/138)).
+Explicit host and IC asset setup uses curl's transient retry classification,
+with at most three retries, a two-second delay and a 60-second retry-start
+window. Each attempt retains its 15-second connection and 300-second transfer
+limits; an in-flight attempt can finish after the retry window.
+
+Permanent HTTP failures and checksum/admission errors remain terminal. Exhaustion
+preserves curl's final failure status, failed candidates and the previous active
+tool selection. HTTPS restrictions and checksum verification remain in effect.
+Offline checks and library behavior are unchanged; existing tools need no
+reinstall solely for this adoption.
+
+### Fixed: snapshot and release identities
+
+Snapshot parsing, refresh observations and direct/PR release recovery require
+complete 40- or 64-character hexadecimal Git identities
+([Shared #133](https://github.com/dragginzgame/shared-tooling/issues/133)).
+Malformed intermediate-length identities refuse before refresh or release
+effects, preserving saved plans and evidence. Valid v1 snapshots and recovery
+records need no conversion.
+
 ## [0.34.6] - 2026-10-12
 
 ### Fixed: installer cleanup and evidence admission

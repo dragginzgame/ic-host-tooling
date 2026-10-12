@@ -1,5 +1,69 @@
 # Host support and qualification
 
+## Shared 0.9.4 for pending 0.34.7
+
+Shared 0.9.4 became committed during 0.9.3 qualification and is adopted through
+an independently reviewed immutable source,
+`4532b66c1b43bab331978523ee97d29fe11a2f50`
+([#60](https://github.com/dragginzgame/ic-testkit/issues/60),
+[Shared #133](https://github.com/dragginzgame/shared-tooling/issues/133)).
+Canonical preview and Bash 3.2 export retain 62 roots and 93 payloads. The
+verifier, direct/PR release helpers and direct release fixture change from 0.9.3;
+its download/installer inputs are unchanged, retaining the qualification below.
+
+Both-shell private snapshot controls accept full 40- and 64-character identities
+and reject lengths 39, 41, 63 and 65 without emitted records or refresh mutation.
+Inputs remain at the root recorded by
+`/tmp/ic-testkit-shared094-identities-path`. The actual adopted direct release
+fixture passes on modern Bash and genuine Bash 3.2.57 using command substitutes
+and an inert Git guard. The committed upstream PR fixture passes on both shells
+using synthetic histories, private bare destinations and substitute GitHub
+transport. Malformed saved source/prepared/merged identities preserve the plans,
+emit no release effects and cannot turn into a silent restart. These fixtures
+do not touch the real checkout's index, refs or release state.
+
+Actual snapshot verification, stable both-shell repeat previews, selected
+ShellCheck, documentation links and diff checks pass. Logs and private control
+scripts use `/tmp/ic-testkit-0347-shared094-*`; source/input/runtime/log digests
+are bound in `/tmp/ic-testkit-0347-shared094-qualification.json`. Metadata, dirty
+selected lock, staged contents, workflow and published history are preserved.
+No real release, Cargo compilation, dependency resolution or installation runs.
+This is focused Linux qualification; native acceptance and full gates remain
+maintainer-owned.
+
+## Shared 0.9.3 for pending 0.34.7
+
+Canonical preview and genuine Bash 3.2 export select Shared Tooling 0.9.3
+`3619de9dc36065411b8e6521f8695e9395a0e0ea`, retaining 62 roots and 93 payloads
+([#60](https://github.com/dragginzgame/ic-testkit/issues/60),
+[Shared #138](https://github.com/dragginzgame/shared-tooling/issues/138)). The
+immutable detached source matches GitHub; uncommitted 0.9.4 identity-admission
+work stays in the sibling checkout and is excluded. The consumer adds no
+upstream-only retry fixture or fleet reporter.
+
+Actual adopted host and IC installer fixtures pass on modern Bash and genuine
+Bash 3.2.57. A final HTTP status 22 invokes each installer download once, retains
+the failed candidate and prior selection, and releases checkout/shared locks.
+Existing storage reuse, corruption, cleanup and interruption checks also pass.
+These use private stores and substitute asset transport.
+
+The committed upstream download fixture passes on both shells with real curl
+and a fixture-owned IPv4 loopback listener. Transient HTTP 500 and 429 recover
+on the second request and authenticate the recovered bytes; repeated 504
+exhausts four attempts with status 22. Permanent 404 makes one request; corrupt
+bytes make one request and fail checksum admission. The fixture substitutes
+HTTP loopback transport while checking production HTTPS/TLS flags; it does not
+qualify public-network availability, TLS negotiation or native macOS behavior.
+
+Actual snapshot and prepared host/IC admission, stable both-shell repeat previews,
+selected ShellCheck, documentation links and diff checks pass. Logs use
+`/tmp/ic-testkit-0347-shared093-*`; source/input/runtime/log digests are recorded
+in `/tmp/ic-testkit-0347-shared093-qualification.json`. Own metadata, the
+maintainer's dirty selected lock, staged contents, workflow and released cache
+test inputs are preserved. No Cargo compilation, cache fetch, dependency
+resolution or native tool installation runs. Full gates and matching native
+consumer acceptance remain maintainer-owned.
+
 ## Cache-lock test isolation for pending 0.34.6
 
 The nonblocking cache-lock regression now executes in an exact-test child with

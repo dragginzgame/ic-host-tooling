@@ -6,6 +6,18 @@ documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.34.7]
+
+### Fixed
+
+- Adopt Shared Tooling 0.9.4 for bounded transient tool-download retries and
+  complete Git identities in snapshots and release recovery, preserving evidence
+  ([#60](https://github.com/dragginzgame/ic-testkit/issues/60),
+  [Shared #138](https://github.com/dragginzgame/shared-tooling/issues/138),
+  [Shared #133](https://github.com/dragginzgame/shared-tooling/issues/133)).
+
+[Tooling details](crates/ic-testkit/CHANGELOG.md#0347)
+
 ## [0.34.6] - 2026-10-12
 
 ### Fixed
