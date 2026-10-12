@@ -1,3 +1,4 @@
 {
-  "markdownlint.appliesTo": "noFiles"
+  "markdownlint.appliesTo": "noFiles",
+  "makefile.configureOnOpen": false
 }
