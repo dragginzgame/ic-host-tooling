@@ -541,6 +541,49 @@ fn successful_download_stops_when_stderr_cannot_be_recorded() {
 }
 
 #[test]
+fn line_break_store_paths_are_refused_before_setup_or_launch() {
+    for line_break in ['\n', '\r'] {
+        let fixture = Fixture::new();
+        let marker = fixture.0.join("download-ran");
+        support::executable::write_executable_script(
+            &fixture.0.join("curl"),
+            "#!/bin/sh\nprintf ran > \"$DOWNLOAD_MARKER\"\nexit 23\n",
+        );
+        let absolute = fixture.0.canonicalize().unwrap();
+        let ancestor = absolute.join(format!("ancestor{line_break}"));
+        fs::create_dir(&ancestor).unwrap();
+        for (cwd, directory) in [
+            (
+                absolute.clone(),
+                absolute.join(format!("store{line_break}")),
+            ),
+            (ancestor, PathBuf::from("store")),
+        ] {
+            for action in ["setup", "check", "run"] {
+                let mut command = Command::new(env!("CARGO_BIN_EXE_ic-testkit-server"));
+                command
+                    .current_dir(&cwd)
+                    .env_remove("POCKET_IC_BIN")
+                    .env_remove("IC_TESTKIT_POCKET_IC_URL")
+                    .env("PATH", &absolute)
+                    .env("DOWNLOAD_MARKER", &marker)
+                    .args([action, "--directory"])
+                    .arg(&directory);
+                if action == "run" {
+                    command.args(["--", "/bin/sh", "-c", "exit 99"]);
+                }
+                let output = command.output().unwrap();
+                assert_eq!(output.status.code(), Some(1));
+                assert_eq!(output.stdout, [] as [u8; 0]);
+                assert!(!marker.exists(), "invalid directory reached downloader");
+                assert!(!cwd.join(&directory).exists());
+                assert!(String::from_utf8_lossy(&output.stderr).contains("line breaks"));
+            }
+        }
+    }
+}
+
+#[test]
 fn offline_check_and_run_refuse_missing_setup_without_executing_tools() {
     let fixture = Fixture::new();
     let missing = fixture.0.join("missing");

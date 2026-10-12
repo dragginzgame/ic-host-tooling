@@ -1,5 +1,111 @@
 # Host support and qualification
 
+## Shared 0.6.6 derive formatter for pending 0.34.2
+
+Canonical preview/export selects committed Shared 0.6.6
+`a15eb9d406d287697df9bc8fa96db8cda6721a71` with the same 90-file roster
+([#60](https://github.com/dragginzgame/ic-testkit/issues/60),
+[Shared #113](https://github.com/dragginzgame/shared-tooling/issues/113)).
+Only the selected pin catalog, setup guidance and hook rules change from the
+0.6.5 adoption. The actual `make install-rust-tools` command prepares the new
+`cargo-sort-derives` 0.14.1 selection; offline `make rust-tools-check` then passes.
+Previous tool installations remain retained.
+
+Read-only inventory finds no affected Testkit macros or workaround markers.
+The prepared formatter processes the committed Shared macro fixture extracted
+from its frontend qualification: direct/conditional literal `$crate` paths
+survive, ordinary derives sort and repeat output is stable. The formatted macro
+library and its separate consuming crate compile and run with Rust 1.88. This
+is direct tool/compiler qualification, not execution of Shared's complete mixed
+frontend hook suite. Source scratch remains in
+`/tmp/ic-testkit-shared066-derives.llufw1wc/`; compiler artifacts remain in
+`target/shared-tooling-qualification/shared066/`. Logs use
+`/tmp/ic-testkit-0342-shared066-*.log`. Consumer hook qualification passes on
+modern Bash and genuine Bash 3.2.57; the full prepared tool/pin checks, formatting,
+snapshot integrity, ShellCheck with the pin catalog's Bash context and doc links
+pass. Native consumer acceptance remains separate from these Linux results and
+prior source-bound qualification.
+
+## Locked Host 0.14.3 qualification for pending 0.34.2
+
+The maintainer's dirty lock update selects all four published Host crates at
+0.14.3. Each cached archive matches its locked SHA-256 and release VCS source
+`543b137458feba0f6dfd3e458b680fb2be3d9e6d`. Read-only comparison from Host 0.14.1
+through 0.14.3 finds no crate implementation change; the later patches update
+contributor tooling and documentation. No new Host API or local code removal is
+justified. The released Testkit 0.34.1 graph and prior qualification remain
+separate from this selection.
+
+Explicit selected-lock offline cache preparation passes without resolution.
+Twenty-three focused tests pass: three producer/cache composition tests, ten
+cache-filesystem tests, the complete-probe status/spawn/overflow test, six
+provisioning fixtures, two actual download-failure CLI tests and the line-break
+directory test. Strict selected Clippy and actual Rust 1.88 library/CLI
+compilation pass. Logs use `/tmp/ic-testkit-host0143-*.log`. These execute on
+Linux with synthetic producers/servers/download transport; native acceptance of
+the new selected graph remains separate. No package version, selected lock,
+reviewed Shared snapshot, real index or sibling file was changed by qualification.
+
+## Shared 0.6.5 adoption for pending 0.34.2
+
+Canonical preview/export selects committed Shared 0.6.5
+`42f2091768b5f71c98a684d3dab563f408ca2dd9`, preserving the 90-file selection
+([#60](https://github.com/dragginzgame/ic-testkit/issues/60),
+[Shared #129](https://github.com/dragginzgame/shared-tooling/issues/129),
+[Shared #130](https://github.com/dragginzgame/shared-tooling/issues/130)).
+The local gates declare all Cargo manifests, the lockfile, toolchain, pins,
+Makefile and Shared snapshot as prepared inputs. Consumer fixtures copy that
+declaration and execute the actual gate recipes with substitute stages. Changing
+or removing the lock after a stage stops the next stage and retains the cause.
+The checksum companion is included in isolated runner exports.
+
+Consumer release guards, canonical nested/input/status runner tests, selected
+Rust-tool receipt/staged-export tests and actual hook qualification pass on
+modern Bash and genuine Bash 3.2.57. Actual prepared Rust checks, formatting,
+snapshot integrity, declaration pins, ShellCheck and documentation checks pass.
+Successful fixture logs have no recipe-override warnings. Logs use
+`/tmp/ic-testkit-0342-shared065-*.log`. Compilers, installers, complete gates and
+release effects in the fixture suites are substitutes; no real tool install,
+full gate or release ran. Package metadata, selected dependencies, the real
+index and pending runtime work remain intact. Native acceptance still requires
+matching delivered-source CI; previous release evidence remains source-bound.
+
+## Store directory admission for pending 0.34.2
+
+On reported-live 0.34.1 `4c24ae1762e1c5c1035563fd972ce75f2a70a423`, an actual CLI
+regression with substitute curl showed that a line-break store directory reached
+the downloader and created setup files
+([#64](https://github.com/dragginzgame/ic-testkit/issues/64)). The executed
+pre-fix failure remains in `/tmp/ic-testkit-0342-path-before-executed.log`; the
+earlier invocation selecting zero tests is separately retained and supplies no
+reproduction evidence.
+
+The path owner now checks complete absolute bytes before normalization and
+filesystem admission. The regression passes all LF/CR, explicit-store/relative
+ancestor and setup/check/run combinations without tool execution or store
+creation. The existing missing-store offline check and all six provisioning
+fixtures pass, as do selected strict Clippy and actual Rust 1.88 CLI compilation.
+Logs use `/tmp/ic-testkit-0342-*.log`. Initial lint and formatting rejections are
+retained separately from their final passing checks. Selected-lock offline cache
+preparation passed without dependency resolution. Package metadata, index, lock selection,
+reviewed Shared snapshot and retained installations are preserved. This enforces
+the existing directory policy and changes no valid path or library API; matching
+delivered native qualification and the full gate remain separate.
+
+## Latest released-source acceptance
+
+[Released 0.34.0 CI](https://github.com/dragginzgame/ic-testkit/actions/runs/38150408955),
+source `ccfd0dbc47a527e330cd55d91b1d02f83cb7a9f2`, now passes all 12 checks,
+MSRV, portable and real concurrency jobs across Linux and both macOS 15
+architectures. Both native portable logs explicitly pass release metadata,
+publication, hook and downloaded evidence qualification. This accepts the
+retained implementation on that source; earlier cancelled releases are not
+retroactively qualified. Reported-live 0.34.1 has its own
+[workflow](https://github.com/dragginzgame/ic-testkit/actions/runs/38216618519):
+all four Linux jobs and Intel macOS MSRV pass at final inspection. Intel checks
+are running; six native jobs remain queued. Its newer fixes still require the
+remaining native acceptance, separate from dirty pending 0.34.2 work.
+
 ## Rejected-selection artifact proof for pending 0.34.1
 
 On released 0.34.0 `ccfd0dbc47a527e330cd55d91b1d02f83cb7a9f2`, the remaining
@@ -1625,8 +1731,8 @@ documentation guard for that revision, including Intel macOS. It precedes the
 - A SHA-256 implementation: Linux `sha256sum` or macOS `shasum -a 256`.
 - Rustup with the repository's pinned toolchain, `rustfmt`, `clippy`, and the
   `wasm32-unknown-unknown` target. Published MSRV checks use Rust 1.88.
-- `cargo-sort` 2.1.4, prepared explicitly under `.tools/rust/bin` with
-  `make install-format-tools` (the shared pinned Rust tool bundle), for
+- `cargo-sort` 2.1.4, prepared explicitly under `.tools/rust/common/bin` with
+  `make install-rust-tools`, then verified offline with `make rust-tools-check`, for
   hooks, manifest sorting, and independent CI/release formatting checks.
   Hook setup and formatting checks also require an already prepared `rustfmt`
   component; use `rustup component add rustfmt` during explicit setup.

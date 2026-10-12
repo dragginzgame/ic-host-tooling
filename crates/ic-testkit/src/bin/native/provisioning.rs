@@ -66,6 +66,14 @@ fn root_path(directory: &Path) -> Result<PathBuf> {
     } else {
         std::env::current_dir()?.join(directory)
     };
+    if absolute
+        .as_os_str()
+        .as_encoded_bytes()
+        .iter()
+        .any(|byte| matches!(byte, b'\n' | b'\r'))
+    {
+        return Err("server directory and its ancestors must not contain line breaks".into());
+    }
     let mut path = PathBuf::new();
     for component in absolute.components() {
         match component {

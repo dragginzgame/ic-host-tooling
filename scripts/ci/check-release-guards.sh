@@ -155,7 +155,17 @@ done
 sequence_case="${work_dir}/sequence"
 mkdir -p "${sequence_case}/bin" "${sequence_case}/scripts/ci"
 cp "${repo_root}/scripts/ci/run-validation-targets.sh" \
-  "${repo_root}/scripts/ci/check-make-execution.sh" "${sequence_case}/scripts/ci/"
+  "${repo_root}/scripts/ci/check-make-execution.sh" \
+  "${repo_root}/scripts/ci/verify-file-checksum.sh" "${sequence_case}/scripts/ci/"
+validation_inputs_block="$(awk '
+  /^VALIDATION_INPUTS :=/ { found = 1; sub(/^VALIDATION_INPUTS :=/, "") }
+  found { print }
+  found && $0 !~ /\\$/ { exit }
+' "${repo_root}/Makefile")"
+for input in ${validation_inputs_block//\\/}; do
+  mkdir -p "${sequence_case}/$(dirname "$input")"
+  cp "${repo_root}/$input" "${sequence_case}/$input"
+done
 cat >"${sequence_case}/bin/make" <<'EOF'
 #!/usr/bin/env bash
 if [[ "$*" == *"-f - "* ]]; then
@@ -163,6 +173,8 @@ if [[ "$*" == *"-f - "* ]]; then
 fi
 stage="${*: -1}"
 printf '%s\n' "${stage}" >>"${TRACE_FILE}"
+[[ "${stage}" != "${DRIFT_STAGE:-}" ]] || printf '# changed input\n' >> Cargo.lock
+[[ "${stage}" != "${MISSING_STAGE:-}" ]] || rm Cargo.lock
 [[ "${stage}" != "${FAIL_STAGE:-}" ]] || exit 23
 EOF
 cat >"${sequence_case}/bin/git" <<'EOF'
@@ -205,6 +217,30 @@ check_make_sequence() {
 
 check_make_sequence ci "check-first check-second check-third"
 check_make_sequence release-check "check-first check-second check-third"
+
+# The actual gates select prepared inputs; drift or disappearance must stop the
+# next stage and retain the observation, independently of target success.
+for target in ci release-check; do
+  for change in drift missing; do
+    cp "${repo_root}/Cargo.lock" "${sequence_case}/Cargo.lock"
+    : > "${sequence_case}/trace"
+    status=0
+    (
+      cd "${sequence_case}"
+      PATH="${sequence_case}/bin:${PATH}" TRACE_FILE="${sequence_case}/trace" \
+        REAL_MAKE="${make_bin}" VALIDATION_FAILURE_LOG_DIR="${sequence_case}/failures" \
+        DRIFT_STAGE="$([[ "$change" != drift ]] || printf check-first)" \
+        MISSING_STAGE="$([[ "$change" != missing ]] || printf check-first)" \
+        "${make_bin}" --no-print-directory --jobs=4 -f "${repo_root}/Makefile" \
+        CI_TARGETS="check-first check-second" RELEASE_CHECK_TARGETS="check-first check-second" "$target"
+    ) > "${sequence_case}/$target-$change.log" 2>&1 || status=$?
+    [[ "$status" == 2 && "$(cat "${sequence_case}/trace")" == check-first ]] \
+      || fail "$target continued after $change of prepared inputs"
+    [[ -s "${sequence_case}/failures/latest.log" ]] || fail 'input failure log was not retained'
+    grep -F 'validation input' "${sequence_case}/failures/latest.log" >/dev/null \
+      || fail 'retained input failure lost its cause'
+  done
+done
 
 # Exercise the actual consumer Makefile with harmless formatter/runner effects.
 # Even replacing flag variables must not conceal the real outer invocation.

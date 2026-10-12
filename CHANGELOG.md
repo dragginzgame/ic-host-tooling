@@ -6,6 +6,30 @@ documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.34.2]
+
+### Changed
+
+- Update locked IC Host dependencies to 0.14.3.
+- Adopt Shared Tooling 0.6.6's staged formatter admission and stop validation
+  when prepared manifests, pins or the lockfile change, retaining failure evidence
+  ([#60](https://github.com/dragginzgame/ic-testkit/issues/60),
+  [Shared #129](https://github.com/dragginzgame/shared-tooling/issues/129),
+  [Shared #130](https://github.com/dragginzgame/shared-tooling/issues/130)).
+- Select the derive formatter that preserves `$crate` macro paths. Run
+  `make install-rust-tools`, then `make rust-tools-check` to prepare the new pin
+  ([Shared #113](https://github.com/dragginzgame/shared-tooling/issues/113)).
+
+### Fixed
+
+- Refuse line breaks in PocketIC store paths and their ancestors before creating
+  setup files or invoking tools
+  ([#64](https://github.com/dragginzgame/ic-testkit/issues/64)).
+- Correct the host guide's formatter setup command and prepared tool path
+  ([#57](https://github.com/dragginzgame/ic-testkit/issues/57)).
+
+[Setup details](crates/ic-testkit/CHANGELOG.md#0342)
+
 ## [0.34.1] - 2026-10-12
 
 ### Changed

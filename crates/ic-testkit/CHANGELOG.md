@@ -8,6 +8,57 @@ This file ships in the crate archive so upgrades can be completed without the
 repository checkout. The complete historical changelog remains at
 <https://github.com/dragginzgame/ic-testkit/blob/main/CHANGELOG.md>.
 
+## [0.34.2]
+
+### Changed: locked IC Host 0.14.3
+
+All four Host packages select 0.14.3 in the maintainer's lock update. The reviewed
+release changes contributor tooling; its crate implementation is unchanged from
+the preceding 0.14 patches. Public Host re-exports remain on the same compatible
+0.14 contract, with no consumer migration or new build requirement.
+
+### Changed: Shared Tooling 0.6.6 validation and formatting
+
+The reviewed snapshot selects Shared Tooling 0.6.6
+`a15eb9d406d287697df9bc8fa96db8cda6721a71`. Staged formatting can admit prepared
+Rust-tool receipts from the checkout while checking pins and compiler selection
+from the exported worktree; mismatches still refuse without installation
+([#60](https://github.com/dragginzgame/ic-testkit/issues/60),
+[Shared #130](https://github.com/dragginzgame/shared-tooling/issues/130)).
+
+Both `ci` and `release-check` checkpoint the Makefile, complete Cargo manifests,
+lockfile, declared toolchain, tool pins and Shared snapshot. If an input changes
+or disappears, the gate retains observations and stops before the next stage.
+Nested gates preserve the original checkpoint; target failures and their logs
+remain intact
+([Shared #129](https://github.com/dragginzgame/shared-tooling/issues/129)).
+Restart explicit preparation and the complete gate against the current inputs
+after a refusal. This contributor-only change preserves package versions,
+library APIs, installed tools and release recovery state.
+
+The common derive formatter selects `cargo-sort-derives` 0.14.1, fixing literal
+`$crate` paths in direct and conditional macro derives
+([Shared #113](https://github.com/dragginzgame/shared-tooling/issues/113)).
+Explicitly run `make install-rust-tools`, then `make rust-tools-check` after
+adopting the pin. Building this tool requires Rust 1.88 or newer; the library's
+MSRV is unchanged. Older tool bundles remain retained. Testkit has no affected
+exported macros or corruption-workaround markers to remove, and its formatter
+policy remains unchanged.
+
+### Fixed: PocketIC store path admission
+
+Setup, offline checks and owned runs reject LF/CR in a store directory or its
+ancestors, including a working directory used to resolve a relative selection
+([#64](https://github.com/dragginzgame/ic-testkit/issues/64)). Admission checks the
+complete absolute path before normalization, lock creation or external tools.
+This enforces the existing directory policy; retained artifacts and installed
+bundles are not renamed or removed. Other path bytes and library APIs are unchanged.
+
+The host prerequisite guide now selects `make install-rust-tools`, offline
+`make rust-tools-check` and `.tools/rust/common/bin`, matching the maintained
+shared setup contract
+([#57](https://github.com/dragginzgame/ic-testkit/issues/57)).
+
 ## [0.34.1] - 2026-10-12
 
 ### Changed: Shared Tooling 0.6.4 Make interface

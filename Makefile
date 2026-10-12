@@ -40,6 +40,9 @@ CI_TARGETS := shared-tooling-check tools-check format-tools-check dependency-pin
 	package publish-dry-run
 
 RELEASE_CHECK_TARGETS := $(CI_TARGETS) msrv
+VALIDATION_INPUTS := Makefile Cargo.toml Cargo.lock rust-toolchain.toml \
+	crates/ic-testkit/Cargo.toml crates/ic_testkit_perf_probe/Cargo.toml \
+	ci/tool-versions.env ci/ic-tools.tsv .shared-tooling.snapshot
 
 help:
 	@echo "Available commands:"
@@ -142,10 +145,10 @@ publish-dry-run:
 	+cargo publish -p ic-testkit --locked --dry-run --allow-dirty
 
 ci:
-	+@bash scripts/ci/run-validation-targets.sh --fail-fast $(CI_TARGETS)
+	+@bash scripts/ci/run-validation-targets.sh --fail-fast $(addprefix --input ,$(VALIDATION_INPUTS)) $(CI_TARGETS)
 
 release-check:
-	+@bash scripts/ci/run-validation-targets.sh --fail-fast $(RELEASE_CHECK_TARGETS)
+	+@bash scripts/ci/run-validation-targets.sh --fail-fast $(addprefix --input ,$(VALIDATION_INPUTS)) $(RELEASE_CHECK_TARGETS)
 
 publish: ensure-clean release-tag-check
 	+bash scripts/release/publish-workspace.sh
