@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.14.8]
+
+- Adopt Shared Tooling 0.8.3: protect installer diagnostic paths
+  ([Shared #136](https://github.com/dragginzgame/shared-tooling/issues/136)),
+  honor the selected Rust formatter pins
+  ([Shared #135](https://github.com/dragginzgame/shared-tooling/issues/135)),
+  and make snapshot payload replacement atomic
+  ([Shared #131](https://github.com/dragginzgame/shared-tooling/issues/131)).
+  Includes the centrally owned Cargo-tool freshness task.
+  [Detailed notes](docs/changelog/0.14.md).
+
 ## [0.14.7] - 2026-10-12
 
 - Derive internal shared helpers from their owning entrypoints, reducing explicit

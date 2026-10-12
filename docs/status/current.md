@@ -1,6 +1,44 @@
 # Current handoff
 
-## Pending 0.14.7 — derive internal shared helpers
+## Pending 0.14.8 — Shared 0.8.3 installer and snapshot fixes
+
+Adopted Shared Tooling 0.8.3
+`8cca7e67b03ce6e701b6e7dcec2e9753eb98337e`, matching GitHub main at inspection,
+through canonical preview/refresh from a clean isolated checkout. The committed
+VERSION is 0.8.3 despite the source commit subject saying 0.8.2.
+The prior pending 0.8.2 guidance and selection cleanup remain: 87 roots derive
+99 payloads, including the Cargo-tool freshness task. Its checker stays in Shared
+Tooling and runs against an explicit consumer; no Host online CI gate is added.
+
+Installer observation paths are admitted before diagnostic writes
+([Shared #136](https://github.com/dragginzgame/shared-tooling/issues/136)),
+and formatting uses the selected Rust pin catalog
+([Shared #135](https://github.com/dragginzgame/shared-tooling/issues/135)).
+Snapshot payload replacement is atomic per file, common Make companions include
+their installers and LOC helper, and successful PCRE2 checks are quiet
+([Shared #131](https://github.com/dragginzgame/shared-tooling/issues/131)).
+The consumer ignores temporary payloads as the updated guide requires.
+
+Full Linux `CARGO_NET_OFFLINE=true make ci` passes. Genuine Bash 3.2.57 checks
+pass for upstream snapshot distribution (including interrupted copy and concurrent
+file/index changes), Host Rust-tool installation fixtures and Make integration.
+These installer/formatter effects use substitutes. Actual Host snapshot verification
+and repeat preview pass under Bash 3.2, with 99 KEEP rows. ShellCheck, links,
+diff and preservation checks pass. Evidence: `/tmp/host-shared083.it29Xr/`;
+prior guidance-only evidence remains at `/tmp/host-shared082.kuY403/`.
+
+Native macOS qualification of this pending adoption remains outstanding.
+Released Host 0.14.7 `52535a6cb88df9a84d1cda0a20d0887c6ba0ea8e`
+passes Linux/MSRV in [its CI](https://github.com/dragginzgame/ic-host-tooling/actions/runs/38236092920),
+with macOS ARM running and Intel queued at inspection; that run does not qualify
+this pending source. The GitHub description still matches the four-library scope.
+
+Compatible contributor-tooling notes stay 0.14.8; package versions stay 0.14.7.
+Crate source, Cargo metadata and pins are unchanged. No separate MSRV rerun is
+needed for unchanged Rust inputs. No sibling edit, tool installation, freshness
+query, download, staging, commit, push or release ran.
+
+## Historical preparation for 0.14.7 — derive internal shared helpers
 
 Released Host 0.14.6 is `11f8c31b599ea81f6106225c4068d78d22fed249`, with
 Shared 0.8.1 still matching remote main at inspection. The working tree was clean

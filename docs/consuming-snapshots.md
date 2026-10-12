@@ -146,9 +146,12 @@ between SSH, HTTPS, or a fork is an explicit provenance change and requires a
 reviewed manifest recreation.
 
 Refresh stages files in a temporary directory under the consumer so the final
-manifest replacement stays on the same filesystem. Consumers should ignore
-`.shared-tooling-refresh.*` in case an ungraceful process termination prevents
-normal cleanup.
+manifest replacement stays on the same filesystem. Each payload is copied to a
+temporary file beside its destination, rechecked against concurrent edits and
+atomically renamed into place. An interrupted copy leaves the destination intact,
+including when a selected subtree is on a different filesystem. Consumers should
+ignore `.shared-tooling-refresh.*` and `.shared-tooling-payload.*` in case an
+ungraceful process termination prevents normal cleanup.
 
 Refresh replaces files individually and then publishes the manifest; it is not
 an atomic replacement of the whole file set. If interrupted, stop consumer

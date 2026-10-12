@@ -9,6 +9,7 @@ SOURCE_ROOT="$SCRIPT_ROOT"
 CONSUMER_ROOT=""
 MANIFEST_PATH=".shared-tooling.snapshot"
 STAGING_DIR=""
+replacement=""
 preview=false
 requested_files=()
 added_files=()
@@ -32,6 +33,7 @@ fail() {
 }
 
 cleanup() {
+    if [[ -n "$replacement" ]]; then rm -f -- "$replacement"; fi
     if [[ -n "$STAGING_DIR" && -d "$STAGING_DIR" ]]; then
         rm -rf "$STAGING_DIR"
     fi
@@ -559,7 +561,15 @@ for index in "${!files[@]}"; do
     check_consumer_unchanged "$path" "${consumer_states[$index]}"
     check_index_unchanged "$index" "$path"
     mkdir -p "$CONSUMER_ROOT/$(dirname "$path")"
-    cp -p "$staged_files/$path" "$CONSUMER_ROOT/$path"
+    # Copy beside the destination so even a mounted subtree gets an atomic
+    # rename. A failed/interrupted copy must leave the admitted old bytes intact.
+    replacement="$(mktemp "$CONSUMER_ROOT/$(dirname "$path")/.shared-tooling-payload.XXXXXX")"
+    cp -p "$staged_files/$path" "$replacement"
+    check_consumer_unchanged "$path" "${consumer_states[$index]}"
+    check_index_unchanged "$index" "$path"
+    perl -e 'rename($ARGV[0], $ARGV[1]) or die "cannot replace snapshot payload: $!\n"' \
+        "$replacement" "$CONSUMER_ROOT/$path"
+    replacement=""
 done
 for index in "${!obsolete[@]}"; do
     path="${obsolete[$index]}"
