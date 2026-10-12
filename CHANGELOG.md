@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.14.4]
+## [0.14.4] - 2026-10-12
 
 - Adopt Shared Tooling 0.6.6 and cargo-sort-derives 0.14.1, preserving literal
   `$crate` paths when sorting macro derives. Refresh contributor tools with
