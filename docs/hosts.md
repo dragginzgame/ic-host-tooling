@@ -1,5 +1,127 @@
 # Host support and qualification
 
+## Shared 0.8.0 snapshots for pending 0.34.3
+
+Canonical preview/export advances the recorded 60 entrypoints and unchanged
+90-file closure to Shared Tooling 0.8.0
+`045a6f22a9de497bfb3af90cb2571957384806f2`
+([#60](https://github.com/dragginzgame/ic-testkit/issues/60),
+[Shared #131](https://github.com/dragginzgame/shared-tooling/issues/131)). The
+committed `VERSION` and generated annotation both identify 0.8.0, resolving the
+earlier source-label mismatch. Preview updates only the consuming-snapshot and
+Make adoption guides, with no additions or removals. No local command uses the
+removed `--retire-file` option. Source and installed tool selections remain
+otherwise unchanged.
+
+Actual canonical apply passes on genuine Bash 3.2.57. Snapshot verification and
+recorded-root repeat previews pass on modern Bash and Bash 3.2; each repeat
+contains only 90 KEEP rows. The focused canonical retirement fixture passes on
+both shells using private Git fixtures. It checks automatic removal and repeat
+refreshes, preservation of directly selected and unowned files, refusal of
+edited/staged/redirected/forged ownership, concurrency, and interrupted-deletion
+recovery. This executes the upstream fixture from immutable source scratch; it
+does not import that test or exporter into the consumer.
+
+`make shared-tooling-check`, selected ShellCheck, documentation links and diff
+checks pass. Logs use `/tmp/ic-testkit-0343-shared080-*.log`; immutable source
+scratch is recorded in `/tmp/ic-testkit-shared080-source-path`. These are focused
+Linux checks, not the complete upstream delivery suite or native macOS
+acceptance. Existing prepared-tool, Host and evidence-repair qualification
+remains applicable to unchanged inputs. Package metadata, selected Host lock,
+real index and pending evidence-repair inputs are preserved.
+
+## Earlier Shared entrypoint qualification for pending 0.34.3
+
+Canonical preview/export adopts reviewed Shared commit
+`8e8cc21265272e0234326c53a8c7bf9e7d8d77df`
+([#60](https://github.com/dragginzgame/ic-testkit/issues/60),
+[Shared #131](https://github.com/dragginzgame/shared-tooling/issues/131)). The
+commit is labelled 0.7.0 and introduces that pending entrypoint contract, but its
+committed `VERSION` is still 0.6.6 and there is no tag at that source. The generated
+annotation retains 0.6.6; the exact revision identifies the reviewed code.
+
+The initial selection explicitly records 60 roots covering the existing shared
+commands, integration fixtures and governance documents. Their committed
+companion closure, including mandatory integrity helpers, retains the same 90
+payloads. No files are added or retired. The only payload changes are the
+snapshot verifier, consuming-snapshot guide, Make adoption guide and snapshot
+drift task. Consumer Make/CI/script callers remain covered, and no local command
+uses the replaced exporter flags. Future refreshes reuse recorded roots;
+conditional local callers and other manifests still require ownership review.
+
+Actual canonical apply passes on genuine Bash 3.2.57. Both modern Bash and Bash
+3.2 accept the current snapshot, reject duplicate, malformed, unsafe and
+unselected roots, and produce a repeat preview containing only 90 KEEP rows
+without resupplying roots. `make shared-tooling-check`, selected ShellCheck,
+documentation links and diff checks pass. Logs use
+`/tmp/ic-testkit-0343-shared070-*.log`; immutable source scratch is recorded in
+`/tmp/ic-testkit-shared070-source-path`. These are Linux consumer adoption checks,
+not the complete upstream distribution/retirement suite or native macOS
+acceptance. Tool pins and executable installers are unchanged, so existing
+prepared-tool and Host 0.14.5 qualification remains applicable. Package metadata,
+selected lock, real index and the pending failure-evidence repair are preserved.
+
+## Linked checkout evidence for pending 0.34.3
+
+On released 0.34.2 `67ea968831d45e49e7eb6f28b54cab7bcc07f4b7`, the collector
+refused a symlinked `target` or `.tools` before creating an archive, losing
+unrelated valid logs ([#59](https://github.com/dragginzgame/ic-testkit/issues/59)).
+The actual pre-fix fixture fails in
+`/tmp/ic-testkit-0343-linked-evidence-before.log`; its retained inputs remain at
+`/tmp/ic-testkit-evidence-test.kv2Yn2/`.
+
+The consumer collector now archives the parent link itself, unrelated evidence
+and `collection.log` without traversing either redirected tree. It emits the
+completed archive path before propagating failure; a simultaneous selector
+failure retains its original status and diagnostic-only partial selections.
+Canonical Shared selection and archiving helpers are unchanged.
+
+The complete focused fixture passes on modern Bash and genuine Bash 3.2.57.
+For both parents and both collector modes, controls check archive member names,
+retained link bytes, installer logs and outcomes. A selector emitting a partial
+pair before failing with status 23 still returns 23 and excludes its proposed
+payload. Existing normal/rejected-selection round trips, corruption controls,
+overwrite refusal and partial-archive retention also pass. Logs use
+`/tmp/ic-testkit-0343-linked-evidence-*.log`. These are Linux fixtures with
+synthetic tools, not native macOS or hosted artifact-service acceptance of this
+pending source. Full validation remains maintainer-owned.
+
+## Locked Host 0.14.5 qualification for pending 0.34.3
+
+The maintainer's selected lock contains all four Host packages at 0.14.5. Cached
+archives match their locked checksums and release VCS source
+`bb8f1e71f3d4599618d0f4084d27fa637408f1fb`. This is a release-metadata-only
+patch from 0.14.4; no new API or local code removal is justified. Shared remains
+on reviewed 0.6.6 `a15eb9d406d287697df9bc8fa96db8cda6721a71`.
+
+Explicit selected-lock offline cache preparation, all three producer/cache
+composition tests, strict library/CLI Clippy and actual Rust 1.88 library/CLI
+compilation pass. Logs use `/tmp/ic-testkit-host0145-*.log`. Qualification does
+not resolve dependencies or change package metadata, the selected lock, Shared
+snapshot or real index. This Linux qualification of the pending graph is
+separate from released-source CI and earlier Host 0.14.4 evidence below.
+
+## Earlier Host 0.14.4 qualification for pending 0.34.3
+
+The preceding maintainer lock update selected all four Host packages at 0.14.4. Cached
+archives match their selected checksums and release VCS source
+`f93cd8854d500616a73eda713d215a20ff0617c7`. The crate implementation tree is
+unchanged from 0.14.3; this upstream patch adopts contributor tooling. Explicit
+selected-lock offline preparation, the three shared-tool/producer/cache
+composition tests, strict library/CLI Clippy and actual Rust 1.88 library/CLI
+compilation pass. Logs use `/tmp/ic-testkit-host0144-*.log`. Qualification does
+not resolve upgrades or modify package metadata, lock selection or the real
+index. Native acceptance of this new graph remains separate.
+
+The reported-live 0.34.2 source is
+`67ea968831d45e49e7eb6f28b54cab7bcc07f4b7`; its
+[matching workflow](https://github.com/dragginzgame/ic-testkit/actions/runs/38223153251)
+passes all four Linux jobs and Intel macOS concurrency at this inspection;
+seven native jobs remain queued. The unfinished 0.34.1 workflow was cancelled by the
+newest-ref policy, preserving its individual completed results without accepting
+its uncompleted native lanes. Delivery notes and older complete 0.34.0 native
+evidence remain distinct from this pending graph.
+
 ## Shared 0.6.6 derive formatter for pending 0.34.2
 
 Canonical preview/export selects committed Shared 0.6.6

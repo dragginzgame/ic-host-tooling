@@ -8,6 +8,45 @@ This file ships in the crate archive so upgrades can be completed without the
 repository checkout. The complete historical changelog remains at
 <https://github.com/dragginzgame/ic-testkit/blob/main/CHANGELOG.md>.
 
+## [0.34.3]
+
+### Changed: locked IC Host 0.14.5
+
+All four Host crates select 0.14.5 in the maintainer's lock update. Host 0.14.4
+adopts Shared Tooling 0.6.6 and the fixed derive formatter; 0.14.5 only changes
+release metadata. Their crate implementation is unchanged. Public Host
+re-exports retain the compatible 0.14 contract, with no library migration or
+MSRV change.
+
+### Changed: Shared Tooling 0.8.0 snapshots
+
+The reviewed snapshot selects Shared Tooling 0.8.0 at
+`045a6f22a9de497bfb3af90cb2571957384806f2`
+([#60](https://github.com/dragginzgame/ic-testkit/issues/60),
+[Shared #131](https://github.com/dragginzgame/shared-tooling/issues/131)). The
+generated version annotation now agrees with the upstream 0.8.0 source metadata.
+
+The v1 manifest now records intended entrypoints separately from derived file
+records. Refreshes reuse those roots and automatically include transitive
+companions. The existing 90-file selection is retained. To change roots, use
+`--entrypoint` or `--add-entrypoint` with the new exporter and review `--preview`;
+refresh automatically retires unchanged owned files outside the selection after
+proving their prior source, digest and mode. Local edits, staging and concurrent
+changes still refuse. Remove `--retire-file` from any external refresh commands;
+directly used helpers must remain selected entrypoints. See the
+[adoption guide](../../docs/consuming-snapshots.md#retiring-obsolete-payloads).
+Prepared tools, pin selections and library contracts are unchanged.
+
+### Fixed: failure evidence for linked checkout directories
+
+Both CI evidence modes retain unrelated logs, step outcomes and a diagnostic
+when `target` or `.tools` is a symlink
+([#59](https://github.com/dragginzgame/ic-testkit/issues/59)). The archive records
+the link itself without traversing its target. Collection still fails after
+emitting the completed archive path, allowing the existing uploader to retain
+the evidence. A concurrent shared-selector failure preserves its original
+status and diagnostics; partial selections remain diagnostic data only.
+
 ## [0.34.2] - 2026-10-12
 
 ### Changed: locked IC Host 0.14.3

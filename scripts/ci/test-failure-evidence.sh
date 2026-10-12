@@ -360,16 +360,48 @@ cmp "$GITHUB_WORKSPACE/.tools/rust/build/cargo-attempt.fixture/install.log" \
     "$fixture/checks/.tools/rust/build/cargo-attempt.fixture/install.log"
 [[ ! -e "$fixture/checks/ic-testkit-portable-fixtures" ]] || exit 1
 [[ ! -e "$fixture/checks/ic-testkit-archive-proof" && ! -e "$fixture/checks/ic-testkit-archive-downloaded" ]] || exit 1
-# Do not overwrite a previous attempt or follow intermediate directory links.
+# Do not overwrite a previous attempt.
 cp "$archive" "$fixture/before.tar.gz"
 if bash "$collector" portable; then exit 1; fi
 cmp "$fixture/before.tar.gz" "$archive"
-mkdir "$fixture/linked-temp"
-mv "$GITHUB_WORKSPACE/target" "$GITHUB_WORKSPACE/real-target"
-ln -s real-target "$GITHUB_WORKSPACE/target"
-if RUNNER_TEMP="$fixture/linked-temp" bash "$collector" checks; then exit 1; fi
-[[ ! -e "$fixture/linked-temp/ic-testkit-checks-failure/evidence.tar.gz" ]] || exit 1
-rm "$GITHUB_WORKSPACE/target"
+# A redirected checkout parent must not prevent retention of unrelated logs.
+# Preserve the link itself, never inspect/archive the target, and keep failure.
+for parent in target .tools; do
+    outside="$fixture/linked-$parent-outside"
+    mv "$GITHUB_WORKSPACE/$parent" "$outside"
+    ln -s "$outside" "$GITHUB_WORKSPACE/$parent"
+    for mode in checks portable; do
+        for selector in real failed; do
+            temporary="$fixture/linked-$parent-$mode-$selector-temp"
+            unpacked="$fixture/linked-$parent-$mode-$selector-unpacked"
+            mkdir "$temporary" "$unpacked"
+            cp "$RUNNER_TEMP/ic-testkit-tools-install.log" "$temporary/"
+            selected_collector="$collector"
+            expected_status=1
+            if [[ "$selector" == failed ]]; then
+                selected_collector="$fixture/partial-collector/collect-failure-evidence.sh"
+                expected_status=23
+            fi
+            status=0
+            linked="$(IC_TESTKIT_EVIDENCE_OUTSIDE="$GITHUB_WORKSPACE" RUNNER_TEMP="$temporary" \
+                bash "$selected_collector" "$mode")" || status=$?
+            [[ "$status" == "$expected_status" && -f "$linked" ]] || exit 1
+            tar -tzf "$linked" > "$temporary/members"
+            if grep -F "./$parent/" "$temporary/members"; then exit 1; fi
+            tar -xzf "$linked" -C "$unpacked"
+            [[ -L "$unpacked/$parent" && "$(readlink "$unpacked/$parent")" == "$outside" ]] || exit 1
+            cmp "$temporary/ic-testkit-tools-install.log" "$unpacked/ic-testkit-tools-install.log"
+            cmp "$temporary/ic-testkit-$mode-failure/step-outcomes.json" "$unpacked/step-outcomes.json"
+            grep -F "linked evidence parent: $parent" "$unpacked/collection.log" >/dev/null || exit 1
+            if [[ "$selector" == failed ]]; then
+                [[ "$(cat "$unpacked/tool-evidence/selection-status")" == 23 ]] || exit 1
+                [[ ! -e "$unpacked/unrelated" ]] || exit 1
+            fi
+        done
+    done
+    rm "$GITHUB_WORKSPACE/$parent"
+    mv "$outside" "$GITHUB_WORKSPACE/$parent"
+done
 # A failed archiver retains its partial output and original evidence.
 mkdir "$fixture/failed-temp"
 printf '#!%s\nprintf partial\nexit 23\n' "$BASH" > "$fixture/bin/tar"

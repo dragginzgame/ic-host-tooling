@@ -6,6 +6,24 @@ documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.34.3]
+
+### Changed
+
+- Update locked IC Host dependencies to 0.14.5.
+- Adopt Shared Tooling 0.8.0's entrypoint-based snapshots, deriving required files
+  and automatically retiring unchanged owned files outside the selection
+  ([#60](https://github.com/dragginzgame/ic-testkit/issues/60),
+  [Shared #131](https://github.com/dragginzgame/shared-tooling/issues/131)).
+
+### Fixed
+
+- Retain uploadable CI failure logs when a checkout's tool or build directory is
+  a symlink, preserving the failure status and excluding link targets
+  ([#59](https://github.com/dragginzgame/ic-testkit/issues/59)).
+
+[Dependency and evidence details](crates/ic-testkit/CHANGELOG.md#0343)
+
 ## [0.34.2] - 2026-10-12
 
 ### Changed

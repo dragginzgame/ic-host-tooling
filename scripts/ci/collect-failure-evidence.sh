@@ -40,11 +40,19 @@ for formatting_log in "$temporary"/formatting.*; do
         arguments+=("$temporary" "${formatting_log##*/}")
     fi
 done
-# Do not traverse an intermediate link into unrelated filesystem contents.
+# Retain a redirected parent itself and unrelated logs, without traversing it.
+collection_status=0
 for parent in target .tools; do
-    [[ ! -L "$workspace/$parent" ]] || { echo "linked evidence parent: $parent" >&2; exit 1; }
+    if [[ -L "$workspace/$parent" ]]; then
+        printf 'linked evidence parent: %s\n' "$parent" >> "$bundle/collection.log"
+        printf 'linked evidence parent: %s\n' "$parent" >&2
+        arguments+=("$workspace" "$parent")
+        collection_status=1
+    fi
 done
-if [[ -e "$workspace/target/validation-failures" || -L "$workspace/target/validation-failures" ]]; then
+if [[ "$collection_status" != 0 ]]; then arguments+=("$bundle" collection.log); fi
+if [[ ! -L "$workspace/target" ]] &&
+    [[ -e "$workspace/target/validation-failures" || -L "$workspace/target/validation-failures" ]]; then
     arguments+=("$workspace" target/validation-failures)
 fi
 diagnostics="$bundle/tool-evidence"
@@ -64,7 +72,7 @@ else
     printf 'shared_collection=incomplete\n' > "$diagnostics/collection-status"
     cat "$diagnostics/selection.log" >&2
     echo 'Shared evidence collection incomplete; retaining local evidence and diagnostics.' >&2
-    if [[ -d "$workspace/.tools" ]]; then arguments+=("$workspace" .tools); fi
+    if [[ ! -L "$workspace/.tools" && -d "$workspace/.tools" ]]; then arguments+=("$workspace" .tools); fi
 fi
 if [[ "$selector_status" != 0 || -d "$diagnostics/host" || -d "$diagnostics/ic" ]]; then
     arguments+=("$bundle" tool-evidence)
@@ -76,4 +84,5 @@ TAR_OPTIONS='' bash "$archiver" \
 mv "$bundle/evidence.tar.gz.partial" "$bundle/evidence.tar.gz"
 printf '%s\n' "$bundle/evidence.tar.gz"
 # CI publishes the archive path before propagating this failure to the step.
-exit "$selector_status"
+[[ "$selector_status" == 0 ]] || exit "$selector_status"
+exit "$collection_status"
