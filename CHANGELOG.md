@@ -6,6 +6,31 @@ documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.34.4]
+
+### Changed
+
+- Update locked IC Host dependencies to 0.14.6.
+- Adopt Shared Tooling 0.8.1's strict snapshot records and retained Cargo
+  build-identity diagnostics
+  ([#60](https://github.com/dragginzgame/ic-testkit/issues/60),
+  [Shared #133](https://github.com/dragginzgame/shared-tooling/issues/133),
+  [Shared #134](https://github.com/dragginzgame/shared-tooling/issues/134)).
+
+### Fixed
+
+- Cancel PocketIC setup's downloader and its descendants on SIGINT, SIGTERM or
+  SIGHUP, retaining failure evidence and returning the signal exit code
+  ([#65](https://github.com/dragginzgame/ic-testkit/issues/65)).
+
+### Testing
+
+- Verify original and observed Cargo build identities through CI artifact
+  readback, rejecting missing or changed observations
+  ([#59](https://github.com/dragginzgame/ic-testkit/issues/59)).
+
+[Tooling and setup details](crates/ic-testkit/CHANGELOG.md#0344)
+
 ## [0.34.3] - 2026-10-12
 
 ### Changed

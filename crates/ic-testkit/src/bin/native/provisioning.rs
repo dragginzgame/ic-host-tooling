@@ -6,8 +6,13 @@ use ic_testkit::{
         durable,
         read::{hash_file_no_follow, read_file_no_follow},
     },
-    ic_host_process::tool::{
-        AdmittedTool, ExecutionContext, OutputLimit, OutputLimits, ToolSpec, capture_group_command,
+    ic_host_process::{
+        child::OwnedChild,
+        tool::{
+            AdmittedTool, ExecutionContext, ExecutionError, ExecutionEvidence, ExecutionFailure,
+            ExecutionOperation, OutputLimit, OutputLimits, SuccessfulExit, ToolError, ToolSpec,
+            communicate_child,
+        },
     },
     pic::POCKET_IC_SERVER_VERSION,
 };
@@ -18,7 +23,7 @@ use std::{
     io::{self, Write as _},
     os::unix::fs::DirBuilderExt as _,
     path::{Component, Path, PathBuf},
-    process::Command,
+    process::{Command, Stdio},
     sync::atomic::{AtomicU64, Ordering},
     time::Duration,
 };
@@ -164,35 +169,56 @@ pub(super) fn setup(directory: &Path) -> Result<PathBuf> {
             "https://github.com/dfinity/pocketic/releases/download/{POCKET_IC_SERVER_VERSION}/pocket-ic-{}.gz",
             asset.host
         );
-        let outcome = capture_group_command(
-            Command::new("curl")
-                .args([
-                    "--proto",
-                    "=https",
-                    "--proto-redir",
-                    "=https",
-                    "--tlsv1.2",
-                    "--fail",
-                    "--silent",
-                    "--show-error",
-                    "--location",
-                    "--connect-timeout",
-                    "15",
-                    "--max-time",
-                    "300",
-                    "--max-filesize",
-                    "83886080",
-                    "--output",
-                ])
-                .arg(archive)
-                .arg(url),
-            OutputLimits {
-                stdout: OutputLimit::Terminate(4096),
-                stderr: OutputLimit::Terminate(64 * 1024),
-                timeout: Some(Duration::from_secs(310)),
-            },
-        )
-        .and_then(ic_testkit::ic_host_process::tool::CompletedExecution::require_success);
+        let mut command = Command::new("curl");
+        command
+            .args([
+                "--proto",
+                "=https",
+                "--proto-redir",
+                "=https",
+                "--tlsv1.2",
+                "--fail",
+                "--silent",
+                "--show-error",
+                "--location",
+                "--connect-timeout",
+                "15",
+                "--max-time",
+                "300",
+                "--max-filesize",
+                "83886080",
+                "--output",
+            ])
+            .arg(archive)
+            .arg(url)
+            .stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
+        let outcome = OwnedChild::spawn(&mut command)
+            .map_err(|source| {
+                ToolError::Execution(Box::new(ExecutionError {
+                    failure: ExecutionFailure::Io {
+                        operation: ExecutionOperation::Spawn,
+                        source,
+                    },
+                    evidence: ExecutionEvidence::default(),
+                    cleanup: None,
+                }))
+            })
+            .and_then(|mut child| {
+                communicate_child(
+                    &mut child,
+                    None,
+                    OutputLimits {
+                        stdout: OutputLimit::Terminate(4096),
+                        stderr: OutputLimit::Terminate(64 * 1024),
+                        timeout: Some(Duration::from_secs(310)),
+                    },
+                    SuccessfulExit::Cleanup,
+                    || super::INTERRUPTED.load(Ordering::Relaxed) != 0,
+                )
+            })
+            .and_then(ic_testkit::ic_host_process::tool::CompletedExecution::require_success);
         if let Some(stderr) = outcome
             .as_ref()
             .ok()

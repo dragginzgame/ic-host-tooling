@@ -8,6 +8,53 @@ This file ships in the crate archive so upgrades can be completed without the
 repository checkout. The complete historical changelog remains at
 <https://github.com/dragginzgame/ic-testkit/blob/main/CHANGELOG.md>.
 
+## [0.34.4]
+
+### Changed: Shared Tooling 0.8.1 and locked Host 0.14.6
+
+The reviewed Shared snapshot advances to 0.8.1
+`c97f9f9c7b7c706fffdcfc5925cf58759b58093f`, retaining the same entrypoints and
+90 files ([#60](https://github.com/dragginzgame/ic-testkit/issues/60)). Snapshot
+refresh and verification reject malformed or empty extra fields while preserving
+literal spaces in filenames
+([Shared #133](https://github.com/dragginzgame/shared-tooling/issues/133)).
+
+When a Cargo tool's compiler, native inventory or build policy changes during
+installation, activation still refuses. The failed attempt now retains both
+identity observations, names the changed fields and identifies evidence to compare
+([Shared #134](https://github.com/dragginzgame/shared-tooling/issues/134)). The
+normal failure collector includes those observations. Prepared selections and
+tool pins are unchanged; no reinstall is required for this adoption alone.
+
+The maintainer's lock update selects all four Host crates at 0.14.6. This patch
+adopts contributor tooling and leaves the crate implementation unchanged from
+0.14.5. Library contracts and MSRV remain compatible.
+
+### Fixed: interrupted PocketIC downloads
+
+`ic-testkit-server setup` now observes SIGINT, SIGTERM and SIGHUP during downloads
+and cancels the downloader's owned process group before returning `128 + signal`
+([#65](https://github.com/dragginzgame/ic-testkit/issues/65)). The partial archive,
+captured stderr and original cancellation failure remain in the attempt directory;
+a failure to save stderr is reported separately without replacing cancellation.
+The CLI emits no successful executable path after observing interruption.
+
+Setup reuses Host's owned-child communication and the CLI's signal policy. HTTPS
+admission, output budgets, explicit setup-only downloads and offline check/run
+behavior are unchanged. Descendants that leave the owned group remain caller-owned.
+This compatible fix requires no installation reset, dependency update or library
+migration.
+
+### Testing: build-identity artifact readback
+
+The maintained normal artifact proof compares exact bytes for both build-identity
+and native-environment observations
+([#59](https://github.com/dragginzgame/ic-testkit/issues/59)). Missing build identity
+or changed native observations refuse readback while preserving extracted evidence.
+The compact collector is checked against the original observations; existing
+rejected-selection proofs retain their admission boundaries. This extends the
+existing upload/download proof rather than adding another artifact interface.
+
 ## [0.34.3] - 2026-10-12
 
 ### Changed: locked IC Host 0.14.5

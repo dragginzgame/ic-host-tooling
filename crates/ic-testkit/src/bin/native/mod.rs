@@ -180,7 +180,12 @@ pub fn main() -> ExitCode {
         }
     };
     let arguments = match arguments {
-        Arguments::Setup(directory) => return report_provisioning(provisioning::setup(&directory)),
+        Arguments::Setup(directory) => {
+            return match Signals::install() {
+                Ok(_signals) => report_provisioning(provisioning::setup(&directory)),
+                Err(error) => report_provisioning(Err(error.into())),
+            };
+        }
         Arguments::Check(directory) => return report_provisioning(provisioning::check(&directory)),
         Arguments::Run(arguments) => arguments,
     };
@@ -229,9 +234,8 @@ pub fn main() -> ExitCode {
     if let Err(error) = &result {
         eprintln!("{error}");
     }
-    let signal = INTERRUPTED.load(Ordering::Relaxed);
-    if signal != 0 {
-        return ExitCode::from(u8::try_from(128 + signal).unwrap_or(1));
+    if let Some(status) = interruption_exit_code() {
+        return status;
     }
     match result {
         Ok(status) => command_exit_code(status),
@@ -243,9 +247,20 @@ pub fn main() -> ExitCode {
     }
 }
 
+fn interruption_exit_code() -> Option<ExitCode> {
+    let signal = INTERRUPTED.load(Ordering::Relaxed);
+    (signal != 0).then(|| ExitCode::from(u8::try_from(128 + signal).unwrap_or(1)))
+}
+
 fn report_provisioning(result: Result<PathBuf, Box<dyn std::error::Error>>) -> ExitCode {
     use std::io::Write as _;
     use std::os::unix::ffi::OsStrExt as _;
+    if let Err(error) = &result {
+        eprintln!("{error}");
+    }
+    if let Some(status) = interruption_exit_code() {
+        return status;
+    }
     match result {
         Ok(path) => {
             let stdout = std::io::stdout();
@@ -260,10 +275,7 @@ fn report_provisioning(result: Result<PathBuf, Box<dyn std::error::Error>>) -> E
                 ExitCode::SUCCESS
             }
         }
-        Err(error) => {
-            eprintln!("{error}");
-            ExitCode::FAILURE
-        }
+        Err(_) => ExitCode::FAILURE,
     }
 }
 

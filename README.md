@@ -399,7 +399,9 @@ Client dependency updates do not change Testkit's server selection automatically
 
 Setup serializes cooperating installers, rechecks an existing bundle before any
 download and refuses a changed or redirected installation. Failed/interrupted
-attempts and previous bundles are preserved. Select a fresh root to replace an
+attempts and previous bundles are preserved. During a download, SIGINT, SIGTERM
+and SIGHUP cancel the owned downloader group, retain the partial archive and
+captured failure evidence, and return `128 + signal`. Select a fresh root to replace an
 invalid retained installation; no automatic repair, removal or format migration
 occurs. The caller must control the physical root and exclude untrusted namespace
 writers. Parent traversal and symlinked directory components are refused. Checks

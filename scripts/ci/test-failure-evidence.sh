@@ -60,6 +60,10 @@ verify_archive() {
     if [[ "$selector_status" == 0 ]]; then
         cmp -s "$fixture/unpacked/$stored_slot/set.failed/install.log" <(printf 'failed shared attempt') || exit 1
         cmp -s "$fixture/unpacked/$rust_slot/set.failed/build/evidence" <(printf 'failed shared Cargo build') || exit 1
+        cmp -s "$fixture/unpacked/$rust_slot/set.failed/inputs.json" <(printf '{"build":{"compiler":"before"}}\n') || exit 1
+        cmp -s "$fixture/unpacked/$rust_slot/set.failed/native-environment.txt" <(printf 'native before\n') || exit 1
+        cmp -s "$fixture/unpacked/$rust_slot/set.failed/build-identity.observed.json" <(printf '{"compiler":"after"}\n') || exit 1
+        cmp -s "$fixture/unpacked/$rust_slot/set.failed/native-environment.observed.txt" <(printf 'native after\n') || exit 1
     else
         [[ ! -e "$fixture/unpacked/$stored_slot" && ! -e "$fixture/unpacked/$rust_slot" ]] || exit 1
     fi
@@ -191,6 +195,10 @@ ln -s "$stored_parent/set.failed" "$GITHUB_WORKSPACE/.tools/host-set.failed"
 rust_slot="$SHARED_TOOLING_STORE/rust-$(printf '0%.0s' {1..64})"
 (umask 077; mkdir -p "$rust_slot/set.failed/build" "$rust_slot/set.unrelated")
 printf 'failed shared Cargo build' > "$rust_slot/set.failed/build/evidence"
+printf '{"build":{"compiler":"before"}}\n' > "$rust_slot/set.failed/inputs.json"
+printf 'native before\n' > "$rust_slot/set.failed/native-environment.txt"
+printf '{"compiler":"after"}\n' > "$rust_slot/set.failed/build-identity.observed.json"
+printf 'native after\n' > "$rust_slot/set.failed/native-environment.observed.txt"
 printf 'other checkout' > "$rust_slot/set.unrelated/payload"
 ln -s "$rust_slot/set.failed" "$GITHUB_WORKSPACE/.tools/rust/rust-set.failed"
 mkdir "$fixture/compact-temp" "$fixture/compact-unpacked"
@@ -198,6 +206,9 @@ compact="$(RUNNER_TEMP="$fixture/compact-temp" bash "$collector" checks)"
 tar -xzf "$compact" -C "$fixture/compact-unpacked"
 [[ ! -e "$fixture/compact-unpacked/.tools/${verified##*/}" && ! -e "$fixture/compact-unpacked/$stored_path" ]] || exit 1
 cmp "$stored_parent/set.failed/install.log" "$fixture/compact-unpacked/${stored_parent##*/}/set.failed/install.log"
+for evidence in inputs.json native-environment.txt build-identity.observed.json native-environment.observed.txt; do
+    cmp "$rust_slot/set.failed/$evidence" "$fixture/compact-unpacked/${rust_slot##*/}/set.failed/$evidence"
+done
 [[ -L "$fixture/compact-unpacked/.tools/host-set.failed" && ! -e "$fixture/compact-unpacked/${stored_parent##*/}/set.unrelated" ]] || exit 1
 [[ -x "$fixture/compact-unpacked/.tools/host-set.fixture/bin/probe" ]] || exit 1
 [[ -s "$fixture/compact-unpacked/tool-evidence/host/check.log" ]] || exit 1
@@ -310,7 +321,7 @@ set -- "$fixture/verify-valid"/*
 # Contradict payload, outcome and selector-status observations without changing verifier code.
 # Appended newlines must not disappear through command-substitution normalization.
 # Failed verification must preserve extracted evidence, including on Bash 3.2.
-for invalid in payload outcomes selection-status payload-newline rejected-log-newline missing-diagnostic missing-portable; do
+for invalid in payload outcomes selection-status payload-newline rejected-log-newline missing-diagnostic missing-portable missing-build-observation changed-native-observation; do
     mkdir "$fixture/corrupt-$invalid" "$fixture/verify-$invalid" "$fixture/corrupt-$invalid-proof"
     cp "$fixture/proof/"*.tar.gz "$fixture/corrupt-$invalid-proof/"
     case "$invalid" in
@@ -331,6 +342,10 @@ for invalid in payload outcomes selection-status payload-newline rejected-log-ne
         printf '\n' >> "$fixture/corrupt-$invalid/.tools/rust/build/cargo-attempt.fixture/install.log"
     elif [[ "$invalid" == missing-diagnostic ]]; then
         rm "$fixture/corrupt-$invalid/target/validation-failures/latest.log"
+    elif [[ "$invalid" == missing-build-observation ]]; then
+        rm "$fixture/corrupt-$invalid/${rust_slot##*/}/set.failed/build-identity.observed.json"
+    elif [[ "$invalid" == changed-native-observation ]]; then
+        printf changed > "$fixture/corrupt-$invalid/${rust_slot##*/}/set.failed/native-environment.observed.txt"
     else
         rm "$fixture/corrupt-$invalid/ic-testkit-portable-fixtures/Linux:x86_64/"$'line\nbreak'
     fi

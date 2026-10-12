@@ -426,6 +426,97 @@ fn managed_idle_ttl_allows_preclient_work_beyond_server_default() {
 }
 
 #[test]
+fn interrupted_setup_terminates_downloader_descendants_and_retains_failure() {
+    use ic_testkit::ic_host_process::tool::{
+        ExecutionError, ExecutionEvidence, ExecutionFailure, ToolError,
+    };
+
+    struct DownloadGroup(u32);
+    impl Drop for DownloadGroup {
+        fn drop(&mut self) {
+            if !stopped(self.0) {
+                // SAFETY: the fixture downloader owns this process group.
+                unsafe { libc::kill(-i32::try_from(self.0).unwrap(), libc::SIGKILL) };
+            }
+        }
+    }
+
+    let expected = ToolError::Execution(Box::new(ExecutionError {
+        failure: ExecutionFailure::Cancelled,
+        evidence: ExecutionEvidence::default(),
+        cleanup: None,
+    }))
+    .to_string();
+    for signal in [libc::SIGINT, libc::SIGTERM, libc::SIGHUP] {
+        for block_stderr in [false, true] {
+            let fixture = Fixture::new();
+            let store = fixture.0.canonicalize().unwrap().join("store");
+            let obstruction = if block_stderr {
+                "/bin/mkdir \"${2%/*}/download.stderr\""
+            } else {
+                ""
+            };
+            support::executable::write_executable_script(
+                &fixture.0.join("curl"),
+                format!(
+                    "#!/bin/sh\nwhile [ \"$1\" != --output ]; do shift; done\nprintf partial > \"$2\"\n{obstruction}\nprintf 'download diagnostic' >&2\nprintf '%s\\n' \"$$\" > \"$CURL_PID_FILE\"\n/bin/sleep 30 &\nprintf '%s\\n' \"$!\" > \"$DESCENDANT_PID_FILE\"\nwait\n"
+                ),
+            );
+            let diagnostic = fixture.0.join("diagnostic");
+            let mut runner = Running(
+                Command::new(env!("CARGO_BIN_EXE_ic-testkit-server"))
+                    .env("PATH", &fixture.0)
+                    .env("CURL_PID_FILE", fixture.0.join("curl.pid"))
+                    .env("DESCENDANT_PID_FILE", fixture.0.join("descendant.pid"))
+                    .args(["setup", "--directory"])
+                    .arg(&store)
+                    .stdout(Stdio::null())
+                    .stderr(fs::File::create(&diagnostic).unwrap())
+                    .spawn()
+                    .unwrap(),
+            );
+            wait_until(|| {
+                fs::read_to_string(fixture.0.join("curl.pid")).is_ok_and(|pid| !pid.is_empty())
+            });
+            let downloader = DownloadGroup(fixture.pid("curl.pid"));
+            wait_until(|| {
+                fs::read_to_string(fixture.0.join("descendant.pid"))
+                    .is_ok_and(|pid| !pid.is_empty())
+            });
+            let descendant = fixture.pid("descendant.pid");
+            // SAFETY: this live CLI child is owned by the test.
+            assert_eq!(
+                unsafe { libc::kill(i32::try_from(runner.0.id()).unwrap(), signal) },
+                0
+            );
+            let mut status = None;
+            wait_until(|| {
+                status = runner.0.try_wait().unwrap();
+                status.is_some()
+            });
+            assert_eq!(status.unwrap().code(), Some(128 + signal));
+            wait_until(|| stopped(downloader.0) && stopped(descendant));
+            let attempts = fs::read_dir(&store)
+                .unwrap()
+                .map(|entry| entry.unwrap().path())
+                .filter(|path| path.is_dir())
+                .collect::<Vec<_>>();
+            assert_eq!(attempts.len(), 1);
+            let attempt = &attempts[0];
+            assert_eq!(fs::read(attempt.join("archive.gz")).unwrap(), b"partial");
+            assert_eq!(
+                fs::read_to_string(attempt.join("failure.txt")).unwrap(),
+                expected
+            );
+            assert!(String::from_utf8_lossy(&fs::read(diagnostic).unwrap()).contains(&expected));
+            assert_eq!(attempt.join("download.stderr").is_dir(), block_stderr);
+            assert!(attempt.join("download.stderr").exists());
+            assert!(!attempt.join("pocket-ic").exists());
+        }
+    }
+}
+
+#[test]
 fn failed_download_retains_partial_archive_and_original_process_failure() {
     use ic_testkit::ic_host_process::tool::{OutputLimit, OutputLimits, capture_group_command};
 

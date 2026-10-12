@@ -1,5 +1,108 @@
 # Host support and qualification
 
+## Shared 0.8.1 and Host 0.14.6 for pending 0.34.4
+
+Canonical preview/export selects Shared Tooling 0.8.1
+`c97f9f9c7b7c706fffdcfc5925cf58759b58093f`, preserving 60 roots and 90 payloads
+([#60](https://github.com/dragginzgame/ic-testkit/issues/60),
+[Shared #133](https://github.com/dragginzgame/shared-tooling/issues/133),
+[Shared #134](https://github.com/dragginzgame/shared-tooling/issues/134)). The
+reviewed delta updates snapshot field admission, Rust-tool identity retention,
+its fixture and two guides. No tools are installed or retired.
+
+The prior verifier demonstrably accepts a malformed trailing empty field. The
+new verifier rejects extra empty fields in version, format, source, revision and
+file records on modern Bash and genuine Bash 3.2.57, while accepting literal
+spaces in filenames. Private inputs remain at
+`/tmp/ic-testkit-shared081-records.a0xg82w0/`; results are in
+`/tmp/ic-testkit-0344-shared081-records.log`.
+
+Both shells pass the changed canonical Rust-tool fixture: compiler, native
+inventory and build-policy changes refuse activation, preserve the previous
+selection, retain both observations without unmodelled secrets, and round-trip
+their bytes through the standard selector/archive path. Actual canonical apply
+on Bash 3.2, snapshot integrity, prepared Rust checks, formatting and selected
+ShellCheck pass. Logs use `/tmp/ic-testkit-0344-shared081-*.log`; source scratch is
+recorded in `/tmp/ic-testkit-shared081-source-path`. These use substitute Cargo
+effects and private stores; native acceptance remains separate.
+
+The maintainer's selected lock contains all four Host crates at 0.14.6. Cached
+archives match their locked checksums and release VCS source
+`11f8c31b599ea81f6106225c4068d78d22fed249`. The crate implementation is unchanged
+from 0.14.5; this patch adopts contributor tooling. The first explicit offline
+cache probe failed because the new archives were absent; that log is preserved.
+`cargo fetch --locked` prepares the selected graph without resolution, and the
+separate subsequent offline probe passes. All twenty controlled CLI tests and
+three producer/cache composition tests pass against this graph, with four real
+server tests ignored. Strict selected Clippy and actual Rust 1.88 library/CLI
+compilation pass. Logs use `/tmp/ic-testkit-0344-host0146-*.log`. Package metadata,
+maintainer lock selection, real index and pending setup-interruption inputs are
+preserved. The full gate and native acceptance remain maintainer-owned.
+
+## Build-observation readback for pending 0.34.4
+
+The new Shared installer preserves both build observations, but the consumer's
+normal artifact verifier initially ignored them
+([#59](https://github.com/dragginzgame/ic-testkit/issues/59)). Removing the observed
+build identity still passes the actual standalone readback; the contradiction is
+retained in `/tmp/ic-testkit-0344-build-observation-before.log` and
+`/tmp/ic-testkit-evidence-test.2EqZxB/verify-missing-build-observation.log`.
+
+The existing three-archive qualification now compares the original and observed
+identity/native bytes in the referenced failed shared generation. Compact
+collection preserves them; missing build identity and changed native-observation
+controls both refuse while retaining extracted evidence. The complete fixture
+passes on modern Bash and genuine Bash 3.2.57, including existing linked-parent,
+selector failure and corrupt-evidence controls. Proof sets remain at
+`/tmp/ic-testkit-0344-observation-proof/` and
+`/tmp/ic-testkit-0344-observation-proof-bash32/`; logs use
+`/tmp/ic-testkit-0344-build-observation-*.log`. This is local collector/readback
+execution with synthetic evidence and substitute transport. Native hosted
+upload/download acceptance of the pending proof remains separate; the workflow's
+artifact interface and canonical selection/archive helpers are unchanged.
+
+## Setup interruption for pending 0.34.4
+
+Released 0.34.3 `c78b02be422018067b48f6aaa4c20fb0d6f95ad2` leaves the downloader
+and its descendant running when SIGINT terminates the setup CLI
+([#65](https://github.com/dragginzgame/ic-testkit/issues/65)). An actual owner-CLI
+build and private substitute-curl reproduction retain the observation at
+`/tmp/ic-testkit-0344-setup-interrupt-before.log` and inputs at
+`/tmp/ic-testkit-0344-setup-before.ml_p0fmb/`. Fixture cleanup stops the surviving
+group. The maintained regression independently fails before repair because the
+CLI dies by signal instead of completing cleanup and returning 130; its log is
+`/tmp/ic-testkit-0344-setup-test-before.log`.
+
+Setup now installs the CLI signal policy and passes its interruption predicate
+to Host's owned-child communication. Host owns bounded capture, cancellation and
+group cleanup; Testkit retains setup evidence and the signal exit-code policy.
+Spawn errors retain their original typed operation, and stderr-recording failures
+remain secondary to the process failure. The selected stream bounds, curl
+limits, explicit download authority and installation admission are unchanged.
+
+All six signal/recording controls pass: SIGINT, SIGTERM and SIGHUP, each with
+ordinary or obstructed stderr recording. The downloader and descendant stop;
+the partial archive and typed cancellation error survive without publishing an
+executable. All seven CLI unit tests and thirteen controlled runner integration
+tests pass, including original download-error, path admission, offline check/run,
+managed interruption and command-status behavior. Four real-server tests remain
+ignored. Strict selected Clippy and actual Rust 1.88 CLI compilation pass, as do
+prepared formatting, documentation links and diff checks. Logs use
+`/tmp/ic-testkit-0344-setup-*.log`; selected-lock offline cache preparation is in
+`/tmp/ic-testkit-0344-cache.log`. These are focused Linux executions with synthetic
+server/download transport, not native macOS or hosted acceptance of pending code.
+Package metadata, lock selection, reviewed Shared snapshot and real index remain
+unchanged; the full gate remains maintainer-owned.
+
+Reported-live 0.34.3's
+[matching CI](https://github.com/dragginzgame/ic-testkit/actions/runs/38231005016)
+passes all four Linux jobs and Intel macOS MSRV at this inspection, with seven
+native jobs queued. Superseded 0.34.2's unfinished run was cancelled by the
+newest-ref policy; its completed jobs remain bound to that older source. The
+delivered repairs in #59, #60, #62, #63 and #64 still await matching native
+acceptance. #61 and #38 retain their independently verified original acceptance
+and downstream-owner obligations.
+
 ## Shared 0.8.0 snapshots for pending 0.34.3
 
 Canonical preview/export advances the recorded 60 entrypoints and unchanged
