@@ -8,7 +8,7 @@ This file ships in the crate archive so upgrades can be completed without the
 repository checkout. The complete historical changelog remains at
 <https://github.com/dragginzgame/ic-testkit/blob/main/CHANGELOG.md>.
 
-## [0.34.3]
+## [0.34.3] - 2026-10-12
 
 ### Changed: locked IC Host 0.14.5
 
