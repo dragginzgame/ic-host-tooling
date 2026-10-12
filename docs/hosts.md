@@ -1,5 +1,95 @@
 # Host support and qualification
 
+## Cache-lock test isolation for pending 0.34.6
+
+The nonblocking cache-lock regression now executes in an exact-test child with
+one test thread ([#66](https://github.com/dragginzgame/ic-testkit/issues/66)),
+following the existing staging-pruning test's isolation pattern. It retains all
+contention, immediate release/reacquisition, content and redirected-file checks.
+The original finding is a source review and Linux kernel inheritance control,
+not an observed failure of the Rust test. Production lock semantics and selected
+dependencies are unchanged.
+
+Explicit `cargo fetch --locked --offline` prepares the selected cache without
+resolution. All ten `artifacts::cache_fs::tests` pass against the locked Host
+0.14.7 graph. A focused native process trace confirms an actual second test
+executable invocation with the exact test selector and `--test-threads=1`; the
+child executes one passing test. Strict library/test Clippy, prepared formatting,
+documentation links and diff checks pass. Logs use
+`/tmp/ic-testkit-0346-issue66-*`; source/input/log/artifact digests are recorded
+in `/tmp/ic-testkit-0346-issue66-qualification.json`.
+
+These are focused Linux tests, not matching native macOS acceptance of the
+uncommitted fix. Own metadata, selected lock, Shared snapshot, workflow and
+staged contents are preserved. Full validation and release effects remain
+maintainer-owned.
+
+## Shared 0.9.2 for pending 0.34.6
+
+Canonical preview and genuine Bash 3.2 export select Shared Tooling 0.9.2
+`c118062a070a2e238f1eb3989b6fd700f369ce1e`, retaining 62 roots and 93 payloads
+([#60](https://github.com/dragginzgame/ic-testkit/issues/60)). Only the three
+installers and evidence checksum verifier change from 0.9.1. The immutable
+detached source matches GitHub; no upstream-only fixtures are added to the
+consumer snapshot. Previous cleanup qualification remains bound to unchanged
+shared-store and fixture inputs.
+
+The committed upstream evidence-checksum and script-path fixtures pass on modern
+Bash and genuine Bash 3.2.57. NUL in digests, filenames, suffixes and trailing
+records refuses before backend execution, including with a substitute probe
+backend; manifests and payloads remain unchanged. Valid GNU/Perl hashing and
+final lines without newlines pass. The path fixture rejects supplied CR/LF,
+invalid ancestors and physical symlink targets for host/IC/Rust install, check
+and supported preflight modes before configuration or store creation.
+
+A separate private control confirms the 0.9.1 checksum verifier accepts an
+embedded NUL digest while 0.9.2 rejects it with status 1 and no success output.
+Its retained input root is recorded in `/tmp/ic-testkit-shared092-nul-path`.
+Actual adopted IC installer fixtures also pass on both shells, retaining their
+storage, corruption, cleanup and interruption checks with substitute transport.
+
+Actual snapshot and prepared host/IC/Rust admission, stable both-shell repeat
+previews, selected ShellCheck, documentation links and diff checks pass. Logs
+use `/tmp/ic-testkit-0346-shared092-*`; source/input/runtime/log digests are in
+`/tmp/ic-testkit-0346-shared092-qualification.json`. Own metadata, selected lock,
+staged contents, workflow and published history are preserved. No tool install,
+Cargo compilation or dependency resolution runs. This is focused Linux execution;
+native consumer acceptance and full gates remain maintainer-owned.
+
+## Shared 0.9.1 for pending 0.34.6
+
+Canonical preview and genuine Bash 3.2 export select committed Shared Tooling
+0.9.1 `e8a9ea6b660f216166eb00d0af6a32462bdbda4a`, retaining 62 roots and 93
+payloads ([#60](https://github.com/dragginzgame/ic-testkit/issues/60)). The
+reviewed GitHub source consolidates host/IC installation lifecycle handling and
+fixes shared-lock release and error preservation on checkout cleanup failure.
+The immutable detached clone excludes newer uncommitted 0.9.2 checksum work.
+
+Actual adopted host and IC installer fixtures pass on modern Bash and genuine
+Bash 3.2.57. The shared fixture injects checkout `rmdir` status 31 after cached
+activation and confirms nonzero completion, no download and released shared
+lock. A simultaneous curl status 23 retains that original failure and candidate,
+releases the shared lock and preserves the prior active bundle. An explicit
+retry succeeds without deleting failed evidence. Existing storage reuse,
+corruption, locking, interrupted installation and offline-refusal controls pass.
+These use private stores and substitute transport; they do not reinstall native
+tools or prove macOS behavior.
+
+The previous temporary Bash 3.2 executable was unavailable on the first attempt,
+so that export did not run. Initial modern fixture logs describe unchanged 0.9.0
+inputs and are retained as `*-before-adoption.log`; they are not 0.9.1 evidence.
+A separately prepared Bash 3.2.57 binary is copied into a private qualification
+directory, recorded by `/tmp/ic-testkit-shared091-bash32-path`, and used for the
+successful export and both updated fixtures. No tool download or build runs.
+
+Actual snapshot, prepared host/IC admission, stable both-shell repeat previews,
+selected ShellCheck, documentation links and diff checks pass. Logs use
+`/tmp/ic-testkit-0346-shared091-*`; source/input/log/runtime digests are recorded
+in `/tmp/ic-testkit-0346-shared091-qualification.json`. Own package metadata,
+selected lock, staged contents, workflow and published history are preserved.
+No Cargo compilation or dependency resolution runs; full gates and matching
+native consumer acceptance remain maintainer-owned.
+
 ## Shared 0.9.0 for pending 0.34.5
 
 Canonical preview and genuine Bash 3.2 export select committed Shared Tooling

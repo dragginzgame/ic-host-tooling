@@ -751,7 +751,28 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn nonblocking_cache_locks_preserve_contention_and_reject_redirected_files() {
-        use std::os::unix::fs::symlink;
+        use std::{os::unix::fs::symlink, process::Command};
+        const CHILD_ENV: &str = "IC_TESTKIT_NONBLOCKING_CACHE_LOCK_CHILD";
+
+        if std::env::var_os(CHILD_ENV).is_none() {
+            // Parallel tests can fork with the lock descriptor open. CLOEXEC
+            // releases the child's copy only at exec, so isolate immediate
+            // reacquisition after dropping the parent's descriptor.
+            let thread = std::thread::current();
+            let test_name = thread.name().expect("libtest names each test thread");
+            let output = Command::new(std::env::current_exe().unwrap())
+                .args(["--exact", test_name, "--test-threads=1"])
+                .env(CHILD_ENV, "1")
+                .output()
+                .unwrap();
+            assert!(
+                output.status.success(),
+                "isolated nonblocking cache lock test failed: {}{}",
+                String::from_utf8_lossy(&output.stdout),
+                String::from_utf8_lossy(&output.stderr)
+            );
+            return;
+        }
 
         let root = unique_temp_directory("nonblocking-cache-lock-admission");
         let lock_path = root.join("lock");

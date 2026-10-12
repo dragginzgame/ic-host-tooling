@@ -190,6 +190,10 @@ inspect `.tools/.host-tools.lock/owner` and confirm its process has stopped befo
 removing an abandoned lock; shared slots also retain `install.lock/owner`.
 Offline checks report the shared lock path and refuse while that selection's
 shared lock is held, including when another checkout owns the installation.
+Host and IC setup attempt both lock releases on exit, even if checkout cleanup
+fails. An installation failure keeps its original status and retained candidate;
+a cleanup-only failure also returns nonzero. Inspect any remaining lock before
+retrying, even when the selected bundle was successfully activated.
 Cleanup remains explicit. The `--versions` option
 selects a reviewed shell file, which is executable code like a Makefile.
 

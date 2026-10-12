@@ -8,6 +8,39 @@ This file ships in the crate archive so upgrades can be completed without the
 repository checkout. The complete historical changelog remains at
 <https://github.com/dragginzgame/ic-testkit/blob/main/CHANGELOG.md>.
 
+## [0.34.6]
+
+### Fixed: installer cleanup and evidence admission
+
+The reviewed snapshot selects Shared Tooling 0.9.2
+`c118062a070a2e238f1eb3989b6fd700f369ce1e`
+([#60](https://github.com/dragginzgame/ic-testkit/issues/60)). Host and IC setup
+share lock acquisition, verified-cache reuse and cleanup at the shared store
+owner. Both lock releases are attempted even when checkout cleanup fails.
+An earlier installation error retains its original exit status and failed
+candidate; a cleanup failure after successful installation returns nonzero.
+Inspect any remaining checkout lock before retrying, even if a verified bundle
+was activated successfully.
+
+Evidence checksum verification rejects NUL bytes before hashing referenced files,
+then parses the same captured manifest. Malformed digest or filename bytes can
+no longer disappear during Bash parsing. Rejected manifests and evidence remain
+intact. Host, IC and Rust installers reject CR/LF in both supplied and resolved
+consumer paths before loading configuration, probing tools or preparing stores,
+including aliases that hide invalid physical paths.
+
+Tool pins, retained installations, offline admission and library contracts are
+unchanged. Existing tools need no reinstall solely for this adoption.
+
+### Testing: controlled cache-lock release
+
+The nonblocking cache-lock regression runs in an exact-test subprocess with one
+test thread ([#66](https://github.com/dragginzgame/ic-testkit/issues/66)). Other
+parallel tests can no longer fork while this fixture holds its lock and briefly
+extend that lock's lifetime before exec. Contention, immediate reacquisition,
+content preservation and redirected-file assertions remain in the isolated
+child. Production locking behavior is unchanged.
+
 ## [0.34.5] - 2026-10-12
 
 ### Changed: Shared Tooling 0.9.0

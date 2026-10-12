@@ -6,6 +6,22 @@ documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.34.6]
+
+### Fixed
+
+- Adopt Shared Tooling 0.9.2 to preserve installer failures while releasing shared
+  locks, reject NUL bytes in evidence checksum manifests before hashing, and
+  reject CR/LF installer paths before setup effects
+  ([#60](https://github.com/dragginzgame/ic-testkit/issues/60)).
+
+### Testing
+
+- Isolate cache-lock reacquisition checks from parallel subprocess spawning
+  ([#66](https://github.com/dragginzgame/ic-testkit/issues/66)).
+
+[Tooling details](crates/ic-testkit/CHANGELOG.md#0346)
+
 ## [0.34.5] - 2026-10-12
 
 ### Changed
