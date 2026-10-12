@@ -1,5 +1,46 @@
 # Host support and qualification
 
+## Host 0.15 and Shared 0.9.5 for pending 0.35.0
+
+The approved hard cut retires Testkit's unused IC-tool convenience re-export and
+dependency while retaining the three used Host crates at selected 0.15.0
+([#67](https://github.com/dragginzgame/ic-testkit/issues/67)). Cargo's explicit
+offline workspace update prunes only `ic-host-tools` and its Testkit dependency
+edge; all other selected versions, checksums and graph edges are preserved.
+`cargo fetch --locked --offline` prepares that graph without resolution. Own
+workspace package metadata stays maintainer-owned at 0.34.7.
+
+Focused Linux qualification passes three composed Host/tool/cache tests, ten
+cache-filesystem tests, seven CLI unit tests and thirteen controlled CLI runner
+tests; four real-server tests remain ignored. Strict library/test Clippy,
+Rustdoc warnings and actual Rust 1.88 native library/CLI and both Wasm package
+checks pass. These controlled CLI tests use synthetic server/download transport,
+not real provisioning or native macOS acceptance.
+
+Canonical preview and Bash 3.2 export select committed Shared 0.9.5
+`b1630b89482cc6071fc928a86962d79c9c11fdb7`, excluding newer uncommitted PR work
+([#60](https://github.com/dragginzgame/ic-testkit/issues/60),
+[#59](https://github.com/dragginzgame/ic-testkit/issues/59),
+[Shared #63](https://github.com/dragginzgame/shared-tooling/issues/63)). The
+selection adds only the canonical discovery helper: 63 roots and 94 payloads.
+The upstream discovery fixture stays outside the snapshot because it qualifies
+Shared's own two-download workflow; the local evidence fixture checks Testkit's
+single-download boundary and retains its complete archive/readback controls.
+
+Both fixtures pass on modern Bash and genuine Bash 3.2.57. Common controls cover
+pagination, delayed/final visibility, exhaustion, malformed/expired/conflicting
+identities and API/authentication refusal with substitute GitHub transport and
+sleep. The local workflow requires successful discovery for the same upload ID,
+repository and run, retains digest checks and binds its token and two-minute
+timeout. Local execution does not establish hosted artifact-service recovery.
+
+Snapshot integrity, stable repeat previews, declaration pins, workflow lint,
+selected ShellCheck, prepared formatting, documentation links and diff checks
+pass. Logs use `/tmp/ic-testkit-0350-*`; source/input/artifact/runtime/log digests
+are recorded in `/tmp/ic-testkit-0350-qualification.json`. Real staged contents,
+Git refs, package metadata and published history are preserved. Native acceptance,
+full gates and release execution remain maintainer-owned.
+
 ## Shared 0.9.4 for pending 0.34.7
 
 Shared 0.9.4 became committed during 0.9.3 qualification and is adopted through
@@ -4544,3 +4585,20 @@ cleanup accessors. Test `startup_failure_projections_preserve_cleanup_and_bounde
 is replaced by `original_failure_output_and_both_typed_cleanup_reports_survive_projection`.
 The public error enum representation is replaced by the same-named record;
 its cause variants move rather than being silently discarded.
+
+## IC Build extraction source qualification
+
+The maintainer authorized moving generic Testkit build/cache mechanics and
+Canic feature-equivalent Cargo grouping to IC Build
+([IC Build #1](https://github.com/dragginzgame/ic-build/issues/1)).
+Testkit's native development dependency selects published IC Build 0.1 through
+crates.io and the tracked lockfile. Formatting and validation need no sibling
+checkout or external-path pin exception.
+The engine preserves v1 cache/stamp/lock bytes and namespaces, returned artifact
+lifetime, typed failures, input-change rejection and explicit maintenance.
+PocketIC lifecycle stays in Testkit; Canic's complete-release admission, recipes,
+credentials, generated inputs and release identities remain consumer policy.
+The separate complete-release reuse/finalization path is not replaced by a
+generic cache-hit predicate in this batch. IcyDB adoption and native macOS
+qualification remain separately scoped. No package versions, refs, tags or
+release artifacts are changed by the extraction.

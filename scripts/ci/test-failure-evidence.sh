@@ -18,6 +18,31 @@ trap cleanup EXIT
 fixture="$(cd -P "$fixture" && printf '%s/.' "$PWD")"
 fixture="${fixture%/.}"
 
+# The consumer's own upload/download boundary must retain the exact identity and
+# refuse download until discovery succeeds. Common retry behavior is qualified
+# by Shared Tooling's fixture; this checks the actual local workflow wiring.
+yq -o=json '.jobs.portable-hosts.steps' "$root/.github/workflows/ci.yml" > "$fixture/workflow-steps.json"
+jq -e '
+    [.[] | select((.uses // "") | startswith("actions/download-artifact@"))] as $downloads
+    | ($downloads | length) == 1 and all($downloads[];
+        .if == "${{ !cancelled() && steps.archive-discovery.outcome == '\''success'\'' }}"
+        and .with["artifact-ids"] == "${{ steps.archive-upload.outputs.artifact-id }}"
+        and .with.repository == "${{ github.repository }}"
+        and .with["run-id"] == "${{ github.run_id }}"
+        and .with["digest-mismatch"] == "error"
+        and (."continue-on-error" // false) == false
+    )
+' "$fixture/workflow-steps.json" >/dev/null
+jq -e '
+    .[] | select(.id == "archive-discovery")
+    | .["timeout-minutes"] == 2 and (."continue-on-error" // false) == false
+      and .env.EVIDENCE_REPOSITORY == "${{ github.repository }}"
+      and .env.EVIDENCE_RUN == "${{ github.run_id }}"
+      and .env.EVIDENCE_ARTIFACT == "${{ steps.archive-upload.outputs.artifact-id }}"
+      and .env.GH_TOKEN == "${{ github.token }}"
+      and (.run | contains("scripts/ci/wait-for-artifact.sh"))
+' "$fixture/workflow-steps.json" >/dev/null
+
 verify_archive() {
     local mode="$2" selector_status="$3"
     mkdir "$fixture/unpacked"

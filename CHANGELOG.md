@@ -6,6 +6,32 @@ documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.35.0]
+
+### Breaking
+
+- Move generic Cargo/Wasm and transactional artifact APIs to IC Build; callers
+  must depend on it directly and replace `ic_testkit::artifacts` imports with
+  `ic_build::artifacts`. PocketIC and benchmark policy stay in Testkit
+  ([IC Build #1](https://github.com/dragginzgame/ic-build/issues/1)).
+
+- Adopt IC Host 0.15 and remove the unused `ic_testkit::ic_host_tools`
+  convenience re-export and dependency. Add `ic-host-tools` directly when needed;
+  align direct Host dependencies to 0.15 where types cross the Testkit boundary
+  ([#67](https://github.com/dragginzgame/ic-testkit/issues/67)).
+
+### Fixed
+
+- Use published IC Build 0.1 for native development so isolated commit formatting
+  needs no sibling checkout.
+- Adopt Shared Tooling 0.9.5 and wait for exact uploaded CI artifact discovery
+  before downloading, retaining strict digest and payload checks
+  ([#60](https://github.com/dragginzgame/ic-testkit/issues/60),
+  [#59](https://github.com/dragginzgame/ic-testkit/issues/59),
+  [Shared #63](https://github.com/dragginzgame/shared-tooling/issues/63)).
+
+[Migration and tooling details](crates/ic-testkit/CHANGELOG.md#0350)
+
 ## [0.34.7] - 2026-10-12
 
 ### Fixed

@@ -8,6 +8,60 @@ This file ships in the crate archive so upgrades can be completed without the
 repository checkout. The complete historical changelog remains at
 <https://github.com/dragginzgame/ic-testkit/blob/main/CHANGELOG.md>.
 
+## [0.35.0]
+
+### Breaking: generic build ownership
+
+Generic Cargo input resolution, Wasm/artifact caches, retained records,
+transactions, batching and explicit maintenance now belong to IC Build.
+Add a direct native dependency and use `ic_build::artifacts`; no aliases or
+compatibility reexports remain. Source code keeps the existing v1 stamp bytes,
+digest domains and cache/lock namespaces. Retain build/cache records through
+consumption and keep recipe, source custody, budgets and cleanup policy explicit.
+
+PocketIC startup, provisioning, snapshots, diagnostics and benchmark/marker
+contracts stay in Testkit. Native development uses published IC Build 0.1 from
+crates.io and the tracked lockfile, so staged formatting needs no sibling
+checkout. Manifest versions remain maintainer-owned.
+[IC Build #1](https://github.com/dragginzgame/ic-build/issues/1) owns acceptance.
+
+
+### Breaking: Host 0.15 and direct IC-tool imports
+
+The three artifact, filesystem and process re-exports select IC Host 0.15.
+Align direct dependencies to that line wherever their types cross the Testkit
+boundary ([#67](https://github.com/dragginzgame/ic-testkit/issues/67)).
+`ic_testkit::ic_host_tools` is removed: this crate had no internal callers, so
+Testkit no longer depends on it solely to expose its API. Add `ic-host-tools`
+directly for IC-specific helpers, using its current split imports:
+
+| Previous convenience path | Direct Host 0.15 path |
+| --- | --- |
+| `ic_testkit::ic_host_tools::candid::{normalize, NormalizationError}` | `ic_host_tools::candid::text::{normalize, NormalizationError}` |
+| `ic_testkit::ic_host_tools::candid::{extract, ExtractionError, ExtractedCandid}` | `ic_host_tools::candid::extraction::{extract, ExtractionError, ExtractedCandid}` |
+| Other APIs under `ic_testkit::ic_host_tools` | Their corresponding `ic_host_tools` paths |
+
+Pure Candid text APIs also work with Host's default features disabled; extraction
+requires Unix and the `candid-extraction` feature, enabled by default. See the
+[Host migration guide](https://github.com/dragginzgame/ic-host-tooling/blob/5253af17427ec5f7054d6fe670993bb0722f924e/docs/changelog/0.15.md)
+for feature selection and optional interface inspection. No compatibility bridge
+is retained. PocketIC/cache contracts and the Rust 1.88 floor are unchanged.
+
+### Fixed: uploaded artifact discovery
+
+The reviewed Shared snapshot selects 0.9.5
+`b1630b89482cc6071fc928a86962d79c9c11fdb7`
+([#60](https://github.com/dragginzgame/ic-testkit/issues/60),
+[#59](https://github.com/dragginzgame/ic-testkit/issues/59),
+[Shared #63](https://github.com/dragginzgame/shared-tooling/issues/63)).
+Portable CI uses the canonical discovery helper for the exact artifact ID returned
+by its upload. Six successful API listings can retry absence with bounded backoff;
+the step has a two-minute timeout including requests. Authentication/API errors,
+malformed responses, expired or conflicting identities and exhausted discovery
+fail the gate. The pinned download runs only after discovery succeeds and retains
+digest-mismatch refusal and independent archived-payload verification. Uploads
+are not repeated and no other artifact, run or attempt is selected.
+
 ## [0.34.7] - 2026-10-12
 
 ### Fixed: transient contributor-tool downloads

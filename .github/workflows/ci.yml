@@ -163,14 +163,20 @@ jobs:
           path: ${{ runner.temp }}/ic-testkit-archive-proof/*.tar.gz
           retention-days: 1
           if-no-files-found: error
-      - name: Check returned archive identity
+      - name: Wait for archive qualification artifact discovery
+        id: archive-discovery
+        timeout-minutes: 2
         shell: /bin/bash --noprofile --norc -e -u -o pipefail {0}
         env:
-          ARCHIVE_ID: ${{ steps.archive-upload.outputs.artifact-id }}
+          GH_TOKEN: ${{ github.token }}
+          EVIDENCE_REPOSITORY: ${{ github.repository }}
+          EVIDENCE_RUN: ${{ github.run_id }}
+          EVIDENCE_ARTIFACT: ${{ steps.archive-upload.outputs.artifact-id }}
         run: |
-          [[ "$ARCHIVE_ID" =~ ^[1-9][0-9]*$ ]] || { echo 'upload returned no valid artifact ID' >&2; exit 1; }
+          bash scripts/ci/wait-for-artifact.sh "$EVIDENCE_REPOSITORY" "$EVIDENCE_RUN" "$EVIDENCE_ARTIFACT"
           mkdir "$RUNNER_TEMP/ic-testkit-archive-downloaded"
       - name: Download archive qualification artifact
+        if: ${{ !cancelled() && steps.archive-discovery.outcome == 'success' }}
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           artifact-ids: ${{ steps.archive-upload.outputs.artifact-id }}
@@ -187,10 +193,6 @@ jobs:
         run: CDPATH="$PWD" /bin/bash scripts/ci/test-failure-evidence.sh verify "$RUNNER_TEMP/ic-testkit-archive-downloaded"
       - name: Check native managed-server lifecycle
         run: cargo test -p ic-testkit --locked --offline --lib pic::startup::tests
-      - name: Check shared host-tool integration and artifact helpers
-        run: |
-          cargo test -p ic-testkit --locked --offline --lib artifacts::host_tests
-          cargo test -p ic-testkit --locked --offline --test artifact_helpers
       - name: Check synthetic PocketIC transport and teardown
         run: cargo test -p ic-testkit --locked --offline --test pocket_ic_teardown
       - name: Check native fixture benchmark driver and sampler

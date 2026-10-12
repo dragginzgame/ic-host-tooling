@@ -13,7 +13,7 @@ ic-testkit = "0.34"
 
 The published MSRV is Rust 1.88, and the selected PocketIC line is 16.
 Canisters using benchmark markers can add the crate under `[dependencies]`.
-`pocket_ic`, `pic`, and `artifacts` are host-only; `benchmark`, `performance`,
+`pocket_ic` and `pic` are host-only; `benchmark`, `performance`,
 and `Fake` are available on `wasm32` as well.
 
 This crate is the published Rust package in the `ic-testkit` workspace. It
@@ -30,10 +30,6 @@ provides:
   for suites spanning several test processes
 - cached single- and multi-canister PocketIC baseline pools
 - deterministic fake principals
-- transactional external artifact sets and content-addressed Wasm builds with
-  retained read-only outputs, caller-labeled sequential batches, explicit
-  immutable-source sessions and concurrent-reader snapshots, and bounded cache
-  retention
 - controller-aware, caller-labeled collect-all diagnostics
 - compact benchmark marker parsing, aggregation, comparison, and report writing
 - canister-side `Performance::measure` marker emission
@@ -85,8 +81,10 @@ raw output files remain caller-owned. Replace matches on the old error enum
 with matches on `error.failure()`; no compatibility entry points are retained.
 
 Host-only shared APIs are available through the complete `ic_host_artifacts`,
-`ic_host_fs`, `ic_host_process` and `ic_host_tools` re-exports under `ic_testkit`.
-These select IC Host 0.14. The [Host 0.14 migration guide](CHANGELOG.md#0340)
+`ic_host_fs` and `ic_host_process` re-exports under `ic_testkit`.
+These select IC Host 0.15. Add `ic-host-tools` directly for Candid and IC helpers;
+the [0.35 migration guide](CHANGELOG.md#0350) covers the removed convenience
+re-export and current import paths. The [Host 0.14 migration guide](CHANGELOG.md#0340)
 covers dependency alignment, completed results for nonzero exits, explicit
 `require_success()` before producer publication and fallible output observers.
 The [Host 0.13 upgrade guidance](CHANGELOG.md#0334) covers descriptor-based locking
@@ -108,9 +106,9 @@ the `0.9` managed-server lifetime migration, and earlier hard-cut tables.
 
 The repository also includes a complete
 [multi-canister baseline recipe](https://github.com/dragginzgame/ic-testkit/blob/main/crates/ic-testkit/examples/multi_canister_baseline_pool.rs)
-and a
-[transactional external-artifact example](https://github.com/dragginzgame/ic-testkit/blob/main/crates/ic-testkit/examples/transactional_artifact_cache.rs)
-that are compiled by the crate's normal all-target checks.
+compiled by the crate's normal all-target checks. The
+[transactional external-artifact example](https://github.com/dragginzgame/ic-build/blob/main/crates/ic-build/examples/transactional_artifact_cache.rs)
+is compiled and maintained by IC Build.
 
 Benchmark aggregate/comparison rows and aggregate errors use `suite()` for their
 label; aggregate rows use `average()` for approximate `f64` averages derived from
@@ -121,3 +119,7 @@ numbers. Baseline recipes construct reset requirements with
 `ResetRequirements::try_new(cycle_policy, non_snapshot_requirements)`. The pool
 verifies snapshots and cycle policy through `CanisterRestoreReceipt`, while
 `ResetReceipt` covers non-snapshot guarantees. These are source API hard cuts.
+
+Generic Cargo/Wasm builds, retained artifact caches and freshness APIs belong to
+[IC Build](https://github.com/dragginzgame/ic-build). Depend on it directly and use
+`ic_build::artifacts`; Testkit keeps PocketIC lifecycle and benchmark policy.

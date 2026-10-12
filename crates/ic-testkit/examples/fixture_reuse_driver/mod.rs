@@ -25,8 +25,8 @@ use std::os::unix::{
     process::CommandExt as _,
 };
 
+use ic_build::artifacts::workspace_root_for;
 use ic_testkit::{
-    artifacts::workspace_root_for,
     ic_host_artifacts::artifact::ArtifactError,
     ic_host_fs::read::{hash_file, read_opened_file},
     ic_host_process::tool::{ResolutionError, resolve_executable},
@@ -651,7 +651,7 @@ mod tests {
         fs::write(
             root.join("workspace.json"),
             serde_json::to_vec(&json!({"root":
-                ic_testkit::artifacts::workspace_root_for(env!("CARGO_MANIFEST_DIR"))
+                ic_build::artifacts::workspace_root_for(env!("CARGO_MANIFEST_DIR"))
                     .unwrap().join("Cargo.toml")
             }))
             .unwrap(),

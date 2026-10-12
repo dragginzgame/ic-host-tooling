@@ -9,16 +9,14 @@
 //!
 //! The crate also provides:
 //!
-//! - host-only transactional artifacts, Wasm builds, and freshness helpers in
-//!   [`artifacts`];
 //! - bounded artifact inspection through [`ic_host_artifacts`], filesystem
 //!   operations through [`ic_host_fs`], verified execution through
-//!   [`ic_host_process`], and IC-specific helpers through [`ic_host_tools`];
+//!   [`ic_host_process`];
 //! - marker parsing, aggregation, comparison, and reports in [`benchmark`];
 //! - canister-side marker emission in [`performance`];
 //! - deterministic test principals through [`Fake`].
 //!
-//! The [`pocket_ic`], [`pic`], [`artifacts`] and host-library exports are unavailable
+//! The [`pocket_ic`], [`pic`] and host-library exports are unavailable
 //! when compiling for `wasm32`; benchmark data types and marker emission remain
 //! available to canister code.
 
@@ -31,13 +29,10 @@ mod batch;
 mod timing;
 
 #[cfg(not(target_arch = "wasm32"))]
-pub mod artifacts;
-
-#[cfg(not(target_arch = "wasm32"))]
 pub use pocket_ic;
 
 #[cfg(not(target_arch = "wasm32"))]
-pub use {ic_host_artifacts, ic_host_fs, ic_host_process, ic_host_tools};
+pub use {ic_host_artifacts, ic_host_fs, ic_host_process};
 
 #[cfg(not(target_arch = "wasm32"))]
 pub mod pic;
