@@ -255,72 +255,25 @@ if [[ -e "$manifest" ]]; then
     cp -p "$manifest" "$STAGING_DIR/previous-manifest"
     check_consumer_unchanged "$MANIFEST_PATH" "$manifest_state"
 
-    manifest_format_count=0
-    manifest_source_count=0
-    manifest_revision_count=0
-    manifest_version_count=0
-    manifest_source=""
-    while IFS= read -r manifest_line || [[ -n "$manifest_line" ]]; do
-        IFS=$'\t' read -r record first second third extra <<< "$manifest_line"
+    # Admit syntax once through our trusted reader. Payload ownership remains
+    # independently checked against the earlier committed source below.
+    bash "$SCRIPT_ROOT/scripts/ci/verify-shared-tooling-snapshot.sh" \
+        --read-manifest "$STAGING_DIR/previous-manifest" > "$STAGING_DIR/previous-records" ||
+        fail "existing manifest is malformed"
+    while IFS=$'\t' read -r record first second third; do
         case "$record" in
-        '# entrypoint')
-            [[ -n "$first" && "$manifest_line" == $'# entrypoint\t'"$first" ]] ||
-                fail "existing manifest has a malformed entrypoint annotation"
-            validate_relative_path "$first"
-            for existing in ${entrypoints[@]+"${entrypoints[@]}"}; do
-                [[ "$existing" != "$first" ]] || fail "duplicate entrypoint: $first"
-            done
-            entrypoints+=("$first")
-            ;;
-        '# version')
-            [[ "$first" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ && "$manifest_line" == "$record"$'\t'"$first" ]] ||
-                fail "existing manifest has a malformed version annotation"
-            manifest_version_count=$((manifest_version_count + 1))
-            ;;
-        '' | \#*) continue ;;
-        format)
-            [[ "$first" == "1" && "$manifest_line" == "$record"$'\t'"$first" ]] ||
-                fail "existing manifest has an unsupported format"
-            manifest_format_count=$((manifest_format_count + 1))
-            ;;
-        source)
-            [[ -n "$first" && "$manifest_line" == "$record"$'\t'"$first" ]] ||
-                fail "existing manifest has a malformed source record"
-            manifest_source="$first"
-            manifest_source_count=$((manifest_source_count + 1))
-            ;;
-        revision)
-            [[ "$first" =~ ^[0-9a-f]{40,64}$ && "$manifest_line" == "$record"$'\t'"$first" ]] ||
-                fail "existing manifest has a malformed revision record"
-            manifest_revision_count=$((manifest_revision_count + 1))
-            manifest_revision="$first"
-            ;;
-        file)
-            [[ "$first" =~ ^[0-9a-f]{64}$ && "$second" =~ ^(-|x)$ && -n "$third" && -z "$extra" && "$manifest_line" == "$record"$'\t'"$first"$'\t'"$second"$'\t'"$third" ]] ||
-                fail "existing manifest has a malformed file record"
-            validate_relative_path "$third"
-            [[ "$third" != "$MANIFEST_PATH" ]] || fail "manifest may not include itself"
-            for existing in ${previous_files[@]+"${previous_files[@]}"}; do
-                [[ "$existing" != "$third" ]] || fail "duplicate snapshot path: $third"
-            done
-            previous_digests[${#previous_files[@]}]="$first"
-            previous_modes[${#previous_files[@]}]="$second"
-            previous_files+=("$third")
-            ;;
-        *) fail "existing manifest contains an unknown record: $record" ;;
+            '# entrypoint') entrypoints+=("$first") ;;
+            source) manifest_source="$first" ;;
+            revision) manifest_revision="$first" ;;
+            file)
+                [[ "$third" != "$MANIFEST_PATH" ]] || fail "manifest may not include itself"
+                previous_digests[${#previous_files[@]}]="$first"
+                previous_modes[${#previous_files[@]}]="$second"
+                previous_files+=("$third") ;;
         esac
-    done <"$STAGING_DIR/previous-manifest"
-    [[ "$manifest_format_count" -eq 1 ]] || fail "existing manifest must contain one format record"
-    [[ "$manifest_source_count" -eq 1 ]] || fail "existing manifest must contain one source record"
-    [[ "$manifest_revision_count" -eq 1 ]] || fail "existing manifest must contain one revision record"
-    [[ "$manifest_version_count" -le 1 ]] || fail "existing manifest has duplicate version annotations"
+    done < "$STAGING_DIR/previous-records"
     [[ "$manifest_source" == "$source_remote" ]] ||
         fail "source remote differs from the existing manifest"
-    for path in ${entrypoints[@]+"${entrypoints[@]}"}; do
-        selected=false
-        for existing in ${previous_files[@]+"${previous_files[@]}"}; do [[ "$existing" != "$path" ]] || selected=true; done
-        [[ "$selected" == true ]] || fail "recorded entrypoint is not a declared payload: $path"
-    done
 else
     [[ ${#added_files[@]} -eq 0 ]] || fail "--add-entrypoint requires an existing snapshot"
 fi

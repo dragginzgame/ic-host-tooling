@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.14.9]
+
+- Adopt Shared Tooling's 0.9.0 manifest-reader changes, sharing syntax validation
+  across refresh and verification and rejecting embedded NUL bytes
+  ([Shared #133](https://github.com/dragginzgame/shared-tooling/issues/133)).
+  Retains 0.8.4's JSON workspace line counts and clarified snapshot guidance.
+  [Detailed notes](docs/changelog/0.14.md).
+
 ## [0.14.8] - 2026-10-12
 
 - Adopt Shared Tooling 0.8.3: protect installer diagnostic paths

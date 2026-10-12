@@ -1,6 +1,47 @@
 # Current handoff
 
-## Pending 0.14.8 — Shared 0.8.3 installer and snapshot fixes
+## Pending 0.14.9 — Shared 0.9.0 manifest reader and JSON workspace counts
+
+Released Host 0.14.8 is `c7b884f8bce7907c2c2670c1a8a6bc7bfad30628`.
+Adopted Shared's 0.9.0 commit `019ce8236cc7cee14ea5540d468b939a2053ef30`, matching
+GitHub main at inspection, through canonical preview/refresh from a clean isolated
+checkout. Its committed VERSION remains 0.8.4 despite the 0.9.0 commit subject and
+changelog. The snapshot preserves that canonical annotation and exact revision;
+[Shared #137](https://github.com/dragginzgame/shared-tooling/issues/137) records the
+upstream release metadata correction. Do not claim the annotation says 0.9.0.
+The prior uncommitted 0.8.4 adoption is retained. The selection remains 87 explicit
+roots and 99 payloads, with no additions or retirements.
+
+Refresh and verification share the verifier's manifest syntax reader, also exposed
+through `--read-manifest FILE`. It rejects NUL bytes and malformed input before
+emitting any records. Payload integrity and committed-source ownership remain
+separate checks; existing manifests need no conversion
+([Shared #133](https://github.com/dragginzgame/shared-tooling/issues/133)).
+
+`bash scripts/dev/cloc.sh --json` emits numeric crate rows and totals only after
+all counts succeed. Existing `make cloc` text output is unchanged. Fleet aggregation
+remains in Shared Tooling. The guide now consistently explains derived script
+companions and explicitly selected governance roots and optional functionality.
+
+Full Linux `CARGO_NET_OFFLINE=true make ci` passes under the new reader.
+Upstream snapshot-distribution and tooling-report integration fixtures pass genuine
+Bash 3.2.57, including NUL/malformed-input refusal without emitted records and
+the shared reader's integration with refresh. Actual Host manifest reading,
+snapshot verification and repeat preview pass under Bash 3.2, with 99 KEEP rows.
+ShellCheck, documentation links, diff and crate/Cargo/pin preservation checks pass.
+Evidence: `/tmp/host-shared090.NTVuzu/`. Earlier LOC evidence remains at
+`/tmp/host-shared084.Mf2edf/`: Bash 3.2 fixtures passed and actual Host JSON totals
+matched the text report for all four crates. Those LOC inputs are unchanged.
+
+Native macOS qualification of this pending adoption remains outstanding.
+[Released 0.14.8 CI](https://github.com/dragginzgame/ic-host-tooling/actions/runs/38240226634)
+was queued at inspection and does not qualify these working-tree changes.
+The GitHub description remains accurate. Compatible contributor-tooling notes
+select 0.14.9; package versions remain 0.14.8. Crate code, dependencies, MSRV and
+pins are unchanged, so no separate MSRV rerun or tool reinstall was needed.
+No sibling file edit, installation, download, staging, commit, push or release ran.
+
+## Historical preparation for 0.14.8 — Shared 0.8.3 installer and snapshot fixes
 
 Adopted Shared Tooling 0.8.3
 `8cca7e67b03ce6e701b6e7dcec2e9753eb98337e`, matching GitHub main at inspection,
