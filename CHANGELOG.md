@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.14.9]
+## [0.14.9] - 2026-10-12
 
 - Adopt Shared Tooling's 0.9.0 manifest-reader changes, sharing syntax validation
   across refresh and verification and rejecting embedded NUL bytes
