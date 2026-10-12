@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.14.7]
+## [0.14.7] - 2026-10-12
 
 - Derive internal shared helpers from their owning entrypoints, reducing explicit
   snapshot selections from 98 to 86 while retaining all existing files and checks
