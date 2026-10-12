@@ -492,7 +492,10 @@ detached HEAD instead of applying the previous-version preparation checks.
 
 PR plans use `release-pr-plan-1` and a required `X.Y.Z.plan.pr.json` sidecar for
 repository, prepared commit, PR number, creation intent and merged commit. The
-common Git directory retains these alongside API requests/responses and
+saved identities and merged API identities must match their complete JSON
+strings; trailing newlines are rejected before shell extraction or state writes.
+Malformed input remains retained for diagnosis rather than silently normalized.
+The common Git directory retains these alongside API requests/responses and
 `release-state/X.Y.Z.merged/`. Do not delete the plan, sidecar, local release branch
 or merged checkout to unblock a retry. A changed/dirty retained checkout stops
 tagging; retain the evidence and reconcile the actual change. An interrupted or

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.15.1]
+
+- Adopt Shared Tooling 0.9.6: require complete Git identities in snapshots and
+  release recovery, retaining malformed evidence for diagnosis
+  ([Shared #133](https://github.com/dragginzgame/shared-tooling/issues/133)).
+  [Detailed notes](docs/changelog/0.15.md).
+
 ## [0.15.0] - 2026-10-12
 
 - **Breaking:** split Candid normalization and extraction into `candid::text` and

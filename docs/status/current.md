@@ -1,6 +1,79 @@
 # Current handoff
 
-## Pending 0.15.0 — Candid/interface ownership
+## Pending 0.15.1 — Shared Tooling 0.9.6
+
+Adopted committed Shared 0.9.6
+`7e9f062f53baad2059a8585e2fffe2b98f03bafd`, matching upstream main at inspection,
+through canonical preview/refresh from a clean isolated checkout. Six selected
+payloads change; all 87 entrypoints and 99 files remain. Snapshot/refresh and
+direct-release recovery require complete 40- or 64-character Git identities
+([Shared #133](https://github.com/dragginzgame/shared-tooling/issues/133)).
+Host retains direct delivery only; optional PR and upstream artifact-discovery
+helpers are not selected. No tool pin change or reinstall is required.
+
+Full Linux `CARGO_NET_OFFLINE=true make ci` passes. Direct-release recovery and
+exact-source snapshot-distribution fixtures pass genuine Bash 3.2.57 on Linux,
+including malformed-identity refusal. Actual snapshot verification and repeat
+preview also pass under Bash 3.2, with 99 KEEP rows. ShellCheck passes using the
+exact isolated source to resolve the runner's optional PR include for analysis;
+no optional helper was added to the consumer. Links, diff checks and captured
+crate/Cargo/Make/pin preservation checks pass. Evidence:
+`/tmp/host-shared096.FFWX7F/`.
+
+Incoming handoff edits and the syn 3.0.9 lock selection remain unchanged by this
+adoption. Library APIs, source and package versions remain 0.15.0; compatible
+contributor-tooling notes select 0.15.1. Native macOS qualification of this
+pending snapshot remains outstanding. No sibling edit, real installation,
+download, staging, commit, push, release or publication ran.
+
+## Released 0.15.0 — delivery and consumer inspection
+
+Host `5253af17427ec5f7054d6fe670993bb0722f924e` is pushed: local HEAD,
+remote main and `v0.15.0` match. The working tree was clean at inspection.
+The release includes the Candid/interface hard cut and Shared 0.9.3 snapshot
+`3619de9dc36065411b8e6521f8695e9395a0e0ea` described below.
+[Exact-source CI](https://github.com/dragginzgame/ic-host-tooling/actions/runs/38270955208)
+passes Linux x86-64 and MSRV; macOS 15 Apple Silicon is running and Intel is
+queued at the final adoption inspection. The superseded 0.14.10 run was cancelled and provides no completed
+native qualification. Qualification remains tracked by
+[Host #70](https://github.com/dragginzgame/ic-host-tooling/issues/70) and
+[Host #71](https://github.com/dragginzgame/ic-host-tooling/issues/71).
+
+Read-only consumer inspection finds Canic at
+`25b73cd403b20b4e148c6e340f8c760a26d97f6e` and IcyDB at
+`13b0958aeb7036b7797b9e1e903fea8d7b2e1d1a`, both still selecting Host 0.14.
+Canic retains the old normalization paths; IcyDB retains the old extraction
+paths. Their selections do not automatically admit the 0.15 hard cut.
+The posted migration guidance below remains applicable; actual consumer
+replacement and qualification belong to the linked consumer issues. Testkit and
+IC Build also still select Host 0.14. No sibling files or build artifacts changed.
+This pass reconciles delivery evidence only; it starts no new release line.
+
+Follow-up preparation captures reviewable consumer patches in
+`/tmp/host015-consumer-patches/`, with exact working-file fingerprints and a
+`REVIEW.txt` describing scope and limitations. IcyDB's incoming dirty manifest
+now selects Host 0.15; the captured extraction import still uses the old path.
+Six helper-level tests pass against local Host 0.15, plus patch applicability
+and Rustfmt checks. These probes do not qualify either full consumer workspace.
+Sibling files remain untouched; application, consumer lock resolution and native
+qualification remain with the existing adoption owners linked above. The
+incoming Host lockfile change from syn 3.0.8 to 3.0.9 is preserved unchanged.
+
+The maintainer subsequently authorized applying both prepared migrations.
+Canic and IcyDB now use the published Host 0.15 interface owner in their artifact
+inspectors and the moved text/extraction paths. Incoming root selections were
+preserved. Primary Linux checks pass: 36 Canic artifact/Candid tests (one existing
+real-extractor case intentionally ignored), nine IcyDB artifact tests, and strict
+Clippy for the selected consumer libraries (including Canic tests). Locked
+metadata passes; Canic adds only the Host parser edge, while IcyDB adds 51 parser
+packages without replacing existing package identities/checksums or Windows
+dependency selections. Consumer notes and Canic's handoff record the change.
+Evidence: `/tmp/host015-consumer-apply/`. The consumer changes remain uncommitted;
+full consumer gates and native macOS were not run. Independent IcyDB size-report
+projection and Canic rich presentation/finalization obligations remain outside
+this approved replacement. No sibling Git, release or publication effects ran.
+
+## Historical preparation for 0.15.0 — Candid/interface ownership
 
 Released base is 0.14.10 `886a8df0424d548e08126ef8dfab889e6d8e8071`.
 The checkout was clean at the start of the Candid batch. Shared 0.9.3 is now pinned
