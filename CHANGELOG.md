@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.14.8]
+## [0.14.8] - 2026-10-12
 
 - Adopt Shared Tooling 0.8.3: protect installer diagnostic paths
   ([Shared #136](https://github.com/dragginzgame/shared-tooling/issues/136)),
