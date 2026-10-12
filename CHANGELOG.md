@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.14.10]
+## [0.14.10] - 2026-10-12
 
 - Adopt Shared Tooling 0.9.2: reject NUL bytes in evidence checksum manifests
   and invalid consumer paths before installer setup. Host and IC installers share
