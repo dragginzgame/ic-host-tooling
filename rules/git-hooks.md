@@ -213,6 +213,15 @@ See the [Prettier CLI contract](https://prettier.io/docs/cli).
   while preserving the original commit index for its own checks and staging.
   It rejects inherited Make ignore-errors, dry-run, question, touch and version-only modes
   before dispatch, so a skipped or failed formatter cannot refresh the index.
+- Receipt checks using `install-rust-tools.sh --consumer "$(CURDIR)" --check`
+  can inspect the original checkout's prepared Rust selections from the index
+  export. The hook supplies `SHARED_TOOLING_FORMAT_WORKTREE` and
+  `SHARED_TOOLING_FORMAT_TOOLS_FROM` as an internal, exact-worktree context.
+  Catalog/lock selection and compiler resolution still use the export and its
+  inherited declared environment. Mismatched or corrupt receipts refuse; setup
+  in the export refuses. Keep stronger consumer prerequisites intact. An
+  unrelated nested checkout cannot borrow these selections. This context grants
+  no formatter permission to inspect or edit original source files.
 - After successful formatting, the hook checks that the index and selected
   working files have not changed, copies formatting back to those selected files
   and refreshes only that selection. Unselected tracked files, untracked files

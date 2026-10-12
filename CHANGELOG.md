@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.14.3]
+
+- Adopt Shared Tooling 0.6.5 so staged formatting can check prepared Rust-tool
+  receipts against staged pins and compiler selections without installing tools
+  ([#69](https://github.com/dragginzgame/ic-host-tooling/issues/69),
+  [Shared #130](https://github.com/dragginzgame/shared-tooling/issues/130)).
+  [Detailed notes](docs/changelog/0.14.md).
+
 ## [0.14.2] - 2026-10-11
 
 - Adopt Shared Tooling 0.6.4's common Make entrypoint for setup, formatting,

@@ -1,6 +1,57 @@
 # Current handoff
 
-## Pending 0.14.2 — Shared 0.6.4 common Make entrypoint
+## Pending 0.14.3 — Shared 0.6.5 staged-hook receipt admission
+
+Adopted Shared Tooling 0.6.5 `42f2091768b5f71c98a684d3dab563f408ca2dd9`,
+matching remote main, through canonical preview/refresh from a clean isolated
+checkout. Seven files change within the same 98-file selection. The staged hook
+can check prepared Rust receipts from the original checkout against exported
+pins and compiler selections. Corrupt/mismatched receipts, export installation
+and unrelated nested selection borrowing refuse. Host's formatter prerequisites
+stay unchanged; the new canonical fixture uses real Git/receipt handling with
+substituted compiler/Cargo binaries. Shared's optional validation-input checkpoint
+runner is outside Host's selection; no validation-flow change is claimed.
+
+Full Linux `CARGO_NET_OFFLINE=true make ci` passes on the preserved incoming lock,
+including actual formatting/staged-hook preservation, release/tool fixtures,
+feature profiles, Clippy, rustdoc and package tests. Changed Cargo-tool and
+Make-command fixtures also pass genuine Bash 3.2.57. ShellCheck passes with
+sourced companions followed; the initial incomplete-source invocation's log is
+retained. Snapshot, links, diff and input hash checks pass. Rust source, Cargo
+files, pins and release adapter remain unchanged; prior audit evidence is retained.
+Existing verified tools need no reinstall. Evidence: `/tmp/host-shared065.pv3rnO/`.
+
+[Host #69](https://github.com/dragginzgame/ic-host-tooling/issues/69) owns delivery
+and matching native acceptance. Upstream [0.6.5 CI](https://github.com/dragginzgame/shared-tooling/actions/runs/38218219902)
+passes lint, with Linux running and both macOS jobs queued at inspection. Released
+Host 0.14.2 native results qualify the prior snapshot only. No sibling edit,
+staging, package bump, commit, push, installation, online dependency preparation
+or release ran. The incoming lock changes now have local full-Linux evidence,
+but no native qualification of these unpublished inputs.
+
+## Released 0.14.2 — process and consumer convergence review
+
+Released HEAD is `fed8724e79862d8273d01823619fe648c981c019`, with adopted
+Shared 0.6.4 still matching remote main. [Exact-source CI](https://github.com/dragginzgame/ic-host-tooling/actions/runs/38159733484)
+passes Linux, MSRV and both macOS 15 architectures; #65 and #68 are closed.
+The incoming Cargo.lock updates to serde_json 1.0.154, syn 3.0.8 and
+unicode-ident 1.0.27 remain untouched and are not qualified by that released run.
+
+The [bounded process convergence review](../reports/audits/2026/10/12/process-convergence/01/report.md)
+found no new Host source defect or competing execution owner. Testkit 0.34.0
+now has complete native CI and carries completed results directly; Canic has
+removed its observer cancellation/error-rewrite workaround. Producer #66 is
+complete; downstream delivery and application graph acceptance stay separate.
+Six of seven inspected current sibling lockfiles contain only Host 0.14.
+Toko Miner still records Testkit 0.33.8 and Host 0.13.5 alongside 0.14.2, with a
+different root Testkit requirement; its existing #6 owns graph reconciliation.
+No sibling source, lock or artifact was changed or compiled.
+
+Shared #130's staged-export receipt gap still has no committed correction to
+adopt. This pass changes evidence/handoff only, with snapshot, link and diff
+checks; no new release entry, code change, full gate or release effect is needed.
+
+## Historical preparation for 0.14.2 — Shared 0.6.4 common Make entrypoint
 
 Adopted Shared Tooling 0.6.4 `6fc8eb9a94f83fb0b9d0a26377d4232508cdbe2d`,
 matching remote main at inspection, through canonical preview/refresh from a
