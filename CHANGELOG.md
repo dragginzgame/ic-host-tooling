@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.15.0]
+## [0.15.0] - 2026-10-12
 
 - **Breaking:** split Candid normalization and extraction into `candid::text` and
   `candid::extraction`; update imports directly. Pure normalization no longer
