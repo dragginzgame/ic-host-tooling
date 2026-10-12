@@ -1,5 +1,7 @@
 # Changelog
 
+## [0.14.5] - 2026-10-12
+
 ## [0.14.4] - 2026-10-12
 
 - Adopt Shared Tooling 0.6.6 and cargo-sort-derives 0.14.1, preserving literal
