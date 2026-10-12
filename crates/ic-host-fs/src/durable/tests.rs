@@ -292,6 +292,26 @@ fn private_lock_creation_is_owner_only_with_permissive_umask() {
 fn private_lock_preserves_existing_identity_and_caller_owned_acquisition() {
     use rustix::fs::{FlockOperation::NonBlockingLockExclusive, flock};
     use std::os::unix::fs::{MetadataExt, PermissionsExt};
+    const DRIVER: &str = "IC_HOST_FS_PRIVATE_LOCK_DRIVER";
+    if std::env::var_os(DRIVER).is_none() {
+        // Unrelated tests can fork with our locked descriptor open. CLOEXEC
+        // releases the inherited copy only at exec, so isolate assertions that
+        // require Drop to release the lock immediately.
+        let thread = std::thread::current();
+        let test_name = thread.name().expect("libtest names each test thread");
+        let output = std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", test_name, "--test-threads=1"])
+            .env(DRIVER, "1")
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "isolated private lock test failed:\n{}\n{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        return;
+    }
     let fixture = crate::test_support::Fixture::new();
     let path = fixture.root.join("command.lock");
     fs::write(&path, b"custody evidence").unwrap();

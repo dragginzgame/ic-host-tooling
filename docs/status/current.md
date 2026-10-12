@@ -1,6 +1,72 @@
 # Current handoff
 
-## Pending 0.14.9 — Shared 0.9.0 manifest reader and JSON workspace counts
+## Pending 0.14.10 — Shared 0.9.2 admission and lock-test isolation
+
+Adopted committed Shared Tooling 0.9.2
+`c118062a070a2e238f1eb3989b6fd700f369ce1e`, matching GitHub main at inspection,
+through canonical preview/refresh from a clean isolated checkout. This advances
+the pending 0.9.1 adoption below; all 87 roots and 99 payloads remain. Five
+payloads change relative to 0.9.1. Checksum manifests reject NUL before hashing;
+Host, IC and Rust installers reject supplied/resolved CR/LF consumer paths before
+configuration or setup. No pin change or reinstall is required.
+
+Actual Host checksum fixtures and exact-source upstream path-admission fixtures
+pass genuine Bash 3.2.57 on Linux. Snapshot verification and repeat preview pass
+under that shell, with 99 KEEP rows. ShellCheck passes. Evidence is retained at
+`/tmp/host-shared092.glI8OP/`.
+
+The first full Linux gate passed tooling checks but exposed an unchanged private
+lock test's immediate reopen failure (`WouldBlock`). The exact test passed alone.
+As with the neighboring lock tests, its close/reacquisition assertions now run in
+an isolated subprocess to avoid parallel fork/exec descriptor inheritance
+([Host #70](https://github.com/dragginzgame/ic-host-tooling/issues/70)). All existing
+assertions remain; production locking is unchanged. The parallel filesystem suite
+and its Rust 1.88 check pass. Full Linux `CARGO_NET_OFFLINE=true make ci` now passes
+(`ci-final.log`); the failed attempt remains in `ci.log` and focused results in
+`fs-tests.log`/`fs-msrv.log`. Documentation links, diff and Cargo/pin preservation
+checks pass. All other crate files retain their pre-adoption bytes.
+
+Package versions remain 0.14.9; compatible contributor tooling/test changes keep
+the pending notes at 0.14.10. Released 0.14.9 passes Linux, MSRV and native macOS
+15 Intel/Apple Silicon in the linked CI below; pending-source native qualification
+remains outstanding. The GitHub description remains accurate. No sibling edit,
+tool installation, download, staging, commit, push or release ran.
+
+## Earlier preparation for 0.14.10 — Shared 0.9.1 installer cleanup
+
+Released Host 0.14.9 is `bea0f3e764915bff5b8ff0c61ed36dd5596f3f43`; the working
+tree was clean before adoption. Canonical preview/refresh from a clean isolated
+checkout adopts Shared Tooling 0.9.1
+`e8a9ea6b660f216166eb00d0af6a32462bdbda4a`, matching GitHub main at inspection.
+The corrected source VERSION now appears in the snapshot. All 87 roots and 99
+payloads remain; six selected/derived payloads change, with no addition or removal.
+
+Host and IC installation now share lock acquisition, verified-cache activation and
+exit cleanup. Cleanup attempts shared-lock release even when checkout cleanup
+fails, preserves any original installation error, retains failed candidates and
+returns failure when cleanup alone fails. No pin change or reinstall is required.
+
+Full Linux `CARGO_NET_OFFLINE=true make ci` passes. The exact upstream Host/IC
+installer fixtures pass genuine Bash 3.2.57, including substituted cleanup/download
+failures and retry/retention checks. Actual Host snapshot verification and repeat
+preview pass Bash 3.2 with 99 KEEP rows. ShellCheck, links, diff and captured
+crate/Cargo/pin preservation checks pass. Evidence: `/tmp/shared091-review.Nomkcl/`.
+These fixture checks do not install real tools or establish native macOS evidence.
+
+Native macOS qualification of this pending source remains outstanding.
+[Released 0.14.9 CI](https://github.com/dragginzgame/ic-host-tooling/actions/runs/38247180562)
+now passes Linux x86-64, MSRV and native macOS 15 Intel/Apple Silicon. That
+released-source result does not qualify this pending adoption. The GitHub
+description remains accurate. Compatible
+contributor-tooling notes select 0.14.10; package versions remain 0.14.9. Rust
+inputs are unchanged, so no separate MSRV rerun was needed.
+
+The request followed creation of ic-build; target clarification had no reply, so
+this update used the current ic-host-tooling workspace and left ic-build at its
+existing baseline. No sibling file edit, tool installation, download, staging,
+commit, push or release ran.
+
+## Historical preparation for 0.14.9 — Shared 0.9.0 manifest reader and JSON workspace counts
 
 Released Host 0.14.8 is `c7b884f8bce7907c2c2670c1a8a6bc7bfad30628`.
 Adopted Shared's 0.9.0 commit `019ce8236cc7cee14ea5540d468b939a2053ef30`, matching

@@ -1,8 +1,8 @@
 # Shared Tooling snapshot v1
-# version	0.8.4
+# version	0.9.2
 format	1
 source	https://github.com/dragginzgame/shared-tooling
-revision	019ce8236cc7cee14ea5540d468b939a2053ef30
+revision	c118062a070a2e238f1eb3989b6fd700f369ce1e
 # entrypoint	rules/changelogs.md
 # entrypoint	docs/releases.md
 # entrypoint	scripts/ci/run-release.sh
@@ -120,14 +120,14 @@ file	ffdca09602c44c8aff8fc2a17588b20eb6a56e2e71fb6d42ad75087fdd65819b	-	audits/c
 file	1b64cf2ba0393ab329ec29eb05a696d47ef5933f5ab9bff6e1fe4a7e7b294075	-	audits/module-surface-hardening.md
 file	b33ecebfb524f9af496c0f4f4b24650b97833e20f1fca56eedb8604a0660e109	-	audits/module-cleanup.md
 file	15315edad497b9b165671c3f57e9f56e6ba1d206bbc635eb0ff51afaa8456bb3	-	docs/provenance.md
-file	b2df37a49cbc62754f83ea8db3ea027e28add6e5bb6e0028f112d1c64ba1867e	-	docs/local-setup.md
+file	0cf7402d1b38d04f19fb890595f8c6fcbc7c8730a2e1f8da2f5b7705257aed02	-	docs/local-setup.md
 file	bc9014d8e70a309cf2f65658a7c1ea29303375bbe5087150a4087a187efd9b41	-	docs/ic-tools.md
 file	7c1b2849ffce4e4b28fabe5eba2f7608b38dd08dc1478c25505ebd50c4e5d8a2	-	ci/tool-versions.env
-file	4126efc172380cb6ae056f7e08e8b5a61f0aa46f2f5e24c1a6bd2b148bd100b9	x	scripts/dev/install-host-tools.sh
-file	590dfb56f85a6e8d7f0a6705488ef8655f78416f3baef635a0d504ecab237f96	x	scripts/dev/install-ic-tools.sh
+file	7d18d04ccfa65b81ad2af3a6a460ad58f2f6e5601d02b3eae772a3ce970264c3	x	scripts/dev/install-host-tools.sh
+file	7a862c4330448e89e225969fad7125d114ab4e5d5c0567a3f1d7180c1d0bfd3d	x	scripts/dev/install-ic-tools.sh
 file	13d5252ff4d8f67dd190db1692deaa893a5c0abcf0f9d16b4270f47e4e88cc29	x	scripts/ci/test-host-tools.sh
-file	2bd56f477722c03d820259397a0ca9b2aca27a4216be61c254a745bfe79be4a0	x	scripts/ci/test-ic-tools.sh
-file	32ddc6af301567fce4d1d78cea5fe53450e7cffede28d5ad08d9c033ffb9d62d	x	scripts/ci/test-evidence-checksums.sh
+file	07f4099ca307943cb3b00c84e71d50ad9fef856cd2e5e527912d51aba503849a	x	scripts/ci/test-ic-tools.sh
+file	544bf727af1886a6c8853be306da72fd1f2498cca319f2aaf040c16cc4ce43d4	x	scripts/ci/test-evidence-checksums.sh
 file	063d456f2e8b07340537c4e2943e591c140fee85bfaecb256b893be2d915dae2	-	docs/verification-helpers.md
 file	6fe7da8acbeb862b26047d08c63a95a5d2b93223bb9c929d65c56dd2f30551ac	x	scripts/ci/check-release-commands.sh
 file	a04ef3105e7851b83bb682120873e29a6c3c604183c275bc53051dd9e4b300a7	x	scripts/ci/check-documentation-links.pl
@@ -148,7 +148,7 @@ file	6f8fcf904d038e1a6ae6e5ce4c812762ba05d937c775aacc1601f131ffc2032c	-	make/too
 file	c88ce973083ebdc2ccb717b12d79fbe4213ae126ada671a8015cccc846f435c6	x	scripts/dev/cloc.sh
 file	b5728821f160fef73745ce12d68c652ebc8e58b33c66a5a8ef5aa24816acc710	x	scripts/ci/test-tool-commands.sh
 file	8b151f01df8867de1fceda08e0966c9ed39c73a297a460062e483152eb0441f3	x	scripts/ci/test-cloc.sh
-file	d50d54075515cd676976f048b38d1ea0717adca9c877f9605064a49953811c4f	x	scripts/dev/install-rust-tools.sh
+file	8135ff6e3bc11be17afd3b9c43eb70864037c8e0bbdda7b8aa931f502daf515d	x	scripts/dev/install-rust-tools.sh
 file	1720dcb88c80e7e8b67392e6b42f137a48d18f808de30add3469ec2eea4daff5	x	scripts/ci/test-rust-tools.sh
 file	8d32526932bdaf88a6c78ccc2358fb92a49bd89b7631572766deea51923d8f58	-	rules/contributions.md
 file	820c46f7fbbf3d4790f8bbce5b646c6506a3c4750ebab9525360fbc75c115b01	-	.github/actions/retain-failure-evidence/action.yml
@@ -180,11 +180,11 @@ file	a9ed416a02f737d420723642935de94ffdd53cf92f75bb06ab4b0bc1c68430dc	-	tasks/ca
 file	4c981184847462ab3c01cac087e28309f8e054253fd95c7bbe56f643877aa708	x	scripts/ci/verify-file-checksum.sh
 file	3d56ca1b0c5952b9534ece61b6754ca39e6ec1980d929f09de3dbd967a0c4977	-	scripts/ci/dependency-pins.jq
 file	e15dbf4612dddffa925e57e878db8bcbd7765c7b350ebbe41635e3df4d38bee5	x	scripts/ci/install-ci-tool.sh
-file	d09d1ef8b6e5544832bb321eca736a407d9657ce25fe2ced0b35de0e8ad8792b	-	scripts/dev/tool-store.sh
-file	ab2202f89a077373fffac29f57527b88ccc65998f5c85c60a32081edd8338150	x	scripts/ci/verify-evidence-checksums.sh
+file	59798f0ea1613e177e1c627018d2f20531722d3588eba99796b8a2d21c8d1412	-	scripts/dev/tool-store.sh
+file	ebf236f1db579744a13bc995ec1c58c2ee87e34caed23088a6d9b75e638dd27f	x	scripts/ci/verify-evidence-checksums.sh
 file	775da89f655a3781059f433f80470ee6db9675e08942a805c111614183322fe1	-	scripts/ci/ic-tool-pins.awk
 file	2c1d5d40d481790aaa9c10a5cf29ec061cdc0c4840824851140b4c9c8e7d455b	x	scripts/ci/test-tool-evidence.sh
-file	7011492452420a3cc651ffb52a559b6c36f9158936b96ea5652ee6a520b0871f	-	scripts/ci/test-tool-store.sh
+file	7f05d3b9c62c358a679f308850c5cd3f61395b4ed6d249d4e6992734ef607f63	-	scripts/ci/test-tool-store.sh
 file	2d49252710ac5edf62cc9c3196147f544c5e2df9a0c4d2402e599452d2655eb6	-	scripts/dev/cargo-tool-build.sh
 file	50875aa80c211f8f5fded06bf75c7a9fc1fc99aac7590480de9be17d4753bf7f	x	scripts/ci/select-tool-evidence.sh
 file	5be336cb3e8045b2d2d536542a94944b376ee812b03f786a90b9d962ab697f13	x	scripts/ci/archive-evidence.sh

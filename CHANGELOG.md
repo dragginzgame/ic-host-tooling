@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.14.10]
+
+- Adopt Shared Tooling 0.9.2: reject NUL bytes in evidence checksum manifests
+  and invalid consumer paths before installer setup. Host and IC installers share
+  cleanup handling, releasing the shared lock even when checkout cleanup fails
+  while preserving the original installation error and failed candidate.
+  [Detailed notes](docs/changelog/0.14.md).
+- Isolate the private-lock release test from unrelated subprocess creation,
+  avoiding intermittent contention without weakening its immediate-release check
+  ([#70](https://github.com/dragginzgame/ic-host-tooling/issues/70)).
+  [Detailed notes](docs/changelog/0.14.md).
+
 ## [0.14.9] - 2026-10-12
 
 - Adopt Shared Tooling's 0.9.0 manifest-reader changes, sharing syntax validation
