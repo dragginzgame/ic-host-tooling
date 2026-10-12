@@ -1,6 +1,33 @@
 # Current handoff
 
-## Pending 0.14.3 — Shared 0.6.5 staged-hook receipt admission
+## Pending 0.14.4 — Shared 0.6.6 derive-sorter fix
+
+Adopted Shared Tooling 0.6.6 `a15eb9d406d287697df9bc8fa96db8cda6721a71`
+through canonical preview/refresh from a clean isolated checkout. Three files
+change within the same 98-file selection: the common tool pins and setup/hook
+guidance. cargo-sort-derives 0.14.1 preserves literal `$crate` paths in direct
+and conditional derives ([Shared #113](https://github.com/dragginzgame/shared-tooling/issues/113)).
+Host keeps its cargo-sort/rustfmt flow; no Host macro workaround needs removal.
+This compatible contributor update selects 0.14.4 notes without changing crate
+APIs, runtime behavior, MSRV, Cargo metadata or package versions.
+
+Explicit `make install-rust-tools` prepared the new selection, and complete
+`make tools-check` passes. Direct and conditional stdin examples preserve and
+sort both literal macro paths with the installed 0.14.1 binary. Full Linux
+`CARGO_NET_OFFLINE=true make ci` passes, including formatting/hook preservation,
+release/tool fixtures, feature profiles, Clippy, rustdoc and package tests.
+Evidence is retained at `/tmp/host-shared066.lVYpiL/`. Shared's frontend macro
+fixture remains upstream; Host does not adopt an unused frontend test suite.
+
+Native qualification remains outstanding. [Shared 0.6.6 CI](https://github.com/dragginzgame/shared-tooling/actions/runs/38220477204)
+has both macOS jobs queued at inspection. Released Host 0.14.3
+`543b137458feba0f6dfd3e458b680fb2be3d9e6d` passes Linux/MSRV in
+[its CI](https://github.com/dragginzgame/ic-host-tooling/actions/runs/38219424683),
+with both macOS jobs queued; [Host #69](https://github.com/dragginzgame/ic-host-tooling/issues/69)
+still owns that earlier adoption's native acceptance. Neither run qualifies this
+unpublished Host snapshot. No sibling edit, staging, commit, push or release ran.
+
+## Historical preparation for 0.14.3 — Shared 0.6.5 staged-hook receipt admission
 
 Adopted Shared Tooling 0.6.5 `42f2091768b5f71c98a684d3dab563f408ca2dd9`,
 matching remote main, through canonical preview/refresh from a clean isolated

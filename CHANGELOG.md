@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.14.4]
+
+- Adopt Shared Tooling 0.6.6 and cargo-sort-derives 0.14.1, preserving literal
+  `$crate` paths when sorting macro derives. Refresh contributor tools with
+  `make install-tools`, then `make tools-check`
+  ([Shared #113](https://github.com/dragginzgame/shared-tooling/issues/113)).
+  [Detailed notes](docs/changelog/0.14.md).
+
 ## [0.14.3] - 2026-10-12
 
 - Adopt Shared Tooling 0.6.5 so staged formatting can check prepared Rust-tool
