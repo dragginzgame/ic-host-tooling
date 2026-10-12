@@ -1,6 +1,64 @@
 # Current handoff
 
-## Pending 0.14.10 — Shared 0.9.2 admission and lock-test isolation
+## Pending 0.15.0 — Candid/interface ownership
+
+Released base is 0.14.10 `886a8df0424d548e08126ef8dfab889e6d8e8071`.
+The checkout was clean at the start of the Candid batch. Shared 0.9.3 is now pinned
+at `3619de9dc36065411b8e6521f8695e9395a0e0ea`, matching GitHub main at inspection.
+Canonical preview/refresh from a clean isolated source updates six payloads,
+retaining all 87 roots and 99 files. The sibling's dirty release-runner and
+snapshot changes are excluded. This adds bounded transient asset-download retries
+to explicit Host/IC setup ([Shared #138](https://github.com/dragginzgame/shared-tooling/issues/138));
+it adds no build timeout and changes no pins or existing installation requirements.
+The pending Candid source, Cargo graph and local validation commands are preserved.
+Adoption evidence is retained in `/tmp/host-shared093.BjjCeS/`. Full Linux
+`CARGO_NET_OFFLINE=true make ci` passes for the combined source. The exact-source
+download fixture passes with real curl and Bash 3.2.57 over substituted loopback
+HTTP transport; it tests transient recovery, exhausted/permanent errors and
+checksum refusal without downloading real tools. Host/IC installer fixtures,
+snapshot verification and repeat preview also pass Bash 3.2; the preview reports
+99 KEEP rows. ShellCheck and crate/Cargo/pin preservation checks pass. Existing
+MSRV evidence applies to the unchanged Rust inputs. Native macOS qualification
+remains separate and pending. No real tool installation or download ran.
+
+The approved hard cut separates `candid::text` and `candid::extraction`, with no
+old-path reexports. Text normalization is available without Unix/default features.
+Optional `ic-interface` introduces parser-backed `candid::service::inspect` and
+borrowed `interface::exported_methods` over the artifact owner's Wasm facts. It
+retains names/modes, explicitly projects oneway to update exports and rejects
+imports. It never expands argument types into a second presentation tree. Caller
+source-byte/method bounds are not hard parser heap, stack or CPU quotas.
+
+The parser is absent from response/text and default extraction graphs. With
+defaults disabled, interface inspection adds no Host filesystem/process owner.
+The new focused profile is part of `make ci`. Full Linux
+`CARGO_NET_OFFLINE=true make ci`, focused interface tests/feature graphs, Clippy
+and Rust 1.88 all-target/all-feature checks pass. Logs use `/tmp/host015-*.log`.
+The optional `candid_parser 0.4.1` graph adds 112 locked packages while preserving
+all 42 existing package versions/checksums (evidence in
+`/tmp/host015-review/lock-preservation.log`). Package release versions remain
+0.14.10. The parser is an opt-in dependency cost, not a default graph expansion.
+
+Breaking notes select 0.15.0. In-repository callers are updated. Canic's
+normalization calls and IcyDB's extraction imports need the documented new paths;
+their artifact inventories can adopt the shared service/export owners. Consumer
+source remains read-only. Expected methods, internal-export policy, endpoint
+presentation and build/cache orchestration remain with their existing owners.
+[Host #71](https://github.com/dragginzgame/ic-host-tooling/issues/71) owns
+qualification. [Canic #458](https://github.com/dragginzgame/canic/issues/458) and
+[IcyDB #307](https://github.com/dragginzgame/icydb/issues/307) remain the consumer
+adoption owners. Migration comments are prepared in `/tmp/host015-review/` but
+initially required explicit cross-repository issue approval. The maintainer
+approved both and the comments are now posted:
+[Canic migration](https://github.com/dragginzgame/canic/issues/458#issuecomment-6127109367),
+[IcyDB migration](https://github.com/dragginzgame/icydb/issues/307#issuecomment-6127109791).
+Sibling files remain unchanged; actual consumer deletions/qualification have not
+run. Native macOS qualification is pending. Released 0.14.10
+[CI](https://github.com/dragginzgame/ic-host-tooling/actions/runs/38264225245)
+is queued; it does not qualify these pending 0.15 inputs. No open Host PR was found.
+No sibling edit, staging, package-version bump, commit, push or release ran.
+
+## Historical preparation for 0.14.10 — Shared 0.9.2 admission and lock-test isolation
 
 Adopted committed Shared Tooling 0.9.2
 `c118062a070a2e238f1eb3989b6fd700f369ce1e`, matching GitHub main at inspection,

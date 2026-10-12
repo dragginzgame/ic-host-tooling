@@ -8,16 +8,21 @@ admitted process execution and IC-specific format handling.
 | ic-host-artifacts | Bounded streams and hashing writers, exact byte comparison, SHA-256, gzip encoding/decoding, verified tar members and generic Wasm facts |
 | ic-host-fs | Regular/no-follow reads, missing-suffix path resolution, streamed durable publication, private files and observed descriptor locks |
 | ic-host-process | Executable resolution, digest/version admission, bounded capture, explicit child/group cleanup and Git observations |
-| ic-host-tools | Candid extraction/normalization, ICP CLI response decoding and optional IC resource reports |
+| ic-host-tools | Candid text/extraction, optional service and IC export facts, ICP response decoding and IC resource reports |
 
 These run locally outside canisters. The ic-host prefix identifies their ecosystem;
 the generic crates have no IC runtime dependency. Compression, archive and Wasm
 support are optional features of ic-host-artifacts. Filesystem/process consumers
 select the small default artifact dependency.
-Response-only consumers can disable `ic-host-tools`' default features to exclude
-the artifact/filesystem/process extraction dependencies. The default
-`candid-extraction` feature preserves the existing Unix Candid API. Response
-decoding is always available and needs only serde/serde_json.
+Response/text consumers can disable `ic-host-tools`' default features to exclude
+the artifact/filesystem/process dependencies and the Candid parser. Response
+decoding and `candid::text::normalize` are always available. The default
+`candid-extraction` feature exposes the Unix `candid::extraction` API.
+The optional `ic-interface` feature adds parser-backed `candid::service::inspect`
+and `interface::exported_methods` over generic Wasm facts. With defaults disabled,
+this profile has no Host filesystem/process dependencies. The parser is optional
+and absent from the default extraction graph. See the
+[0.15 migration and usage](docs/changelog/0.15.md).
 The optional `ic-limits` feature compares Wasm facts with explicitly selected,
 revision-bound IC resource limits, without filesystem/process dependencies when
 defaults are disabled. See the [0.5 contract changes](docs/changelog/0.5.md).

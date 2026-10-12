@@ -10,9 +10,12 @@ ic-host-tools to ic-host-process and ic-host-fs,
 from ic-host-process to ic-host-fs, and from each to ic-host-artifacts.
 No generic crate depends on ic-host-tools, Canic, IcyDB or an IC runtime.
 Test/example artifact features do not become production filesystem dependencies.
-Disabling the tools defaults retains response decoding while excluding all three
-generic extraction dependencies from its normal graph. This is an additive
-feature choice; default callers retain the existing Unix extraction surface.
+Disabling the tools defaults retains response decoding and pure Candid text
+normalization while excluding all three generic extraction dependencies and the
+optional Candid parser from its normal graph. The 0.15 hard cut moves extraction
+to `candid::extraction` and normalization to `candid::text`, without reexports.
+The optional `ic-interface` feature adds the Candid parser and generic Wasm facts,
+without filesystem/process dependencies when defaults are disabled.
 The optional `ic-limits` profile adds only generic artifact inspection to the
 response-only graph; IC reference values and comparison remain in the tools owner.
 
@@ -22,12 +25,25 @@ response-only graph; IC reference values and comparison remain in the tools owne
   create-new, private-file, parent synchronization and descriptor-lock operations.
 - ic-host-process owns executable resolution/admission, explicit execution context,
   output limits, deadlines, direct-child/explicit group cleanup evidence and separate Git queries.
-- ic-host-tools owns Candid text/extractor interpretation, ICP response formats
+- ic-host-tools owns Candid text/extractor and service-method interpretation,
+  IC method export projection over generic Wasm facts, ICP response formats
   and explicit revision-bound IC resource comparisons.
 
 Source tests move with their owner; public artifact projection tests belong to
 ic-host-artifacts. Runnable examples retain explicit dependencies on each owner.
 No generic compatibility reexports remain in ic-host-tools.
+
+`candid::service::inspect` uses the Candid parser for self-contained grammar and
+type checking, returning method names and modes without expanding argument/return
+types into a presentation tree. Imports are rejected rather than loaded or ignored.
+Consumers select source-byte and returned-method limits; these are not a hard
+heap, stack or CPU quota for the parser. `interface::exported_methods` borrows
+function export facts without reparsing Wasm. It preserves internal methods,
+empty names and mode differences for caller admission. Oneway remains distinct
+in Candid and maps explicitly to the update export namespace through `as_export`.
+Expected interfaces, CDK allowlists, type compatibility, payload annotations and
+Canic endpoint presentation remain consumer policy. IC Build owns build/cache
+orchestration separately; these libraries do not install tools or build canisters.
 
 Within `ic-host-fs`, `read` is the sole owner of required/optional/private reads.
 Following paths, final-component no-follow admission and already-open descriptor

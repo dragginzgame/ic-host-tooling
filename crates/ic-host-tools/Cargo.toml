@@ -6,7 +6,7 @@ version.workspace = true
 license.workspace = true
 repository.workspace = true
 authors.workspace = true
-description = "Host-side Candid extraction, ICP response decoding and IC resource reports"
+description = "Host-side Candid interfaces and extraction, ICP responses and IC resource reports"
 readme = "../../README.md"
 publish = ["crates-io"]
 
@@ -16,9 +16,11 @@ rustix.workspace = true
 [features]
 default = ["candid-extraction"]
 candid-extraction = ["dep:ic-host-artifacts", "dep:ic-host-fs", "dep:ic-host-process"]
+ic-interface = ["dep:candid_parser", "dep:ic-host-artifacts", "ic-host-artifacts/wasm"]
 ic-limits = ["dep:ic-host-artifacts", "ic-host-artifacts/wasm"]
 
 [dependencies]
+candid_parser = { workspace = true, optional = true }
 ic-host-artifacts = { workspace = true, optional = true }
 ic-host-fs = { workspace = true, optional = true }
 ic-host-process = { workspace = true, optional = true }

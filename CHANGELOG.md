@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.15.0]
+
+- **Breaking:** split Candid normalization and extraction into `candid::text` and
+  `candid::extraction`; update imports directly. Pure normalization no longer
+  requires Unix or process dependencies.
+- Add optional parser-backed Candid service inventories and IC Wasm method facts,
+  retaining method modes and caller-owned interface policy. Consumers can share
+  interpretation without expanding endpoint type trees
+  ([#71](https://github.com/dragginzgame/ic-host-tooling/issues/71)).
+  [Detailed notes and migration](docs/changelog/0.15.md).
+- Adopt Shared Tooling 0.9.3: retry transient Host/IC tool downloads within bounded
+  attempts and time limits, retaining failed candidates and previous selections
+  ([Shared #138](https://github.com/dragginzgame/shared-tooling/issues/138)).
+  [Detailed notes](docs/changelog/0.15.md).
+
 ## [0.14.10] - 2026-10-12
 
 - Adopt Shared Tooling 0.9.2: reject NUL bytes in evidence checksum manifests

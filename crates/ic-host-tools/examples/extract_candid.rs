@@ -3,7 +3,7 @@
 #[cfg(unix)]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     use ic_host_process::tool::{AdmittedTool, ExecutionContext, OutputLimits, ToolSpec};
-    use ic_host_tools::candid::extract;
+    use ic_host_tools::candid::extraction::extract;
 
     use std::{
         ffi::OsString,

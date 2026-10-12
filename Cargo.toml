@@ -18,6 +18,7 @@ description = "Host-side artifact, filesystem, process and IC tooling"
 
 [workspace.dependencies]
 # Registry versions are compatible ranges; Cargo.lock records exact build selections.
+candid_parser = "0.4.1"
 flate2 = { version = "1.1.10", default-features = false, features = ["rust_backend"] }
 ic-host-artifacts = { path = "crates/ic-host-artifacts", version = "0.14", default-features = false }
 ic-host-fs = { path = "crates/ic-host-fs", version = "0.14", default-features = false }
