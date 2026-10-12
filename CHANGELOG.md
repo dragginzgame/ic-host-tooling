@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.15.1]
+## [0.15.1] - 2026-10-12
 
 - Adopt Shared Tooling 0.9.6: require complete Git identities in snapshots and
   release recovery, retaining malformed evidence for diagnosis
