@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.14.7]
+
+- Derive internal shared helpers from their owning entrypoints, reducing explicit
+  snapshot selections from 98 to 86 while retaining all existing files and checks
+  ([Shared #131](https://github.com/dragginzgame/shared-tooling/issues/131)).
+  [Detailed notes](docs/changelog/0.14.md).
+
 ## [0.14.6] - 2026-10-12
 
 - Adopt Shared Tooling 0.8.1's explicit snapshot entrypoints, automatic companion

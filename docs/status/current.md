@@ -1,6 +1,40 @@
 # Current handoff
 
-## Pending 0.14.6 — Shared 0.8.1 snapshot and installer fixes
+## Pending 0.14.7 — derive internal shared helpers
+
+Released Host 0.14.6 is `11f8c31b599ea81f6106225c4068d78d22fed249`, with
+Shared 0.8.1 still matching remote main at inspection. The working tree was clean
+at the start of this continuation; no open Host issues were found.
+[Released-source CI](https://github.com/dragginzgame/ic-host-tooling/actions/runs/38233096876)
+passes Linux and MSRV, with both macOS jobs queued at inspection.
+
+A bounded flow-convergence review under the adopted Shared method and Host
+AGENTS.md found 12 internal helper selections duplicating canonical companion
+ownership. Canonical preview/refresh now records 86 explicit roots; the derived
+98-file payload has identical paths, digests and modes. Direct commands, local
+fixture inputs, governance and maintained optional tests remain explicit.
+No file or check is removed. The method, ownership map, reviewed callers and
+retention decisions are retained at `/tmp/host0147-selection.eaWWsO/review.txt`.
+[Shared #131](https://github.com/dragginzgame/shared-tooling/issues/131) owns the
+broader entrypoint-adoption acceptance.
+
+Full Linux `CARGO_NET_OFFLINE=true make ci` passes. Actual snapshot verification
+and repeat preview pass Bash 3.2.57, with 98 KEEP rows and no changes. Snapshot,
+links, diff and preservation checks pass; all crate/script/Make/workflow/pin inputs
+and Cargo metadata match the captured released baseline. Evidence is retained
+alongside the review. Compatible notes select 0.14.7; package versions stay 0.14.6.
+Native qualification of the pending manifest remains separate from released CI.
+
+Two new canonical findings were inspected at exact Shared 0.8.1 source:
+[Shared #135](https://github.com/dragginzgame/shared-tooling/issues/135)'s alternate
+Rust pin catalog mismatch has no current Host trigger because Host uses the
+default common catalog. [Shared #136](https://github.com/dragginzgame/shared-tooling/issues/136)'s
+redirected observed-evidence paths apply to the unchanged installer; this root
+cleanup does not repair that upstream admission gap. No duplicate implementation
+or local snapshot patch was introduced. No sibling edit, installation, staging,
+version bump, commit, push or release ran.
+
+## Historical preparation for 0.14.6 — Shared 0.8.1 snapshot and installer fixes
 
 Adopted Shared Tooling 0.8.1 `c97f9f9c7b7c706fffdcfc5925cf58759b58093f`,
 matching remote main at inspection, through canonical preview/refresh from a clean
