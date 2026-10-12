@@ -15,14 +15,14 @@ added_files=()
 
 usage() {
     cat >&2 <<'USAGE'
-usage: refresh-consumer.sh [--preview] [--source <shared-tooling-checkout>] --consumer <repository> [--manifest <relative-path>] [--file <relative-path>]... [--add-file <relative-path>]...
+usage: refresh-consumer.sh [--preview] [--source <shared-tooling-checkout>] --consumer <repository> [--manifest <relative-path>] [--entrypoint <relative-path>]... [--add-entrypoint <relative-path>]...
 
-Use --file only when creating the initial snapshot. Later refreshes read the
-declared file set from the existing consumer manifest.
-Use --add-file to explicitly extend an existing selection; repeated additions
-are idempotent. Required companions are checked, never added implicitly.
---preview leaves the consumer untouched and reports the proposed selection,
-including all missing companions. Exit 2 means explicit additions are required.
+Use --entrypoint to select the complete set of roots, initially or on refresh.
+Otherwise refresh reuses the manifest's recorded entrypoints. --add-entrypoint
+extends that selection. Required companions and integrity tools are derived.
+--preview leaves the consumer untouched and reports additions, updates and
+retirements. Refresh automatically removes unchanged, previously owned files
+outside the new closure. Select directly used helpers as entrypoints to keep them.
 USAGE
 }
 
@@ -119,6 +119,21 @@ check_consumer_unchanged() {
     [[ "$current" == "$expected" ]] || fail "consumer input changed during refresh: $path"
 }
 
+# The manifest alone cannot authorize replacing or retiring consumer bytes.
+# Resolve its ownership claim against the exact earlier source for both paths.
+export_previous_payload() {
+    local index="$1" output="$2" path mode executable=-
+    path="${previous_files[$index]}"
+    mode="$(committed_mode "$manifest_revision" "$path")" || fail "previous snapshot source is unavailable: $path"
+    [[ "$mode" != 100755 ]] || executable=x
+    [[ "$executable" == "${previous_modes[$index]}" ]] || fail "previous snapshot mode disagrees with its source: $path"
+    git -C "$SOURCE_ROOT" cat-file blob "$manifest_revision:$path" > "$output" ||
+        fail "cannot export previous snapshot source: $path"
+    bash "$SCRIPT_ROOT/scripts/ci/verify-file-checksum.sh" sha256 "${previous_digests[$index]}" "$output" ||
+        fail "previous snapshot digest disagrees with its source: $path"
+    chmod "${mode#100}" "$output"
+}
+
 check_index_unchanged() {
     local index="$1" path="$2"
     git -C "$CONSUMER_ROOT" --literal-pathspecs ls-files --stage -z -- "$path" > "$STAGING_DIR/current-index" ||
@@ -149,12 +164,12 @@ while [[ $# -gt 0 ]]; do
         MANIFEST_PATH="$2"
         shift 2
         ;;
-    --file)
+    --entrypoint)
         [[ $# -ge 2 ]] || { usage; exit 2; }
         requested_files[${#requested_files[@]}]="$2"
         shift 2
         ;;
-    --add-file)
+    --add-entrypoint)
         [[ $# -ge 2 ]] || { usage; exit 2; }
         added_files[${#added_files[@]}]="$2"
         shift 2
@@ -228,13 +243,13 @@ manifest_state="$(consumer_state "$MANIFEST_PATH")" || fail "cannot inspect cons
 git -C "$CONSUMER_ROOT" --literal-pathspecs ls-files --stage -z -- "$MANIFEST_PATH" > "$STAGING_DIR/index-manifest" ||
     fail "cannot inspect consumer manifest index"
 files=()
+entrypoints=()
+previous_files=()
 previous_digests=()
 previous_modes=()
 
 if [[ -e "$manifest" ]]; then
     [[ -f "$manifest" && ! -L "$manifest" ]] || fail "consumer manifest must be a regular file"
-    [[ ${#requested_files[@]} -eq 0 ]] ||
-        fail "--file is only allowed when creating the initial snapshot"
     cp -p "$manifest" "$STAGING_DIR/previous-manifest"
     check_consumer_unchanged "$MANIFEST_PATH" "$manifest_state"
 
@@ -243,37 +258,52 @@ if [[ -e "$manifest" ]]; then
     manifest_revision_count=0
     manifest_version_count=0
     manifest_source=""
-    while IFS=$'\t' read -r record first second third extra || [[ -n "$record" ]]; do
+    while IFS= read -r manifest_line || [[ -n "$manifest_line" ]]; do
+        IFS=$'\t' read -r record first second third extra <<< "$manifest_line"
         case "$record" in
+        '# entrypoint')
+            [[ -n "$first" && "$manifest_line" == $'# entrypoint\t'"$first" ]] ||
+                fail "existing manifest has a malformed entrypoint annotation"
+            validate_relative_path "$first"
+            for existing in ${entrypoints[@]+"${entrypoints[@]}"}; do
+                [[ "$existing" != "$first" ]] || fail "duplicate entrypoint: $first"
+            done
+            entrypoints+=("$first")
+            ;;
         '# version')
-            [[ "$first" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ && -z "$second" && -z "$third" && -z "$extra" ]] ||
+            [[ "$first" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ && "$manifest_line" == "$record"$'\t'"$first" ]] ||
                 fail "existing manifest has a malformed version annotation"
             manifest_version_count=$((manifest_version_count + 1))
             ;;
         '' | \#*) continue ;;
         format)
-            [[ "$first" == "1" && -z "$second" && -z "$third" && -z "$extra" ]] ||
+            [[ "$first" == "1" && "$manifest_line" == "$record"$'\t'"$first" ]] ||
                 fail "existing manifest has an unsupported format"
             manifest_format_count=$((manifest_format_count + 1))
             ;;
         source)
-            [[ -n "$first" && -z "$second" && -z "$third" && -z "$extra" ]] ||
+            [[ -n "$first" && "$manifest_line" == "$record"$'\t'"$first" ]] ||
                 fail "existing manifest has a malformed source record"
             manifest_source="$first"
             manifest_source_count=$((manifest_source_count + 1))
             ;;
         revision)
-            [[ "$first" =~ ^[0-9a-f]{40,64}$ && -z "$second" && -z "$third" && -z "$extra" ]] ||
+            [[ "$first" =~ ^[0-9a-f]{40,64}$ && "$manifest_line" == "$record"$'\t'"$first" ]] ||
                 fail "existing manifest has a malformed revision record"
             manifest_revision_count=$((manifest_revision_count + 1))
             manifest_revision="$first"
             ;;
         file)
-            [[ "$first" =~ ^[0-9a-f]{64}$ && "$second" =~ ^(-|x)$ && -n "$third" && -z "$extra" ]] ||
+            [[ "$first" =~ ^[0-9a-f]{64}$ && "$second" =~ ^(-|x)$ && -n "$third" && -z "$extra" && "$manifest_line" == "$record"$'\t'"$first"$'\t'"$second"$'\t'"$third" ]] ||
                 fail "existing manifest has a malformed file record"
-            previous_digests[${#files[@]}]="$first"
-            previous_modes[${#files[@]}]="$second"
-            files[${#files[@]}]="$third"
+            validate_relative_path "$third"
+            [[ "$third" != "$MANIFEST_PATH" ]] || fail "manifest may not include itself"
+            for existing in ${previous_files[@]+"${previous_files[@]}"}; do
+                [[ "$existing" != "$third" ]] || fail "duplicate snapshot path: $third"
+            done
+            previous_digests[${#previous_files[@]}]="$first"
+            previous_modes[${#previous_files[@]}]="$second"
+            previous_files+=("$third")
             ;;
         *) fail "existing manifest contains an unknown record: $record" ;;
         esac
@@ -284,22 +314,41 @@ if [[ -e "$manifest" ]]; then
     [[ "$manifest_version_count" -le 1 ]] || fail "existing manifest has duplicate version annotations"
     [[ "$manifest_source" == "$source_remote" ]] ||
         fail "source remote differs from the existing manifest"
+    for path in ${entrypoints[@]+"${entrypoints[@]}"}; do
+        selected=false
+        for existing in ${previous_files[@]+"${previous_files[@]}"}; do [[ "$existing" != "$path" ]] || selected=true; done
+        [[ "$selected" == true ]] || fail "recorded entrypoint is not a declared payload: $path"
+    done
 else
-    [[ ${#added_files[@]} -eq 0 ]] || fail "--add-file requires an existing snapshot"
-    [[ ${#requested_files[@]} -gt 0 ]] || fail "the initial snapshot requires at least one --file"
-    files=("${requested_files[@]}")
+    [[ ${#added_files[@]} -eq 0 ]] || fail "--add-entrypoint requires an existing snapshot"
 fi
 
+if [[ ${#requested_files[@]} -gt 0 ]]; then entrypoints=("${requested_files[@]}"); fi
+[[ ${#entrypoints[@]} -gt 0 ]] || fail "select the complete --entrypoint set; this manifest has no recorded entrypoints"
 for path in ${added_files[@]+"${added_files[@]}"}; do
     validate_relative_path "$path"
     selected=false
-    for existing in "${files[@]}"; do
+    for existing in "${entrypoints[@]}"; do
         [[ "$existing" != "$path" ]] || selected=true
     done
-    if [[ "$selected" == false ]]; then files[${#files[@]}]="$path"; fi
+    if [[ "$selected" == false ]]; then entrypoints+=("$path"); fi
 done
 
-[[ ${#files[@]} -gt 0 ]] || fail "snapshot file set is empty"
+for index in "${!entrypoints[@]}"; do
+    path="${entrypoints[$index]}"
+    validate_relative_path "$path"
+    for prior_index in "${!entrypoints[@]}"; do
+        [[ "$prior_index" -lt "$index" ]] || break
+        [[ "${entrypoints[$prior_index]}" != "$path" ]] || fail "duplicate entrypoint: $path"
+    done
+done
+files=("${entrypoints[@]}")
+# Integrity verification is required for every selection, independently of roots.
+for path in scripts/ci/verify-file-checksum.sh scripts/ci/verify-shared-tooling-snapshot.sh; do
+    selected=false
+    for existing in "${files[@]}"; do [[ "$existing" != "$path" ]] || selected=true; done
+    if [[ "$selected" == false ]]; then files+=("$path"); fi
+done
 consumer_states=()
 selected_count=${#files[@]}
 for index in "${!files[@]}"; do
@@ -311,9 +360,8 @@ for index in "${!files[@]}"; do
 done
 
 # Follow the selected revision's explicit companion graph, including cycles,
-# without executing inspected files or silently extending a real refresh.
+# without executing inspected files. The committed closure is the payload owner.
 proposed=("${files[@]}")
-missing=()
 cursor=0
 while [[ "$cursor" -lt "${#proposed[@]}" ]]; do
     path="${proposed[$cursor]}"
@@ -330,17 +378,12 @@ while [[ "$cursor" -lt "${#proposed[@]}" ]]; do
             [[ "$existing" != "$companion" ]] || selected=true
         done
         if [[ "$selected" == false ]]; then
-            printf '%s requires selected companion: %s (add it explicitly)\n' "$path" "$companion" >&2
-            missing+=("$companion")
             proposed+=("$companion")
         fi
     done
     cursor=$((cursor + 1))
 done
-if [[ ${#missing[@]} -gt 0 ]]; then
-    [[ "$preview" == true ]] || fail "snapshot selection is incomplete; use --preview to review all required additions"
-    files=("${proposed[@]}")
-fi
+files=("${proposed[@]}")
 
 checksum_tool_declared=false
 snapshot_verifier_declared=false
@@ -393,6 +436,7 @@ staged_manifest="$STAGING_DIR/manifest"
     printf 'format\t1\n'
     printf 'source\t%s\n' "$source_remote"
     printf 'revision\t%s\n' "$source_revision"
+    for path in "${entrypoints[@]}"; do printf '# entrypoint\t%s\n' "$path"; done
     for path in "${files[@]}"; do
         digest="$(bash "$SCRIPT_ROOT/scripts/ci/verify-file-checksum.sh" --print sha256 "$staged_files/$path")"
         if [[ -x "$staged_files/$path" ]]; then
@@ -422,25 +466,53 @@ for index in "${!files[@]}"; do
     # Only a declared, unchanged previous export can advance without a consumer
     # commit. Its manifest is not authority to overwrite arbitrary local edits:
     # prove the recorded bytes/mode against the previous committed source too.
-    [[ -n "${previous_digests[$index]:-}" && -f "$destination" ]] ||
+    previous_index=-1
+    for candidate in "${!previous_files[@]}"; do
+        [[ "${previous_files[$candidate]}" != "$path" ]] || previous_index="$candidate"
+    done
+    [[ "$previous_index" -ge 0 && -f "$destination" ]] ||
         fail "consumer destination has local changes; preserve or reconcile them before refreshing: $path"
     git -C "$CONSUMER_ROOT" --literal-pathspecs diff --cached --quiet -- "$path" ||
         fail "consumer destination has staged changes; preserve or reconcile them before refreshing: $path"
-    previous_mode="$(committed_mode "$manifest_revision" "$path")" || fail "previous snapshot source is unavailable: $path"
-    previous_executable=-
-    [[ "$previous_mode" != 100755 ]] || previous_executable=x
-    [[ "$previous_executable" == "${previous_modes[$index]}" ]] || fail "previous snapshot mode disagrees with its source: $path"
-    git -C "$SOURCE_ROOT" cat-file blob "$manifest_revision:$path" > "$STAGING_DIR/previous-file" ||
-        fail "cannot export previous snapshot source: $path"
-    bash "$SCRIPT_ROOT/scripts/ci/verify-file-checksum.sh" sha256 "${previous_digests[$index]}" "$STAGING_DIR/previous-file" ||
-        fail "previous snapshot digest disagrees with its source: $path"
+    export_previous_payload "$previous_index" "$STAGING_DIR/previous-file"
     if ! cmp -s "$STAGING_DIR/previous-file" "$destination" ||
-        { [[ "$previous_executable" == x ]] && [[ ! -x "$destination" ]]; } ||
-        { [[ "$previous_executable" == - ]] && [[ -x "$destination" ]]; }; then
+        { [[ -x "$STAGING_DIR/previous-file" ]] && [[ ! -x "$destination" ]]; } ||
+        { [[ ! -x "$STAGING_DIR/previous-file" ]] && [[ -x "$destination" ]]; }; then
         fail "consumer destination has local changes; preserve or reconcile them before refreshing: $path"
     fi
     [[ "$(git -C "$SOURCE_ROOT" cat-file -t "$manifest_revision")" == commit ]] ||
         fail "previous snapshot revision is not an available commit"
+done
+
+# Retire stale payloads automatically. Prove ownership against
+# the previous committed source even when Git considers the consumer clean.
+# An absent owned file is a safe interrupted-deletion retry, not authority to
+# remove any replacement, parent directory, tool generation or evidence.
+obsolete=()
+retirement_states=()
+for previous_index in "${!previous_files[@]}"; do
+    path="${previous_files[$previous_index]}"
+    selected=false
+    for existing in "${files[@]}"; do [[ "$existing" != "$path" ]] || selected=true; done
+    [[ "$selected" == false ]] || continue
+    index=${#obsolete[@]}
+    obsolete+=("$path")
+    retirement_states[index]="$(consumer_state "$path")" || fail "cannot inspect retirement: $path"
+    git -C "$CONSUMER_ROOT" --literal-pathspecs ls-files --stage -z -- "$path" > "$STAGING_DIR/index-retire-$index" ||
+        fail "cannot inspect retirement index: $path"
+    git -C "$CONSUMER_ROOT" --literal-pathspecs diff --cached --quiet -- "$path" ||
+        fail "retirement has staged changes: $path"
+    [[ "$(git -C "$SOURCE_ROOT" cat-file -t "$manifest_revision")" == commit ]] ||
+        fail "previous snapshot revision is not an available commit"
+    export_previous_payload "$previous_index" "$STAGING_DIR/retire-$index"
+    destination="$CONSUMER_ROOT/$path"
+    if [[ -e "$destination" ]]; then
+        cmp -s "$STAGING_DIR/retire-$index" "$destination" || fail "retirement has local changes: $path"
+        if { [[ -x "$STAGING_DIR/retire-$index" ]] && [[ ! -x "$destination" ]]; } ||
+            { [[ ! -x "$STAGING_DIR/retire-$index" ]] && [[ -x "$destination" ]]; }; then
+            fail "retirement has local mode changes: $path"
+        fi
+    fi
 done
 
 # Detect changes made while committed payloads and companions were prepared,
@@ -450,6 +522,10 @@ check_index_unchanged manifest "$MANIFEST_PATH"
 for index in "${!files[@]}"; do
     check_consumer_unchanged "${files[$index]}" "${consumer_states[$index]}"
     check_index_unchanged "$index" "${files[$index]}"
+done
+for index in "${!obsolete[@]}"; do
+    check_consumer_unchanged "${obsolete[$index]}" "${retirement_states[$index]}"
+    check_index_unchanged "retire-$index" "${obsolete[$index]}"
 done
 
 if [[ "$preview" == true ]]; then
@@ -463,13 +539,15 @@ if [[ "$preview" == true ]]; then
             { { [[ -x "$destination" ]] && [[ -x "$staged_files/$path" ]]; } ||
               { [[ ! -x "$destination" ]] && [[ ! -x "$staged_files/$path" ]]; }; }; then action=KEEP
         fi
-        selection=selected
-        for companion in ${missing[@]+"${missing[@]}"}; do
-            [[ "$path" != "$companion" ]] || selection=required
+        selection=required
+        for entrypoint in "${entrypoints[@]}"; do
+            [[ "$path" != "$entrypoint" ]] || selection=selected
         done
         printf '%s\t%s\t%s\n' "$action" "$selection" "$path"
     done
-    [[ ${#missing[@]} == 0 ]] || exit 2
+    for path in ${obsolete[@]+"${obsolete[@]}"}; do
+        printf 'REMOVE\tobsolete\t%s\n' "$path"
+    done
     exit 0
 fi
 
@@ -482,6 +560,12 @@ for index in "${!files[@]}"; do
     check_index_unchanged "$index" "$path"
     mkdir -p "$CONSUMER_ROOT/$(dirname "$path")"
     cp -p "$staged_files/$path" "$CONSUMER_ROOT/$path"
+done
+for index in "${!obsolete[@]}"; do
+    path="${obsolete[$index]}"
+    check_consumer_unchanged "$path" "${retirement_states[$index]}"
+    check_index_unchanged "retire-$index" "$path"
+    if [[ -e "$CONSUMER_ROOT/$path" ]]; then rm -- "$CONSUMER_ROOT/$path"; fi
 done
 check_consumer_unchanged "$MANIFEST_PATH" "$manifest_state"
 check_index_unchanged manifest "$MANIFEST_PATH"

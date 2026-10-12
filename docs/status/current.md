@@ -1,6 +1,62 @@
 # Current handoff
 
-## Pending 0.14.4 — Shared 0.6.6 derive-sorter fix
+## Pending 0.14.6 — Shared 0.8.1 snapshot and installer fixes
+
+Adopted Shared Tooling 0.8.1 `c97f9f9c7b7c706fffdcfc5925cf58759b58093f`,
+matching remote main at inspection, through canonical preview/refresh from a clean
+isolated checkout. It advances the uncommitted 0.8.0 adoption without requiring
+a Host commit. Six selected files change; all 98 entrypoints/payloads remain,
+with no addition or retirement. Repeat preview reports only KEEP. The pending
+batch retains explicit roots, automatic companion selection and verified automatic
+retirement; future root narrowing still requires local caller review.
+
+Snapshot readers reject malformed fields while preserving literal filename spaces
+([Shared #133](https://github.com/dragginzgame/shared-tooling/issues/133)).
+Cargo tool installation retains original and observed build identities, reports
+changed fields and preserves the prior active selection when the environment
+changes ([Shared #134](https://github.com/dragginzgame/shared-tooling/issues/134)).
+
+Full Linux `CARGO_NET_OFFLINE=true make ci` passes. The initial gate stopped at
+manifest sorting because an incoming edit renamed `ic-host-tools` to `ic-dls`.
+After the maintainer indicated this was unexpected, the original name was restored;
+Cargo.toml now matches committed HEAD. The incoming file and failed log are retained.
+The actual Host Rust-tool fixture and upstream malformed-record integration pass
+genuine Bash 3.2.57 on Linux, including both identity observations in archived
+failure evidence and unchanged active selections. Compiler/Cargo effects in the
+installer fixture are substitutes. Host verification/repeat preview, ShellCheck,
+snapshot/link/diff and preservation checks pass. Evidence:
+`/tmp/host-shared081.wkh3sc/`; earlier 0.8.0 and entrypoint evidence remains at
+`/tmp/host-shared080.jFnEbd/` and `/tmp/host-shared-entrypoints.Z6wXb1/`.
+Crate source, lockfile, pins and package versions remain unchanged. The accidental
+0.14.5 notes remain intact; pending notes stay 0.14.6 and packages stay 0.14.5.
+
+[Shared #131](https://github.com/dragginzgame/shared-tooling/issues/131) still owns
+the stale manual IC-companion paragraph; canonical copies remain intact.
+[Upstream 0.8.1 CI](https://github.com/dragginzgame/shared-tooling/actions/runs/38231862048)
+passes lint, with Linux running and both macOS jobs queued at inspection.
+Released Host 0.14.5 passes Linux, MSRV and both macOS architectures, completing
+[Host #69](https://github.com/dragginzgame/ic-host-tooling/issues/69)'s earlier
+hook-admission acceptance only. Native qualification of this adoption remains
+outstanding. No sibling edit, installation, download, staging, version bump,
+commit, push or release ran during this 0.8.1 update.
+
+## Released base — 0.14.5
+
+Local HEAD and GitHub main are `bb8f1e71f3d4599618d0f4084d27fa637408f1fb`
+(`Release 0.14.5`), with tag `v0.14.5`. Shared 0.6.6 adoption shipped in
+0.14.4 (`f93cd8854d500616a73eda713d215a20ff0617c7`). The maintainer confirmed
+that 0.14.5 was an accidental extra release; it changes only release metadata.
+The changelog now records that disposition. Keep the current workspace/package
+version at 0.14.5, matching the pushed release; the next compatible patch is
+0.14.6 when meaningful work is ready. The snapshot remains 0.6.6.
+[Released-source CI](https://github.com/dragginzgame/ic-host-tooling/actions/runs/38225165549)
+passes Linux, MSRV and both macOS architectures;
+the superseded 0.14.3/0.14.4 runs were cancelled.
+These Git identities do not establish crates.io publication or native qualification.
+The registry checks returned HTTP 403 for all four 0.14.5 packages, leaving
+publication unverified; evidence is under `/tmp/host0145-registry-current`.
+
+## Historical preparation for 0.14.4 — Shared 0.6.6 derive-sorter fix
 
 Adopted Shared Tooling 0.6.6 `a15eb9d406d287697df9bc8fa96db8cda6721a71`
 through canonical preview/refresh from a clean isolated checkout. Three files

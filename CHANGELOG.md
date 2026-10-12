@@ -1,6 +1,21 @@
 # Changelog
 
+## [0.14.6]
+
+- Adopt Shared Tooling 0.8.1's explicit snapshot entrypoints, automatic companion
+  selection and automatic retirement of unchanged obsolete files, retaining
+  Host's existing shared files
+  ([Shared #131](https://github.com/dragginzgame/shared-tooling/issues/131)).
+- Reject malformed snapshot fields consistently and retain both build-identity
+  observations when Cargo tool installation detects a changed environment
+  ([Shared #133](https://github.com/dragginzgame/shared-tooling/issues/133),
+  [Shared #134](https://github.com/dragginzgame/shared-tooling/issues/134)).
+  [Detailed notes](docs/changelog/0.14.md).
+
 ## [0.14.5] - 2026-10-12
+
+- Accidental version-only release; code and tooling are unchanged from 0.14.4.
+  [Detailed notes](docs/changelog/0.14.md).
 
 ## [0.14.4] - 2026-10-12
 
