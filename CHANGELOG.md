@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.14.3]
+## [0.14.3] - 2026-10-12
 
 - Adopt Shared Tooling 0.6.5 so staged formatting can check prepared Rust-tool
   receipts against staged pins and compiler selections without installing tools
