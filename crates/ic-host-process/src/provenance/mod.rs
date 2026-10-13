@@ -140,21 +140,23 @@ pub fn capture_git(
     options: StatusOptions,
     limits: OutputLimits,
 ) -> Result<GitObservations, GitError> {
-    let revision = observe(git, context, options, limits, GitQuery::Revision)?;
-    let tree = match observe(git, context, options, limits, GitQuery::Tree) {
-        Ok(evidence) => evidence,
-        Err(mut error) => {
-            error.completed[0] = Some(revision);
-            return Err(error);
+    let mut completed = [None, None, None];
+    for (index, query) in [GitQuery::Revision, GitQuery::Tree, GitQuery::Status]
+        .into_iter()
+        .enumerate()
+    {
+        match observe(git, context, options, limits, query) {
+            Ok(evidence) => completed[index] = Some(evidence),
+            Err(mut error) => {
+                // Preserve the failed query's own capture while moving only
+                // earlier successful observations into its error evidence.
+                error.completed[..index].swap_with_slice(&mut completed[..index]);
+                return Err(error);
+            }
         }
-    };
-    let status = match observe(git, context, options, limits, GitQuery::Status) {
-        Ok(evidence) => evidence,
-        Err(mut error) => {
-            error.completed[0] = Some(revision);
-            error.completed[1] = Some(tree);
-            return Err(error);
-        }
+    }
+    let [Some(revision), Some(tree), Some(status)] = completed else {
+        unreachable!("every ordered query completed successfully");
     };
     let status_identity = ArtifactIdentity {
         bytes: status.stdout.len() as u64,

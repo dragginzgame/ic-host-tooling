@@ -8,37 +8,19 @@ root="${BASH_SOURCE[0]}"
 root="$(cd -P "${root%/*}/../.." && printf '%s/.' "$PWD")"
 root="${root%/.}"
 fixture_parent="$(mktemp -d "${TMPDIR:-/tmp}/ic-host-publish-test.XXXXXX")"
-completed=false
-finish() {
-    local status=$?
-    # Bash 3.2 may enter EXIT with status zero after a nounset error.
-    [[ "$completed" == true || "$status" != 0 ]] || status=1
-    if [[ "$status" == 0 ]]; then rm -rf "$fixture_parent"
-    else echo "Publication fixtures retained: $fixture_parent" >&2; fi
-    exit "$status"
-}
-trap finish EXIT
-fixture_parent="$(cd -P "$fixture_parent" && printf '%s/.' "$PWD")"
+# shellcheck source=scripts/ci/fixture-lifecycle.sh
+source "$root/scripts/ci/fixture-lifecycle.sh"
+fixture_parent="$(CDPATH="" cd -P -- "$fixture_parent" && printf '%s/.' "$PWD")"
 fixture_parent="${fixture_parent%/.}"
+fixture_complete=false
+trap 'fixture_finish "$?" "$fixture_parent" "Publication fixtures retained"' EXIT
 export TMPDIR="${fixture_parent%/*}"
 # Git emits this literal checkout name followed by its own record newline.
 fixture="$fixture_parent/checkout"$'\n'
 mkdir "$fixture"
 export CARGO_NET_OFFLINE=true RUSTUP_AUTO_INSTALL=0
 mkdir "$fixture/bin"
-cp "$root/Cargo.toml" "$root/Cargo.lock" "$root/README.md" "$root/LICENSE" "$fixture/"
-for package in ic-host-artifacts ic-host-fs ic-host-process ic-host-tools ic-host-wasm-inspect; do
-    package_root="crates/$package"
-    [[ "$package" != ic-host-wasm-inspect ]] || package_root="apps/$package"
-    mkdir -p "$fixture/$package_root/src"
-    cp "$root/$package_root/Cargo.toml" "$fixture/$package_root/"
-    cp "$root/LICENSE" "$fixture/$package_root/LICENSE"
-    if [[ "$package" == ic-host-wasm-inspect ]]; then
-        : > "$fixture/$package_root/src/main.rs"
-    else
-        : > "$fixture/$package_root/src/lib.rs"
-    fi
-done
+bash "$root/scripts/ci/prepare-workspace-fixture.sh" "$root" "$fixture"
 cd "$fixture"
 cargo metadata --no-deps --format-version 1 --locked --offline > metadata.json
 cp metadata.json original-metadata.json
@@ -245,4 +227,4 @@ rmdir target/publish/lock
 printf 'consumer artifact\n' > expected-retained
 cmp expected-retained target/retained
 echo 'Publication command checks passed (Git and upload effects substituted).'
-completed=true
+fixture_complete=true

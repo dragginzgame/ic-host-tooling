@@ -84,24 +84,27 @@ fn accepts_empty_status_and_both_git_object_formats() {
 #[test]
 fn rejects_malformed_successful_output_without_losing_evidence() {
     let fixture = Fixture::new();
-    for mode in ["invalid-id", "uppercase-id", "bad-status"] {
+    for (mode, query, captures) in [
+        ("invalid-id", GitQuery::Revision, 1),
+        ("uppercase-id", GitQuery::Revision, 1),
+        ("bad-tree", GitQuery::Tree, 2),
+        ("bad-status", GitQuery::Status, 3),
+    ] {
         let environment = [("FIXTURE_MODE".into(), mode.into())];
         let context = fixture.context(&environment);
         let git = admit(&fixture_tool(), &context, VERSION).unwrap();
         let error = capture_git(&git, &context, OPTIONS, LIMITS).unwrap_err();
+        assert_eq!(error.query, query);
+        assert!(error.completed[..captures].iter().all(Option::is_some));
+        assert!(error.completed[captures..].iter().all(Option::is_none));
         if mode == "bad-status" {
-            assert_eq!(error.query, GitQuery::Status);
             assert!(matches!(error.failure, GitFailure::UnterminatedStatus));
-            assert!(error.completed.iter().all(Option::is_some));
             assert_eq!(
                 error.completed[2].as_ref().unwrap().stdout,
                 b"?? unterminated"
             );
         } else {
-            assert_eq!(error.query, GitQuery::Revision);
             assert!(matches!(error.failure, GitFailure::InvalidObjectId));
-            assert!(error.completed[0].is_some());
-            assert!(error.completed[1..].iter().all(Option::is_none));
         }
     }
 }
@@ -110,27 +113,54 @@ fn rejects_malformed_successful_output_without_losing_evidence() {
 fn retains_prior_captures_on_process_failure_and_bounds_output() {
     let fixture = Fixture::new();
     let marker = fixture.root.join("queries");
-    let environment = [
-        ("FIXTURE_MODE".into(), "fail-tree".into()),
-        ("FIXTURE_MARKER".into(), marker.as_os_str().to_owned()),
-    ];
-    let context = fixture.context(&environment);
-    let git = admit(&fixture_tool(), &context, VERSION).unwrap();
-    let error = capture_git(&git, &context, OPTIONS, LIMITS).unwrap_err();
-    assert_eq!(error.query, GitQuery::Tree);
-    assert_eq!(fs::read_to_string(marker).unwrap().lines().count(), 2);
-    assert_eq!(error.completed[0].as_ref().unwrap().stdout.len(), 41);
-    assert!(error.completed[1..].iter().all(Option::is_none));
-    let GitFailure::Tool(source) = error.failure else {
-        panic!("expected tool failure")
-    };
-    let ToolError::Execution(source) = *source else {
-        panic!("expected process failure")
-    };
-    assert!(matches!(source.failure, ExecutionFailure::ExitStatus));
-    assert_eq!(source.evidence.status.unwrap().code(), Some(23));
-    assert_eq!(source.evidence.stderr, b"retained tree diagnostic\n");
+    for (mode, query, queries, diagnostic) in [
+        (
+            "fail-tree",
+            GitQuery::Tree,
+            2,
+            b"retained tree diagnostic\n".as_slice(),
+        ),
+        (
+            "fail-status",
+            GitQuery::Status,
+            3,
+            b"retained status diagnostic\n".as_slice(),
+        ),
+    ] {
+        fs::write(&marker, b"").unwrap();
+        let environment = [
+            ("FIXTURE_MODE".into(), mode.into()),
+            ("FIXTURE_MARKER".into(), marker.as_os_str().to_owned()),
+        ];
+        let context = fixture.context(&environment);
+        let git = admit(&fixture_tool(), &context, VERSION).unwrap();
+        let error = capture_git(&git, &context, OPTIONS, LIMITS).unwrap_err();
+        assert_eq!(error.query, query);
+        assert_eq!(
+            fs::read_to_string(&marker).unwrap().lines().count(),
+            queries
+        );
+        assert!(error.completed[..queries - 1].iter().all(Option::is_some));
+        assert!(error.completed[queries - 1..].iter().all(Option::is_none));
+        for capture in &error.completed[..queries - 1] {
+            assert_eq!(
+                capture.as_ref().unwrap().stdout,
+                format!("{}\n", "0".repeat(40)).as_bytes()
+            );
+        }
+        let GitFailure::Tool(source) = error.failure else {
+            panic!("expected tool failure")
+        };
+        let ToolError::Execution(source) = *source else {
+            panic!("expected process failure")
+        };
+        assert!(matches!(source.failure, ExecutionFailure::ExitStatus));
+        assert_eq!(source.evidence.status.unwrap().code(), Some(23));
+        assert_eq!(source.evidence.stderr, diagnostic);
+    }
 
+    let context = fixture.context(&[]);
+    let git = admit(&fixture_tool(), &context, VERSION).unwrap();
     let error = capture_git(
         &git,
         &context,

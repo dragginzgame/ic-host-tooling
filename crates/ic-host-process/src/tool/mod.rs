@@ -841,13 +841,8 @@ fn verify_executable(
         hash_file(path, limit)
     }
     .map_err(ToolError::Artifact)?;
-    if let Some(expected) = expected
-        && actual.sha256 != expected
-    {
-        return Err(ToolError::Artifact(ArtifactError::DigestMismatch {
-            expected,
-            actual,
-        }));
+    if let Some(expected) = expected {
+        actual.verify(expected).map_err(ToolError::Artifact)?;
     }
     if fs::metadata(path)
         .map_err(ToolError::Io)?

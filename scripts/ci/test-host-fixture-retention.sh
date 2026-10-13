@@ -8,47 +8,55 @@ root="${BASH_SOURCE[0]}"
 root="$(cd -P "${root%/*}/../.." && printf '%s/.' "$PWD")"
 root="${root%/.}"
 fixture="$(mktemp -d "${TMPDIR:-/tmp}/host-fixture-retention.XXXXXX")"
-completed=false
-finish() {
-    local status=$?
-    [[ "$completed" == true || "$status" != 0 ]] || status=1
-    if [[ "$status" == 0 ]]; then rm -rf "$fixture"
-    else echo "Host fixture retention evidence retained: $fixture" >&2; fi
-    exit "$status"
-}
-trap finish EXIT
-fixture="$(cd -P "$fixture" && printf '%s/.' "$PWD")"
+# shellcheck source=scripts/ci/fixture-lifecycle.sh
+source "$root/scripts/ci/fixture-lifecycle.sh"
+fixture="$(CDPATH="" cd -P -- "$fixture" && printf '%s/.' "$PWD")"
 fixture="${fixture%/.}"
+fixture_complete=false
+trap 'fixture_finish "$?" "$fixture" "Host fixture retention evidence retained"' EXIT
 export TMPDIR="${fixture%/*}"
+probe_root="$fixture/probe-source"
+mkdir -p "$probe_root/scripts/ci"
+cp "$root/scripts/ci/fixture-lifecycle.sh" "$probe_root/scripts/ci/"
 for input in scripts/ci/test-make-snapshot.sh scripts/release/test-adapter.sh \
     scripts/release/test-tools.sh scripts/publish/test-workspace.sh \
     scripts/ci/test-host-fixture-retention.sh scripts/ci/check-host-formatting.sh; do
     name="${input##*/}"
+    mkdir -p "$probe_root/${input%/*}"
     awk '
         { print }
-        /^trap finish EXIT$/ {
+        /^trap .* EXIT$/ {
             print "printf evidence > \"${fixture_parent:-$fixture}/failure-marker\""
             print "case \"$HOST_FIXTURE_FAILURE\" in"
             print "    nounset) unset HOST_FIXTURE_MISSING; printf '\''%s\\n'\'' \"$HOST_FIXTURE_MISSING\" ;;"
             print "    command) false ;;"
             print "    status) exit 17 ;;"
             print "    incomplete) exit 0 ;;"
+            print "    completed) fixture_complete=true; exit 0 ;;"
+            print "    failed-completion) fixture_complete=true; exit 17 ;;"
             print "esac"
             exit
         }
-    ' "$root/$input" > "$fixture/$name"
-    for failure in nounset command status incomplete; do
+    ' "$root/$input" > "$probe_root/$input"
+    for failure in nounset command status incomplete completed failed-completion; do
         attempt="$fixture/$name-$failure"
         mkdir "$attempt"
         status=0
-        TMPDIR="$attempt" HOST_FIXTURE_FAILURE="$failure" bash "$fixture/$name" \
+        TMPDIR="$attempt" HOST_FIXTURE_FAILURE="$failure" bash "$probe_root/$input" \
             > "$attempt.log" 2>&1 || status=$?
         expected=1
-        [[ "$failure" != status ]] || expected=17
+        case "$failure" in
+            status|failed-completion) expected=17 ;;
+            completed) expected=0 ;;
+        esac
         [[ "$status" == "$expected" ]] || exit 1
         retained=("$attempt/"*)
-        [[ ${#retained[@]} == 1 && -d "${retained[0]}" ]] || exit 1
-        [[ "$(cat "${retained[0]}/failure-marker")" == evidence ]] || exit 1
+        if [[ "$expected" == 0 ]]; then
+            [[ ! -e "${retained[0]}" ]] || exit 1
+        else
+            [[ ${#retained[@]} == 1 && -d "${retained[0]}" ]] || exit 1
+            [[ "$(cat "${retained[0]}/failure-marker")" == evidence ]] || exit 1
+        fi
     done
 done
 # Each real fixture must survive changing directories with a relative aliased
@@ -65,7 +73,8 @@ done
 # Exercise the real release-tool fixture through an aliased temporary directory
 # and padded line counts, as on macOS, before contradicting its child status.
 assertion_root="$fixture/assertion-source"
-for input in scripts/release/test-tools.sh scripts/release/tools.sh ci/release-tools.env; do
+for input in scripts/release/test-tools.sh scripts/release/tools.sh ci/release-tools.env \
+    scripts/ci/fixture-lifecycle.sh; do
     mkdir -p "$assertion_root/${input%/*}"
     cp "$root/$input" "$assertion_root/$input"
 done
@@ -101,4 +110,4 @@ retained=("$attempt/"*)
 [[ ${#retained[@]} == 1 && -f "${retained[0]}/arguments" ]] || exit 1
 if grep -F 'Host release-tool selection' "$fixture/assertion.log"; then exit 1; fi
 echo 'Host fixtures reject premature completion and wrong assertions, retaining failure evidence'
-completed=true
+fixture_complete=true

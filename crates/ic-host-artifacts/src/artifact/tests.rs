@@ -68,6 +68,19 @@ fn streaming_hashes_multiple_buffers_and_preserves_mismatch_identity() {
 }
 
 #[test]
+fn identity_verification_preserves_observed_size_and_digest() {
+    let actual = ArtifactIdentity {
+        bytes: u64::MAX,
+        sha256: Sha256Digest::compute(b"observed"),
+    };
+    assert_eq!(actual.verify(actual.sha256).unwrap(), actual);
+    let expected = Sha256Digest::compute(b"authority");
+    assert!(matches!(actual.verify(expected),
+        Err(ArtifactError::DigestMismatch { expected: authority, actual: observed })
+        if authority == expected && observed == actual));
+}
+
+#[test]
 fn byte_limits_are_inclusive_and_consume_only_one_overflow_byte() {
     let mut stream = Cursor::new(vec![9; 40_000]);
     assert!(matches!(

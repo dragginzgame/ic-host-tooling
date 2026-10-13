@@ -10,18 +10,12 @@ root="${root%/.}"
 unset MAKEFLAGS MFLAGS MAKEOVERRIDES GNUMAKEFLAGS MAKEFILES
 unset SHARED_TOOLING_ROOT
 fixture="$(mktemp -d "${TMPDIR:-/tmp}/host-make-snapshot.XXXXXX")"
-completed=false
-finish() {
-    local status=$?
-    # Bash 3.2 may enter EXIT with status zero after a nounset error.
-    [[ "$completed" == true || "$status" != 0 ]] || status=1
-    if [[ "$status" == 0 ]]; then rm -rf "$fixture";
-    else echo "Host Make evidence retained: $fixture" >&2; fi
-    exit "$status"
-}
-trap finish EXIT
-fixture="$(cd -P "$fixture" && printf '%s/.' "$PWD")"
+# shellcheck source=scripts/ci/fixture-lifecycle.sh
+source "$root/scripts/ci/fixture-lifecycle.sh"
+fixture="$(CDPATH="" cd -P -- "$fixture" && printf '%s/.' "$PWD")"
 fixture="${fixture%/.}"
+fixture_complete=false
+trap 'fixture_finish "$?" "$fixture" "Host Make evidence retained"' EXIT
 export TMPDIR="${fixture%/*}"
 for input in Makefile ci/tool-versions.env make/consumer.mk make/tools.mk make/rust-format.mk \
     make/release.mk make/execution.mk scripts/ci/check-make-execution.sh \
@@ -198,10 +192,16 @@ jobserver_options=(--no-print-directory -j4)
 if make --help | grep -q -- --jobserver-style; then
     jobserver_options+=(--jobserver-style=pipe)
 fi
-for target in check clippy docs-check test test-artifacts-minimal test-tools-response msrv publish publish-check \
-    dependency-pins-check release-tools-test release-adapter-check tooling-command-check publish-command-check; do
+cargo_targets=(check clippy docs-check test test-artifacts-minimal
+    test-tools-response test-tools-interface test-tools-service test-tools-extraction
+    test-tools-limits test-wasm-inspection msrv msrv-workspace)
+helper_targets=(publish publish-check dependency-pins-check release-tools-test
+    release-adapter-check tooling-command-check publish-command-check)
+for target in "${cargo_targets[@]}" "${helper_targets[@]}"; do
+    : > "$HOST_MAKE_EVENTS"
     PATH="$fixture/local:$PATH" HOST_MAKE_VERIFY_JOBSERVER=1 make "${jobserver_options[@]}" "$target" \
         > "$fixture/jobserver-$target.log" 2>&1
+    [[ -s "$HOST_MAKE_EVENTS" ]] || exit 1
 done
 # Actual Host formatting stops after sorter failure and points at complete logs.
 for target in fmt fmt-check; do
@@ -221,8 +221,7 @@ done
 for mode in -i --ignore-errors -n -t -q; do
     for selection in direct inherited cleared replaced erased; do
         for target in fmt fmt-check release-patch release-minor release-major release-resume \
-            check clippy docs-check test test-artifacts-minimal test-tools-response msrv install-release-tools publish publish-check \
-            dependency-pins-check release-tools-test release-adapter-check tooling-command-check publish-command-check; do
+            install-release-tools "${cargo_targets[@]}" "${helper_targets[@]}"; do
             : > "$HOST_MAKE_EVENTS"
             args=(--no-print-directory "$target" "FORMAT_CARGO=$PWD/cargo" "SHARED_TOOLING_ROOT=$fixture/external" "MAKE=$recursive_make")
             status=0
@@ -242,4 +241,4 @@ for mode in -i --ignore-errors -n -t -q; do
     done
 done
 echo 'Host Make snapshot routing and execution admission passed (substitute effects)'
-completed=true
+fixture_complete=true

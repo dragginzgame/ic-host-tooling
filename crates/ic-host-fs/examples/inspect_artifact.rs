@@ -1,6 +1,6 @@
 //! Local artifact evidence with explicit consumer limits and optional digest authority.
 
-use ic_host_artifacts::artifact::{ArtifactError, ArtifactIdentity, Sha256Digest};
+use ic_host_artifacts::artifact::{ArtifactIdentity, Sha256Digest};
 use ic_host_artifacts::wasm::{InspectionLimits, inspect};
 use ic_host_fs::read::read_file;
 
@@ -40,14 +40,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         bytes: bytes.len() as u64,
         sha256: Sha256Digest::compute(&bytes),
     };
-    if let Some(expected) = expected
-        && identity.sha256 != expected
-    {
-        return Err(ArtifactError::DigestMismatch {
-            expected,
-            actual: identity,
-        }
-        .into());
+    if let Some(expected) = expected {
+        identity.verify(expected)?;
     }
     let facts = inspect(&bytes, limits)?;
     println!(

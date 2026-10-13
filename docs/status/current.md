@@ -19,8 +19,8 @@ No native macOS, commit, release, publication or actual provider operation ran.
 
 ## Released source and baseline
 
-The latest finalized release is **0.17.5**, commit
-`0212b0bfc8ed1ea361991c779447a5d5409dc5a1`. Package versions remain unchanged.
+The latest finalized release is **0.17.6**, commit
+`96786761bb48763cd6c33fef47796e84ef947b99`. Package versions remain unchanged.
 Shared Tooling **0.11.3**, revision
 `eadab786d4c7d73de53b6abdba6905727af70fda`, is adopted through the canonical
 exporter from a clean isolated checkout of pushed upstream main. The snapshot
@@ -48,7 +48,28 @@ Prior 0.10.1 full offline Linux and genuine Bash 3.2 qualification remains in
 Native macOS 15 Intel and Apple Silicon qualification remains separate from
 local Linux evidence. No commit, push, release or publication ran in this task.
 
-## Pending 0.17.6
+## Pending 0.17.7
+
+Observed digest verification has one artifact owner. Six local fixture handlers
+reuse the adopted cleanup helper, and release/publication workspace skeletons
+derive from Cargo metadata. Caller policy and actual trap/rejection probes remain
+local. Identity/tool checks, strict Clippy, actual trap/release/publication probes
+under current Bash and Bash 3.2, workspace Rust 1.88 and full combined Linux
+`make ci` pass. Inspection-example digest/limit checks also pass. Evidence is
+retained in `/tmp/host82/`; native macOS qualification remains separate
+([#82](https://github.com/dragginzgame/ic-host-tooling/issues/82)).
+
+Git capture shares ordered failure handling, preserving earlier and current
+query evidence. Malformed-tree and failed-status cases extend the existing
+fixtures. Make jobserver/execution probes share target lists and cover workspace
+MSRV, feature profiles and the CLI. The publication guide describes all selected
+packages and both source layouts. Focused provenance tests, strict process Clippy,
+ShellCheck, Bash 3.2 Make probes, Rust 1.88 process checks, documentation links
+and full current-checkout Linux `make ci` pass. Evidence is in
+`/tmp/host83/`; native macOS qualification remains separate. No consumer migration
+is required ([#83](https://github.com/dragginzgame/ic-host-tooling/issues/83)).
+
+## Delivered 0.17.6
 
 Shared 0.11.3 changes two selected documentation payloads only. The optional
 publication-admission checker is outside Host's selected roots and has different

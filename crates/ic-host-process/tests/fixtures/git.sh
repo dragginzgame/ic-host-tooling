@@ -16,6 +16,10 @@ case "$4" in
         case "$6" in
             HEAD) ;;
             'HEAD^{tree}')
+                if [ "${FIXTURE_MODE:-}" = bad-tree ]; then
+                    printf 'not a tree id\n'
+                    exit 0
+                fi
                 if [ "${FIXTURE_MODE:-}" = fail-tree ]; then
                     printf 'retained tree diagnostic\n' >&2
                     exit 23
@@ -35,6 +39,10 @@ case "$4" in
         case "$7" in --untracked-files=no|--untracked-files=normal|--untracked-files=all) ;; *) exit 94 ;; esac
         case "$8" in --ignore-submodules=none|--ignore-submodules=untracked|--ignore-submodules=dirty|--ignore-submodules=all) ;; *) exit 95 ;; esac
         case "${FIXTURE_MODE:-}" in
+            fail-status)
+                printf 'retained status diagnostic\n' >&2
+                exit 23
+                ;;
             clean|sha256) ;;
             bad-status) printf '?? unterminated' ;;
             *) printf '?? space \377path\000' ;;

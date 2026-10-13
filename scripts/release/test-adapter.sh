@@ -9,18 +9,12 @@ root="${BASH_SOURCE[0]}"
 root="$(cd -P "${root%/*}/../.." && printf '%s/.' "$PWD")"
 root="${root%/.}"
 fixture="$(mktemp -d "${TMPDIR:-/tmp}/ic-host-release-adapter.XXXXXX")"
-completed=false
-finish() {
-    local status=$?
-    # Bash 3.2 may enter EXIT with status zero after a nounset error.
-    [[ "$completed" == true || "$status" != 0 ]] || status=1
-    if [[ "$status" == 0 ]]; then rm -rf "$fixture"
-    else echo "Release adapter fixtures retained: $fixture" >&2; fi
-    exit "$status"
-}
-trap finish EXIT
-fixture="$(cd -P "$fixture" && printf '%s/.' "$PWD")"
+# shellcheck source=scripts/ci/fixture-lifecycle.sh
+source "$root/scripts/ci/fixture-lifecycle.sh"
+fixture="$(CDPATH="" cd -P -- "$fixture" && printf '%s/.' "$PWD")"
 fixture="${fixture%/.}"
+fixture_complete=false
+trap 'fixture_finish "$?" "$fixture" "Release adapter fixtures retained"' EXIT
 export TMPDIR="${fixture%/*}"
 unset MAKEFLAGS MFLAGS MAKEOVERRIDES GNUMAKEFLAGS MAKEFILES
 export CARGO_NET_OFFLINE=true RUSTUP_AUTO_INSTALL=0
@@ -30,9 +24,6 @@ ADAPTER_REAL_BASH="$(command -v bash)"
 ADAPTER_REAL_AWK="$(command -v awk)"
 export ADAPTER_REAL_BASH ADAPTER_REAL_AWK
 export ADAPTER_METADATA_REWRITE="$root/scripts/release/metadata-version.awk"
-ADAPTER_PACKAGES="$(cd "$root" && cargo metadata --no-deps --format-version 1 --locked --offline |
-    jq -er '. as $m | [.packages[] | select(.id as $id | $m.workspace_members | index($id)) | .name] | sort | join(" ")')"
-export ADAPTER_PACKAGES
 export ADAPTER_EVENTS="$fixture/events"
 export RELEASE_SOURCE=0000000000000000000000000000000000000000
 export RELEASE_DATE=2026-10-06 RELEASE_KIND=minor
@@ -58,23 +49,23 @@ export RELEASE_PREVIOUS
 RELEASE_VERSION="$(bash "$root/scripts/ci/next-release-version.sh" "$RELEASE_PREVIOUS" "$RELEASE_KIND")"
 export RELEASE_VERSION
 mkdir "$fixture/bin"
-cp "$root/Cargo.toml" "$root/Cargo.lock" "$root/README.md" "$root/LICENSE" "$fixture/"
+bash "$root/scripts/ci/prepare-workspace-fixture.sh" "$root" "$fixture"
+ADAPTER_PACKAGES="$(jq -er '. as $m |
+    [.packages[] | select(.id as $id | $m.workspace_members | index($id)) | .name] |
+    sort | join(" ")' "$fixture/source-metadata.json")"
+export ADAPTER_PACKAGES
 # A valid inline comment must survive observation, preparation and recovery.
 awk '/^version = / { $0 = $0 " # retained workspace version comment" } { print }' \
     "$fixture/Cargo.toml" > "$fixture/Cargo.toml.commented"
 mv "$fixture/Cargo.toml.commented" "$fixture/Cargo.toml"
-for package in ic-host-artifacts ic-host-fs ic-host-process ic-host-tools ic-host-wasm-inspect; do
-    package_root="crates/$package"
-    [[ "$package" != ic-host-wasm-inspect ]] || package_root="apps/$package"
-    mkdir -p "$fixture/$package_root/src"
-    # Git release qualification remains independent of registry eligibility.
-    sed 's/^publish = .*/publish = false/' "$root/$package_root/Cargo.toml" > "$fixture/$package_root/Cargo.toml"
-    if [[ "$package" == ic-host-wasm-inspect ]]; then
-        : > "$fixture/$package_root/src/main.rs"
-    else
-        : > "$fixture/$package_root/src/lib.rs"
-    fi
-done
+jq -r '. as $m | .packages[] |
+    select(.id as $id | $m.workspace_members | index($id)) | .manifest_path' \
+    "$fixture/source-metadata.json" |
+    while IFS= read -r manifest; do
+        relative="${manifest#"$root"/}"
+        # Git release qualification remains independent of registry eligibility.
+        sed 's/^publish = .*/publish = false/' "$manifest" > "$fixture/$relative"
+    done
 # Observe the real workspace through relative and absolute adapter entrypoints
 # in a physical newline-bearing tooling root, with a competing CDPATH lookup.
 tooling="$fixture/tooling"$'\n'
@@ -626,4 +617,4 @@ bash "$adapter" prepare > whitespace-prepare.log 2>&1
 printf '# Changelog\n\n## [%s] - %s\n\n- Candidate.\n\n## [%s]\n\n- History without final LF.' "$RELEASE_VERSION" "$RELEASE_DATE" "$RELEASE_PREVIOUS" > expected-notes
 cmp expected-notes CHANGELOG.md
 echo 'Release adapter checks passed (setup, qualification and Git effects substituted).'
-completed=true
+fixture_complete=true

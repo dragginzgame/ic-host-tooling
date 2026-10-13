@@ -119,6 +119,25 @@ pub struct ArtifactIdentity {
     pub sha256: Sha256Digest,
 }
 
+impl ArtifactIdentity {
+    /// Compare this observed digest with caller-selected authority.
+    ///
+    /// Does not read, hash, freeze or validate the origin of the identity.
+    /// Size admission and selection of the expected digest remain caller-owned.
+    ///
+    /// # Errors
+    /// Returns a typed mismatch retaining the expected digest and this identity.
+    pub fn verify(self, expected: Sha256Digest) -> Result<Self, ArtifactError> {
+        if self.sha256 != expected {
+            return Err(ArtifactError::DigestMismatch {
+                expected,
+                actual: self,
+            });
+        }
+        Ok(self)
+    }
+}
+
 /// A bounded read or digest verification failed.
 #[derive(Debug)]
 pub enum ArtifactError {
@@ -215,11 +234,7 @@ pub fn verify_reader(
     max_bytes: u64,
     expected: Sha256Digest,
 ) -> Result<ArtifactIdentity, ArtifactError> {
-    let actual = hash_reader(reader, max_bytes)?;
-    if actual.sha256 != expected {
-        return Err(ArtifactError::DigestMismatch { expected, actual });
-    }
-    Ok(actual)
+    hash_reader(reader, max_bytes)?.verify(expected)
 }
 
 /// Read one stream into bounded, fallibly allocated storage.

@@ -8,18 +8,12 @@ root="${BASH_SOURCE[0]}"
 root="$(cd -P "${root%/*}/../.." && printf '%s/.' "$PWD")"
 root="${root%/.}"
 fixture="$(mktemp -d "${TMPDIR:-/tmp}/host-release-tools.XXXXXX")"
-completed=false
-finish() {
-    local status=$?
-    # Bash 3.2 may enter EXIT with status zero after a nounset error.
-    [[ "$completed" == true || "$status" != 0 ]] || status=1
-    if [[ "$status" == 0 ]]; then rm -rf "$fixture"
-    else echo "Release tool fixture retained: $fixture" >&2; fi
-    exit "$status"
-}
-trap finish EXIT
-fixture="$(cd -P "$fixture" && printf '%s/.' "$PWD")"
+# shellcheck source=scripts/ci/fixture-lifecycle.sh
+source "$root/scripts/ci/fixture-lifecycle.sh"
+fixture="$(CDPATH="" cd -P -- "$fixture" && printf '%s/.' "$PWD")"
 fixture="${fixture%/.}"
+fixture_complete=false
+trap 'fixture_finish "$?" "$fixture" "Release tool fixture retained"' EXIT
 export TMPDIR="${fixture%/*}"
 mkdir -p "$fixture/tooling/scripts/release" "$fixture/tooling/scripts/dev" \
     "$fixture/tooling/ci" "$fixture/bin" "$fixture/consumer with spaces" "$fixture/selected tools"
@@ -97,4 +91,4 @@ RELEASE_TOOL_TEST_FAIL=73 bash "$selector" install > "$fixture/install-failure.l
 [[ "$status" == 73 ]] || exit 1
 [[ ! -e "$fixture/global" && "$(wc -l < "$fixture/installs")" -eq 1 ]] || exit 1
 echo 'Host release-tool arguments, returned path, reuse and failure propagation passed (substitute shared installer)'
-completed=true
+fixture_complete=true

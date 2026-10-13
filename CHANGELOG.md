@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.17.7]
+
+- Add observed-identity digest verification and reuse shared fixture cleanup and
+  Cargo-derived test workspace setup
+  ([#82](https://github.com/dragginzgame/ic-host-tooling/issues/82)).
+
+- Share Git observation failure handling while preserving query order and captured
+  evidence; cover newer Cargo targets in Make execution probes and document the
+  complete publication set ([#83](https://github.com/dragginzgame/ic-host-tooling/issues/83)).
+  [Detailed notes](docs/changelog/0.17.md).
+
 ## [0.17.6] - 2026-10-13
 
 - Adopt Shared Tooling 0.11.3's publication-admission guidance; selected executable

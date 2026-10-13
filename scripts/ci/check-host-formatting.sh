@@ -8,15 +8,12 @@ root="${BASH_SOURCE[0]}"
 root="$(cd -P "${root%/*}/../.." && printf '%s/.' "$PWD")"
 root="${root%/.}"
 fixture="$(mktemp -d "${TMPDIR:-/tmp}/host-formatting.XXXXXX")"
-completed=false
-finish() {
-    local status=$?
-    [[ "$completed" == true || "$status" != 0 ]] || status=1
-    if [[ "$status" == 0 ]]; then rm -rf "$fixture"
-    else echo "Host formatting input retained: $fixture" >&2; fi
-    exit "$status"
-}
-trap finish EXIT
+# shellcheck source=scripts/ci/fixture-lifecycle.sh
+source "$root/scripts/ci/fixture-lifecycle.sh"
+fixture="$(CDPATH="" cd -P -- "$fixture" && printf '%s/.' "$PWD")"
+fixture="${fixture%/.}"
+fixture_complete=false
+trap 'fixture_finish "$?" "$fixture" "Host formatting input retained"' EXIT
 
 # Swap adjacent workspace dependencies without moving their preceding comment
 # or changing version/feature selections. Fail if those inputs no longer match.
@@ -38,4 +35,4 @@ bash "$root/scripts/ci/check-formatting-hooks.sh" "$root" \
     apps/ic-host-wasm-inspect/tests/cli.rs \
     make/consumer.mk make/tools.mk make/rust-format.mk make/release.mk make/execution.mk \
     ci/tool-versions.env scripts/ci/check-format-tools.sh scripts/ci/run-formatting.sh
-completed=true
+fixture_complete=true
