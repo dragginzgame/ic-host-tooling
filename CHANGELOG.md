@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.16.0]
+
+- **Breaking:** `ic-host-tools` now has no default features. Enable
+  `candid-extraction` explicitly when using the native extraction API; response
+  decoding and Candid text normalization keep their minimal dependency graph.
+- Reuse Shared Tooling's Cargo-tool cache in native CI while retaining complete
+  tool admission and Linux/macOS coverage.
+  [Detailed notes and migration](docs/changelog/0.16.md).
+
 ## [0.15.2] - 2026-10-13
 
 - Adopt Shared Tooling 0.9.10, retaining the fix for Rust-tool qualification from

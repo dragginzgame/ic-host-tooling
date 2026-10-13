@@ -5,17 +5,17 @@ be7d73908225e73ab5babf8fbb9fe959f40d439b. Pending sibling tooling edits
 were excluded. Canic's clean durable module and its tests are bound to their
 observed committed bytes in [source provenance](../ci/extraction-sources.json).
 
-With the default `candid-extraction` feature, dependencies point down from
+With the explicit `candid-extraction` feature, dependencies point down from
 ic-host-tools to ic-host-process and ic-host-fs,
 from ic-host-process to ic-host-fs, and from each to ic-host-artifacts.
 No generic crate depends on ic-host-tools, Canic, IcyDB or an IC runtime.
 Test/example artifact features do not become production filesystem dependencies.
-Disabling the tools defaults retains response decoding and pure Candid text
+The empty tools defaults retain response decoding and pure Candid text
 normalization while excluding all three generic extraction dependencies and the
 optional Candid parser from its normal graph. The 0.15 hard cut moves extraction
 to `candid::extraction` and normalization to `candid::text`, without reexports.
 The optional `ic-interface` feature adds the Candid parser and generic Wasm facts,
-without filesystem/process dependencies when defaults are disabled.
+without filesystem/process dependencies unless extraction is also selected.
 The optional `ic-limits` profile adds only generic artifact inspection to the
 response-only graph; IC reference values and comparison remain in the tools owner.
 

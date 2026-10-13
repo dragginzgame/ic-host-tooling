@@ -6,12 +6,12 @@ root="$(cd -P "${root%/*}/../.." && printf '%s/.' "$PWD")"
 root="${root%/.}"
 cd "$root"
 # Cargo's actual normal dependency graph, excluding test-only artifact fixtures.
-response="$(cargo tree -p ic-host-tools --no-default-features --edges normal --prefix none --format '{p}' --locked --offline)"
+response="$(cargo tree -p ic-host-tools --edges normal --prefix none --format '{p}' --locked --offline)"
 if printf '%s\n' "$response" | rg '^(ic-host-(artifacts|fs|process)|candid_parser) '; then
     echo 'response/text tools graph includes an optional inspection/extraction owner' >&2
     exit 1
 fi
-extraction="$(cargo tree -p ic-host-tools --edges normal --prefix none --format '{p}' --locked --offline)"
+extraction="$(cargo tree -p ic-host-tools --features candid-extraction --edges normal --prefix none --format '{p}' --locked --offline)"
 if printf '%s\n' "$extraction" | rg '^candid_parser '; then
     echo 'extractor graph includes the optional service parser' >&2
     exit 1
@@ -28,8 +28,8 @@ for owner in ic-host-artifacts candid_parser; do
     }
 done
 limits="$(cargo tree -p ic-host-tools --no-default-features --features ic-limits --edges normal --prefix none --format '{p}' --locked --offline)"
-if printf '%s\n' "$limits" | rg '^ic-host-(fs|process) '; then
-    echo 'IC limits graph includes a filesystem or process owner' >&2
+if printf '%s\n' "$limits" | rg '^(ic-host-(fs|process)|candid_parser) '; then
+    echo 'IC limits graph includes a filesystem, process or Candid parser owner' >&2
     exit 1
 fi
 printf '%s\n' "$limits" | rg '^ic-host-artifacts ' >/dev/null || {
@@ -38,7 +38,7 @@ printf '%s\n' "$limits" | rg '^ic-host-artifacts ' >/dev/null || {
 }
 for owner in artifacts fs process; do
     printf '%s\n' "$extraction" | rg "^ic-host-$owner " >/dev/null || {
-        echo "default Candid extraction graph lacks ic-host-$owner" >&2
+        echo "explicit Candid extraction graph lacks ic-host-$owner" >&2
         exit 1
     }
 done

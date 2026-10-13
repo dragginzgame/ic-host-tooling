@@ -1,6 +1,39 @@
 # Current handoff
 
-## Pending 0.15.2 — Shared Tooling 0.9.10
+## Pending 0.16.0 — explicit extraction and shared CI caching
+
+Prepared on released Host 0.15.2 `21c036d`, retaining Shared Tooling 0.9.10.
+The tools crate now has empty defaults: native extraction callers must explicitly
+enable `candid-extraction`. Response/text, interface and limits profiles retain
+their existing ownership. This feature-selection hard cut selects 0.16.0 notes;
+package versions and lockfiles remain unchanged for the maintainer's release flow.
+Host CI uses the canonical Cargo-tool cache key, extended by its release-tool
+inputs, with complete setup/admission on every hit or miss and all native hosts.
+
+The maintainer separately authorized the IcyDB report migration. Its working tree
+on `ffa481df7` now uses shared structural and IC method facts, retaining local
+report policy and tool-only metrics. Full function-export identities protect
+post-link comparisons; composite queries and complete method names are preserved.
+The existing integration feature declaration already selects extraction explicitly.
+Other incoming IcyDB edits and its selected Host 0.15.2 graph are preserved.
+Canic's inspected Host adapter uses text/interface/limits, not Host extraction;
+IC Build remains the build/cache orchestration owner. Adoption/qualification
+evidence belongs to [Host #71](https://github.com/dragginzgame/ic-host-tooling/issues/71)
+and [IcyDB #307](https://github.com/dragginzgame/icydb/issues/307).
+
+Full offline Linux Host CI and tools Rust 1.88 pass. Actionlint, ShellCheck,
+feature graphs and the canonical cache-key helper under genuine Bash 3.2 pass.
+IcyDB's 13 report tests and strict report Clippy pass after authorized locked fetching;
+neither lockfile changed. Logs are `/tmp/host016-*.log`; incoming IcyDB source
+and task attribution are captured at `/tmp/host016-before/`.
+Native macOS/cache restore qualification remains for CI; IcyDB's full gates are
+user-owned and were not selected. No deployed Wasm/cycle/instruction reduction
+is claimed: these are host-side changes, and canisters retain their explicit
+Candid-export choices. Routine locked fetching is proposed in
+[Shared #147](https://github.com/dragginzgame/shared-tooling/issues/147).
+No staging, commit, push, release, publication or runtime-network lifecycle ran.
+
+## Historical preparation for 0.15.2 — Shared Tooling 0.9.10
 
 Adopted committed Shared 0.9.10
 `7e55adecf6f0b196c050f104b37f8c69b6bf434e`, matching upstream main at inspection,

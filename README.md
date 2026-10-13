@@ -14,15 +14,16 @@ These run locally outside canisters. The ic-host prefix identifies their ecosyst
 the generic crates have no IC runtime dependency. Compression, archive and Wasm
 support are optional features of ic-host-artifacts. Filesystem/process consumers
 select the small default artifact dependency.
-Response/text consumers can disable `ic-host-tools`' default features to exclude
-the artifact/filesystem/process dependencies and the Candid parser. Response
-decoding and `candid::text::normalize` are always available. The default
-`candid-extraction` feature exposes the Unix `candid::extraction` API.
+`ic-host-tools` has no default features. Response decoding and
+`candid::text::normalize` are always available without artifact/filesystem/process
+dependencies or the Candid parser. Enable `candid-extraction` explicitly for
+the Unix `candid::extraction` API.
 The optional `ic-interface` feature adds parser-backed `candid::service::inspect`
-and `interface::exported_methods` over generic Wasm facts. With defaults disabled,
+and `interface::exported_methods` over generic Wasm facts. On its own,
 this profile has no Host filesystem/process dependencies. The parser is optional
-and absent from the default extraction graph. See the
-[0.15 migration and usage](docs/changelog/0.15.md).
+and absent from the extraction graph. See the
+[0.16 feature migration](docs/changelog/0.16.md) and
+[0.15 API usage](docs/changelog/0.15.md).
 The optional `ic-limits` feature compares Wasm facts with explicitly selected,
 revision-bound IC resource limits, without filesystem/process dependencies when
 defaults are disabled. See the [0.5 contract changes](docs/changelog/0.5.md).

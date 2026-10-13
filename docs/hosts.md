@@ -13,7 +13,7 @@ Check target-directory ownership before compilation. Preserve failure logs and a
 features. `make test-tools-response` checks the response/text library,
 `make test-tools-interface` checks pure Candid/IC interface inspection, and
 `make tools-features-check` verifies its production dependency exclusions and
-the default extractor's required owners. Native CI includes these profiles.
+the explicitly selected extractor's required owners. Native CI includes these profiles.
 The `ic-interface` profile introduces the optional Candid parser; it must qualify
 on the same Rust 1.88 and native Linux/macOS matrix as the existing libraries.
 
@@ -27,6 +27,10 @@ the libraries do not invoke every tool. Explicit setup runs `make install-tools`
 `make tools-check` verifies the set offline. Selected release preflight prepares
 it; standalone verification never installs tools. Existing bundles and failed
 evidence are retained. Rust toolchain bootstrap remains explicit.
+Native CI uses the shared Cargo-tool build identity plus Host's release-tool
+inputs to restore builds. Cache hits still run complete setup and admission;
+cache transport failure falls through to setup. Main saves only after admission.
+This cache does not qualify native macOS behavior or guarantee a setup duration.
 `make formatting-hook-check` runs the canonical shared hook regressions and the
 shared adoption checker with Host's real Cargo manifest, Rust input and Make
 formatters. Failed Git observations, partial staging, formatting failures and

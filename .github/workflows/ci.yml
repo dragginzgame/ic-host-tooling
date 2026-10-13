@@ -54,6 +54,26 @@ jobs:
           components: rustfmt, clippy
       - name: Prepare locked dependency cache
         run: cargo fetch --locked
+      - name: Prepare host tools and identify Cargo tool cache
+        id: tool-cache-key
+        run: |
+          make --no-print-directory install-host-tools
+          make --no-print-directory host-tools-check
+          export PATH="$GITHUB_WORKSPACE/.tools/host/bin:$PATH"
+          bash scripts/ci/cargo-tool-cache-key.sh ci/tool-versions.env >> "$GITHUB_OUTPUT"
+      - name: Restore Cargo tool builds
+        id: tool-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        timeout-minutes: 3
+        continue-on-error: true
+        env:
+          SEGMENT_DOWNLOAD_TIMEOUT_MINS: 2
+        with:
+          path: |
+            ${{ steps.tool-cache-key.outputs.root }}/cargo-cache
+            ${{ steps.tool-cache-key.outputs.root }}/rust-*
+          # Host's extra Cargo tool pin and installer extend the shared identity.
+          key: cargo-tools-${{ runner.os }}-${{ runner.arch }}-${{ steps.tool-cache-key.outputs.key }}-${{ hashFiles('ci/release-tools.env', 'scripts/release/tools.sh') }}
       - name: Prepare pinned local tools
         run: |
           make --no-print-directory install-tools
@@ -61,6 +81,16 @@ jobs:
           echo "$PWD/.tools/host/bin" >> "$GITHUB_PATH"
           echo "$PWD/.tools/ic/bin" >> "$GITHUB_PATH"
           echo "$PWD/.tools/rust/common/bin" >> "$GITHUB_PATH"
+      - name: Save admitted Cargo tool builds
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.tool-cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        timeout-minutes: 3
+        continue-on-error: true
+        with:
+          path: |
+            ${{ steps.tool-cache-key.outputs.root }}/cargo-cache
+            ${{ steps.tool-cache-key.outputs.root }}/rust-*
+          key: cargo-tools-${{ runner.os }}-${{ runner.arch }}-${{ steps.tool-cache-key.outputs.key }}-${{ hashFiles('ci/release-tools.env', 'scripts/release/tools.sh') }}
       - name: Run native CI
         env:
           TMPDIR: ${{ runner.temp }}/portable-fixtures
