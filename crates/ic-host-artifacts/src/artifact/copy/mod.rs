@@ -3,8 +3,7 @@
 #[cfg(test)]
 mod tests;
 
-use super::{ArtifactError, ArtifactIdentity, BoundedWriter, Sha256Digest, visit_reader};
-use sha2::{Digest, Sha256};
+use super::{ArtifactError, ArtifactIdentity, HashingWriter, visit_reader};
 use std::{
     fmt,
     io::{self, Read, Write},
@@ -64,7 +63,7 @@ impl From<CopyError> for io::Error {
 /// overflow before writing the overflowing chunk, and retries interrupted reads
 /// only. Writes each accepted chunk through `Write::write_all`, which handles
 /// short writes and interrupted writes according to the standard IO contract.
-/// The shared [`BoundedWriter`] validates accepted-byte counts before advancing
+/// The shared [`HashingWriter`] validates accepted-byte counts before advancing
 /// through output. Impossible reader/writer counts return IO
 /// [`io::ErrorKind::InvalidData`] through the corresponding error variant.
 /// A blocking reader or writer's deadlines remain caller-owned.
@@ -86,15 +85,9 @@ pub fn copy_reader(
     writer: &mut impl Write,
     max_bytes: u64,
 ) -> Result<ArtifactIdentity, CopyError> {
-    let mut hasher = Sha256::new();
-    let mut writer = BoundedWriter::new(writer, max_bytes);
-    let bytes = visit_reader::<CopyError>(&mut reader, max_bytes, |chunk| {
-        writer.write_all(chunk).map_err(CopyError::Output)?;
-        hasher.update(chunk);
-        Ok(())
+    let mut writer = HashingWriter::new(writer, max_bytes);
+    visit_reader::<CopyError>(&mut reader, max_bytes, |chunk| {
+        writer.write_all(chunk).map_err(CopyError::Output)
     })?;
-    Ok(ArtifactIdentity {
-        bytes,
-        sha256: Sha256Digest::from_bytes(hasher.finalize().into()),
-    })
+    Ok(writer.into_parts().1)
 }

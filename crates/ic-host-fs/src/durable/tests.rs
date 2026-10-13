@@ -6,14 +6,14 @@ use super::supported::{FileCommitStep, commit_with_hook, publish_create_new_afte
 use std::{
     fs,
     path::{Path, PathBuf},
-    time::{SystemTime, UNIX_EPOCH},
 };
 
 #[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
 #[test]
 fn streamed_replacement_returns_producer_value_only_after_complete_publication() {
     use std::io::Write as _;
-    let root = temp_root("streamed-replacement");
+    let fixture = crate::test_support::Fixture::new();
+    let root = fixture.root.join("streamed-replacement");
     let path = root.join("nested/output");
     let value = write_with(&path, REPLACE_OPTIONS, |file| {
         assert!(!path.exists());
@@ -25,7 +25,6 @@ fn streamed_replacement_returns_producer_value_only_after_complete_publication()
     assert_eq!(value, 42);
     assert_eq!(fs::read(&path).unwrap(), b"first second");
     assert_eq!(fs::read_dir(path.parent().unwrap()).unwrap().count(), 1);
-    fs::remove_dir_all(root).unwrap();
 }
 
 #[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
@@ -38,7 +37,8 @@ fn producer_failure_and_bounded_copy_preserve_previous_destination() {
             Err(io::Error::from_raw_os_error(13))
         }
     }
-    let root = temp_root("streamed-failure");
+    let fixture = crate::test_support::Fixture::new();
+    let root = fixture.root.join("streamed-failure");
     let path = root.join("output");
     write_bytes(&path, b"original").unwrap();
     let error = write_with(&path, REPLACE_OPTIONS, |file| {
@@ -103,7 +103,6 @@ fn producer_failure_and_bounded_copy_preserve_previous_destination() {
     );
     assert_eq!(fs::read(&path).unwrap(), b"new bytes");
     assert_eq!(fs::read_dir(&root).unwrap().count(), 2);
-    fs::remove_dir_all(root).unwrap();
 }
 
 #[cfg(unix)]
@@ -139,7 +138,8 @@ fn durable_lock_reports_wait_for_another_process_and_retains_exclusion() {
         hold_regular_lock_until_release(&PathBuf::from(root).join("complete-build-reuse.lock"));
         return;
     }
-    let root = temp_root("progress-lock");
+    let fixture = crate::test_support::Fixture::new();
+    let root = fixture.root.join("progress-lock");
     let mut child = Command::new(std::env::current_exe().unwrap())
         .args(["--exact", test_name, "--nocapture"])
         .env(CHILD_ROOT, &root)
@@ -213,7 +213,6 @@ fn durable_lock_reports_wait_for_another_process_and_retains_exclusion() {
     let acquired = try_lock_regular_file_with_parents(&path).unwrap();
     assert_eq!(fs::read(&path).unwrap(), b"existing lock contents");
     drop(acquired);
-    fs::remove_dir_all(root).unwrap();
 }
 
 #[cfg(unix)]
@@ -234,7 +233,8 @@ fn hold_regular_lock_until_release(path: &Path) {
 
 #[test]
 fn durable_write_creates_parents_and_replaces_complete_contents() {
-    let root = temp_root("replace");
+    let fixture = crate::test_support::Fixture::new();
+    let root = fixture.root.join("replace");
     let path = root.join("reports/nested/state.json");
 
     write_bytes(&path, b"old").expect("write initial contents");
@@ -245,8 +245,6 @@ fn durable_write_creates_parents_and_replaces_complete_contents() {
         b"new complete contents"
     );
     assert_no_temporary_files(&root);
-
-    fs::remove_dir_all(root).expect("remove temp root");
 }
 
 #[cfg(unix)]
@@ -533,7 +531,8 @@ fn concurrent_missing_lock_openers_converge_on_one_regular_file() {
 #[test]
 fn admitted_lock_files_compose_with_shared_locks_and_explicit_clone_unlock() {
     use rustix::fs::{FlockOperation as Op, flock};
-    let root = temp_root("admitted-lock");
+    let fixture = crate::test_support::Fixture::new();
+    let root = fixture.root.join("admitted-lock");
     let path = root.join("nested/lock");
     let first = open_regular_lock_file_with_parents(&path).unwrap();
     fs::write(&path, b"retained contents").unwrap();
@@ -564,12 +563,12 @@ fn admitted_lock_files_compose_with_shared_locks_and_explicit_clone_unlock() {
     assert_eq!(fs::read(&path).unwrap(), b"retained contents");
     flock(&contender, Op::Unlock).unwrap();
     drop((first, second, duplicate, contender));
-    fs::remove_dir_all(root).unwrap();
 }
 
 #[test]
 fn durable_create_new_with_parents_never_replaces_an_existing_file() {
-    let root = temp_root("create-new-with-parents");
+    let fixture = crate::test_support::Fixture::new();
+    let root = fixture.root.join("create-new-with-parents");
     fs::create_dir_all(&root).expect("create temp root");
     let path = root.join("nested/report.json");
 
@@ -585,8 +584,6 @@ fn durable_create_new_with_parents_never_replaces_an_existing_file() {
         b"first complete contents"
     );
     assert_no_temporary_files(&root);
-
-    fs::remove_dir_all(root).expect("remove temp root");
 }
 
 #[cfg(unix)]
@@ -594,8 +591,9 @@ fn durable_create_new_with_parents_never_replaces_an_existing_file() {
 fn durable_create_new_with_parents_rejects_a_symlinked_parent() {
     use std::os::unix::fs::symlink;
 
-    let root = temp_root("create-new-symlink-parent");
-    let outside = temp_root("create-new-symlink-outside");
+    let fixture = crate::test_support::Fixture::new();
+    let root = fixture.root.join("create-new-symlink-parent");
+    let outside = fixture.root.join("create-new-symlink-outside");
     fs::create_dir_all(&root).expect("create temp root");
     fs::create_dir_all(&outside).expect("create outside root");
     symlink(&outside, root.join("linked")).expect("create parent symlink");
@@ -607,8 +605,6 @@ fn durable_create_new_with_parents_rejects_a_symlinked_parent() {
         matches!(error, NamedWriteError::BeforePublication { source, cleanup_error: None } if source.kind() == io::ErrorKind::NotADirectory)
     );
     assert!(!outside.join("report.json").exists());
-    fs::remove_dir_all(root).expect("remove temp root");
-    fs::remove_dir_all(outside).expect("remove outside root");
 }
 
 #[test]
@@ -631,7 +627,8 @@ fn prepublication_failures_preserve_old_complete_bytes_and_remove_staging() {
     ];
 
     for step in steps {
-        let root = temp_root(&format!("prepublication-{step:?}"));
+        let fixture = crate::test_support::Fixture::new();
+        let root = fixture.root.join(format!("prepublication-{step:?}"));
         fs::create_dir_all(&root).expect("create temp root");
         let path = root.join("report.json");
         fs::write(&path, b"old complete contents").expect("write old contents");
@@ -659,7 +656,6 @@ fn prepublication_failures_preserve_old_complete_bytes_and_remove_staging() {
             b"old complete contents"
         );
         assert_no_temporary_files(&root);
-        fs::remove_dir_all(root).expect("remove temp root");
     }
 }
 
@@ -667,7 +663,8 @@ fn prepublication_failures_preserve_old_complete_bytes_and_remove_staging() {
 #[test]
 fn postpublication_sync_failure_exposes_only_new_complete_bytes() {
     for options in [REPLACE_OPTIONS, CREATE_NEW_OPTIONS, CREATE_PRIVATE_OPTIONS] {
-        let root = temp_root("postpublication");
+        let fixture = crate::test_support::Fixture::new();
+        let root = fixture.root.join("postpublication");
         fs::create_dir_all(&root).expect("create temp root");
         let path = root.join("report.json");
         if options.mode == PublicationMode::Replace {
@@ -690,15 +687,14 @@ fn postpublication_sync_failure_exposes_only_new_complete_bytes() {
             b"new complete contents"
         );
         assert_no_temporary_files(&root);
-
-        fs::remove_dir_all(root).expect("remove temp root");
     }
 }
 
 #[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
 #[test]
 fn create_new_publication_race_cannot_replace_the_winner() {
-    let root = temp_root("create-new-race");
+    let fixture = crate::test_support::Fixture::new();
+    let root = fixture.root.join("create-new-race");
     fs::create_dir_all(&root).expect("create temp root");
     let path = root.join("report.json");
 
@@ -723,8 +719,6 @@ fn create_new_publication_race_cannot_replace_the_winner() {
         b"raced complete contents"
     );
     assert_no_temporary_files(&root);
-
-    fs::remove_dir_all(root).expect("remove temp root");
 }
 
 #[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
@@ -737,7 +731,8 @@ fn unsupported_no_replace_rename_uses_atomic_link_publication() {
     ];
 
     for (label, error) in unsupported {
-        let root = temp_root(&format!("create-new-link-{label}"));
+        let fixture = crate::test_support::Fixture::new();
+        let root = fixture.root.join(format!("create-new-link-{label}"));
         fs::create_dir_all(&root).expect("create temp root");
         let temp_name = std::ffi::OsStr::new(".report.json.canic-tmp-test");
         let file_name = std::ffi::OsStr::new("report.json");
@@ -750,14 +745,14 @@ fn unsupported_no_replace_rename_uses_atomic_link_publication() {
 
         assert_eq!(fs::read(&path).expect("read target"), b"complete contents");
         assert!(!temp_path.exists());
-        fs::remove_dir_all(root).expect("remove temp root");
     }
 }
 
 #[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
 #[test]
 fn link_publication_fallback_cannot_replace_an_existing_file() {
-    let root = temp_root("create-new-link-race");
+    let fixture = crate::test_support::Fixture::new();
+    let root = fixture.root.join("create-new-link-race");
     fs::create_dir_all(&root).expect("create temp root");
     let temp_name = std::ffi::OsStr::new(".report.json.canic-tmp-test");
     let file_name = std::ffi::OsStr::new("report.json");
@@ -781,7 +776,6 @@ fn link_publication_fallback_cannot_replace_an_existing_file() {
         fs::read(&temp_path).expect("read preserved staging"),
         b"our complete contents"
     );
-    fs::remove_dir_all(root).expect("remove temp root");
 }
 
 #[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
@@ -794,7 +788,8 @@ fn new_parent_failures_never_create_the_final_file_or_staging() {
     ];
 
     for step in steps {
-        let root = temp_root(&format!("parent-{step:?}"));
+        let fixture = crate::test_support::Fixture::new();
+        let root = fixture.root.join(format!("parent-{step:?}"));
         fs::create_dir_all(&root).expect("create temp root");
         let path = root.join("reports/nested/report.json");
         let mut failed = false;
@@ -818,13 +813,13 @@ fn new_parent_failures_never_create_the_final_file_or_staging() {
         );
         assert!(!path.exists());
         assert_no_temporary_files(&root);
-        fs::remove_dir_all(root).expect("remove temp root");
     }
 }
 
 #[test]
 fn failed_replacement_removes_its_staging_file() {
-    let root = temp_root("replace-error");
+    let fixture = crate::test_support::Fixture::new();
+    let root = fixture.root.join("replace-error");
     let path = root.join("occupied");
     fs::create_dir_all(&path).expect("create non-file destination");
     fs::write(path.join("child"), b"preserved").expect("write destination child");
@@ -836,14 +831,13 @@ fn failed_replacement_removes_its_staging_file() {
         b"preserved"
     );
     assert_no_temporary_files(&root);
-
-    fs::remove_dir_all(root).expect("remove temp root");
 }
 
 #[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
 #[test]
 fn raced_parent_creation_completes_both_syncs_before_staging() {
-    let root = temp_root("raced-parent-sync");
+    let fixture = crate::test_support::Fixture::new();
+    let root = fixture.root.join("raced-parent-sync");
     fs::create_dir(&root).unwrap();
     let parent = root.join("new-parent");
     let path = parent.join("output");
@@ -879,7 +873,6 @@ fn raced_parent_creation_completes_both_syncs_before_staging() {
     .unwrap();
     assert_eq!(fs::read(&path).unwrap(), b"complete");
     assert_eq!(fs::read_dir(&parent).unwrap().count(), 1);
-    fs::remove_dir_all(root).unwrap();
 }
 
 #[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
@@ -889,7 +882,8 @@ fn raced_parent_creation_sync_failures_stop_before_staging() {
         FileCommitStep::CreatedDirectorySync,
         FileCommitStep::CreatedDirectoryParentSync,
     ] {
-        let root = temp_root("raced-parent-failure");
+        let fixture = crate::test_support::Fixture::new();
+        let root = fixture.root.join("raced-parent-failure");
         fs::create_dir(&root).unwrap();
         let parent = root.join("new-parent");
         let error = commit_with_hook(
@@ -912,7 +906,6 @@ fn raced_parent_creation_sync_failures_stop_before_staging() {
             if source.raw_os_error() == Some(5))
         );
         assert_eq!(fs::read_dir(&parent).unwrap().count(), 0);
-        fs::remove_dir_all(root).unwrap();
     }
 }
 
@@ -938,22 +931,12 @@ fn assert_no_temporary_files(root: &Path) {
     }
 }
 
-fn temp_root(label: &str) -> PathBuf {
-    let nanos = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .expect("system time after unix epoch")
-        .as_nanos();
-    std::env::temp_dir().canonicalize().unwrap().join(format!(
-        "canic-host-durable-io-{label}-{}-{nanos}",
-        std::process::id()
-    ))
-}
-
 #[test]
 #[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
 fn private_publication_is_owner_only_before_writing_and_never_replaces() {
     use std::os::unix::fs::PermissionsExt as _;
-    let root = temp_root("private-publication");
+    let fixture = crate::test_support::Fixture::new();
+    let root = fixture.root.join("private-publication");
     let path = root.join("private/key");
     commit_with_hook(&path, &[7; 32], CREATE_PRIVATE_OPTIONS, |step, observed| {
         if step == FileCommitStep::TemporaryFileWrite {
@@ -974,13 +957,13 @@ fn private_publication_is_owner_only_before_writing_and_never_replaces() {
         crate::read::read_private_bytes::<32>(&path).unwrap(),
         Some([7; 32])
     );
-    fs::remove_dir_all(root).unwrap();
 }
 
 #[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
 #[test]
 fn replacement_supports_long_destination_names() {
-    let root = temp_root("long-replacement");
+    let fixture = crate::test_support::Fixture::new();
+    let root = fixture.root.join("long-replacement");
     fs::create_dir(&root).unwrap();
     let path = root.join("a".repeat(255));
     fs::write(&path, b"previous").unwrap();
@@ -993,13 +976,13 @@ fn replacement_supports_long_destination_names() {
     assert_eq!(copied, 8);
     assert_eq!(fs::read(&path).unwrap(), b"streamed");
     assert_eq!(fs::read_dir(&root).unwrap().count(), 1);
-    fs::remove_dir_all(root).unwrap();
 }
 
 #[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
 #[test]
 fn staging_collisions_retry_without_touching_unowned_files() {
-    let root = temp_root("collision-replacement");
+    let fixture = crate::test_support::Fixture::new();
+    let root = fixture.root.join("collision-replacement");
     fs::create_dir(&root).unwrap();
     let path = root.join("output");
     fs::write(&path, b"previous").unwrap();
@@ -1036,7 +1019,6 @@ fn staging_collisions_retry_without_touching_unowned_files() {
     for candidate in blocked {
         assert_eq!(fs::read(candidate).unwrap(), b"unowned");
     }
-    fs::remove_dir_all(root).unwrap();
 }
 
 #[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
@@ -1056,7 +1038,8 @@ fn selected_staging_namespace_destinations_remain_absent_until_publication() {
         );
         return;
     }
-    let root = temp_root("staging-destination");
+    let fixture = crate::test_support::Fixture::new();
+    let root = fixture.root.join("staging-destination");
     fs::create_dir(&root).unwrap();
     for (prefix, sequence) in [(".ic-host-tmp", 0), (".IC-HOST-TMP", 2)] {
         let path = root.join(format!("{prefix}-{}-{sequence}", std::process::id()));
@@ -1067,5 +1050,4 @@ fn selected_staging_namespace_destinations_remain_absent_until_publication() {
         .unwrap();
         assert_eq!(fs::read(&path).unwrap(), b"complete");
     }
-    fs::remove_dir_all(root).unwrap();
 }

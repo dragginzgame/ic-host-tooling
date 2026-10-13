@@ -2,5 +2,5 @@
 pub mod durable;
 pub mod path;
 pub mod read;
-#[cfg(all(test, unix))]
+#[cfg(test)]
 mod test_support;

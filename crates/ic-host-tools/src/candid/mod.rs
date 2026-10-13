@@ -2,6 +2,6 @@
 
 #[cfg(all(unix, feature = "candid-extraction"))]
 pub mod extraction;
-#[cfg(feature = "ic-interface")]
+#[cfg(feature = "candid-service")]
 pub mod service;
 pub mod text;

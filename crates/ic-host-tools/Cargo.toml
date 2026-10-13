@@ -16,7 +16,8 @@ rustix.workspace = true
 [features]
 default = []
 candid-extraction = ["dep:ic-host-artifacts", "dep:ic-host-fs", "dep:ic-host-process"]
-ic-interface = ["dep:candid_parser", "dep:ic-host-artifacts", "ic-host-artifacts/wasm"]
+candid-service = ["dep:candid_parser", "ic-interface"]
+ic-interface = ["dep:ic-host-artifacts", "ic-host-artifacts/wasm"]
 ic-limits = ["dep:ic-host-artifacts", "ic-host-artifacts/wasm"]
 
 [dependencies]

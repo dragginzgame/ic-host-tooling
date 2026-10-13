@@ -18,7 +18,7 @@ export YQ := $(CURDIR)/.tools/host/bin/yq
 help:
 	@echo 'Selected package: check, clippy, docs-check, test, msrv (PACKAGE=<crate>)'
 	@echo 'Minimal artifact configuration: test-artifacts-minimal'
-	@echo 'Tools feature configurations: test-tools-response, test-tools-interface and tools-features-check'
+	@echo 'Tools feature configurations: test-tools-response, test-tools-interface, test-tools-service and tools-features-check'
 	@echo 'Formatting and metadata: fmt, fmt-check, shared-tooling-check, dependency-pins-check, check-doc-links, release-adapter-check'
 	@echo 'Hook qualification: formatting-hook-check (disposable Git fixtures; prepared formatters required)'
 	@echo 'Complete setup: install-tools (host, IC, Cargo and pinned release tool); install-hooks is separate'
@@ -50,6 +50,10 @@ test-tools-response:
 .PHONY: test-tools-interface
 test-tools-interface:
 	+cargo test -p ic-host-tools --no-default-features --features ic-interface --all-targets --locked --offline
+
+.PHONY: test-tools-service
+test-tools-service:
+	+cargo test -p ic-host-tools --no-default-features --features candid-service --all-targets --locked --offline
 tools-features-check:
 	+bash scripts/ci/check-tools-features.sh
 msrv:
@@ -64,7 +68,7 @@ release-tools-test:
 dependency-pins-check:
 	+bash scripts/ci/check-dependency-pins.sh --cargo-inheritance
 check-doc-links:
-	perl scripts/ci/check-documentation-links.pl --root "$(CURDIR)" README.md AGENTS.md CHANGELOG.md docs/changelog/0.4.md docs/changelog/0.5.md docs/changelog/0.6.md docs/changelog/0.7.md docs/changelog/0.8.md docs/changelog/0.9.md docs/changelog/0.10.md docs/changelog/0.11.md docs/changelog/0.12.md docs/changelog/0.13.md docs/changelog/0.14.md docs/changelog/0.15.md docs/changelog/0.16.md docs/extraction.md docs/hosts.md docs/status/current.md docs/publishing.md
+	perl scripts/ci/check-documentation-links.pl --root "$(CURDIR)" README.md AGENTS.md CHANGELOG.md docs/changelog/0.4.md docs/changelog/0.5.md docs/changelog/0.6.md docs/changelog/0.7.md docs/changelog/0.8.md docs/changelog/0.9.md docs/changelog/0.10.md docs/changelog/0.11.md docs/changelog/0.12.md docs/changelog/0.13.md docs/changelog/0.14.md docs/changelog/0.15.md docs/changelog/0.16.md docs/changelog/0.17.md docs/extraction.md docs/hosts.md docs/status/current.md docs/publishing.md
 release-adapter-check:
 	+bash scripts/release/test-adapter.sh
 tooling-command-check:
@@ -99,6 +103,7 @@ ci:
 	+$(MAKE) --no-print-directory tools-features-check
 	+$(MAKE) --no-print-directory test-tools-response
 	+$(MAKE) --no-print-directory test-tools-interface
+	+$(MAKE) --no-print-directory test-tools-service
 	@for package in ic-host-artifacts ic-host-fs ic-host-process ic-host-tools; do \
 		$(MAKE) --no-print-directory clippy PACKAGE=$$package && \
 		$(MAKE) --no-print-directory docs-check PACKAGE=$$package && \

@@ -17,13 +17,22 @@ if printf '%s\n' "$extraction" | rg '^candid_parser '; then
     exit 1
 fi
 interface="$(cargo tree -p ic-host-tools --no-default-features --features ic-interface --edges normal --prefix none --format '{p}' --locked --offline)"
-if printf '%s\n' "$interface" | rg '^ic-host-(fs|process) '; then
-    echo 'interface inspection graph includes a filesystem or process owner' >&2
+if printf '%s\n' "$interface" | rg '^(ic-host-(fs|process)|candid_parser) '; then
+    echo 'interface inspection graph includes a filesystem, process or Candid parser owner' >&2
+    exit 1
+fi
+printf '%s\n' "$interface" | rg '^ic-host-artifacts ' >/dev/null || {
+    echo 'interface graph lacks the canonical Wasm facts owner' >&2
+    exit 1
+}
+service="$(cargo tree -p ic-host-tools --no-default-features --features candid-service --edges normal --prefix none --format '{p}' --locked --offline)"
+if printf '%s\n' "$service" | rg '^ic-host-(fs|process) '; then
+    echo 'Candid service graph includes a filesystem or process owner' >&2
     exit 1
 fi
 for owner in ic-host-artifacts candid_parser; do
-    printf '%s\n' "$interface" | rg "^$owner " >/dev/null || {
-        echo "interface graph lacks $owner" >&2
+    printf '%s\n' "$service" | rg "^$owner " >/dev/null || {
+        echo "Candid service graph lacks $owner" >&2
         exit 1
     }
 done

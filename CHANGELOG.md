@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.17.0]
+
+- **Breaking:** Wasm-only `ic-interface` inspection no longer enables the Candid
+  parser. Select `candid-service` when using `candid::service`.
+- Share copy hashing with the existing hashing writer and consolidate durable
+  filesystem test fixtures, retaining failed fixtures for diagnosis.
+  [#72](https://github.com/dragginzgame/ic-host-tooling/issues/72).
+  [Detailed notes and migration](docs/changelog/0.17.md).
+
 ## [0.16.0] - 2026-10-13
 
 - **Breaking:** `ic-host-tools` now has no default features. Enable

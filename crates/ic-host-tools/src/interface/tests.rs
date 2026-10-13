@@ -1,4 +1,5 @@
 use super::*;
+#[cfg(feature = "candid-service")]
 use crate::candid::service::{ServiceLimits, inspect as inspect_service};
 use ic_host_artifacts::wasm::{Export, InspectionLimits, inspect};
 use std::collections::BTreeSet;
@@ -61,6 +62,7 @@ fn projection_preserves_names_modes_and_internal_exports_without_acceptance_poli
 }
 
 #[test]
+#[cfg(feature = "candid-service")]
 fn declared_and_exported_modes_can_be_compared_without_discarding_mismatches() {
     let methods = inspect_service(
         "service : { read : () -> () query; notify : () -> () oneway; };",

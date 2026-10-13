@@ -14,8 +14,10 @@ The empty tools defaults retain response decoding and pure Candid text
 normalization while excluding all three generic extraction dependencies and the
 optional Candid parser from its normal graph. The 0.15 hard cut moves extraction
 to `candid::extraction` and normalization to `candid::text`, without reexports.
-The optional `ic-interface` feature adds the Candid parser and generic Wasm facts,
-without filesystem/process dependencies unless extraction is also selected.
+The optional `ic-interface` feature adds generic Wasm facts without the Candid
+parser. `candid-service` adds parser-backed service inspection and implies
+`ic-interface`. Neither adds filesystem/process dependencies unless extraction
+is also selected.
 The optional `ic-limits` profile adds only generic artifact inspection to the
 response-only graph; IC reference values and comparison remain in the tools owner.
 

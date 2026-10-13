@@ -1,5 +1,35 @@
 # Current handoff
 
+## Pending 0.17.0 — bounded cleanup and parser feature ownership
+
+Prepared on released 0.16.0 `046751f`, retaining Shared Tooling 0.9.13.
+`ic-interface` now selects Wasm method interpretation without `candid_parser`;
+parser-backed `candid::service` requires `candid-service`, which implies
+`ic-interface`. This required feature migration selects 0.17.0 notes. Package
+versions and Cargo.lock remain unchanged for the maintainer's release flow.
+The copy path uses the existing hashing writer, and durable filesystem tests
+use the existing owned fixture with absent child paths where required. Panic
+cleanup retains evidence and prints its location.
+
+Full offline Linux `make ci` passes, including strict Clippy, Rustdoc, all crate
+tests and separate Wasm/service profiles. Graph checks confirm the Wasm profile
+excludes the parser/filesystem/process owners; the service profile includes its
+parser and excludes filesystem/process owners. The graph script also passes
+ShellCheck and genuine Bash 3.2. A standalone fixture check verifies successful
+cleanup and panic evidence retention. Native macOS 15 Intel/Apple Silicon
+qualification remains required; Linux results do not substitute for it.
+Rust 1.88 checks pass for the changed artifact, filesystem and tools crates with
+all targets/features (`/tmp/host017-msrv.log`).
+
+Evidence is retained at `/tmp/host017-ci.log`,
+`/tmp/host017-focused-tools.log` and `/tmp/host017-fixture-check.log`.
+The approved scope and qualification are coordinated through
+[Host #72](https://github.com/dragginzgame/ic-host-tooling/issues/72).
+Required consumer feature selections are recorded on
+[Canic #458](https://github.com/dragginzgame/canic/issues/458#issuecomment-6142393380)
+and [IcyDB #307](https://github.com/dragginzgame/icydb/issues/307#issuecomment-6142393814).
+Sibling files were not edited. No staging, commit, push, release or publication ran.
+
 ## Pending 0.16.0 — Shared Tooling 0.9.13
 
 Adopted committed Shared 0.9.13

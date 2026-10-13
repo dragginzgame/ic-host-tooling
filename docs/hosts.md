@@ -11,11 +11,13 @@ Check target-directory ownership before compilation. Preserve failure logs and a
 
 `make test-artifacts-minimal` checks the artifact library without optional
 features. `make test-tools-response` checks the response/text library,
-`make test-tools-interface` checks pure Candid/IC interface inspection, and
+`make test-tools-interface` checks Wasm export interpretation,
+`make test-tools-service` checks parser-backed Candid service inspection, and
 `make tools-features-check` verifies its production dependency exclusions and
 the explicitly selected extractor's required owners. Native CI includes these profiles.
-The `ic-interface` profile introduces the optional Candid parser; it must qualify
-on the same Rust 1.88 and native Linux/macOS matrix as the existing libraries.
+The `candid-service` profile introduces the optional Candid parser;
+`ic-interface` excludes it. Both must qualify on the same Rust 1.88 and native
+Linux/macOS matrix as the existing libraries.
 
 Native CI prepares pinned Rust and the complete common toolsets, then verifies
 the shared snapshot, declarations, formatter prerequisites, actual hook behavior,

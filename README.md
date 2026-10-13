@@ -18,11 +18,13 @@ select the small default artifact dependency.
 `candid::text::normalize` are always available without artifact/filesystem/process
 dependencies or the Candid parser. Enable `candid-extraction` explicitly for
 the Unix `candid::extraction` API.
-The optional `ic-interface` feature adds parser-backed `candid::service::inspect`
-and `interface::exported_methods` over generic Wasm facts. On its own,
-this profile has no Host filesystem/process dependencies. The parser is optional
-and absent from the extraction graph. See the
-[0.16 feature migration](docs/changelog/0.16.md) and
+The optional `ic-interface` feature adds `interface::exported_methods` over
+generic Wasm facts without the Candid parser. Enable `candid-service` for
+parser-backed `candid::service::inspect`; it also enables `ic-interface`.
+Neither feature introduces Host filesystem/process dependencies on its own.
+The parser remains absent from the extraction graph. See the
+[0.17 feature migration](docs/changelog/0.17.md),
+[0.16 extraction migration](docs/changelog/0.16.md) and
 [0.15 API usage](docs/changelog/0.15.md).
 The optional `ic-limits` feature compares Wasm facts with explicitly selected,
 revision-bound IC resource limits, without filesystem/process dependencies when

@@ -23,6 +23,13 @@ impl Fixture {
 }
 impl Drop for Fixture {
     fn drop(&mut self) {
+        if std::thread::panicking() {
+            eprintln!(
+                "Failed filesystem fixture retained: {}",
+                self.root.display()
+            );
+            return;
+        }
         let _ = fs::remove_dir_all(&self.root);
     }
 }

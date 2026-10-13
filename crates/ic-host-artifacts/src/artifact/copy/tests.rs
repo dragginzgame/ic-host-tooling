@@ -1,4 +1,5 @@
 use super::*;
+use crate::artifact::Sha256Digest;
 use std::io::Cursor;
 
 #[test]
