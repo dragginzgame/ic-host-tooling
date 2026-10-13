@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.17.3]
+## [0.17.3] - 2026-10-13
 
 - Adopt Shared Tooling 0.10.2, retaining the 0.10.1 fix so unrelated catalog
   changes no longer invalidate Cargo CI caches; tool selection and build changes
