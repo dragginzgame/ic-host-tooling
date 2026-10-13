@@ -8,6 +8,12 @@
 - Reuse Shared Tooling's Cargo-tool cache in native CI while retaining complete
   tool admission and Linux/macOS coverage.
   [Detailed notes and migration](docs/changelog/0.16.md).
+- Adopt Shared Tooling 0.9.13: routine development and validation may fetch
+  already-locked Cargo sources without another approval
+  ([Shared #147](https://github.com/dragginzgame/shared-tooling/issues/147)).
+  Retain tool-lock and source-acquisition failure statuses and diagnostics
+  ([Shared #145](https://github.com/dragginzgame/shared-tooling/issues/145),
+  [Shared #146](https://github.com/dragginzgame/shared-tooling/issues/146)).
 
 ## [0.15.2] - 2026-10-13
 

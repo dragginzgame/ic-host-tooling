@@ -1,5 +1,55 @@
 # Current handoff
 
+## Pending 0.16.0 — Shared Tooling 0.9.13
+
+Adopted committed Shared 0.9.13
+`35cad65677ff989b5fb24a88d947fda37d2366e8`, matching upstream main at inspection,
+through canonical preview/refresh from a clean isolated checkout. Six selected
+governance documents change; all 88 entrypoints and 101 payload files remain.
+The baseline now authorizes locked source fetching during ordinary development
+and validation without another maintainer approval, while preserving explicit
+offline settings and separate upgrade/tool-installation/release authority
+([Shared #147](https://github.com/dragginzgame/shared-tooling/issues/147)).
+CI-inspection guidance requires explicit selection when no current branch can be
+observed ([Shared #148](https://github.com/dragginzgame/shared-tooling/issues/148));
+the optional GitHub CI helper remains unselected, so its executable change is not
+part of Host's payload.
+
+Incoming 0.9.11 adoption changes remain intact. Rust sources, Cargo/Make/CI inputs,
+tool pins and every selected script retain their captured bytes. No setup or
+full-suite rerun is required for these documentation-only changes; the passing
+0.9.11 Linux gate below applies to the unchanged executable inputs. Notes remain
+0.16.0 and package versions are unchanged. Snapshot, repeat-preview, documentation
+and preservation evidence is retained at `/tmp/host-shared0913/`. Native macOS
+qualification remains separate. No sibling edit, downloads, tool installation,
+staging, commit, push, release or publication ran.
+
+## Pending 0.16.0 — Shared Tooling 0.9.11
+
+Adopted committed Shared 0.9.11
+`dd58c4908c024f06f74bc8b126b4e93f90f1b3a3`, matching upstream main at inspection,
+through canonical preview/refresh from a clean isolated checkout. The sibling's
+dirty 0.9.12 policy preparation was excluded. All 88 entrypoints and 101 files
+remain; four payloads change. Lock acquisition and Cargo source preparation now
+retain original failures/statuses, under
+[Shared #145](https://github.com/dragginzgame/shared-tooling/issues/145) and
+[Shared #146](https://github.com/dragginzgame/shared-tooling/issues/146).
+
+Host started clean at `8fe8192`, with the prior 0.16.0 implementation committed
+and its notes still pending. Those Rust/Cargo/Make/CI/pin inputs retain their
+captured bytes. This compatible tooling adoption extends the existing 0.16.0
+draft without changing package versions. Explicit common/release Cargo-tool
+setup completes offline under the new build-helper identity; old installations
+are retained. No network tool downloads or dependency upgrades ran.
+
+The host/IC store and Cargo-tool fixtures pass genuine Bash 3.2. Snapshot
+verification and repeat preview pass with 101 KEEP rows; ShellCheck and links
+pass. The initial direct invocation of the sourced store helper was invalid and
+is excluded from qualification; its owning host/IC fixtures supply the required
+context. Full offline Linux `make ci` passes. Evidence is retained at
+`/tmp/host-shared0911/`. Native macOS qualification remains separate. No sibling
+source edit, staging, commit, push, release or publication ran.
+
 ## Pending 0.16.0 — explicit extraction and shared CI caching
 
 Prepared on released Host 0.15.2 `21c036d`, retaining Shared Tooling 0.9.10.
