@@ -7,8 +7,6 @@ use std::{
     time::{Duration, Instant},
 };
 
-use crate::timing::saturating_add_optional_duration;
-
 use super::{
     CachedPocketIcBaseline,
     bounded_pool::{BoundedSlotLease, BoundedSlotPool},
@@ -1117,7 +1115,10 @@ fn nonempty_receipt_identity(
 }
 
 const fn add_timing(total: &mut Option<Duration>, elapsed: Duration) {
-    *total = saturating_add_optional_duration(*total, Some(elapsed));
+    *total = Some(match *total {
+        None => elapsed,
+        Some(previous) => previous.saturating_add(elapsed),
+    });
 }
 
 fn rebuild_reason_for_error<E>(error: &BaselinePoolPreparationError<E>) -> RebuildReason {
@@ -1263,11 +1264,25 @@ where
 #[cfg(test)]
 mod tests {
     use super::{
-        BaselinePoolContractError, CanisterRestoreReceipt, CycleResetPolicy, ExtraCanisterPolicy,
-        FixtureRecipeId, ResetDomainKind, ResetDomainPolicy, ResetReceipt, ResetRequirements,
-        StateResetPolicy, TimeResetPolicy,
+        BaselinePoolContractError, BaselinePoolTimings, CanisterRestoreReceipt, CycleResetPolicy,
+        ExtraCanisterPolicy, FixtureRecipeId, ResetDomainKind, ResetDomainPolicy, ResetReceipt,
+        ResetRequirements, StateResetPolicy, TimeResetPolicy, add_timing,
     };
     use candid::Principal;
+    use std::time::Duration;
+
+    #[test]
+    fn phase_timing_preserves_absence_zero_and_saturation() {
+        let mut timings = BaselinePoolTimings::default();
+        assert_eq!(timings.restore(), None);
+        add_timing(&mut timings.restore, Duration::ZERO);
+        assert_eq!(timings.restore(), Some(Duration::ZERO));
+        add_timing(&mut timings.restore, Duration::from_secs(2));
+        assert_eq!(timings.restore(), Some(Duration::from_secs(2)));
+        add_timing(&mut timings.restore, Duration::MAX);
+        assert_eq!(timings.restore(), Some(Duration::MAX));
+        assert_eq!(timings.build(), None);
+    }
 
     #[test]
     fn recipe_identity_must_be_nonempty() {

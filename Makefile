@@ -11,9 +11,6 @@
 
 REPO_ROOT := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 SERVER_CLI := $(REPO_ROOT)target/debug/ic-testkit-server
-IC_TOOL_PINS ?= $(REPO_ROOT)ci/ic-tools.tsv
-HOST_TOOL_VERSIONS ?= $(REPO_ROOT)ci/tool-versions.env
-
 .DEFAULT_GOAL := help
 override SHARED_TOOLING_ROOT := $(REPO_ROOT)
 LOCAL_TOOL_INSTALL_TARGETS := install-server

@@ -2,10 +2,7 @@
 
 use ic_testkit::{
     ic_host_artifacts::artifact::{Sha256Digest, decode_gzip, hash_gzip, verify_reader},
-    ic_host_fs::{
-        durable,
-        read::{hash_file_no_follow, read_file_no_follow},
-    },
+    ic_host_fs::{durable, read::read_file_no_follow},
     ic_host_process::{
         child::OwnedChild,
         tool::{
@@ -118,13 +115,8 @@ fn payload(archive: &Path, digest: Sha256Digest) -> Result<Vec<u8>> {
 }
 
 fn admit(executable: &Path, digest: Sha256Digest) -> Result<()> {
-    // Refuse final symlinks and special files before the tool's version execution.
-    let identity = hash_file_no_follow(executable, EXECUTABLE_LIMIT as u64)?;
-    if identity.sha256 != digest {
-        return Err("installed PocketIC bytes differ from the authenticated archive".into());
-    }
     let directory = executable.parent().ok_or("missing executable parent")?;
-    AdmittedTool::admit(
+    AdmittedTool::admit_no_follow(
         &ToolSpec {
             executable,
             executable_bytes: EXECUTABLE_LIMIT as u64,

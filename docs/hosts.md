@@ -2332,7 +2332,10 @@ documentation guard for that revision, including Intel macOS. It precedes the
   to prepare pinned jq/yq, ripgrep with PCRE2, cloc and IC executables locally,
   then `make tools-check` for
   offline byte/version verification. Versions and native digests have one owner
-  in `ci/tool-versions.env` and `ci/ic-tools.tsv`. See the shared
+  in the reviewed snapshot's `ci/tool-versions.env` and `ci/ic-tools.tsv`.
+  Host, Rust and IC exceptions are selected independently under the shared
+  [catalog contract](local-setup.md#catalog-selection). Compiler and PocketIC
+  policy remain local. See the shared
   [bootstrap instructions](local-setup.md#bootstrap-prerequisites).
   Make selects `.tools/host/bin` and `.tools/ic/bin`; direct Cargo calls use the
   explicit PATH and `POCKET_IC_BIN` exports in the README.
@@ -4791,3 +4794,146 @@ pass. Logs are `/tmp/ic-testkit-host17-{fetch,snapshot,gh-ci,gh-ci-bash32,
 maintenance,maintenance-bash32,startup,startup-native,provisioning,runner,clippy,
 msrv,format}.log`. No broad gate, release or sibling edit ran. Native macOS and
 remote CI for this uncommitted source remain outstanding.
+
+### Registry IC Build 0.2 adoption — 2026-10-13
+
+The authorized continuation selects published IC Build 0.2.0 in the native
+workspace development catalog and lock. Archive SHA-256 is
+`fb055d1b5649636c09a52f23fdc091417c732cbb87a2125d5a24f93c043c8df8`;
+its VCS receipt names `9ddcd4ee0b2ac85f0608b8aaf49493cf015f295a`.
+Only Build advances; the three now-unused Host 0.16 packages retire from the
+lock. All other registry versions/checksums, own package versions, incoming
+Shared 0.10/helper/driver work and retained artifacts are preserved. No path
+patch or runtime Build dependency is introduced.
+
+Strict library/driver Clippy, 17 driver tests, six diagnostics tests, six pure
+baseline-pool tests and actual Rust 1.88 library/driver checking pass on the
+real registry graph. Receipts are `/tmp/ic-build-020-registry-adoption/testkit-*`.
+The prior real PocketIC smoke remains evidence for its earlier graph; this
+adoption runs no server lifecycle or benchmark. Native macOS and broad suite
+qualification remain separate. Pending notes stay compatible 0.37.1; delivery
+and publication remain maintainer-owned
+([IC Build #9](https://github.com/dragginzgame/ic-build/issues/9)).
+
+### Earlier pending 0.37.1: IC Build benchmark handoff and helper cleanup
+
+The incoming lockfile selects published IC Build 0.1.4, reviewed against
+`848ae20548527f5595ea68e7edf9cfec4f3188ce`; its bytes and own package metadata
+remain unchanged. Source comparison starts at Testkit 0.37.0
+`6407a42844def1c38128522825f306b977365517`. IC Build stays development-only.
+The driver holds the retained probe record through all workers and report writes,
+hashing and consuming its exact artifact. It preserves tool selections, offline
+arguments, foreground build handling and no elapsed-time deadline. Diagnostic
+admission and phase accumulation keep their public contracts with local owners.
+
+Focused Linux checks pass six diagnostics tests, six baseline-pool unit tests
+and 17 driver tests. The tool fixture covers bare/absolute/relative multicall
+proxies, missing tools, original producer status/streams, and repeated retained
+reads after replacing/removing public Cargo outputs. A prepared PocketIC 16.1
+smoke run passes fresh and capacity-one pooled workers with two tasks each, using
+one retained probe artifact and the unchanged report schema. This is correctness
+evidence, not a performance comparison or native macOS qualification.
+
+Strict selected Clippy, actual Rust 1.88 library/example checking, declaration
+pins and formatting pass. Logs use `/tmp/ic-testkit-0371-{fetch,driver-final,
+pool-unit,diagnostics,benchmark,clippy,msrv,pins,format}.log`; the smoke report is
+`/tmp/ic-testkit-0371-benchmark.json`. Earlier fixture failures remain in their
+separate `driver-before-fixture.log` and `driver-fixture.log` files. No broad gate,
+release, dependency resolution or sibling edit ran. Delivery and native macOS
+acceptance remain outstanding for this consumer source.
+
+### Pending 0.37.1: Shared Tooling 0.10 catalog adoption
+
+The canonical exporter adopts `ed9c26f015691859f67b50b512a94709dcdc0c6c`,
+preserving the 96-file selection. Common catalog assignments, versions and native
+digests match the prior snapshot; only catalog ownership comments change. The
+consumer's redundant host/IC Make defaults are removed. Direct CI cache reads,
+formatter/release adapters and evidence selection already name the same reviewed
+root-layout catalog, with no local exception or duplicate default list
+([#73](https://github.com/dragginzgame/ic-testkit/issues/73)).
+
+Explicit `make install-tools` reuses the prepared common bundles and PocketIC
+selection, building the local owner CLI. Offline tool checks, formatting, pins
+and snapshot verification pass. Native Bash and actual Bash 3.2 pass host/IC
+installer, independent Make catalog/formatter, Cargo freshness, release-runner,
+LOC path-admission and consumer evidence/archive fixtures. The affected extra
+harnesses run from a clean clone of the exact source, with adopted script bytes
+compared. These use synthetic tool/registry/release inputs, not macOS proof.
+
+The initial LOC runs lacked the explicitly prepared host PATH; reruns with that
+PATH pass. The first ShellCheck omitted sourced companions, and the first workflow
+lint named an absent publish workflow. Correct source-following and actual-workflow
+checks pass; failed attempts remain separate. Logs use `/tmp/ic-testkit-more-*`.
+The incoming Rust fixes are unchanged. An independent maintainer dependency
+selection advanced to IC Build 0.2 during qualification and is preserved below.
+No broad gate, release, dependency resolution, installation retirement or sibling
+edit ran. Testkit's matching native macOS qualification remains outstanding.
+
+### Pending 0.37.1: selected IC Build 0.2 graph convergence
+
+The maintainer selection now uses registry IC Build 0.2.0, reviewed against
+`9ddcd4ee0b2ac85f0608b8aaf49493cf015f295a`; this session does not resolve or
+rewrite its manifest/lock selection. Build's engine Rust sources are unchanged
+from 0.1.4. Its Host dependency boundary now shares Testkit's 0.17 family, removing
+the three older Host 0.16 packages. Build remains development-only; Testkit's
+public library boundary and pending compatible 0.37.1 classification are unchanged
+([IC Build #9](https://github.com/dragginzgame/ic-build/issues/9)).
+
+Locked cache preparation, all 17 driver fixtures, selected strict Clippy and
+actual Rust 1.88 library/example checks pass on the new graph. A prepared
+PocketIC 16.1 capacity-one pooled smoke also passes
+with one warm task and the retained probe/report contract. Logs use
+`/tmp/ic-testkit-more-build02-{fetch,driver,clippy,msrv,benchmark}.log`; the new smoke
+report is `/tmp/ic-testkit-more-build02-benchmark.json`. Earlier 0.1.4 results
+remain bound to their own graph. Native macOS consumer acceptance stays pending.
+
+### Pending 0.37.1: published Host 0.17.4 mechanics
+
+The normal registry graph selects Host 0.17.4 and development-only IC Build 0.2.3.
+The incoming lockfile already selected these versions and is preserved exactly.
+Testkit's Host requirements now start at 0.17.4; no path override is installed.
+PocketIC admission shares Host's no-follow identity/version boundary. Native RSS
+observations and checked report staging use their Host owners; Testkit retains
+workload, sampling cadence, output schema and interruption policy
+([#75](https://github.com/dragginzgame/ic-testkit/issues/75),
+[Host #79](https://github.com/dragginzgame/ic-host-tooling/issues/79)).
+
+Locked source preparation precedes focused Linux qualification: 13 benchmark
+driver tests, six provisioning tests, selected strict Clippy, actual Rust 1.88,
+formatting and dependency declarations pass. A live prepared PocketIC 16.1 smoke
+passes fresh and capacity-one pooled modes with two tasks each, one worker,
+64 state bytes and a complete private report. This proves integration correctness,
+not a performance comparison. Receipts are under
+`/tmp/ic-testkit-host174-adoption/`, including `benchmark.json`.
+
+Earlier path-candidate evidence remains bound to its unpublished source graph.
+Both native macOS hosts and full maintainer-owned consumer validation remain
+outstanding for this source. Pending notes stay compatible 0.37.1; own versions,
+retained installations and release effects remain unchanged.
+
+### Pending 0.38.0: one fixture-pool lifecycle
+
+The accepted hard cut replaces the standalone pool family with
+`StandaloneCanisterRecipe` and the existing recipe baseline pool. Static suites
+use `LazyLock`; builders own their `Send + Sync + 'static` captures. Snapshot-only
+funding and restore policy stay explicit. A failed non-transport restore discards
+the slot before returning, while dead transport retains one recovery build and
+both causes. Process-local pools require test-process restart, without a retained
+cache/schema change ([#76](https://github.com/dragginzgame/ic-testkit/issues/76)).
+
+Focused Linux qualification passes 13 driver tests, three Candid unit tests,
+one lazy-construction case, six bounded-slot cases, six baseline-contract cases,
+11 live Candid/concurrency/funding cases and the exact dedicated-server recovery
+case. Selected Rust 1.88, all local callers under strict Clippy, public Rustdoc,
+Wasm library compilation, formatting and dependency checks pass. A prepared
+PocketIC 16.1 smoke passes fresh and capacity-one pooled workers with two tasks
+each and a complete report. Logs and `benchmark.json` remain under
+`/tmp/ic-testkit-0380-cut/`; the initial compile failure is retained separately.
+These observations establish correctness, not a performance improvement.
+
+The Canic payload-limit migration patch passes apply-check and is tracked under
+[Canic #540](https://github.com/dragginzgame/canic/issues/540). Its normal adoption
+requires published Testkit 0.38; no Canic source or lock was changed. The consumer
+checkout has active validation, so no competing consumer build was launched.
+Both native macOS hosts, full maintainer-owned validation and release remain
+outstanding. Own package metadata stays at 0.37.0; pending notes move to 0.38.0.

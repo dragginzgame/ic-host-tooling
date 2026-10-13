@@ -3,33 +3,41 @@
 
 mod arguments;
 mod report;
-mod sampling;
 
 use std::{
     collections::BTreeMap,
     error::Error as StdError,
-    ffi::{OsStr, OsString},
+    ffi::OsString,
     fmt,
-    fs::{self, File, OpenOptions},
+    fs::{self, File, Permissions},
     io::{self, Seek as _, Write as _},
     path::{Path, PathBuf},
     process::{Command, ExitStatus, Stdio},
-    sync::atomic::{AtomicBool, AtomicU64, Ordering},
+    sync::atomic::{AtomicBool, Ordering},
     thread,
     time::Duration,
 };
 
 #[cfg(unix)]
-use std::os::unix::{
-    fs::{DirBuilderExt as _, OpenOptionsExt as _},
-    process::CommandExt as _,
-};
+use std::os::fd::AsFd as _;
 
-use ic_build::artifacts::workspace_root_for;
+#[cfg(unix)]
+use std::os::unix::{fs::PermissionsExt as _, process::CommandExt as _};
+
+use ic_build::artifacts::{
+    WasmBuildError, WasmBuildOutcome, WasmBuildSpec, build_wasm_canisters_cached,
+    workspace_root_for,
+};
 use ic_testkit::{
     ic_host_artifacts::artifact::ArtifactError,
-    ic_host_fs::read::{hash_file, read_opened_file},
-    ic_host_process::tool::{ResolutionError, resolve_executable},
+    ic_host_fs::{
+        durable::{NamedWriteError, PublicationMode, WriteOptions, write_at_validated_with},
+        read::{hash_file, read_opened_file},
+    },
+    ic_host_process::{
+        sampling,
+        tool::{ResolutionError, resolve_executable},
+    },
 };
 use serde_json::{Map, Value, json};
 
@@ -39,7 +47,6 @@ use report::{MeasuredRun, Summary, summarize};
 const SAMPLE_INTERVAL: Duration = Duration::from_millis(10);
 const REPORT_LIMIT: u64 = 16 * 1024 * 1024;
 const WASM_LIMIT: u64 = 128 * 1024 * 1024;
-static SCRATCH_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 static INTERRUPTED: AtomicBool = AtomicBool::new(false);
 
 #[derive(Debug)]
@@ -50,6 +57,8 @@ pub enum Error {
     Json(serde_json::Error),
     Artifact(ArtifactError),
     Resolution(ResolutionError),
+    Build(Box<WasmBuildError>),
+    Sampling(sampling::SamplingError),
     CommandFailed {
         program: PathBuf,
         status: ExitStatus,
@@ -66,6 +75,8 @@ impl fmt::Display for Error {
             Self::Json(error) => error.fmt(f),
             Self::Artifact(error) => error.fmt(f),
             Self::Resolution(error) => error.fmt(f),
+            Self::Build(error) => error.fmt(f),
+            Self::Sampling(error) => error.fmt(f),
             Self::CommandFailed { program, status } => {
                 write!(f, "{} exited with {status}", program.display())
             }
@@ -81,6 +92,8 @@ impl StdError for Error {
             Self::Json(error) => Some(error),
             Self::Artifact(error) => Some(error),
             Self::Resolution(error) => Some(error),
+            Self::Build(error) => Some(error.as_ref()),
+            Self::Sampling(error) => Some(error),
             _ => None,
         }
     }
@@ -95,6 +108,12 @@ impl From<io::Error> for Error {
 impl From<serde_json::Error> for Error {
     fn from(error: serde_json::Error) -> Self {
         Self::Json(error)
+    }
+}
+
+impl From<sampling::SamplingError> for Error {
+    fn from(error: sampling::SamplingError) -> Self {
+        Self::Sampling(error)
     }
 }
 
@@ -144,69 +163,15 @@ fn check_interrupted() -> Result<(), Error> {
     }
 }
 
-struct ScratchOutput {
-    directory: PathBuf,
-    file: File,
-}
-
-impl ScratchOutput {
-    fn create() -> Result<Self, Error> {
-        Self::create_in(&std::env::temp_dir(), None)
-    }
-
-    fn create_in(parent: &Path, reserved_name: Option<&OsStr>) -> Result<Self, Error> {
-        loop {
-            let sequence = SCRATCH_SEQUENCE.fetch_add(1, Ordering::Relaxed);
-            let name = format!(
-                "ic-testkit-fixture-benchmark-{}-{sequence}",
-                std::process::id()
-            );
-            // Do not allocate the destination itself, even on case-insensitive
-            // filesystems or when an operator uses our temporary-name namespace.
-            if reserved_name.is_some_and(|reserved| {
-                reserved
-                    .as_encoded_bytes()
-                    .eq_ignore_ascii_case(name.as_bytes())
-            }) {
-                continue;
-            }
-            let directory = parent.join(name);
-            let mut builder = fs::DirBuilder::new();
-            #[cfg(unix)]
-            builder.mode(0o700);
-            match builder.create(&directory) {
-                Ok(()) => {}
-                Err(error) if error.kind() == io::ErrorKind::AlreadyExists => continue,
-                Err(error) => return Err(error.into()),
-            }
-            let mut options = OpenOptions::new();
-            options.read(true).write(true).create_new(true);
-            #[cfg(unix)]
-            options.mode(0o600);
-            match options.open(directory.join("worker.json")) {
-                Ok(file) => return Ok(Self { directory, file }),
-                Err(error) => {
-                    let _ = fs::remove_dir(&directory);
-                    return Err(error.into());
-                }
-            }
-        }
-    }
-}
-
-impl Drop for ScratchOutput {
-    fn drop(&mut self) {
-        // Only this driver's private scratch is removed, never Cargo artifacts
-        // or the operator's requested report. Open handles close normally.
-        let _ = fs::remove_dir_all(&self.directory);
-    }
-}
-
 fn publish_report(
     output: &Path,
     write: impl FnOnce(&mut File) -> Result<(), Error>,
 ) -> Result<(), Error> {
     check_interrupted()?;
+    let raw = output.as_os_str().as_encoded_bytes();
+    if raw.ends_with(b"/") || raw.ends_with(b"/.") {
+        return Err(io::Error::from(io::ErrorKind::NotADirectory).into());
+    }
     let name = output.file_name().ok_or_else(|| {
         io::Error::new(
             io::ErrorKind::InvalidInput,
@@ -217,14 +182,44 @@ fn publish_report(
         .parent()
         .filter(|parent| !parent.as_os_str().is_empty())
         .unwrap_or_else(|| Path::new("."));
-    // The private directory is beside the report, so rename never crosses
-    // filesystems. The destination is untouched until this final commit point.
-    let mut scratch = ScratchOutput::create_in(parent, Some(name))?;
-    write(&mut scratch.file)?;
-    scratch.file.sync_all()?;
-    check_interrupted()?;
-    fs::rename(scratch.directory.join("worker.json"), output)?;
-    Ok(())
+    let parent = File::open(parent)?;
+    match write_at_validated_with(
+        parent.as_fd(),
+        name,
+        WriteOptions {
+            mode: PublicationMode::Replace,
+            permissions: 0o600,
+        },
+        write,
+        |()| check_interrupted(),
+    ) {
+        Ok(()) => Ok(()),
+        Err(NamedWriteError::Producer {
+            source,
+            cleanup_error,
+        }) => {
+            if let Some(error) = cleanup_error {
+                eprintln!("could not clean report staging: {error}");
+            }
+            Err(source)
+        }
+        Err(NamedWriteError::BeforePublication {
+            source,
+            cleanup_error,
+        }) => {
+            if let Some(error) = cleanup_error {
+                eprintln!("could not clean report staging: {error}");
+            }
+            Err(source.into())
+        }
+        Err(NamedWriteError::AfterPublication { source }) => {
+            // The report is complete and visible. This driver promises atomic
+            // visibility, not power-loss durability; do not report a failed
+            // replacement or invite a retry after publication has occurred.
+            eprintln!("report published; final durability or cleanup is unconfirmed: {source}");
+            Ok(())
+        }
+    }
 }
 
 struct CapturedRun {
@@ -234,10 +229,13 @@ struct CapturedRun {
 
 fn measure(command: &mut Command) -> Result<CapturedRun, Error> {
     check_interrupted()?;
-    let mut scratch = ScratchOutput::create()?;
+    let mut output = tempfile::Builder::new()
+        .permissions(Permissions::from_mode(0o600))
+        .tempfile()?
+        .into_file();
     command
         .stdin(Stdio::null())
-        .stdout(Stdio::from(scratch.file.try_clone()?));
+        .stdout(Stdio::from(output.try_clone()?));
     #[cfg(unix)]
     command.process_group(0);
     let mut child = command.spawn()?;
@@ -246,7 +244,8 @@ fn measure(command: &mut Command) -> Result<CapturedRun, Error> {
         let mut peak_processes = 0;
         let mut count = 0;
         while child.try_wait()?.is_none() && !INTERRUPTED.load(Ordering::Relaxed) {
-            let (resident, processes) = sampling::tree_rss(child.id(), &sampling::snapshot()?)?;
+            let (resident, processes) =
+                sampling::tree_rss(child.id(), &sampling::snapshot(64 * 1024)?)?;
             peak_rss = peak_rss.max(resident);
             peak_processes = peak_processes.max(processes);
             count += 1;
@@ -265,9 +264,9 @@ fn measure(command: &mut Command) -> Result<CapturedRun, Error> {
             status,
         });
     }
-    scratch.file.rewind()?;
+    output.rewind()?;
     let bytes = read_opened_file(
-        scratch.file.try_clone()?,
+        output.try_clone()?,
         usize::try_from(REPORT_LIMIT).expect("report limit fits supported hosts"),
     )
     .map_err(Error::Artifact)?;
@@ -341,7 +340,7 @@ struct Inputs {
     root: PathBuf,
     server: PathBuf,
     worker: PathBuf,
-    wasm: PathBuf,
+    wasm: WasmBuildOutcome,
     provenance: Value,
 }
 
@@ -418,29 +417,36 @@ fn prepare(options: &Options) -> Result<Inputs, Error> {
         "--example",
         "fixture_reuse_benchmark",
     ]))?;
-    build_command(cargo_command(&cargo, &root, rustc.as_deref()).args([
-        "build",
-        "--locked",
-        "--offline",
-        "--target",
-        "wasm32-unknown-unknown",
-        "-p",
-        "ic_testkit_perf_probe",
-    ]))?;
-    let worker = Path::new(target)
+    let target = Path::new(target);
+    let mut spec = WasmBuildSpec::new(
+        &root,
+        &target.join("ic-testkit-fixture-benchmark-wasm"),
+        &["ic_testkit_perf_probe"],
+        "debug",
+    )
+    .with_cargo_program(cargo)
+    .with_cargo_profile_args(["--locked", "--offline"])
+    .with_shared_incremental_target(target.join("ic-testkit-incremental"));
+    if let Some(rustc) = &rustc {
+        spec = spec.with_extra_env([("RUSTC", rustc.as_os_str())]);
+    }
+    check_interrupted()?;
+    let wasm = build_wasm_canisters_cached(&spec);
+    check_interrupted()?;
+    let wasm = wasm.map_err(|error| Error::Build(Box::new(error)))?;
+    let worker = target
         .join(if options.profile == "dev" {
             "debug"
         } else {
             "release"
         })
         .join("examples/fixture_reuse_benchmark");
-    let wasm = Path::new(target).join("wasm32-unknown-unknown/debug/ic_testkit_perf_probe.wasm");
     let provenance = provenance(
         &root,
         options,
         &server,
         &server_version,
-        &wasm,
+        &wasm.record().artifacts()[0],
         rustc.as_deref(),
     )?;
     Ok(Inputs {
@@ -520,7 +526,7 @@ pub fn run() -> Result<(), Error> {
                         options.workers.to_string(),
                         options.state_bytes.to_string(),
                     ])
-                    .arg(&inputs.wasm)
+                    .arg(&inputs.wasm.record().artifacts()[0])
                     .arg(&inputs.server)
                     .current_dir(&inputs.root),
             )?;
@@ -555,7 +561,7 @@ pub fn run() -> Result<(), Error> {
 #[cfg(test)]
 mod tests {
     use super::arguments::parse_arguments;
-    use super::{Error, REPORT_LIMIT, ScratchOutput, measure, prepare, publish_report};
+    use super::{Error, Permissions, REPORT_LIMIT, measure, prepare, publish_report};
 
     #[cfg(unix)]
     use super::InterruptHandler;
@@ -571,6 +577,13 @@ mod tests {
     #[cfg(unix)]
     use std::os::unix::fs::{PermissionsExt as _, symlink};
 
+    fn fixture_directory() -> tempfile::TempDir {
+        tempfile::Builder::new()
+            .permissions(Permissions::from_mode(0o700))
+            .tempdir()
+            .unwrap()
+    }
+
     #[cfg(unix)]
     fn assert_prepared_tool_context(root: &Path, missing: bool) {
         let options = parse_arguments([
@@ -583,14 +596,29 @@ mod tests {
             assert!(
                 matches!(prepare(&options), Err(Error::Io(error)) if error.kind() == io::ErrorKind::NotFound)
             );
+        } else if std::env::var_os("IC_TESTKIT_BENCHMARK_TOOL_FAIL_BUILD").is_some() {
+            let Err(Error::Build(error)) = prepare(&options) else {
+                panic!("failed producer must preserve its typed cause");
+            };
+            assert!(matches!(
+                *error,
+                ic_build::artifacts::WasmBuildError::CommandFailed {
+                    phase: ic_build::artifacts::WasmBuildPhase::CargoBuild,
+                    status,
+                    ref stdout,
+                    ref stderr,
+                } if status.code() == Some(23)
+                    && stdout.contains("producer output")
+                    && stderr.contains("producer failure")
+            ));
         } else {
             let inputs = prepare(&options).unwrap();
             assert_eq!(inputs.provenance["rustc"], "fixture rustc");
             let trace = fs::read_to_string(root.join("trace")).unwrap();
             let calls = trace.lines().collect::<Vec<_>>();
-            assert!(!calls.is_empty());
+            assert_ne!(calls.len(), 0);
             assert_eq!(calls.len() % 3, 0);
-            for call in calls.chunks_exact(3) {
+            for call in calls.as_chunks::<3>().0 {
                 if call[2].contains("locate-project") {
                     assert_eq!(call[1], root.to_str().unwrap());
                     assert!(call[2].contains("--offline"));
@@ -599,19 +627,55 @@ mod tests {
                 }
                 assert_eq!(call[1], inputs.root.to_str().unwrap());
                 if call[0].ends_with("/cargo") || call[0] == "cargo" {
-                    assert!(call[2].contains("--locked"));
-                    assert!(call[2].contains("--offline"));
+                    if !call[2].starts_with("--version") {
+                        assert!(call[2].contains("--locked"));
+                        assert!(call[2].contains("--offline"));
+                    }
                 } else {
                     assert!(call[0].ends_with("/rustc") || call[0] == "rustc");
-                    assert_eq!(call[2], "--version");
+                    assert!(matches!(call[2], "--version" | "-vV"));
                 }
             }
+
+            let target = root.join("target");
+            let mutable_paths = [
+                target.join("wasm32-unknown-unknown/debug/ic_testkit_perf_probe.wasm"),
+                target.join("ic-testkit-incremental/wasm32-unknown-unknown/debug/ic_testkit_perf_probe.wasm"),
+                target.join("ic-testkit-fixture-benchmark-wasm/wasm32-unknown-unknown/debug/ic_testkit_perf_probe.wasm"),
+            ];
+            for path in &mutable_paths {
+                fs::create_dir_all(path.parent().unwrap()).unwrap();
+                if path.exists() {
+                    fs::remove_file(path).unwrap();
+                }
+                fs::write(path, b"replaced public Cargo output").unwrap();
+            }
+            let retained = &inputs.wasm.record().artifacts()[0];
+            assert_eq!(
+                inputs.provenance["wasm_sha256"],
+                super::hash_file(retained, super::WASM_LIMIT)
+                    .unwrap()
+                    .sha256
+                    .to_string()
+            );
+            for _ in 0..2 {
+                let worker = Command::new("cat").arg(retained).output().unwrap();
+                assert!(worker.status.success());
+                assert_eq!(worker.stdout, b"\0asm\x01\0\0\0");
+                for path in &mutable_paths {
+                    let _ = fs::remove_file(path);
+                }
+            }
+            publish_report(&root.join("report.json"), |file| {
+                Ok(serde_json::to_writer(file, &inputs.provenance)?)
+            })
+            .unwrap();
         }
     }
 
     #[test]
     #[cfg(unix)]
-    fn standalone_tools_preserve_proxy_names_and_workspace_context() {
+    fn standalone_tools_and_retained_wasm_preserve_context_and_bytes() {
         const ROOT_ENV: &str = "IC_TESTKIT_BENCHMARK_TOOL_TEST_ROOT";
         const MISSING_ENV: &str = "IC_TESTKIT_BENCHMARK_TOOL_EXPECT_MISSING";
         if let Some(root) = std::env::var_os(ROOT_ENV) {
@@ -622,8 +686,8 @@ mod tests {
             return;
         }
 
-        let scratch = ScratchOutput::create().unwrap();
-        let root = scratch.directory.canonicalize().unwrap();
+        let scratch = fixture_directory();
+        let root = scratch.path().canonicalize().unwrap();
         let bin = root.join("bin");
         fs::create_dir(&bin).unwrap();
         let target = root.join("target");
@@ -635,6 +699,18 @@ mod tests {
             serde_json::to_vec(&json!({"target_directory": target})).unwrap(),
         )
         .unwrap();
+        let metadata = Command::new(env!("CARGO"))
+            .current_dir(env!("CARGO_MANIFEST_DIR"))
+            .args(["metadata", "--locked", "--offline", "--format-version", "1"])
+            .output()
+            .unwrap();
+        assert!(
+            metadata.status.success(),
+            "{}",
+            String::from_utf8_lossy(&metadata.stderr)
+        );
+        fs::write(root.join("full-metadata.json"), metadata.stdout).unwrap();
+        fs::write(root.join("probe.wasm"), b"\0asm\x01\0\0\0").unwrap();
         fs::write(
             root.join("workspace.json"),
             serde_json::to_vec(&json!({"root":
@@ -662,8 +738,23 @@ case "${0##*/}" in
       "$RUSTC" --version >/dev/null
     fi
     case "$1" in
-      metadata) cat "$IC_TESTKIT_BENCHMARK_TOOL_TEST_ROOT/metadata.json" ;;
-      build) ;;
+      --version) printf 'cargo fixture %s\n' "${IC_TESTKIT_BENCHMARK_TOOL_FAIL_BUILD-}" ;;
+      metadata)
+        case " $* " in
+          *" --no-deps "*) cat "$IC_TESTKIT_BENCHMARK_TOOL_TEST_ROOT/metadata.json" ;;
+          *) cat "$IC_TESTKIT_BENCHMARK_TOOL_TEST_ROOT/full-metadata.json" ;;
+        esac ;;
+      build)
+        if [ -n "${CARGO_TARGET_DIR-}" ]; then
+          if [ -n "${IC_TESTKIT_BENCHMARK_TOOL_FAIL_BUILD-}" ]; then
+            printf 'producer output\n'
+            printf 'producer failure\n' >&2
+            exit 23
+          fi
+          output="$CARGO_TARGET_DIR/wasm32-unknown-unknown/debug/ic_testkit_perf_probe.wasm"
+          mkdir -p "${output%/*}"
+          cp "$IC_TESTKIT_BENCHMARK_TOOL_TEST_ROOT/probe.wasm" "$output"
+        fi ;;
       *) exit 96 ;;
     esac ;;
   rustc) printf 'fixture rustc\n' ;;
@@ -690,32 +781,37 @@ esac
                 .chain(std::env::split_paths(&std::env::var_os("PATH").unwrap())),
         )
         .unwrap();
-        for (cargo, rustc, missing) in [
-            (None, None, false),
+        for (cargo, rustc, missing, failed_build) in [
+            (None, None, false, false),
             (
                 Some(bin.join("cargo").into_os_string()),
                 Some(bin.join("rustc").into_os_string()),
+                false,
                 false,
             ),
             (
                 Some(OsString::from("bin/cargo")),
                 Some(OsString::from("bin/rustc")),
                 false,
+                false,
             ),
             (
                 Some(root.join("missing-cargo").into_os_string()),
                 None,
                 true,
+                false,
             ),
+            (None, None, false, true),
         ] {
             let mut child = Command::new(std::env::current_exe().unwrap());
-            child.args(["--exact", "fixture_reuse_driver::tests::standalone_tools_preserve_proxy_names_and_workspace_context", "--test-threads=1"])
+            child.args(["--exact", "fixture_reuse_driver::tests::standalone_tools_and_retained_wasm_preserve_context_and_bytes", "--test-threads=1"])
                 .current_dir(&root)
                 .env(ROOT_ENV, &root)
                 .env("PATH", &path)
                 .env_remove("CARGO")
                 .env_remove("RUSTC")
-                .env_remove(MISSING_ENV);
+                .env_remove(MISSING_ENV)
+                .env_remove("IC_TESTKIT_BENCHMARK_TOOL_FAIL_BUILD");
             if let Some(cargo) = cargo {
                 child.env("CARGO", cargo);
             }
@@ -724,6 +820,9 @@ esac
             }
             if missing {
                 child.env(MISSING_ENV, "1");
+            }
+            if failed_build {
+                child.env("IC_TESTKIT_BENCHMARK_TOOL_FAIL_BUILD", "1");
             }
             let output = child.output().unwrap();
             assert!(
@@ -740,8 +839,8 @@ esac
 
     #[test]
     fn report_write_failure_preserves_existing_report_and_cleans_scratch() {
-        let scratch = ScratchOutput::create().unwrap();
-        let report = scratch.directory.join("report.json");
+        let scratch = fixture_directory();
+        let report = scratch.path().join("report.json");
         fs::write(&report, b"previous complete report").unwrap();
         let result = publish_report(&report, |file| {
             file.write_all(b"partial replacement")?;
@@ -752,13 +851,13 @@ esac
             matches!(result, Err(Error::Io(error)) if error.kind() == io::ErrorKind::StorageFull)
         );
         assert_eq!(fs::read(&report).unwrap(), b"previous complete report");
-        assert_eq!(fs::read_dir(&scratch.directory).unwrap().count(), 2);
+        assert_eq!(fs::read_dir(scratch.path()).unwrap().count(), 1);
     }
 
     #[test]
     fn report_rename_failure_preserves_destination_and_cleans_scratch() {
-        let scratch = ScratchOutput::create().unwrap();
-        let report = scratch.directory.join("report.json");
+        let scratch = fixture_directory();
+        let report = scratch.path().join("report.json");
         fs::create_dir(&report).unwrap();
         let retained = report.join("retained report.json");
         fs::write(&retained, b"caller-owned evidence").unwrap();
@@ -767,22 +866,33 @@ esac
             Err(Error::Io(_))
         ));
         assert_eq!(fs::read(retained).unwrap(), b"caller-owned evidence");
-        assert_eq!(fs::read_dir(&scratch.directory).unwrap().count(), 2);
+        assert_eq!(fs::read_dir(scratch.path()).unwrap().count(), 1);
         assert!(matches!(
-            publish_report(&scratch.directory.join("missing/report.json"), |_| {
+            publish_report(&scratch.path().join("missing/report.json"), |_| {
                 panic!("a missing parent must fail before writing")
             }),
             Err(Error::Io(error)) if error.kind() == io::ErrorKind::NotFound
         ));
+        let ordinary = scratch.path().join("ordinary.json");
+        fs::write(&ordinary, b"previous").unwrap();
+        for suffix in ["ordinary.json/", "ordinary.json/."] {
+            assert!(matches!(
+                publish_report(&scratch.path().join(suffix), |_| {
+                    panic!("a directory-required target must not be normalized")
+                }),
+                Err(Error::Io(error)) if error.kind() == io::ErrorKind::NotADirectory
+            ));
+            assert_eq!(fs::read(&ordinary).unwrap(), b"previous");
+        }
     }
 
     #[test]
     fn report_replacement_keeps_old_readers_and_publishes_complete_json() {
-        let scratch = ScratchOutput::create().unwrap();
-        let report = scratch.directory.join("report with spaces.json");
+        let scratch = fixture_directory();
+        let report = scratch.path().join("report with spaces.json");
         fs::write(&report, b"previous complete report").unwrap();
         let mut old_reader = fs::File::open(&report).unwrap();
-        let retained = scratch.directory.join("retained.json");
+        let retained = scratch.path().join("retained.json");
         fs::hard_link(&report, &retained).unwrap();
         let document = json!({"format": "ic-testkit-fixture-benchmark-v1", "complete": true});
         publish_report(&report, |file| {
@@ -800,7 +910,7 @@ esac
             document
         );
         assert!(published.ends_with(b"\n"));
-        assert_eq!(fs::read_dir(&scratch.directory).unwrap().count(), 3);
+        assert_eq!(fs::read_dir(scratch.path()).unwrap().count(), 2);
         #[cfg(unix)]
         assert_eq!(
             fs::metadata(&report).unwrap().permissions().mode() & 0o777,
@@ -811,9 +921,9 @@ esac
     #[test]
     #[cfg(unix)]
     fn report_replacement_preserves_symlink_target() {
-        let scratch = ScratchOutput::create().unwrap();
-        let target = scratch.directory.join("original.json");
-        let report = scratch.directory.join("linked.json");
+        let scratch = fixture_directory();
+        let target = scratch.path().join("original.json");
+        let report = scratch.path().join("linked.json");
         fs::write(&target, b"caller-owned target").unwrap();
         symlink(&target, &report).unwrap();
         publish_report(&report, |file| Ok(file.write_all(b"complete replacement")?)).unwrap();
@@ -830,8 +940,8 @@ esac
     #[test]
     #[cfg(any(target_os = "linux", target_os = "macos"))]
     fn native_measurement_keeps_large_reports_and_rejects_failed_workers() {
-        let scratch = ScratchOutput::create().unwrap();
-        let input = scratch.directory.join("input.json");
+        let scratch = fixture_directory();
+        let input = scratch.path().join("input.json");
         let padding = "a".repeat(128 * 1024);
         fs::write(
             &input,
@@ -855,8 +965,8 @@ esac
     #[test]
     #[cfg(any(target_os = "linux", target_os = "macos"))]
     fn worker_report_limits_and_json_errors_preserve_caller_files() {
-        let scratch = ScratchOutput::create().unwrap();
-        let input = scratch.directory.join("oversized.json");
+        let scratch = fixture_directory();
+        let input = scratch.path().join("oversized.json");
         fs::File::create(&input)
             .unwrap()
             .set_len(REPORT_LIMIT + 1)
@@ -903,8 +1013,8 @@ esac
             return;
         }
         let _handler = InterruptHandler::install().unwrap();
-        let scratch = ScratchOutput::create().unwrap();
-        let finished = scratch.directory.join("finished");
+        let scratch = fixture_directory();
+        let finished = scratch.path().join("finished");
         let result = measure(
             Command::new("/bin/sh")
                 .args([
@@ -919,9 +1029,9 @@ esac
         assert_eq!(fs::read(finished).unwrap(), b"done");
 
         let _publication_handler = InterruptHandler::install().unwrap();
-        let report = scratch.directory.join("report.json");
+        let report = scratch.path().join("report.json");
         fs::write(&report, b"previous complete report").unwrap();
-        let before = fs::read_dir(&scratch.directory).unwrap().count();
+        let before = fs::read_dir(scratch.path()).unwrap().count();
         let result = publish_report(&report, |file| {
             file.write_all(b"partial replacement")?;
             // SAFETY: the scoped handler is installed on this isolated test
@@ -931,6 +1041,6 @@ esac
         });
         assert!(matches!(result, Err(Error::Interrupted)));
         assert_eq!(fs::read(report).unwrap(), b"previous complete report");
-        assert_eq!(fs::read_dir(&scratch.directory).unwrap().count(), before);
+        assert_eq!(fs::read_dir(scratch.path()).unwrap().count(), before);
     }
 }

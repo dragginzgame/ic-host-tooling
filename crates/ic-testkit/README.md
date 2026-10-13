@@ -28,7 +28,7 @@ provides:
 - explicit authenticated `ic-testkit-server setup`, offline `check`, and a shared
   environment startup contract with `ic-testkit-server run -- COMMAND`
   for suites spanning several test processes
-- cached single- and multi-canister PocketIC baseline pools
+- one recipe baseline pool for single- and multi-canister PocketIC reuse
 - deterministic fake principals
 - controller-aware, caller-labeled collect-all diagnostics
 - compact benchmark marker parsing, aggregation, comparison, and report writing
@@ -99,7 +99,7 @@ The [0.19 guide](CHANGELOG.md#0190) covers
 explicit tool resolution and verified external-transform arguments.
 
 The published archive includes [`CHANGELOG.md`](CHANGELOG.md), which contains
-the [0.14.0 standalone pool migration](CHANGELOG.md#0140),
+the [0.38.0 single-pool migration](CHANGELOG.md#0380),
 the [0.13.0 benchmark and reset-requirement migration](CHANGELOG.md#0130),
 the `0.11.0` API and report-schema cuts, the `0.10` retained-artifact migration,
 the `0.9` managed-server lifetime migration, and earlier hard-cut tables.

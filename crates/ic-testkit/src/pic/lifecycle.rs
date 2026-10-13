@@ -159,7 +159,51 @@ impl CanisterInstallExt for PocketIc {
 
     /// Install one arbitrary wasm module from a generic install specification.
     fn try_create_and_install(&self, spec: InstallSpec) -> Result<Principal, CanisterInstallError> {
-        try_create_funded_and_install(self, spec)
+        let canister_id =
+            try_install_step(CanisterInstallPhase::CreateCanister, None, &spec, || {
+                self.create_canister()
+            })?;
+        let diagnostic_sender = spec.install_sender.unwrap_or_else(Principal::anonymous);
+        if spec.cycles > 0 {
+            try_install_step(
+                CanisterInstallPhase::AddCycles,
+                Some(canister_id),
+                &spec,
+                || self.add_cycles(canister_id, spec.cycles),
+            )?;
+        }
+
+        // Move the Wasm and init payload while retaining the label for failures.
+        let install = catch_unwind(AssertUnwindSafe(|| {
+            self.install_canister(canister_id, spec.wasm, spec.init_bytes, spec.install_sender);
+        }));
+        if let Err(payload) = install {
+            let source = PocketIcOperationError::from_panic(payload.as_ref());
+            let context = if let Some(label) = &spec.label {
+                format!("install_canister trapped ({label})")
+            } else {
+                "install_canister trapped".to_string()
+            };
+            // Diagnostics are best-effort and must never replace the original
+            // structured install failure, including if stderr or PocketIC fails.
+            let _ = catch_unwind(AssertUnwindSafe(|| {
+                let report = self.collect_canister_diagnostics(CanisterDiagnosticsRequest::new(
+                    canister_id,
+                    diagnostic_sender,
+                    diagnostic_sender,
+                ));
+                eprintln!("{context}: {report}");
+            }));
+
+            return Err(CanisterInstallError::new(
+                CanisterInstallPhase::InstallCode,
+                Some(canister_id),
+                spec.label,
+                source,
+            ));
+        }
+
+        Ok(canister_id)
     }
 
     /// Sequentially install multiple arbitrary wasm modules into this PocketIC instance.
@@ -210,57 +254,6 @@ impl CanisterInstallExt for PocketIc {
             self.wait_out_install_code_rate_limit(policy.cooldown());
         })
     }
-}
-
-// Install a canister after creating it and optionally adding extra cycles.
-fn try_create_funded_and_install(
-    pocket_ic: &PocketIc,
-    spec: InstallSpec,
-) -> Result<Principal, CanisterInstallError> {
-    let canister_id = try_install_step(CanisterInstallPhase::CreateCanister, None, &spec, || {
-        pocket_ic.create_canister()
-    })?;
-    let diagnostic_sender = spec.install_sender.unwrap_or_else(Principal::anonymous);
-    if spec.cycles > 0 {
-        try_install_step(
-            CanisterInstallPhase::AddCycles,
-            Some(canister_id),
-            &spec,
-            || pocket_ic.add_cycles(canister_id, spec.cycles),
-        )?;
-    }
-
-    // Move the Wasm and init payload while retaining the label for failures.
-    let install = catch_unwind(AssertUnwindSafe(|| {
-        pocket_ic.install_canister(canister_id, spec.wasm, spec.init_bytes, spec.install_sender);
-    }));
-    if let Err(payload) = install {
-        let source = PocketIcOperationError::from_panic(payload.as_ref());
-        let context = if let Some(label) = &spec.label {
-            format!("install_canister trapped ({label})")
-        } else {
-            "install_canister trapped".to_string()
-        };
-        // Diagnostics are best-effort and must never replace the original
-        // structured install failure, including if stderr or PocketIC fails.
-        let _ = catch_unwind(AssertUnwindSafe(|| {
-            let report = pocket_ic.collect_canister_diagnostics(CanisterDiagnosticsRequest::new(
-                canister_id,
-                diagnostic_sender,
-                diagnostic_sender,
-            ));
-            eprintln!("{context}: {report}");
-        }));
-
-        return Err(CanisterInstallError::new(
-            CanisterInstallPhase::InstallCode,
-            Some(canister_id),
-            spec.label,
-            source,
-        ));
-    }
-
-    Ok(canister_id)
 }
 
 fn try_install_step<T>(

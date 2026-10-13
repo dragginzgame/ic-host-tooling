@@ -30,14 +30,23 @@ pub trait CandidCallExt {
     ) -> Result<T, CandidCallError>
     where
         T: CandidType + DeserializeOwned,
-        A: ArgumentEncoder;
+        A: ArgumentEncoder,
+    {
+        self.update_candid_as(canister_id, Principal::anonymous(), method, args)
+    }
 
     /// Execute [`update_candid`](Self::update_candid), panicking on harness errors.
+    ///
+    /// Application-level `Result<T, E>` values are returned without unwrapping.
     #[track_caller]
     fn update_candid_or_panic<T, A>(&self, canister_id: Principal, method: &str, args: A) -> T
     where
         T: CandidType + DeserializeOwned,
-        A: ArgumentEncoder;
+        A: ArgumentEncoder,
+    {
+        self.update_candid(canister_id, method, args)
+            .unwrap_or_else(|err| panic!("{err}"))
+    }
 
     /// Encode and execute an update call as an explicit caller.
     fn update_candid_as<T, A>(
@@ -52,6 +61,8 @@ pub trait CandidCallExt {
         A: ArgumentEncoder;
 
     /// Execute [`update_candid_as`](Self::update_candid_as), panicking on harness errors.
+    ///
+    /// Application-level `Result<T, E>` values are returned without unwrapping.
     #[track_caller]
     fn update_candid_as_or_panic<T, A>(
         &self,
@@ -62,7 +73,11 @@ pub trait CandidCallExt {
     ) -> T
     where
         T: CandidType + DeserializeOwned,
-        A: ArgumentEncoder;
+        A: ArgumentEncoder,
+    {
+        self.update_candid_as(canister_id, caller, method, args)
+            .unwrap_or_else(|err| panic!("{err}"))
+    }
 
     /// Encode and execute an anonymous query call, then decode its result.
     fn query_candid<T, A>(
@@ -73,14 +88,23 @@ pub trait CandidCallExt {
     ) -> Result<T, CandidCallError>
     where
         T: CandidType + DeserializeOwned,
-        A: ArgumentEncoder;
+        A: ArgumentEncoder,
+    {
+        self.query_candid_as(canister_id, Principal::anonymous(), method, args)
+    }
 
     /// Execute [`query_candid`](Self::query_candid), panicking on harness errors.
+    ///
+    /// Application-level `Result<T, E>` values are returned without unwrapping.
     #[track_caller]
     fn query_candid_or_panic<T, A>(&self, canister_id: Principal, method: &str, args: A) -> T
     where
         T: CandidType + DeserializeOwned,
-        A: ArgumentEncoder;
+        A: ArgumentEncoder,
+    {
+        self.query_candid(canister_id, method, args)
+            .unwrap_or_else(|err| panic!("{err}"))
+    }
 
     /// Encode and execute a query call as an explicit caller.
     fn query_candid_as<T, A>(
@@ -95,6 +119,8 @@ pub trait CandidCallExt {
         A: ArgumentEncoder;
 
     /// Execute [`query_candid_as`](Self::query_candid_as), panicking on harness errors.
+    ///
+    /// Application-level `Result<T, E>` values are returned without unwrapping.
     #[track_caller]
     fn query_candid_as_or_panic<T, A>(
         &self,
@@ -105,38 +131,14 @@ pub trait CandidCallExt {
     ) -> T
     where
         T: CandidType + DeserializeOwned,
-        A: ArgumentEncoder;
+        A: ArgumentEncoder,
+    {
+        self.query_candid_as(canister_id, caller, method, args)
+            .unwrap_or_else(|err| panic!("{err}"))
+    }
 }
 
 impl CandidCallExt for PocketIc {
-    /// Generic update call helper (serializes args + decodes result).
-    fn update_candid<T, A>(
-        &self,
-        canister_id: Principal,
-        method: &str,
-        args: A,
-    ) -> Result<T, CandidCallError>
-    where
-        T: CandidType + DeserializeOwned,
-        A: ArgumentEncoder,
-    {
-        self.update_candid_as(canister_id, Principal::anonymous(), method, args)
-    }
-
-    /// Generic update call helper that panics on rejection or Candid codec failure.
-    ///
-    /// This does not unwrap application-level results. For example,
-    /// `update_candid_or_panic::<Result<T, E>, _>(...)` returns `Result<T, E>`.
-    #[track_caller]
-    fn update_candid_or_panic<T, A>(&self, canister_id: Principal, method: &str, args: A) -> T
-    where
-        T: CandidType + DeserializeOwned,
-        A: ArgumentEncoder,
-    {
-        self.update_candid(canister_id, method, args)
-            .unwrap_or_else(|err| panic!("{err}"))
-    }
-
     /// Generic update call helper with an explicit caller principal.
     fn update_candid_as<T, A>(
         &self,
@@ -163,55 +165,6 @@ impl CandidCallExt for PocketIc {
         decode_call_result(&result, context)
     }
 
-    /// Generic update call helper with an explicit caller principal that panics
-    /// on rejection or Candid codec failure.
-    ///
-    /// This does not unwrap application-level results. For example,
-    /// `update_candid_as_or_panic::<Result<T, E>, _>(...)` returns `Result<T, E>`.
-    #[track_caller]
-    fn update_candid_as_or_panic<T, A>(
-        &self,
-        canister_id: Principal,
-        caller: Principal,
-        method: &str,
-        args: A,
-    ) -> T
-    where
-        T: CandidType + DeserializeOwned,
-        A: ArgumentEncoder,
-    {
-        self.update_candid_as(canister_id, caller, method, args)
-            .unwrap_or_else(|err| panic!("{err}"))
-    }
-
-    /// Generic query call helper.
-    fn query_candid<T, A>(
-        &self,
-        canister_id: Principal,
-        method: &str,
-        args: A,
-    ) -> Result<T, CandidCallError>
-    where
-        T: CandidType + DeserializeOwned,
-        A: ArgumentEncoder,
-    {
-        self.query_candid_as(canister_id, Principal::anonymous(), method, args)
-    }
-
-    /// Generic query call helper that panics on rejection or Candid codec failure.
-    ///
-    /// This does not unwrap application-level results. For example,
-    /// `query_candid_or_panic::<Result<T, E>, _>(...)` returns `Result<T, E>`.
-    #[track_caller]
-    fn query_candid_or_panic<T, A>(&self, canister_id: Principal, method: &str, args: A) -> T
-    where
-        T: CandidType + DeserializeOwned,
-        A: ArgumentEncoder,
-    {
-        self.query_candid(canister_id, method, args)
-            .unwrap_or_else(|err| panic!("{err}"))
-    }
-
     /// Generic query call helper with an explicit caller principal.
     fn query_candid_as<T, A>(
         &self,
@@ -236,27 +189,6 @@ impl CandidCallExt for PocketIc {
         })?;
 
         decode_call_result(&result, context)
-    }
-
-    /// Generic query call helper with an explicit caller principal that panics
-    /// on rejection or Candid codec failure.
-    ///
-    /// This does not unwrap application-level results. For example,
-    /// `query_candid_as_or_panic::<Result<T, E>, _>(...)` returns `Result<T, E>`.
-    #[track_caller]
-    fn query_candid_as_or_panic<T, A>(
-        &self,
-        canister_id: Principal,
-        caller: Principal,
-        method: &str,
-        args: A,
-    ) -> T
-    where
-        T: CandidType + DeserializeOwned,
-        A: ArgumentEncoder,
-    {
-        self.query_candid_as(canister_id, caller, method, args)
-            .unwrap_or_else(|err| panic!("{err}"))
     }
 }
 

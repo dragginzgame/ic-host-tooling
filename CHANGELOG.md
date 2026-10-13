@@ -6,6 +6,50 @@ documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.38.0]
+
+### Breaking
+
+- Use the recipe baseline pool for single-canister reuse. Replace standalone
+  pool construction, guards and outcome/error matches with `StandaloneCanisterRecipe`
+  and `CachedPocketIcBaselinePool`. Failed non-transport restores now discard the
+  slot before returning; pooled calls use the retained canister ID explicitly
+  ([#76](https://github.com/dragginzgame/ic-testkit/issues/76)).
+
+### Fixed
+
+- Retain one exact probe Wasm across fixture benchmark workers and provenance,
+  using IC Build's existing artifact ownership
+  ([#72](https://github.com/dragginzgame/ic-testkit/issues/72)).
+
+### Changed
+
+- Share Candid convenience methods through trait defaults and replace benchmark
+  worker scratch allocation with private temporary files, preserving command,
+  report and interruption contracts
+  ([#76](https://github.com/dragginzgame/ic-testkit/issues/76)).
+
+- Use IC Build 0.2.3 for native development, sharing Host 0.17.4, and remove helper layers
+  from diagnostics admission and pool timing accumulation
+  ([IC Build #7](https://github.com/dragginzgame/ic-build/issues/7),
+  [IC Build #9](https://github.com/dragginzgame/ic-build/issues/9)).
+- Simplify canister installation and share partial snapshot rollback before
+  projecting rejection or panic errors, preserving failure diagnostics
+  ([#74](https://github.com/dragginzgame/ic-testkit/issues/74)).
+- Delegate executable admission, process RSS observations and report publication
+  to Host, preserving exact PocketIC selection and benchmark/report contracts
+  ([#75](https://github.com/dragginzgame/ic-testkit/issues/75),
+  [Host #79](https://github.com/dragginzgame/ic-host-tooling/issues/79)).
+- Adopt Shared Tooling 0.10's snapshot-owned common tool catalogs, retaining
+  existing selections and independent explicit exceptions
+  ([#73](https://github.com/dragginzgame/ic-testkit/issues/73),
+  [Shared #153](https://github.com/dragginzgame/shared-tooling/issues/153)).
+- Preserve LOC path and release-lock failure evidence with the reviewed tooling
+  ([Shared #151](https://github.com/dragginzgame/shared-tooling/issues/151),
+  [Shared #152](https://github.com/dragginzgame/shared-tooling/issues/152)).
+
+[Integration details](crates/ic-testkit/CHANGELOG.md#0380)
+
 ## [0.37.0] - 2026-10-13
 
 ### Breaking

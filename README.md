@@ -156,15 +156,13 @@ examples for complete developer-facing recipes.
 Not every test should use a cache. Choose the narrowest fixture that preserves
 the behavior under test:
 
-<p align="center">
-  <img src="https://raw.githubusercontent.com/dragginzgame/shared-assets/main/ic-testkit/ic-testkit-isolation-decision-tree.svg" alt="Decision tree for choosing a fresh PocketIC, standalone fixture, standalone fixture pool, or multi-canister baseline pool." width="900">
-</p>
+
 
 | Fixture | Best fit |
 | --- | --- |
 | Fresh caller-owned `PocketIc` | Installation, upgrade, topology, teardown, time, cycle-accounting, and snapshot behavior |
 | `StandaloneCanisterFixture` | A single installed canister with concise typed calls, but no cross-test reuse |
-| `CachedStandaloneCanisterFixturePool<N>` | Repeated single-canister scenarios whose relevant state is captured by one baseline snapshot |
+| `CachedPocketIcBaselinePool<StandaloneCanisterRecipe<_>>` | Repeated single-canister scenarios whose relevant state is captured by one baseline snapshot |
 | `CachedPocketIcBaselinePool<R>` | Expensive multi-canister topologies with an explicit recipe for snapshots, non-snapshot state, readiness, and invariants |
 
 Pools bound resource use; they do not turn incomplete reset coverage into safe
@@ -181,7 +179,7 @@ restored or validated.
 | Installation | `CanisterInstallExt`, `InstallSpec` | Generic install policy, diagnostics, structured rate-limit retry |
 | Standalone fixtures | `StandaloneCanisterFixture` | Owns one caller-built instance and one installed canister id |
 | Snapshots | `PocketIcSnapshotExt`, `CachedPocketIcBaseline` | Ordered transactional capture, explicit restore funding, scoped caching |
-| Fixture pools | `CachedStandaloneCanisterFixturePool`, `CachedPocketIcBaselinePool` | Bounded standalone or recipe-driven multi-canister baseline reuse |
+| Fixture pools | `CachedPocketIcBaselinePool`, `StandaloneCanisterRecipe` | One bounded lifecycle for single- and multi-canister recipes |
 | Diagnostics | `PocketIcDiagnosticsExt` | Controller-aware structured status and bounded log reporting |
 | Time | `PocketIcTimeExt` | Nanoseconds-since-epoch conversion only |
 | Readiness progression | `tick_until` | Bounded advance/tick rounds with a caller-owned predicate |
@@ -631,45 +629,49 @@ choose a larger capacity for independent parallel leases. The recipe declares
 its reset requirements and recovery policy, and acquisition returns a typed
 outcome rather than a cache-hit boolean. See the [complete recipe example](crates/ic-testkit/examples/multi_canister_baseline_pool.rs).
 
-Heavy suites that need bounded parallelism can own a fixed-capacity pool of
-independent standalone fixtures. Every populated slot has its own PocketIC
-instance and baseline snapshot; a lease restores only that slot and dereferences
-to the ordinary `StandaloneCanisterFixture` API:
+Single-canister suites use the same pool with `StandaloneCanisterRecipe`. Each
+slot owns an independent instance and captured snapshot. The recipe requires an
+explicit identity and restore-funding policy, and the lease's metadata carries
+its installed canister ID:
 
 ```rust,no_run
+use std::{num::NonZeroUsize, sync::LazyLock};
 use ic_testkit::pic::{
-    CachedStandaloneCanisterFixturePool, StandaloneCanisterFixture,
-    StandaloneFixturePoolOutcome,
+    CachedPocketIcBaselinePool, CandidCallExt, FixtureRecipeId, SnapshotRestoreFunding,
+    StandaloneCanisterFixture, StandaloneCanisterRecipe,
 };
 
-static POOL: CachedStandaloneCanisterFixturePool<8> =
-    CachedStandaloneCanisterFixturePool::new(build_fixture);
+static POOL: LazyLock<
+    CachedPocketIcBaselinePool<StandaloneCanisterRecipe<fn() -> StandaloneCanisterFixture>>,
+> = LazyLock::new(|| {
+    CachedPocketIcBaselinePool::new(
+        NonZeroUsize::new(8).unwrap(),
+        StandaloneCanisterRecipe::new(
+            FixtureRecipeId::try_new("suite/counter").unwrap(),
+            SnapshotRestoreFunding::Preserve,
+            build_fixture as fn() -> _,
+        ),
+    )
+});
 
 # fn build_fixture() -> StandaloneCanisterFixture { unimplemented!() }
-fn read_pooled_counter() -> Result<u64, Box<dyn std::error::Error>>
-{
-    let (fixture, outcome) = POOL.acquire()?;
-    let value: u64 = fixture.query_candid("get", ())?;
-    assert!(matches!(
-        outcome,
-        StandaloneFixturePoolOutcome::Built { .. }
-            | StandaloneFixturePoolOutcome::Restored { .. }
-            | StandaloneFixturePoolOutcome::Rebuilt { .. }
-    ));
-    Ok(value)
+fn read_pooled_counter() -> Result<u64, Box<dyn std::error::Error>> {
+    let (baseline, _outcome) = POOL.acquire()?;
+    Ok(baseline.pocket_ic().query_candid(*baseline.metadata(), "get", ())?)
 }
 ```
 
-`acquire` reports queue wait, fixture build and snapshot capture, restore,
-stale teardown, and total time. Snapshot failures retain their partial timings,
-while dead-transport recovery preserves both the restore and rebuild failure
-when replacement capture also fails.
+`acquire` returns `BaselinePoolOutcome` and records queue wait, build/capture,
+restore, reset/readiness/validation, stale teardown and total time. Failures
+retain completed timings and typed recipe causes; dead-transport recovery retains
+both restore and replacement failure. A non-transport restore failure drops the
+slot immediately; its next acquisition is a fresh build.
 
-One pool owns one fixture builder. It must produce the same Wasm, init arguments,
-topology, and seeded state whenever it runs; use a separate pool for a different
-recipe. Setup performed by the builder is included in the captured baseline.
-For builders that capture configuration, use
-`CachedStandaloneCanisterFixturePool::<8, _>::new(move || build_fixture(&config))`.
+One pool owns one recipe. The builder must produce the same Wasm, init arguments,
+topology and seeded state whenever invoked. Builders may own configuration in a
+`Send + Sync + 'static` closure. Use a fresh instance or a custom recipe for state
+outside the captured canister. See the [0.38 migration](crates/ic-testkit/CHANGELOG.md#0380)
+for the removed standalone-pool interface.
 
 The lease's `Drop` implementation releases a capacity slot, so Clippy can
 suggest tightening its scope. Drop the lease explicitly when the test no longer
@@ -1032,8 +1034,10 @@ make install-hooks
 make tools-check dependency-pins-check
 ```
 
-The selected versions are recorded in `ci/tool-versions.env` and `ci/ic-tools.tsv`
-and used by CI too. `make install-tools` prepares pinned jq/yq, ripgrep with
+The reviewed Shared Tooling snapshot owns the default versions and digests in
+`ci/tool-versions.env` and `ci/ic-tools.tsv`, also used by CI. Host, Rust and IC
+exceptions are independent; see [catalog selection](docs/local-setup.md#catalog-selection).
+`make install-tools` prepares pinned jq/yq, ripgrep with
 PCRE2, cloc, common IC executables and the Cargo toolset in order under
 `.tools/host/bin`, `.tools/ic/bin` and `.tools/rust/common/bin`, then builds the owning
 CLI and prepares PocketIC. The Cargo set includes `cargo-sort`,

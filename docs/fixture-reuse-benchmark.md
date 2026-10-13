@@ -7,8 +7,8 @@
 This opt-in Rust benchmark measures PocketIC 16 fixture construction and warm
 baseline reuse on native Linux and macOS hosts. The live workload does not run
 in ordinary tests or CI, download a server, or change dependency versions.
-Focused driver and native sampler checks run in CI on Linux, Apple Silicon and
-Intel macOS. Native qualification evidence is recorded in the [host matrix](hosts.md).
+Focused driver checks exercise Host's native sampler in CI on Linux, Apple Silicon
+and Intel macOS. Native qualification evidence is recorded in the [host matrix](hosts.md).
 
 ```sh
 cargo fetch --locked
@@ -22,7 +22,12 @@ The driver builds the workload example in release mode and the existing `perf_pr
 canister in dev mode, using locked dependencies and prepared offline caches.
 The first command explicitly prepares those caches. For an already prepared
 offline host, use `cargo fetch --locked --offline`. The Rust Wasm target must
-already be installed. Use `--profile dev` for a quick development smoke check;
+already be installed. IC Build retains one exact probe Wasm throughout all workers
+and report publication; its hash describes those same bytes even when public
+Cargo outputs are replaced. The exact cache is under the selected Cargo target's
+`ic-testkit-fixture-benchmark-wasm`, and incremental compiler state uses
+`ic-testkit-incremental`. Both remain available after the run; cleanup is explicit.
+Use `--profile dev` for a quick development smoke check;
 compare performance only within the same host and canister profiles. The result
 records the binary version/path, Git revision and dirty state, Rust compiler,
 Wasm SHA-256, workload, raw samples, and mean/p50/p95 summaries. Run from a quiet
@@ -62,17 +67,21 @@ within the run. Repeat order rotates over all selected cases.
 On Ctrl-C, the driver waits for the current worker to finish so its owned server
 can be torn down normally; it does not start another mode or write a partial
 report. Sampling errors also wait for worker cleanup before returning failure.
+Worker stdout is captured in an explicitly private temporary file held through
+worker completion and bounded reading, without a named scratch directory.
 Each worker report is bounded to 16 MiB and checked against the requested
 mode, capacity, task count, worker count, state size and phase measurements.
 
-`--output` publishes the completed JSON by encoding into private scratch beside
-the requested path, syncing the file, and atomically renaming it into place.
+`--output` streams completed JSON through Host's private sibling staging,
+syncs the file, checks interruption, and atomically replaces the selected entry.
 The parent directory must already exist. Write, encoding, sync or rename failure,
 and interruption observed before the rename, preserve any previous report.
-Normal completion and failure remove only the driver's scratch. Published Unix
+Normal completion and failure clean up only the owned report stage. Published Unix
 reports have mode `0600`; replacing a symlink changes the link itself and leaves
 its target untouched. Existing readers and hard links retain the old contents.
-This provides atomic visibility, not a power-loss durability guarantee.
+This provides atomic visibility, not a power-loss durability guarantee. If final
+directory synchronization fails after publication, the command warns and retains
+the complete visible report rather than reporting a failed replacement.
 
 This workload changes only snapshot-contained state. Cycle policy is
 `PreserveCurrent`; time and cycle balances are not asserted to rewind. Reset and

@@ -309,27 +309,26 @@ where
     }
     let mut snapshots = BTreeMap::new();
     for (canister_id, senders) in ordered_targets {
-        match try_take_snapshot(pocket_ic, canister_id, senders) {
+        let failure = match try_take_snapshot(pocket_ic, canister_id, senders) {
             Ok(snapshot) => {
                 snapshots.insert(canister_id, snapshot);
+                continue;
             }
-            Err(SnapshotCaptureFailure::Rejected(attempts)) => {
-                let cleanup_failures = cleanup_captured_snapshots(pocket_ic, snapshots);
-                return Err(ControllerSnapshotError::CaptureFailed {
-                    canister_id,
-                    attempts,
-                    cleanup_failures,
-                });
-            }
-            Err(SnapshotCaptureFailure::Panicked(source)) => {
-                let cleanup_failures = cleanup_captured_snapshots(pocket_ic, snapshots);
-                return Err(ControllerSnapshotError::CapturePanicked {
-                    canister_id,
-                    source,
-                    cleanup_failures,
-                });
-            }
-        }
+            Err(failure) => failure,
+        };
+        let cleanup_failures = cleanup_captured_snapshots(pocket_ic, snapshots);
+        return Err(match failure {
+            SnapshotCaptureFailure::Rejected(attempts) => ControllerSnapshotError::CaptureFailed {
+                canister_id,
+                attempts,
+                cleanup_failures,
+            },
+            SnapshotCaptureFailure::Panicked(source) => ControllerSnapshotError::CapturePanicked {
+                canister_id,
+                source,
+                cleanup_failures,
+            },
+        });
     }
     Ok(ControllerSnapshots(snapshots))
 }
@@ -472,15 +471,13 @@ fn try_take_snapshot(
                     PocketIcOperationError::from_panic(payload.as_ref()),
                 ));
             }
-            Ok(snapshot) => match snapshot {
-                Ok(snapshot) => {
-                    return Ok(ControllerSnapshot {
-                        snapshot_id: snapshot.id,
-                        sender,
-                    });
-                }
-                Err(response) => attempts.push(SnapshotAttemptFailure { sender, response }),
-            },
+            Ok(Ok(snapshot)) => {
+                return Ok(ControllerSnapshot {
+                    snapshot_id: snapshot.id,
+                    sender,
+                });
+            }
+            Ok(Err(response)) => attempts.push(SnapshotAttemptFailure { sender, response }),
         }
     }
 

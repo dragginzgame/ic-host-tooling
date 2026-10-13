@@ -1,6 +1,5 @@
-use crate::batch::{BatchLabelError, validate_labels};
-
 use std::{
+    collections::HashMap,
     fmt,
     panic::{AssertUnwindSafe, catch_unwind},
     time::{Duration, Instant},
@@ -574,22 +573,21 @@ pub trait PocketIcDiagnosticsExt {
 fn validate_diagnostics_batch_labels(
     requests: &[LabeledCanisterDiagnosticsRequest],
 ) -> Result<(), CanisterDiagnosticsBatchContractError> {
-    validate_labels(requests.iter().map(|labeled| labeled.label.as_str())).map_err(|error| {
-        match error {
-            BatchLabelError::Empty { index } => {
-                CanisterDiagnosticsBatchContractError::EmptyLabel { index }
-            }
-            BatchLabelError::Duplicate {
-                label,
-                first_index,
-                duplicate_index,
-            } => CanisterDiagnosticsBatchContractError::DuplicateLabel {
-                label,
-                first_index,
-                duplicate_index,
-            },
+    let mut seen = HashMap::new();
+    for (index, request) in requests.iter().enumerate() {
+        let label = request.label.as_str();
+        if label.is_empty() {
+            return Err(CanisterDiagnosticsBatchContractError::EmptyLabel { index });
         }
-    })
+        if let Some(first_index) = seen.insert(label, index) {
+            return Err(CanisterDiagnosticsBatchContractError::DuplicateLabel {
+                label: label.to_owned(),
+                first_index,
+                duplicate_index: index,
+            });
+        }
+    }
+    Ok(())
 }
 
 impl fmt::Display for CanisterDiagnosticsBatchContractError {

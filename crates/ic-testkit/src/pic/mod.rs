@@ -31,7 +31,7 @@ mod errors;
 mod lifecycle;
 mod snapshot;
 mod standalone;
-mod standalone_pool;
+mod standalone_recipe;
 mod startup;
 mod time;
 mod transport;
@@ -64,11 +64,7 @@ pub use snapshot::{
     SnapshotAttemptFailure, SnapshotCleanupFailure, SnapshotRestoreFunding,
 };
 pub use standalone::StandaloneCanisterFixture;
-pub use standalone_pool::{
-    CachedStandaloneCanisterFixtureGuard, CachedStandaloneCanisterFixturePool,
-    StandaloneFixturePoolError, StandaloneFixturePoolOutcome, StandaloneFixturePoolRebuildReason,
-    StandaloneFixturePoolStage, StandaloneFixturePoolTimings,
-};
+pub use standalone_recipe::StandaloneCanisterRecipe;
 pub use startup::{
     PocketIcBuilderExt, PocketIcInstance, PocketIcManagedServer, PocketIcManagedServerOutput,
     PocketIcStartupConfig, PocketIcStartupError, PocketIcStartupFailure,

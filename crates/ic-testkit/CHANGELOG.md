@@ -8,6 +8,121 @@ This file ships in the crate archive so upgrades can be completed without the
 repository checkout. The complete historical changelog remains at
 <https://github.com/dragginzgame/ic-testkit/blob/main/CHANGELOG.md>.
 
+## [0.38.0]
+
+### Breaking: one fixture-pool lifecycle
+
+Single-canister reuse uses `StandaloneCanisterRecipe` with
+`CachedPocketIcBaselinePool`; the standalone pool, guard, outcome, error, stage,
+rebuild-reason and timing family is removed. Construct the recipe with an explicit
+`FixtureRecipeId`, `SnapshotRestoreFunding` and caller-owned builder. For static
+suites use `LazyLock`; construction remains lazy and the pool's constructor is
+still const. Builders must own their captures and satisfy `Send + Sync + 'static`.
+The baseline metadata is its installed canister ID. Use
+`baseline.pocket_ic().query_candid(*baseline.metadata(), method, args)` rather
+than calling the standalone fixture's forwarding methods through a pooled guard.
+
+Match `BaselinePoolOutcome` and stage-specific `BaselinePoolError` values.
+Snapshot and receipt failures retain their typed causes in the recipe's
+`std::io::Error`; its `get_ref()` exposes the original cause. Non-transport
+restore failure is fatal and drops the affected baseline before returning,
+recording teardown in that failed acquisition. The next acquisition builds an
+empty slot. Dead transport still permits only one recovery build and retains
+both causes if replacement fails. Snapshot senders, funding policy, capacity,
+FIFO waiting, unwind invalidation and completed phase timings remain explicit.
+
+Fresh `StandaloneCanisterFixture` values remain available. This recipe restores
+only the captured canister; it does not reset time, extra canisters, pending work
+or external resources. No retained cache or protocol layout is changed. Existing
+pools are process-local; stop/restart their test processes with the new caller
+code. Canic's payload-limit suite must adopt the new guard/call boundary after
+0.38.0 publication ([#76](https://github.com/dragginzgame/ic-testkit/issues/76),
+[Canic #540](https://github.com/dragginzgame/canic/issues/540)).
+
+### Changed: convenience and worker-file ownership
+
+The six anonymous/panicking Candid convenience methods have trait defaults;
+PocketIC implements only explicit-sender query/update operations. Existing call
+signatures, structured failures, caller tracking and application-level Result
+handling remain unchanged. Worker stdout uses an explicitly private temporary
+File with automatic handle-lifetime cleanup instead of a named scratch directory.
+Output remains file-backed and read with the same complete-report limit; worker
+completion and server cleanup still precede interruption or sampling failure.
+No elapsed-time build or worker deadline is added
+([#76](https://github.com/dragginzgame/ic-testkit/issues/76)).
+
+### Fixed: benchmark artifact handoff
+
+The repository-local fixture benchmark acquires its probe through IC Build and
+holds the retained result until all workers and report publication finish. Both
+the Wasm hash and every worker use the same exact artifact rather than Cargo's
+mutable output path ([#72](https://github.com/dragginzgame/ic-testkit/issues/72)).
+The driver retains its native workload recipe, profiles, sampling, report schema,
+selected Cargo/compiler and locked/offline preparation. Ordinary foreground build
+handling and interruption checks remain; no build deadline is added. Exact cache
+entries live under the selected Cargo target's `ic-testkit-fixture-benchmark-wasm`
+directory, with shared incremental compilation under `ic-testkit-incremental`.
+Cleanup remains explicit; earlier targets and retained artifacts are preserved.
+Build failures keep the typed IC Build cause, including status and diagnostics.
+
+### Changed: development dependency and helper ownership
+
+The tracked lockfile selects published IC Build 0.2.3 for native development,
+aligning its Host dependencies with Testkit's 0.17.4 selection and removing the
+separate Host 0.16 graph ([IC Build #9](https://github.com/dragginzgame/ic-build/issues/9)).
+This grouping API type change stays outside Testkit's exposed library boundary;
+IC Build remains a development dependency. Diagnostics validates
+labels directly at its contract owner, preserving empty/duplicate indices and
+rejection before collection. Pool phase accumulation uses standard saturating
+duration arithmetic, preserving unrecorded versus zero-duration phases
+([IC Build #7](https://github.com/dragginzgame/ic-build/issues/7)). These changes
+preserve library APIs and stored formats; no consumer migration is required.
+
+### Changed: fixture lifecycle flow
+
+Canister installation executes directly in its owning extension method.
+Snapshot capture shares partial-set rollback before projecting a rejection or
+panic, retaining both the original cause and independent cleanup failures.
+Creation, funding and install order, exact senders, fallback policy and failed
+standalone instance custody are unchanged; no public API or stored format changes
+([#74](https://github.com/dragginzgame/ic-testkit/issues/74)).
+
+### Changed: Host mechanics
+
+PocketIC executable admission uses Host's no-follow identity/version boundary,
+removing the extra whole-file hash while retaining alias and special-file
+rejection before execution. Native process observations and checked descendant
+RSS summation now have their canonical implementation in Host; sampling cadence,
+workload selection, native source identities and report fields remain unchanged.
+
+Completed benchmark reports use Host's checked descriptor publication with
+private permissions and an existing parent. Cancellation after file sync rejects
+before replacement. Producer/prepublication errors preserve any earlier report;
+a final directory-sync failure warns after the complete new report is visible,
+without inviting a retry. Atomic visibility remains the contract. Worker stdout
+capture retains its separate private scratch lifetime. No cache-format, library
+API, compiler/MSRV or build-deadline change is introduced
+([#75](https://github.com/dragginzgame/ic-testkit/issues/75),
+[Host #79](https://github.com/dragginzgame/ic-host-tooling/issues/79)).
+
+### Changed: Shared Tooling 0.10 catalog ownership
+
+The reviewed snapshot selects `ed9c26f015691859f67b50b512a94709dcdc0c6c`.
+The existing common version/digest selections are unchanged; setup, formatting,
+freshness inspection and evidence collection use the catalogs owned by that
+snapshot. Redundant Testkit Make defaults are removed. Host, Rust and IC catalog
+exceptions must be selected independently and qualified explicitly
+([#73](https://github.com/dragginzgame/ic-testkit/issues/73),
+[Shared #153](https://github.com/dragginzgame/shared-tooling/issues/153)).
+Compiler/MSRV, application dependencies and PocketIC selection retain their
+existing owners. This is compatible contributor tooling, with no library API,
+stored-format or retained-installation change.
+
+The same snapshot rejects line-break LOC directory aliases before selecting a
+checkout, and preserves release-lock filesystem diagnostics and exit status
+([Shared #151](https://github.com/dragginzgame/shared-tooling/issues/151),
+[Shared #152](https://github.com/dragginzgame/shared-tooling/issues/152)).
+
 ## [0.37.0] - 2026-10-13
 
 ### Breaking: exposed Host dependency types
