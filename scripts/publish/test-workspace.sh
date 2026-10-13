@@ -99,6 +99,12 @@ case "$1" in
         # Intent must exist before dispatch, including when Cargo then fails.
         intents=(target/publish/*/intent)
         [[ -f "${intents[0]}" ]] || exit 1
+        for intent in "${intents[@]}"; do
+            tail -n +6 "$intent" | LC_ALL=C sort > "$PUBLISH_FIXTURE/intent-packages"
+            jq -r '. as $m | .packages[] | select(.id as $id | $m.workspace_members | index($id)) | .name' \
+                "$PUBLISH_FIXTURE/metadata.json" | LC_ALL=C sort > "$PUBLISH_FIXTURE/metadata-packages"
+            cmp "$PUBLISH_FIXTURE/intent-packages" "$PUBLISH_FIXTURE/metadata-packages"
+        done
         printf '%s\0' "$@" > "$PUBLISH_FIXTURE/arguments"
         mkdir -p target/package
         printf 'retained package\n' > target/package/fixture.crate

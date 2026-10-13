@@ -16,15 +16,17 @@ if printf '%s\n' "$extraction" | rg '^candid_parser '; then
     echo 'extractor graph includes the optional service parser' >&2
     exit 1
 fi
-interface="$(cargo tree -p ic-host-tools --no-default-features --features ic-interface --edges normal --prefix none --format '{p}' --locked --offline)"
-if printf '%s\n' "$interface" | rg '^(ic-host-(fs|process)|candid_parser) '; then
-    echo 'interface inspection graph includes a filesystem, process or Candid parser owner' >&2
-    exit 1
-fi
-printf '%s\n' "$interface" | rg '^ic-host-artifacts ' >/dev/null || {
-    echo 'interface graph lacks the canonical Wasm facts owner' >&2
-    exit 1
-}
+for feature in ic-interface ic-limits; do
+    graph="$(cargo tree -p ic-host-tools --no-default-features --features "$feature" --edges normal --prefix none --format '{p}' --locked --offline)"
+    if printf '%s\n' "$graph" | rg '^(ic-host-(fs|process)|candid_parser) '; then
+        echo "$feature graph includes a filesystem, process or Candid parser owner" >&2
+        exit 1
+    fi
+    printf '%s\n' "$graph" | rg '^ic-host-artifacts ' >/dev/null || {
+        echo "$feature graph lacks the canonical Wasm facts owner" >&2
+        exit 1
+    }
+done
 service="$(cargo tree -p ic-host-tools --no-default-features --features candid-service --edges normal --prefix none --format '{p}' --locked --offline)"
 if printf '%s\n' "$service" | rg '^ic-host-(fs|process) '; then
     echo 'Candid service graph includes a filesystem or process owner' >&2
@@ -36,15 +38,6 @@ for owner in ic-host-artifacts candid_parser; do
         exit 1
     }
 done
-limits="$(cargo tree -p ic-host-tools --no-default-features --features ic-limits --edges normal --prefix none --format '{p}' --locked --offline)"
-if printf '%s\n' "$limits" | rg '^(ic-host-(fs|process)|candid_parser) '; then
-    echo 'IC limits graph includes a filesystem, process or Candid parser owner' >&2
-    exit 1
-fi
-printf '%s\n' "$limits" | rg '^ic-host-artifacts ' >/dev/null || {
-    echo 'IC limits graph lacks the canonical Wasm facts owner' >&2
-    exit 1
-}
 for owner in artifacts fs process; do
     printf '%s\n' "$extraction" | rg "^ic-host-$owner " >/dev/null || {
         echo "explicit Candid extraction graph lacks ic-host-$owner" >&2

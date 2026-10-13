@@ -30,6 +30,9 @@ ADAPTER_REAL_BASH="$(command -v bash)"
 ADAPTER_REAL_AWK="$(command -v awk)"
 export ADAPTER_REAL_BASH ADAPTER_REAL_AWK
 export ADAPTER_METADATA_REWRITE="$root/scripts/release/metadata-version.awk"
+ADAPTER_PACKAGES="$(cd "$root" && cargo metadata --no-deps --format-version 1 --locked --offline |
+    jq -er '. as $m | [.packages[] | select(.id as $id | $m.workspace_members | index($id)) | .name] | sort | join(" ")')"
+export ADAPTER_PACKAGES
 export ADAPTER_EVENTS="$fixture/events"
 export RELEASE_SOURCE=0000000000000000000000000000000000000000
 export RELEASE_DATE=2026-10-06 RELEASE_KIND=minor
@@ -60,11 +63,17 @@ cp "$root/Cargo.toml" "$root/Cargo.lock" "$root/README.md" "$root/LICENSE" "$fix
 awk '/^version = / { $0 = $0 " # retained workspace version comment" } { print }' \
     "$fixture/Cargo.toml" > "$fixture/Cargo.toml.commented"
 mv "$fixture/Cargo.toml.commented" "$fixture/Cargo.toml"
-for package in ic-host-artifacts ic-host-fs ic-host-process ic-host-tools; do
-    mkdir -p "$fixture/crates/$package/src"
+for package in ic-host-artifacts ic-host-fs ic-host-process ic-host-tools ic-host-wasm-inspect; do
+    package_root="crates/$package"
+    [[ "$package" != ic-host-wasm-inspect ]] || package_root="apps/$package"
+    mkdir -p "$fixture/$package_root/src"
     # Git release qualification remains independent of registry eligibility.
-    sed 's/^publish = .*/publish = false/' "$root/crates/$package/Cargo.toml" > "$fixture/crates/$package/Cargo.toml"
-    : > "$fixture/crates/$package/src/lib.rs"
+    sed 's/^publish = .*/publish = false/' "$root/$package_root/Cargo.toml" > "$fixture/$package_root/Cargo.toml"
+    if [[ "$package" == ic-host-wasm-inspect ]]; then
+        : > "$fixture/$package_root/src/main.rs"
+    else
+        : > "$fixture/$package_root/src/lib.rs"
+    fi
 done
 # Observe the real workspace through relative and absolute adapter entrypoints
 # in a physical newline-bearing tooling root, with a competing CDPATH lookup.
@@ -140,7 +149,7 @@ case "$*" in
     "set-version --workspace --offline $RELEASE_VERSION")
         for mode in manifest lock; do
             if [[ "$mode" == manifest ]]; then file=Cargo.toml; else file=Cargo.lock; fi
-            awk -v mode="$mode" -v replacement="$RELEASE_VERSION" \
+            awk -v mode="$mode" -v packages="$ADAPTER_PACKAGES" -v replacement="$RELEASE_VERSION" \
                 -f "$ADAPTER_METADATA_REWRITE" "$file" > "$file.candidate"
             mv "$file.candidate" "$file"
         done ;;
@@ -151,7 +160,7 @@ cat > "$fixture/bin/make" <<'STUB'
 #!/usr/bin/env bash
 set -euo pipefail
 case "$*" in
-    '--no-print-directory install-tools'|'--no-print-directory tools-check'|'--no-print-directory dependency-pins-check'|'--no-print-directory ci'|--no-print-directory\ msrv\ PACKAGE=ic-host-*)
+    '--no-print-directory install-tools'|'--no-print-directory tools-check'|'--no-print-directory dependency-pins-check'|'--no-print-directory ci'|'--no-print-directory msrv-workspace')
         printf 'make %s\n' "$*" >> "$ADAPTER_EVENTS"
         if [[ "$*" == '--no-print-directory ci' ]]; then exit "${ADAPTER_GATE_RESULT:-0}"; fi ;;
     *) echo "Unexpected Make operation: $*" >&2; exit 2 ;;
@@ -271,6 +280,31 @@ cp expected accepted-events
 cmp Cargo.toml source/Cargo.toml
 cmp Cargo.lock "$root/Cargo.lock"
 [[ ! -e release-state ]] || exit 1
+
+# The executable is part of coordinated releases, while non-workspace local
+# lock entries must not silently become release-owned packages.
+for scenario in cli-version extra-local; do
+    cp source/Cargo.lock Cargo.lock
+    case "$scenario" in
+        cli-version)
+            awk '
+                $0 == "name = \"ic-host-wasm-inspect\"" { selected=1 }
+                selected && /^version = / { sub(/"[^"]+"/, "\"99.0.0\""); selected=0 }
+                { print }
+            ' source/Cargo.lock > Cargo.lock ;;
+        extra-local)
+            printf '\n[[package]]\nname = "unowned-local"\nversion = "%s"\n' "$RELEASE_PREVIOUS" >> Cargo.lock ;;
+    esac
+    cp Cargo.lock rejected-lock
+    : > "$ADAPTER_EVENTS"
+    if bash "$adapter" preflight > "rejected-$scenario.log" 2>&1; then
+        echo "Preflight accepted $scenario lock identities" >&2; exit 1
+    fi
+    if grep -E '^make |^cargo (fetch|set-version)' "$ADAPTER_EVENTS"; then exit 1; fi
+    cmp rejected-lock Cargo.lock
+    [[ ! -e release-state ]] || exit 1
+done
+cp source/Cargo.lock Cargo.lock
 
 # Missing selected inputs are prepared only by preflight. All fetch effects here
 # are substituted; real metadata remains locked/offline even with this env unset.
@@ -403,7 +437,7 @@ for query in 'rev-parse HEAD' 'diff --binary HEAD' 'hash-object --stdin'; do
         if [[ "$occurrence" == 1 ]]; then
             if grep -E '^make .* (ci|msrv)' "$ADAPTER_EVENTS"; then exit 1; fi
         else
-            grep -Fx 'make --no-print-directory msrv PACKAGE=ic-host-tools' "$ADAPTER_EVENTS" > /dev/null
+            grep -Fx 'make --no-print-directory msrv-workspace' "$ADAPTER_EVENTS" > /dev/null
             [[ -f "release-state/$RELEASE_VERSION.validation.log" ]] || exit 1
         fi
         cmp source/Cargo.toml Cargo.toml
@@ -424,10 +458,7 @@ make --no-print-directory dependency-pins-check
 cargo set-version --help
 cargo fetch --locked --offline
 make --no-print-directory ci
-make --no-print-directory msrv PACKAGE=ic-host-artifacts
-make --no-print-directory msrv PACKAGE=ic-host-fs
-make --no-print-directory msrv PACKAGE=ic-host-process
-make --no-print-directory msrv PACKAGE=ic-host-tools
+make --no-print-directory msrv-workspace
 EVENTS
 cmp expected "$ADAPTER_EVENTS"
 receipt="release-state/$RELEASE_VERSION.validation"
@@ -525,6 +556,11 @@ bash "$adapter" verify > original-source-revalidated.log 2>&1
 # through saved receipts; real locked/offline Cargo admits its updated graph.
 printf '# Changelog\n\n## [%s] - %s\n\n- Fixture notes.\n\n## [%s]\n\n- Undated imported history.\n\n## [0.0.1] - 2026-10-01\n\n- Dated history.\n' "$RELEASE_VERSION" "$RELEASE_DATE" "$RELEASE_PREVIOUS" > expected-notes
 bash "$adapter" prepare > prepared.log 2>&1
+"${YQ:-yq}" -p toml -o json '.' Cargo.lock |
+    jq -e --arg version "$RELEASE_VERSION" --arg names "$ADAPTER_PACKAGES" '
+        [.package[] | select(.source == null)] as $local |
+        ($local | map(.name) | sort) == ($names | split(" ")) and
+        all($local[]; .version == $version)' > /dev/null
 cmp expected-notes CHANGELOG.md
 bash "$adapter" check > checked.log 2>&1
 cp Cargo.toml Cargo.lock CHANGELOG.md committed/

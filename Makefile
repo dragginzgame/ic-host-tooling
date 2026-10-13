@@ -66,6 +66,9 @@ tools-features-check:
 	+bash scripts/ci/check-tools-features.sh
 msrv:
 	+cargo +$(MSRV) check -p $(PACKAGE) --all-targets --all-features --locked --offline
+.PHONY: msrv-workspace
+msrv-workspace:
+	+cargo +$(MSRV) check --workspace --all-targets --all-features --locked --offline
 .PHONY: install-release-tools release-tools-check release-tools-test
 install-release-tools:
 	+bash scripts/release/tools.sh install
@@ -115,11 +118,9 @@ ci:
 	+$(MAKE) --no-print-directory test-tools-extraction
 	+$(MAKE) --no-print-directory test-tools-limits
 	+$(MAKE) --no-print-directory test-wasm-inspection
-	@for package in ic-host-artifacts ic-host-fs ic-host-process ic-host-tools ic-host-wasm-inspect; do \
-		$(MAKE) --no-print-directory clippy PACKAGE=$$package && \
-		$(MAKE) --no-print-directory docs-check PACKAGE=$$package && \
-		$(MAKE) --no-print-directory test PACKAGE=$$package || exit $$?; \
-	done
+	+cargo clippy --workspace --all-targets --all-features --locked --offline -- -D warnings
+	+RUSTDOCFLAGS="-D warnings" cargo doc --workspace --all-features --locked --offline --no-deps
+	+cargo test --workspace --all-targets --all-features --locked --offline
 release-version:
 	+@bash scripts/release/adapter.sh version
 release-preflight:

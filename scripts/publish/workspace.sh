@@ -9,6 +9,8 @@ mode="${1:-}"
     echo 'usage: workspace.sh publish|check' >&2; exit 2;
 }
 fail() { echo "publication refused: $1" >&2; exit 1; }
+# Publication eligibility is explicit policy, distinct from workspace membership.
+packages=(ic-host-artifacts ic-host-fs ic-host-process ic-host-tools ic-host-wasm-inspect)
 package_path() {
     case "$1" in
         ic-host-wasm-inspect) printf 'apps/%s\n' "$1" ;;
@@ -24,7 +26,7 @@ source="$(git rev-parse --verify HEAD)" || exit $?
 dirty="$(git status --porcelain --untracked-files=all)" || exit $?
 [[ "$mode" != publish || -z "$dirty" ]] || fail 'commit workspace changes before publishing'
 [[ -f LICENSE && ! -L LICENSE ]] || fail 'expected a regular root license notice'
-for package in ic-host-artifacts ic-host-fs ic-host-process ic-host-tools ic-host-wasm-inspect; do
+for package in "${packages[@]}"; do
     notice="$(package_path "$package")/LICENSE"
     [[ -f "$notice" && ! -L "$notice" ]] || fail "expected a regular license notice for $package"
     cmp -s LICENSE "$notice" || fail "license notice differs from the root notice for $package"
@@ -45,14 +47,13 @@ cargo metadata --manifest-path "$root/Cargo.toml" --no-deps --format-version 1 \
 jq -e '
     . as $workspace
     | [.packages[] | select(.id as $id | $workspace.workspace_members | index($id))] as $packages
-    | ($packages | map(.name) | sort) ==
-        ["ic-host-artifacts", "ic-host-fs", "ic-host-process", "ic-host-tools", "ic-host-wasm-inspect"]
+    | ($packages | map(.name) | sort) == ($ARGS.positional | sort)
       and ($packages | map(.version) | unique | length) == 1
       and ($packages | all(.publish == ["crates-io"]))
       and ($packages | all(.repository == "https://github.com/dragginzgame/ic-host-tooling"))
       and ($packages | any(.name == "ic-host-wasm-inspect" and
           any(.targets[]; .name == "ic-host-wasm-inspect" and (.kind | index("bin")))))
-' "$attempt/metadata.json" > /dev/null || fail 'expected five synchronized crates.io packages'
+' "$attempt/metadata.json" --args "${packages[@]}" > /dev/null || fail 'expected selected synchronized crates.io packages'
 repository="$(jq -r '.packages[0].repository' "$attempt/metadata.json")"
 version="$(jq -r '.packages[0].version' "$attempt/metadata.json")"
 [[ "$version" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]] || fail 'expected a stable workspace version'
@@ -62,7 +63,7 @@ if [[ "$mode" == check ]]; then arguments+=(--dry-run --allow-dirty); fi
 # Persist the selected source, version, target and exact argv before Cargo can
 # upload. Never treat a failed/lost reply as proof that a package is absent.
 printf '%s\n' publication-1 "$mode" "$source" "$version" crates-io \
-    ic-host-artifacts ic-host-fs ic-host-process ic-host-tools > "$attempt/intent"
+    "${packages[@]}" > "$attempt/intent"
 printf '%s\0' "${arguments[@]}" > "$attempt/arguments"
 if [[ "$mode" == publish ]]; then
     # Inspect Cargo's actual package provenance before upload. Package preparation
@@ -72,7 +73,7 @@ if [[ "$mode" == publish ]]; then
         --registry crates-io --all-features --locked --no-verify --target-dir "$root/target")
     printf '%s\0' "${package_arguments[@]}" > "$attempt/package-arguments"
     cargo "${package_arguments[@]}" > "$attempt/package.log" 2>&1 || fail 'package preparation failed; no upload attempted'
-    for package in ic-host-artifacts ic-host-fs ic-host-process ic-host-tools ic-host-wasm-inspect; do
+    for package in "${packages[@]}"; do
         archive="target/package/$package-$version.crate"
         [[ -f "$archive" && ! -L "$archive" ]] || fail "missing regular package archive for $package"
         tar -xOf "$archive" "$package-$version/.cargo_vcs_info.json" \

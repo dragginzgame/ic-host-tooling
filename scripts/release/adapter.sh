@@ -19,6 +19,13 @@ version() {
     observed="$(bash "$tooling_root/scripts/ci/read-cargo-workspace-version.sh" --stable Cargo.toml)" || return
     printf '%s\n' "$observed"
 }
+local_packages() {
+    "${YQ:-yq}" -p toml -o json '.' | jq -er '
+        [.package[] | select(.source == null) | .name] as $names |
+        if ($names | length) > 0 and ($names | unique | length) == ($names | length)
+           and all($names[]; test("^[A-Za-z0-9][A-Za-z0-9_-]*$"))
+        then $names | sort | join(" ") else error("invalid local package identities") end'
+}
 admit_files() {
     local allowed=(--allow CHANGELOG.md)
     if [[ "$operation" != preflight && "$operation" != verify ]]; then
@@ -89,12 +96,13 @@ archive_validation_evidence() {
     done
 }
 check_payload() {
-    local directory="$1" mode file
+    local directory="$1" mode file packages
+    packages="$(git show "$RELEASE_SOURCE:Cargo.lock" | local_packages)" || return
     for mode in manifest lock; do
         if [[ "$mode" == manifest ]]; then file=Cargo.toml; else file=Cargo.lock; fi
         [[ -f "$directory/$file" && ! -L "$directory/$file" ]] || fail "missing or symlinked Cargo metadata"
         git show "$RELEASE_SOURCE:$file" |
-            awk -v mode="$mode" -v replacement="$RELEASE_VERSION" -f "$tooling_root/scripts/release/metadata-version.awk" |
+            awk -v mode="$mode" -v packages="$packages" -v replacement="$RELEASE_VERSION" -f "$tooling_root/scripts/release/metadata-version.awk" |
             cmp - "$directory/$file"
     done
     finalize_notes "$notes" | cmp - "$directory/CHANGELOG.md"
@@ -138,15 +146,19 @@ case "$operation" in
         done
         # TOML reading belongs to the shared helper. Keep this consumer's exact
         # version-only metadata layout and synchronized path requirements here.
-        awk -v mode=manifest -v replacement="$RELEASE_PREVIOUS" \
+        packages="$(local_packages < Cargo.lock)" || exit $?
+        awk -v mode=manifest -v packages="$packages" -v replacement="$RELEASE_PREVIOUS" \
             -f "$tooling_root/scripts/release/metadata-version.awk" Cargo.toml |
             cmp - Cargo.toml || fail "unsupported or unsynchronized release metadata"
-        observed_lock_version="$(awk -v mode=lock -v read_version=1 -f "$tooling_root/scripts/release/metadata-version.awk" Cargo.lock)" || exit $?
+        observed_lock_version="$(awk -v mode=lock -v read_version=1 -v packages="$packages" -f "$tooling_root/scripts/release/metadata-version.awk" Cargo.lock)" || exit $?
         [[ "$observed_lock_version" == "$RELEASE_PREVIOUS" ]] || fail "lockfile version differs"
         admit_files
         # Git releases and registry publication are separate effects. Validate
         # the workspace without requiring its packages to permit publication.
-        cargo metadata --no-deps --format-version 1 --locked --offline > /dev/null ||
+        cargo metadata --no-deps --format-version 1 --locked --offline |
+            jq -e --arg packages "$packages" '. as $m |
+                [.packages[] | select(.id as $id | $m.workspace_members | index($id)) | .name] |
+                sort == ($packages | split(" "))' > /dev/null ||
             fail "locked workspace metadata validation failed"
         finalize_notes CHANGELOG.md > /dev/null
         # Selected releases prepare the complete common toolset in shared order.
@@ -174,9 +186,7 @@ case "$operation" in
             {
                 receipt_header
                 CARGO_NET_OFFLINE=true make --no-print-directory ci
-                for package in ic-host-artifacts ic-host-fs ic-host-process ic-host-tools ic-host-wasm-inspect; do
-                    CARGO_NET_OFFLINE=true make --no-print-directory msrv PACKAGE="$package"
-                done
+                CARGO_NET_OFFLINE=true make --no-print-directory msrv-workspace
             } 2>&1 | tee -a "$receipt.log"
             observed_source="$(git rev-parse HEAD)" || exit $?
             after="$(git diff --binary HEAD | git hash-object --stdin)" || exit $?

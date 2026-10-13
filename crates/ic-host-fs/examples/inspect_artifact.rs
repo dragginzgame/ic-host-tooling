@@ -1,6 +1,6 @@
 //! Local artifact evidence with explicit consumer limits and optional digest authority.
 
-use ic_host_artifacts::artifact::verify_reader;
+use ic_host_artifacts::artifact::{ArtifactError, ArtifactIdentity, Sha256Digest};
 use ic_host_artifacts::wasm::{InspectionLimits, inspect};
 use ic_host_fs::read::read_file;
 
@@ -35,15 +35,20 @@ fn main() -> Result<(), Box<dyn Error>> {
         return Err(invalid_argument("unexpected argument").into());
     }
     let bytes = read_file(Path::new(&path), limits.module_bytes)?;
-    let identity = if let Some(expected) = expected {
-        verify_reader(
-            bytes.as_slice(),
-            limits.module_bytes as u64,
-            expected.parse()?,
-        )?
-    } else {
-        ic_host_artifacts::artifact::hash_reader(bytes.as_slice(), limits.module_bytes as u64)?
+    let expected = expected.map(|digest| digest.parse()).transpose()?;
+    let identity = ArtifactIdentity {
+        bytes: bytes.len() as u64,
+        sha256: Sha256Digest::compute(&bytes),
     };
+    if let Some(expected) = expected
+        && identity.sha256 != expected
+    {
+        return Err(ArtifactError::DigestMismatch {
+            expected,
+            actual: identity,
+        }
+        .into());
+    }
     let facts = inspect(&bytes, limits)?;
     println!(
         "raw_bytes={} sha256={} code_section_bytes={} data_section_bytes={} defined_functions={} data_segments={}",

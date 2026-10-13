@@ -117,7 +117,4 @@ jobs:
       - name: Prepare locked dependency cache
         run: cargo fetch --locked
       - name: Check declared MSRV
-        run: |
-          for package in ic-host-artifacts ic-host-fs ic-host-process ic-host-tools; do
-            CARGO_NET_OFFLINE=true make msrv PACKAGE="$package"
-          done
+        run: CARGO_NET_OFFLINE=true make msrv-workspace

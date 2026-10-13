@@ -19,13 +19,14 @@ No native macOS, commit, release, publication or actual provider operation ran.
 
 ## Released source and baseline
 
-The latest finalized release is **0.17.2**, commit
-`e3afa6ddf022309e7ba97f6cefb312c48738db4e`. Package versions remain unchanged.
-Shared Tooling **0.10.2**, revision
-`626fc2bd3125195520fb870b92abfec11b01454d`, is now adopted locally through the
-canonical exporter from a clean isolated checkout, matching published upstream
-main at inspection. The 88 entrypoints and 102 payloads remain unchanged in count;
-all payloads are byte-identical to 0.10.1.
+The latest finalized release is **0.17.3**, commit
+`a224122b987d545ae3fd058078992a3835f2b7a7`. Package versions remain unchanged.
+The pending source starts at `a3a7d3a` (commit subject `0.17.4`, not a release).
+Shared Tooling **0.11.0**, revision
+`a15ff323449f4b6190f647aec0de43cbcfb314ba`, is adopted through the canonical
+exporter from a clean isolated checkout of pushed upstream main. The snapshot
+contains 101 payloads; the obsolete CI yq wrapper is retired through entrypoint
+replacement. Uncommitted sibling fixture-lifecycle changes were excluded.
 See [the snapshot](../../.shared-tooling.snapshot) and
 [AGENTS.md](../../AGENTS.md).
 
@@ -49,6 +50,17 @@ Native macOS 15 Intel and Apple Silicon qualification remains separate from
 local Linux evidence. No commit, push, release or publication ran in this task.
 
 ## Pending 0.17.4
+
+Workspace-wide CI/MSRV selection and source-bound lock inventory remove stale
+four-package assumptions. Publication retains one explicit allowlist and records
+all selected packages before dispatch. Equivalent tools feature checks share one
+loop; artifact-example hashing operates directly on its bounded owned slice.
+Focused adapter/publication/feature checks, real isolated cargo-set-version
+projection, workspace MSRV and full current-checkout Linux `make ci` pass.
+Evidence is in `/tmp/host-next-three/`; native macOS remains separate. These changes and the
+Shared 0.11.0 adoption are compatible, requiring no library consumer migration
+([#75](https://github.com/dragginzgame/ic-host-tooling/issues/75),
+[#73](https://github.com/dragginzgame/ic-host-tooling/issues/73)).
 
 Example hashing and fixed tools-fixture admission are simplified
 ([#78](https://github.com/dragginzgame/ic-host-tooling/issues/78)). Focused tools

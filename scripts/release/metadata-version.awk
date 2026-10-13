@@ -1,9 +1,10 @@
-# Own exact version-only mutation for the four workspace packages.
+# Own exact version-only projection for the selected workspace packages.
 BEGIN {
     # Manifest version observations belong to the shared TOML reader. This
     # adapter only projects exact release payloads and reads owned lock entries.
     if (read_version && mode != "lock") exit 2
-    split("ic-host-artifacts ic-host-fs ic-host-process ic-host-tools", names, " ")
+    if (packages == "") exit 2
+    split(packages, names, " ")
     for (i in names) owned[names[i]] = 1
 }
 /^\[/ { selected = (mode == "manifest" && $0 == "[workspace.package]"); package_name = "" }
@@ -18,6 +19,7 @@ mode == "lock" && /^name = / { package_name = $0; sub(/^name = "/, "", package_n
 }
 mode == "manifest" && $1 in owned && /version = "/ {
     count++
+    dependencies++
     if (replacement != "") {
         requirement = $0
         sub(/^.*version = "/, "", requirement)
@@ -30,4 +32,4 @@ mode == "manifest" && $1 in owned && /version = "/ {
     }
 }
 !read_version { print }
-END { expected = mode == "manifest" ? 1 + length(names) : length(names); if (count != expected || invalid) exit 2 }
+END { expected = mode == "manifest" ? 1 + dependencies : length(names); if (packages == "" || count != expected || invalid) exit 2 }

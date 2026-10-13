@@ -2,6 +2,14 @@
 
 ## [0.17.4]
 
+- Cover every workspace package in release projection and CI, including the Wasm
+  CLI, and record the complete selected publication set
+  ([#75](https://github.com/dragginzgame/ic-host-tooling/issues/75)).
+- Adopt Shared Tooling 0.11.0, retiring the old CI installer forwarding command
+  without changing tool pins ([#73](https://github.com/dragginzgame/ic-host-tooling/issues/73)).
+- Share equivalent feature-boundary checks and hash artifact-example bytes directly
+  while retaining expected-digest verification.
+
 - Stream regular-file example hashing and avoid copying decoded responses for
   hashing; simplify the tools fixture's fixed admission flow
   ([#78](https://github.com/dragginzgame/ic-host-tooling/issues/78)).
