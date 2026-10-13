@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.16.0]
+## [0.16.0] - 2026-10-13
 
 - **Breaking:** `ic-host-tools` now has no default features. Enable
   `candid-extraction` explicitly when using the native extraction API; response
