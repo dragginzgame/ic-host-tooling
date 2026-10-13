@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.17.3]
+
+- Adopt Shared Tooling 0.10.2, retaining the 0.10.1 fix so unrelated catalog
+  changes no longer invalidate Cargo CI caches; tool selection and build changes
+  still invalidate them
+  ([Shared #154](https://github.com/dragginzgame/shared-tooling/issues/154)).
+  [Detailed notes](docs/changelog/0.17.md).
+
 ## [0.17.2] - 2026-10-13
 
 - Simplify subprocess test fixtures to their crate-specific modes and remove an

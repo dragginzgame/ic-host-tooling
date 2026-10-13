@@ -103,6 +103,10 @@ selections, user Cargo credentials and host/IC bundles are not cached. Host/IC
 setup therefore continues to exercise fresh pinned downloads on every runner.
 The cache key uses the installer's exact compiler/native/build-policy identity,
 runner image identity, Cargo tool pins and installer/checksum sources. There are
+no misses solely from comments, record order or unrelated tool pins in the
+literal common catalog. Catalogs with executable configuration, duplicate
+assignments or unsupported syntax retain their full bytes as key input; cache
+inspection never executes them or guesses their selections. There are
 no broad restore prefixes or cross-host restores. Changed inputs or an absent
 cache use ordinary cold setup.
 

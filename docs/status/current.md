@@ -2,44 +2,48 @@
 
 ## Released source and baseline
 
-The latest finalized release is **0.17.1**. This cleanup starts from clean commit
-`b7ddc770ff0452e53a22f1f69a1edb7550e881d5`; package versions remain unchanged.
-Shared Tooling **0.10.0**, revision
-`ed9c26f015691859f67b50b512a94709dcdc0c6c`, is recorded in
-[the snapshot](../../.shared-tooling.snapshot) and [AGENTS.md](../../AGENTS.md).
+The latest finalized release is **0.17.2**, commit
+`e3afa6ddf022309e7ba97f6cefb312c48738db4e`. Package versions remain unchanged.
+Shared Tooling **0.10.2**, revision
+`626fc2bd3125195520fb870b92abfec11b01454d`, is now adopted locally through the
+canonical exporter from a clean isolated checkout, matching published upstream
+main at inspection. The 88 entrypoints and 102 payloads remain unchanged in count;
+all payloads are byte-identical to 0.10.1.
+See [the snapshot](../../.shared-tooling.snapshot) and
+[AGENTS.md](../../AGENTS.md).
 
-## Pending 0.17.2
+## Pending 0.17.3
 
-The compatible maintenance batch narrows each subprocess test fixture to its
-own callers and removes the unused tools SHA-256 dev-dependency
-([#74](https://github.com/dragginzgame/ic-host-tooling/issues/74)). Production APIs,
-crate boundaries and dependency versions are unchanged. The current handoff now
-separates active evidence from preserved history
-([#46](https://github.com/dragginzgame/ic-host-tooling/issues/46#issuecomment-6144677508)).
-The IC-limits example's test helper now skips occupied names and preserves its
-input on panic, including initialization-write failure ([#72](https://github.com/dragginzgame/ic-host-tooling/issues/72)).
+Cargo CI cache keys now ignore unrelated pins, comments and record order in
+literal catalogs, while preserving Cargo selections and build identity as inputs.
+Complex catalogs retain byte-based keys and are never executed by inspection
+([Shared #154](https://github.com/dragginzgame/shared-tooling/issues/154)).
+This is compatible contributor tooling; crate source, Cargo metadata, common
+catalogs, Makefile and library contracts are unchanged from released 0.17.2.
 
-Focused process, extraction and IC-limits tests pass. Full offline Linux
-`make ci` passes again after the example follow-up. A disposable probe using the
-actual example helper verifies occupied file/directory/symlink preservation,
-successful cleanup, panic retention and immediate non-collision error reporting.
-Example follow-up evidence is retained in `/tmp/host-0172-example/`.
-ShellCheck, unexpected-mode rejection, documentation links and byte-for-byte
-archive preservation also pass. Logs are retained in `/tmp/host-0172-cleanup/`.
-Required native macOS 15 Intel and Apple Silicon qualification remains separate;
-no commit, push, release or publication ran in this task.
+The 0.10.2 sibling-dashboard fix is outside Host's selected snapshot. The sibling
+checkout's uncommitted 0.10.3 work was excluded by exporting the exact published
+0.10.2 commit. Snapshot integrity, repeat preview (102 KEEP rows), preservation
+hashes, documentation links and full offline Linux `make ci` pass.
+Adoption evidence is retained in `/tmp/host-shared0102/`.
+Prior 0.10.1 full offline Linux and genuine Bash 3.2 qualification remains in
+`/tmp/host-shared0101/`; no tool pin, product source or dependency change is needed.
+Native macOS 15 Intel and Apple Silicon qualification remains separate from
+local Linux evidence. No commit, push, release or publication ran in this task.
 
 ## Evidence and coordination
 
-The [historical handoff](archive-2026-10-13.md) preserves the previous document
-byte-for-byte, including earlier validation paths, source identities and consumer
-coordination. Its pending/released claims describe their original inspection
-rather than current status. It links the still-earlier archive in the same directory.
-
-GitHub issues remain the sole follow-up tracker. Existing qualification owners:
+Released 0.17.2 cleanup passed focused process, extraction and IC-limits tests
+and full offline Linux `make ci`. Fixture retention probes and documentation
+checks passed; evidence remains in `/tmp/host-0172-cleanup/` and
+`/tmp/host-0172-example/`. Existing qualification owners are
+[fixture cleanup #72](https://github.com/dragginzgame/ic-host-tooling/issues/72),
+[fixture pruning #74](https://github.com/dragginzgame/ic-host-tooling/issues/74),
 [Shared adoption #73](https://github.com/dragginzgame/ic-host-tooling/issues/73),
-[0.17 cleanup #72](https://github.com/dragginzgame/ic-host-tooling/issues/72),
 [interface consumers #71](https://github.com/dragginzgame/ic-host-tooling/issues/71)
 and [lock isolation #70](https://github.com/dragginzgame/ic-host-tooling/issues/70).
-Update this handoff in place; preserve older evidence without appending another
-historical status section here.
+
+The [historical handoff](archive-2026-10-13.md) preserves older source identities,
+validation paths and consumer coordination. Its status claims describe their
+original inspection, not current release state. GitHub issues remain the sole
+follow-up tracker. Update this handoff in place instead of appending history.

@@ -1,8 +1,8 @@
 # Shared Tooling snapshot v1
-# version	0.10.0
+# version	0.10.2
 format	1
 source	https://github.com/dragginzgame/shared-tooling
-revision	ed9c26f015691859f67b50b512a94709dcdc0c6c
+revision	626fc2bd3125195520fb870b92abfec11b01454d
 # entrypoint	rules/changelogs.md
 # entrypoint	docs/releases.md
 # entrypoint	scripts/ci/run-release.sh
@@ -104,7 +104,7 @@ file	c5e5f1018e4747ee4ffe5183a4f1d35545a3bf148fced3ab2c77db4c789b5975	-	docs/pri
 file	90eb28392912af63593a3773eff903c5ef77ebab2b9199e3c720be25a3fcbbbf	-	docs/principles/rust-code-hygiene.md
 file	457fd38e0073c91ba470b918d4facd9faac3c5200ebd38c97e9d6b76acdaea55	-	docs/principles/simplicity-and-maintainability.md
 file	13d937cf1251c13f5b0e506922eea3c18eecc23121b8f4bd5d8f6468db737441	-	docs/consuming-snapshots.md
-file	5e4bd50bd4f1efc4778990a5497d0184da074730ab53b7360fa2505313f97d92	-	docs/supported-hosts.md
+file	99fb914c773ccac90b3081a7b7c1e9a11e39407791cc2037564d6412bb982b12	-	docs/supported-hosts.md
 file	a4682503812f210b951aede536cdd65642bfe266b02ab532853a1aeff64f9742	x	scripts/ci/verify-shared-tooling-snapshot.sh
 file	afd13ae708e684244edb5262f42e106900c076b3cac4def8bd741bfade3c602a	-	rules/cargo-dependencies.md
 file	8ebed290dc38497078ebbd1a6bf030ad95cd6968d876612d69bc2f4317df4391	-	rules/git-hooks.md
@@ -150,7 +150,7 @@ file	88bbb42f74ea77aca4e826433ed4c75a1033516460d4844df8613dd3f4e9acb7	x	scripts/
 file	11cb85c4a76e83dc1240c951e66894b7b585e9ef3b7c9b403739ff242e8a3c33	x	scripts/ci/test-tool-commands.sh
 file	8b151f01df8867de1fceda08e0966c9ed39c73a297a460062e483152eb0441f3	x	scripts/ci/test-cloc.sh
 file	7fef45969bee38b2e9be9ffc3e100653e48f15e862d5925b739572c5d27def42	x	scripts/dev/install-rust-tools.sh
-file	8278e7decd36eafd33b1aaedaec0a933e283ffdd73fd389fe3213773b0cf1b8c	x	scripts/ci/test-rust-tools.sh
+file	59aae2a771c59666ec8d9ea546247c98c146a0aaff9638f952d7cb2898b7fc08	x	scripts/ci/test-rust-tools.sh
 file	8d32526932bdaf88a6c78ccc2358fb92a49bd89b7631572766deea51923d8f58	-	rules/contributions.md
 file	1f68b2a4d06c62c8a269777646a2bf568057e462bceefe07243a42b1e20b2901	-	.github/actions/retain-failure-evidence/action.yml
 file	a3af7084956384262842be33100f91a22fdd82b0f91b6091a00e90f8726f67fe	x	scripts/ci/check-release-source.sh
@@ -159,7 +159,7 @@ file	eb2419a5762a3cb02f25811d93becb6b18ca520df0bc3448ea35dfa187a034b4	-	tasks/ca
 file	b20211ec1c39ef262c8ab266b207db43c44cd1474acde18297586590c7885810	-	tasks/msrv.md
 file	ed8d04d20a6e5bd77aece468a5f44f7d9e1c8a52411431d24e052e20c39038f3	-	tasks/rust-toolchain.md
 file	90792f4da0b4ea730a171ccdd86f36d922fa1a95d232c64780e686069a6f7c80	-	tasks/ci-health.md
-file	cff80eb852e667236fbce7a7a07e9c792e948813241ebf1160f0d048c282a00f	-	tasks/snapshot-drift.md
+file	26249d9f77da1cd8680e6531881951260b3cc7b1d6a9780978e097981fce81ca	-	tasks/snapshot-drift.md
 file	5057273d73e5bae55b9cebb0c8cd606afcd9a413a0c8cf89c3a634ca7b63aa4a	-	tasks/dependency-security.md
 file	5d0c7d274dd9da1e5064287c7bd89c7baec9b0a9ba5a8f1a44e918bb60a28943	-	tasks/code-audit.md
 file	661ff5d16c8a41c597d14550294901cbfcc38b7e5e5931646a6739d0dce2ecd5	-	tasks/tooling-duplication.md
@@ -189,7 +189,7 @@ file	05da2ac2b805c7cf9597d4af75983efc1268d619a0fb1e42c7f6d3fdb481880b	-	ci/ic-to
 file	652899116e6afb8a00b95ba673fb9febcf2930a19334a74d9d8b1fff525ad3ad	x	scripts/ci/test-tool-evidence.sh
 file	2e8abfb85405e430e870276f8ee50f9766ba41ac3717404d5341d8345ca1a6de	-	scripts/ci/test-tool-store.sh
 file	b936baeb21374c8718c4f35b00cd3ee09350f2315f4367559cf922ef42f68292	-	scripts/dev/cargo-tool-build.sh
-file	7ab130f8222b69e2ea4c4e083d6286f93a2472ec396d953d0b116330e0e76607	x	scripts/ci/cargo-tool-cache-key.sh
+file	8acf788bb9ce064690a2313b06be7308d6edd838e00f40a510b708a3649c91e4	x	scripts/ci/cargo-tool-cache-key.sh
 file	50875aa80c211f8f5fded06bf75c7a9fc1fc99aac7590480de9be17d4753bf7f	x	scripts/ci/select-tool-evidence.sh
 file	5be336cb3e8045b2d2d536542a94944b376ee812b03f786a90b9d962ab697f13	x	scripts/ci/archive-evidence.sh
 file	69dbd1c286a9f8787bb5559493e9428c139c285f80417470f37d2153b6f17123	-	scripts/dev/format-frontend.sh
