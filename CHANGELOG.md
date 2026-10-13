@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.17.4]
+## [0.17.4] - 2026-10-13
 
 - Cover every workspace package in release projection and CI, including the Wasm
   CLI, and record the complete selected publication set
