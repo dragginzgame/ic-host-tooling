@@ -34,12 +34,18 @@ impl Fixture {
         let guard = PROCESS_FIXTURES
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        let root = std::env::temp_dir().join(format!(
-            "ic-host-tools-test-{}-{}",
-            std::process::id(),
-            SEQUENCE.fetch_add(1, Ordering::Relaxed)
-        ));
-        fs::create_dir(&root).unwrap();
+        let root = loop {
+            let candidate = std::env::temp_dir().join(format!(
+                "ic-host-tools-test-{}-{}",
+                std::process::id(),
+                SEQUENCE.fetch_add(1, Ordering::Relaxed)
+            ));
+            match fs::create_dir(&candidate) {
+                Ok(()) => break candidate,
+                Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {}
+                Err(error) => panic!("cannot create fixture {}: {error}", candidate.display()),
+            }
+        };
         Self {
             root: root.canonicalize().unwrap(),
             _guard: guard,
@@ -66,6 +72,10 @@ impl Fixture {
 
 impl Drop for Fixture {
     fn drop(&mut self) {
+        if std::thread::panicking() {
+            eprintln!("Failed tools fixture retained: {}", self.root.display());
+            return;
+        }
         let _ = fs::remove_dir_all(&self.root);
     }
 }

@@ -1,7 +1,7 @@
 # IC Host Tooling Agent Rules
 
 Read docs/status/current.md first, then [DRAGGINZGAME.md](DRAGGINZGAME.md).
-The baseline is Shared Tooling revision 35cad65677ff989b5fb24a88d947fda37d2366e8,
+The baseline is Shared Tooling revision ed9c26f015691859f67b50b512a94709dcdc0c6c,
 recorded with exact file digests in [.shared-tooling.snapshot](.shared-tooling.snapshot).
 
 - Mutate only this repository. Existing sibling repositories remain read-only.
@@ -11,7 +11,7 @@ recorded with exact file digests in [.shared-tooling.snapshot](.shared-tooling.s
   and deployment retain their own target/effect authorization.
 - Keep the four crate boundaries in [the extraction contract](docs/extraction.md).
   Do not add compatibility reexports for moved APIs or duplicate production owners.
-- Consumers own tool pins, byte budgets, credentials, targets, retries, schemas,
+- Consumers own product-tool pins, byte budgets, credentials, targets, retries, schemas,
   installation policy and paid-operation recovery. Libraries never claim lifecycle ownership.
 - Rust edition is 2024, MSRV is 1.88.0. Use ordinary directory modules and
   inherited workspace versions/dependencies. Do not add Python tooling.

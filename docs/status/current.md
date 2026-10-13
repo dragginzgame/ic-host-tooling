@@ -1,5 +1,104 @@
 # Current handoff
 
+## Pending 0.17.1 — Shared Tooling 0.10.0
+
+Adopted committed Shared 0.10.0
+`ed9c26f015691859f67b50b512a94709dcdc0c6c`, matching upstream main at inspection,
+through canonical preview/refresh from a clean isolated checkout. All 88
+entrypoints remain; the closure now records 102 payloads, adding ownership of the
+existing byte-identical IC catalog. Common host/Cargo and IC versions/digests
+match the canonical catalogs; no exception or product-tool change is needed.
+The release executable pin and compiler policy remain local. Corrected the
+local host guide and clarified product-tool ownership in AGENTS.md
+([Shared #153](https://github.com/dragginzgame/shared-tooling/issues/153)).
+
+Rust source, Cargo metadata, the consumer Makefile, CI workflows and release pin
+remain byte-identical, preserving incoming 0.17.1 fixture/profile work.
+The upstream selection change affects contributor setup, not Host's published
+library contract, so notes remain 0.17.1 and package versions are unchanged.
+
+Snapshot verification and repeat preview pass with 102 KEEP rows. Explicit
+setup and offline admission pass using existing tool bundles, without downloads.
+The first setup attempt encountered a sandbox write restriction on the shared
+Cargo installation lock; the store-access retry succeeds with Cargo offline.
+Host, IC and Cargo installer fixtures pass genuine Bash 3.2 including child
+scripts; upstream Cargo freshness selection fixtures also pass with a substituted
+registry. ShellCheck and full offline Linux `make ci` pass. Native macOS qualification
+remains separate. Evidence is retained at `/tmp/host-shared0100/`.
+No sibling edit, staging, commit, push, release or publication ran.
+
+## Pending 0.17.1 — Shared Tooling 0.9.16
+
+Adopted committed Shared 0.9.16
+`3961d11c2806243916ce96c95383ab21451bbcaa`, matching upstream main at inspection,
+through canonical preview/refresh from a clean isolated checkout. All 88
+entrypoints and 101 payload files remain; five selected payloads change.
+LOC commands reject literal/resolved CR/LF directory paths; release locking
+preserves native diagnostics/statuses and distinguishes occupied locks from
+other failures ([Shared #151](https://github.com/dragginzgame/shared-tooling/issues/151),
+[#152](https://github.com/dragginzgame/shared-tooling/issues/152)).
+
+Incoming 0.17.1 fixture and feature-profile changes are preserved byte-for-byte,
+along with Cargo metadata, Make/CI inputs and tool pins. The compatible adoption
+extends existing 0.17.1 notes; package versions remain unchanged.
+
+Snapshot verification and repeat preview pass with 101 KEEP rows. Release-runner
+and upstream LOC regressions pass with genuine Bash 3.2, including child scripts.
+The initial isolated LOC invocation lacked prepared cloc on PATH; the corrected
+run uses Host's existing admitted tool and passes. Full offline Linux `make ci`
+passes. Native macOS qualification remains separate. Evidence and preservation
+checks are retained at `/tmp/host-shared0916/`.
+ShellCheck passes with the pinned full source available for the optional PR
+companion, which remains outside Host's direct-release snapshot selection.
+No sibling edit, tool installation/download, staging, commit, push, release or
+publication ran; release regression tests use disposable substituted fixtures.
+
+## Pending 0.17.1 — fixture retention and independent feature checks
+
+Extended the pending compatible 0.17.1 batch on released `93a0ecc`, preserving
+the incoming Shared Tooling 0.9.15 adoption. All three private fixture allocators
+skip occupied names using atomic directory creation; they never remove or reuse
+an existing entry. Other creation failures still panic with the native cause.
+Process/tools fixtures retain roots during panic unwinding, matching filesystem
+fixtures, while successful drops clean up and per-crate serialization remains.
+The process fixture now uses its own crate prefix.
+
+Native CI includes independent extraction-only and IC-limits-only profiles with
+defaults disabled. Existing tests and graph assertions are reused; no public
+API, production retry, dependency, release version or tool pin changes.
+
+Focused filesystem/process suites, both new profiles and strict Clippy pass.
+Disposable harnesses importing each actual fixture module prove occupied
+directory/file/symlink preservation, successful cleanup, panic retention, reuse
+after panic and prompt propagation of non-collision creation errors. Evidence
+is retained at `/tmp/host0171-cleanup/`. Full offline Linux `make ci` and Rust
+1.88 all-target/all-feature checks for filesystem, process and tools pass.
+Native macOS qualification remains separate. The work is tracked on
+[Host #72](https://github.com/dragginzgame/ic-host-tooling/issues/72).
+No sibling edit, staging, commit, push, release or publication ran.
+
+## Pending 0.17.1 — Shared Tooling 0.9.15
+
+Adopted committed Shared 0.9.15
+`a9a8ea5ddea0db279d8c139ef5a951474c50f742`, matching upstream main at inspection,
+through canonical preview/refresh from an isolated clean source checkout.
+Host started clean at released 0.17.0 `93a0ecc`. All 88 entrypoints and 101
+payload files remain; three selected payloads change. Maintenance commands reject
+literal/resolved paths containing CR/LF before CLI probes or state writes
+([Shared #150](https://github.com/dragginzgame/shared-tooling/issues/150)).
+CI guidance describes failed-job log recovery; its optional helper remains
+unselected. This compatible contributor-tooling update selects 0.17.1 notes.
+
+Snapshot verification, repeat preview with 101 KEEP rows, ShellCheck and the
+upstream maintenance fixture under genuine Bash 3.2 pass. The fixture uses a
+substitute CLI and starts no live agent or schedule. Evidence is retained at
+`/tmp/host-shared0915/`. Full offline Linux `make ci` passes.
+Native macOS qualification remains separate.
+
+Rust sources, Cargo metadata, Make/CI inputs and tool pins are unchanged.
+Existing prepared tools remain admitted; no reinstall is required. No sibling
+edit, dependency/tool download, staging, commit, push, release or publication ran.
+
 ## Pending 0.17.0 — bounded cleanup and parser feature ownership
 
 Prepared on released 0.16.0 `046751f`, retaining Shared Tooling 0.9.13.

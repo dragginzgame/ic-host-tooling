@@ -18,7 +18,7 @@ export YQ := $(CURDIR)/.tools/host/bin/yq
 help:
 	@echo 'Selected package: check, clippy, docs-check, test, msrv (PACKAGE=<crate>)'
 	@echo 'Minimal artifact configuration: test-artifacts-minimal'
-	@echo 'Tools feature configurations: test-tools-response, test-tools-interface, test-tools-service and tools-features-check'
+	@echo 'Tools feature configurations: test-tools-response, test-tools-interface, test-tools-service, test-tools-extraction, test-tools-limits and tools-features-check'
 	@echo 'Formatting and metadata: fmt, fmt-check, shared-tooling-check, dependency-pins-check, check-doc-links, release-adapter-check'
 	@echo 'Hook qualification: formatting-hook-check (disposable Git fixtures; prepared formatters required)'
 	@echo 'Complete setup: install-tools (host, IC, Cargo and pinned release tool); install-hooks is separate'
@@ -54,6 +54,12 @@ test-tools-interface:
 .PHONY: test-tools-service
 test-tools-service:
 	+cargo test -p ic-host-tools --no-default-features --features candid-service --all-targets --locked --offline
+
+.PHONY: test-tools-extraction test-tools-limits
+test-tools-extraction:
+	+cargo test -p ic-host-tools --no-default-features --features candid-extraction --all-targets --locked --offline
+test-tools-limits:
+	+cargo test -p ic-host-tools --no-default-features --features ic-limits --all-targets --locked --offline
 tools-features-check:
 	+bash scripts/ci/check-tools-features.sh
 msrv:
@@ -104,6 +110,8 @@ ci:
 	+$(MAKE) --no-print-directory test-tools-response
 	+$(MAKE) --no-print-directory test-tools-interface
 	+$(MAKE) --no-print-directory test-tools-service
+	+$(MAKE) --no-print-directory test-tools-extraction
+	+$(MAKE) --no-print-directory test-tools-limits
 	@for package in ic-host-artifacts ic-host-fs ic-host-process ic-host-tools; do \
 		$(MAKE) --no-print-directory clippy PACKAGE=$$package && \
 		$(MAKE) --no-print-directory docs-check PACKAGE=$$package && \

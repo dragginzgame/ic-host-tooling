@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.17.1]
+
+- Retain failed process/tools test fixtures, skip occupied fixture paths without
+  deleting evidence, and test extraction/IC-limits features independently in CI
+  ([#72](https://github.com/dragginzgame/ic-host-tooling/issues/72)).
+- Adopt Shared Tooling 0.10.0: the reviewed snapshot owns the default common
+  tool catalogs, with Host's existing versions and digests unchanged
+  ([Shared #153](https://github.com/dragginzgame/shared-tooling/issues/153)).
+  Retain maintenance and LOC rejection of directory
+  paths containing line breaks; release lock failures preserve native errors
+  and statuses ([Shared #150](https://github.com/dragginzgame/shared-tooling/issues/150),
+  [#151](https://github.com/dragginzgame/shared-tooling/issues/151),
+  [#152](https://github.com/dragginzgame/shared-tooling/issues/152)).
+  [Detailed notes](docs/changelog/0.17.md).
+
 ## [0.17.0] - 2026-10-13
 
 - **Breaking:** Wasm-only `ic-interface` inspection no longer enables the Candid

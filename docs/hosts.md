@@ -12,7 +12,9 @@ Check target-directory ownership before compilation. Preserve failure logs and a
 `make test-artifacts-minimal` checks the artifact library without optional
 features. `make test-tools-response` checks the response/text library,
 `make test-tools-interface` checks Wasm export interpretation,
-`make test-tools-service` checks parser-backed Candid service inspection, and
+`make test-tools-service` checks parser-backed Candid service inspection,
+`make test-tools-extraction` checks native Candid extraction,
+`make test-tools-limits` checks IC resource comparison, and
 `make tools-features-check` verifies its production dependency exclusions and
 the explicitly selected extractor's required owners. Native CI includes these profiles.
 The `candid-service` profile introduces the optional Candid parser;
@@ -50,9 +52,12 @@ using the shared installer and receipt checks. Native CI prepares and checks
 this selection too; Linux installation and substitute installer fixtures do not
 qualify its native macOS build or execution.
 CI also owns native macOS execution; Linux qualification is not macOS evidence.
-`ci/ic-tools.tsv` is a consumer-owned pin selection, excluded from automatic
-snapshot refreshes. Host selects Binaryen 133 for all three supported hosts,
-using the reviewed Shared snapshot's version and archive digests. Explicit IC setup,
+The reviewed Shared snapshot owns `ci/tool-versions.env` and `ci/ic-tools.tsv`.
+Host uses these common defaults without catalog exceptions; its release executable
+pin and Rust compiler policy remain local. Host, IC and Rust exceptions, if
+needed later, require independent explicit selection and native qualification.
+The common catalog selects Binaryen 133 for all three supported hosts.
+Explicit IC setup,
 offline admission and optimization/execution smoke pass on Linux. Both native
 macOS setup/check jobs passed on Host 0.12.9
 ([Host #53](https://github.com/dragginzgame/ic-host-tooling/issues/53)); later
