@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.17.7]
+## [0.17.7] - 2026-10-13
 
 - Add observed-identity digest verification and reuse shared fixture cleanup and
   Cargo-derived test workspace setup
