@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.15.2]
+## [0.15.2] - 2026-10-13
 
 - Adopt Shared Tooling 0.9.10, retaining the fix for Rust-tool qualification from
   consumer roots and removing its synthetic Git commits
