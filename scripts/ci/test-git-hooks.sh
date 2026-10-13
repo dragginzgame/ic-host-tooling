@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Shared companions: .githooks/pre-commit scripts/dev/install-git-hooks.sh scripts/ci/check-make-execution.sh scripts/ci/check-format-tools.sh scripts/ci/run-formatting.sh scripts/ci/check-formatting-hooks.sh scripts/dev/format-frontend.sh make/consumer.mk make/tools.mk make/release.mk make/rust-format.mk make/execution.mk ci/tool-versions.env
+# Shared companions: .githooks/pre-commit scripts/dev/install-git-hooks.sh scripts/ci/check-make-execution.sh scripts/ci/check-format-tools.sh scripts/ci/run-formatting.sh scripts/ci/check-formatting-hooks.sh scripts/dev/format-frontend.sh make/consumer.mk make/tools.mk make/release.mk make/rust-format.mk make/execution.mk ci/tool-versions.env scripts/ci/fixture-lifecycle.sh
 set -euo pipefail
 
 unset MAKEFLAGS MFLAGS MAKEOVERRIDES GNUMAKEFLAGS MAKEFILES
@@ -12,16 +12,12 @@ ROOT="${ROOT%/.}"
 source "$ROOT/ci/tool-versions.env"
 bash "$ROOT/scripts/ci/check-format-tools.sh" "$SHARED_TOOLING_CARGO_SORT_VERSION"
 FIXTURE="$(mktemp -d "${TMPDIR:-/tmp}/git-hooks-test.XXXXXX")"
-# Bash 3.2 can enter EXIT with status zero after nounset; require completion too.
+FIXTURE="$(CDPATH="" cd -P -- "$FIXTURE" && printf '%s/.' "$PWD")"
+FIXTURE="${FIXTURE%/.}"
+# shellcheck source=scripts/ci/fixture-lifecycle.sh
+source "$ROOT/scripts/ci/fixture-lifecycle.sh"
 fixture_complete=false
-finish() {
-    local status=$?
-    [[ "$fixture_complete" == true || "$status" != 0 ]] || status=1
-    if [[ "$status" == 0 ]]; then rm -rf -- "$FIXTURE"
-    else printf "Failed hook fixture retained: %s\n" "$FIXTURE" >&2; fi
-    exit "$status"
-}
-trap finish EXIT
+trap 'fixture_finish "$?" "$FIXTURE" "Failed hook fixture retained"' EXIT
 # Reuse an existing source commit read-only, without creating fixture commits.
 source_commit="$(git -C "$ROOT" rev-parse HEAD)"
 source_objects="$(git -C "$ROOT" rev-parse --git-path objects)"

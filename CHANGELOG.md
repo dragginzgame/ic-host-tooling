@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.17.5]
+
+- Adopt Shared Tooling 0.11.2: release recovery shares annotated-tag validation,
+  and shared fixtures preserve cleanup failures and physical temporary roots
+  ([#73](https://github.com/dragginzgame/ic-host-tooling/issues/73),
+  [Shared #166](https://github.com/dragginzgame/shared-tooling/issues/166)).
+  [Detailed notes](docs/changelog/0.17.md).
+
 ## [0.17.4] - 2026-10-13
 
 - Cover every workspace package in release projection and CI, including the Wasm

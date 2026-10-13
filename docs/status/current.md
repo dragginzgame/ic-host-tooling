@@ -1,6 +1,6 @@
 # Current handoff
 
-## Retained-staging primitive for Blob — pending 0.17.4
+## Retained-staging primitive for Blob — delivered 0.17.4
 
 `create_retained_at` creates a caller-named exclusive stage beneath an admitted
 parent descriptor. `publish_retained_at` consumes its held file, verifies regular
@@ -19,14 +19,13 @@ No native macOS, commit, release, publication or actual provider operation ran.
 
 ## Released source and baseline
 
-The latest finalized release is **0.17.3**, commit
-`a224122b987d545ae3fd058078992a3835f2b7a7`. Package versions remain unchanged.
-The pending source starts at `a3a7d3a` (commit subject `0.17.4`, not a release).
-Shared Tooling **0.11.0**, revision
-`a15ff323449f4b6190f647aec0de43cbcfb314ba`, is adopted through the canonical
+The latest finalized release is **0.17.4**, commit
+`28f3a6d5771ecb941b86cd3c6ea2507de82b101e`. Package versions remain unchanged.
+Shared Tooling **0.11.2**, revision
+`81bdf144482b21f146acf542f8013eefe1dfeba8`, is adopted through the canonical
 exporter from a clean isolated checkout of pushed upstream main. The snapshot
-contains 101 payloads; the obsolete CI yq wrapper is retired through entrypoint
-replacement. Uncommitted sibling fixture-lifecycle changes were excluded.
+contains 103 payloads, including the shared release-tag checker and fixture
+lifecycle helper. Tool pins and product source are unchanged.
 See [the snapshot](../../.shared-tooling.snapshot) and
 [AGENTS.md](../../AGENTS.md).
 
@@ -49,7 +48,19 @@ Prior 0.10.1 full offline Linux and genuine Bash 3.2 qualification remains in
 Native macOS 15 Intel and Apple Silicon qualification remains separate from
 local Linux evidence. No commit, push, release or publication ran in this task.
 
-## Pending 0.17.4
+## Pending 0.17.5
+
+Shared 0.11.2 centralizes annotated-tag validation in release recovery and
+cleanup/retention in its selected fixtures, preserving cleanup/diagnostic failure
+status and physical temporary roots. Host-owned fixture migration remains
+a separate candidate. Full current-checkout Linux `make ci`, snapshot verification
+and repeat preview pass. The committed upstream retention suite passes under
+current Bash and genuine Bash 3.2. Evidence is retained in `/tmp/host-shared0112/`;
+native macOS qualification remains separate. This is compatible contributor
+tooling with no library migration or changed tool pins
+([#73](https://github.com/dragginzgame/ic-host-tooling/issues/73)).
+
+## Delivered 0.17.4
 
 Workspace-wide CI/MSRV selection and source-bound lock inventory remove stale
 four-package assumptions. Publication retains one explicit allowlist and records
