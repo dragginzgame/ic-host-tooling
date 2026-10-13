@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.17.1]
+## [0.17.1] - 2026-10-13
 
 - Retain failed process/tools test fixtures, skip occupied fixture paths without
   deleting evidence, and test extraction/IC-limits features independently in CI
