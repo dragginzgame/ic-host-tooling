@@ -8,6 +8,60 @@ This file ships in the crate archive so upgrades can be completed without the
 repository checkout. The complete historical changelog remains at
 <https://github.com/dragginzgame/ic-testkit/blob/main/CHANGELOG.md>.
 
+## [0.35.1]
+
+### Changed: Shared Tooling and CI tool reuse
+
+The reviewed snapshot selects Shared Tooling 0.9.10
+`7e55adecf6f0b196c050f104b37f8c69b6bf434e`
+([#60](https://github.com/dragginzgame/ic-testkit/issues/60)). Cargo-tool setup
+rejects non-boolean Cargo `net.offline` configuration, preserving explicit
+environment overrides ([Shared #140](https://github.com/dragginzgame/shared-tooling/issues/140)).
+The changed build-policy digest requires explicit `make install-rust-tools`
+before offline tool/formatter checks; previous builds remain retained.
+
+The checks and portable CI jobs use the canonical installer identity to cache
+Cargo sources and physical Rust tool generations on each native host
+([Shared #142](https://github.com/dragginzgame/shared-tooling/issues/142)). Every
+run still performs complete setup and receipt/byte admission. Only main pushes
+save verified generations, before later validation; PRs only restore. Cache
+transport is bounded and nonfatal, while setup/admission failures remain fatal.
+Checkout selections and credentials are excluded; there are no broad restore
+prefixes. The existing library/Wasm/MSRV gates and artifact readback remain.
+Hosted cache hit rates and timing improvements need matching CI observations.
+
+The selected Rust-tool fixture isolates its compiler context and retains real
+staging/receipt checks without creating commits
+([Shared #143](https://github.com/dragginzgame/shared-tooling/issues/143),
+[Shared #144](https://github.com/dragginzgame/shared-tooling/issues/144)). The
+baseline adds scoped change-reporting rules; Testkit's library API and manifest
+versions are unchanged by this contributor-tooling adoption.
+
+### Changed: selected native dependencies
+
+The tracked lockfile selects published IC Build 0.1.1 for native development.
+Cargo grouping retains the original typed Host failure, exit status and admitted
+stdout/stderr, and rejects duplicate or empty package names before command
+effects ([IC Build #3](https://github.com/dragginzgame/ic-build/issues/3),
+[IC Build #4](https://github.com/dragginzgame/ic-build/issues/4)). Testkit's
+existing artifact imports and benchmark recipes need no changes. IC Build stays
+a development dependency; its grouping API is not re-exported by Testkit.
+
+The selected IC Host artifact, filesystem and process dependencies advance to
+0.15.1 without library API changes. Testkit's public API, Rust 1.88 floor, retained
+cache contracts and build-deadline policy are unchanged.
+
+### Testing: retained build handoff
+
+The canister benchmark integration test acquires its Wasm with locked Cargo
+inputs, reads the exact artifact path from IC Build's retained record and keeps
+that record alive through PocketIC installation and marker verification. It
+releases the fixture and build record before removing its temporary output.
+Generic cache reuse, corruption repair, environment invalidation, maintenance
+and timing checks stay in IC Build's behavioral coverage, so this test needs
+only one build acquisition
+([IC Build #1](https://github.com/dragginzgame/ic-build/issues/1)).
+
 ## [0.35.0] - 2026-10-12
 
 ### Breaking: generic build ownership

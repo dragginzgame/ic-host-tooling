@@ -6,6 +6,29 @@ documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.35.1]
+
+### Changed
+
+- Update the selected native development dependency to IC Build 0.1.1, which
+  preserves Cargo grouping failure evidence and rejects invalid package inputs
+  ([IC Build #3](https://github.com/dragginzgame/ic-build/issues/3),
+  [IC Build #4](https://github.com/dragginzgame/ic-build/issues/4)).
+- Update the locked IC Host dependencies to 0.15.1; library APIs are unchanged.
+- Adopt Shared Tooling 0.9.10 and reuse verified Cargo tool builds in native CI,
+  preserving setup/admission and tightening offline configuration checks
+  ([#60](https://github.com/dragginzgame/ic-testkit/issues/60),
+  [Shared #140](https://github.com/dragginzgame/shared-tooling/issues/140),
+  [Shared #142](https://github.com/dragginzgame/shared-tooling/issues/142)).
+
+### Testing
+
+- Focus the canister benchmark test on installing IC Build's retained Wasm and
+  parsing PocketIC markers; generic cache behavior stays with IC Build
+  ([IC Build #1](https://github.com/dragginzgame/ic-build/issues/1)).
+
+[Dependency and test details](crates/ic-testkit/CHANGELOG.md#0351)
+
 ## [0.35.0] - 2026-10-12
 
 ### Breaking

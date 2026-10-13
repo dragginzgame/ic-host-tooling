@@ -1,5 +1,36 @@
 # Host support and qualification
 
+## Shared 0.9.10 for pending 0.35.1
+
+The canonical exporter selects immutable revision
+`7e55adecf6f0b196c050f104b37f8c69b6bf434e`: 64 roots and 96 payloads.
+The new change-reporting rules are selected explicitly; the Rust-tool fixture
+adds the canonical Cargo-tool cache-key helper through its companion closure
+([#60](https://github.com/dragginzgame/ic-testkit/issues/60)). Uncommitted sibling
+changes are excluded. Pending benchmark edits, dependency selections, package
+metadata, the real index and refs are preserved.
+
+Checks and portable CI restore only Cargo sources and physical Rust tool
+generations under an exact compiler/native/image/pin/policy key. Complete setup
+and offline Rust-tool admission still run on cache hits. Only main pushes save
+verified generations before validation; PRs only restore. Restore/save have
+three-minute timeouts and nonfatal transport errors, while setup/admission
+remains fatal. Checkout selections, user credentials and host/IC bundles are
+excluded; no broad restore prefixes are used.
+
+Explicit `make install-rust-tools` prepares selections under the changed policy
+digest without discarding earlier builds. Actual offline Rust/formatter checks,
+snapshot integrity and dependency pins pass. The adopted Rust-tool fixture and
+consumer evidence/archive fixture pass on modern Bash and genuine Bash 3.2.57.
+These fixtures exercise invalid offline TOML, environment overrides, cache
+identity/round trips, receipt refusal, preserved partial staging and forbidden
+Git-effect detection. The actual consumer hook qualification, selected
+ShellCheck and actionlint pass. Repeated local cache-key reads are stable.
+
+Local logs use `/tmp/ic-testkit-shared0910-*`. This is focused Linux qualification;
+hosted cache hits, performance and this consumer source's native macOS acceptance
+remain unobserved. No broad gate, release or Git staging/ref operation was run.
+
 ## Host 0.15 and Shared 0.9.5 for pending 0.35.0
 
 The approved hard cut retires Testkit's unused IC-tool convenience re-export and
@@ -4602,3 +4633,22 @@ The separate complete-release reuse/finalization path is not replaced by a
 generic cache-hit predicate in this batch. IcyDB adoption and native macOS
 qualification remain separately scoped. No package versions, refs, tags or
 release artifacts are changed by the extraction.
+
+### 0.35.1 retained benchmark artifact handoff
+
+The focused canister benchmark test uses registry IC Build 0.1.1 and Host 0.15.1,
+with locked Cargo inputs and one build acquisition. It reads the retained exact
+artifact and holds its record through real PocketIC 16.1 installation, the
+benchmark update and fetched marker parsing. It releases the fixture and record
+before deleting its own temporary output. Generic cache semantics are qualified
+by IC Build rather than repeated in this consumer test.
+
+Locked offline cache preparation, selected strict Clippy and formatting pass.
+The actual Linux test passes with the prepared server: use `POCKET_IC_BIN` from
+`target/debug/ic-testkit-server check`, then `CARGO_NET_OFFLINE=true cargo test
+-p ic-testkit --locked --offline --test canister_benchmark
+perf_probe_canister_emits_parseable_benchmark_markers -- --exact --nocapture`.
+The first sandboxed run failed at PocketIC's local-port bind; the unrestricted
+focused run passes. Both observations remain in
+`/tmp/ic-testkit-0351-retained-handoff{,-native}.log`. Native macOS acceptance for
+this source remains outstanding; no broad gate or release was run.

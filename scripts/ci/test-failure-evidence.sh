@@ -21,7 +21,36 @@ fixture="${fixture%/.}"
 # The consumer's own upload/download boundary must retain the exact identity and
 # refuse download until discovery succeeds. Common retry behavior is qualified
 # by Shared Tooling's fixture; this checks the actual local workflow wiring.
-yq -o=json '.jobs.portable-hosts.steps' "$root/.github/workflows/ci.yml" > "$fixture/workflow-steps.json"
+yq -o=json '.jobs' "$root/.github/workflows/ci.yml" > "$fixture/workflow-jobs.json"
+jq '.["portable-hosts"].steps' "$fixture/workflow-jobs.json" > "$fixture/workflow-steps.json"
+# Restored tool bytes are untrusted until ordinary setup/admission succeeds.
+# Save only verified main-push generations, before later validation can fail.
+jq -e '
+    ["checks", "portable-hosts"] | all(.[]; . as $job
+        | $jobs[0][$job].steps | to_entries as $steps
+        | [$steps[] | select(.value.id == "cargo-tool-cache-key")] as $keys
+        | [$steps[] | select((.value.uses // "") | startswith("actions/cache/restore@"))] as $restores
+        | [$steps[] | select((.value.run // "") | contains("make install-tools"))] as $setups
+        | [$steps[] | select((.value.uses // "") | startswith("actions/cache/save@"))] as $saves
+        | ($keys | length) == 1 and ($restores | length) == 1
+          and ($setups | length) == 1 and ($saves | length) == 1
+          and ($keys[0].value.run | contains("scripts/ci/cargo-tool-cache-key.sh"))
+          and $keys[0].key < $restores[0].key and $restores[0].key < $setups[0].key
+          and $setups[0].key < $saves[0].key
+          and (($setups[0].value.if // "") == "")
+          and ($setups[0].value.run | contains("make rust-tools-check"))
+          and ($restores[0].value.with["restore-keys"] // "") == ""
+          and $saves[0].value.if == "${{ github.event_name == '\''push'\'' && github.ref == '\''refs/heads/main'\'' && steps.cargo-tool-cache.outputs.cache-hit != '\''true'\'' }}"
+          and $saves[0].value.with == $restores[0].value.with
+          and all([$restores[0], $saves[0]][];
+              .value["timeout-minutes"] == 3 and .value["continue-on-error"] == true
+              and .value.with.key == "cargo-tools-${{ runner.os }}-${{ runner.arch }}-${{ steps.cargo-tool-cache-key.outputs.key }}"
+              and (.value.with.path | split("\n") | map(select(length > 0))) == [
+                  "${{ steps.cargo-tool-cache-key.outputs.root }}/cargo-cache",
+                  "${{ steps.cargo-tool-cache-key.outputs.root }}/rust-*"
+              ])
+    )
+' --null-input --slurpfile jobs "$fixture/workflow-jobs.json" >/dev/null
 jq -e '
     [.[] | select((.uses // "") | startswith("actions/download-artifact@"))] as $downloads
     | ($downloads | length) == 1 and all($downloads[];

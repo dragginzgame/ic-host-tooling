@@ -67,13 +67,44 @@ jobs:
         run: echo "RUSTUP_TOOLCHAIN=$IC_TESTKIT_INTERNAL_TOOLCHAIN" >> "$GITHUB_ENV"
       # Swatinem/rust-cache v2
       - uses: Swatinem/rust-cache@42dc69e1aa15d09112580998cf2ef0119e2e91ae
+      - name: Prepare host tools and identify Cargo tool cache
+        id: cargo-tool-cache-key
+        shell: bash
+        run: |
+          make install-host-tools
+          make host-tools-check
+          export PATH="$GITHUB_WORKSPACE/.tools/host/bin:$PATH"
+          bash scripts/ci/cargo-tool-cache-key.sh ci/tool-versions.env >> "$GITHUB_OUTPUT"
+      - name: Restore Cargo tool builds
+        id: cargo-tool-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        timeout-minutes: 3
+        continue-on-error: true
+        env:
+          SEGMENT_DOWNLOAD_TIMEOUT_MINS: 2
+        with:
+          path: |
+            ${{ steps.cargo-tool-cache-key.outputs.root }}/cargo-cache
+            ${{ steps.cargo-tool-cache-key.outputs.root }}/rust-*
+          key: cargo-tools-${{ runner.os }}-${{ runner.arch }}-${{ steps.cargo-tool-cache-key.outputs.key }}
       - name: Prepare complete common and product tools
         shell: bash
         run: |
           make install-tools 2>&1 | tee "$RUNNER_TEMP/ic-testkit-tools-install.log"
+          make rust-tools-check
           printf '%s\n' "$GITHUB_WORKSPACE/.tools/host/bin" "$GITHUB_WORKSPACE/.tools/ic/bin" "$GITHUB_WORKSPACE/.tools/rust/common/bin" >> "$GITHUB_PATH"
           server="$(target/debug/ic-testkit-server check)"
           echo "POCKET_IC_BIN=$server" >> "$GITHUB_ENV"
+      - name: Save verified Cargo tool builds
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.cargo-tool-cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        timeout-minutes: 3
+        continue-on-error: true
+        with:
+          path: |
+            ${{ steps.cargo-tool-cache-key.outputs.root }}/cargo-cache
+            ${{ steps.cargo-tool-cache-key.outputs.root }}/rust-*
+          key: cargo-tools-${{ runner.os }}-${{ runner.arch }}-${{ steps.cargo-tool-cache-key.outputs.key }}
       - name: Prepare selected dependencies
         run: cargo fetch --locked
       - name: Run complete CI gate
@@ -118,13 +149,44 @@ jobs:
         run: echo "RUSTUP_TOOLCHAIN=$IC_TESTKIT_INTERNAL_TOOLCHAIN" >> "$GITHUB_ENV"
       # Swatinem/rust-cache v2
       - uses: Swatinem/rust-cache@42dc69e1aa15d09112580998cf2ef0119e2e91ae
+      - name: Prepare host tools and identify Cargo tool cache
+        id: cargo-tool-cache-key
+        shell: /bin/bash --noprofile --norc -e -u -o pipefail {0}
+        run: |
+          make install-host-tools
+          make host-tools-check
+          export PATH="$GITHUB_WORKSPACE/.tools/host/bin:$PATH"
+          bash scripts/ci/cargo-tool-cache-key.sh ci/tool-versions.env >> "$GITHUB_OUTPUT"
+      - name: Restore Cargo tool builds
+        id: cargo-tool-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        timeout-minutes: 3
+        continue-on-error: true
+        env:
+          SEGMENT_DOWNLOAD_TIMEOUT_MINS: 2
+        with:
+          path: |
+            ${{ steps.cargo-tool-cache-key.outputs.root }}/cargo-cache
+            ${{ steps.cargo-tool-cache-key.outputs.root }}/rust-*
+          key: cargo-tools-${{ runner.os }}-${{ runner.arch }}-${{ steps.cargo-tool-cache-key.outputs.key }}
       - name: Prepare complete common and product tools with the system Bash
         shell: /bin/bash --noprofile --norc -e -u -o pipefail {0}
         run: |
           make install-tools 2>&1 | tee "$RUNNER_TEMP/ic-testkit-tools-install.log"
+          make rust-tools-check
           printf '%s\n' "$GITHUB_WORKSPACE/.tools/host/bin" "$GITHUB_WORKSPACE/.tools/ic/bin" "$GITHUB_WORKSPACE/.tools/rust/common/bin" >> "$GITHUB_PATH"
           server="$(target/debug/ic-testkit-server check)"
           echo "POCKET_IC_BIN=$server" >> "$GITHUB_ENV"
+      - name: Save verified Cargo tool builds
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.cargo-tool-cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        timeout-minutes: 3
+        continue-on-error: true
+        with:
+          path: |
+            ${{ steps.cargo-tool-cache-key.outputs.root }}/cargo-cache
+            ${{ steps.cargo-tool-cache-key.outputs.root }}/rust-*
+          key: cargo-tools-${{ runner.os }}-${{ runner.arch }}-${{ steps.cargo-tool-cache-key.outputs.key }}
       - name: Select system Bash on macOS
         if: runner.os == 'macOS'
         run: echo /bin >> "$GITHUB_PATH"
