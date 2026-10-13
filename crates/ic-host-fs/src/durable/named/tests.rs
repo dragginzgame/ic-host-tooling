@@ -154,7 +154,7 @@ fn sync_errors_have_correct_publication_state() {
             use std::io::Write as _;
             file.write_all(b"new")
         },
-        None::<fn(&Path, &()) -> io::Result<()>>,
+        None::<(bool, fn(&Path, &()) -> io::Result<()>)>,
         |step, _| {
             if step == FileCommitStep::TemporaryFileSync {
                 Err(io::Error::from_raw_os_error(5))
@@ -176,7 +176,7 @@ fn sync_errors_have_correct_publication_state() {
             use std::io::Write as _;
             file.write_all(b"new")
         },
-        None::<fn(&Path, &()) -> io::Result<()>>,
+        None::<(bool, fn(&Path, &()) -> io::Result<()>)>,
         |step, _| {
             if step == FileCommitStep::FinalParentSync {
                 Err(io::Error::from_raw_os_error(5))
@@ -207,7 +207,7 @@ fn replacement_after_sync_is_rejected_before_rename() {
             staged_path.replace(Some(stage.to_path_buf()));
             file.write_all(b"produced")
         },
-        None::<fn(&Path, &()) -> io::Result<()>>,
+        None::<(bool, fn(&Path, &()) -> io::Result<()>)>,
         |step, _| {
             if step == FileCommitStep::Publication {
                 let borrowed = staged_path.borrow();

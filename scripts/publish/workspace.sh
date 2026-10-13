@@ -9,6 +9,12 @@ mode="${1:-}"
     echo 'usage: workspace.sh publish|check' >&2; exit 2;
 }
 fail() { echo "publication refused: $1" >&2; exit 1; }
+package_path() {
+    case "$1" in
+        ic-host-wasm-inspect) printf 'apps/%s\n' "$1" ;;
+        *) printf 'crates/%s\n' "$1" ;;
+    esac
+}
 # Preserve path newlines, removing only Git's terminating record newline.
 root="$(git rev-parse --show-toplevel && printf '/.')"
 root="${root%$'\n/.'}"
@@ -18,8 +24,8 @@ source="$(git rev-parse --verify HEAD)" || exit $?
 dirty="$(git status --porcelain --untracked-files=all)" || exit $?
 [[ "$mode" != publish || -z "$dirty" ]] || fail 'commit workspace changes before publishing'
 [[ -f LICENSE && ! -L LICENSE ]] || fail 'expected a regular root license notice'
-for package in ic-host-artifacts ic-host-fs ic-host-process ic-host-tools; do
-    notice="crates/$package/LICENSE"
+for package in ic-host-artifacts ic-host-fs ic-host-process ic-host-tools ic-host-wasm-inspect; do
+    notice="$(package_path "$package")/LICENSE"
     [[ -f "$notice" && ! -L "$notice" ]] || fail "expected a regular license notice for $package"
     cmp -s LICENSE "$notice" || fail "license notice differs from the root notice for $package"
 done
@@ -40,11 +46,13 @@ jq -e '
     . as $workspace
     | [.packages[] | select(.id as $id | $workspace.workspace_members | index($id))] as $packages
     | ($packages | map(.name) | sort) ==
-        ["ic-host-artifacts", "ic-host-fs", "ic-host-process", "ic-host-tools"]
+        ["ic-host-artifacts", "ic-host-fs", "ic-host-process", "ic-host-tools", "ic-host-wasm-inspect"]
       and ($packages | map(.version) | unique | length) == 1
       and ($packages | all(.publish == ["crates-io"]))
       and ($packages | all(.repository == "https://github.com/dragginzgame/ic-host-tooling"))
-' "$attempt/metadata.json" > /dev/null || fail 'expected four synchronized crates.io packages'
+      and ($packages | any(.name == "ic-host-wasm-inspect" and
+          any(.targets[]; .name == "ic-host-wasm-inspect" and (.kind | index("bin")))))
+' "$attempt/metadata.json" > /dev/null || fail 'expected five synchronized crates.io packages'
 repository="$(jq -r '.packages[0].repository' "$attempt/metadata.json")"
 version="$(jq -r '.packages[0].version' "$attempt/metadata.json")"
 [[ "$version" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]] || fail 'expected a stable workspace version'
@@ -64,12 +72,12 @@ if [[ "$mode" == publish ]]; then
         --registry crates-io --all-features --locked --no-verify --target-dir "$root/target")
     printf '%s\0' "${package_arguments[@]}" > "$attempt/package-arguments"
     cargo "${package_arguments[@]}" > "$attempt/package.log" 2>&1 || fail 'package preparation failed; no upload attempted'
-    for package in ic-host-artifacts ic-host-fs ic-host-process ic-host-tools; do
+    for package in ic-host-artifacts ic-host-fs ic-host-process ic-host-tools ic-host-wasm-inspect; do
         archive="target/package/$package-$version.crate"
         [[ -f "$archive" && ! -L "$archive" ]] || fail "missing regular package archive for $package"
         tar -xOf "$archive" "$package-$version/.cargo_vcs_info.json" \
             > "$attempt/$package-vcs.json" 2> "$attempt/$package-vcs.log" || fail "missing package provenance for $package"
-        jq -e --arg source "$source" --arg path "crates/$package" \
+        jq -e --arg source "$source" --arg path "$(package_path "$package")" \
             '.git.sha1 == $source and (.git.dirty // false) == false and .path_in_vcs == $path' \
             "$attempt/$package-vcs.json" > /dev/null || fail "package source identity differs for $package"
     done

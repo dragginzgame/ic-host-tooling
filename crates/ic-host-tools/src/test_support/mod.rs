@@ -60,7 +60,25 @@ impl Fixture {
     }
 
     pub fn tool(&self) -> AdmittedTool {
-        admit(&tool_path(), &self.context(&[]), VERSION).unwrap()
+        let path = Path::new(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/tests/fixtures/tool.sh"
+        ))
+        .canonicalize()
+        .unwrap();
+        let identity = hash_file(&path, 1024 * 1024).unwrap();
+        AdmittedTool::admit(
+            &ToolSpec {
+                executable: &path,
+                sha256: identity.sha256,
+                executable_bytes: 1024 * 1024,
+                version_arguments: &[OsString::from("--version")],
+                version_identity: VERSION,
+            },
+            &self.context(&[]),
+            LIMITS,
+        )
+        .unwrap()
     }
 
     pub fn source(&self) -> PathBuf {
@@ -78,32 +96,4 @@ impl Drop for Fixture {
         }
         let _ = fs::remove_dir_all(&self.root);
     }
-}
-
-pub fn tool_path() -> PathBuf {
-    Path::new(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/tests/fixtures/tool.sh"
-    ))
-    .canonicalize()
-    .unwrap()
-}
-
-pub fn admit(
-    path: &Path,
-    context: &ExecutionContext<'_>,
-    version: &str,
-) -> Result<AdmittedTool, ic_host_process::tool::ToolError> {
-    let identity = hash_file(path, 1024 * 1024).unwrap();
-    AdmittedTool::admit(
-        &ToolSpec {
-            executable: path,
-            sha256: identity.sha256,
-            executable_bytes: 1024 * 1024,
-            version_arguments: &[OsString::from("--version")],
-            version_identity: version,
-        },
-        context,
-        LIMITS,
-    )
 }

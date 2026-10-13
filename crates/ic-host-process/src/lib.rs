@@ -1,8 +1,9 @@
-//! Consumer-admitted executable resolution, bounded execution and Git observations.
+//! Native process observations, consumer-admitted execution and Git provenance.
 #[cfg(unix)]
 pub mod child;
 #[cfg(unix)]
 pub mod provenance;
+pub mod sampling;
 #[cfg(all(test, unix))]
 mod test_support;
 #[cfg(unix)]

@@ -1,6 +1,6 @@
 //! Inspect local ICP CLI output without running a command or printing its payload.
 
-use ic_host_artifacts::artifact::hash_reader;
+use ic_host_artifacts::artifact::Sha256Digest;
 use ic_host_fs::read::read_file;
 use ic_host_tools::response::{ResponseFormat, ResponseLimits, decode};
 
@@ -36,10 +36,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
     let input = read_file(Path::new(&path), limits.input_bytes)?;
     let bytes = decode(&input, format, limits)?;
-    let identity = hash_reader(bytes.as_slice(), u64::try_from(limits.decoded_bytes)?)?;
     println!(
         "response_bytes={} sha256={}",
-        identity.bytes, identity.sha256
+        bytes.len(),
+        Sha256Digest::compute(&bytes)
     );
     Ok(())
 }

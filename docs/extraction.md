@@ -26,7 +26,8 @@ response-only graph; IC reference values and comparison remain in the tools owne
 - ic-host-fs owns pathname/descriptor reads and the durable module's replace,
   create-new, private-file, parent synchronization and descriptor-lock operations.
 - ic-host-process owns executable resolution/admission, explicit execution context,
-  output limits, deadlines, direct-child/explicit group cleanup evidence and separate Git queries.
+  output limits, deadlines, direct-child/explicit group cleanup evidence, native
+  process-table/RSS observations and separate Git queries.
 - ic-host-tools owns Candid text/extractor and service-method interpretation,
   IC method export projection over generic Wasm facts, ICP response formats
   and explicit revision-bound IC resource comparisons.
@@ -280,3 +281,10 @@ adoption of these split crates remains separate. The manifests permit crates.io
 publication through the [explicit publication procedure](publishing.md).
 The breaking removal of generic APIs from ic-host-tools requires a coordinated
 pre-1.0 minor release. This contract assigns ownership; GitHub issues own follow-up tracking.
+
+The standalone `apps/ic-host-wasm-inspect` application composes artifact Wasm facts
+with bounded filesystem reads, without process execution or the Candid parser.
+The four library boundaries stay unchanged. Explicit paths, four budgets and
+performance interpretation stay caller-owned. The standard selected Cargo
+installer can prepare its published binary without feature flags. Metrics
+retirement requires publication and an admitted exact consumer selection.

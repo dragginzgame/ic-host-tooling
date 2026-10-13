@@ -55,11 +55,13 @@ test-tools-interface:
 test-tools-service:
 	+cargo test -p ic-host-tools --no-default-features --features candid-service --all-targets --locked --offline
 
-.PHONY: test-tools-extraction test-tools-limits
+.PHONY: test-tools-extraction test-tools-limits test-wasm-inspection
 test-tools-extraction:
 	+cargo test -p ic-host-tools --no-default-features --features candid-extraction --all-targets --locked --offline
 test-tools-limits:
 	+cargo test -p ic-host-tools --no-default-features --features ic-limits --all-targets --locked --offline
+test-wasm-inspection:
+	+cargo test -p ic-host-wasm-inspect --all-targets --locked --offline
 tools-features-check:
 	+bash scripts/ci/check-tools-features.sh
 msrv:
@@ -112,7 +114,8 @@ ci:
 	+$(MAKE) --no-print-directory test-tools-service
 	+$(MAKE) --no-print-directory test-tools-extraction
 	+$(MAKE) --no-print-directory test-tools-limits
-	@for package in ic-host-artifacts ic-host-fs ic-host-process ic-host-tools; do \
+	+$(MAKE) --no-print-directory test-wasm-inspection
+	@for package in ic-host-artifacts ic-host-fs ic-host-process ic-host-tools ic-host-wasm-inspect; do \
 		$(MAKE) --no-print-directory clippy PACKAGE=$$package && \
 		$(MAKE) --no-print-directory docs-check PACKAGE=$$package && \
 		$(MAKE) --no-print-directory test PACKAGE=$$package || exit $$?; \

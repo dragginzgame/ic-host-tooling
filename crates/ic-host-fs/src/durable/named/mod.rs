@@ -112,7 +112,7 @@ pub fn write_named_with<T, E>(
             &absolute,
             super::REPLACE_OPTIONS,
             |stage, _| produce(stage),
-            None::<fn(&Path, &T) -> Result<(), E>>,
+            None::<(bool, fn(&Path, &T) -> Result<(), E>)>,
             |_, _| Ok(()),
         )
     }

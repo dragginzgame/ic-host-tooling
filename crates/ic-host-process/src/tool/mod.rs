@@ -12,7 +12,7 @@ mod tests;
 pub use resolution::{ResolutionError, resolve_executable};
 
 use ic_host_artifacts::artifact::{ArtifactError, ArtifactIdentity, Sha256Digest};
-use ic_host_fs::read::hash_file;
+use ic_host_fs::read::{hash_file, hash_file_no_follow};
 use std::{
     ffi::OsString,
     fmt, fs, io,
@@ -644,6 +644,7 @@ pub struct AdmittedTool {
     identity: ArtifactIdentity,
     executable_bytes: u64,
     version_identity: String,
+    no_follow: bool,
 }
 
 impl AdmittedTool {
@@ -667,6 +668,35 @@ impl AdmittedTool {
             Some(spec.sha256),
             context,
             limits,
+            false,
+        )
+    }
+
+    /// Admit exact bytes without following the executable's final-component symlink.
+    ///
+    /// Performs one bounded no-follow hash before the version command. Parents
+    /// and concurrent writers remain caller-owned. The retained canonical path
+    /// also rejects final-component links during subsequent [`Self::run`] calls.
+    ///
+    /// # Errors
+    /// Returns the same admission failures as [`Self::admit`], additionally
+    /// refusing final-component symbolic links and special files before execution.
+    pub fn admit_no_follow(
+        spec: &ToolSpec<'_>,
+        context: &ExecutionContext<'_>,
+        limits: OutputLimits,
+    ) -> Result<Self, ToolError> {
+        Self::admit_with_digest(
+            &VersionSpec {
+                executable: spec.executable,
+                executable_bytes: spec.executable_bytes,
+                version_arguments: spec.version_arguments,
+                version_identity: spec.version_identity,
+            },
+            Some(spec.sha256),
+            context,
+            limits,
+            true,
         )
     }
 
@@ -691,7 +721,7 @@ impl AdmittedTool {
         context: &ExecutionContext<'_>,
         limits: OutputLimits,
     ) -> Result<Self, ToolError> {
-        Self::admit_with_digest(spec, None, context, limits)
+        Self::admit_with_digest(spec, None, context, limits, false)
     }
 
     fn admit_with_digest(
@@ -699,6 +729,7 @@ impl AdmittedTool {
         expected: Option<Sha256Digest>,
         context: &ExecutionContext<'_>,
         limits: OutputLimits,
+        no_follow: bool,
     ) -> Result<Self, ToolError> {
         if !spec.executable.is_absolute() {
             return Err(ToolError::InvalidInvocation(
@@ -713,7 +744,12 @@ impl AdmittedTool {
         }
         validate_invocation(spec.version_arguments, context, limits)?;
         let path = fs::canonicalize(spec.executable).map_err(ToolError::Io)?;
-        let identity = verify_executable(&path, spec.executable_bytes, expected)?;
+        let identity = verify_executable(
+            if no_follow { spec.executable } else { &path },
+            spec.executable_bytes,
+            expected,
+            no_follow,
+        )?;
         let evidence = process::capture(&path, spec.version_arguments, context, limits)
             .map_err(|source| ToolError::Execution(Box::new(source)))?
             .require_success()?
@@ -737,6 +773,7 @@ impl AdmittedTool {
             identity,
             executable_bytes: spec.executable_bytes,
             version_identity: spec.version_identity.to_owned(),
+            no_follow,
         })
     }
 
@@ -785,6 +822,7 @@ impl AdmittedTool {
             &self.path,
             self.executable_bytes,
             Some(self.identity.sha256),
+            self.no_follow,
         )?;
         process::capture(&self.path, arguments, context, limits)
             .map_err(|source| ToolError::Execution(Box::new(source)))
@@ -795,8 +833,14 @@ fn verify_executable(
     path: &Path,
     limit: u64,
     expected: Option<Sha256Digest>,
+    no_follow: bool,
 ) -> Result<ArtifactIdentity, ToolError> {
-    let actual = hash_file(path, limit).map_err(ToolError::Artifact)?;
+    let actual = if no_follow {
+        hash_file_no_follow(path, limit)
+    } else {
+        hash_file(path, limit)
+    }
+    .map_err(ToolError::Artifact)?;
     if let Some(expected) = expected
         && actual.sha256 != expected
     {

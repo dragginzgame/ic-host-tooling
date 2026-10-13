@@ -25,6 +25,95 @@ const CREATE: WriteOptions = WriteOptions {
 };
 
 #[test]
+fn descriptor_admission_keeps_typed_rejection_and_previous_output() {
+    let fixture = Fixture::new();
+    let parent = fs::File::open(&fixture.root).unwrap();
+    let output = fixture.root.join("report");
+    fs::write(&output, b"previous").unwrap();
+    for accepted in [false, true] {
+        let result = write_at_validated_with(
+            parent.as_fd(),
+            OsStr::new("report"),
+            REPLACE,
+            |file| {
+                file.write_all(b"complete replacement")?;
+                Ok::<_, io::Error>(42)
+            },
+            |value| {
+                assert_eq!(*value, 42);
+                assert_eq!(fs::read(&output).unwrap(), b"previous");
+                if accepted {
+                    Ok(())
+                } else {
+                    Err(io::Error::from(io::ErrorKind::Interrupted))
+                }
+            },
+        );
+        if accepted {
+            assert_eq!(result.unwrap(), 42);
+            assert_eq!(fs::read(&output).unwrap(), b"complete replacement");
+            assert_eq!(
+                fs::metadata(&output).unwrap().permissions().mode() & 0o777,
+                0o600
+            );
+        } else {
+            assert!(matches!(result,
+                Err(NamedWriteError::Producer { source, cleanup_error: None })
+                if source.kind() == io::ErrorKind::Interrupted));
+            assert_eq!(fs::read(&output).unwrap(), b"previous");
+        }
+        assert_eq!(fs::read_dir(&fixture.root).unwrap().count(), 1);
+    }
+}
+
+#[test]
+fn descriptor_value_admission_accepts_write_only_staging() {
+    let fixture = Fixture::new();
+    let parent = fs::File::open(&fixture.root).unwrap();
+    let result = write_at_validated_with(
+        parent.as_fd(),
+        OsStr::new("report"),
+        WriteOptions {
+            permissions: 0o200,
+            ..REPLACE
+        },
+        |file| {
+            file.write_all(b"complete")?;
+            Ok::<_, io::Error>(42)
+        },
+        |value| {
+            assert_eq!(*value, 42);
+            Ok(())
+        },
+    )
+    .unwrap();
+    assert_eq!(result, 42);
+    let metadata = fs::metadata(fixture.root.join("report")).unwrap();
+    assert_eq!(metadata.len(), 8);
+    assert_eq!(metadata.permissions().mode() & 0o777, 0o200);
+}
+
+#[test]
+fn descriptor_producer_rejection_never_dispatches_admission() {
+    let fixture = Fixture::new();
+    let parent = fs::File::open(&fixture.root).unwrap();
+    let result = write_at_validated_with(
+        parent.as_fd(),
+        OsStr::new("report"),
+        REPLACE,
+        |file| {
+            file.write_all(b"partial")?;
+            Err::<(), _>(io::Error::from(io::ErrorKind::StorageFull))
+        },
+        |()| -> io::Result<()> { panic!("failed production must not reach admission") },
+    );
+    assert!(matches!(result,
+        Err(NamedWriteError::Producer { source, cleanup_error: None })
+        if source.kind() == io::ErrorKind::StorageFull));
+    assert_eq!(fs::read_dir(&fixture.root).unwrap().count(), 0);
+}
+
+#[test]
 fn typed_serialization_preserves_errors_limits_and_previous_output() {
     struct InvalidValue;
     impl serde::Serialize for InvalidValue {
@@ -305,7 +394,7 @@ fn descriptor_publication_preserves_sync_state_and_foreign_stage_cleanup_evidenc
             OsStr::new("output"),
             REPLACE,
             |_, file| file.write_all(b"new"),
-            None::<fn(&Path, &()) -> io::Result<()>>,
+            None::<(bool, fn(&Path, &()) -> io::Result<()>)>,
             |current, _| {
                 if current == step {
                     Err(io::Error::from_raw_os_error(5))
@@ -338,7 +427,7 @@ fn descriptor_publication_preserves_sync_state_and_foreign_stage_cleanup_evidenc
             fs::write(fixture.root.join(stage), b"foreign").unwrap();
             Err("producer evidence")
         },
-        None::<fn(&Path, &()) -> Result<(), &'static str>>,
+        None::<(bool, fn(&Path, &()) -> Result<(), &'static str>)>,
         |_, _| Ok(()),
     )
     .unwrap_err();
@@ -461,10 +550,10 @@ fn validated_publication_retains_sync_and_publication_failure_phases() {
             &output,
             REPLACE,
             |_, file| file.write_all(b"new"),
-            Some(|_: &Path, (): &()| -> io::Result<()> {
+            Some((true, |_: &Path, (): &()| -> io::Result<()> {
                 admitted = true;
                 Ok(())
-            }),
+            })),
             |current, _| {
                 if current == step {
                     Err(io::Error::from_raw_os_error(5))

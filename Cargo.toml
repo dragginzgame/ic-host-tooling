@@ -1,5 +1,6 @@
 [workspace]
 members = [
+    "apps/ic-host-wasm-inspect",
     "crates/ic-host-artifacts",
     "crates/ic-host-fs",
     "crates/ic-host-process",

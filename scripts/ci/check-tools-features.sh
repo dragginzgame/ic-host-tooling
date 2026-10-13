@@ -51,4 +51,15 @@ for owner in artifacts fs process; do
         exit 1
     }
 done
+inspection="$(cargo tree -p ic-host-wasm-inspect --edges normal --prefix none --format '{p}' --locked --offline)"
+if printf '%s\n' "$inspection" | rg '^(ic-host-process|candid_parser) '; then
+    echo 'Wasm inspection CLI graph includes a process or Candid parser owner' >&2
+    exit 1
+fi
+for owner in artifacts fs; do
+    printf '%s\n' "$inspection" | rg "^ic-host-$owner " >/dev/null || {
+        echo "Wasm inspection CLI graph lacks ic-host-$owner" >&2
+        exit 1
+    }
+done
 echo 'tools feature dependency graphs passed'

@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.17.4]
+
+- Stream regular-file example hashing and avoid copying decoded responses for
+  hashing; simplify the tools fixture's fixed admission flow
+  ([#78](https://github.com/dragginzgame/ic-host-tooling/issues/78)).
+
+- Add no-follow executable admission, native process-tree RSS observations and
+  post-sync validation beneath an admitted publication directory, allowing
+  Testkit to remove duplicate admission, sampling and publication mechanics
+  ([#79](https://github.com/dragginzgame/ic-host-tooling/issues/79)).
+
+- Add caller-named retained staging and no-replace publication beneath an admitted
+  directory descriptor, preserving failed inputs through the durable engine.
+
+- Share release-payload comparisons between prepared and committed checks,
+  preserving source-bound historical recovery
+  ([#75](https://github.com/dragginzgame/ic-host-tooling/issues/75)).
+  [Detailed notes](docs/changelog/0.17.md).
+
+- Add the standalone `ic-host-wasm-inspect` CLI package,
+  using canonical bounded file reads and Wasm facts. It retains explicit budgets,
+  exact input hashes, TSV columns, typed failures and no report on input rejection.
+  Response-only defaults and parser/process feature boundaries stay unchanged.
+
 ## [0.17.3] - 2026-10-13
 
 - Adopt Shared Tooling 0.10.2, retaining the 0.10.1 fix so unrelated catalog

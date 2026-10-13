@@ -197,3 +197,16 @@ Consumers adopt and qualify registry selections independently.
 Read [the extraction contract](docs/extraction.md), [the handoff](docs/status/current.md)
 and [agent rules](AGENTS.md). Human and agent contributions follow the
 [PR contribution rules](rules/contributions.md).
+
+### Bounded Wasm inspection CLI
+
+```sh
+cargo run -p ic-host-wasm-inspect --locked -- input.wasm 1048576 1000 1000 1000
+```
+
+The standalone application composes artifact/filesystem owners, keeping the four
+library boundaries and response-only defaults unchanged. It prints exact SHA-256
+and raw/structural facts after complete admission; budgets and interpretation
+stay caller-owned. It executes no Wasm and estimates no cycles or instructions.
+After publication, select the package, version and binary through the standard
+Shared Tooling Cargo installer; no extra feature selection is required.

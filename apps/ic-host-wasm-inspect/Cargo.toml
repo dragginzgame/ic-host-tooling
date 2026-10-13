@@ -1,0 +1,18 @@
+[package]
+name = "ic-host-wasm-inspect"
+edition.workspace = true
+rust-version.workspace = true
+version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+description = "Bounded structural Wasm inspection CLI"
+readme = "README.md"
+publish = ["crates-io"]
+
+[dependencies]
+ic-host-artifacts = { workspace = true, features = ["wasm"] }
+ic-host-fs.workspace = true
+
+[lints]
+workspace = true

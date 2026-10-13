@@ -58,7 +58,7 @@ pub fn write_with<T, E>(
             path,
             options,
             |_, file| produce(file),
-            None::<fn(&Path, &T) -> Result<(), E>>,
+            None::<(bool, fn(&Path, &T) -> Result<(), E>)>,
             |_, _| Ok(()),
         )
     }
@@ -108,13 +108,60 @@ pub fn write_at_with<T, E>(
             name,
             options,
             |_, file| produce(file),
-            None::<fn(&Path, &T) -> Result<(), E>>,
+            None::<(bool, fn(&Path, &T) -> Result<(), E>)>,
             |_, _| Ok(()),
         )
     }
     #[cfg(not(any(target_os = "linux", target_os = "android", target_vendor = "apple")))]
     {
         let _ = (parent, name, options, produce);
+        Err(NamedWriteError::before(std::io::Error::new(
+            std::io::ErrorKind::Unsupported,
+            "durable atomic file publication is unsupported",
+        )))
+    }
+}
+
+/// Stream beneath an admitted directory and check the result after file sync, before publication.
+///
+/// Shares [`write_at_with`]'s staging, permissions, descriptor custody and
+/// before/after-publication errors. No parent is created or reopened by pathname.
+/// After production and file synchronization, `admit` receives the
+/// producer's value. It can reject cancellation or consumer validation while
+/// the previous destination remains untouched. It does not receive a pathname
+/// or choose content, lifecycle or retry policy.
+///
+/// All writable clones and external producers must finish before production
+/// returns. Admission must not modify staging. The caller retains exclusive
+/// directory custody throughout the call, as required by [`write_at_with`].
+///
+/// # Errors
+/// Producer/admission rejection retains `E` and independent cleanup failures.
+/// Filesystem errors retain their before/after-publication state; reconcile
+/// already-published results before retrying.
+#[cfg(unix)]
+pub fn write_at_validated_with<T, E>(
+    parent: std::os::fd::BorrowedFd<'_>,
+    name: &std::ffi::OsStr,
+    options: WriteOptions,
+    produce: impl FnOnce(&mut fs::File) -> Result<T, E>,
+    admit: impl FnOnce(&T) -> Result<(), E>,
+) -> Result<T, NamedWriteError<E>> {
+    #[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
+    {
+        super::supported::commit_at_with_hook(
+            parent,
+            None,
+            name,
+            options,
+            |_, file| produce(file),
+            Some((false, |_: &Path, value: &T| admit(value))),
+            |_, _| Ok(()),
+        )
+    }
+    #[cfg(not(any(target_os = "linux", target_os = "android", target_vendor = "apple")))]
+    {
+        let _ = (parent, name, options, produce, admit);
         Err(NamedWriteError::before(std::io::Error::new(
             std::io::ErrorKind::Unsupported,
             "durable atomic file publication is unsupported",
@@ -157,7 +204,7 @@ pub fn write_validated_with<T, E>(
             &absolute,
             options,
             |_, file| produce(file),
-            Some(admit),
+            Some((true, admit)),
             |_, _| Ok(()),
         )
     }

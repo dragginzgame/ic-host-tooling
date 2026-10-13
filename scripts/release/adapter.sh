@@ -88,19 +88,23 @@ archive_validation_evidence() {
         cmp "$file" "$archive/${file##*/}" || fail 'validation evidence copy differs'
     done
 }
+check_payload() {
+    local directory="$1" mode file
+    for mode in manifest lock; do
+        if [[ "$mode" == manifest ]]; then file=Cargo.toml; else file=Cargo.lock; fi
+        [[ -f "$directory/$file" && ! -L "$directory/$file" ]] || fail "missing or symlinked Cargo metadata"
+        git show "$RELEASE_SOURCE:$file" |
+            awk -v mode="$mode" -v replacement="$RELEASE_VERSION" -f "$tooling_root/scripts/release/metadata-version.awk" |
+            cmp - "$directory/$file"
+    done
+    finalize_notes "$notes" | cmp - "$directory/CHANGELOG.md"
+}
 check_prepared() {
-    local mode file observed_version
+    local observed_version
     check_receipt
     observed_version="$(version)" || exit $?
     [[ "$observed_version" == "$RELEASE_VERSION" ]] || fail "workspace version differs from candidate"
-    for mode in manifest lock; do
-        if [[ "$mode" == manifest ]]; then file=Cargo.toml; else file=Cargo.lock; fi
-        [[ -f "$file" && ! -L "$file" ]] || fail "missing or symlinked Cargo metadata"
-        git show "$RELEASE_SOURCE:$file" |
-            awk -v mode="$mode" -v replacement="$RELEASE_VERSION" -f "$tooling_root/scripts/release/metadata-version.awk" |
-            cmp - "$file"
-    done
-    finalize_notes "$notes" | cmp - CHANGELOG.md
+    check_payload .
     cargo metadata --no-deps --format-version 1 --locked --offline > /dev/null
     admit_files
 }
@@ -113,15 +117,10 @@ check_committed() (
     [[ "$observed_commit" == "$RELEASE_COMMIT" ]] || fail "release commit is unavailable"
     scratch="$(mktemp -d "$state/$RELEASE_VERSION.committed.XXXXXX")"
     trap 'rm -rf "$scratch"' EXIT
-    for mode in manifest lock; do
-        if [[ "$mode" == manifest ]]; then file=Cargo.toml; else file=Cargo.lock; fi
+    for file in Cargo.toml Cargo.lock CHANGELOG.md; do
         git show "$RELEASE_COMMIT:$file" > "$scratch/$file"
-        git show "$RELEASE_SOURCE:$file" |
-            awk -v mode="$mode" -v replacement="$RELEASE_VERSION" -f "$tooling_root/scripts/release/metadata-version.awk" |
-            cmp - "$scratch/$file"
     done
-    git show "$RELEASE_COMMIT:CHANGELOG.md" > "$scratch/CHANGELOG.md"
-    finalize_notes "$notes" | cmp - "$scratch/CHANGELOG.md"
+    check_payload "$scratch"
 )
 case "$operation" in
     version) version; exit ;;
@@ -175,7 +174,7 @@ case "$operation" in
             {
                 receipt_header
                 CARGO_NET_OFFLINE=true make --no-print-directory ci
-                for package in ic-host-artifacts ic-host-fs ic-host-process ic-host-tools; do
+                for package in ic-host-artifacts ic-host-fs ic-host-process ic-host-tools ic-host-wasm-inspect; do
                     CARGO_NET_OFFLINE=true make --no-print-directory msrv PACKAGE="$package"
                 done
             } 2>&1 | tee -a "$receipt.log"

@@ -2,8 +2,7 @@
 
 #[cfg(unix)]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    use ic_host_artifacts::artifact::Sha256Digest;
-    use ic_host_fs::read::read_file_no_follow;
+    use ic_host_fs::read::hash_file_no_follow;
     use std::{io, path::Path};
 
     let mut args = std::env::args_os().skip(1);
@@ -22,12 +21,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     if args.next().is_some() {
         return Err(io::Error::new(io::ErrorKind::InvalidInput, "unexpected argument").into());
     }
-    let bytes = read_file_no_follow(Path::new(&path), max_bytes)?;
-    println!(
-        "raw_bytes={} sha256={}",
-        bytes.len(),
-        Sha256Digest::compute(&bytes)
-    );
+    let identity = hash_file_no_follow(Path::new(&path), max_bytes)?;
+    println!("raw_bytes={} sha256={}", identity.bytes, identity.sha256);
     Ok(())
 }
 

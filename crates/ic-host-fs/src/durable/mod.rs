@@ -8,12 +8,16 @@
 
 mod lock_wait;
 pub use lock_wait::lock_exclusive_with_wait;
+#[cfg(unix)]
+mod retained;
+#[cfg(unix)]
+pub use retained::{create_retained_at, publish_retained_at};
 mod named;
 pub use named::{NamedWriteError, write_named_with};
 mod stream;
-#[cfg(unix)]
-pub use stream::write_at_with;
 pub use stream::{PublicationMode, WriteOptions, write_validated_with, write_with};
+#[cfg(unix)]
+pub use stream::{write_at_validated_with, write_at_with};
 
 #[cfg(test)]
 mod tests;
@@ -324,7 +328,7 @@ mod supported {
             path,
             options,
             |_, file| std::io::Write::write_all(file, bytes),
-            None::<fn(&Path, &()) -> io::Result<()>>,
+            None::<(bool, fn(&Path, &()) -> io::Result<()>)>,
             before,
         )
     }
@@ -333,7 +337,7 @@ mod supported {
         path: &Path,
         options: WriteOptions,
         produce: impl FnOnce(&Path, &mut fs::File) -> Result<T, E>,
-        admit: Option<impl FnOnce(&Path, &T) -> Result<(), E>>,
+        admit: Option<(bool, impl FnOnce(&Path, &T) -> Result<(), E>)>,
         mut before: impl FnMut(FileCommitStep, &Path) -> io::Result<()>,
     ) -> Result<T, NamedWriteError<E>> {
         validate_permissions(options.permissions).map_err(NamedWriteError::before)?;
@@ -357,7 +361,7 @@ mod supported {
         file_name: &OsStr,
         options: WriteOptions,
         produce: impl FnOnce(&Path, &mut fs::File) -> Result<T, E>,
-        admit: Option<impl FnOnce(&Path, &T) -> Result<(), E>>,
+        admit: Option<(bool, impl FnOnce(&Path, &T) -> Result<(), E>)>,
         mut before: impl FnMut(FileCommitStep, &Path) -> io::Result<()>,
     ) -> Result<T, NamedWriteError<E>> {
         validate_permissions(options.permissions).map_err(NamedWriteError::before)?;
@@ -407,14 +411,17 @@ mod supported {
                 cleanup_error: remove_owned_temp(&parent_fd, &temp_name, &temp_file).err(),
             });
         }
-        if let Some(admit) = admit {
-            match retain_read_only(&parent_fd, parent_path, &temp_name, &temp_file) {
-                Ok(read_only) => drop(std::mem::replace(&mut temp_file, read_only)),
-                Err(source) => {
-                    return Err(NamedWriteError::BeforePublication {
-                        source,
-                        cleanup_error: remove_owned_temp(&parent_fd, &temp_name, &temp_file).err(),
-                    });
+        if let Some((close_writer, admit)) = admit {
+            if close_writer {
+                match retain_read_only(&parent_fd, parent_path, &temp_name, &temp_file) {
+                    Ok(read_only) => drop(std::mem::replace(&mut temp_file, read_only)),
+                    Err(source) => {
+                        return Err(NamedWriteError::BeforePublication {
+                            source,
+                            cleanup_error: remove_owned_temp(&parent_fd, &temp_name, &temp_file)
+                                .err(),
+                        });
+                    }
                 }
             }
             if let Err(source) = admit(&temp_path, &value) {
@@ -510,7 +517,7 @@ mod supported {
         )
     }
 
-    fn verify_staging(
+    pub(super) fn verify_staging(
         parent_fd: &impl AsFd,
         parent: Option<&Path>,
         name: &OsStr,
@@ -550,7 +557,7 @@ mod supported {
         unix_fs::unlinkat(parent_fd, name, AtFlags::empty()).map_err(errno_to_io)
     }
 
-    fn publish_create_new<E>(
+    pub(super) fn publish_create_new<E>(
         parent_fd: &impl AsFd,
         temp_name: &OsStr,
         file_name: &OsStr,
@@ -637,7 +644,7 @@ mod supported {
         Ok((parent, file_name))
     }
 
-    fn validate_permissions(permissions: u32) -> io::Result<()> {
+    pub(super) fn validate_permissions(permissions: u32) -> io::Result<()> {
         if permissions & !0o777 != 0 {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidInput,
@@ -647,7 +654,7 @@ mod supported {
         Ok(())
     }
 
-    fn validate_file_name(name: &OsStr) -> io::Result<()> {
+    pub(super) fn validate_file_name(name: &OsStr) -> io::Result<()> {
         if name.is_empty()
             || name == "."
             || name == ".."

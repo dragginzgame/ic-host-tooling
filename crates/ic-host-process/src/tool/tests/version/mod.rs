@@ -1,6 +1,63 @@
 use super::*;
 
 #[test]
+fn no_follow_admission_rejects_aliases_and_nonfiles_before_execution() {
+    use std::os::unix::fs::symlink;
+    let fixture = Fixture::new();
+    let candidate = fixture.root.join("installed-tool");
+    fs::copy(tool_path(), &candidate).unwrap();
+    let marker = fixture.root.join("invocations");
+    let environment = [(
+        OsString::from("FIXTURE_MARKER"),
+        marker.as_os_str().to_owned(),
+    )];
+    let alias = fixture.root.join("alias");
+    symlink(&candidate, &alias).unwrap();
+    let fifo = fixture.root.join("fifo");
+    rustix::fs::mkfifoat(rustix::fs::CWD, &fifo, rustix::fs::Mode::RUSR).unwrap();
+    let digest = hash_file(&candidate, 1024 * 1024).unwrap().sha256;
+    for rejected in [&alias, &fifo, &fixture.root] {
+        let spec = ToolSpec {
+            executable: rejected,
+            sha256: digest,
+            executable_bytes: 1024 * 1024,
+            version_arguments: &[OsString::from("--version")],
+            version_identity: VERSION,
+        };
+        assert!(
+            AdmittedTool::admit_no_follow(&spec, &fixture.context(&environment), LIMITS).is_err()
+        );
+        assert!(!marker.exists());
+    }
+    let mut spec = ToolSpec {
+        executable: &candidate,
+        sha256: Sha256Digest::compute(b"wrong"),
+        executable_bytes: 1024 * 1024,
+        version_arguments: &[OsString::from("--version")],
+        version_identity: VERSION,
+    };
+    assert!(matches!(
+        AdmittedTool::admit_no_follow(&spec, &fixture.context(&environment), LIMITS),
+        Err(ToolError::Artifact(ArtifactError::DigestMismatch { .. }))
+    ));
+    assert!(!marker.exists());
+    spec.sha256 = digest;
+    let admitted =
+        AdmittedTool::admit_no_follow(&spec, &fixture.context(&environment), LIMITS).unwrap();
+    assert_eq!(admitted.identity().sha256, digest);
+    assert_eq!(fs::read(&marker).unwrap(), b"invoked\n");
+    let replacement = fixture.root.join("replacement");
+    fs::rename(&candidate, &replacement).unwrap();
+    symlink(&replacement, &candidate).unwrap();
+    assert!(
+        admitted
+            .run(&[], &fixture.context(&environment), LIMITS)
+            .is_err()
+    );
+    assert_eq!(fs::read(marker).unwrap(), b"invoked\n");
+}
+
+#[test]
 fn observed_identity_is_retained_and_drift_is_rejected_before_execution() {
     let fixture = Fixture::new();
     let candidate = fixture.root.join("installed tool");

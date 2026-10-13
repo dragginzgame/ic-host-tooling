@@ -27,11 +27,17 @@ mkdir "$fixture"
 export CARGO_NET_OFFLINE=true RUSTUP_AUTO_INSTALL=0
 mkdir "$fixture/bin"
 cp "$root/Cargo.toml" "$root/Cargo.lock" "$root/README.md" "$root/LICENSE" "$fixture/"
-for package in ic-host-artifacts ic-host-fs ic-host-process ic-host-tools; do
-    mkdir -p "$fixture/crates/$package/src"
-    cp "$root/crates/$package/Cargo.toml" "$fixture/crates/$package/"
-    cp "$root/LICENSE" "$fixture/crates/$package/LICENSE"
-    : > "$fixture/crates/$package/src/lib.rs"
+for package in ic-host-artifacts ic-host-fs ic-host-process ic-host-tools ic-host-wasm-inspect; do
+    package_root="crates/$package"
+    [[ "$package" != ic-host-wasm-inspect ]] || package_root="apps/$package"
+    mkdir -p "$fixture/$package_root/src"
+    cp "$root/$package_root/Cargo.toml" "$fixture/$package_root/"
+    cp "$root/LICENSE" "$fixture/$package_root/LICENSE"
+    if [[ "$package" == ic-host-wasm-inspect ]]; then
+        : > "$fixture/$package_root/src/main.rs"
+    else
+        : > "$fixture/$package_root/src/lib.rs"
+    fi
 done
 cd "$fixture"
 cargo metadata --no-deps --format-version 1 --locked --offline > metadata.json
@@ -77,11 +83,13 @@ case "$1" in
         printf '%s\0' "$@" > "$PUBLISH_FIXTURE/package-arguments"
         mkdir -p target/package
         version="$(jq -r '.packages[0].version' "$PUBLISH_FIXTURE/metadata.json")"
-        for package in ic-host-artifacts ic-host-fs ic-host-process ic-host-tools; do
+        for package in ic-host-artifacts ic-host-fs ic-host-process ic-host-tools ic-host-wasm-inspect; do
             directory="target/package/$package-$version"
             mkdir -p "$directory"
+            package_root="crates/$package"
+            [[ "$package" != ic-host-wasm-inspect ]] || package_root="apps/$package"
             jq -n --arg source "${PUBLISH_PACKAGE_SOURCE:-0000000000000000000000000000000000000000}" \
-                --arg path "${PUBLISH_PACKAGE_PATH:-crates/$package}" --argjson dirty "${PUBLISH_PACKAGE_DIRTY:-false}" \
+                --arg path "${PUBLISH_PACKAGE_PATH:-$package_root}" --argjson dirty "${PUBLISH_PACKAGE_DIRTY:-false}" \
                 '{git: {sha1: $source, dirty: $dirty}, path_in_vcs: $path}' > "$directory/.cargo_vcs_info.json"
             if [[ "${PUBLISH_VCS_MISSING:-0}" == 1 ]]; then rm "$directory/.cargo_vcs_info.json"; fi
             tar -czf "$directory.crate" -C target/package "$package-$version"
