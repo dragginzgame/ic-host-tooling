@@ -308,6 +308,10 @@ jobs:
         run: cargo fetch --locked
       - name: Run PocketIC ownership concurrency tests
         run: cargo test -p ic-testkit --locked --offline --test pocket_ic_concurrency -- --nocapture
+      - name: Qualify standalone pool failed recovery
+        run: cargo test -p ic-testkit --locked --offline --test pocket_ic_concurrency standalone_dead_transport_preserves_failed_recovery_and_can_build_again -- --ignored --exact
+      - name: Qualify baseline pool dedicated-server recovery
+        run: cargo test -p ic-testkit --locked --offline --test pocket_ic_baseline_pool killed_dedicated_server_rebuilds_on_a_fresh_server -- --ignored --exact
       - name: Qualify provisioning and managed launch without consumer pins
         run: cargo test -p ic-testkit --locked --offline --test server_runner provisioned_cli_runs_a_real_instance_without_consumer_server_selection -- --ignored --exact
       - name: Qualify real managed-server CLI execution

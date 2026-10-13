@@ -8,6 +8,56 @@ This file ships in the crate archive so upgrades can be completed without the
 repository checkout. The complete historical changelog remains at
 <https://github.com/dragginzgame/ic-testkit/blob/main/CHANGELOG.md>.
 
+## [0.37.0]
+
+### Breaking: exposed Host dependency types
+
+The public `ic_host_artifacts`, `ic_host_fs` and `ic_host_process` re-exports and
+typed startup diagnostics now select IC Host 0.17. Align direct Host dependencies
+to 0.17 wherever their types cross the Testkit boundary. These subcrates retain
+their source APIs; their new crate identities require a Testkit minor release.
+The aggregate Host crate's Candid feature split does not affect Testkit, which
+does not depend on it. The selected IC Build 0.1.3 development dependency retains
+its separate Host 0.16 graph; no conversion or compatibility bridge is added.
+
+### Changed: Shared Tooling 0.9.15
+
+The reviewed snapshot selects `a9a8ea5ddea0db279d8c139ef5a951474c50f742`.
+CI inspection retains empty failed-step observations and recovers full logs only
+from failed/timed-out jobs in the selected attempt. Partial API/download failures
+remain errors; no rerun or attempt switching is introduced
+([Shared #149](https://github.com/dragginzgame/shared-tooling/issues/149)).
+Maintenance rejects CR/LF in literal and physically resolved paths before CLI
+probes or state writes, preserving existing reports and schedules
+([Shared #150](https://github.com/dragginzgame/shared-tooling/issues/150)).
+This adoption does not change the executable-tool build policy or activate tasks.
+
+### Changed: managed-server ownership
+
+Managed servers always own their child process. Port readiness and bounded log
+capture belong to the startup files, so file-reader fixtures no longer construct
+childless servers. Termination still preserves the primary and typed cleanup
+failures and finishes child cleanup before reading final diagnostics. Background
+reaping retains the child and files together, including thread-spawn failure.
+
+### Changed: fixture-pool acquisition
+
+Each fixture pool now uses one construction path for empty/invalid slots and
+recoverable restore failures, removing repeated teardown, build and result
+handling ([#71](https://github.com/dragginzgame/ic-testkit/issues/71)). The standalone
+acquisition forwarding layer is removed. Restoration still follows each pool's
+own policy: ordinary standalone restore failures invalidate for the next lease,
+while recognized dead transport can rebuild immediately; recipe baselines retain
+caller classification and fatal errors. Recovery makes at most one build attempt
+and preserves both original and replacement failures with phase timings.
+
+Dedicated-server recovery probes use Testkit's managed child lifecycle, and CI
+runs both probes on every supported native host. The added standalone probe also
+checks that failed recovery leaves an empty slot that can build again. FIFO
+capacity, lazy construction and unwind invalidation retain their existing owner.
+The pool and startup simplifications preserve public behavior and stored formats.
+The Host dependency boundary above is the reason for this minor release.
+
 ## [0.36.0] - 2026-10-13
 
 ### Breaking: exposed Host dependency types

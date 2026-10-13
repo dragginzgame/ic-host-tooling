@@ -399,6 +399,65 @@ fn failed_standalone_restore_is_timed_and_rebuilt_on_the_next_acquisition() {
     drop(fixture);
 }
 
+#[test]
+#[ignore = "requires POCKET_IC_BIN and stops a dedicated test-owned server"]
+fn standalone_dead_transport_preserves_failed_recovery_and_can_build_again() {
+    let server = PocketIcStartupConfig::spawn(
+        std::env::var_os("POCKET_IC_BIN")
+            .expect("prepare POCKET_IC_BIN for dedicated-server recovery"),
+        READY_TIMEOUT,
+    )
+    .start_managed_server()
+    .unwrap();
+    let url = server.url().to_owned();
+    let builds = AtomicUsize::new(0);
+    let pool = CachedStandaloneCanisterFixturePool::new(NonZeroUsize::new(1).unwrap(), || {
+        match builds.fetch_add(1, Ordering::SeqCst) {
+            0 => StandaloneCanisterFixture::install(
+                PocketIcBuilder::new()
+                    .with_application_subnet()
+                    .try_build(PocketIcStartupConfig::connect(&url, READY_TIMEOUT))
+                    .unwrap(),
+                InstallSpec::new(EMPTY_WASM.to_vec(), vec![], 0),
+            ),
+            1 => build_deleted_standalone_fixture(),
+            _ => build_empty_standalone_fixture(),
+        }
+    });
+    drop(pool.acquire().unwrap().0);
+    drop(server);
+
+    let Err(StandaloneFixturePoolError::RecoveryFailed {
+        original,
+        rebuild,
+        timings,
+    }) = pool.acquire()
+    else {
+        panic!("dead transport and failed capture must retain both causes");
+    };
+    assert!(ic_testkit::pic::is_dead_pocket_ic_transport_error(
+        original.as_ref()
+    ));
+    assert!(matches!(
+        *rebuild,
+        ic_testkit::pic::ControllerSnapshotError::CaptureFailed { .. }
+    ));
+    assert!(timings.restore().is_some());
+    assert!(timings.build().is_some());
+    assert!(timings.stale_teardown().is_some());
+    assert_eq!(builds.load(Ordering::SeqCst), 2);
+
+    let (fixture, outcome) = pool.acquire().unwrap();
+    assert!(matches!(
+        outcome,
+        StandaloneFixturePoolOutcome::Built { .. }
+    ));
+    assert!(outcome.timings().restore().is_none());
+    assert!(outcome.timings().stale_teardown().is_none());
+    assert_eq!(builds.load(Ordering::SeqCst), 3);
+    drop(fixture);
+}
+
 fn build_empty_standalone_fixture() -> StandaloneCanisterFixture {
     StandaloneCanisterFixture::install(
         support::pocket_ic(),

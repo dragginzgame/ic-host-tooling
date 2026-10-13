@@ -227,110 +227,84 @@ where
         StandaloneFixturePoolError,
     > {
         let total_started = Instant::now();
-        self.prepare_slot_with_outcome(self.slots.acquire(), total_started)
-    }
-
-    fn prepare_slot_with_outcome<'a>(
-        &'a self,
-        mut slot: BoundedSlotLease<'a, StandaloneFixtureBaseline>,
-        total_started: Instant,
-    ) -> Result<
-        (
-            CachedStandaloneCanisterFixtureGuard<'a>,
-            StandaloneFixturePoolOutcome,
-        ),
-        StandaloneFixturePoolError,
-    > {
+        let mut slot = self.slots.acquire();
         let slot_index = slot.slot_index();
         let mut timings = StandaloneFixturePoolTimings {
             wait: slot.wait(),
             ..StandaloneFixturePoolTimings::default()
         };
 
-        if !slot.is_reusable() {
-            let rebuild_reason = Self::rebuild_reason_for_invalid_slot(&slot);
-            Self::discard_stale_slot(&mut slot, &mut timings);
-            let baseline = match self.build_slot(&mut timings) {
-                Ok(baseline) => baseline,
+        let (rebuild_reason, original) = if slot.is_reusable() {
+            let restore_started = Instant::now();
+            let restore = slot
+                .get()
+                .expect("populated fixture pool slot must remain present")
+                .restore(self.restore_funding);
+            timings.restore = Some(restore_started.elapsed());
+            match restore {
+                Ok(()) => {
+                    timings.total = total_started.elapsed();
+                    return Ok((
+                        CachedStandaloneCanisterFixtureGuard { slot },
+                        StandaloneFixturePoolOutcome::Restored {
+                            slot: slot_index,
+                            timings,
+                        },
+                    ));
+                }
+                Err(error) if transport::is_dead_pocket_ic_transport_error(&error) => (
+                    Some(StandaloneFixturePoolRebuildReason::DeadPocketIcTransport),
+                    Some(error),
+                ),
                 Err(source) => {
+                    // Restoration may have partially changed the canister.
+                    // Preserve the failure and prevent reuse on the next lease.
+                    slot.invalidate();
                     timings.total = total_started.elapsed();
                     return Err(StandaloneFixturePoolError::Preparation {
-                        stage: StandaloneFixturePoolStage::Build,
+                        stage: StandaloneFixturePoolStage::Restore,
                         source: Box::new(source),
                         timings: Box::new(timings),
                     });
                 }
-            };
-            slot.replace(baseline);
-            timings.total = total_started.elapsed();
-            let outcome = rebuild_reason.map_or_else(
-                || StandaloneFixturePoolOutcome::Built {
-                    slot: slot_index,
-                    timings,
-                },
-                |reason| StandaloneFixturePoolOutcome::Rebuilt {
-                    slot: slot_index,
-                    reason,
-                    timings,
-                },
-            );
-            return Ok((CachedStandaloneCanisterFixtureGuard { slot }, outcome));
-        }
+            }
+        } else {
+            (Self::rebuild_reason_for_invalid_slot(&slot), None)
+        };
 
-        let restore_started = Instant::now();
-        let restore = slot
-            .get()
-            .expect("populated fixture pool slot must remain present")
-            .restore(self.restore_funding);
-        timings.restore = Some(restore_started.elapsed());
-        match restore {
-            Ok(()) => {
-                timings.total = total_started.elapsed();
-                Ok((
-                    CachedStandaloneCanisterFixtureGuard { slot },
-                    StandaloneFixturePoolOutcome::Restored {
-                        slot: slot_index,
-                        timings,
-                    },
-                ))
-            }
-            Err(error) if transport::is_dead_pocket_ic_transport_error(&error) => {
-                Self::discard_stale_slot(&mut slot, &mut timings);
-                let baseline = match self.build_slot(&mut timings) {
-                    Ok(baseline) => baseline,
-                    Err(rebuild) => {
-                        timings.total = total_started.elapsed();
-                        return Err(StandaloneFixturePoolError::RecoveryFailed {
-                            original: Box::new(error),
-                            rebuild: Box::new(rebuild),
-                            timings: Box::new(timings),
-                        });
-                    }
-                };
-                slot.replace(baseline);
-                timings.total = total_started.elapsed();
-                Ok((
-                    CachedStandaloneCanisterFixtureGuard { slot },
-                    StandaloneFixturePoolOutcome::Rebuilt {
-                        slot: slot_index,
-                        reason: StandaloneFixturePoolRebuildReason::DeadPocketIcTransport,
-                        timings,
-                    },
-                ))
-            }
+        Self::discard_stale_slot(&mut slot, &mut timings);
+        let baseline = match self.build_slot(&mut timings) {
+            Ok(baseline) => baseline,
             Err(source) => {
-                // Restoration may have changed an earlier canister before a
-                // later snapshot failed. Preserve the current error while
-                // preventing a partially restored slot from being reused.
-                slot.invalidate();
                 timings.total = total_started.elapsed();
-                Err(StandaloneFixturePoolError::Preparation {
-                    stage: StandaloneFixturePoolStage::Restore,
-                    source: Box::new(source),
-                    timings: Box::new(timings),
-                })
+                return Err(match original {
+                    Some(original) => StandaloneFixturePoolError::RecoveryFailed {
+                        original: Box::new(original),
+                        rebuild: Box::new(source),
+                        timings: Box::new(timings),
+                    },
+                    None => StandaloneFixturePoolError::Preparation {
+                        stage: StandaloneFixturePoolStage::Build,
+                        source: Box::new(source),
+                        timings: Box::new(timings),
+                    },
+                });
             }
-        }
+        };
+        slot.replace(baseline);
+        timings.total = total_started.elapsed();
+        let outcome = rebuild_reason.map_or_else(
+            || StandaloneFixturePoolOutcome::Built {
+                slot: slot_index,
+                timings,
+            },
+            |reason| StandaloneFixturePoolOutcome::Rebuilt {
+                slot: slot_index,
+                reason,
+                timings,
+            },
+        );
+        Ok((CachedStandaloneCanisterFixtureGuard { slot }, outcome))
     }
 
     fn rebuild_reason_for_invalid_slot(

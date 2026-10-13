@@ -6,6 +6,28 @@ documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.37.0]
+
+### Breaking
+
+- Align public Host re-exports and typed diagnostics with IC Host 0.17. Consumers
+  passing Host types across the Testkit boundary must select matching 0.17 crates.
+
+### Changed
+
+- Simplify fixture-pool acquisition by sharing cold-build and recovery-build
+  handling within each pool, preserving failure causes, lifecycle policies and
+  phase timings ([#71](https://github.com/dragginzgame/ic-testkit/issues/71)).
+- Simplify managed-server ownership and keep startup file diagnostics independent
+  of the child process, preserving teardown and bounded reads.
+- Adopt Shared Tooling 0.9.15: recover missing failed-step logs from the selected
+  CI attempt's failed jobs, and reject line-break maintenance paths before effects
+  ([Shared #149](https://github.com/dragginzgame/shared-tooling/issues/149),
+  [Shared #150](https://github.com/dragginzgame/shared-tooling/issues/150)).
+- Use the selected IC Build 0.1.3 for development examples and tests.
+
+[Dependency and simplification details](crates/ic-testkit/CHANGELOG.md#0370)
+
 ## [0.36.0] - 2026-10-13
 
 ### Breaking

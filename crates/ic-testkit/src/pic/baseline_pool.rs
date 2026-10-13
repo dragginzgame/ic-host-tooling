@@ -853,7 +853,7 @@ where
         };
         let slot_index = slot.slot_index();
 
-        if slot.is_reusable() {
+        let (rebuild_reason, original) = if slot.is_reusable() {
             match self.prepare_reused(&slot, &mut timings) {
                 Ok(()) => {
                     timings.total = total_started.elapsed();
@@ -865,66 +865,52 @@ where
                         },
                     ));
                 }
-                Err(original) => {
-                    let disposition = self.failure_disposition(&original);
-                    match disposition {
-                        FailureDisposition::Fatal => {
-                            // A failed restore may have partially changed the
-                            // instance. Discard it, but do not reinterpret a
-                            // caller-declared fatal error as a rebuild reason.
-                            Self::discard_stale_slot(&mut slot, &mut timings);
-                            timings.total = total_started.elapsed();
-                            return Err(BaselinePoolError::Preparation {
-                                error: original,
-                                timings: Box::new(timings),
-                            });
-                        }
-                        FailureDisposition::Rebuild(reason) => {
-                            Self::discard_stale_slot(&mut slot, &mut timings);
-                            if let Err(rebuild) = self.build_slot(&mut slot, &mut timings) {
-                                timings.total = total_started.elapsed();
-                                return Err(BaselinePoolError::RecoveryFailed {
-                                    original: Box::new(original),
-                                    rebuild: Box::new(rebuild),
-                                    timings: Box::new(timings),
-                                });
-                            }
-                            timings.total = total_started.elapsed();
-                            return Ok((
-                                CachedPocketIcBaselinePoolGuard { slot },
-                                BaselinePoolOutcome::Rebuilt {
-                                    slot: slot_index,
-                                    reason,
-                                    timings,
-                                },
-                            ));
-                        }
+                Err(original) => match self.failure_disposition(&original) {
+                    FailureDisposition::Fatal => {
+                        // A failed restore may have partially changed the instance.
+                        // Discard it without treating a fatal failure as a rebuild.
+                        Self::discard_stale_slot(&mut slot, &mut timings);
+                        timings.total = total_started.elapsed();
+                        return Err(BaselinePoolError::Preparation {
+                            error: original,
+                            timings: Box::new(timings),
+                        });
                     }
-                }
+                    FailureDisposition::Rebuild(reason) => (Some(reason), Some(original)),
+                },
             }
-        }
-
-        let rebuild_reason = if slot.invalidated_by_unwind() {
-            Some(RebuildReason::UnwindWhileLeased)
         } else {
-            slot.get()
-                .and_then(|slot| slot.invalidation_reason.clone())
-                .or_else(|| {
-                    slot.is_populated()
-                        .then_some(RebuildReason::ExplicitLeaseInvalidation)
-                })
+            let reason = if slot.invalidated_by_unwind() {
+                Some(RebuildReason::UnwindWhileLeased)
+            } else {
+                slot.get()
+                    .and_then(|slot| slot.invalidation_reason.clone())
+                    .or_else(|| {
+                        slot.is_populated()
+                            .then_some(RebuildReason::ExplicitLeaseInvalidation)
+                    })
+            };
+            (reason, None)
         };
+
         if slot.is_populated() {
             Self::discard_stale_slot(&mut slot, &mut timings);
         }
-        if let Err(error) = self.build_slot(&mut slot, &mut timings) {
-            timings.total = total_started.elapsed();
-            return Err(BaselinePoolError::Preparation {
-                error,
-                timings: Box::new(timings),
+        let build = self.build_slot(&mut slot, &mut timings);
+        timings.total = total_started.elapsed();
+        if let Err(error) = build {
+            return Err(match original {
+                Some(original) => BaselinePoolError::RecoveryFailed {
+                    original: Box::new(original),
+                    rebuild: Box::new(error),
+                    timings: Box::new(timings),
+                },
+                None => BaselinePoolError::Preparation {
+                    error,
+                    timings: Box::new(timings),
+                },
             });
         }
-        timings.total = total_started.elapsed();
 
         let outcome = rebuild_reason.map_or_else(
             || BaselinePoolOutcome::Built {

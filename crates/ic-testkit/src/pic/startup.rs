@@ -717,11 +717,7 @@ impl PocketIcManagedServer {
     /// the child; retaining the ID does not retain server ownership.
     #[must_use]
     pub fn process_id(&self) -> u32 {
-        self.server
-            .child
-            .as_ref()
-            .expect("managed server handle must own its child")
-            .id()
+        self.server.child.id()
     }
 
     /// Loopback URL published by the managed server.
@@ -737,7 +733,7 @@ impl PocketIcManagedServer {
     /// The diagnostic read is bounded; files can grow while the server runs.
     #[must_use]
     pub fn output(&self) -> PocketIcManagedServerOutput {
-        self.server.capture()
+        self.server.files.capture()
     }
 }
 
@@ -967,7 +963,7 @@ fn finalize_failure(
 }
 
 struct ManagedServer {
-    child: Option<OwnedChild>,
+    child: OwnedChild,
     binary: PathBuf,
     files: StartupFiles,
     started: Instant,
@@ -1032,7 +1028,7 @@ impl ManagedServer {
             })
         })?;
         Ok(Self {
-            child: Some(child),
+            child,
             binary,
             files,
             started,
@@ -1055,7 +1051,7 @@ impl ManagedServer {
                 },
             ));
         }
-        match self.read_port()? {
+        match self.files.read_port()? {
             PortFileState::Pending => Ok(None),
             PortFileState::Ready(port) => Ok(Some(format!("http://127.0.0.1:{port}/"))),
             PortFileState::Invalid(value) => Err(PocketIcStartupError::new(
@@ -1068,11 +1064,7 @@ impl ManagedServer {
     }
 
     fn try_wait(&mut self) -> Result<Option<ExitStatus>, PocketIcStartupError> {
-        let child = self
-            .child
-            .as_mut()
-            .expect("managed server child must remain present");
-        child.try_wait().map_err(|source| {
+        self.child.try_wait().map_err(|source| {
             PocketIcStartupError::new(PocketIcStartupFailure::Io {
                 operation: "inspect PocketIC server child",
                 path: self.binary.clone(),
@@ -1081,8 +1073,46 @@ impl ManagedServer {
         })
     }
 
+    fn exit_failure(&self, status: ExitStatus) -> PocketIcStartupError {
+        PocketIcStartupError::new(PocketIcStartupFailure::ServerExited {
+            server_binary: self.binary.clone(),
+            status,
+            elapsed: self.started.elapsed(),
+        })
+    }
+
+    fn terminate_and_capture(self) -> (PocketIcManagedServerOutput, Option<CleanupError>) {
+        let Self {
+            mut child, files, ..
+        } = self;
+        let cleanup = child.terminate().err();
+        // Finish the child's Drop cleanup before reading the final diagnostics.
+        drop(child);
+        (files.capture(), cleanup)
+    }
+
+    fn reap_in_background(self) {
+        let _ = thread::Builder::new()
+            .name("ic-testkit-pocket-ic-server-reaper".to_owned())
+            .spawn(move || {
+                // Keep child and files under one owner, including if spawning
+                // this thread fails. On Unix, Drop terminates the group before reaping.
+                let mut server = self;
+                let _ = server.child.wait();
+            });
+    }
+}
+
+struct StartupFiles {
+    directory: PathBuf,
+    port: PathBuf,
+    stdout: PathBuf,
+    stderr: PathBuf,
+}
+
+impl StartupFiles {
     fn read_port(&self) -> Result<PortFileState, PocketIcStartupError> {
-        let port_path = &self.files.port;
+        let port_path = &self.port;
         let mut contents = String::new();
         match open_regular_startup_file(port_path).and_then(|file| {
             file.take((SERVER_PORT_FILE_LIMIT + 1) as u64)
@@ -1116,51 +1146,13 @@ impl ManagedServer {
         }
     }
 
-    fn exit_failure(&self, status: ExitStatus) -> PocketIcStartupError {
-        PocketIcStartupError::new(PocketIcStartupFailure::ServerExited {
-            server_binary: self.binary.clone(),
-            status,
-            elapsed: self.started.elapsed(),
-        })
-    }
-
-    fn terminate_and_capture(mut self) -> (PocketIcManagedServerOutput, Option<CleanupError>) {
-        let cleanup = self
-            .child
-            .take()
-            .and_then(|mut child| child.terminate().err());
-        (self.capture(), cleanup)
-    }
-
     fn capture(&self) -> PocketIcManagedServerOutput {
         PocketIcManagedServerOutput {
-            stdout: read_bounded_lossy(&self.files.stdout),
-            stderr: read_bounded_lossy(&self.files.stderr),
+            stdout: read_bounded_lossy(&self.stdout),
+            stderr: read_bounded_lossy(&self.stderr),
         }
     }
 
-    fn reap_in_background(self) {
-        let _ = thread::Builder::new()
-            .name("ic-testkit-pocket-ic-server-reaper".to_owned())
-            .spawn(move || {
-                // Keep child and files under one owner, including if spawning
-                // this thread fails. On Unix, Drop terminates the group before reaping.
-                let mut server = self;
-                if let Some(child) = server.child.as_mut() {
-                    let _ = child.wait();
-                }
-            });
-    }
-}
-
-struct StartupFiles {
-    directory: PathBuf,
-    port: PathBuf,
-    stdout: PathBuf,
-    stderr: PathBuf,
-}
-
-impl StartupFiles {
     fn create(
         output_files: Option<(PathBuf, PathBuf)>,
     ) -> Result<(Self, File, File), PocketIcStartupError> {
@@ -1837,17 +1829,7 @@ mod tests {
                 .expect("create FIFO startup files")
                 .success()
         );
-        let server = super::ManagedServer {
-            child: None,
-            binary: PathBuf::from("unused-server"),
-            files,
-            started: Instant::now(),
-        };
-        for path in [
-            &server.files.port,
-            &server.files.stdout,
-            &server.files.stderr,
-        ] {
+        for path in [&files.port, &files.stdout, &files.stderr] {
             // A delayed writer bounds a blocked read and records whether the
             // reader needed it. Completion cancels the writer; with no reader,
             // a nonblocking open fails and is retried if the reader starts late.
@@ -1869,8 +1851,8 @@ mod tests {
                     }
                 }
             });
-            let result = if path == &server.files.port {
-                Some(server.read_port())
+            let result = if path == &files.port {
+                Some(files.read_port())
             } else {
                 assert_eq!(super::read_bounded_lossy(path), "");
                 None
@@ -1894,62 +1876,53 @@ mod tests {
     #[test]
     fn port_file_readiness_preserves_partial_writes_and_rejects_oversized_contents() {
         let (files, _, _) = StartupFiles::create(None).expect("allocate startup files");
-        let server = super::ManagedServer {
-            child: None,
-            binary: PathBuf::from("unused-server"),
-            files,
-            started: Instant::now(),
-        };
         assert!(matches!(
-            server.read_port().unwrap(),
+            files.read_port().unwrap(),
             super::PortFileState::Pending
         ));
         for contents in ["", "34567"] {
-            fs::write(&server.files.port, contents).unwrap();
+            fs::write(&files.port, contents).unwrap();
             assert!(matches!(
-                server.read_port().unwrap(),
+                files.read_port().unwrap(),
                 super::PortFileState::Pending
             ));
         }
         for (contents, expected) in [("1\n", 1), ("65535\n", 65535), (" 34567\r\n", 34567)] {
-            fs::write(&server.files.port, contents).unwrap();
+            fs::write(&files.port, contents).unwrap();
             assert!(matches!(
-                server.read_port().unwrap(),
+                files.read_port().unwrap(),
                 super::PortFileState::Ready(port) if port == expected
             ));
         }
         for contents in ["0\n", "65536\n", "invalid\n", "1\n2\n"] {
-            fs::write(&server.files.port, contents).unwrap();
+            fs::write(&files.port, contents).unwrap();
             assert!(matches!(
-                server.read_port().unwrap(),
+                files.read_port().unwrap(),
                 super::PortFileState::Invalid(_)
             ));
         }
-        fs::write(&server.files.port, [0xff, b'\n']).unwrap();
+        fs::write(&files.port, [0xff, b'\n']).unwrap();
         assert!(matches!(
-            server.read_port().as_ref().map_err(PocketIcStartupError::failure),
+            files.read_port().as_ref().map_err(PocketIcStartupError::failure),
             Err(PocketIcStartupFailure::Io { source, .. })
                 if source.kind() == std::io::ErrorKind::InvalidData
         ));
         for contents in ["1\n".to_owned() + &" ".repeat(128), "0".repeat(128)] {
-            fs::write(&server.files.port, contents).unwrap();
+            fs::write(&files.port, contents).unwrap();
             assert!(
-                matches!(
-                    server.read_port().unwrap(),
-                    super::PortFileState::Invalid(_)
-                ),
+                matches!(files.read_port().unwrap(), super::PortFileState::Invalid(_)),
                 "oversized port contents must fail even without a newline",
             );
         }
         // A large backing file must not enlarge the returned diagnostic.
         fs::File::options()
             .write(true)
-            .open(&server.files.port)
+            .open(&files.port)
             .unwrap()
             .set_len(1024 * 1024)
             .unwrap();
         assert!(matches!(
-            server.read_port().unwrap(),
+            files.read_port().unwrap(),
             super::PortFileState::Invalid(value) if value.len() < 256
         ));
     }

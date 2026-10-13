@@ -4731,3 +4731,63 @@ Evidence is `/tmp/ic-testkit-upstream-{host,ic,rust}-fixtures.log`, correspondin
 `clippy.log`, `doctests.log`, `msrv.log`, `wasm.log` and `admission.log`.
 No broad gate or release was run. Both native macOS hosts and downstream fixture
 migration remain outstanding for this consumer source.
+
+### Fixture-pool flow simplification, initially prepared for 0.36.1
+
+Source comparison is released 0.36.0 `a31cce9efd711ef2a5aee68dbe5b5b443dae6505`
+to the pending working tree. The requested complexity review uses the adopted
+Shared 0.9.13 complexity/flow-convergence methods and local AGENTS overlay,
+scoped to standalone and recipe-baseline acquisition. Cold and recovery build
+dispatches converge from four sites to two, one per owning pool. One forwarding
+boundary disappears. Public behavior axes and the bounded-slot coordination
+owner stay unchanged; the distinct restore/reset/readiness policies remain local
+([#71](https://github.com/dragginzgame/ic-testkit/issues/71)).
+
+With prepared PocketIC 16.1, focused Linux qualification passes 12 pool unit tests,
+13 baseline tests (including 100 consecutive restores), nine ordinary ownership/
+standalone tests and both exact dedicated-server recovery probes. A command-owned
+`ic-testkit-server run -- cargo test ...` server contains each live suite. The
+new probe preserves both failed-restore/replacement-capture causes, completed
+phase timings and the single build attempt, then proves a new acquisition can
+build the empty slot. The baseline probe replaces upstream manual process control
+with the managed handle. CI runs both exact probes across the three native hosts.
+
+Strict selected Clippy, actual Rust 1.88 library checking, the standalone pool
+Rustdoc example, prepared actionlint 1.7.12 and `make fmt-check` pass. The first
+workflow lint invocation used a nonexistent local path; its log remains separate
+from the passing prepared-tool run. Evidence logs are
+`/tmp/ic-testkit-0361-{pools-unit,baseline-live,standalone-live,baseline-recovery,
+standalone-recovery,pools-clippy,pools-msrv,pools-doctest,pools-actionlint,
+pools-actionlint-final,pools-format}.log`.
+No dependency, package version, index/ref or stored format changed, and no broad
+gate or release ran. Native macOS qualification remains outstanding for this
+source; no latency or throughput improvement is claimed from source reduction.
+
+### Pending 0.37.0: Host 0.17, Shared 0.9.15 and startup ownership
+
+Reviewed released heads are IC Host `93a0ecc2afb7d4b8d8a252a21ed10d7e58b35901`
+and Shared Tooling `a9a8ea5ddea0db279d8c139ef5a951474c50f742`. Host's dirty
+governance work is separate and untouched. Incoming manifests and lockfile already
+select Host 0.17.0 and IC Build 0.1.3; their bytes remain unchanged. Exposed Host
+crate identities move the complete pending batch to 0.37.0. Own versions remain
+maintainer-owned; IC Build's development-only Host 0.16 graph stays separate.
+
+Managed-server child ownership is now nonoptional. Startup files own port reading
+and bounded capture, removing childless server fixtures. Explicit termination
+and child Drop still complete before final capture; background reaping retains
+the child and files together. No startup bounds, API, stored layout or pool policy
+changes. The existing recovery/cancellation/reader fixtures cover these contracts.
+
+The canonical exporter preserves the 96-file Shared selection. Snapshot admission,
+CI-log recovery and maintenance-path fixtures pass on native Bash and actual
+Bash 3.2. The two fixture harnesses run from a clean temporary clone with adopted
+script bytes compared exactly. These substitute transports/CLI, not native macOS.
+The executable-tool build policy is unchanged; no tool reinstall is required.
+
+Locked source preparation precedes offline checks. Linux passes 27 startup tests,
+three prepared PocketIC 16.1 ownership tests, six provisioning tests and 13 runner
+tests. Selected strict Clippy, actual Rust 1.88 library/CLI checks and formatting
+pass. Logs are `/tmp/ic-testkit-host17-{fetch,snapshot,gh-ci,gh-ci-bash32,
+maintenance,maintenance-bash32,startup,startup-native,provisioning,runner,clippy,
+msrv,format}.log`. No broad gate, release or sibling edit ran. Native macOS and
+remote CI for this uncommitted source remain outstanding.

@@ -582,27 +582,20 @@ fn reset_readiness_and_validation_failures_have_distinct_rebuild_reasons() {
 #[test]
 #[ignore = "launches and kills a dedicated PocketIC server; run explicitly in isolation"]
 fn killed_dedicated_server_rebuilds_on_a_fresh_server() {
-    let runtime = tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()
-        .expect("dedicated server runtime should build");
-    let (mut server, server_url) =
-        runtime.block_on(pocket_ic::start_server(pocket_ic::StartServerParams {
-            server_binary: Some(
-                std::env::var_os("POCKET_IC_BIN")
-                    .expect("prepare POCKET_IC_BIN for the dedicated server probe")
-                    .into(),
-            ),
-            reuse: false,
-            hard_ttl: Some(Duration::from_secs(60)),
-            ..pocket_ic::StartServerParams::default()
-        }));
+    let server = PocketIcStartupConfig::spawn(
+        std::env::var_os("POCKET_IC_BIN")
+            .expect("prepare POCKET_IC_BIN for the dedicated server probe"),
+        OPERATION_TIMEOUT,
+    )
+    .with_server_hard_ttl(Duration::from_secs(60))
+    .start_managed_server()
+    .expect("dedicated server should start");
 
     let controls = RecipeControls::default();
     *controls
         .first_server_url
         .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(server_url.to_string());
+        .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(server.url().to_owned());
     let pool = CachedPocketIcBaselinePool::new(
         NonZeroUsize::new(1).unwrap(),
         TwoCanisterRecipe::new(controls.clone()),
@@ -613,12 +606,7 @@ fn killed_dedicated_server_rebuilds_on_a_fresh_server() {
             .0,
     );
 
-    server
-        .kill()
-        .expect("the test-owned PocketIC server should stop");
-    server
-        .wait()
-        .expect("the test-owned PocketIC server should be reaped");
+    drop(server);
 
     let (baseline, outcome) = pool
         .acquire()
