@@ -47,14 +47,20 @@ struct Input(PathBuf);
 impl Input {
     fn new(bytes: &[u8]) -> Self {
         static SEQUENCE: AtomicUsize = AtomicUsize::new(0);
-        let path = std::env::temp_dir().join(format!(
-            "ic-host-limits-example-{}-{}",
-            std::process::id(),
-            SEQUENCE.fetch_add(1, Ordering::Relaxed)
-        ));
-        let mut file = File::create_new(&path).unwrap();
+        let (input, mut file) = loop {
+            let path = std::env::temp_dir().join(format!(
+                "ic-host-limits-example-{}-{}",
+                std::process::id(),
+                SEQUENCE.fetch_add(1, Ordering::Relaxed)
+            ));
+            match File::create_new(&path) {
+                Ok(file) => break (Self(path), file),
+                Err(error) if error.kind() == io::ErrorKind::AlreadyExists => {}
+                Err(error) => panic!("cannot create example input {}: {error}", path.display()),
+            }
+        };
         io::Write::write_all(&mut file, bytes).unwrap();
-        Self(path)
+        input
     }
     fn run(&self, max_bytes: usize, json: bool) -> Result<(ExitCode, Vec<u8>), Box<dyn Error>> {
         let mut args = vec![
@@ -75,6 +81,10 @@ impl Input {
 }
 impl Drop for Input {
     fn drop(&mut self) {
+        if std::thread::panicking() {
+            eprintln!("Failed limits example input retained: {}", self.0.display());
+            return;
+        }
         let _ = fs::remove_file(&self.0);
     }
 }

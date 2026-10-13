@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.17.2]
+
+- Simplify subprocess test fixtures to their crate-specific modes and remove an
+  unused tools test dependency ([#74](https://github.com/dragginzgame/ic-host-tooling/issues/74)).
+  Preserve failed IC-limits example inputs and skip occupied temporary names
+  ([#72](https://github.com/dragginzgame/ic-host-tooling/issues/72)).
+  [Detailed notes](docs/changelog/0.17.md).
+
 ## [0.17.1] - 2026-10-13
 
 - Retain failed process/tools test fixtures, skip occupied fixture paths without

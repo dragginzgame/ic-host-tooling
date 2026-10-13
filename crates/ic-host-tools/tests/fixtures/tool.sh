@@ -9,61 +9,9 @@ fi
 
 case "${1-}" in
     --version)
-        if [ "${FIXTURE_VERSION_MODE-}" = invalid-utf8 ]; then
-            printf '\377'
-        elif [ "${FIXTURE_VERSION_MODE-}" = fail ]; then
-            printf '%s\n' 'test-host-tool version 1'
-            printf 'version failed' >&2
-            exit 23
-        else
-            printf '%s\n' "${FIXTURE_VERSION-test-host-tool version 1}"
-        fi
+        printf '%s\n' 'test-host-tool version 1'
         ;;
-    --arguments)
-        shift
-        printf '[%s]' "$@"
-        ;;
-    --environment)
-        printf '%s|%s' "${FIXTURE_VALUE-absent}" "${HOME-absent}"
-        ;;
-    --cwd)
-        pwd -P
-        ;;
-    --stdin)
-        if read -r _line; then exit 24; fi
-        printf 'stdin closed'
-        ;;
-    --fail)
-        printf '%s' "${FIXTURE_SECRET-failure stdout}"
-        printf 'failure stderr' >&2
-        exit 23
-        ;;
-    --flood-stdout)
-        while :; do printf '0123456789abcdef'; done
-        ;;
-    --flood-stderr)
-        while :; do printf '0123456789abcdef' >&2; done
-        ;;
-    --both)
-        count=0
-        while [ "$count" -lt 10000 ]; do
-            printf '0123456789abcdef'
-            printf 'fedcba9876543210' >&2
-            count=$((count + 1))
-        done
-        ;;
-    --wait)
-        while :; do :; done
-        ;;
-    --closed-wait)
-        exec 1>&- 2>&-
-        while :; do :; done
-        ;;
-    --descendant)
-        /bin/sleep 1 &
-        exit 0
-        ;;
-    *)
+    /*)
         case "${FIXTURE_CANDID_MODE-normal}" in
             invalid-utf8) printf '\377' ;;
             empty) : ;;
@@ -73,7 +21,9 @@ case "${1-}" in
             remove) rm -- "$1"; printf 'service : {}\n' ;;
             grow) printf '0123456789abcdef' >> "$1"; printf 'service : {}\n' ;;
             fail) printf 'extract failed' >&2; exit 23 ;;
-            *) printf '//  \r\nservice : {  \r\n  query : () -> () query;\t\r\n}' ;;
+            normal) printf '//  \r\nservice : {  \r\n  query : () -> () query;\t\r\n}' ;;
+            *) printf 'unexpected extraction mode\n' >&2; exit 64 ;;
         esac
         ;;
+    *) printf 'expected an absolute source path\n' >&2; exit 64 ;;
 esac

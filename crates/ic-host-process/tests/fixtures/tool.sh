@@ -70,16 +70,7 @@ case "${1-}" in
         exit 0
         ;;
     *)
-        case "${FIXTURE_CANDID_MODE-normal}" in
-            invalid-utf8) printf '\377' ;;
-            empty) : ;;
-            unterminated) printf 'service : {}' ;;
-            source-path) printf '%s' "$1" >&2; printf 'service : {}\n' ;;
-            mutate) printf 'x' >> "$1"; printf 'service : {}\n' ;;
-            remove) rm -- "$1"; printf 'service : {}\n' ;;
-            grow) printf '0123456789abcdef' >> "$1"; printf 'service : {}\n' ;;
-            fail) printf 'extract failed' >&2; exit 23 ;;
-            *) printf '//  \r\nservice : {  \r\n  query : () -> () query;\t\r\n}' ;;
-        esac
+        printf 'unexpected process fixture mode\n' >&2
+        exit 64
         ;;
 esac
