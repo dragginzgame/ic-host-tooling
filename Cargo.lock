@@ -894,7 +894,7 @@ dependencies = [
 
 [[package]]
 name = "ic-testkit"
-version = "0.36.0"
+version = "0.37.0"
 dependencies = [
  "candid",
  "ic-build",
@@ -948,7 +948,7 @@ dependencies = [
 
 [[package]]
 name = "ic_testkit_perf_probe"
-version = "0.36.0"
+version = "0.37.0"
 dependencies = [
  "candid",
  "ic-cdk",
