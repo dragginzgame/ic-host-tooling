@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.17.0]
+## [0.17.0] - 2026-10-13
 
 - **Breaking:** Wasm-only `ic-interface` inspection no longer enables the Candid
   parser. Select `candid-service` when using `candid::service`.
