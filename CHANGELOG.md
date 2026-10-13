@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.17.6]
+## [0.17.6] - 2026-10-13
 
 - Adopt Shared Tooling 0.11.3's publication-admission guidance; selected executable
   tooling and Host's publication contract are unchanged
