@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.15.2]
+
+- Adopt Shared Tooling 0.9.10, retaining the fix for Rust-tool qualification from
+  consumer roots and removing its synthetic Git commits
+  ([Shared #143](https://github.com/dragginzgame/shared-tooling/issues/143),
+  [Shared #144](https://github.com/dragginzgame/shared-tooling/issues/144)).
+  Includes Cargo-tool cache identity/restore coverage
+  ([Shared #142](https://github.com/dragginzgame/shared-tooling/issues/142)).
+  Retain 0.9.7's rejection of non-boolean Cargo offline configuration and its
+  explicit Cargo-tool setup requirement; previous builds are retained
+  ([Shared #140](https://github.com/dragginzgame/shared-tooling/issues/140)).
+  [Detailed notes](docs/changelog/0.15.md).
+
 ## [0.15.1] - 2026-10-12
 
 - Adopt Shared Tooling 0.9.6: require complete Git identities in snapshots and

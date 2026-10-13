@@ -1,6 +1,159 @@
 # Current handoff
 
-## Pending 0.15.1 — Shared Tooling 0.9.6
+## Pending 0.15.2 — Shared Tooling 0.9.10
+
+Adopted committed Shared 0.9.10
+`7e55adecf6f0b196c050f104b37f8c69b6bf434e`, matching upstream main at inspection,
+through canonical preview/refresh from a clean isolated checkout. This is a
+governance-only update over the qualified 0.9.9 snapshot below. It adds the
+required `rules/change-reporting.md` entrypoint and updates its referencing
+baseline, review/audit guidance and governance catalog: 88 entrypoints and
+101 files. The new reporting rule separates semantic deletions from moves and
+renames, and defines scoped Rust/type/documentation metrics. Snapshot copies
+are excluded from authored-source counts.
+
+The incoming uncommitted 0.15.2 batch is preserved; package versions remain
+0.15.1. Runtime scripts, Rust sources, Cargo inputs, Make recipes and tool pins
+are unchanged by this adoption. No setup or full-suite rerun is needed for
+these documentation/catalog changes; the passing Linux full gate below still
+applies to the unchanged executable inputs. Snapshot verification and repeat
+preview pass under genuine Bash 3.2.57 with 101 KEEP rows. Local and imported
+documentation links, diff and captured Rust/Cargo/Make/pin preservation checks
+pass; all 42 selected shell-script records retain their pre-adoption digests.
+Validation evidence is retained at `/tmp/host-shared0910.0wIen7/`.
+Native macOS qualification remains separate. No sibling edit, tool setup,
+download, staging, version bump, commit, push or release ran.
+
+## Earlier preparation for 0.15.2 — Shared Tooling 0.9.9
+
+Adopted committed Shared 0.9.9
+`da4977129b9e2d3a62178fba8925026f9e42daa6`, matching upstream main at inspection,
+through canonical preview/refresh from a clean isolated checkout. This completes
+the same pending contributor-tooling batch; notes remain 0.15.2. Two selected
+payloads change relative to 0.9.8, retaining all 87 entrypoints and 100 files.
+The canonical Rust-tool fixture now enters its prepared compiler context and
+borrows existing Git history instead of creating commits, preserving actual
+hook/index/receipt qualification with a fatal forbidden-effect guard
+([Shared #143](https://github.com/dragginzgame/shared-tooling/issues/143),
+[Shared #144](https://github.com/dragginzgame/shared-tooling/issues/144)).
+There is no local fixture workaround. Production helpers, tool pins, Rust sources,
+Cargo inputs and package versions are unchanged by this refresh; the earlier
+offline tool preparation remains valid.
+
+Full Linux `CARGO_NET_OFFLINE=true make ci` passes, including the previously
+failing canonical Rust-tool fixture and all package Clippy, rustdoc and test
+profiles. The actual adopted fixture also passes genuine Bash 3.2.57 from Host's
+root. Snapshot verification and repeat preview pass under that shell with
+100 KEEP rows. ShellCheck, documentation links, diff checks and captured crate,
+Cargo, Make and pin preservation checks pass. Evidence is retained under
+`/tmp/host-shared099-adopt.uJoajf/`. This clears the local full-gate blocker;
+native macOS 15 Intel/Apple Silicon qualification remains for CI on the delivered
+source. The Rust inputs are unchanged, so earlier MSRV evidence still applies.
+No sibling edit, additional tool setup/download, staging, version bump, commit,
+push, release or publication ran. The working-tree batch is locally qualified
+for the maintainer's normal delivery flow; pending notes remain 0.15.2.
+
+## Earlier preparation for 0.15.2 — Shared Tooling 0.9.8
+
+Adopted committed Shared 0.9.8
+`b50925a342ff1880c76eb784a7406c7fdfaf59da`, matching upstream main at inspection,
+through canonical preview/refresh from a clean isolated checkout. The incoming
+0.9.7 work remains part of this same pending 0.15.2 batch. Two selected files
+change and the Rust-tool fixture adds the canonical cache-key companion; the
+snapshot now contains 87 entrypoints and 100 files. The new fixture covers cache
+identities and restored shared generations. Host's own workflow remains unchanged;
+Shared's workflow caching/timing changes do not become Host behavior implicitly.
+The build helper and pins are unchanged from 0.9.7, so the completed offline tool
+setup below remains valid. No additional tool installation is required.
+
+Full Linux `CARGO_NET_OFFLINE=true make ci` still fails in the Rust-tool fixture
+with `unprepared staged compiler`. The reported consumer-directory correction
+is absent from committed 0.9.8; the new cache-key tests also invoke the compiler
+from the caller's directory and now fail before the offline-policy block.
+The revised one-line upstream correction enters `"$consumer"` immediately after
+its initial selection. An isolated exact-source copy with that correction passes
+the entire fixture under modern Bash and genuine Bash 3.2.57, including the new
+cache tests, without the diagnostic. ShellCheck passes. The finding is reported
+under [Shared #140](https://github.com/dragginzgame/shared-tooling/issues/140).
+
+Actual tool admission passes; snapshot verification and repeat preview pass
+under Bash 3.2 with 100 KEEP rows. Links, ShellCheck, diff and captured source/input
+preservation checks pass. The remaining Host gate targets passed in the preceding
+0.9.7 pass below and their inputs are unchanged; this does not replace the failed
+full gate. Evidence and the revised isolated correction are retained at
+`/tmp/host-shared098.ucCuB4/`. Sibling source and the recorded snapshot remain
+unpatched. Library APIs, Rust inputs and package versions remain unchanged;
+contributor-only notes continue to select 0.15.2. Readiness remains blocked on the
+canonical upstream fixture correction. Native macOS qualification is outstanding.
+No further setup, downloads, sibling edits, staging, commit, push or release ran.
+
+The maintainer subsequently authorized applying the producer correction. At
+inspection, the Shared session had already prepared it under 0.9.9, together
+with commit-free fixture qualification. Its existing full `make ci` passes
+(`/tmp/shared099-ci-final.log`); producer evidence is recorded in
+[Shared #143](https://github.com/dragginzgame/shared-tooling/issues/143#issuecomment-6130350411)
+and [Shared #144](https://github.com/dragginzgame/shared-tooling/issues/144#issuecomment-6130350786).
+Direct execution of those current producer bytes from Host's real root now
+passes modern Bash and genuine Bash 3.2.57, without the erroneous compiler
+diagnostic. All tracked Shared input hashes remained stable during this check.
+The existing producer edits were preserved; no duplicate patch was applied.
+Shared remains at committed 0.9.8 with uncommitted 0.9.9 preparation. Canonical
+Host adoption and its uninterrupted full gate await a committed correction;
+these producer-source checks do not qualify Host's still-recorded 0.9.8 fixture.
+
+## Earlier preparation for 0.15.2 — Shared Tooling 0.9.7
+
+Released base is Host 0.15.1 `0d4ee35`; the checkout was clean at inspection.
+Adopted committed Shared 0.9.7
+`4d10a06d50e44d302f00d5b7b706cac5f9b0127c` through canonical preview/refresh
+from a clean isolated checkout. Four payloads change; all 87 entrypoints and
+99 files remain. Cargo-tool setup/admission rejects non-boolean `net.offline`
+configuration while honoring explicit environment overrides
+([Shared #140](https://github.com/dragginzgame/shared-tooling/issues/140)).
+The optional PR helpers remain unselected; Host retains direct delivery.
+
+The new build-helper identity requires explicit Cargo-tool setup despite
+unchanged pins. Initial offline admission correctly refused the old selection.
+Real `CARGO_NET_OFFLINE=true make install-rust-tools` and
+`make install-release-tools` succeed, retaining previous builds. The complete
+tool admission passes. Crate sources, Cargo inputs, Makefile and tool pins retain
+their captured bytes. Compatible contributor-tooling notes select 0.15.2;
+library APIs and package versions remain unchanged.
+
+Full Linux `CARGO_NET_OFFLINE=true make ci` is blocked by a new upstream fixture
+regression: direct `cargo_build_init` calls in `test-rust-tools.sh` inherit Host's
+root, where `rust-toolchain.toml` triggers the fixture compiler's intentional
+`unprepared staged compiler` refusal. Shared's own root lacks that file. The
+smallest upstream correction is `cd "$consumer"` inside the new subshell. An
+isolated exact-source copy with that one-line change passes modern Bash and
+genuine Bash 3.2.57 plus ShellCheck. The unchanged Bash 3.2 fixture emits the same
+diagnostic but continues to success; its initial zero exit is not clean evidence
+for these cases. The production helper and recorded snapshot remain unpatched.
+The finding and proposed correction belong to
+[Shared #140](https://github.com/dragginzgame/shared-tooling/issues/140).
+
+Every remaining Host gate target passes separately, including all four package
+Clippy, rustdoc and test profiles. Snapshot verification and repeat preview pass
+under Bash 3.2 with 99 KEEP rows; links, ShellCheck and diff checks pass. A direct
+cloc fixture attempt lacked its executable on the sandbox PATH; rerunning with
+the admitted Host path passes. Evidence and the upstream patch are retained at
+`/tmp/host-shared097.MpPLKd/`. The uninterrupted full gate must pass after a
+canonical upstream correction before readiness is claimed. Native macOS
+qualification remains outstanding. No downloads, sibling edits, staging, version
+bump, commit, push, release or publication ran.
+
+IC Build now owns its engine and extraction coordination through
+[IC Build #1](https://github.com/dragginzgame/ic-build/issues/1) and its
+`docs/design/build-ownership.md`. This Host session does not need to orchestrate
+that work routinely. IC Build owns Cargo grouping, execution/cache transactions
+and retained build results; consumers own migration, recipes and qualification.
+Host remains responsible for neutral artifact, filesystem, process and IC-format
+primitives. Engine findings belong to IC Build, with Host involvement only when
+a primitive change or dependency adoption is needed. This ownership handoff does
+not establish completed consumer or native macOS qualification. Sibling files
+remain unchanged by this adoption.
+
+## Historical preparation for 0.15.1 — Shared Tooling 0.9.6
 
 Adopted committed Shared 0.9.6
 `7e9f062f53baad2059a8585e2fffe2b98f03bafd`, matching upstream main at inspection,

@@ -475,6 +475,11 @@ explicit github.com HTTPS/SSH push URLs and same-repository PRs; fork heads and
 GitHub Enterprise destinations are outside this contract. Run from an ordinary
 checkout without inherited Git directory, worktree, index or object-store overrides.
 PR attempts share the common Git directory's release lock across linked worktrees.
+Before preparation, the repository lookup must return one JSON object whose
+complete `full_name` exactly matches the captured push destination. Trailing
+newlines and malformed response shapes are rejected before shell extraction.
+Each raw lookup response is retained separately under `release-state/`, including
+failed observations followed by a successful retry.
 
 Before merging, `RELEASE_SOURCE` identifies the original validated source,
 `RELEASE_COMMIT` identifies the prepared commit once it exists, and
