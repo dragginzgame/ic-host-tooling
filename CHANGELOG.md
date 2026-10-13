@@ -6,6 +6,43 @@ documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.36.0]
+
+### Breaking
+
+- Align Testkit's public Host re-exports and typed startup diagnostics with IC Host
+  0.16. Consumers passing or matching Host types from direct dependencies must
+  select the matching 0.16 crates.
+
+### Changed
+
+- Adopt Shared Tooling 0.9.13, preserving native lock/source-download failures and
+  refusing ambiguous CI branch selection. Locked dependency-source preparation is
+  authorized separately from offline checks and executable-tool setup
+  ([Shared #145](https://github.com/dragginzgame/shared-tooling/issues/145),
+  [Shared #146](https://github.com/dragginzgame/shared-tooling/issues/146),
+  [Shared #147](https://github.com/dragginzgame/shared-tooling/issues/147),
+  [Shared #148](https://github.com/dragginzgame/shared-tooling/issues/148)).
+
+### Added
+
+- Construct synchronous or async PocketIC instances while retaining their managed
+  server, with shared startup diagnostics and owned-server cancellation cleanup
+  ([#68](https://github.com/dragginzgame/ic-testkit/issues/68),
+  [#69](https://github.com/dragginzgame/ic-testkit/issues/69)).
+
+### Fixed
+
+- Use the canonical PocketIC protocol admission in the fixture-reuse benchmark
+  driver, including rejection of malformed and overflowing version components
+  ([#70](https://github.com/dragginzgame/ic-testkit/issues/70)).
+
+### Testing
+
+- Make managed-server lifecycle qualification safe under parallel tests.
+
+[Dependency and construction details](crates/ic-testkit/CHANGELOG.md#0360)
+
 ## [0.35.1] - 2026-10-13
 
 ### Changed

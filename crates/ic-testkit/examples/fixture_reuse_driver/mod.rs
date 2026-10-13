@@ -307,17 +307,6 @@ fn build_command(command: &mut Command) -> Result<(), Error> {
     }
 }
 
-fn pocket_ic_16(version: &str) -> bool {
-    let Some(numbers) = version.strip_prefix("pocket-ic-server 16.") else {
-        return false;
-    };
-    let fields = numbers.split('.').collect::<Vec<_>>();
-    fields.len() == 2
-        && fields
-            .iter()
-            .all(|field| !field.is_empty() && field.bytes().all(|byte| byte.is_ascii_digit()))
-}
-
 fn print_summary(summaries: &BTreeMap<String, Summary>, labels: &[String]) -> Result<(), Error> {
     println!(
         "Mode        work ms   incl. setup/drop ms   tasks/s   restore mean ms   wait mean ms   peak RSS MiB"
@@ -397,7 +386,7 @@ fn prepare(options: &Options) -> Result<Inputs, Error> {
     let server = resolve_executable(&fs::canonicalize(&options.server)?, &root, &[])
         .map_err(Error::Resolution)?;
     let server_version = text_command(Command::new(&server).arg("--version"))?;
-    if !pocket_ic_16(&server_version) {
+    if !ic_testkit::pic::supports_pocket_ic_server(server_version.as_bytes()) {
         return Err(Error::InvalidData("expected pocket-ic-server 16.x.y"));
     }
     let cargo = tool_program(std::env::var_os("CARGO").unwrap_or_else(|| OsString::from("cargo")))?;
@@ -566,9 +555,7 @@ pub fn run() -> Result<(), Error> {
 #[cfg(test)]
 mod tests {
     use super::arguments::parse_arguments;
-    use super::{
-        Error, REPORT_LIMIT, ScratchOutput, measure, pocket_ic_16, prepare, publish_report,
-    };
+    use super::{Error, REPORT_LIMIT, ScratchOutput, measure, prepare, publish_report};
 
     #[cfg(unix)]
     use super::InterruptHandler;
@@ -838,21 +825,6 @@ esac
         );
         assert_eq!(fs::read(report).unwrap(), b"complete replacement");
         assert_eq!(fs::read(target).unwrap(), b"caller-owned target");
-    }
-
-    #[test]
-    fn exact_server_major_is_required() {
-        for version in ["pocket-ic-server 16.0.0", "pocket-ic-server 16.12.34"] {
-            assert!(pocket_ic_16(version));
-        }
-        for version in [
-            "pocket-ic-server 15.0.0",
-            "pocket-ic-server 16.0.0-beta",
-            "pocket-ic-server 16.x.0",
-            "pocket-ic-server 16.0.0 extra",
-        ] {
-            assert!(!pocket_ic_16(version));
-        }
     }
 
     #[test]

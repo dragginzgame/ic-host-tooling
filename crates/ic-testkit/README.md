@@ -23,7 +23,7 @@ provides:
 - the complete host-only upstream crate at `ic_testkit::pocket_ic`
 - typed Candid query/update helpers with contextual, structured errors
 - canister install and retry helpers
-- explicit bounded PocketIC startup, caller-owned managed-server handles, and
+- explicit PocketIC startup, retained server/instance ownership, fallible async construction, and
   structured child/readiness failures
 - explicit authenticated `ic-testkit-server setup`, offline `check`, and a shared
   environment startup contract with `ic-testkit-server run -- COMMAND`

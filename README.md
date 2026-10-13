@@ -297,6 +297,43 @@ by default; PocketIC's activity-based soft TTL still bounds orphaned servers.
 Call `with_server_hard_ttl` to opt into an absolute lifetime. After successful
 one-shot construction, an internal reaper owns the child until it exits.
 
+For a fresh server whose lifetime should end with the fixture, use
+`config.build_instance(builder)`. It returns `PocketIcInstance<PocketIc>` with
+public `instance` and `server` fields. Its field order deletes the synchronous
+instance before terminating and reaping the server. This replaces repeated
+start-server/connect/build composition while preserving the caller's topology,
+state paths, output files and lifetime policy. `try_build` retains its separate
+one-shot server-reaper behavior.
+
+Async consumers use `config.build_instance_async(builder).await` on a Tokio
+runtime with time enabled. The result exposes the upstream nonblocking instance
+and retains the same managed server handle. Readiness and HTTP waits yield;
+process spawning, small file reads and exact child cleanup remain synchronous.
+The deadline cannot preempt synchronous work within an upstream future poll,
+including read-only state copying. Drop the construction future to cancel local
+work and reap its owned server; select output files to retain cancellation
+logs. Cancellation of a borrowed connection leaves server ownership with the
+caller and cannot reconcile an instance created before timeout or a lost reply.
+
+The async instance requires explicit deletion while its server is retained:
+
+```rust,no_run
+# async fn example(binary: &std::path::Path) -> Result<(), ic_testkit::pic::PocketIcStartupError> {
+use ic_testkit::pic::{PocketIcBuilder, PocketIcStartupConfig};
+use std::time::Duration;
+let owned = PocketIcStartupConfig::spawn(binary, Duration::from_secs(60))
+    .build_instance_async(PocketIcBuilder::new().with_application_subnet()).await?;
+let canister = owned.instance.create_canister().await;
+assert!(owned.instance.canister_exists(canister).await);
+owned.instance.drop().await;
+drop(owned.server);
+# Ok(())
+# }
+```
+
+Neither construction method adds an instance-operation or deletion deadline.
+The synchronous upstream drop limitation below still applies.
+
 Use `PocketIcStartupConfig::connect(url, timeout)` for a caller-owned existing
 server. Both modes set the server URL on the builder, preventing its implicit,
 unbounded child-startup path. There is no zero-argument `try_build`, implicit

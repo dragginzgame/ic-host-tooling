@@ -8,6 +8,75 @@ This file ships in the crate archive so upgrades can be completed without the
 repository checkout. The complete historical changelog remains at
 <https://github.com/dragginzgame/ic-testkit/blob/main/CHANGELOG.md>.
 
+## [0.36.0]
+
+### Breaking: exposed Host dependency types
+
+Testkit's public `ic_host_artifacts`, `ic_host_fs` and `ic_host_process` re-exports
+now select IC Host 0.16. Align direct Host dependencies to 0.16 when sharing their
+types with Testkit, including `PocketIcStartupFailure` probe errors and cleanup
+reports. The three Host subcrates have unchanged source APIs from 0.15.2; their
+new Rust crate identities still require a Testkit minor release at this exposed
+consumer boundary. The aggregate `ic-host-tools` change to empty default features
+does not apply here: Testkit does not depend on or re-export that crate.
+IC Build's existing development-only dependency retains its separate Host 0.15
+selection; no bridge, type conversion or implicit dependency update is introduced.
+
+### Changed: Shared Tooling 0.9.13
+
+The reviewed snapshot selects `35cad65677ff989b5fb24a88d947fda37d2366e8`.
+Tool-store and checkout locks preserve filesystem diagnostics and exit statuses,
+and source-acquisition failures stop before build/activation without losing the
+previous selection ([Shared #145](https://github.com/dragginzgame/shared-tooling/issues/145),
+[Shared #146](https://github.com/dragginzgame/shared-tooling/issues/146)). Explicit
+`make install-rust-tools` prepares the changed build-helper identity; old tool
+generations remain retained.
+
+Authorized development may run `cargo fetch --locked` for the existing selected
+lockfile without another approval; offline settings, executable installation and
+release authority remain separate
+([Shared #147](https://github.com/dragginzgame/shared-tooling/issues/147)). The CI
+inspection helper refuses failed or empty current-branch observations instead of
+selecting unrelated runs, while explicit branch/commit/run selection remains
+available ([Shared #148](https://github.com/dragginzgame/shared-tooling/issues/148)).
+
+### Added: retained instance construction
+
+`PocketIcStartupConfig::build_instance(builder)` returns
+`PocketIcInstance<PocketIc>` whose public `instance` and optional `server` fields
+retain the exact owned server in spawn mode. Field order deletes the synchronous
+instance before server teardown. Connect mode returns no server ownership.
+Caller topology, state/request settings, output paths and TTL selections stay
+on the existing builder/configuration
+([#68](https://github.com/dragginzgame/ic-testkit/issues/68)).
+
+`build_instance_async(builder).await` exposes the upstream nonblocking instance
+on the caller's Tokio runtime with its time driver enabled. Readiness and instance
+waits yield, sharing typed startup failures, bounded output and independent
+cleanup diagnostics. Dropping construction reaps its owned server during either
+phase; explicit output files retain cancellation diagnostics. A borrowed server
+is untouched, and an instance created before timeout or a lost response requires caller
+reconciliation ([#69](https://github.com/dragginzgame/ic-testkit/issues/69)).
+Process spawning, bounded file reads and owned-child cleanup remain synchronous;
+startup deadlines cannot preempt synchronous work within upstream future polls.
+Async instances require explicit `instance.drop().await` while retaining the
+server. Neither API bounds subsequent instance operations or upstream deletion.
+The existing one-shot `try_build` behavior remains unchanged. These construction
+additions are compatible; no stored format changes are required. The exposed Host
+dependency change above selects the minor release for this batch.
+
+### Fixed: benchmark protocol admission
+
+The fixture-reuse driver uses `pic::supports_pocket_ic_server` for its selected
+binary instead of maintaining another version parser. All admission callers
+share stable 16.x.y syntax, including leading-zero and overflow rejection
+([#70](https://github.com/dragginzgame/ic-testkit/issues/70)).
+
+### Testing
+
+Prepared-server lifecycle qualification observes its exact child's published path
+instead of predicting it from a shared counter, avoiding a parallel-test race.
+
 ## [0.35.1] - 2026-10-13
 
 ### Changed: Shared Tooling and CI tool reuse

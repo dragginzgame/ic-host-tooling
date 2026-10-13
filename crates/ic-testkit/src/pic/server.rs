@@ -42,6 +42,7 @@ mod tests {
             "pocket-ic-server 16.0",
             "pocket-ic-server 16.01.0",
             "pocket-ic-server 16.1.0-extra",
+            "pocket-ic-server 16.18446744073709551616.0",
             "other 16.1.0",
         ] {
             assert!(!super::supports_pocket_ic_server(output.as_bytes()));

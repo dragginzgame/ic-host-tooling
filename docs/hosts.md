@@ -4652,3 +4652,82 @@ The first sandboxed run failed at PocketIC's local-port bind; the unrestricted
 focused run passes. Both observations remain in
 `/tmp/ic-testkit-0351-retained-handoff{,-native}.log`. Native macOS acceptance for
 this source remains outstanding; no broad gate or release was run.
+
+### 0.35.2 retained sync/async instance construction
+
+Source qualification compares the pending working tree with released 0.35.1
+`245bbb9361722c7d562d5c83666850f4ddbb4364`. The new construction entrypoints retain
+an optional exact managed server alongside the upstream instance, sharing process
+spawn, port/readiness admission, failure projection and cleanup. Connect mode
+claims no server. Async readiness/HTTP waits yield on the caller's Tokio runtime;
+process spawn, bounded file reads and cleanup remain synchronous. The configured
+deadline cannot preempt synchronous work within an upstream future poll.
+
+Linux qualification passes 30 focused startup tests, including three tests with
+the prepared PocketIC 16.1.0 executable. Both new APIs preserve application/NNS
+topology, allow overlapping borrowed instances, and retain the owned child through
+use before exact teardown. Synthetic fixtures verify typed configuration, URL,
+server-exit, readiness-timeout, instance-timeout and panic failures. Cancellation
+during readiness and the HTTP instance wait reaps the exact owned PID; explicitly
+selected raw logs survive. Existing one-shot reaper behavior remains qualified.
+The lifecycle fixture now observes its exact port path instead of guessing a
+concurrently allocated directory. The first native run exposed that pre-existing
+fixture race; its failure remains in `/tmp/ic-testkit-0352-startup-native.log`.
+The final native run is `/tmp/ic-testkit-0352-startup-complete.log`:
+
+```bash
+POCKET_IC_BIN="$PWD/.tools/ic-testkit-server/16.1.0-x86_64-linux/pocket-ic" cargo test -p ic-testkit --locked --offline --lib pic::startup::tests -- --include-ignored --nocapture
+```
+
+The benchmark driver passes 17 tests; canonical protocol admission passes with
+leading-zero and numeric-overflow rejection. Both construction Rustdoc examples
+compile. Strict selected Clippy, Rust 1.88 library compilation, the Wasm library
+check, formatting and dependency pins pass. Logs are
+`/tmp/ic-testkit-0352-{driver,protocol,doctests,clippy-complete,msrv,wasm,format,pins}.log`.
+Locked offline caches were explicitly prepared without changing the lockfile.
+These targeted results are not full CI, downstream harness migration or native
+macOS proof. Timers, Blob and Backup migration and both native macOS hosts remain
+outstanding under [#68](https://github.com/dragginzgame/ic-testkit/issues/68) and
+[#69](https://github.com/dragginzgame/ic-testkit/issues/69). Upstream synchronous
+instance deletion remains unbounded; nonblocking instances need explicit async
+deletion while their server is retained. Cancelled borrowed construction can leave
+an instance created before timeout/lost reply for caller-owned reconciliation.
+
+### Pending 0.36.0: IC Host 0.16 and Shared Tooling 0.9.13 integration
+
+Reviewed upstream heads are Host `046751faafecf8fb9e924e7c813efcbb69d36d10`
+and Shared `35cad65677ff989b5fb24a88d947fda37d2366e8`, confirmed against GitHub.
+The incoming Testkit manifests and lockfile already select Host 0.16.0; their
+bytes are preserved. Host's three used subcrates have unchanged source APIs from
+0.15.2, but their public re-exports and typed probe/cleanup diagnostics now carry
+0.16 crate identities. The pending notes therefore move to 0.36.0; direct Host
+types crossing this boundary must use 0.16. Own package versions remain unchanged.
+IC Build's existing development-only Host 0.15 graph stays separate. The new
+aggregate `ic-host-tools` default-feature change has no Testkit dependency caller.
+
+Shared's canonical exporter adopts the unchanged 96-file selection. Active
+sibling CI-helper edits remain untouched: a clean temporary clone of the reviewed
+commit supplies the export and CI-inspection fixture. Snapshot verification
+passes. Explicit Rust-tool setup prepares the changed build-helper identity,
+retaining earlier generations; offline Host/IC/Rust/PocketIC admission passes.
+Locked dependency sources were prepared with `cargo fetch --locked` before checks,
+without resolution or an implicit fetch in offline validation targets.
+
+Native Bash and actual Bash 3.2 pass the Host, IC and Rust installer fixtures and
+CI-selection fixture, covering lock acquisition/status fidelity, source-download
+failure propagation, retained selections and failed/detached branch observations.
+These are substituted tool/transport tests, not native macOS proof. The initial
+direct invocation of the sourced tool-store support file was invalid; its retained
+log is `/tmp/ic-testkit-upstream-tool-store.log`. The owning Host/IC harnesses pass.
+
+The locked Host 0.16 graph passes 30 startup tests (including three prepared-server
+tests), six CLI provisioning tests, 13 command-runner fixtures, and separate real
+runner and provisioned-CLI instance tests against PocketIC 16.1.0. The 17 benchmark
+driver tests, both construction doctests, strict selected Clippy, actual Rust 1.88
+library/CLI checks, Wasm library check, dependency pins and formatting pass.
+Evidence is `/tmp/ic-testkit-upstream-{host,ic,rust}-fixtures.log`, corresponding
+`*-bash32.log`, `gh-ci{,-bash32}.log`, `rust-setup.log`, `startup.log`,
+`provisioning.log`, `runner{,-native}.log`, `cli-native.log`, `driver.log`,
+`clippy.log`, `doctests.log`, `msrv.log`, `wasm.log` and `admission.log`.
+No broad gate or release was run. Both native macOS hosts and downstream fixture
+migration remain outstanding for this consumer source.
