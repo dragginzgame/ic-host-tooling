@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.17.2]
+## [0.17.2] - 2026-10-13
 
 - Simplify subprocess test fixtures to their crate-specific modes and remove an
   unused tools test dependency ([#74](https://github.com/dragginzgame/ic-host-tooling/issues/74)).
