@@ -208,5 +208,5 @@ The standalone application composes artifact/filesystem owners, keeping the four
 library boundaries and response-only defaults unchanged. It prints exact SHA-256
 and raw/structural facts after complete admission; budgets and interpretation
 stay caller-owned. It executes no Wasm and estimates no cycles or instructions.
-After publication, select the package, version and binary through the standard
+Select the published package, version and binary through the standard
 Shared Tooling Cargo installer; no extra feature selection is required.

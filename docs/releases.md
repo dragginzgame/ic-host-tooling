@@ -660,6 +660,9 @@ plan is retained evidence and does not block the next release. A later failure
 from a separately chained command does not undo that successful branch/tag push.
 Package publication requires a consumer-owned publication command and an eligible
 package; do not append `make publish` automatically to the standard release flow.
+For a crates.io package using the workspace's stable version, consumers may reuse
+the [read-only publication admission helper](verification-helpers.md#read-only-cargo-publication-admission)
+while keeping upload authority, package policy and recovery local.
 
 ## Shared changelog finalization
 

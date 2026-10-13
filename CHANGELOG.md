@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.17.6]
+
+- Adopt Shared Tooling 0.11.3's publication-admission guidance; selected executable
+  tooling and Host's publication contract are unchanged
+  ([#73](https://github.com/dragginzgame/ic-host-tooling/issues/73)).
+  [Detailed notes](docs/changelog/0.17.md).
+
 ## [0.17.5] - 2026-10-13
 
 - Adopt Shared Tooling 0.11.2: release recovery shares annotated-tag validation,

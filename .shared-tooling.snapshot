@@ -1,8 +1,8 @@
 # Shared Tooling snapshot v1
-# version	0.11.2
+# version	0.11.3
 format	1
 source	https://github.com/dragginzgame/shared-tooling
-revision	81bdf144482b21f146acf542f8013eefe1dfeba8
+revision	eadab786d4c7d73de53b6abdba6905727af70fda
 # entrypoint	rules/changelogs.md
 # entrypoint	docs/releases.md
 # entrypoint	scripts/ci/run-release.sh
@@ -92,7 +92,7 @@ revision	81bdf144482b21f146acf542f8013eefe1dfeba8
 # entrypoint	tasks/cargo-tool-versions.md
 # entrypoint	rules/change-reporting.md
 file	e7c1c56549860efff6a579913a1632eb19868d5e2e5e5e1ed2ba3ea7171db881	-	rules/changelogs.md
-file	df70fc9b68e7339706e0dd55e10bd790221120644a759d7d733ad086eae408ff	-	docs/releases.md
+file	245960969930f33f0c4fd4c0fb61e70befb40c726c13935006d2e572a05bc32c	-	docs/releases.md
 file	3fe2c246b8691c4ec034271a5c6255afbebabba53585e5431a8202a70f31eee8	x	scripts/ci/run-release.sh
 file	37e028e2d9fee271ffdc06d06fc15d7a148ec524def3d9ed2afcd9910c0ec642	x	scripts/ci/next-release-version.sh
 file	e7f4c82566858b89b50c5c2f929097bdde85345a2c0c1bf553bb1170cc4f5960	-	scripts/ci/finalize-release-changelog.awk
@@ -129,7 +129,7 @@ file	2419d7d1febe741c59cdd1fe081c16ad11039e688bb90b08cc3c26166b219f8c	x	scripts/
 file	cb921d52c4775da6c3504f16f3dca149f1b379ed2288b49fb1116303c4e44014	x	scripts/ci/test-host-tools.sh
 file	97d0653b90a5d2b191b09a2f90ba05d607e43909a64d2157042227f01b1c0d12	x	scripts/ci/test-ic-tools.sh
 file	544bf727af1886a6c8853be306da72fd1f2498cca319f2aaf040c16cc4ce43d4	x	scripts/ci/test-evidence-checksums.sh
-file	15ed377ffe49f253400646dd9b152d8f1cb555206c30a6cc0c60e45e54f34500	-	docs/verification-helpers.md
+file	d29a551c8e8b1e0191d29cbb2a698d3ac64fea6b7c7cc4875260061facaa7834	-	docs/verification-helpers.md
 file	6fe7da8acbeb862b26047d08c63a95a5d2b93223bb9c929d65c56dd2f30551ac	x	scripts/ci/check-release-commands.sh
 file	a04ef3105e7851b83bb682120873e29a6c3c604183c275bc53051dd9e4b300a7	x	scripts/ci/check-documentation-links.pl
 file	7ccdd181e517e563e8541b341c1313fa5e25094ee45f8fee81843471a65893bd	x	scripts/ci/test-documentation-links.pl

@@ -12,6 +12,6 @@ including SHA-256 only after admission. Invalid arguments/files/budgets return n
 report; output failures retain their I/O cause. It estimates no cycles or
 instructions. Paths use native OS strings, including non-UTF-8 input names.
 
-After publication, consumers can select this package/version/binary through the
+Consumers can select the published package/version/binary through the
 standard Shared Tooling Cargo installer. Checks remain offline and never install
 it. Consumers own budgets, interpretation and performance evidence.

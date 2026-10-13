@@ -287,4 +287,5 @@ with bounded filesystem reads, without process execution or the Candid parser.
 The four library boundaries stay unchanged. Explicit paths, four budgets and
 performance interpretation stay caller-owned. The standard selected Cargo
 installer can prepare its published binary without feature flags. Metrics
-retirement requires publication and an admitted exact consumer selection.
+retirement uses published 0.17.4 and an admitted exact consumer selection; its
+working-tree integration and native acceptance remain separately qualified.

@@ -19,10 +19,10 @@ No native macOS, commit, release, publication or actual provider operation ran.
 
 ## Released source and baseline
 
-The latest finalized release is **0.17.4**, commit
-`28f3a6d5771ecb941b86cd3c6ea2507de82b101e`. Package versions remain unchanged.
-Shared Tooling **0.11.2**, revision
-`81bdf144482b21f146acf542f8013eefe1dfeba8`, is adopted through the canonical
+The latest finalized release is **0.17.5**, commit
+`0212b0bfc8ed1ea361991c779447a5d5409dc5a1`. Package versions remain unchanged.
+Shared Tooling **0.11.3**, revision
+`eadab786d4c7d73de53b6abdba6905727af70fda`, is adopted through the canonical
 exporter from a clean isolated checkout of pushed upstream main. The snapshot
 contains 103 payloads, including the shared release-tag checker and fixture
 lifecycle helper. Tool pins and product source are unchanged.
@@ -48,7 +48,17 @@ Prior 0.10.1 full offline Linux and genuine Bash 3.2 qualification remains in
 Native macOS 15 Intel and Apple Silicon qualification remains separate from
 local Linux evidence. No commit, push, release or publication ran in this task.
 
-## Pending 0.17.5
+## Pending 0.17.6
+
+Shared 0.11.3 changes two selected documentation payloads only. The optional
+publication-admission checker is outside Host's selected roots and has different
+tag/registry requirements from Host's current publication contract. All executable
+payloads match 0.11.2. Snapshot verification, repeat preview (103 KEEP), links
+and diff checks pass. Adoption evidence is in `/tmp/host-shared0113/`; existing
+native qualification is not relabelled by this documentation-only update
+([#73](https://github.com/dragginzgame/ic-host-tooling/issues/73)).
+
+## Delivered 0.17.5
 
 Shared 0.11.2 centralizes annotated-tag validation in release recovery and
 cleanup/retention in its selected fixtures, preserving cleanup/diagnostic failure
@@ -93,13 +103,16 @@ filesystem source absent from its tracked formatting fixture; the maintainer
 selected release-only validation while those changes continue. Evidence is in
 `/tmp/host-release-convergence/`; native macOS qualification remains separate.
 
-The generic bounded Wasm-inspection CLI is prepared as the standalone
-`apps/ic-host-wasm-inspect` application. Argument/report and actual CLI admission
-fixtures accompany the source from Metrics. Filesystem/artifact owners compose
-without Candid parsing or process execution; response-only defaults stay intact.
-Metrics retains its existing executable until a published Host release and exact
-consumer tool selection permit removal. Package versions and Git refs stay fixed.
-Qualification evidence is recorded separately from the earlier tooling adoption.
+The generic bounded Wasm-inspection CLI is published as `ic-host-wasm-inspect`
+0.17.4, source `28f3a6d5771ecb941b86cd3c6ea2507de82b101e`. Argument/report
+and actual CLI admission fixtures accompany the source transferred from Metrics.
+Filesystem/artifact owners compose without Candid parsing or process execution;
+response-only defaults stay intact. Metrics has admitted that exact published
+selection through the standard managed installer and removed its private package
+in its working tree. Consumer delivery qualification and hosted native acceptance
+remain separately evidenced by [#81](https://github.com/dragginzgame/ic-host-tooling/issues/81).
+The frozen producer integration passes full Linux CI and all five Rust 1.88 package
+floors; this does not relabel later release/native workflow results.
 
 ## Evidence and coordination
 
