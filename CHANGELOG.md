@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.17.5]
+## [0.17.5] - 2026-10-13
 
 - Adopt Shared Tooling 0.11.2: release recovery shares annotated-tag validation,
   and shared fixtures preserve cleanup failures and physical temporary roots
