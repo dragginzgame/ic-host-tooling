@@ -66,7 +66,7 @@ fn prefetched_line_and_elapsed_deadline_refuse_before_waiting_for_headers() {
             io::ErrorKind::InvalidData
         );
     }
-    let elapsed = Instant::now() - Duration::from_secs(1);
+    let elapsed = Instant::now();
     assert_eq!(
         read_http_request_line(&mut socket, elapsed, 128)
             .unwrap_err()
