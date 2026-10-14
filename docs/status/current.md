@@ -25,30 +25,27 @@ until publication; its normal graph still uses published dependencies. Evidence
 and reviewed consumer patch are under `/tmp/ic-build-cleanup3/`. This task performs
 no staging, commit, own version change, release or publication in either owner.
 
-## Shared Tooling adoption — pending 0.17.12
+## Shared Tooling adoption — pending 0.17.13
 
-Shared 0.12.4 at `8b2dbd70a24330fdc6c102a01772f4d3e5b628d7` is exported
+Shared 0.12.5 at `4256171b5b7ec4c4cc4078548c1c1617ee150699` is exported
 from a clean isolated copy of pushed upstream main. All 92 roots and 109 payloads
-remain selected. Host/IC setup reuse one verified-selection helper, preserving
-tool-specific verification and unmanaged-path refusal. Tool fixtures gain focused
-path-context modes and unmanaged-selection coverage. Tool pins stay unchanged.
-The new changelog rule gives pending issue links descriptive titles; published
-history stays intact. Optional freshness/rendering/dashboard helpers remain
+remain selected. Only baseline/contribution/workspace/audit guidance changes;
+executable payloads and tool pins match 0.12.4. Local AGENTS/README instructions
+and Make help now link to the shared focused-check cadence, retaining explicit
+full-release validation and configured native CI. The dashboard change stays
 outside Host's selected closure
 ([#73 — Shared Tooling adoption](https://github.com/dragginzgame/ic-host-tooling/issues/73)).
 
-Full combined offline Linux `make ci msrv-workspace` passes. Host/IC full fixtures
-and the new host/Rust/Make path-context modes pass under genuine Bash 3.2 with
-substituted setup effects. Strict ShellCheck, snapshot integrity, repeat preview
-(109 KEEP), shared/local documentation links and diff checks pass. Recorded Rust,
-shared payloads and validation inputs stayed unchanged; manifest/lock, pins and
-index are preserved. Before-images and logs are retained under
-`/tmp/host-shared0124.JnTpCt/`, including `full-validation.log`. The source export
-excludes the sibling's dirty changelog and portable-tool fixture. Package versions
-remain 0.17.11; compatible pending notes select 0.17.12. No contributor reinstall
-or library consumer migration is required. Native macOS qualification remains
-separate. No staging, commit, release, publication, executable download or sibling
-mutation ran.
+Snapshot integrity, repeat preview (109 KEEP), shared/local documentation links,
+actual Make help and consistency/diff checks pass. Rust source, manifest/lock,
+pins and index are preserved. Before-images and logs are retained under
+`/tmp/host-shared0125.bLuQyz/`. Source is a clean isolated copy of pushed main.
+Package versions remain 0.17.12; compatible pending notes select 0.17.13.
+The preceding executable-tooling gate stays bound to the 0.12.4 inputs in
+`/tmp/host-shared0124.JnTpCt/`. No full suite runs for this documentation/help
+update under the adopted cadence, and no new native result is claimed.
+No staging, commit, release, publication, executable download or sibling mutation
+ran.
 
 ## Private parent preparation — delivered 0.17.11
 
@@ -252,10 +249,10 @@ No native macOS, commit, release, publication or actual provider operation ran.
 
 ## Released source and baseline
 
-The latest finalized release is **0.17.11**, commit
-`afb05ee53c5ade59dad25fc4a9264a5200963e9c`. Package versions remain unchanged.
-Shared Tooling **0.12.4**, revision
-`8b2dbd70a24330fdc6c102a01772f4d3e5b628d7`, is adopted through the canonical
+The latest finalized release is **0.17.12**, commit
+`20d0ca26dc56ba6eb252d52132c417933ec9ad69`. Package versions remain unchanged.
+Shared Tooling **0.12.5**, revision
+`4256171b5b7ec4c4cc4078548c1c1617ee150699`, is adopted through the canonical
 exporter from a clean isolated checkout of pushed upstream main. The snapshot
 contains 109 payloads, including the shared release-tag checker, fixture
 lifecycle helper, selected publication attempt owner and evidence collector.

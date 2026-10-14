@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.17.13]
+
+- Adopt Shared Tooling 0.12.5 and align contributor guidance with focused
+  handoff checks and explicitly requested full local validation
+  ([#73 — Shared Tooling adoption](https://github.com/dragginzgame/ic-host-tooling/issues/73)).
+  [Detailed notes](docs/changelog/0.17.md).
+
 ## [0.17.12] - 2026-10-14
 
 - Adopt Shared Tooling 0.12.4, sharing host/IC tool-selection admission and

@@ -26,7 +26,7 @@ help:
 	@echo 'Individual setup: install-host-tools, install-ic-tools, install-rust-tools, install-release-tools'
 	@echo 'Release tool: release-tools-check (offline); release-tools-test (substitute installer)'
 	@echo 'Source reports: cloc (this workspace); fleet reports run in Shared Tooling'
-	@echo 'Full delivery gate: ci; declared MSRV: msrv PACKAGE=<crate>'
+	@echo 'Full release validation: ci, msrv-workspace; focused MSRV: msrv PACKAGE=<crate>'
 	@echo 'Maintainer releases: release-patch, release-minor, release-major, release-resume VERSION=X.Y.Z'
 	@echo 'crates.io publication: publish-check (dry run), publish (upload); offline fixture: publish-command-check'
 format-tools-test:
