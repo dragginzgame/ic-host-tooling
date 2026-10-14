@@ -218,8 +218,10 @@ preserves the roots. Pass a complete replacement `--entrypoint` set to narrow or
 replace them; supplying roots is a replacement, not an addition.
 
 Selected committed files can declare unconditional shared dependencies on their
-second line as `# Shared companions: relative/path another/path`. Refresh checks
-those declarations in the exported blobs, including companions' own declarations,
+second line as `# Shared companions: relative/path another/path`, or for Markdown
+as `<!-- Shared companions: relative/path another/path -->`. Markdown declarations
+keep required guides with reduced task exports without selecting optional commands.
+Refresh checks those declarations in the exported blobs, including companions' own declarations,
 and includes their complete closure. Missing source payloads refuse before any
 consumer replacement. Review additions in preview; no inspected code is executed
 to discover dependencies.

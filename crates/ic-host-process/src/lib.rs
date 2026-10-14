@@ -8,3 +8,6 @@ pub mod sampling;
 mod test_support;
 #[cfg(unix)]
 pub mod tool;
+
+#[cfg(all(unix, feature = "test-support"))]
+pub mod testing;

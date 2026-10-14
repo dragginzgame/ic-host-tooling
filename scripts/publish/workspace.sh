@@ -1,14 +1,19 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Thin Cargo workspace publication adapter. Requires prepared Cargo 1.99, Git,
-# jq, tar and tee. Cargo owns packaging, dependency ordering, verification, upload
+# Cargo workspace publication admission. Requires prepared Cargo 1.99, Git,
+# jq and tar; Shared Tooling owns attempt recording and Cargo/tee dispatch.
+# Cargo owns packaging, dependency ordering, verification, upload
 # and index waiting. The caller owns credentials and partial-upload recovery.
 mode="${1:-}"
 [[ $# == 1 && ( "$mode" == publish || "$mode" == check ) ]] || {
     echo 'usage: workspace.sh publish|check' >&2; exit 2;
 }
 fail() { echo "publication refused: $1" >&2; exit 1; }
+tooling_root="${BASH_SOURCE[0]}"
+[[ "$tooling_root" == /* ]] || tooling_root="$PWD/$tooling_root"
+tooling_root="$(cd -P "${tooling_root%/*}/../.." && printf '%s/.' "$PWD")"
+tooling_root="${tooling_root%/.}"
 # Publication eligibility is explicit policy, distinct from workspace membership.
 packages=(ic-host-artifacts ic-host-fs ic-host-process ic-host-tools ic-host-wasm-inspect)
 package_path() {
@@ -20,7 +25,10 @@ package_path() {
 # Preserve path newlines, removing only Git's terminating record newline.
 root="$(git rev-parse --show-toplevel && printf '/.')"
 root="${root%$'\n/.'}"
-cd "$root"
+case "$root" in *$'\r'*|*$'\n'*) fail 'directory paths must not contain CR/LF' ;; esac
+cd -P -- "$root"
+root="$PWD"
+case "$root" in *$'\r'*|*$'\n'*) fail 'directory paths must not contain CR/LF' ;; esac
 source="$(git rev-parse --verify HEAD)" || exit $?
 [[ "$source" =~ ^([0-9a-f]{40}|[0-9a-f]{64})$ ]] || fail 'invalid source identity'
 dirty="$(git status --porcelain --untracked-files=all)" || exit $?
@@ -31,15 +39,19 @@ for package in "${packages[@]}"; do
     [[ -f "$notice" && ! -L "$notice" ]] || fail "expected a regular license notice for $package"
     cmp -s LICENSE "$notice" || fail "license notice differs from the root notice for $package"
 done
-[[ ! -L target && ! -L target/publish ]] || fail 'symlinked publication evidence directory'
+[[ ! -L target && ! -L target/publish && ! -L target/publish/admission ]] || fail 'symlinked publication evidence directory'
 umask 077
-mkdir -p target/publish
+mkdir -p target/publish/admission
+[[ ! -e target/publish/.cargo-publication.lock && ! -L target/publish/.cargo-publication.lock ]] ||
+    fail 'Cargo attempt lock is occupied; reconcile retained evidence before removing a stale lock'
 lock=target/publish/lock
 mkdir "$lock" 2>/dev/null || fail 'publication lock is occupied; inspect its owner before removing a stale lock'
 trap 'rm -f "$lock/owner"; rmdir "$lock"' EXIT
 printf '%s\n' "$$" > "$lock/owner"
-attempt="$(mktemp -d "target/publish/$mode.XXXXXX")"
-echo "Publication evidence: $root/$attempt"
+attempt="$(mktemp -d "target/publish/admission/$mode.XXXXXX")"
+publication_attempt="$root/target/publish/${attempt##*/}"
+printf '%s\n' "$publication_attempt" > "$attempt/publication-attempt"
+echo "Publication admission evidence: $root/$attempt"
 printf '%s\n' "$dirty" > "$attempt/working-status"
 cargo metadata --manifest-path "$root/Cargo.toml" --no-deps --format-version 1 \
     --locked --offline > "$attempt/metadata.json" 2> "$attempt/metadata.log" ||
@@ -57,14 +69,10 @@ jq -e '
 repository="$(jq -r '.packages[0].repository' "$attempt/metadata.json")"
 version="$(jq -r '.packages[0].version' "$attempt/metadata.json")"
 [[ "$version" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]] || fail 'expected a stable workspace version'
-arguments=(publish --manifest-path "$root/Cargo.toml" --workspace --registry crates-io \
-    --all-features --locked --target-dir "$root/target")
-if [[ "$mode" == check ]]; then arguments+=(--dry-run --allow-dirty); fi
-# Persist the selected source, version, target and exact argv before Cargo can
-# upload. Never treat a failed/lost reply as proof that a package is absent.
+# Persist Host's admitted package/provenance selection before package preparation.
+# Shared Tooling records the exact Cargo command in its separate fresh attempt.
 printf '%s\n' publication-1 "$mode" "$source" "$version" crates-io \
     "${packages[@]}" > "$attempt/intent"
-printf '%s\0' "${arguments[@]}" > "$attempt/arguments"
 if [[ "$mode" == publish ]]; then
     # Inspect Cargo's actual package provenance before upload. Package preparation
     # resolves dependencies but does not upload or build; publish still owns
@@ -95,14 +103,9 @@ fi
 observed_source="$(git rev-parse --verify HEAD)" || exit $?
 observed_dirty="$(git status --porcelain --untracked-files=all)" || exit $?
 [[ "$observed_source" == "$source" && "$observed_dirty" == "$dirty" ]] || fail 'source changed before publication'
-status=0
-cargo "${arguments[@]}" 2>&1 | tee "$attempt/cargo.log" || status=$?
-printf '%s\n' "$status" > "$attempt/status"
-if [[ "$status" != 0 ]]; then
-    if [[ "$mode" == check ]]; then
-        echo "Cargo dry run failed; no upload occurred. Evidence: $root/$attempt" >&2
-    else
-        echo "Cargo failed; retain $root/$attempt and reconcile registry state before another upload." >&2
-    fi
-fi
-exit "$status"
+arguments=()
+for package in "${packages[@]}"; do arguments+=(--package "$package@$version"); done
+arguments+=(--manifest-path "$root/Cargo.toml" --target-dir "$root/target" --all-features)
+[[ "$mode" != check ]] || arguments+=(--allow-dirty)
+bash "$tooling_root/scripts/ci/run-cargo-publication.sh" "$mode" "$publication_attempt" \
+    "$source" crates-io "${arguments[@]}"

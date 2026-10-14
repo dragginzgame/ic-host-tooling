@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.17.9]
+
+- Adopt Shared Tooling 0.12.2 for shared failure-evidence collection and stricter
+  historical release-note admission
+  ([#73](https://github.com/dragginzgame/ic-host-tooling/issues/73)).
+- Expose a following regular-file opener that retains the selected descriptor
+  and refuses Unix FIFOs without waiting for a writer; reuse it for bounded reads
+  ([#88](https://github.com/dragginzgame/ic-host-tooling/issues/88)).
+
+- Add opt-in Unix executable-script fixtures that use an owned writer process
+  to avoid inherited writable descriptors, allowing consumers to share the
+  mechanism while keeping fixture policy local
+  ([#87](https://github.com/dragginzgame/ic-host-tooling/issues/87)).
+
+- Delegate publication attempts to Shared Tooling while retaining Host admission,
+  original Cargo/logger statuses and interrupted-attempt evidence
+  ([#75](https://github.com/dragginzgame/ic-host-tooling/issues/75)).
+- Share child-owner initialization and remove unnecessary CLI test buffering;
+  public APIs and process ownership remain unchanged.
+  [Detailed notes](docs/changelog/0.17.md).
+
 ## [0.17.8] - 2026-10-14
 
 - Let custody-aware callers transfer an already spawned direct child into Host's

@@ -324,6 +324,9 @@ while [[ "$cursor" -lt "${#proposed[@]}" ]]; do
     committed_mode "$source_revision" "$path" > /dev/null || fail "cannot read committed companion source: $path"
     git -C "$SOURCE_ROOT" cat-file blob "$source_revision:$path" > "$STAGING_DIR/companion-source" || fail "cannot inspect companions: $path"
     declaration="$(sed -n '2s/^# Shared companions: //p' "$STAGING_DIR/companion-source")"
+    if [[ "$path" == *.md && -z "$declaration" ]]; then
+        declaration="$(sed -n '2s/^<!-- Shared companions: \(.*\) -->$/\1/p' "$STAGING_DIR/companion-source")"
+    fi
     companions=()
     read -r -a companions <<< "$declaration"
     for companion in ${companions[@]+"${companions[@]}"}; do

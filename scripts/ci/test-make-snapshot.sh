@@ -175,6 +175,7 @@ done
 # Real pipe-descriptor admission in substituted Cargo, without compiling.
 for helper in scripts/ci/check-dependency-pins.sh scripts/release/test-tools.sh \
     scripts/release/test-adapter.sh scripts/publish/test-workspace.sh \
+    scripts/ci/test-cargo-publication-attempt.sh \
     scripts/ci/test-host-fixture-retention.sh scripts/ci/test-make-snapshot.sh scripts/ci/test-make-consumer.sh \
     scripts/ci/test-tool-commands.sh scripts/ci/test-host-tools.sh scripts/ci/test-ic-tools.sh scripts/ci/test-rust-tools.sh \
     scripts/ci/check-release-commands.sh scripts/ci/test-cloc.sh; do

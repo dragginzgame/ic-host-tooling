@@ -37,9 +37,10 @@ old evidence as validation of new source. Native qualification belongs to the
 
 ## Registry publication
 
-`make publish-check` runs Cargo's workspace publication checks with all features
+`make publish-check` runs Cargo's publication checks with all features
 and `--locked --registry crates-io --dry-run`. It packages and verifies the selected
-workspace packages without uploading: four libraries and the `ic-host-wasm-inspect`
+workspace packages through exact `--package NAME@VERSION` selectors without
+uploading: four libraries and the `ic-host-wasm-inspect`
 CLI. It admits working edits so packaging can be reviewed
 before committing. It can access the registry; set `CARGO_NET_OFFLINE=true` for
 an offline attempt against already prepared caches. Registry lookup can require
@@ -89,12 +90,25 @@ never republish an existing version with changed source or metadata. Pending
 changelog entries do not change package versions. A Git tag does not prove
 registry publication or host qualification.
 
-Admitted invocations retain source identity, metadata, exact arguments and Cargo's
-output under `target/publish/check.*` or `target/publish/publish.*`. Upload intent
-is recorded before Cargo runs. Build/package artifacts remain in `target`; there
-is no artifact cleanup. A concurrent invocation stops at the publication lock.
-If a process is killed, inspect the recorded owner before removing only a stale
-`target/publish/lock` directory.
+Host retains its selection, metadata and provenance in
+`target/publish/admission/check.*` or `target/publish/admission/publish.*`.
+The `publication-attempt` file links to the corresponding fresh command directory
+under `target/publish/check.*` or `target/publish/publish.*`. The selected
+[Shared attempt helper](cargo-publication.md) records exact package/version
+selectors, source, arguments and working status before its dispatch marker. It
+retains Cargo output plus separate `cargo-status`, `log-status` and combined
+`status` files. Cargo failure takes priority over a logger failure; a logger failure
+after successful Cargo execution also refuses success.
+
+Build/package artifacts and prior attempt evidence remain in `target`; there is
+no artifact cleanup. Host's `target/publish/lock` covers admission through command
+completion. Shared's stable `target/publish/.cargo-publication.lock` also blocks
+another command attempt and remains after interruption or incomplete evidence.
+A dispatch marker without completed statuses means the upload result is uncertain.
+Before removing only a stale lock, inspect its recorded owner and reconcile the
+exact source/packages against registry state. Neither command removes stale locks,
+retries an upload or overwrites earlier evidence. Directory paths containing CR/LF
+are refused before Cargo admission or dispatch; ordinary spaces remain supported.
 
 Workspace uploads are not atomic. A failure, timeout or lost reply can leave some
 packages published. The wrapper stops and does not retry, skip existing versions,
@@ -108,5 +122,7 @@ Do not rerun the full workspace upload blindly or change source under the same v
 
 The [Cargo publish documentation](https://doc.rust-lang.org/cargo/commands/cargo-publish.html)
 defines dry-run, registry, packaging and index-waiting behavior. The offline
-`make publish-command-check` fixture verifies the consumer wrapper using
-substituted Git and upload commands; it does not contact a registry or publish.
+`make publish-command-check` fixtures verify the consumer wrapper and shared
+attempt owner using substituted Git, Cargo and logger commands, including source
+drift, original status preservation, interruption and refused replay. They do not
+contact a registry or publish.

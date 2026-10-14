@@ -60,11 +60,42 @@ pub fn read_opened_file(file: File, max_bytes: usize) -> Result<Vec<u8>, Artifac
     read_reader(file, max_bytes)
 }
 
-fn open_file(path: &Path, limit: u64) -> Result<File, ArtifactError> {
-    // Reject ordinary special-file inputs before open; callers still own races
-    // in their filesystem and must not supply attacker-controlled path trees.
-    check_metadata(&std::fs::metadata(path)?, limit)?;
+/// Open a read-only regular file, following symlinks and retaining its descriptor.
+///
+/// Unix opens are nonblocking so a FIFO cannot block before descriptor admission.
+/// The opened descriptor, rather than a pathname precheck, establishes file kind.
+/// Other hosts use their ordinary read-only open. This supplies no byte limit,
+/// root confinement, content immutability or filesystem latency deadline.
+/// Callers own trusted path selection, expected length and concurrent writers;
+/// use no-follow reads when final symlinks must be refused.
+///
+/// # Errors
+/// Returns the original open/metadata error or [`ArtifactError::NotRegularFile`].
+pub fn open_regular_file(path: &Path) -> Result<File, ArtifactError> {
+    #[cfg(unix)]
+    let file = {
+        use rustix::fs::{Mode, OFlags, open};
+        File::from(
+            open(
+                path,
+                OFlags::RDONLY | OFlags::NONBLOCK | OFlags::CLOEXEC,
+                Mode::empty(),
+            )
+            .map_err(std::io::Error::from)?,
+        )
+    };
+    #[cfg(not(unix))]
     let file = File::open(path)?;
+    if !file.metadata()?.is_file() {
+        return Err(ArtifactError::NotRegularFile);
+    }
+    Ok(file)
+}
+
+fn open_file(path: &Path, limit: u64) -> Result<File, ArtifactError> {
+    // Keep early size admission, then validate the actually opened descriptor.
+    check_metadata(&std::fs::metadata(path)?, limit)?;
+    let file = open_regular_file(path)?;
     check_metadata(&file.metadata()?, limit)?;
     Ok(file)
 }

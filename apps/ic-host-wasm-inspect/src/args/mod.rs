@@ -57,11 +57,7 @@ mod tests {
     use super::*;
 
     fn arguments(values: &[&str]) -> impl Iterator<Item = OsString> {
-        values
-            .iter()
-            .map(OsString::from)
-            .collect::<Vec<_>>()
-            .into_iter()
+        values.iter().map(OsString::from)
     }
 
     #[test]

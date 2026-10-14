@@ -1,6 +1,77 @@
 # Current handoff
 
-## Custody-aware direct-child transfer — pending 0.17.8
+## Shared Tooling adoption — pending 0.17.9
+
+Shared 0.12.2 at `cff186285829481185e932d3c16514022b897de9` is exported
+from a clean isolated copy of pushed upstream main. The dirty sibling changelog
+and tooling-inventory fixture are excluded. Existing roots remain selected;
+the closure now contains 109 payloads, including the failure-evidence collector.
+Historical changelog admission and documentation companion export are updated.
+Host's publication admission, package APIs, tool pins and release policy remain
+local ([#73](https://github.com/dragginzgame/ic-host-tooling/issues/73)).
+
+Full combined offline Linux `make ci` and Rust 1.88 workspace checking pass.
+Release-adapter, shared release-runner and actual evidence-collector fixtures
+also pass under genuine Bash 3.2 with substituted external effects. Snapshot
+integrity, repeat preview (109 KEEP), shared/local documentation links and strict
+ShellCheck pass. Recorded Rust, lock, pin and validation inputs stayed unchanged,
+and the index is preserved. Before-images, preview and logs are retained under
+`/tmp/host-shared0122.UOVeFV/`, including `full-validation.log` and
+`msrv-workspace.log`. Incoming publication, process-fixture and regular-opener
+changes are included in the combined gate and preserved. Own versions remain
+0.17.8 and compatible pending notes remain 0.17.9. Native macOS qualification
+stays separate; no commit, release, publication, executable download or sibling
+file mutation ran.
+
+## Following regular-file opener for Blob — pending 0.17.9
+
+The Blob maintainer approved the scoped extraction under
+[#88](https://github.com/dragginzgame/ic-host-tooling/issues/88).
+`read::open_regular_file` follows selected symlinks, admits the opened regular
+file and returns its read-only descriptor. Unix FIFO opening cannot wait for a
+writer before admission. Existing following reads/hashes reuse the opener;
+limits, expected lengths and separate no-follow/private contracts remain intact.
+The two source files match their frozen qualified counterparts.
+
+Seventeen focused read cases, full frozen Linux `make ci` and actual Rust 1.88
+fs all-target/all-feature checking pass. Original compile and temporary-selector
+failures remain in `/tmp/blob-host-opener-_1fkrkee/`; the frozen incoming process
+manifest was sorted only in that copy before its successful gate. The concurrent
+real Host gate is excluded from this extraction's qualification. Native macOS
+remains separate. A frozen Blob replacement passes 115 CLI tests and strict lint;
+its initial unused-import lint failure and corrected retry are retained.
+Blob keeps its local opener until a published Host selection exposes the API;
+consumer retirement is [Blob #67](https://github.com/dragginzgame/ic-blob-storage/issues/67).
+Own versions, lock selection, index/refs and publication remain untouched.
+
+## Publication and initialization cleanup — pending 0.17.9
+
+Host delegates its admitted five-package Cargo command to the selected Shared
+0.12.0 attempt owner. Eligibility, licenses, package provenance, fresh remote
+retrieval, final source comparison and the wider publication lock remain local.
+Admission evidence links to the fresh command attempt, which owns exact selectors,
+dispatch and separate Cargo/logger statuses. Cargo failure takes priority; an
+interrupted attempt retains its stable lock and refuses a fresh invocation until
+explicit reconciliation. No retry, upload or registry request is added to tests
+([#75](https://github.com/dragginzgame/ic-host-tooling/issues/75)).
+
+Spawn paths reuse direct-child state initialization before applying their own
+group/cleanup authority. CLI argument fixtures pass a borrowed iterator directly.
+Focused child and CLI checks pass; publication rejection/status/interruption
+fixtures pass under current Bash and genuine Bash 3.2. Full offline Linux
+`make ci msrv-workspace` passes in the task-only frozen checkout and then in the
+combined real checkout including the concurrent #87 fixture module. The combined
+manifest is sorted and its new files participate in the formatting fixture;
+both sets of notes share one 0.17.9 heading. Recorded inputs stayed unchanged
+through that gate. Initial formatting/preparation/fixture-propagation failures
+and successful final logs are retained with before-images in
+`/tmp/host-publish-reuse.kdo6JY/`. The combined log also includes both concurrent
+regular-opener regressions and all 84 filesystem cases; those implementation
+changes belong to their separate extraction work.
+Own versions stay 0.17.8, with compatible pending 0.17.9 notes. Native macOS remains
+separate; no Git, release, publication, executable download or sibling edit ran.
+
+## Custody-aware direct-child transfer — delivered 0.17.8
 
 The Canic maintainer explicitly authorized the scoped Host bridge for IC Backup's
 custody-aware spawn. `OwnedChild::from_spawned_direct` takes the existing child
@@ -8,11 +79,13 @@ into Host's bounded capture and cleanup owner without a second spawn or process-
 group authority. Original IO and pid are retained; Host owns reaping after transfer.
 All three direct-child cases and strict process library/test Clippy pass on Linux.
 Evidence: `/tmp/canic-112-completion/host-child-real-tests.log` and
-`/tmp/canic-112-completion/host-child-real-clippy-final.log`. Native macOS, the
-combined delivery gate and publication remain separate; Canic has not adopted
-this unpublished API. Package versions, lock selection, index and refs are unchanged.
+`/tmp/canic-112-completion/host-child-real-clippy-final.log`. Those scoped checks
+are separate from native macOS acceptance. The API is published in 0.17.8;
+Canic adoption remains owned by [#513](https://github.com/dragginzgame/canic/issues/513).
+The scoped implementation did not change package versions, lock selection,
+index or refs.
 
-## Shared Tooling adoption — pending 0.17.8
+## Shared Tooling adoption — delivered 0.17.8
 
 Shared 0.12.0 at `f7fe31bf80a2b445bf37a470527f001210241aea` is exported
 from a clean isolated checkout of pushed upstream main. The snapshot has 90
@@ -20,7 +93,8 @@ entrypoints and 106 payloads, including the new literal catalog reader and two
 linked guides. Host delegates numbered/top-entry changelog admission to the
 strict canonical finalizer and removes equivalent local guards. Source-bound
 receipts, exact metadata projection and release recovery remain local. The
-optional publication runner and catalog checker are not added to Host's commands
+optional publication runner and catalog checker were not selected in 0.17.8;
+the pending publication cleanup now selects the runner and its fixture
 ([#73](https://github.com/dragginzgame/ic-host-tooling/issues/73),
 [#75](https://github.com/dragginzgame/ic-host-tooling/issues/75)).
 
@@ -37,7 +111,7 @@ The incoming #84/#85 changes, lock selection, package versions and tool pins are
 preserved. Compatible notes stay 0.17.8; no library migration is required.
 Native macOS acceptance remains separate. No Git or release effects ran.
 
-## Trusted fixture admission cleanup — pending 0.17.8
+## Trusted fixture admission cleanup — delivered 0.17.8
 
 Process and extraction fixtures delegate trusted local executable observation to
 `admit_version`; their preliminary hash and constructed digest pin are removed.
@@ -56,7 +130,7 @@ unchanged through the gate.
 Native macOS qualification remains separate. Package versions remain 0.17.7;
 pending compatible notes stay 0.17.8. No Git or release effects ran.
 
-## Checked native permissions repair — pending 0.17.8
+## Checked native permissions repair — delivered 0.17.8
 
 The maintainer authorized the [#84](https://github.com/dragginzgame/ic-host-tooling/issues/84)
 repair from IC Build. Against released 0.17.7 source
@@ -94,13 +168,14 @@ No native macOS, commit, release, publication or actual provider operation ran.
 
 ## Released source and baseline
 
-The latest finalized release is **0.17.7**, commit
-`2bdc5f1cae2c12040bf08d03b5c68502291599cd`. Package versions remain unchanged.
-Shared Tooling **0.12.0**, revision
-`f7fe31bf80a2b445bf37a470527f001210241aea`, is adopted through the canonical
+The latest finalized release is **0.17.8**, commit
+`d37cc91ef2f3c82a85bbbac44ec557afa32de242`. Package versions remain unchanged.
+Shared Tooling **0.12.2**, revision
+`cff186285829481185e932d3c16514022b897de9`, is adopted through the canonical
 exporter from a clean isolated checkout of pushed upstream main. The snapshot
-contains 106 payloads, including the shared release-tag checker and fixture
-lifecycle helper. Tool pins and product source are unchanged.
+contains 109 payloads, including the shared release-tag checker, fixture
+lifecycle helper, selected publication attempt owner and evidence collector.
+Tool pins are unchanged by adoption.
 See [the snapshot](../../.shared-tooling.snapshot) and
 [AGENTS.md](../../AGENTS.md).
 
@@ -194,7 +269,8 @@ and [Shared #163](https://github.com/dragginzgame/shared-tooling/issues/163), wi
 Host coordination in [#75](https://github.com/dragginzgame/ic-host-tooling/issues/75).
 The strict-finalizer proposal is now delivered in Shared 0.12.0 and adopted here.
 Its earlier patch evidence remains in `/tmp/host-release-convergence/`. Host's
-publisher remains until the optional attempt runner's equivalence is qualified.
+publisher now delegates command-attempt mechanics in the pending 0.17.9 cleanup,
+retaining its independent admission and reconciliation policy.
 The earlier combined gate stopped on concurrent new
 filesystem source absent from its tracked formatting fixture; the maintainer
 selected release-only validation while those changes continue. Evidence is in

@@ -15,8 +15,8 @@ fixture_parent="${fixture_parent%/.}"
 fixture_complete=false
 trap 'fixture_finish "$?" "$fixture_parent" "Publication fixtures retained"' EXIT
 export TMPDIR="${fixture_parent%/*}"
-# Git emits this literal checkout name followed by its own record newline.
-fixture="$fixture_parent/checkout"$'\n'
+# Spaces are supported; forbidden directory bytes are tested as refusals below.
+fixture="$fixture_parent/checkout with spaces"
 mkdir "$fixture"
 export CARGO_NET_OFFLINE=true RUSTUP_AUTO_INSTALL=0
 mkdir "$fixture/bin"
@@ -24,7 +24,8 @@ bash "$root/scripts/ci/prepare-workspace-fixture.sh" "$root" "$fixture"
 cd "$fixture"
 cargo metadata --no-deps --format-version 1 --locked --offline > metadata.json
 cp metadata.json original-metadata.json
-export PUBLISH_FIXTURE="$fixture"
+export PUBLISH_FIXTURE="$fixture" REAL_PUBLISH_TEE
+REAL_PUBLISH_TEE="$(command -v tee)"
 cat > bin/git <<'STUB'
 #!/usr/bin/env bash
 set -euo pipefail
@@ -35,6 +36,7 @@ case "$*" in
             echo 1111111111111111111111111111111111111111
         else echo 0000000000000000000000000000000000000000; fi ;;
     'status --porcelain --untracked-files=all')
+        if [[ "${PUBLISH_CORE_RACE:-0}" == 1 && -d target/publish/.cargo-publication.lock ]]; then echo ' M raced'; fi
         if [[ "${PUBLISH_DIRTY:-0}" == 1 ]]; then echo ' M Cargo.toml'; fi ;;
     init\ --bare\ *) mkdir -p "$3" ;;
     -C\ *\ fetch\ --no-tags\ --depth=1\ *)
@@ -79,7 +81,7 @@ case "$1" in
         if [[ "${PUBLISH_CHANGE_SOURCE:-0}" == 1 ]]; then : > "$PUBLISH_FIXTURE/source-changed"; fi ;;
     publish)
         # Intent must exist before dispatch, including when Cargo then fails.
-        intents=(target/publish/*/intent)
+        intents=(target/publish/admission/*/intent)
         [[ -f "${intents[0]}" ]] || exit 1
         for intent in "${intents[@]}"; do
             tail -n +6 "$intent" | LC_ALL=C sort > "$PUBLISH_FIXTURE/intent-packages"
@@ -87,15 +89,29 @@ case "$1" in
                 "$PUBLISH_FIXTURE/metadata.json" | LC_ALL=C sort > "$PUBLISH_FIXTURE/metadata-packages"
             cmp "$PUBLISH_FIXTURE/intent-packages" "$PUBLISH_FIXTURE/metadata-packages"
         done
+        core_intents=(target/publish/*/intent)
+        [[ -f "${core_intents[0]}" ]] || exit 1
+        for intent in "${core_intents[@]}"; do
+            tail -n +4 "$intent" | LC_ALL=C sort > "$PUBLISH_FIXTURE/core-packages"
+            version="$(jq -r '.packages[0].version' "$PUBLISH_FIXTURE/metadata.json")"
+            sed "s/\$/@$version/" "$PUBLISH_FIXTURE/metadata-packages" > "$PUBLISH_FIXTURE/exact-packages"
+            cmp "$PUBLISH_FIXTURE/core-packages" "$PUBLISH_FIXTURE/exact-packages"
+        done
         printf '%s\0' "$@" > "$PUBLISH_FIXTURE/arguments"
         mkdir -p target/package
         printf 'retained package\n' > target/package/fixture.crate
         echo 'Substitute Cargo publication output'
+        if [[ "${PUBLISH_INTERRUPT:-0}" == 1 ]]; then kill -TERM "$PPID"; fi
         exit "${PUBLISH_CARGO_RESULT:-0}" ;;
     *) echo "Unexpected Cargo operation: $*" >&2; exit 2 ;;
 esac
 STUB
-chmod +x bin/git bin/cargo
+cat > bin/tee <<'STUB'
+#!/usr/bin/env bash
+"$REAL_PUBLISH_TEE" "$@"
+exit "${PUBLISH_LOG_RESULT:-0}"
+STUB
+chmod +x bin/git bin/cargo bin/tee
 export PATH="$fixture/bin:$PATH"
 mkdir target
 printf 'consumer artifact\n' > target/retained
@@ -109,6 +125,12 @@ refuse() {
 }
 # A dry run can review dirty work; an upload cannot admit it.
 PUBLISH_DIRTY=1 refuse publish
+for separator in $'\n' $'\r'; do
+    bad="$fixture_parent/bad${separator}checkout"
+    mkdir "$bad"
+    PUBLISH_FIXTURE="$bad" refuse check
+    rg 'CR/LF' refusal.log > /dev/null
+done
 # License copies must remain regular and identical before either Cargo entry.
 notice=crates/ic-host-artifacts/LICENSE
 for scenario in missing changed symlink; do
@@ -123,16 +145,22 @@ for scenario in missing changed symlink; do
     cp LICENSE "$notice"
 done
 PUBLISH_DIRTY=1 invoke check > check.log 2>&1
-printf '%s\0' publish --manifest-path "$fixture/Cargo.toml" --workspace \
-    --registry crates-io --all-features --locked --target-dir "$fixture/target" \
-    --dry-run --allow-dirty > expected-arguments
+version="$(jq -r '.packages[0].version' metadata.json)"
+selectors=()
+for package in ic-host-artifacts ic-host-fs ic-host-process ic-host-tools ic-host-wasm-inspect; do
+    selectors+=(--package "$package@$version")
+done
+printf '%s\0' publish --locked --registry crates-io "${selectors[@]}" \
+    --manifest-path "$fixture/Cargo.toml" --target-dir "$fixture/target" \
+    --all-features --allow-dirty --dry-run > expected-arguments
 cmp expected-arguments arguments
 [[ ! -e fetch-calls && ! -e package-arguments ]] || exit 1
 
 : > calls
 invoke publish > publish.log 2>&1
-printf '%s\0' publish --manifest-path "$fixture/Cargo.toml" --workspace \
-    --registry crates-io --all-features --locked --target-dir "$fixture/target" > expected-arguments
+printf '%s\0' publish --locked --registry crates-io "${selectors[@]}" \
+    --manifest-path "$fixture/Cargo.toml" --target-dir "$fixture/target" \
+    --all-features > expected-arguments
 cmp expected-arguments arguments
 printf 'metadata\npackage\npublish\n' > expected-calls
 cmp expected-calls calls
@@ -143,7 +171,9 @@ attempts=(target/publish/publish.*)
 [[ ${#attempts[@]} == 1 ]] || exit 1
 attempt="${attempts[0]}"
 successful_attempt="$attempt"
-[[ -f "$attempt/source-verified" && -f "$attempt/source-request" && -f "$attempt/ic-host-fs-vcs.json" ]] || exit 1
+admission="target/publish/admission/${attempt##*/}"
+[[ -f "$admission/source-verified" && -f "$admission/source-request" && -f "$admission/ic-host-fs-vcs.json" ]] || exit 1
+[[ "$(cat "$admission/publication-attempt")" == "$fixture/$attempt" ]] || exit 1
 
 # Stop at Cargo's failure and retain the attempt's intent, log and artifacts.
 : > calls
@@ -158,6 +188,23 @@ for attempt in "${attempts[@]}"; do
 done
 [[ -f "$attempt/intent" && -f "$attempt/arguments" && -f "$attempt/cargo.log" && "$(cat "$attempt/status")" == 17 ]] || exit 1
 [[ -f target/package/fixture.crate && ! -e target/publish/lock ]] || exit 1
+
+# The adapter preserves both shared statuses, with Cargo failure taking priority.
+for pair in '0 23' '17 23'; do
+    read -r cargo_status log_status <<< "$pair"
+    : > calls
+    status=0
+    PUBLISH_CARGO_RESULT="$cargo_status" PUBLISH_LOG_RESULT="$log_status" \
+        invoke publish > logger-failure.log 2>&1 || status=$?
+    expected_status="$cargo_status"; [[ "$expected_status" != 0 ]] || expected_status="$log_status"
+    [[ "$status" == "$expected_status" ]] || exit 1
+    cmp expected-calls calls
+    core="$(sed -n 's/^Publication evidence: //p' logger-failure.log)"
+    [[ "$(cat "$core/cargo-status")" == "$cargo_status" &&
+       "$(cat "$core/log-status")" == "$log_status" &&
+       "$(cat "$core/status")" == "$expected_status" ]] || exit 1
+    [[ ! -e target/publish/lock && ! -e target/publish/.cargo-publication.lock ]] || exit 1
+done
 
 # Plausible stdout from a failed metadata query is never upload authority.
 : > calls
@@ -200,7 +247,7 @@ done
 # or an empty clean-status result. Later failures retain their attempt evidence.
 for mode in check publish; do
     for query in 'rev-parse --verify HEAD' 'status --porcelain --untracked-files=all'; do
-        for occurrence in 1 2; do
+        for occurrence in 1 2 3 4; do
             : > calls
             rm -f query-count arguments
             status=0
@@ -208,18 +255,47 @@ for mode in check publish; do
                 invoke "$mode" > observation-failure.log 2>&1 || status=$?
             [[ "$status" == 23 ]] || { echo 'Failed Git observation was not propagated' >&2; exit 1; }
             : > expected-calls
-            if [[ "$occurrence" == 2 ]]; then
+            if [[ "$occurrence" != 1 ]]; then
                 printf 'metadata\n' >> expected-calls
                 if [[ "$mode" == publish ]]; then printf 'package\n' >> expected-calls; fi
-                # The fixture root includes a newline; resolve by the relative attempt suffix.
-                attempt="$(sed -n 's,^/target/publish/,target/publish/,p' observation-failure.log)"
-                [[ -f "$attempt/intent" && ! -e "$attempt/cargo.log" && ! -e "$attempt/status" ]] || exit 1
+                admission="$(sed -n 's/^Publication admission evidence: //p' observation-failure.log)"
+                core="$(cat "$admission/publication-attempt")"
+                [[ -f "$admission/intent" && ! -e "$core/cargo.log" && ! -e "$core/status" ]] || exit 1
+                if [[ "$occurrence" == 4 ]]; then
+                    [[ -f "$core/intent" && ! -e "$core/dispatch" &&
+                       -f target/publish/.cargo-publication.lock/owner ]] || exit 1
+                    rm target/publish/.cargo-publication.lock/owner
+                    rmdir target/publish/.cargo-publication.lock
+                fi
             fi
             cmp expected-calls calls
             [[ ! -e target/publish/lock && ! -e arguments ]] || exit 1
         done
     done
 done
+
+# Source drift after shared intent refuses dispatch and blocks a fresh attempt.
+: > calls
+status=0
+PUBLISH_CORE_RACE=1 invoke check > core-race.log 2>&1 || status=$?
+[[ "$status" == 2 && -f target/publish/.cargo-publication.lock/owner ]] || exit 1
+printf 'metadata\n' > expected-race-calls
+cmp expected-race-calls calls
+refuse publish
+[[ -f target/publish/.cargo-publication.lock/owner ]] || exit 1
+rm target/publish/.cargo-publication.lock/owner
+rmdir target/publish/.cargo-publication.lock
+
+# Interrupted dispatch leaves named uncertainty; neither lock nor evidence is retried.
+status=0
+PUBLISH_INTERRUPT=1 invoke check > interrupted.log 2>&1 || status=$?
+[[ "$status" == 143 ]] || exit 1
+core="$(sed -n 's/^Publication evidence: //p' interrupted.log)"
+[[ -s "$core/dispatch" && ! -e "$core/status" && -f target/publish/.cargo-publication.lock/owner ]] || exit 1
+refuse publish
+[[ -f target/publish/.cargo-publication.lock/owner && -s "$core/dispatch" ]] || exit 1
+rm target/publish/.cargo-publication.lock/owner
+rmdir target/publish/.cargo-publication.lock
 mkdir target/publish/lock
 refuse publish
 [[ -d target/publish/lock ]] || exit 1

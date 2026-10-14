@@ -99,6 +99,7 @@ publish-check:
 	+bash scripts/publish/workspace.sh check
 publish-command-check:
 	+bash scripts/publish/test-workspace.sh
+	+bash scripts/ci/test-cargo-publication-attempt.sh
 ci:
 	+$(MAKE) --no-print-directory shared-tooling-check
 	+$(MAKE) --no-print-directory tools-check

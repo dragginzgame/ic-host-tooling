@@ -189,13 +189,11 @@ impl OwnedChild {
     }
 
     fn spawn_inner(command: &mut Command, group: bool, cleanup: CleanupPolicy) -> io::Result<Self> {
-        command.spawn().map(|child| Self {
-            child,
-            group,
-            status: None,
-            owned: true,
-            cleanup,
-            reap_started: None,
+        command.spawn().map(|child| {
+            let mut owner = Self::from_spawned_direct(child);
+            owner.group = group;
+            owner.cleanup = cleanup;
+            owner
         })
     }
 
