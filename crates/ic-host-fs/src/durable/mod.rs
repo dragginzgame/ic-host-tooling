@@ -14,6 +14,8 @@ mod retained;
 pub use retained::{create_retained_at, publish_retained_at};
 mod named;
 pub use named::{NamedWriteError, write_named_with};
+mod verified_copy;
+pub use verified_copy::copy_verified;
 mod stream;
 pub use stream::{PublicationMode, WriteOptions, write_validated_with, write_with};
 #[cfg(unix)]

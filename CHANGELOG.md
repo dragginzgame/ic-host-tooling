@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.17.14]
+
+- Share digest-verified durable copying, refusing mismatched input before
+  publication while callers retain artifact naming and release authority
+  ([#102 — Own verified artifact copying](https://github.com/dragginzgame/ic-host-tooling/issues/102)).
+  [Detailed notes](docs/changelog/0.17.md).
+
 ## [0.17.13] - 2026-10-14
 
 - Adopt Shared Tooling 0.12.5 and align contributor guidance with focused
