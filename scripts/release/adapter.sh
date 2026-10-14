@@ -20,10 +20,12 @@ version() {
     printf '%s\n' "$observed"
 }
 local_packages() {
-    "${YQ:-yq}" -p toml -o json '.' | jq -er '
-        [.package[] | select(.source == null) | .name] as $names |
+    "${YQ:-yq}" -p toml -o json '.' | jq -er --arg version "${RELEASE_PREVIOUS:?}" '
+        [.package[] | select(.source == null)] as $local |
+        ($local | map(.name)) as $names |
         if ($names | length) > 0 and ($names | unique | length) == ($names | length)
            and all($names[]; test("^[A-Za-z0-9][A-Za-z0-9_-]*$"))
+           and all($local[]; .version == $version)
         then $names | sort | join(" ") else error("invalid local package identities") end'
 }
 admit_files() {
@@ -77,18 +79,25 @@ archive_validation_evidence() {
         cmp "$file" "$archive/${file##*/}" || fail 'validation evidence copy differs'
     done
 }
-check_payload() {
-    local directory="$1" mode file packages
-    packages="$(git show "$RELEASE_SOURCE:Cargo.lock" | local_packages)" || return
-    for mode in manifest lock; do
-        if [[ "$mode" == manifest ]]; then file=Cargo.toml; else file=Cargo.lock; fi
+check_payload() (
+    local directory="$1" file packages scratch
+    local selected=()
+    scratch="$(mktemp -d "$state/$RELEASE_VERSION.payload.XXXXXX")" || return
+    trap 'rm -rf "$scratch"' EXIT
+    git show "$RELEASE_SOURCE:Cargo.lock" > "$scratch/Cargo.lock" || return
+    packages="$(local_packages < "$scratch/Cargo.lock")" || return
+    read -r -a selected <<< "$packages"
+    for file in Cargo.toml Cargo.lock; do
         [[ -f "$directory/$file" && ! -L "$directory/$file" ]] || fail "missing or symlinked Cargo metadata"
-        git show "$RELEASE_SOURCE:$file" |
-            awk -v mode="$mode" -v packages="$packages" -v replacement="$RELEASE_VERSION" -f "$tooling_root/scripts/release/metadata-version.awk" |
-            cmp - "$directory/$file"
     done
+    git show "$RELEASE_SOURCE:Cargo.toml" |
+        awk -v mode=manifest -v packages="$packages" -v replacement="$RELEASE_VERSION" -f "$tooling_root/scripts/release/metadata-version.awk" |
+        cmp - "$directory/Cargo.toml"
+    perl "$tooling_root/scripts/ci/rewrite-local-lock-versions.pl" \
+        "$scratch/Cargo.lock" "$RELEASE_PREVIOUS" "$RELEASE_VERSION" "${selected[@]}" |
+        cmp - "$directory/Cargo.lock"
     finalize_notes "$notes" | cmp - "$directory/CHANGELOG.md"
-}
+)
 check_prepared() {
     local observed_version
     check_receipt
@@ -132,8 +141,6 @@ case "$operation" in
         awk -v mode=manifest -v packages="$packages" -v replacement="$RELEASE_PREVIOUS" \
             -f "$tooling_root/scripts/release/metadata-version.awk" Cargo.toml |
             cmp - Cargo.toml || fail "unsupported or unsynchronized release metadata"
-        observed_lock_version="$(awk -v mode=lock -v read_version=1 -v packages="$packages" -f "$tooling_root/scripts/release/metadata-version.awk" Cargo.lock)" || exit $?
-        [[ "$observed_lock_version" == "$RELEASE_PREVIOUS" ]] || fail "lockfile version differs"
         admit_files
         # Git releases and registry publication are separate effects. Validate
         # the workspace without requiring its packages to permit publication.

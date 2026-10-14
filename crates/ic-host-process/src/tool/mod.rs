@@ -636,6 +636,35 @@ pub fn communicate_child_with_observer(
         .map_err(|source| ToolError::Execution(Box::new(source)))
 }
 
+/// Complete a child after a caller has read control frames from its stdout.
+///
+/// Hand off the original buffered pipe without converting it to its raw inner
+/// pipe: unread prefetched bytes count against the same output budget as later
+/// bytes. `None` uses any stdout still held by the child, or captures no stdout
+/// if the caller consumed it completely. Stdin is closed; stderr is taken from
+/// the child and both streams use the existing nonblocking capture engine.
+/// No child is respawned and no retry occurs.
+///
+/// Unlike [`communicate_child`], a previously reaped/terminated child may be
+/// drained using its cached status; it is never signalled again. Transferred
+/// ownership refuses. Successful children use ordinary cleanup and cannot be
+/// handed off. Callers retain pipe provenance, protocol decoding, limits and
+/// cancellation. A selected timeout starts on entry; no default deadline is added.
+///
+/// # Errors
+/// Returns validation, capture and cleanup evidence as [`communicate_child`].
+/// Invalid limits do not touch the child; the passed reader is consumed/dropped.
+pub fn drain_child_output(
+    child: &mut crate::child::OwnedChild,
+    stdout: Option<std::io::BufReader<std::process::ChildStdout>>,
+    limits: OutputLimits,
+    cancelled: impl FnMut() -> bool,
+) -> Result<CompletedExecution, ToolError> {
+    validate_limits(limits)?;
+    process::drain_output(child, stdout, limits, cancelled)
+        .map_err(|source| ToolError::Execution(Box::new(source)))
+}
+
 impl fmt::Display for ToolError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
