@@ -1,5 +1,20 @@
 # Current handoff
 
+## Native host admission — pending 0.17.14
+
+The isolated contribution starts from released Host 0.17.13 source
+`6f26efe58f2357e92cfdc7178cf3c9e5fbf65316`, preserving the normal checkout's
+independent work. Its 112-file export binds clean committed Shared candidate
+`2f6dbdce7a19ce121dd574e77ee361b4d1aeb57c`
+([Shared PR #186](https://github.com/dragginzgame/shared-tooling/pull/186), stacked
+on #184/#180). These are contribution identities rather than a new Shared release.
+Refresh the pin if integration changes the reviewed source identity.
+
+CI uses the shared validator before PATH/toolchain changes and retains the
+existing host matrix. The generic fixture runs with tooling checks. Product
+Rust sources, manifests/lock and common pins are unchanged. Focused qualification
+is recorded in the contribution PR; native hosted macOS remains separate.
+
 ## Descriptor locks for IC Build — delivered 0.17.11
 
 The maintainer approved the scoped owner additions at

@@ -1,5 +1,5 @@
 name: Retain failed validation and installer evidence
-# Shared companions: scripts/ci/collect-tool-evidence.sh
+# Shared companions: scripts/ci/collect-tool-evidence.sh scripts/ci/formatting-evidence.sh
 description: One collection contract for ordinary failures and hosted retention qualification.
 inputs:
   name:
@@ -50,10 +50,12 @@ runs:
         inputs=()
         shopt -s nullglob
         for path in "$temp_root/portable-regression.log" "$temp_root/portable-fixtures" \
-            "$temp_root"/tools-*.log "$temp_root"/host-tools-*.log "$temp_root"/ic-tools-*.log "$temp_root"/rust-tools-*.log \
-            "$temp_root"/formatting.*; do
+            "$temp_root"/tools-*.log "$temp_root"/host-tools-*.log "$temp_root"/ic-tools-*.log "$temp_root"/rust-tools-*.log; do
           if [[ -e "$path" || -L "$path" ]]; then inputs+=("$temp_root" "${path#"$temp_root/"}"); fi
         done
+        source "$EVIDENCE_ACTION_ROOT/../../../scripts/ci/formatting-evidence.sh"
+        select_formatting_evidence "$temp_root"
+        inputs+=(${formatting_evidence[@]+"${formatting_evidence[@]}"})
         case "${EVIDENCE_COMPACT:-false}" in
           false) selection=(full) ;;
           true) selection=(compact) ;;

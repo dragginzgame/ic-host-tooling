@@ -636,3 +636,62 @@ identity. It creates a new isolated scenario/store, drives the canonical install
 or logger, checks preserved inputs and deliberately returns the verified original
 failure status. Callers own evidence selection, upload/download and supported
 host gates; the command activates no workflow and changes no active tool selection.
+
+## Consumer fixture retention probes
+
+Source `scripts/ci/fixture-retention-probes.sh` to reuse failure injection and
+retained-directory checks. Callers retain the fixture roster and mandatory
+product/host assertions. `FIXTURE_PROBE_ROOT_VARIABLE` and
+`FIXTURE_PROBE_DIRECTORY_VARIABLE` select explicit shell identifiers (defaults
+`ROOT` and `fixture`); use `FIXTURE_ROOT` explicitly for that directory layout.
+The helper renders only initialization through the first EXIT trap, replaces
+selected root assignments with the supplied source root, and never executes the
+actual fixture body. It qualifies nounset, failed commands, nonzero exits,
+premature success and completed success/failure using the invoking Bash.
+`fixture_probe_prefix SOURCE OUTPUT ROOT_VARIABLE DIRECTORY_VARIABLE INJECTION`
+also renders a boundary for caller-owned contradictory assertion checks. Its
+child requires `RETENTION_SOURCE_ROOT` and `RETENTION_EXIT_PATH` explicitly.
+Only trusted, reviewed fixture sources and caller-owned injection are inputs.
+
+## Tool evidence collection orchestration
+
+`collect-tool-evidence.sh ARCHIVE REPOSITORY DIAGNOSTICS full|compact HOST IC
+[ROOT PATH]...` composes the selector and neutral archiver. Callers keep their
+log roots, run identity, qualified catalogs, upload and retention policy.
+Status 0 means complete, 1 means safe partial evidence was archived, and 2 means
+collection/archive failed. A fresh `selection-status` receipt retains the exact
+selector status, `archive-status` records an attempted archive failure, and
+`selections.nul` retains the original selector output. Failed output
+is never used to admit physical payloads. Instead, local Rust evidence and
+host/IC references are retained without following redirected roots or links.
+Diagnostics remain in the partial archive; completeness is not inferred from
+successful archiving. Stdout contains the created archive path only.
+
+## Formatter evidence selection
+
+Source `scripts/ci/formatting-evidence.sh`, then call
+`select_formatting_evidence ABSOLUTE_LOG_ROOT`. It fills `formatting_evidence`
+with root/relative-path pairs for the formatter's retained `formatting.*` files
+and final symlinks, including dangling links. Directory/FIFO matches are omitted;
+links are archived without following their targets. Missing or relative roots
+return 2 and clear the selection. An empty existing root succeeds with no pairs.
+Callers pass the array to the evidence archiver and retain archive layout, source
+identity, Git custody and upload policy. This helper never removes logs.
+
+The exportable `test-release-source.sh` owns generic source-admission cases in
+a minimal disposable Git repository. Consumers retain tests of their actual
+allowlist, gate ordering and release adapter. Retention probes use
+`retained-completed` for fixtures that intentionally retain successful evidence;
+ordinary `completed` still requires successful scratch removal.
+
+## Native host admission
+
+Run `bash scripts/ci/check-native-host.sh Linux x86_64` or
+`bash scripts/ci/check-native-host.sh Darwin arm64 15` before native setup.
+The caller selects the exact architecture and, on macOS, the explicit major.
+The helper observes `uname` and `sw_vers`; it makes no PATH or tool changes.
+Status 0 means a match, 1 means mismatch/malformed version, and 2 means invalid
+selection. Failed observations preserve the observer's nonzero status, including
+when it prints plausible output. Linux does not call `sw_vers`. Consumers retain
+their matrices, workflow ordering, PATH changes and native-host qualification.
+The portable fixture substitutes observations; it does not qualify macOS.
