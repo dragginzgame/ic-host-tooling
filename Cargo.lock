@@ -485,7 +485,7 @@ checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
 
 [[package]]
 name = "ic-host-artifacts"
-version = "0.17.13"
+version = "0.18.0"
 dependencies = [
  "flate2",
  "leb128",
@@ -498,7 +498,7 @@ dependencies = [
 
 [[package]]
 name = "ic-host-fs"
-version = "0.17.13"
+version = "0.18.0"
 dependencies = [
  "ic-host-artifacts",
  "rustix",
@@ -508,7 +508,7 @@ dependencies = [
 
 [[package]]
 name = "ic-host-process"
-version = "0.17.13"
+version = "0.18.0"
 dependencies = [
  "ic-host-artifacts",
  "ic-host-fs",
@@ -518,7 +518,7 @@ dependencies = [
 
 [[package]]
 name = "ic-host-tools"
-version = "0.17.13"
+version = "0.18.0"
 dependencies = [
  "candid_parser",
  "ic-host-artifacts",
@@ -531,7 +531,7 @@ dependencies = [
 
 [[package]]
 name = "ic-host-wasm-inspect"
-version = "0.17.13"
+version = "0.18.0"
 dependencies = [
  "ic-host-artifacts",
  "ic-host-fs",
