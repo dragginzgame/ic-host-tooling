@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.18.1]
+## [0.18.1] - 2026-10-14
 
 - Add opt-in filesystem fixture allocation and reuse it across filesystem,
   process and tools tests, preserving caller-owned cleanup and retention
