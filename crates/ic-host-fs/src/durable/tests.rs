@@ -31,6 +31,90 @@ fn private_parent_preparation_preserves_modes_and_refuses_symlinks() {
 
 #[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
 #[test]
+fn durable_stream_copy_preserves_outputs_on_read_failure_and_create_only_refusal() {
+    use std::io::{self, Read};
+    struct PartialInput(bool);
+    impl Read for PartialInput {
+        fn read(&mut self, buffer: &mut [u8]) -> io::Result<usize> {
+            if self.0 {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "injected input failure",
+                ));
+            }
+            self.0 = true;
+            buffer[0] = b'x';
+            Ok(1)
+        }
+    }
+    let fixture = crate::test_support::Fixture::new();
+    let output = fixture.root.join("copy/output");
+    let options = super::WriteOptions {
+        mode: super::PublicationMode::Replace,
+        permissions: 0o666,
+    };
+    assert_eq!(
+        super::copy_from(&mut b"complete".as_slice(), &output, options, None).unwrap(),
+        8
+    );
+    assert_eq!(fs::read(&output).unwrap(), b"complete");
+    assert!(matches!(
+        super::copy_from(&mut PartialInput(false), &output, options, None),
+        Err(super::NamedWriteError::Producer {
+            source, cleanup_error: None,
+        }) if source.kind() == io::ErrorKind::InvalidData
+    ));
+    assert_eq!(fs::read(&output).unwrap(), b"complete");
+    let create_only = super::WriteOptions {
+        mode: super::PublicationMode::CreateNew,
+        ..options
+    };
+    assert!(matches!(
+        super::copy_from(&mut b"replacement".as_slice(), &output, create_only, None),
+        Err(super::NamedWriteError::BeforePublication { .. })
+    ));
+    assert_eq!(fs::read(&output).unwrap(), b"complete");
+    assert_eq!(
+        super::copy_from(&mut b"".as_slice(), &output, options, None).unwrap(),
+        0
+    );
+    assert_eq!(fs::read(&output).unwrap(), [] as [u8; 0]);
+    assert_eq!(fs::read_dir(output.parent().unwrap()).unwrap().count(), 1);
+}
+
+#[cfg(unix)]
+#[test]
+fn durable_stream_copy_keeps_default_or_exact_caller_permissions() {
+    use std::os::unix::fs::PermissionsExt;
+    let fixture = crate::test_support::Fixture::new();
+    let output = fixture.root.join("copy");
+    let control = fixture.root.join("ordinary");
+    fs::File::create(&control).unwrap();
+    let ordinary_mode = fs::metadata(&control).unwrap().permissions().mode() & 0o777;
+    let options = super::WriteOptions {
+        mode: super::PublicationMode::Replace,
+        permissions: 0o666,
+    };
+    super::copy_from(&mut b"bytes".as_slice(), &output, options, None).unwrap();
+    assert_eq!(
+        fs::metadata(&output).unwrap().permissions().mode() & 0o777,
+        ordinary_mode
+    );
+    super::copy_from(
+        &mut b"bytes".as_slice(),
+        &output,
+        options,
+        Some(fs::Permissions::from_mode(0o600)),
+    )
+    .unwrap();
+    assert_eq!(
+        fs::metadata(&output).unwrap().permissions().mode() & 0o777,
+        0o600
+    );
+    assert_eq!(fs::read(&output).unwrap(), b"bytes");
+}
+
+#[test]
 fn streamed_replacement_returns_producer_value_only_after_complete_publication() {
     use std::io::Write as _;
     let fixture = crate::test_support::Fixture::new();

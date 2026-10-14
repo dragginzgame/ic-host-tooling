@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.17.14]
+
+- Share durable stream copying with caller-owned admission and explicit output
+  permissions; preserve publication and cleanup failures
+  ([#92 — Share durable stream copying](https://github.com/dragginzgame/ic-host-tooling/issues/92)).
+  [Detailed notes](docs/changelog/0.17.md).
+
 ## [0.17.13] - 2026-10-14
 
 - Adopt Shared Tooling 0.12.5 and align contributor guidance with focused

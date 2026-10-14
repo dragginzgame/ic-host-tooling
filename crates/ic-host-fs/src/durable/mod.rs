@@ -103,6 +103,32 @@ pub fn write_bytes(path: &Path, bytes: &[u8]) -> Result<(), NamedWriteError<io::
     commit_bytes(path, bytes, REPLACE_OPTIONS)
 }
 
+/// Durably copy a caller-selected stream into one named output.
+///
+/// Reads from the reader's current position. Caller-owned admission and limits
+/// remain outside this operation. `permissions` selects exact output permissions
+/// when supplied; otherwise the existing creation-mode and umask policy applies.
+/// Publication, parent creation, interruption cleanup and after-publication
+/// errors have the same contract as [`write_with`]. This adds no input-path policy.
+///
+/// # Errors
+/// Retains read/write, explicit permission and publication failures in
+/// [`NamedWriteError`]. Before-publication failure preserves an existing output;
+/// after-publication sync failure means the complete copy is already visible.
+pub fn copy_from<R: io::Read>(
+    source: &mut R,
+    destination: &Path,
+    options: WriteOptions,
+    permissions: Option<fs::Permissions>,
+) -> Result<u64, NamedWriteError<io::Error>> {
+    write_with(destination, options, |sink| {
+        if let Some(permissions) = permissions {
+            sink.set_permissions(permissions)?;
+        }
+        io::copy(source, sink)
+    })
+}
+
 /// Durably create one file and its missing parent hierarchy without replacing
 /// an existing destination.
 ///
