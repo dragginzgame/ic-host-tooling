@@ -6,6 +6,34 @@ documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.42.0]
+
+### Breaking
+
+- Adopt the exposed IC Host 0.18 filesystem contract: following reads/hashes
+  open before admitting descriptor type and size. Callers must handle native
+  open failures before metadata refusals.
+
+### Changed
+
+- Adopt Shared Tooling 0.12.7 and use its exact local-lockfile projection during
+  release preparation, retaining saved-graph cache preparation and interruption
+  recovery ([#73 — Adopt snapshot-owned common tool catalogs](https://github.com/dragginzgame/ic-testkit/issues/73)).
+
+### Added
+
+- Capture a bounded request line and complete its original HTTP request through
+  one caller deadline, preserving incomplete synthetic peer connections
+  ([Blob #70](https://github.com/dragginzgame/ic-blob-storage/issues/70)).
+
+### Fixed
+
+- Keep idle-lifetime qualification evidence in collision-free directories so
+  restored CI caches cannot prevent the real server check from starting
+  ([#91](https://github.com/dragginzgame/ic-testkit/issues/91)).
+
+[Integration details](crates/ic-testkit/CHANGELOG.md#0420)
+
 ## [0.41.0] - 2026-10-14
 
 ### Breaking
