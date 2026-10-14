@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.17.13]
+## [0.17.13] - 2026-10-14
 
 - Adopt Shared Tooling 0.12.5 and align contributor guidance with focused
   handoff checks and explicitly requested full local validation
