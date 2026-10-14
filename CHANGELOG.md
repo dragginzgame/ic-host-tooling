@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.18.3]
+
+- Add no-follow directory selection and held-inode comparison to `ic-host-fs`.
+  Callers retain namespace exclusion and recovery decisions.
+  [Detailed notes](docs/changelog/0.18.md).
+
 ## [0.18.2] - 2026-10-14
 
 - Add optional strict owned IC certificate/hash-tree decoding, with explicit byte

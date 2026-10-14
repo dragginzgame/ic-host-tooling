@@ -1,5 +1,17 @@
 # Current handoff
 
+## Pending 0.18.3 directory custody
+
+An isolated Backup-driven Host FS branch adds `directory::open_no_follow` and
+`directory::same_held_inode` for exact final-component admission and held-inode
+comparison. The original Backup layout and snapshot-artifact callers retain their
+product exclusion, error mapping and recovery rules until a published Host
+selection is qualified. This additive public API changes no existing Host
+behavior or package metadata. Native host checks remain separate.
+Linux directory tests, strict filesystem Clippy/docs and actual Rust 1.88
+all-target checking pass in the isolated branch. Native macOS acceptance and
+published Backup adoption remain separate.
+
 ## Shared Tooling refresh — pending 0.18.2
 
 Shared 0.13.1 at `a348518c86f1b4cc5184ed94b8213c2d75d5e280` is exported
