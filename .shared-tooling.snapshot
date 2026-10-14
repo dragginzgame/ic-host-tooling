@@ -96,6 +96,7 @@ revision	9364ffe3f770a6d5d94809f0bf82c33202054bf8
 # entrypoint	scripts/ci/run-cargo-publication.sh
 # entrypoint	scripts/ci/test-cargo-publication-attempt.sh
 # entrypoint	scripts/ci/rewrite-local-lock-versions.pl
+# entrypoint	scripts/ci/fixture-retention-probes.sh
 file	4e089b5a565559fbf698c36d92146b0703579a95027ac0778fb48af21fa3e5a0	-	rules/changelogs.md
 file	e665d661f032d61b0e87067d56e47508275bf01a3c366d5ce8e0146f94ee2da2	-	docs/releases.md
 file	3fe2c246b8691c4ec034271a5c6255afbebabba53585e5431a8202a70f31eee8	x	scripts/ci/run-release.sh
@@ -189,6 +190,7 @@ file	c9971d3de02546e81e25f19ab74dfa7997164fa05fe76e0d323b200a30f28318	-	docs/car
 file	bb6b526aaa03153cc0ddc974a04fdab83af003ab7d34053c15807e822ef99d49	x	scripts/ci/run-cargo-publication.sh
 file	7567c610f0f8b1fba150ccf14b71ece6d9d14c3b2b3bdc3b8596037fe04e4bea	x	scripts/ci/test-cargo-publication-attempt.sh
 file	236f9b2d7fe391a73d03cfe355c0d26fa73de8db1553c7e670f7b19aeb65d086	x	scripts/ci/rewrite-local-lock-versions.pl
+file	5f53af31b215713ff38652d0d149907a095e6ed5d3902b3db7b1f602466a4251	-	scripts/ci/fixture-retention-probes.sh
 file	4c981184847462ab3c01cac087e28309f8e054253fd95c7bbe56f643877aa708	x	scripts/ci/verify-file-checksum.sh
 file	d7b179f9ceaec6e11c690c975b61f91bedc80526415f71571615064db14f0c9c	x	scripts/ci/check-release-tag.sh
 file	a3c4b4868cc90165461d99611321342b2d37b5cf89727a97d781fd3ec7867bab	-	scripts/ci/fixture-lifecycle.sh
