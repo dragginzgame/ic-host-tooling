@@ -61,11 +61,18 @@ fn regular_opener_follows_links_and_keeps_the_selected_inode() {
 #[cfg(unix)]
 #[test]
 fn regular_opener_refuses_a_fifo_before_waiting_for_a_writer() {
-    use rustix::fs::{CWD, Mode, OFlags, mkfifoat, open};
+    use rustix::fs::{Mode, OFlags, open};
     use std::{sync::mpsc, thread, time::Duration};
     let fixture = crate::test_support::Fixture::new();
     let fifo = fixture.root.join("fifo");
-    mkfifoat(CWD, &fifo, Mode::RUSR | Mode::WUSR).unwrap();
+    assert!(
+        std::process::Command::new("/usr/bin/mkfifo")
+            .args(["-m", "600"])
+            .arg(&fifo)
+            .status()
+            .unwrap()
+            .success()
+    );
     let path = fifo.clone();
     let (sender, receiver) = mpsc::channel();
     let reader = thread::spawn(move || {

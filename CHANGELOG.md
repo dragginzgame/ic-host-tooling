@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.17.10]
+
+- Restore macOS test compilation with portable FIFO creation while retaining
+  regular-file and tool-admission refusal checks
+  ([#85](https://github.com/dragginzgame/ic-host-tooling/issues/85),
+  [#88](https://github.com/dragginzgame/ic-host-tooling/issues/88)).
+  [Detailed notes](docs/changelog/0.17.md).
+
 ## [0.17.9] - 2026-10-14
 
 - Adopt Shared Tooling 0.12.2 for shared failure-evidence collection and stricter

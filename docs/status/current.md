@@ -1,6 +1,30 @@
 # Current handoff
 
-## Shared Tooling adoption — pending 0.17.9
+## Portable FIFO fixtures — pending 0.17.10
+
+Released Host 0.17.9 still selects Apple-unavailable `rustix::fs::mkfifoat`
+in process admission and regular-opener tests. Exact 0.17.8 hosted macOS failure
+logs confirm the process compiler error; the same Apple exclusion is present in
+the selected rustix source. Both fixtures now use the established native
+`/usr/bin/mkfifo` command with their original 0400/0600 modes. Actual FIFO refusal,
+marker nonexecution and the filesystem timeout/unblock guard remain intact
+([#85](https://github.com/dragginzgame/ic-host-tooling/issues/85),
+[#88](https://github.com/dragginzgame/ic-host-tooling/issues/88)).
+
+Focused Linux admission/opener tests, corrected strict fs/process Clippy and
+actual Rust 1.88 checks pass. Full combined `make ci msrv-workspace` passes with
+unchanged source inputs. Initial leftover-import lint failure and successful
+logs are retained with before-images under `/tmp/host-issues01710.Yi1g2U/`.
+The Apple log is recovered through the direct job API after empty standard
+retrieval; both native compiler errors are retained. Manifest/lock, pins,
+snapshot and index remain unchanged. Current 0.17.9 CI passes Linux and MSRV,
+but both macOS lanes remain queued on run `38536901339`; existing producer
+acceptance issues stay open. Production APIs and behavior are unchanged;
+compatible notes select 0.17.10 without changing package versions or lock inputs.
+Native macOS qualification of the corrected source remains separate. No Git,
+release, publication, executable download or sibling mutation ran.
+
+## Shared Tooling adoption — delivered 0.17.9
 
 Shared 0.12.2 at `cff186285829481185e932d3c16514022b897de9` is exported
 from a clean isolated copy of pushed upstream main. The dirty sibling changelog
@@ -23,7 +47,7 @@ changes are included in the combined gate and preserved. Own versions remain
 stays separate; no commit, release, publication, executable download or sibling
 file mutation ran.
 
-## Following regular-file opener for Blob — pending 0.17.9
+## Following regular-file opener for Blob — delivered 0.17.9
 
 The Blob maintainer approved the scoped extraction under
 [#88](https://github.com/dragginzgame/ic-host-tooling/issues/88).
@@ -44,7 +68,7 @@ Blob keeps its local opener until a published Host selection exposes the API;
 consumer retirement is [Blob #67](https://github.com/dragginzgame/ic-blob-storage/issues/67).
 Own versions, lock selection, index/refs and publication remain untouched.
 
-## Publication and initialization cleanup — pending 0.17.9
+## Publication and initialization cleanup — delivered 0.17.9
 
 Host delegates its admitted five-package Cargo command to the selected Shared
 0.12.0 attempt owner. Eligibility, licenses, package provenance, fresh remote
@@ -168,8 +192,8 @@ No native macOS, commit, release, publication or actual provider operation ran.
 
 ## Released source and baseline
 
-The latest finalized release is **0.17.8**, commit
-`d37cc91ef2f3c82a85bbbac44ec557afa32de242`. Package versions remain unchanged.
+The latest finalized release is **0.17.9**, commit
+`6fd078d9b914fff530b1efe521dc08ce18b97cc0`. Package versions remain unchanged.
 Shared Tooling **0.12.2**, revision
 `cff186285829481185e932d3c16514022b897de9`, is adopted through the canonical
 exporter from a clean isolated checkout of pushed upstream main. The snapshot

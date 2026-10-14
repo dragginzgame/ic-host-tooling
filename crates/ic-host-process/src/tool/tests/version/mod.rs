@@ -14,7 +14,14 @@ fn no_follow_admission_rejects_aliases_and_nonfiles_before_execution() {
     let alias = fixture.root.join("alias");
     symlink(&candidate, &alias).unwrap();
     let fifo = fixture.root.join("fifo");
-    rustix::fs::mkfifoat(rustix::fs::CWD, &fifo, rustix::fs::Mode::RUSR).unwrap();
+    assert!(
+        std::process::Command::new("/usr/bin/mkfifo")
+            .args(["-m", "400"])
+            .arg(&fifo)
+            .status()
+            .unwrap()
+            .success()
+    );
     let digest = hash_file(&candidate, 1024 * 1024).unwrap().sha256;
     for rejected in [&alias, &fifo, &fixture.root] {
         let spec = ToolSpec {
