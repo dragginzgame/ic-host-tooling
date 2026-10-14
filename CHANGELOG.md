@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.18.3]
+## [0.18.3] - 2026-10-14
 
 - Prepare release metadata with literal rendering and byte/mode rollback,
   retiring the release-only cargo-edit installation and commands
