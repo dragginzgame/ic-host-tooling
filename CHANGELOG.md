@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.18.1]
+
+- Save and restore explicitly selected Unix signal actions through one opt-in
+  guard, retaining caller-owned handlers, cancellation and shutdown policy
+  ([#107](https://github.com/dragginzgame/ic-host-tooling/issues/107)).
+  [Detailed notes](docs/changelog/0.18.md).
+
 ## [0.18.0] - 2026-10-14
 
 ### Breaking
