@@ -21,14 +21,14 @@ pub fn create_retained_at(
 ) -> io::Result<File> {
     #[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
     {
-        use rustix::fs::{Mode, OFlags, fsync, openat};
+        use rustix::fs::{OFlags, fsync, openat};
         super::supported::validate_file_name(name)?;
-        super::supported::validate_permissions(permissions)?;
+        let permissions = super::supported::native_permissions(permissions)?;
         let file = File::from(openat(
             parent,
             name,
             OFlags::WRONLY | OFlags::CREATE | OFlags::EXCL | OFlags::NOFOLLOW | OFlags::CLOEXEC,
-            Mode::from_bits_truncate(permissions),
+            permissions,
         )?);
         fsync(parent)?;
         Ok(file)

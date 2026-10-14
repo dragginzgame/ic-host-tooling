@@ -1,6 +1,4 @@
-use ic_host_fs::read::hash_file;
-
-use crate::tool::{AdmittedTool, ExecutionContext, OutputLimits, ToolSpec};
+use crate::tool::{AdmittedTool, ExecutionContext, OutputLimits, VersionSpec};
 use std::{
     ffi::OsString,
     fs,
@@ -88,11 +86,9 @@ pub fn admit(
     context: &ExecutionContext<'_>,
     version: &str,
 ) -> Result<AdmittedTool, crate::tool::ToolError> {
-    let identity = hash_file(path, 1024 * 1024).unwrap();
-    AdmittedTool::admit(
-        &ToolSpec {
+    AdmittedTool::admit_version(
+        &VersionSpec {
             executable: path,
-            sha256: identity.sha256,
             executable_bytes: 1024 * 1024,
             version_arguments: &[OsString::from("--version")],
             version_identity: version,

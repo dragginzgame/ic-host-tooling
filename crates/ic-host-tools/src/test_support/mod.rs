@@ -1,6 +1,4 @@
-use ic_host_fs::read::hash_file;
-
-use ic_host_process::tool::{AdmittedTool, ExecutionContext, OutputLimits, ToolSpec};
+use ic_host_process::tool::{AdmittedTool, ExecutionContext, OutputLimits, VersionSpec};
 use std::{
     ffi::OsString,
     fs,
@@ -66,11 +64,9 @@ impl Fixture {
         ))
         .canonicalize()
         .unwrap();
-        let identity = hash_file(&path, 1024 * 1024).unwrap();
-        AdmittedTool::admit(
-            &ToolSpec {
+        AdmittedTool::admit_version(
+            &VersionSpec {
                 executable: &path,
-                sha256: identity.sha256,
                 executable_bytes: 1024 * 1024,
                 version_arguments: &[OsString::from("--version")],
                 version_identity: VERSION,

@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.17.8]
+
+- Let custody-aware callers transfer an already spawned direct child into Host's
+  bounded IO and cleanup owner, preserving one-spawn authority.
+
+- Adopt Shared Tooling 0.12.0 and delegate strict release-note admission to its
+  canonical finalizer, removing duplicate local guards
+  ([#73](https://github.com/dragginzgame/ic-host-tooling/issues/73),
+  [#75](https://github.com/dragginzgame/ic-host-tooling/issues/75)).
+- Fix retained staging compilation on macOS by reusing checked native permission
+  conversion; retain invalid-mode refusal and failed staging evidence
+  ([#84](https://github.com/dragginzgame/ic-host-tooling/issues/84)).
+- Simplify trusted test-tool admission and consolidate version coverage while
+  retaining explicit digest-pinned admission checks
+  ([#85](https://github.com/dragginzgame/ic-host-tooling/issues/85)).
+  [Detailed notes](docs/changelog/0.17.md).
+
 ## [0.17.7] - 2026-10-13
 
 - Add observed-identity digest verification and reuse shared fixture cleanup and

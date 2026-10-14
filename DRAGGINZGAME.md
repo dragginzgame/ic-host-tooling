@@ -444,8 +444,15 @@ Consumer choices described in those guides remain subject to this baseline.
   symptom, focused evidence, smallest proposal and disposition. Identify dirty
   source separately from a committed revision. Include affected callers/hosts
   and the smallest useful verification.
-- Track upstream acceptance separately from verified consumer adoption. Resolve
-  product-specific feedback locally instead of promoting it to universal policy.
+- Track upstream acceptance separately from verified consumer adoption. Close
+  producer issues when their own delivered implementation and required checks
+  are complete; keep outstanding adoption in linked consumer-owned issues.
+  Do not keep or reopen a completed producer issue solely for fleet adoption,
+  or create a second open tracker for the same consumer obligations. The
+  [issue maintenance procedure](rules/agent-maintenance.md#issue-review-and-repair)
+  defines closure evidence and retirement of redundant coordination trackers.
+  Resolve product-specific feedback locally instead of promoting it to universal
+  policy.
   For another repository's finding, search its issues and file or update the
   matching issue under the issue authorization above. Include a concrete fix or
   patch where feasible and its actual validation results. Keep shared snapshots

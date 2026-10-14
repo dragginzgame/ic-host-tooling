@@ -78,7 +78,12 @@ fn invalid_names_permissions_and_non_directory_refuse_without_creation() {
     for name in ["", ".", "..", "../escape", "a/b", "nul\0name"] {
         assert!(create_retained_at(parent.as_fd(), OsStr::new(name), 0o600).is_err());
     }
-    assert!(create_retained_at(parent.as_fd(), OsStr::new("bad-mode"), 0o1600).is_err());
+    for permissions in [0o1600, 0x1_0600, u32::MAX] {
+        let error =
+            create_retained_at(parent.as_fd(), OsStr::new("bad-mode"), permissions).unwrap_err();
+        assert_eq!(error.kind(), io::ErrorKind::InvalidInput);
+        assert_eq!(fs::read_dir(&fixture.root).unwrap().count(), 0);
+    }
     assert_eq!(fs::read_dir(&fixture.root).unwrap().count(), 0);
     let file = create_retained_at(parent.as_fd(), OsStr::new("file"), 0o600).unwrap();
     assert!(create_retained_at(file.as_fd(), OsStr::new("child"), 0o600).is_err());

@@ -1,5 +1,80 @@
 # Current handoff
 
+## Custody-aware direct-child transfer — pending 0.17.8
+
+The Canic maintainer explicitly authorized the scoped Host bridge for IC Backup's
+custody-aware spawn. `OwnedChild::from_spawned_direct` takes the existing child
+into Host's bounded capture and cleanup owner without a second spawn or process-
+group authority. Original IO and pid are retained; Host owns reaping after transfer.
+All three direct-child cases and strict process library/test Clippy pass on Linux.
+Evidence: `/tmp/canic-112-completion/host-child-real-tests.log` and
+`/tmp/canic-112-completion/host-child-real-clippy-final.log`. Native macOS, the
+combined delivery gate and publication remain separate; Canic has not adopted
+this unpublished API. Package versions, lock selection, index and refs are unchanged.
+
+## Shared Tooling adoption — pending 0.17.8
+
+Shared 0.12.0 at `f7fe31bf80a2b445bf37a470527f001210241aea` is exported
+from a clean isolated checkout of pushed upstream main. The snapshot has 90
+entrypoints and 106 payloads, including the new literal catalog reader and two
+linked guides. Host delegates numbered/top-entry changelog admission to the
+strict canonical finalizer and removes equivalent local guards. Source-bound
+receipts, exact metadata projection and release recovery remain local. The
+optional publication runner and catalog checker are not added to Host's commands
+([#73](https://github.com/dragginzgame/ic-host-tooling/issues/73),
+[#75](https://github.com/dragginzgame/ic-host-tooling/issues/75)).
+
+Current Bash and genuine Bash 3.2 release-adapter/shared-runner checks pass with
+substituted setup/Git effects. The updated IC fixture also passes under Bash 3.2.
+Full combined offline Linux `make ci`, snapshot integrity, repeat preview (106
+KEEP rows), shared/local documentation links and diff checks pass. The unchanged
+Rust/lock inputs retain the preceding Rust 1.88 workspace evidence in
+`/tmp/host85.JYnUQC/`; no new compiler requirement is introduced.
+Evidence, task before-images and preservation hashes are in
+`/tmp/host-shared0120.maRft6/`. The index and selected Rust/tooling inputs are
+unchanged through qualification.
+The incoming #84/#85 changes, lock selection, package versions and tool pins are
+preserved. Compatible notes stay 0.17.8; no library migration is required.
+Native macOS acceptance remains separate. No Git or release effects ran.
+
+## Trusted fixture admission cleanup — pending 0.17.8
+
+Process and extraction fixtures delegate trusted local executable observation to
+`admit_version`; their preliminary hash and constructed digest pin are removed.
+Version cases share focused coverage, while the ordinary pinned-admission test
+also checks successful identity/version and mismatched-version evidence. No
+production API, executable policy, fixture serialization or capture bound changes
+([#85](https://github.com/dragginzgame/ic-host-tooling/issues/85)).
+
+Focused Linux process and extraction checks and full combined `make ci
+msrv-workspace` pass, including strict workspace Clippy/docs and Rust 1.88.
+Evidence, validation input hashes and task before-images are retained under
+`/tmp/host85.JYnUQC/`. The incoming #84 repair is preserved. A concurrent lock
+selection updates `equivalent` from 1.0.2 to 1.0.3; it is outside this task's edits
+and included in the combined qualification. Rust inputs and the lock stayed
+unchanged through the gate.
+Native macOS qualification remains separate. Package versions remain 0.17.7;
+pending compatible notes stay 0.17.8. No Git or release effects ran.
+
+## Checked native permissions repair — pending 0.17.8
+
+The maintainer authorized the [#84](https://github.com/dragginzgame/ic-host-tooling/issues/84)
+repair from IC Build. Against released 0.17.7 source
+`2bdc5f1cae2c12040bf08d03b5c68502291599cd`, retained staging now reuses the
+existing checked native-permissions helper, including Apple narrowing. Public
+signatures, refusal order, exclusive/no-follow creation, synchronization and
+retained evidence remain unchanged. High-bit permission refusals extend the
+existing test; no second conversion owner was added.
+
+Full Linux `make ci msrv-workspace` passes, including 82 filesystem tests,
+strict workspace Clippy/docs, feature and release/tooling fixtures, and actual
+Rust 1.88 all-target/all-feature workspace compilation. The lockfile is unchanged.
+Evidence and before-images are retained under `/tmp/ic-build-host84/`;
+`host-full-validation.log` records the full gate. Native macOS 15 Intel/Apple
+Silicon qualification and publication remain outstanding. Pending compatible
+notes are 0.17.8; own metadata remains 0.17.7. IC Build must adopt the published
+repair before its exact native gates can qualify. No Git or release effects ran.
+
 ## Retained-staging primitive for Blob — delivered 0.17.4
 
 `create_retained_at` creates a caller-named exclusive stage beneath an admitted
@@ -19,12 +94,12 @@ No native macOS, commit, release, publication or actual provider operation ran.
 
 ## Released source and baseline
 
-The latest finalized release is **0.17.6**, commit
-`96786761bb48763cd6c33fef47796e84ef947b99`. Package versions remain unchanged.
-Shared Tooling **0.11.3**, revision
-`eadab786d4c7d73de53b6abdba6905727af70fda`, is adopted through the canonical
+The latest finalized release is **0.17.7**, commit
+`2bdc5f1cae2c12040bf08d03b5c68502291599cd`. Package versions remain unchanged.
+Shared Tooling **0.12.0**, revision
+`f7fe31bf80a2b445bf37a470527f001210241aea`, is adopted through the canonical
 exporter from a clean isolated checkout of pushed upstream main. The snapshot
-contains 103 payloads, including the shared release-tag checker and fixture
+contains 106 payloads, including the shared release-tag checker and fixture
 lifecycle helper. Tool pins and product source are unchanged.
 See [the snapshot](../../.shared-tooling.snapshot) and
 [AGENTS.md](../../AGENTS.md).
@@ -48,7 +123,7 @@ Prior 0.10.1 full offline Linux and genuine Bash 3.2 qualification remains in
 Native macOS 15 Intel and Apple Silicon qualification remains separate from
 local Linux evidence. No commit, push, release or publication ran in this task.
 
-## Pending 0.17.7
+## Delivered 0.17.7
 
 Observed digest verification has one artifact owner. Six local fixture handlers
 reuse the adopted cleanup helper, and release/publication workspace skeletons
@@ -117,9 +192,10 @@ pass, including a disposable integration with the proposed strict Shared
 finalizer. Upstream work is owned by [Shared #162](https://github.com/dragginzgame/shared-tooling/issues/162)
 and [Shared #163](https://github.com/dragginzgame/shared-tooling/issues/163), with
 Host coordination in [#75](https://github.com/dragginzgame/ic-host-tooling/issues/75).
-The strict-finalizer patch remains in `/tmp/host-release-convergence/`; Host's
-current guards and publisher remain until equivalent upstream behavior is
-committed, adopted and qualified. The combined gate stopped on concurrent new
+The strict-finalizer proposal is now delivered in Shared 0.12.0 and adopted here.
+Its earlier patch evidence remains in `/tmp/host-release-convergence/`. Host's
+publisher remains until the optional attempt runner's equivalence is qualified.
+The earlier combined gate stopped on concurrent new
 filesystem source absent from its tracked formatting fixture; the maintainer
 selected release-only validation while those changes continue. Evidence is in
 `/tmp/host-release-convergence/`; native macOS qualification remains separate.

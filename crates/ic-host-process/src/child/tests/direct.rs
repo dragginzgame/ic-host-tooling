@@ -5,6 +5,46 @@ use crate::tool::{
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
 #[test]
+fn supplied_direct_child_keeps_io_and_is_reaped_on_success_or_cancellation() {
+    let _fixture = Fixture::new();
+    for cancelled in [false, true] {
+        let mut command = command(if cancelled {
+            "exec sleep 30"
+        } else {
+            "printf supplied"
+        });
+        command.stdout(Stdio::piped()).stderr(Stdio::piped());
+        let supplied = command.spawn().unwrap();
+        let pid = supplied.id();
+        let mut child = OwnedChild::from_spawned_direct(supplied);
+        assert_eq!(child.id(), pid);
+        assert_eq!(
+            rustix::process::getpgid(Pid::from_raw(i32::try_from(pid).unwrap())).unwrap(),
+            rustix::process::getpgrp()
+        );
+        let result = communicate_child_with_observer(
+            &mut child,
+            None,
+            crate::test_support::LIMITS,
+            SuccessfulExit::Cleanup,
+            || cancelled,
+            |_, _| Ok(()),
+        );
+        if cancelled {
+            assert!(matches!(
+                result.unwrap_err().execution_error().unwrap().failure,
+                ExecutionFailure::Cancelled
+            ));
+        } else {
+            let evidence = result.unwrap();
+            assert_eq!(evidence.stdout, b"supplied");
+            assert!(evidence.status.success());
+        }
+        assert_reaped(pid);
+    }
+}
+
+#[test]
 fn direct_spawn_preserves_inherited_group_context_and_io() {
     let fixture = Fixture::new();
     let mut command = command("read value; printf '%s|%s|%s' \"$value\" \"$SELECTED\" \"$PWD\"");

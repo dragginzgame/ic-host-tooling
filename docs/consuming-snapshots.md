@@ -470,8 +470,11 @@ them. Reporting an issue neither applies the upstream fix nor verifies consumer
 adoption; broad validation authority stays unchanged.
 After delivering the adoption, apply that rule's issue reconciliation: record
 the exact consumer commit, Shared revision and required validation evidence in
-the consumer's owning issue, close it when its criteria are met, and update the
-linked Shared tracker. Consumers still awaiting required CI remain open. This is
+the consumer's owning issue and close it when its criteria are met. Update a
+linked Shared issue only for its own remaining work; completed producer issues
+stay closed while adoption proceeds in consumer issues. Retire redundant
+coordination trackers through the maintenance procedure, preserving owner links.
+Consumers still awaiting required CI remain open. This is
 part of the agent's adoption/maintenance pass, not a GitHub auto-close-on-push
 workflow or authorization to dispatch CI or start a schedule.
 

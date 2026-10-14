@@ -166,6 +166,24 @@ impl OwnedChild {
         Self::spawn_inner(command, false, CleanupPolicy::KillAndWait)
     }
 
+    /// Take direct-child ownership after a caller-owned spawn boundary.
+    ///
+    /// The caller transfers its existing child and configured IO without respawning
+    /// or granting process-group ownership. This supports command-custody spawners;
+    /// ordinary bounded communication, cancellation and direct-child cleanup apply.
+    /// The caller must not independently reap the child after transferring it.
+    #[must_use]
+    pub const fn from_spawned_direct(child: Child) -> Self {
+        Self {
+            child,
+            group: false,
+            status: None,
+            owned: true,
+            cleanup: CleanupPolicy::KillAndWait,
+            reap_started: None,
+        }
+    }
+
     pub(crate) const fn is_owned(&self) -> bool {
         self.owned && self.reap_started.is_none()
     }

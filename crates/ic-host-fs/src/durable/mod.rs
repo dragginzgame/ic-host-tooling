@@ -468,7 +468,7 @@ mod supported {
         Ok(value)
     }
 
-    fn native_permissions(permissions: u32) -> io::Result<Mode> {
+    pub(super) fn native_permissions(permissions: u32) -> io::Result<Mode> {
         validate_permissions(permissions)?;
         // Darwin's mode_t is u16; retain checked narrowing after admission.
         #[cfg(target_vendor = "apple")]

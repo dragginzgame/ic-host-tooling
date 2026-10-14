@@ -22,7 +22,7 @@ fn digest_rejection_precedes_any_version_execution() {
         OsString::from("FIXTURE_MARKER"),
         marker.as_os_str().to_owned(),
     )];
-    let spec = ToolSpec {
+    let mut spec = ToolSpec {
         executable: &tool_path(),
         sha256: Sha256Digest::compute(b"wrong"),
         executable_bytes: 1024 * 1024,
@@ -34,41 +34,21 @@ fn digest_rejection_precedes_any_version_execution() {
         Err(ToolError::Artifact(ArtifactError::DigestMismatch { .. }))
     ));
     assert!(!marker.exists());
-}
 
-#[test]
-fn admission_observes_exact_version_and_preserves_invalid_version_output() {
-    let fixture = Fixture::new();
-    let tool = fixture.tool();
+    let identity = hash_file(spec.executable, spec.executable_bytes).unwrap();
+    spec.sha256 = identity.sha256;
+    let tool = AdmittedTool::admit(&spec, &fixture.context(&environment), LIMITS).unwrap();
     assert_eq!(tool.path(), tool_path());
-    assert_eq!(
-        tool.identity(),
-        hash_file(&tool_path(), 1024 * 1024).unwrap()
-    );
+    assert_eq!(tool.identity(), identity);
     assert_eq!(tool.version_identity(), VERSION);
-    let wrong = admit(&tool_path(), &fixture.context(&[]), "different");
+    assert_eq!(fs::read(&marker).unwrap(), b"invoked\n");
+
+    spec.version_identity = "different";
+    let wrong = AdmittedTool::admit(&spec, &fixture.context(&environment), LIMITS);
     assert!(
         matches!(wrong, Err(ToolError::VersionMismatch { evidence }) if evidence.stdout == format!("{VERSION}\n").as_bytes() && evidence.status.is_some_and(|status| status.success()))
     );
-    let environment = [(
-        OsString::from("FIXTURE_VERSION_MODE"),
-        OsString::from("invalid-utf8"),
-    )];
-    assert!(
-        matches!(admit(&tool_path(), &fixture.context(&environment), VERSION), Err(ToolError::VersionUtf8 { evidence, .. }) if evidence.stdout == [0xff])
-    );
-    let environment = [(
-        OsString::from("FIXTURE_VERSION"),
-        OsString::from(format!("  {VERSION}\t")),
-    )];
-    assert!(admit(&tool_path(), &fixture.context(&environment), VERSION).is_ok());
-    let environment = [(
-        OsString::from("FIXTURE_VERSION_MODE"),
-        OsString::from("fail"),
-    )];
-    assert!(
-        matches!(admit(&tool_path(), &fixture.context(&environment), VERSION), Err(ToolError::Execution(error)) if matches!(error.failure, ExecutionFailure::ExitStatus) && error.evidence.stderr == b"version failed")
-    );
+    assert_eq!(fs::read(marker).unwrap(), b"invoked\ninvoked\n");
 }
 
 #[test]

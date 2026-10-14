@@ -46,27 +46,9 @@ selections() {
     notes="$receipt.notes"
 }
 finalize_notes() {
-    local input="$1" heading
-    # Retain the consumer's top-entry identity boundary. The shared helper owns
-    # candidate selection, complete-ledger conflict checks and heading rewriting.
-    heading="$(awk '/^##[ \t]+/ { sub(/[ \t]+$/, ""); gsub(/[ \t]+/, " "); print; exit }' "$input")"
-    case "$heading" in
-        "## [$RELEASE_VERSION]"|"## [$RELEASE_PREVIOUS]"|"## [$RELEASE_PREVIOUS] - "*) ;;
-        *) fail "top changelog entry conflicts with selected release" ;;
-    esac
-    # A candidate belongs at the top; do not let the shared selector relocate
-    # a current release entry from history during preparation or recovery.
-    awk -v heading="## [$RELEASE_VERSION]" '
-        /^##[ \t]+/ {
-            sub(/[ \t]+$/, "")
-            gsub(/[ \t]+/, " ")
-            if ($0 == "## [Draft]") exit 1
-            if (++headings > 1 && ($0 == heading || index($0, heading " - ") == 1)) exit 1
-        }
-    ' "$input" || fail "duplicate or misplaced current release entry"
     awk -v version="$RELEASE_VERSION" -v previous="$RELEASE_PREVIOUS" \
         -v date="$RELEASE_DATE" \
-        -f "$tooling_root/scripts/ci/finalize-release-changelog.awk" "$input"
+        -f "$tooling_root/scripts/ci/finalize-release-changelog.awk" "$1"
 }
 receipt_header() {
     printf '%s\n' release-validation-1 "$RELEASE_SOURCE" "$RELEASE_KIND" \
