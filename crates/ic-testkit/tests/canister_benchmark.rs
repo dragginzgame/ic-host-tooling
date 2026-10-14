@@ -7,7 +7,7 @@ use ic_testkit::{
         parse_benchmark_events_from_source,
     },
     ic_host_fs::read::read_file,
-    pic::{InstallSpec, StandaloneCanisterFixture},
+    pic::{CandidCallExt, InstallSpec, StandaloneCanisterFixture},
 };
 use std::fs;
 use support::unique_temp_directory as unique_temp_dir;
@@ -38,7 +38,8 @@ fn perf_probe_canister_emits_parseable_benchmark_markers() {
     let fixture =
         StandaloneCanisterFixture::install(support::pocket_ic(), InstallSpec::new(wasm, vec![], 0));
     let result: u64 = fixture
-        .update_candid("benchmark_once", ())
+        .pocket_ic()
+        .update_candid(fixture.canister_id(), "benchmark_once", ())
         .expect("benchmark_once update call");
 
     assert_eq!(result, 1_498_500);

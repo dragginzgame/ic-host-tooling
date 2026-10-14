@@ -123,3 +123,8 @@ verifies snapshots and cycle policy through `CanisterRestoreReceipt`, while
 Generic Cargo/Wasm builds, retained artifact caches and freshness APIs belong to
 [IC Build](https://github.com/dragginzgame/ic-build). Depend on it directly and use
 `ic_build::artifacts`; Testkit keeps PocketIC lifecycle and benchmark policy.
+
+For 0.39, invoke Candid extensions on `fixture.pocket_ic()` with
+`fixture.canister_id()` explicitly; the standalone fixture owns installation
+and lifetime, while `CandidCallExt` owns encoding, invocation and decoding.
+See the [packaged migration notes](CHANGELOG.md#0390).

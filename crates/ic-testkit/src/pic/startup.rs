@@ -5,16 +5,13 @@ use std::{
     io::{self, Read as _},
     path::{Path, PathBuf},
     process::{Command, ExitStatus, Stdio},
-    sync::{
-        atomic::{AtomicU64, Ordering},
-        mpsc::{self, RecvTimeoutError},
-    },
+    sync::mpsc::{self, RecvTimeoutError},
     thread,
     time::{Duration, Instant},
 };
 
 #[cfg(unix)]
-use std::os::unix::fs::{DirBuilderExt as _, OpenOptionsExt as _};
+use std::os::unix::fs::{OpenOptionsExt as _, PermissionsExt as _};
 
 use ic_host_process::child::{CleanupError, OwnedChild};
 use pocket_ic::{PocketIc, PocketIcBuilder};
@@ -26,8 +23,6 @@ const SERVER_OUTPUT_LIMIT: usize = 16 * 1024;
 // PocketIC publishes a decimal u16 and a newline. Leave whitespace room
 // without allowing readiness polling to read an arbitrary-size file.
 const SERVER_PORT_FILE_LIMIT: usize = 64;
-
-static STARTUP_FILE_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
 /// Explicit bounded source and policy for one PocketIC startup.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -1104,7 +1099,7 @@ impl ManagedServer {
 }
 
 struct StartupFiles {
-    directory: PathBuf,
+    _directory: tempfile::TempDir,
     port: PathBuf,
     stdout: PathBuf,
     stderr: PathBuf,
@@ -1166,42 +1161,27 @@ impl StartupFiles {
                 ))
             })
             .transpose()?;
-        loop {
-            let sequence = STARTUP_FILE_SEQUENCE.fetch_add(1, Ordering::Relaxed);
-            let base = std::env::temp_dir().join(format!(
-                "ic-testkit-pocket-ic-startup-{}-{sequence}",
-                std::process::id()
-            ));
-            let mut directory = fs::DirBuilder::new();
-            #[cfg(unix)]
-            {
-                directory.mode(0o700);
-            }
-            match directory.create(&base) {
-                Ok(()) => {}
-                Err(error) if error.kind() == io::ErrorKind::AlreadyExists => continue,
-                Err(source) => return Err(startup_file_error("create", &base, source)),
-            }
-            let (stdout_path, stderr_path) =
-                output_files.unwrap_or_else(|| (base.join("stdout"), base.join("stderr")));
-            let files = Self {
-                port: base.join("port"),
-                stdout: stdout_path,
-                stderr: stderr_path,
-                directory: base,
-            };
-            let stdout = create_new_file(&files.stdout)
-                .map_err(|source| startup_file_error("create", &files.stdout, source))?;
-            let stderr = create_new_file(&files.stderr)
-                .map_err(|source| startup_file_error("create", &files.stderr, source))?;
-            return Ok((files, stdout, stderr));
-        }
-    }
-}
-
-impl Drop for StartupFiles {
-    fn drop(&mut self) {
-        let _ = fs::remove_dir_all(&self.directory);
+        let mut directory = tempfile::Builder::new();
+        directory.prefix("ic-testkit-pocket-ic-startup-");
+        #[cfg(unix)]
+        directory.permissions(fs::Permissions::from_mode(0o700));
+        let directory = directory
+            .tempdir()
+            .map_err(|source| startup_file_error("create", &std::env::temp_dir(), source))?;
+        let base = directory.path();
+        let (stdout_path, stderr_path) =
+            output_files.unwrap_or_else(|| (base.join("stdout"), base.join("stderr")));
+        let files = Self {
+            port: base.join("port"),
+            stdout: stdout_path,
+            stderr: stderr_path,
+            _directory: directory,
+        };
+        let stdout = create_new_file(&files.stdout)
+            .map_err(|source| startup_file_error("create", &files.stdout, source))?;
+        let stderr = create_new_file(&files.stderr)
+            .map_err(|source| startup_file_error("create", &files.stderr, source))?;
+        Ok((files, stdout, stderr))
     }
 }
 
@@ -1507,7 +1487,7 @@ mod tests {
                 .start_managed_server()
                 .unwrap();
             let pid = managed.process_id();
-            let directory = managed.server.files.directory.clone();
+            let directory = managed.server.files._directory.path().to_path_buf();
             let (sender, receiver) = mpsc::channel();
             if !disconnected {
                 sender
@@ -1981,7 +1961,7 @@ mod tests {
     #[test]
     fn startup_files_leave_the_server_owned_port_path_absent() {
         let (files, stdout, stderr) = StartupFiles::create(None).expect("allocate startup files");
-        let directory = files.directory.clone();
+        let directory = files._directory.path().to_path_buf();
 
         assert!(directory.is_dir());
         assert!(!files.port.exists());
@@ -2014,8 +1994,8 @@ mod tests {
             "success",
         ] {
             let (owner, _, _) = StartupFiles::create(None).unwrap();
-            let stdout = owner.directory.join("retained-stdout");
-            let stderr = owner.directory.join("retained-stderr");
+            let stdout = owner._directory.path().join("retained-stdout");
+            let stderr = owner._directory.path().join("retained-stderr");
             let ending = match outcome {
                 "timeout" => "exec sleep 30",
                 "startup-exit" => "exit 41",
@@ -2112,9 +2092,9 @@ mod tests {
         use std::os::unix::fs::symlink;
 
         let (owner, _, _) = StartupFiles::create(None).unwrap();
-        let stdout = owner.directory.join("retained-stdout");
-        let stderr = owner.directory.join("retained-stderr");
-        let unrelated = owner.directory.join("unrelated");
+        let stdout = owner._directory.path().join("retained-stdout");
+        let stderr = owner._directory.path().join("retained-stderr");
+        let unrelated = owner._directory.path().join("unrelated");
         fs::write(&unrelated, b"original").unwrap();
         symlink(&unrelated, &stderr).unwrap();
         let error = StartupFiles::create(Some((stdout.clone(), stderr.clone())))
@@ -2371,7 +2351,7 @@ mod tests {
             .start_managed_server()
             .expect("caller-provided PocketIC server must publish its port");
         let files = &server.server.files;
-        let startup_directory = files.directory.clone();
+        let startup_directory = files._directory.path().to_path_buf();
 
         assert!(files.port.is_file());
         let pocket_ic = PocketIcBuilder::new()
@@ -2390,29 +2370,27 @@ mod tests {
     #[cfg(unix)]
     struct TestServerScript {
         path: PathBuf,
+        _directory: tempfile::TempDir,
     }
 
     #[cfg(unix)]
     impl TestServerScript {
         fn new(label: &str, contents: &str) -> Self {
-            let path = std::env::temp_dir().join(format!(
-                "ic-testkit-pocket-ic-{label}-{}-{}",
-                std::process::id(),
-                super::STARTUP_FILE_SEQUENCE.fetch_add(1, super::Ordering::Relaxed),
-            ));
+            let directory = tempfile::Builder::new()
+                .prefix(&format!("ic-testkit-pocket-ic-{label}-"))
+                .permissions(fs::Permissions::from_mode(0o700))
+                .tempdir()
+                .expect("create test server directory");
+            let path = directory.path().join("server");
             write_executable_script(&path, contents);
-            Self { path }
+            Self {
+                path,
+                _directory: directory,
+            }
         }
 
         fn path(&self) -> PathBuf {
             self.path.clone()
-        }
-    }
-
-    #[cfg(unix)]
-    impl Drop for TestServerScript {
-        fn drop(&mut self) {
-            let _ = fs::remove_file(&self.path);
         }
     }
 }

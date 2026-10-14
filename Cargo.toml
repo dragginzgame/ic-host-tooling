@@ -19,9 +19,9 @@ readme = "README.md"
 candid = { version = "0.10", default-features = false }
 ic-build = { version = "0.2" }
 ic-cdk = "0.20.2"
-ic-host-artifacts = { version = "0.17.4", features = ["archive", "wasm"] }
-ic-host-fs = "0.17.4"
-ic-host-process = "0.17.4"
+ic-host-artifacts = { version = "0.17.8", features = ["archive", "wasm"] }
+ic-host-fs = "0.17.8"
+ic-host-process = "0.17.8"
 ic-testkit = { path = "crates/ic-testkit" }
 libc = "0.2"
 pocket-ic = "16.1"

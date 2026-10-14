@@ -200,11 +200,9 @@ case "$mode" in
         : > "$prepared/new/$member/src/lib.rs"
       done
       cp rust-toolchain.toml "$prepared/new/rust-toolchain.toml"
-      RELEASE_PREVIOUS="$RELEASE_PREVIOUS" RELEASE_VERSION="$RELEASE_VERSION" \
-        perl -0pi -e '
-          $n = s/(\[workspace\.package\]\n(?:(?!\n\[).)*?\nversion = ")\Q$ENV{RELEASE_PREVIOUS}\E("\n)/$1$ENV{RELEASE_VERSION}$2/s;
-          die "workspace version not found\n" unless $n == 1;
-        ' "$prepared/new/Cargo.toml"
+      perl "$script_dir/../ci/render-cargo-workspace-version.pl" \
+        "$prepared/old/Cargo.toml" "$RELEASE_PREVIOUS" "$RELEASE_VERSION" \
+        > "$prepared/new/Cargo.toml"
       bash "$script_dir/../ci/check-format-tools.sh" "$SHARED_TOOLING_CARGO_SORT_VERSION"
       cargo sort --workspace "$prepared/new"
       # Member manifests are already sorted inputs, outside the release file

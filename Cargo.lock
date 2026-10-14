@@ -406,9 +406,9 @@ checksum = "0e9c71c2167ca323c882b99918929403426e2373ea17242ff5653e0d5e1058be"
 
 [[package]]
 name = "equivalent"
-version = "1.0.2"
+version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "877a4ace8713b0bcf2a4e7eec82529c029f1d0619886d18145fea96c3ffe5c0f"
+checksum = "00d174d5400e5e8fd687ad1049e2f578285fa914201b1af7e8b112a4546bd826"
 
 [[package]]
 name = "erased-serde"
@@ -738,9 +738,9 @@ dependencies = [
 
 [[package]]
 name = "ic-build"
-version = "0.2.3"
+version = "0.2.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9f5baf0449153f28de324d37dc9787298d77788940e0bce88f3d0c252b018ca5"
+checksum = "7a4c66987afbb0275c29552a8dcf3bbd40e902c59df19726beff203dcb93dc7e"
 dependencies = [
  "fs2",
  "ic-host-artifacts",
@@ -817,9 +817,9 @@ dependencies = [
 
 [[package]]
 name = "ic-host-artifacts"
-version = "0.17.4"
+version = "0.17.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bb0a3ecb1a07f6cff1b66a80f5a77def62f527765de5f99600e6683b257e8507"
+checksum = "70e563af09ed78e7c1c995eaf7e0f40b5120140dda258a1b1a013c13349029c0"
 dependencies = [
  "flate2",
  "sha2",
@@ -829,9 +829,9 @@ dependencies = [
 
 [[package]]
 name = "ic-host-fs"
-version = "0.17.4"
+version = "0.17.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "75610e0e14bc03b5072c7d2031f17297178cdca6b1d2ebba33f16e1efc3392e2"
+checksum = "b500e9a51887d938dc5b22f631313bc3417f91dfbf3f92edd0892fc6ed1cf96b"
 dependencies = [
  "ic-host-artifacts",
  "rustix",
@@ -839,9 +839,9 @@ dependencies = [
 
 [[package]]
 name = "ic-host-process"
-version = "0.17.4"
+version = "0.17.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "718c782454284b0239cf99e641f87a428ed957d02e06871b5e9c285f4ddfeb2a"
+checksum = "aad5f977fed94dc04bc11ea06bac2e6ffc6b0305d19f235cd8810d8d1e603c72"
 dependencies = [
  "ic-host-artifacts",
  "ic-host-fs",
@@ -2205,9 +2205,9 @@ checksum = "fd3ca314f692efd6c868f8408f53fe444634a845f96c028b97d35f6a1f79f0ee"
 
 [[package]]
 name = "tokio"
-version = "1.53.2"
+version = "1.53.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e95f91fcc7a621e8b030f6aa23c71fe9838ae2fb4d8118b75602a328f5144044"
+checksum = "ce3335fa71841cda333a58d7615b03901380ecf09d59b3296d21f8bbac0dde4e"
 dependencies = [
  "bytes",
  "libc",

@@ -1,5 +1,120 @@
 # Host support and qualification
 
+## Pending 0.39.0: packaged CLI qualification
+
+Focused offline packaging of the current dirty source retains the published
+CLI target and selects all three Host crates at 0.17.8, with no older Host graph.
+The normalized package requirements also start at 0.17.8; native `tempfile` is
+included. Packaging leaves the workspace lock unchanged. This is a candidate
+archive with unchanged own metadata at 0.38.0, not a new registry publication
+([#77](https://github.com/dragginzgame/ic-testkit/issues/77)).
+
+The extracted package's CLI builds locked/offline and passes actual Rust 1.88
+checking in this workspace's target. That exact CLI admits the retained official
+PocketIC 16.1 bundle with `PATH=/nonexistent`, then launches a separate process
+that constructs and drops a real application-subnet instance using only its
+exported server URL. Neither check downloads or provisions another server.
+Archive, manifest, lock, binary/worker identities and logs are retained under
+`/tmp/ic-testkit-issues-pass-20261014/`. These are Linux checks; published CLI
+installation and matching Intel/Apple Silicon CI remain outstanding. The failed
+0.38.0 native receipts remain unchanged.
+
+## Pending 0.39.0: standalone calls and temporary-file ownership
+
+The approved public hard cut calls the existing `CandidCallExt` on the fixture's
+retained PocketIC with an explicit canister ID. Installation, typed failures and
+`into_parts()` ownership remain. `StartupFiles` and the synthetic server fixture
+use private `tempfile::TempDir` ownership instead of local collision/Drop logic.
+The 0700 directory, 0600 create-new outputs, port readiness and external-log
+retention contracts remain. These directories are ephemeral; no retained format
+or installation needs reset ([#78](https://github.com/dragginzgame/ic-testkit/issues/78)).
+
+The normal requirements start at published Host 0.17.8 for its macOS permission
+repair; the incoming selected lock already used that coherent Host family and
+is unchanged by this selection
+([#77](https://github.com/dragginzgame/ic-testkit/issues/77)). Own package metadata
+remains at 0.38.0, with the pending notes selected as 0.39.0.
+
+Focused normal-registry Linux qualification passes 27 startup tests, three real
+PocketIC startup cases, the actual canister benchmark, strict library/test Clippy,
+Rust 1.88 native/Wasm checks and public Rustdoc. An isolated candidate additionally
+removes both local executable-script writers and selects
+the opt-in Unix test API from frozen Host source. That candidate passes the same
+27 cases, three real PocketIC 16.1 startup cases, 13 controlled CLI runner cases,
+the real canister benchmark, installation rejection and decomposition ownership,
+strict library/test Clippy, actual Rust 1.88 native/Wasm checks and public Rustdoc.
+Candidate evidence uses a temporary producer override and does not establish
+normal registry adoption. Logs and candidate input digests are retained under
+`/tmp/ic-testkit-0390-cut/`.
+
+The shared writer's normal consumer deletion awaits published Host 0.17.9 under
+[Host #87](https://github.com/dragginzgame/ic-host-tooling/issues/87). The maintainer
+owns its full validation/publication. Both native macOS consumer checks, full
+Testkit validation and delivery remain outstanding. Only targeted development
+checks ran under the session's explicit validation instruction; historical
+evidence below remains bound to its original source and selections.
+
+## Shared 0.12.0 for pending 0.38.1
+
+The canonical export selects pushed Shared `f7fe31bf80a2b445bf37a470527f001210241aea`
+from an immutable checkout, excluding dirty sibling documentation. The existing
+99-file selection, own package version, selected dependency graph and common
+catalog bytes are preserved. This extends the contributor-only 0.38.1 batch
+([#73](https://github.com/dragginzgame/ic-testkit/issues/73)).
+
+Release preparation uses Shared's strict finalizer: unnumbered Draft headings
+and candidates displaced below history refuse. Numbered top candidates, canonical
+previous-version history and existing finalization/recovery behavior remain
+covered. New consumer cases exercise both note views and preserve all six metadata
+files while withholding the prepared readiness record on refusal
+([Shared #162](https://github.com/dragginzgame/shared-tooling/issues/162)).
+
+The actual consumer metadata fixture passes on modern Bash and genuine Bash
+3.2.57, alongside the adopted release-runner controls. Sourced ShellCheck,
+formatting, dependency declarations, diff checks and snapshot admission pass.
+Logs and source comparisons are in `/tmp/ic-testkit-0381-shared012/`. These are
+focused development checks under the session's targeted-validation instruction;
+no full CI or release operation ran. A concurrent AGENTS overlay change is
+preserved and is outside this task's edits.
+
+At review, Shared's exact-source Linux/Apple Silicon and lint jobs pass; Intel
+is still running. This does not qualify native consumer CI. Testkit's published
+0.38.0 macOS build remains blocked by unpublished Host 0.17.8 under
+[Host #84](https://github.com/dragginzgame/ic-host-tooling/issues/84).
+
+## Shared 0.11.4 for pending 0.38.1
+
+The canonical exporter selects pushed Shared `031d214ed044705b989d43e2379f30e6a3d44749`
+from an immutable checkout, excluding dirty sibling policy changes. The reviewed
+99-file snapshot retains common catalog versions/digests and the selected Cargo
+lock. Contributor-only adoption keeps own package metadata at 0.38.0
+([#73](https://github.com/dragginzgame/ic-testkit/issues/73)).
+
+Portable CI replaces discovery plus a separate action download with shared
+exact-ID, repository/run and uploaded-digest readback. The three qualification
+archives travel inside one owned bundle; extraction rejects unexpected members
+and links first. Original normal/rejected-selection bytes, modes, statuses and
+failure retention are still verified. Release preparation delegates literal
+version rendering to Shared while retaining private candidate validation,
+source/receipt custody, byte recovery and publication policy
+([#59](https://github.com/dragginzgame/ic-testkit/issues/59)).
+
+Local modern Bash and genuine Bash 3.2.57 pass evidence round trips (including
+extra-member/link refusal), isolated metadata/recovery checks and substituted
+release-runner controls. Shared exact-download and literal-renderer fixtures pass.
+Workflow lint, sourced ShellCheck, formatting, dependency declarations, snapshot
+integrity and offline prepared-tool admission pass. The initial tool check found
+the cleaned local CLI absent; explicit locked offline rebuild restores admission
+without resolving dependencies. Logs are `/tmp/ic-testkit-0381-shared/`.
+
+[Released 0.38.0 CI](https://github.com/dragginzgame/ic-testkit/actions/runs/38439336526)
+passes all four Linux lanes. Both macOS architectures fail before consumer tests
+on Host 0.17.4's Darwin permission conversion, tracked by
+[Host #84](https://github.com/dragginzgame/ic-host-tooling/issues/84). The prepared
+Host 0.17.8 repair is unpublished at inspection; producer/native acceptance and
+this new consumer snapshot's hosted readback remain outstanding. No full gate,
+real release/staging/ref effects, own version bump or sibling edits ran.
+
 ## Shared 0.9.10 for pending 0.35.1
 
 The canonical exporter selects immutable revision

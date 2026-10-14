@@ -162,7 +162,7 @@ new_fixture() {
   # inputs. Only the complete validation gate and Git effects are substituted.
   mkdir -p scripts/release scripts/ci ci
   cp "$repo_root/scripts/release/metadata.sh" scripts/release/
-  for helper in check-release-source.sh read-cargo-workspace-version.sh next-release-version.sh check-format-tools.sh check-installation-version.sh finalize-release-changelog.awk; do
+  for helper in check-release-source.sh read-cargo-workspace-version.sh next-release-version.sh check-format-tools.sh check-installation-version.sh finalize-release-changelog.awk render-cargo-workspace-version.pl; do
     cp "$repo_root/scripts/ci/$helper" scripts/ci/
   done
   cp "$repo_root/ci/tool-versions.env" ci/
@@ -557,6 +557,40 @@ for view in CHANGELOG.md crates/ic-testkit/CHANGELOG.md; do
   [[ ! -e ".release-state/$RELEASE_VERSION.metadata/ready" ]] || fail "fixture invariant in $PWD at line $LINENO"
   logs=(.release-state/"$RELEASE_VERSION".validation.*/validation.log)
   [[ -s "${logs[0]}" ]] || fail "fixture invariant in $PWD at line $LINENO"
+done
+
+# Actual consumer preparation must refuse unnumbered or displaced candidates in
+# either note view, preserving all metadata and withholding its readiness record.
+for view in CHANGELOG.md crates/ic-testkit/CHANGELOG.md; do
+  for invalid in draft misplaced; do
+    new_fixture "$invalid-${view//\//-}"
+    if [[ "$invalid" == draft ]]; then
+      awk -v heading="## [$RELEASE_VERSION]" '
+        $0 == heading { $0 = "## [Draft]" }
+        { print }
+      ' "$view" > rejected-notes
+    else
+      awk -v heading="## [$RELEASE_VERSION]" '
+        $0 == heading { candidate = 1 }
+        candidate && /^## / && $0 != heading { candidate = 0 }
+        candidate { notes = notes $0 "\n"; next }
+        { print }
+        END { printf "%s", notes }
+      ' "$view" > rejected-notes
+    fi
+    mv rejected-notes "$view"
+    mkdir refused-before
+    for file in Cargo.toml Cargo.lock CHANGELOG.md crates/ic-testkit/CHANGELOG.md README.md crates/ic-testkit/README.md; do
+      mkdir -p "refused-before/$(dirname "$file")"
+      cp "$file" "refused-before/$file"
+    done
+    adapter verify
+    expect_failure prepare
+    for file in Cargo.toml Cargo.lock CHANGELOG.md crates/ic-testkit/CHANGELOG.md README.md crates/ic-testkit/README.md; do
+      cmp "refused-before/$file" "$file"
+    done
+    [[ ! -e ".release-state/$RELEASE_VERSION.metadata/ready" ]] || fail 'rejected notes published readiness'
+  done
 done
 
 for view in README.md crates/ic-testkit/README.md; do

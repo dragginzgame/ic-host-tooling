@@ -276,7 +276,7 @@ fn owned_sync_instance_preserves_topology_and_scoped_server_lifetime() {
         .unwrap();
     let server = owned.server.as_ref().unwrap();
     let pid = server.process_id();
-    let directory = server.server.files.directory.clone();
+    let directory = server.server.files._directory.path().to_path_buf();
     assert!(owned.instance.topology().get_nns().is_some());
     assert!(process_state(pid).is_some());
     let canister = owned.instance.create_canister();
@@ -309,7 +309,7 @@ fn owned_async_instance_and_borrowed_connections_preserve_lifetimes() {
             .unwrap();
         let server = owned.server.as_ref().unwrap();
         let pid = server.process_id();
-        let directory = server.server.files.directory.clone();
+        let directory = server.server.files._directory.path().to_path_buf();
         assert!(owned.instance.topology().await.get_nns().is_some());
         let canister = owned.instance.create_canister().await;
         assert!(owned.instance.canister_exists(canister).await);

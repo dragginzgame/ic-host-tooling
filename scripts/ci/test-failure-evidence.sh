@@ -19,7 +19,7 @@ fixture="$(cd -P "$fixture" && printf '%s/.' "$PWD")"
 fixture="${fixture%/.}"
 
 # The consumer's own upload/download boundary must retain the exact identity and
-# refuse download until discovery succeeds. Common retry behavior is qualified
+# verify the uploaded digest and exact-ID readback. Common retry behavior is qualified
 # by Shared Tooling's fixture; this checks the actual local workflow wiring.
 yq -o=json '.jobs' "$root/.github/workflows/ci.yml" > "$fixture/workflow-jobs.json"
 jq '.["portable-hosts"].steps' "$fixture/workflow-jobs.json" > "$fixture/workflow-steps.json"
@@ -52,15 +52,7 @@ jq -e '
     )
 ' --null-input --slurpfile jobs "$fixture/workflow-jobs.json" >/dev/null
 jq -e '
-    [.[] | select((.uses // "") | startswith("actions/download-artifact@"))] as $downloads
-    | ($downloads | length) == 1 and all($downloads[];
-        .if == "${{ !cancelled() && steps.archive-discovery.outcome == '\''success'\'' }}"
-        and .with["artifact-ids"] == "${{ steps.archive-upload.outputs.artifact-id }}"
-        and .with.repository == "${{ github.repository }}"
-        and .with["run-id"] == "${{ github.run_id }}"
-        and .with["digest-mismatch"] == "error"
-        and (."continue-on-error" // false) == false
-    )
+    all(.[]; ((.uses // "") | startswith("actions/download-artifact@")) | not)
 ' "$fixture/workflow-steps.json" >/dev/null
 jq -e '
     .[] | select(.id == "archive-discovery")
@@ -68,8 +60,9 @@ jq -e '
       and .env.EVIDENCE_REPOSITORY == "${{ github.repository }}"
       and .env.EVIDENCE_RUN == "${{ github.run_id }}"
       and .env.EVIDENCE_ARTIFACT == "${{ steps.archive-upload.outputs.artifact-id }}"
+      and .env.EVIDENCE_DIGEST == "${{ steps.archive-upload.outputs.artifact-digest }}"
       and .env.GH_TOKEN == "${{ github.token }}"
-      and (.run | contains("scripts/ci/wait-for-artifact.sh"))
+      and .run == "bash scripts/ci/download-evidence.sh \"$EVIDENCE_REPOSITORY\" \"$EVIDENCE_RUN\" \"$EVIDENCE_ARTIFACT\" \"$EVIDENCE_DIGEST\" \"$RUNNER_TEMP/ic-testkit-archive-downloaded\"\n"
 ' "$fixture/workflow-steps.json" >/dev/null
 
 verify_archive() {
@@ -138,8 +131,21 @@ verify_proof() {
     verify_archive "$1/checks-rejected.tar.gz" checks 1
     verify_archive "$1/portable-rejected.tar.gz" portable 1
 }
-if [[ $# == 2 && "$1" == verify ]]; then
-    verify_proof "$2"
+verify_upload() {
+    local directory="$1"
+    mkdir "$fixture/upload"
+    # Our upload is exactly three regular qualification archives. Refuse links,
+    # extra members and path redirection before extracting even owned evidence.
+    printf '%s\n' evidence.tar.gz checks-rejected.tar.gz portable-rejected.tar.gz > "$fixture/expected-upload"
+    tar -tzf "$directory/evidence.tar.gz" > "$fixture/upload-members"
+    cmp "$fixture/expected-upload" "$fixture/upload-members" || return
+    tar -tvzf "$directory/evidence.tar.gz" > "$fixture/upload-types"
+    awk 'substr($0, 1, 1) != "-" { exit 1 }' "$fixture/upload-types" || return
+    tar -xzf "$directory/evidence.tar.gz" -C "$fixture/upload"
+    verify_proof "$fixture/upload"
+}
+if [[ $# == 2 && ( "$1" == verify || "$1" == verify-upload ) ]]; then
+    if [[ "$1" == verify-upload ]]; then verify_upload "$2"; else verify_proof "$2"; fi
     echo 'Downloaded normal/rejected-selection evidence bytes, modes, links, statuses and outcomes passed'
     fixture_complete=true
     exit 0
@@ -480,7 +486,28 @@ if PATH="$fixture/bin:$PATH" RUNNER_TEMP="$fixture/failed-temp" bash "$collector
 [[ -f "$payload" && ! -e "$fixture/failed-temp/ic-testkit-checks-failure/evidence.tar.gz" ]] || exit 1
 if [[ -n "${IC_TESTKIT_ARCHIVE_PROOF_DIR:-}" ]]; then
     mkdir "$IC_TESTKIT_ARCHIVE_PROOF_DIR"
-    cp "$fixture/proof/"*.tar.gz "$IC_TESTKIT_ARCHIVE_PROOF_DIR/"
+    tar -czf "$IC_TESTKIT_ARCHIVE_PROOF_DIR/evidence.tar.gz" -C "$fixture/proof" \
+        evidence.tar.gz checks-rejected.tar.gz portable-rejected.tar.gz
+    mkdir "$fixture/verify-upload"
+    TMPDIR="$fixture/verify-upload" bash "$root/scripts/ci/test-failure-evidence.sh" \
+        verify-upload "$IC_TESTKIT_ARCHIVE_PROOF_DIR"
+    for invalid in extra link; do
+        mkdir "$fixture/upload-$invalid" "$fixture/upload-$invalid-input" "$fixture/verify-upload-$invalid"
+        cp "$fixture/proof/"*.tar.gz "$fixture/upload-$invalid-input/"
+        members=(evidence.tar.gz checks-rejected.tar.gz portable-rejected.tar.gz)
+        if [[ "$invalid" == extra ]]; then
+            printf extra > "$fixture/upload-$invalid-input/extra"
+            members+=(extra)
+        else
+            rm "$fixture/upload-$invalid-input/evidence.tar.gz"
+            ln -s "$fixture/proof/evidence.tar.gz" "$fixture/upload-$invalid-input/evidence.tar.gz"
+        fi
+        tar -czf "$fixture/upload-$invalid/evidence.tar.gz" -C "$fixture/upload-$invalid-input" "${members[@]}"
+        status=0
+        TMPDIR="$fixture/verify-upload-$invalid" bash "$root/scripts/ci/test-failure-evidence.sh" \
+            verify-upload "$fixture/upload-$invalid" > "$fixture/upload-$invalid.log" 2>&1 || status=$?
+        [[ "$status" != 0 ]] || exit 1
+    done
 fi
 echo 'Failure evidence selections, archive round trips and failure retention passed'
 fixture_complete=true

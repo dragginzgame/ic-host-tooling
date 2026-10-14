@@ -8,6 +8,40 @@ This file ships in the crate archive so upgrades can be completed without the
 repository checkout. The complete historical changelog remains at
 <https://github.com/dragginzgame/ic-testkit/blob/main/CHANGELOG.md>.
 
+## [0.39.0]
+
+### Breaking
+
+- Call Candid extensions on the standalone fixture's `pocket_ic()` with its
+  `canister_id()` explicitly. Remove the fixture's forwarding methods while
+  retaining owned installation and decomposition
+  ([#78](https://github.com/dragginzgame/ic-testkit/issues/78)).
+
+Import `ic_testkit::pic::CandidCallExt` and pass the installed canister ID to
+the existing extension, for example
+`fixture.pocket_ic().update_candid(fixture.canister_id(), "method", args)`.
+Explicit-sender and panicking calls use that same PocketIC/ID boundary. This
+changes no retained format; standalone fixtures and startup directories are
+process-local.
+
+### Changed
+
+- Delegate private startup directory allocation and cleanup to `tempfile`,
+  retaining port readiness, private output files and caller-owned log retention
+  ([#78](https://github.com/dragginzgame/ic-testkit/issues/78)).
+
+- Require Host 0.17.8 or newer, including its native permission conversion fix
+  for macOS CLI builds
+  ([#77](https://github.com/dragginzgame/ic-testkit/issues/77)).
+
+- Adopt Shared Tooling 0.12.0 for contributor tooling, sharing exact artifact
+  readback and checked release-version rendering. Release preparation now refuses
+  unnumbered or misplaced candidates while preserving metadata and history. Tool
+  selections and library contracts are unchanged
+  ([#73](https://github.com/dragginzgame/ic-testkit/issues/73),
+  [#59](https://github.com/dragginzgame/ic-testkit/issues/59),
+  [Shared #162](https://github.com/dragginzgame/shared-tooling/issues/162)).
+
 ## [0.38.0] - 2026-10-13
 
 ### Breaking: one fixture-pool lifecycle

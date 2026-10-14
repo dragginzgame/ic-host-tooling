@@ -1,10 +1,7 @@
-use candid::{CandidType, Principal, utils::ArgumentEncoder};
+use candid::Principal;
 use pocket_ic::PocketIc;
-use serde::de::DeserializeOwned;
 
-use super::{
-    CandidCallError, CandidCallExt, CanisterInstallExt, InstallSpec, StandaloneCanisterInstallError,
-};
+use super::{CanisterInstallExt, InstallSpec, StandaloneCanisterInstallError};
 
 /// One caller-built PocketIC instance and one installed canister.
 ///
@@ -62,113 +59,5 @@ impl StandaloneCanisterFixture {
     #[must_use]
     pub fn into_parts(self) -> (PocketIc, Principal) {
         (self.pocket_ic, self.canister_id)
-    }
-
-    /// Forward one typed update call to this fixture's canister id.
-    pub fn update_candid<T, A>(&self, method: &str, args: A) -> Result<T, CandidCallError>
-    where
-        T: CandidType + DeserializeOwned,
-        A: ArgumentEncoder,
-    {
-        self.pocket_ic.update_candid(self.canister_id, method, args)
-    }
-
-    /// Forward one typed update call to this fixture's canister id, panicking
-    /// on rejection or Candid codec failure.
-    ///
-    /// This does not unwrap application-level results. For example,
-    /// `update_candid_or_panic::<Result<T, E>, _>(...)` returns `Result<T, E>`.
-    #[track_caller]
-    pub fn update_candid_or_panic<T, A>(&self, method: &str, args: A) -> T
-    where
-        T: CandidType + DeserializeOwned,
-        A: ArgumentEncoder,
-    {
-        self.pocket_ic
-            .update_candid_or_panic(self.canister_id, method, args)
-    }
-
-    /// Forward one typed update call with an explicit caller to this fixture's canister id.
-    pub fn update_candid_as<T, A>(
-        &self,
-        caller: Principal,
-        method: &str,
-        args: A,
-    ) -> Result<T, CandidCallError>
-    where
-        T: CandidType + DeserializeOwned,
-        A: ArgumentEncoder,
-    {
-        self.pocket_ic
-            .update_candid_as(self.canister_id, caller, method, args)
-    }
-
-    /// Forward one typed update call with an explicit caller to this fixture's
-    /// canister id, panicking on rejection or Candid codec failure.
-    ///
-    /// This does not unwrap application-level results. For example,
-    /// `update_candid_as_or_panic::<Result<T, E>, _>(...)` returns `Result<T, E>`.
-    #[track_caller]
-    pub fn update_candid_as_or_panic<T, A>(&self, caller: Principal, method: &str, args: A) -> T
-    where
-        T: CandidType + DeserializeOwned,
-        A: ArgumentEncoder,
-    {
-        self.pocket_ic
-            .update_candid_as_or_panic(self.canister_id, caller, method, args)
-    }
-
-    /// Forward one typed query call to this fixture's canister id.
-    pub fn query_candid<T, A>(&self, method: &str, args: A) -> Result<T, CandidCallError>
-    where
-        T: CandidType + DeserializeOwned,
-        A: ArgumentEncoder,
-    {
-        self.pocket_ic.query_candid(self.canister_id, method, args)
-    }
-
-    /// Forward one typed query call to this fixture's canister id, panicking on
-    /// rejection or Candid codec failure.
-    ///
-    /// This does not unwrap application-level results. For example,
-    /// `query_candid_or_panic::<Result<T, E>, _>(...)` returns `Result<T, E>`.
-    #[track_caller]
-    pub fn query_candid_or_panic<T, A>(&self, method: &str, args: A) -> T
-    where
-        T: CandidType + DeserializeOwned,
-        A: ArgumentEncoder,
-    {
-        self.pocket_ic
-            .query_candid_or_panic(self.canister_id, method, args)
-    }
-
-    /// Forward one typed query call with an explicit caller to this fixture's canister id.
-    pub fn query_candid_as<T, A>(
-        &self,
-        caller: Principal,
-        method: &str,
-        args: A,
-    ) -> Result<T, CandidCallError>
-    where
-        T: CandidType + DeserializeOwned,
-        A: ArgumentEncoder,
-    {
-        self.pocket_ic
-            .query_candid_as(self.canister_id, caller, method, args)
-    }
-
-    /// Forward one typed query call with an explicit caller to this fixture's
-    /// canister id, panicking on rejection or Candid codec failure.
-    ///
-    /// This does not unwrap application-level results. For example,
-    /// `query_candid_as_or_panic::<Result<T, E>, _>(...)` returns `Result<T, E>`.
-    #[track_caller]
-    pub fn query_candid_as_or_panic<T, A>(&self, caller: Principal, method: &str, args: A) -> T
-    where
-        T: CandidType + DeserializeOwned,
-        A: ArgumentEncoder,
-    {
-        self.pocket_ic
-            .query_candid_as_or_panic(self.canister_id, caller, method, args)
     }
 }

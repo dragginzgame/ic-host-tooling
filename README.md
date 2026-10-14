@@ -161,7 +161,7 @@ the behavior under test:
 | Fixture | Best fit |
 | --- | --- |
 | Fresh caller-owned `PocketIc` | Installation, upgrade, topology, teardown, time, cycle-accounting, and snapshot behavior |
-| `StandaloneCanisterFixture` | A single installed canister with concise typed calls, but no cross-test reuse |
+| `StandaloneCanisterFixture` | Owns a single installed canister; use explicit-ID calls, without cross-test reuse |
 | `CachedPocketIcBaselinePool<StandaloneCanisterRecipe<_>>` | Repeated single-canister scenarios whose relevant state is captured by one baseline snapshot |
 | `CachedPocketIcBaselinePool<R>` | Expensive multi-canister topologies with an explicit recipe for snapshots, non-snapshot state, readiness, and invariants |
 
@@ -502,7 +502,7 @@ the active endpoint.
 ```rust,no_run
 use candid::Principal;
 use ic_testkit::pic::{
-    InstallSpec, PocketIcBuilder, StandaloneCanisterFixture,
+    CandidCallExt, InstallSpec, PocketIcBuilder, StandaloneCanisterFixture,
 };
 
 fn install_counter(wasm: Vec<u8>, init_bytes: Vec<u8>)
@@ -518,7 +518,7 @@ fn install_counter(wasm: Vec<u8>, init_bytes: Vec<u8>)
             .label("counter"),
     )?;
 
-    let _value: u64 = fixture.query_candid("get", ())?;
+    let _value: u64 = fixture.pocket_ic().query_candid(fixture.canister_id(), "get", ())?;
     Ok(fixture)
 }
 ```

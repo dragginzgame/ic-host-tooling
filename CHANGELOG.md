@@ -6,6 +6,35 @@ documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.39.0]
+
+### Breaking
+
+- Call Candid extensions on the standalone fixture's `pocket_ic()` with its
+  `canister_id()` explicitly. Remove the fixture's forwarding methods while
+  retaining owned installation and decomposition
+  ([#78](https://github.com/dragginzgame/ic-testkit/issues/78)).
+
+### Changed
+
+- Delegate private startup directory allocation and cleanup to `tempfile`,
+  retaining port readiness, private output files and caller-owned log retention
+  ([#78](https://github.com/dragginzgame/ic-testkit/issues/78)).
+
+- Require Host 0.17.8 or newer, including its native permission conversion fix
+  for macOS CLI builds
+  ([#77](https://github.com/dragginzgame/ic-testkit/issues/77)).
+
+- Adopt Shared Tooling 0.12.0 for contributor tooling, sharing exact artifact
+  readback and checked release-version rendering. Release preparation now refuses
+  unnumbered or misplaced candidates while preserving metadata and history. Tool
+  selections and library contracts are unchanged
+  ([#73](https://github.com/dragginzgame/ic-testkit/issues/73),
+  [#59](https://github.com/dragginzgame/ic-testkit/issues/59),
+  [Shared #162](https://github.com/dragginzgame/shared-tooling/issues/162)).
+
+[Integration details](crates/ic-testkit/CHANGELOG.md#0390)
+
 ## [0.38.0] - 2026-10-13
 
 ### Breaking

@@ -222,10 +222,10 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: evidence-qualification-${{ matrix.os }}
-          path: ${{ runner.temp }}/ic-testkit-archive-proof/*.tar.gz
+          path: ${{ runner.temp }}/ic-testkit-archive-proof/evidence.tar.gz
           retention-days: 1
           if-no-files-found: error
-      - name: Wait for archive qualification artifact discovery
+      - name: Download and verify exact archive qualification artifact
         id: archive-discovery
         timeout-minutes: 2
         shell: /bin/bash --noprofile --norc -e -u -o pipefail {0}
@@ -234,25 +234,14 @@ jobs:
           EVIDENCE_REPOSITORY: ${{ github.repository }}
           EVIDENCE_RUN: ${{ github.run_id }}
           EVIDENCE_ARTIFACT: ${{ steps.archive-upload.outputs.artifact-id }}
+          EVIDENCE_DIGEST: ${{ steps.archive-upload.outputs.artifact-digest }}
         run: |
-          bash scripts/ci/wait-for-artifact.sh "$EVIDENCE_REPOSITORY" "$EVIDENCE_RUN" "$EVIDENCE_ARTIFACT"
-          mkdir "$RUNNER_TEMP/ic-testkit-archive-downloaded"
-      - name: Download archive qualification artifact
-        if: ${{ !cancelled() && steps.archive-discovery.outcome == 'success' }}
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
-        with:
-          artifact-ids: ${{ steps.archive-upload.outputs.artifact-id }}
-          github-token: ${{ github.token }}
-          repository: ${{ github.repository }}
-          run-id: ${{ github.run_id }}
-          merge-multiple: true
-          digest-mismatch: error
-          path: ${{ runner.temp }}/ic-testkit-archive-downloaded
+          bash scripts/ci/download-evidence.sh "$EVIDENCE_REPOSITORY" "$EVIDENCE_RUN" "$EVIDENCE_ARTIFACT" "$EVIDENCE_DIGEST" "$RUNNER_TEMP/ic-testkit-archive-downloaded"
       - name: Verify downloaded evidence archive
         shell: /bin/bash --noprofile --norc -e -u -o pipefail {0}
         env:
           TMPDIR: ${{ runner.temp }}/ic-testkit-portable-fixtures
-        run: CDPATH="$PWD" /bin/bash scripts/ci/test-failure-evidence.sh verify "$RUNNER_TEMP/ic-testkit-archive-downloaded"
+        run: CDPATH="$PWD" /bin/bash scripts/ci/test-failure-evidence.sh verify-upload "$RUNNER_TEMP/ic-testkit-archive-downloaded"
       - name: Check native managed-server lifecycle
         run: cargo test -p ic-testkit --locked --offline --lib pic::startup::tests
       - name: Check synthetic PocketIC transport and teardown
