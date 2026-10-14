@@ -1,11 +1,42 @@
 # Changelog
 
-## [0.17.14]
+## [0.18.1]
 
 - Add opt-in filesystem fixture directory allocation and use it in filesystem
   and process tests. Preserve occupied entries and leave retention and cleanup
   with callers ([#98 — Fixture directory allocation](https://github.com/dragginzgame/ic-host-tooling/issues/98)).
-  [Detailed notes](docs/changelog/0.17.md).
+  [Detailed notes](docs/changelog/0.18.md).
+
+## [0.18.0] - 2026-10-14
+
+### Breaking
+
+- Following filesystem reads/hashes now open first, then admit descriptor type
+  and size. Callers must handle native open failures before metadata rejection
+  ([#96 — Archive, read and lock projection](https://github.com/dragginzgame/ic-host-tooling/issues/96)).
+
+### Changed
+
+- Hash admitted immutable archive slices directly, retaining digest-before-decode
+  ordering and mismatch evidence ([#96 — Archive, read and lock projection](https://github.com/dragginzgame/ic-host-tooling/issues/96)).
+- Delegate saved-source release lockfile projection to Shared Tooling while
+  retaining exact payload and historical recovery checks ([#96 — Archive, read and lock projection](https://github.com/dragginzgame/ic-host-tooling/issues/96)).
+
+- Adopt Shared Tooling 0.12.7 with clearer release-note layout and reviewed
+  CI-selection/toolchain guidance
+  ([#73 — Shared Tooling adoption](https://github.com/dragginzgame/ic-host-tooling/issues/73)).
+
+- Add retained private-directory creation and pathname admission, preserving creation
+  phase, owner-only modes and caller-owned namespace custody.
+  ([#94 — Directory and buffered-output custody](https://github.com/dragginzgame/ic-host-tooling/issues/94)).
+- Complete retained buffered child stdout through the existing bounded capture
+  engine, preserving prefetched bytes, cached exits and cleanup ownership.
+  ([#94 — Directory and buffered-output custody](https://github.com/dragginzgame/ic-host-tooling/issues/94)).
+
+- Add bounded generic Wasm custom-section encoding so consumers can share framing
+  while retaining metadata and module-assembly policy
+  ([#77 — Bounded Wasm custom-section encoder](https://github.com/dragginzgame/ic-host-tooling/issues/77)).
+  [Detailed notes](docs/changelog/0.18.md).
 
 ## [0.17.13] - 2026-10-14
 

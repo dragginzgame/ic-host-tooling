@@ -57,6 +57,149 @@ fn fixture() -> Vec<u8> {
 }
 
 #[test]
+fn encodes_complete_custom_sections_with_exact_names_data_and_append_order() {
+    let mut module = HEADER.to_vec();
+    for (section, golden) in [
+        (
+            CustomSection {
+                name: "",
+                data: &[],
+            },
+            &[0, 1, 0][..],
+        ),
+        (
+            CustomSection {
+                name: "é",
+                data: &[0xff, 0],
+            },
+            &[0, 5, 2, 0xc3, 0xa9, 0xff, 0][..],
+        ),
+        (
+            CustomSection {
+                name: "é",
+                data: b"second",
+            },
+            &[0, 9, 2, 0xc3, 0xa9, b's', b'e', b'c', b'o', b'n', b'd'][..],
+        ),
+    ] {
+        let encoded = encode_custom_section(section, golden.len()).unwrap();
+        assert_eq!(encoded, golden);
+        assert!(matches!(
+            encode_custom_section(section, golden.len() - 1),
+            Err(CustomSectionEncodingError::LimitExceeded { actual, limit })
+                if actual == golden.len() && limit == golden.len() - 1
+        ));
+        module.extend(encoded);
+    }
+    let facts = inspect(&module, LIMITS).unwrap();
+    assert_eq!(
+        facts.custom_sections,
+        [
+            CustomSection {
+                name: "",
+                data: &[]
+            },
+            CustomSection {
+                name: "é",
+                data: &[0xff, 0],
+            },
+            CustomSection {
+                name: "é",
+                data: b"second",
+            },
+        ]
+    );
+    assert!(matches!(
+        encode_custom_section(
+            CustomSection {
+                name: "",
+                data: &[]
+            },
+            0
+        ),
+        Err(CustomSectionEncodingError::LimitExceeded {
+            actual: 3,
+            limit: 0
+        })
+    ));
+}
+
+#[test]
+fn custom_section_lengths_match_independent_framing_at_leb_boundaries() {
+    for (name_bytes, data_bytes) in [
+        (0, 126),
+        (0, 127),
+        (127, 0),
+        (128, 0),
+        (0, 16_382),
+        (0, 16_383),
+        (16_383, 0),
+        (16_384, 0),
+    ] {
+        let name = "n".repeat(name_bytes);
+        let data = vec![0xff; data_bytes];
+        let mut expected = HEADER.to_vec();
+        // Keep the parser fixture's independent framing owner as a byte oracle.
+        custom(&mut expected, &name, &data);
+        let encoded_bytes = expected.len() - HEADER.len();
+        let section = CustomSection {
+            name: &name,
+            data: &data,
+        };
+        let encoded = encode_custom_section(section, encoded_bytes).unwrap();
+        assert_eq!(encoded, expected[HEADER.len()..]);
+        assert!(matches!(
+            encode_custom_section(section, encoded_bytes - 1),
+            Err(CustomSectionEncodingError::LimitExceeded { .. })
+        ));
+        let facts = inspect(
+            &expected,
+            InspectionLimits {
+                module_bytes: expected.len(),
+                ..LIMITS
+            },
+        )
+        .unwrap();
+        assert_eq!(facts.custom_sections, [section]);
+    }
+}
+
+#[test]
+fn custom_section_length_admission_rejects_overflow_before_allocation() {
+    let maximum = usize::try_from(u32::MAX).unwrap();
+    for (name_bytes, data_bytes) in [
+        (usize::MAX, 0),
+        (0, usize::MAX),
+        (maximum, 0),
+        (0, maximum),
+        (128, maximum - 129),
+    ] {
+        assert!(matches!(
+            custom_section_layout(name_bytes, data_bytes, usize::MAX),
+            Err(CustomSectionEncodingError::LengthOverflow)
+        ));
+    }
+    // Exercise the u32 maximum arithmetically without retaining gigabyte inputs.
+    let encoded_bytes = usize::try_from(u64::from(u32::MAX) + 6);
+    if let Ok(encoded_bytes) = encoded_bytes {
+        assert_eq!(
+            custom_section_layout(128, maximum - 130, encoded_bytes).unwrap(),
+            (128, u32::MAX, encoded_bytes)
+        );
+        assert!(matches!(
+            custom_section_layout(128, maximum - 130, encoded_bytes - 1),
+            Err(CustomSectionEncodingError::LimitExceeded { actual, limit })
+                if actual == encoded_bytes && limit == encoded_bytes - 1
+        ));
+    } else {
+        assert!(matches!(
+            custom_section_layout(128, maximum - 130, usize::MAX),
+            Err(CustomSectionEncodingError::LengthOverflow)
+        ));
+    }
+}
+
+#[test]
 fn reports_exact_metrics_exports_and_borrowed_metadata_in_encounter_order() {
     let bytes = fixture();
     let original = bytes.clone();

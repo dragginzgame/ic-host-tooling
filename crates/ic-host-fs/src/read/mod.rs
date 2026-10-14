@@ -22,6 +22,8 @@ mod tests;
 ///
 /// Trusted path selection and protection against concurrent replacement remain
 /// caller-owned. This does not admit a path for later execution.
+/// Open errors precede descriptor type/size admission; the bounded stream then
+/// detects growth beyond the allowance.
 ///
 /// # Errors
 /// Returns filesystem, non-regular-file, or byte-limit failures.
@@ -31,8 +33,9 @@ pub fn hash_file(path: &Path, max_bytes: u64) -> Result<ArtifactIdentity, Artifa
 
 /// Read a regular artifact into bounded, fallibly allocated storage.
 ///
-/// Metadata is an early rejection only; the stream is bounded independently to
-/// detect growth. Paths must be selected from a caller-controlled filesystem.
+/// The opened descriptor supplies type and early size admission; the stream is
+/// bounded independently to detect growth. Open errors precede that admission.
+/// Paths must be selected from a caller-controlled filesystem.
 ///
 /// # Errors
 /// Returns filesystem, non-regular-file, allocation, or byte-limit failures.
@@ -72,6 +75,10 @@ pub fn read_opened_file(file: File, max_bytes: usize) -> Result<Vec<u8>, Artifac
 /// # Errors
 /// Returns the original open/metadata error or [`ArtifactError::NotRegularFile`].
 pub fn open_regular_file(path: &Path) -> Result<File, ArtifactError> {
+    open_file(path, u64::MAX)
+}
+
+fn open_file(path: &Path, limit: u64) -> Result<File, ArtifactError> {
     #[cfg(unix)]
     let file = {
         use rustix::fs::{Mode, OFlags, open};
@@ -86,16 +93,6 @@ pub fn open_regular_file(path: &Path) -> Result<File, ArtifactError> {
     };
     #[cfg(not(unix))]
     let file = File::open(path)?;
-    if !file.metadata()?.is_file() {
-        return Err(ArtifactError::NotRegularFile);
-    }
-    Ok(file)
-}
-
-fn open_file(path: &Path, limit: u64) -> Result<File, ArtifactError> {
-    // Keep early size admission, then validate the actually opened descriptor.
-    check_metadata(&std::fs::metadata(path)?, limit)?;
-    let file = open_regular_file(path)?;
     check_metadata(&file.metadata()?, limit)?;
     Ok(file)
 }

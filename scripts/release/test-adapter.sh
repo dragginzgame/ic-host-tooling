@@ -21,16 +21,18 @@ export CARGO_NET_OFFLINE=true RUSTUP_AUTO_INSTALL=0
 ADAPTER_REAL_CARGO="$(command -v cargo)"
 export ADAPTER_REAL_CARGO
 ADAPTER_REAL_BASH="$(command -v bash)"
-ADAPTER_REAL_AWK="$(command -v awk)"
-export ADAPTER_REAL_BASH ADAPTER_REAL_AWK
+ADAPTER_REAL_YQ="$(command -v "${YQ:-yq}")"
+export ADAPTER_REAL_BASH ADAPTER_REAL_YQ
 export ADAPTER_METADATA_REWRITE="$root/scripts/release/metadata-version.awk"
+export ADAPTER_LOCK_REWRITE="$root/scripts/ci/rewrite-local-lock-versions.pl"
 export ADAPTER_EVENTS="$fixture/events"
 export RELEASE_SOURCE=0000000000000000000000000000000000000000
 export RELEASE_DATE=2026-10-06 RELEASE_KIND=minor
 adapter_root="$fixture/adapter"
 for input in scripts/release/adapter.sh scripts/release/metadata-version.awk \
     scripts/ci/read-cargo-workspace-version.sh scripts/ci/check-release-source.sh \
-    scripts/ci/next-release-version.sh scripts/ci/finalize-release-changelog.awk; do
+    scripts/ci/next-release-version.sh scripts/ci/finalize-release-changelog.awk \
+    scripts/ci/rewrite-local-lock-versions.pl; do
     mkdir -p "$adapter_root/${input%/*}"
     cp "$root/$input" "$adapter_root/$input"
 done
@@ -138,12 +140,13 @@ case "$*" in
             : > "$ADAPTER_CACHE"
         fi ;;
     "set-version --workspace --offline $RELEASE_VERSION")
-        for mode in manifest lock; do
-            if [[ "$mode" == manifest ]]; then file=Cargo.toml; else file=Cargo.lock; fi
-            awk -v mode="$mode" -v packages="$ADAPTER_PACKAGES" -v replacement="$RELEASE_VERSION" \
-                -f "$ADAPTER_METADATA_REWRITE" "$file" > "$file.candidate"
-            mv "$file.candidate" "$file"
-        done ;;
+        awk -v mode=manifest -v packages="$ADAPTER_PACKAGES" -v replacement="$RELEASE_VERSION" \
+            -f "$ADAPTER_METADATA_REWRITE" Cargo.toml > Cargo.toml.candidate
+        mv Cargo.toml.candidate Cargo.toml
+        read -r -a packages <<< "$ADAPTER_PACKAGES"
+        perl "$ADAPTER_LOCK_REWRITE" Cargo.lock "$RELEASE_PREVIOUS" "$RELEASE_VERSION" \
+            "${packages[@]}" > Cargo.lock.candidate
+        mv Cargo.lock.candidate Cargo.lock ;;
     *) echo "Unexpected Cargo operation: $*" >&2; exit 2 ;;
 esac
 STUB
@@ -168,13 +171,14 @@ if [[ "${1##*/}" == "${ADAPTER_FAILED_READER:-}" ]]; then
 fi
 exec "$ADAPTER_REAL_BASH" "$@"
 STUB
-cat > "$fixture/bin/awk" <<'STUB'
+cat > "$fixture/bin/yq" <<'STUB'
 #!/usr/bin/env bash
 set -euo pipefail
-"$ADAPTER_REAL_AWK" "$@"
-if [[ "${ADAPTER_FAILED_READER:-}" == lock && "$*" == '-v mode=lock -v read_version=1 '* ]]; then exit 23; fi
+"$ADAPTER_REAL_YQ" "$@"
+if [[ "${ADAPTER_FAILED_READER:-}" == lock && "$*" == '-p toml -o json .' ]]; then exit 23; fi
 STUB
-chmod +x "$fixture/bin/bash" "$fixture/bin/awk"
+chmod +x "$fixture/bin/bash" "$fixture/bin/yq"
+export YQ="$fixture/bin/yq"
 export PATH="$fixture/bin:$PATH"
 cd "$fixture"
 
