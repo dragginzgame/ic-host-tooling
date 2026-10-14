@@ -2,17 +2,24 @@
 
 ## Private-parent ancestor admission — pending 0.18.0
 
-Released Host FS 0.17.11 exposed durable private-parent preparation. Its
-first implementation rejects a symlink at the missing-directory boundary but
-can accept an existing descendant reached through an earlier symlink. This
-patch checks each existing path component before creation and rejects parent
-components, preserving the documented symlink refusal and caller-owned root
-confinement. A regression covers both an already-existing descendant and a
-missing descendant beneath a symlink. The focused regression, strict FS
-Clippy and complete Linux `make ci msrv-workspace` gate pass on this isolated
-branch. Native macOS acceptance remains separate. No package version or lock changed.
+PR #90 is refreshed against delivered 0.17.13, preserving the complete release
+history and adopted Shared 0.12.5 policy. The private-parent helper checks every
+existing path component and rejects `..` before creation. Its Rustdoc explains
+physical-path admission and retains caller-owned namespace stability/root
+confinement; this is a breaking public refusal change
+([PR #90 — Reject symlink ancestors](https://github.com/dragginzgame/ic-host-tooling/pull/90)).
 
-## Descriptor locks for IC Build — pending 0.17.11
+The existing regression now checks direct/ancestor aliases, present/missing
+descendants, parent traversal before creation, and retained symlink/file bytes.
+All 29 durable cases, strict FS Clippy/Rustdoc and actual Rust 1.88 all-target/
+all-feature checking pass in the isolated checkout. Formatting, manifest sorting,
+snapshot integrity and documentation links pass. Original branch qualification
+stays bound to `caf82e04dcdf195be63fc7b31c5b5c7a344aec62`; new evidence,
+source hashes and before-images are retained under `/tmp/host-pr90-review.RIGr0I/`.
+Full repository/native gates are not rerun for this PR refresh. Own versions
+remain 0.17.13; the real checkout's pending custom-section work is untouched.
+
+## Descriptor locks for IC Build — delivered 0.17.11
 
 The maintainer approved the scoped owner additions at
 [#89](https://github.com/dragginzgame/ic-host-tooling/issues/89).
@@ -37,28 +44,29 @@ until publication; its normal graph still uses published dependencies. Evidence
 and reviewed consumer patch are under `/tmp/ic-build-cleanup3/`. This task performs
 no staging, commit, own version change, release or publication in either owner.
 
-## Shared Tooling adoption — pending 0.17.11
+## Shared Tooling adoption — delivered 0.17.13
 
-Shared 0.12.3 at `ac68c74439e13f19229a35f424f968c64325cc44` is exported
+Shared 0.12.5 at `4256171b5b7ec4c4cc4078548c1c1617ee150699` is exported
 from a clean isolated copy of pushed upstream main. All 92 roots and 109 payloads
-remain selected. Only the baseline, contribution and maintenance rules change;
-every executable payload and tool pin matches the previous snapshot. The rules
-describe isolated cross-repository PR contributions while preserving explicit
-read-only restrictions; this repository's local mutation scope stays intact
-([#73](https://github.com/dragginzgame/ic-host-tooling/issues/73)).
+remain selected. Only baseline/contribution/workspace/audit guidance changes;
+executable payloads and tool pins match 0.12.4. Local AGENTS/README instructions
+and Make help now link to the shared focused-check cadence, retaining explicit
+full-release validation and configured native CI. The dashboard change stays
+outside Host's selected closure
+([#73 — Shared Tooling adoption](https://github.com/dragginzgame/ic-host-tooling/issues/73)).
 
-Snapshot integrity, repeat preview (109 KEEP), shared/local documentation links
-and diff checks pass. Manifest/lock, tool pins and index are preserved. Before-
-images and logs are retained under `/tmp/host-shared0123.FABudy/`. Existing private-
-parent work is untouched; another worker's #89 source/changelog edits arrived
-after the initial preservation check and are excluded from this adoption's
-qualification. This governance-only update needs no release note under the
-shared changelog rules; package versions remain 0.17.10. Full Rust/CI gates are
-not rerun for unchanged executable tooling, and no native macOS result is claimed.
+Snapshot integrity, repeat preview (109 KEEP), shared/local documentation links,
+actual Make help and consistency/diff checks pass. Rust source, manifest/lock,
+pins and index are preserved. Before-images and logs are retained under
+`/tmp/host-shared0125.bLuQyz/`. Source is a clean isolated copy of pushed main.
+Package versions remain 0.17.12; compatible pending notes select 0.17.13.
+The preceding executable-tooling gate stays bound to the 0.12.4 inputs in
+`/tmp/host-shared0124.JnTpCt/`. No full suite runs for this documentation/help
+update under the adopted cadence, and no new native result is claimed.
 No staging, commit, release, publication, executable download or sibling mutation
 ran.
 
-## Private parent preparation — pending 0.17.11
+## Private parent preparation — delivered 0.17.11
 
 The Host FS durable module now exposes owner-only missing-parent preparation,
 reusing its existing directory-creation and synchronization sequence. Existing
@@ -260,10 +268,10 @@ No native macOS, commit, release, publication or actual provider operation ran.
 
 ## Released source and baseline
 
-The latest finalized release is **0.17.10**, commit
-`330c015e16318eab169cb70424c43c241e3c0093`. Package versions remain unchanged.
-Shared Tooling **0.12.3**, revision
-`ac68c74439e13f19229a35f424f968c64325cc44`, is adopted through the canonical
+The latest finalized release is **0.17.13**, commit
+`6f26efe58f2357e92cfdc7178cf3c9e5fbf65316`. Package versions remain unchanged.
+Shared Tooling **0.12.5**, revision
+`4256171b5b7ec4c4cc4078548c1c1617ee150699`, is adopted through the canonical
 exporter from a clean isolated checkout of pushed upstream main. The snapshot
 contains 109 payloads, including the shared release-tag checker, fixture
 lifecycle helper, selected publication attempt owner and evidence collector.

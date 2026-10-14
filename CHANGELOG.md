@@ -4,10 +4,25 @@
 
 ### Breaking
 
-- `durable::prepare_private_parents` now rejects symlink ancestors and `..` path
+- `durable::prepare_private_parents` rejects symlink ancestors and `..` path
   components. Callers using directory aliases must supply a canonical physical
-  path before requesting private-parent creation.
+  path before requesting private-parent creation
+  ([PR #90 — Reject symlink ancestors](https://github.com/dragginzgame/ic-host-tooling/pull/90)).
   [Detailed notes](docs/changelog/0.18.md).
+
+## [0.17.13] - 2026-10-14
+
+- Adopt Shared Tooling 0.12.5 and align contributor guidance with focused
+  handoff checks and explicitly requested full local validation
+  ([#73 — Shared Tooling adoption](https://github.com/dragginzgame/ic-host-tooling/issues/73)).
+  [Detailed notes](docs/changelog/0.17.md).
+
+## [0.17.12] - 2026-10-14
+
+- Adopt Shared Tooling 0.12.4, sharing host/IC tool-selection admission and
+  extending installation, reuse and failed-evidence fixture coverage
+  ([#73 — Shared Tooling adoption](https://github.com/dragginzgame/ic-host-tooling/issues/73)).
+  [Detailed notes](docs/changelog/0.17.md).
 
 ## [0.17.11] - 2026-10-14
 

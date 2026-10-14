@@ -183,11 +183,12 @@ separately activates the repository-local formatter. Shared Tooling owns these
 [common commands](docs/make-interface.md) and executable installation; this
 workspace owns the four libraries, package checks and publication policy.
 
-Use `make check`, `make clippy`, `make docs-check` or `make test` with
-`PACKAGE=<crate>` for focused work. Before delivering code, run `make ci` and
-`make msrv PACKAGE=<crate>` for each affected package. Documentation-only changes
-need link, consistency and diff checks. The [host guide](docs/hosts.md) describes
-feature-specific and hook checks; `make help` lists the available commands.
+Use `make check`, `make clippy`, `make docs-check`, `make test` or `make msrv`
+with `PACKAGE=<crate>` for focused work. Follow the
+[shared validation policy](DRAGGINZGAME.md#validation-and-evidence) for when to
+select those checks or full `make ci msrv-workspace` validation. The
+[host guide](docs/hosts.md) describes feature-specific and hook checks;
+`make help` lists the available commands.
 
 Git release and crates.io publication are separate operations; a tag does not
 establish registry availability. Read the [release and publication guide](docs/publishing.md)

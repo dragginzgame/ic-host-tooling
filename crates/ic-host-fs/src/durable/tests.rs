@@ -25,9 +25,37 @@ fn private_parent_preparation_preserves_modes_and_refuses_symlinks() {
     }
     prepare_private_parents(&parent).unwrap();
     symlink(&first, fixture.root.join("linked")).unwrap();
-    assert!(prepare_private_parents(&fixture.root.join("linked/nested")).is_err());
-    assert!(prepare_private_parents(&fixture.root.join("linked/other")).is_err());
+    for path in ["linked", "linked/nested", "linked/other"] {
+        assert_eq!(
+            prepare_private_parents(&fixture.root.join(path))
+                .unwrap_err()
+                .kind(),
+            std::io::ErrorKind::NotADirectory
+        );
+    }
+    assert_eq!(fs::read_link(fixture.root.join("linked")).unwrap(), first);
     assert!(!first.join("other").exists());
+
+    for path in ["private/../outside", "missing/../outside"] {
+        assert_eq!(
+            prepare_private_parents(&fixture.root.join(path))
+                .unwrap_err()
+                .kind(),
+            std::io::ErrorKind::InvalidInput
+        );
+    }
+    assert!(!fixture.root.join("missing").exists());
+    assert!(!fixture.root.join("outside").exists());
+
+    let file = fixture.root.join("file");
+    fs::write(&file, b"preserved").unwrap();
+    assert_eq!(
+        prepare_private_parents(&file.join("child"))
+            .unwrap_err()
+            .kind(),
+        std::io::ErrorKind::NotADirectory
+    );
+    assert_eq!(fs::read(file).unwrap(), b"preserved");
 }
 
 #[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]

@@ -136,9 +136,12 @@ pub fn create_private_bytes_with_parents(
 /// directories retain their permissions. Every new directory and its parent link
 /// are synchronized before this returns. Callers retain root confinement and
 /// exclusion of concurrent namespace mutation; symlink path components reject.
+/// Supply a physical path when an ancestor alias is intentionally selected.
+/// Parent-directory (`..`) components reject before any directory is created.
 ///
 /// # Errors
-/// Rejects a non-directory or symlink component, unsupported host or failed creation/sync.
+/// Rejects a non-directory or symlink component, a parent-directory component,
+/// unsupported host or failed creation/sync.
 pub fn prepare_private_parents(parent: &Path) -> io::Result<()> {
     #[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
     {
