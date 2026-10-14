@@ -1,5 +1,25 @@
 #!/usr/bin/env bash
-# Sourced by standalone fixtures; no effects until their EXIT trap runs.
+# Sourced by standalone fixtures; effects occur only on explicit helper calls.
+# Allocate and anchor one caller-selected fixture directory before cwd changes.
+# Failure after allocation retains the directory and reports its original path.
+fixture_create() {
+    [[ $# == 1 ]] || return 2
+    case "$1" in ''|-*|*$'\r'*|*$'\n'*) return 2 ;; esac
+    local created directory status
+    created="$(mktemp -d "$1")" || return
+    directory="$(CDPATH='' cd -P -- "$created" && printf '%s/.' "$PWD")" || {
+        status=$?
+        printf 'Fixture allocation retained: %s\n' "$created" >&2 || :
+        return "$status"
+    }
+    case "$directory" in
+        *$'\r'*|*$'\n'*)
+            printf 'Fixture physical directory contains CR/LF; allocation retained: %s\n' "$created" >&2 || :
+            return 2 ;;
+    esac
+    printf '%s\n' "${directory%/.}"
+}
+
 # shellcheck disable=SC2154 # Each fixture explicitly marks successful completion.
 fixture_finish() {
     local status="$1" directory="$2" label="$3"

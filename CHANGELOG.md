@@ -1,12 +1,25 @@
 # Changelog
 
-## [0.18.2]
+## [0.18.3]
 
 - Save and restore explicitly selected Unix signal actions through one opt-in
   guard, retaining caller-owned handlers, cancellation and shutdown policy
-  ([#107](https://github.com/dragginzgame/ic-host-tooling/issues/107)).
+  ([#107 — Scoped Unix signal actions](https://github.com/dragginzgame/ic-host-tooling/issues/107)).
   [Detailed notes](docs/changelog/0.18.md).
 
+
+## [0.18.2] - 2026-10-14
+
+- Add optional strict owned IC certificate/hash-tree decoding, with explicit byte
+  and nesting limits; authentication and witness policy remain caller-owned
+  ([#109 — Owned certificate decoding](https://github.com/dragginzgame/ic-host-tooling/issues/109)).
+- Add `ic-host-text` for pure terminal-safe escaping and Unicode-aware tables,
+  with explicit formatting choices and no terminal/output policy
+  ([#110 — Host text ownership](https://github.com/dragginzgame/ic-host-tooling/issues/110)).
+- Adopt Shared Tooling 0.13.1, including its reusable fixture allocation helper
+  and publication-guide export correction; contributor tool pins stay unchanged
+  ([#73 — Shared Tooling adoption](https://github.com/dragginzgame/ic-host-tooling/issues/73)).
+  [Detailed notes](docs/changelog/0.18.md).
 
 ## [0.18.1] - 2026-10-14
 

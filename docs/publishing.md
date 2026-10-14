@@ -40,7 +40,7 @@ old evidence as validation of new source. Native qualification belongs to the
 `make publish-check` runs Cargo's publication checks with all features
 and `--locked --registry crates-io --dry-run`. It packages and verifies the selected
 workspace packages through exact `--package NAME@VERSION` selectors without
-uploading: four libraries and the `ic-host-wasm-inspect`
+uploading: five libraries and the `ic-host-wasm-inspect`
 CLI. It admits working edits so packaging can be reviewed
 before committing. It can access the registry; set `CARGO_NET_OFFLINE=true` for
 an offline attempt against already prepared caches. Registry lookup can require
