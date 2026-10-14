@@ -20,11 +20,24 @@ fixture_create() {
     printf '%s\n' "${directory%/.}"
 }
 
+# Completion admission only; callers retain evidence and cleanup policy.
+fixture_completion_status() {
+    [[ $# == 2 ]] || return 2
+    local status="$1" complete="$2"
+    # Reject invalid statuses rather than letting shell return wrap them to zero.
+    case "$status" in
+        0|[1-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5]) ;;
+        *) return 2 ;;
+    esac
+    [[ "$complete" == true || "$status" != 0 ]] || status=1
+    return "$status"
+}
+
 # shellcheck disable=SC2154 # Each fixture explicitly marks successful completion.
 fixture_finish() {
     local status="$1" directory="$2" label="$3"
     # Bash 3.2 can report zero after nounset before assertions finish.
-    [[ "${fixture_complete:-false}" == true || "$status" != 0 ]] || status=1
+    fixture_completion_status "$status" "${fixture_complete:-false}" || status=$?
     if [[ "$status" == 0 ]]; then
         # Callers anchor their created directory before changing cwd. Never let
         # a relative path or empty/root selection turn cleanup into another effect.

@@ -73,7 +73,7 @@ jobs:
             ${{ steps.tool-cache-key.outputs.root }}/cargo-cache
             ${{ steps.tool-cache-key.outputs.root }}/rust-*
           # Host's extra Cargo tool pin and installer extend the shared identity.
-          key: cargo-tools-${{ runner.os }}-${{ runner.arch }}-${{ steps.tool-cache-key.outputs.key }}-${{ hashFiles('ci/release-tools.env', 'scripts/release/tools.sh') }}
+          key: cargo-tools-${{ runner.os }}-${{ runner.arch }}-${{ steps.tool-cache-key.outputs.key }}
       - name: Prepare pinned local tools
         run: |
           make --no-print-directory install-tools
@@ -90,7 +90,7 @@ jobs:
           path: |
             ${{ steps.tool-cache-key.outputs.root }}/cargo-cache
             ${{ steps.tool-cache-key.outputs.root }}/rust-*
-          key: cargo-tools-${{ runner.os }}-${{ runner.arch }}-${{ steps.tool-cache-key.outputs.key }}-${{ hashFiles('ci/release-tools.env', 'scripts/release/tools.sh') }}
+          key: cargo-tools-${{ runner.os }}-${{ runner.arch }}-${{ steps.tool-cache-key.outputs.key }}
       - name: Run native CI
         env:
           TMPDIR: ${{ runner.temp }}/portable-fixtures

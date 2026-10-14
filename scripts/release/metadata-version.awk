@@ -10,7 +10,6 @@ BEGIN {
 /^\[/ { selected = ($0 == "[workspace.package]") }
 /^version = / && selected {
     count++
-    if (replacement != "") sub(/"[^"]+"/, "\"" replacement "\"")
 }
 $1 in owned && /version = "/ {
     count++
