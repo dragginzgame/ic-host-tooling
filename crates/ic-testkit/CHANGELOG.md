@@ -8,6 +8,15 @@ This file ships in the crate archive so upgrades can be completed without the
 repository checkout. The complete historical changelog remains at
 <https://github.com/dragginzgame/ic-testkit/blob/main/CHANGELOG.md>.
 
+## [0.40.1]
+
+### Added
+
+- Add the dependency-free `ic-testkit-native` package for scoped native allocation
+  counts and elapsed time. Workloads remain caller-owned; PocketIC and canister
+  dependencies stay out of this package
+  ([#86 — Own native allocation measurement](https://github.com/dragginzgame/ic-testkit/issues/86)).
+
 ## [0.40.0] - 2026-10-14
 
 ### Breaking

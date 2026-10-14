@@ -136,10 +136,11 @@ release-guards-check:
 	bash scripts/ci/check-release-guards.sh
 
 package:
-	+cargo package -p ic-testkit --locked --allow-dirty
+	+cargo package -p ic-testkit -p ic-testkit-native --locked --allow-dirty
 
 publish-dry-run:
 	+cargo publish -p ic-testkit --locked --dry-run --allow-dirty
+	+cargo publish -p ic-testkit-native --locked --dry-run --allow-dirty
 
 ci:
 	+@bash scripts/ci/run-validation-targets.sh --fail-fast $(addprefix --input ,$(VALIDATION_INPUTS)) $(CI_TARGETS)

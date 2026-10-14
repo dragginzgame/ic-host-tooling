@@ -6,6 +6,15 @@ documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.40.1]
+
+### Added
+
+- Add the dependency-free `ic-testkit-native` package for scoped native allocation
+  counts and elapsed time. Workloads remain caller-owned; PocketIC and canister
+  dependencies stay out of this package
+  ([#86 — Own native allocation measurement](https://github.com/dragginzgame/ic-testkit/issues/86)).
+
 ## [0.40.0] - 2026-10-14
 
 ### Breaking
