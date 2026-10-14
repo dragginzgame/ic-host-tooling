@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.17.14]
+
+- Add opt-in filesystem fixture directory allocation and use it in filesystem
+  and process tests. Preserve occupied entries and leave retention and cleanup
+  with callers ([#98 — Fixture directory allocation](https://github.com/dragginzgame/ic-host-tooling/issues/98)).
+  [Detailed notes](docs/changelog/0.17.md).
+
 ## [0.17.13] - 2026-10-14
 
 - Adopt Shared Tooling 0.12.5 and align contributor guidance with focused

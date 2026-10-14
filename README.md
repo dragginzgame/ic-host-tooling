@@ -14,6 +14,11 @@ These run locally outside canisters. The ic-host prefix identifies their ecosyst
 the generic crates have no IC runtime dependency. Compression, archive and Wasm
 support are optional features of ic-host-artifacts. Filesystem/process consumers
 select the small default artifact dependency.
+For test fixtures, opt in to `ic-host-fs`'s `test-support` feature in a
+dev-dependency and use `testing::create_fixture_directory(parent, prefix)`.
+It allocates beneath an existing physical parent, skips occupied names and
+returns the retained path. Callers own labels, custody and explicit cleanup;
+the allocator supplies no Drop guard or application lifecycle.
 `ic-host-tools` has no default features. Response decoding and
 `candid::text::normalize` are always available without artifact/filesystem/process
 dependencies or the Candid parser. Enable `candid-extraction` explicitly for

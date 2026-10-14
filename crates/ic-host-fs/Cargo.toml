@@ -10,6 +10,9 @@ description = "Local host filesystem reads, durable publication and file locking
 readme = "../../README.md"
 publish = ["crates-io"]
 
+[features]
+test-support = []
+
 [target.'cfg(unix)'.dependencies]
 rustix.workspace = true
 

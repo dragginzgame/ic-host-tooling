@@ -1,5 +1,24 @@
 # Current handoff
 
+## Fixture directory allocation — pending 0.17.14
+
+[#98 — Fixture directory allocation](https://github.com/dragginzgame/ic-host-tooling/issues/98)
+owns the opt-in `ic-host-fs::testing` allocator. Filesystem and process fixture
+constructors delegate allocation while retaining cleanup, failure retention and
+process write-versus-fork serialization. Existing entries are skipped, parent
+aliases resolve physically and caller namespaces are not treated as hostile
+directory confinement. The isolated topic branch starts from released 0.17.13;
+concurrent live Host changes are excluded and package versions remain unchanged.
+
+Linux passes 90 filesystem units, 91 process units, three focused allocation
+cases, a fresh-process occupied-name regression, strict all-target/all-feature
+Clippy, actual Rust 1.88 checks and filesystem rustdoc. Production default-feature
+checking also passes. The Build adoption rehearsal passes 157 artifact units and
+15 integration cases (one environment-dependent case ignored), strict Clippy
+and Rust 1.88 using temporary overrides only. Evidence and the consumer patch
+remain under `/tmp/ic-build-cleanup-followup/`. Native macOS qualification and
+published registry adoption remain separate; no merge, release or publication ran.
+
 ## Descriptor locks for IC Build — delivered 0.17.11
 
 The maintainer approved the scoped owner additions at
