@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.17.11]
+## [0.17.11] - 2026-10-14
 
 - Expose durable owner-only parent preparation so callers can retain private
   directory permissions while using descriptor-based file publication.
