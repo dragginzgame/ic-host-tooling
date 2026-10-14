@@ -22,7 +22,8 @@ The optional `ic-limits` profile adds only generic artifact inspection to the
 response-only graph; IC reference values and comparison remain in the tools owner.
 
 - ic-host-artifacts owns stream identities, bounded read/write/copy mechanics,
-  optional gzip encoding/decoding, verified tar member bytes and optional Wasm structural facts.
+  optional gzip encoding/decoding, verified tar member bytes, optional Wasm
+  structural facts and bounded custom-section framing.
 - ic-host-fs owns pathname/descriptor reads and the durable module's replace,
   create-new, private-file, parent synchronization and descriptor-lock operations.
 - ic-host-process owns executable resolution/admission, explicit execution context,
@@ -35,6 +36,15 @@ response-only graph; IC reference values and comparison remain in the tools owne
 Source tests move with their owner; public artifact projection tests belong to
 ic-host-artifacts. Runnable examples retain explicit dependencies on each owner.
 No generic compatibility reexports remain in ic-host-tools.
+
+`wasm::encode_custom_section` encodes an isolated custom section from the existing
+borrowed `CustomSection` view. Name and complete payload lengths must fit Wasm's
+u32 domain; the complete encoded-byte allowance is checked before fallible
+allocation. The optional Wasm feature reuses the existing locked `leb128` integer
+writer; no filesystem/process or Candid dependency is added. Names, raw payloads,
+metadata schemas, duplicate/append policy and aggregate module budgets stay with
+callers. They assemble and validate the containing module. Independent malformed-
+parser fixtures remain separate from encoder round-trip coverage.
 
 `candid::service::inspect` uses the Candid parser for self-contained grammar and
 type checking, returning method names and modes without expanding argument/return
@@ -223,7 +233,8 @@ consumer policy; no host catalog or version-range resolver is introduced.
 Additional reusable mechanics are extracted from committed sibling source:
 
 - `artifact::hash_gzip` and `hash_gzip_or_raw` reuse bounded hashing over the
-  existing single-member gzip decoder. `gzip_matches` reuses `MatchingWriter`
+  existing single-member gzip decoder. Raw payload slices are hashed directly
+  after both byte allowances. `gzip_matches` reuses `MatchingWriter`
   to compare exact decoded bytes without retaining another payload copy. Input
   admission, CRC/length and trailing-data checks have one owner shared with
   `decode_gzip`. Complete compressed/raw input is still a caller-owned slice;

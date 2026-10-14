@@ -1,6 +1,7 @@
-//! Borrowed structural facts from core WebAssembly artifacts.
+//! Borrowed structural facts and bounded custom-section framing for WebAssembly.
 //!
-//! `wasmparser` owns framing, section ordering, names and vector decoding.
+//! Inspection delegates framing, section ordering, names and vector decoding
+//! to `wasmparser`. Custom-section integers are encoded by `leb128` after admission.
 //! Inspection checks the function/data/export structures it reports, but is not
 //! instruction validation, type checking, feature admission, or IC install policy.
 //! Facts borrow source bytes; no metadata or export names are copied.
@@ -177,6 +178,118 @@ pub struct CustomSection<'a> {
     pub name: &'a str,
     /// Exact bytes after the name, with no normalization.
     pub data: &'a [u8],
+}
+
+/// Custom-section encoding failed without returning partial output.
+#[derive(Debug)]
+pub enum CustomSectionEncodingError {
+    /// A name/payload length exceeds Wasm's u32 domain or the host address space.
+    LengthOverflow,
+    /// The complete section framing exceeds the caller's byte allowance.
+    LimitExceeded {
+        /// Complete encoded section length, including its identifier and length.
+        actual: usize,
+        /// Caller-selected maximum encoded bytes.
+        limit: usize,
+    },
+    /// Storage for the admitted encoded section could not be allocated.
+    Allocation(std::collections::TryReserveError),
+}
+
+impl fmt::Display for CustomSectionEncodingError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::LengthOverflow => f.write_str("Wasm custom-section length is unrepresentable"),
+            Self::LimitExceeded { actual, limit } => {
+                write!(
+                    f,
+                    "encoded Wasm custom section has {actual} bytes, limit {limit}"
+                )
+            }
+            Self::Allocation(source) => {
+                write!(f, "Wasm custom-section allocation failed: {source}")
+            }
+        }
+    }
+}
+
+impl std::error::Error for CustomSectionEncodingError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Allocation(source) => Some(source),
+            Self::LengthOverflow | Self::LimitExceeded { .. } => None,
+        }
+    }
+}
+
+/// Encode one complete custom section using minimal unsigned LEB128 framing.
+///
+/// Includes the custom-section identifier, payload length and UTF-8 name length,
+/// preserving the exact supplied name and arbitrary data bytes. Length admission
+/// and the complete encoded-byte allowance are checked before allocation.
+/// The allowance bounds output length; allocator overhead is outside that bound.
+///
+/// Callers select section names, metadata schemas, append order, duplicates and
+/// aggregate module budgets. Module assembly and validation remain caller-owned;
+/// this function encodes only the supplied section, without a Wasm header.
+///
+/// # Errors
+/// Returns typed length, output-bound or allocation failures, with no partial
+/// section returned. No module or caller-owned destination is modified.
+#[expect(
+    clippy::missing_panics_doc,
+    reason = "the canonical integer writer uses Vec's infallible Write implementation after bounded allocation"
+)]
+pub fn encode_custom_section(
+    section: CustomSection<'_>,
+    max_bytes: usize,
+) -> Result<Vec<u8>, CustomSectionEncodingError> {
+    let (name_bytes, payload_bytes, encoded_bytes) =
+        custom_section_layout(section.name.len(), section.data.len(), max_bytes)?;
+    let mut bytes = Vec::new();
+    bytes
+        .try_reserve_exact(encoded_bytes)
+        .map_err(CustomSectionEncodingError::Allocation)?;
+    bytes.push(0);
+    // The canonical integer writer cannot fail when its sink is an admitted Vec.
+    leb128::write::unsigned(&mut bytes, u64::from(payload_bytes))
+        .expect("preallocated Vec writes cannot fail");
+    leb128::write::unsigned(&mut bytes, u64::from(name_bytes))
+        .expect("preallocated Vec writes cannot fail");
+    bytes.extend_from_slice(section.name.as_bytes());
+    bytes.extend_from_slice(section.data);
+    Ok(bytes)
+}
+
+fn custom_section_layout(
+    name_bytes: usize,
+    data_bytes: usize,
+    max_bytes: usize,
+) -> Result<(u32, u32, usize), CustomSectionEncodingError> {
+    let overflow = || CustomSectionEncodingError::LengthOverflow;
+    let name_bytes = u32::try_from(name_bytes).map_err(|_| overflow())?;
+    let data_bytes = u32::try_from(data_bytes).map_err(|_| overflow())?;
+    let payload_bytes = unsigned_width(name_bytes)
+        .checked_add(name_bytes)
+        .and_then(|bytes| bytes.checked_add(data_bytes))
+        .ok_or_else(overflow)?;
+    let encoded_bytes = 1 + u64::from(unsigned_width(payload_bytes)) + u64::from(payload_bytes);
+    let encoded_bytes = usize::try_from(encoded_bytes).map_err(|_| overflow())?;
+    if encoded_bytes > max_bytes {
+        return Err(CustomSectionEncodingError::LimitExceeded {
+            actual: encoded_bytes,
+            limit: max_bytes,
+        });
+    }
+    Ok((name_bytes, payload_bytes, encoded_bytes))
+}
+
+const fn unsigned_width(value: u32) -> u32 {
+    if value == 0 {
+        1
+    } else {
+        (u32::BITS - value.leading_zeros()).div_ceil(7)
+    }
 }
 
 /// Core Wasm facts for consumer reports and transform-contract comparisons.

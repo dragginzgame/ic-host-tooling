@@ -6,7 +6,9 @@
 //! Boundary: writes own sibling staging, publication, cleanup and filesystem syncs
 //! behind replace and create-new modes. Reads belong to [`crate::read`].
 
+mod directory;
 mod lock_wait;
+pub use directory::{DirectoryCreationError, admit_directory, create_private_directory};
 pub use lock_wait::{lock_exclusive, lock_exclusive_with_wait, lock_shared, unlock};
 #[cfg(unix)]
 mod retained;

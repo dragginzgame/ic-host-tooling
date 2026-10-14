@@ -1,30 +1,14 @@
 //! Private filesystem fixtures.
-use std::{
-    fs,
-    path::PathBuf,
-    sync::atomic::{AtomicU64, Ordering},
-};
-static SEQUENCE: AtomicU64 = AtomicU64::new(0);
+use std::{fs, path::PathBuf};
 pub struct Fixture {
     pub root: PathBuf,
 }
 impl Fixture {
     pub fn new() -> Self {
-        let root = loop {
-            let candidate = std::env::temp_dir().join(format!(
-                "ic-host-fs-test-{}-{}",
-                std::process::id(),
-                SEQUENCE.fetch_add(1, Ordering::Relaxed)
-            ));
-            match fs::create_dir(&candidate) {
-                Ok(()) => break candidate,
-                Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {}
-                Err(error) => panic!("cannot create fixture {}: {error}", candidate.display()),
-            }
-        };
-        Self {
-            root: root.canonicalize().unwrap(),
-        }
+        let root =
+            crate::testing::create_fixture_directory(&std::env::temp_dir(), "ic-host-fs-test")
+                .expect("create filesystem fixture");
+        Self { root }
     }
 }
 impl Drop for Fixture {
