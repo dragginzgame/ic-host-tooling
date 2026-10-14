@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.18.3]
+
+- Add opt-in bounded environment/network projection over effective ICP YAML;
+  preserve exact identities and reject ambiguous or malformed facts. Process,
+  discovery and funding policy remain caller-owned
+  ([#115](https://github.com/dragginzgame/ic-host-tooling/issues/115)).
+  [Detailed notes](docs/changelog/0.18.md).
+
 ## [0.18.2] - 2026-10-14
 
 - Add optional strict owned IC certificate/hash-tree decoding, with explicit byte

@@ -19,6 +19,7 @@ candid-extraction = ["dep:ic-host-artifacts", "dep:ic-host-fs", "dep:ic-host-pro
 candid-service = ["dep:candid_parser", "ic-interface"]
 certificate = ["dep:ciborium", "dep:ic-certification"]
 ic-interface = ["dep:ic-host-artifacts", "ic-host-artifacts/wasm"]
+icp-project = ["dep:serde_yaml_ng", "serde/derive"]
 ic-limits = ["dep:ic-host-artifacts", "ic-host-artifacts/wasm"]
 
 [dependencies]
@@ -30,6 +31,7 @@ ic-host-fs = { workspace = true, optional = true }
 ic-host-process = { workspace = true, optional = true }
 serde.workspace = true
 serde_json.workspace = true
+serde_yaml_ng = { workspace = true, optional = true }
 
 [dev-dependencies]
 ic-host-artifacts.workspace = true

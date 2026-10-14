@@ -323,3 +323,10 @@ performance interpretation stay caller-owned. The standard selected Cargo
 installer can prepare its published binary without feature flags. Metrics
 retirement uses published 0.17.4 and an admitted exact consumer selection; its
 working-tree integration and native acceptance remain separately qualified.
+
+The optional `icp-project` tools profile parses bounded effective YAML produced by
+`icp project show` and projects exact environment/network facts. It adds only
+Serde YAML and its derive support; the default tools graph excludes them. ICP
+owns implicit-environment and recipe resolution. Callers retain command execution,
+input budgets, selected identities, local funding and lifecycle. This module does
+not reconstruct effective configuration from raw manifests.

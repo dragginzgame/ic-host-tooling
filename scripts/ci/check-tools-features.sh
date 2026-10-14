@@ -69,4 +69,19 @@ if printf '%s\n' "$text" | rg '^(ic-host-(artifacts|fs|process|tools)|candid_par
     exit 1
 fi
 printf '%s\n' "$text" | rg '^unicode-width ' >/dev/null || exit 1
+
+project="$(cargo tree -p ic-host-tools --no-default-features --features icp-project --edges normal --prefix none --format '{p}' --locked --offline)"
+if printf '%s\n' "$project" | rg '^(ic-host-(artifacts|fs|process|text)|candid_parser|ic-certification) '; then
+    echo 'ICP project projection includes an unrelated execution or inspection owner' >&2
+    exit 1
+fi
+printf '%s\n' "$project" | rg '^serde_yaml_ng ' >/dev/null || {
+    echo 'ICP project projection lacks the canonical YAML parser' >&2
+    exit 1
+}
+if printf '%s\n' "$response" | rg '^serde_yaml_ng '; then
+    echo 'default tools graph includes the optional project parser' >&2
+    exit 1
+fi
+
 echo 'tools/text feature dependency graphs passed'

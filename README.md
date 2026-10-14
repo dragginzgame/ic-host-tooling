@@ -40,6 +40,12 @@ The optional `ic-limits` feature compares Wasm facts with explicitly selected,
 revision-bound IC resource limits, without filesystem/process dependencies when
 defaults are disabled. See the [0.5 contract changes](docs/changelog/0.5.md).
 
+The optional `icp-project` feature exposes
+`icp_project::environment_network` over bounded `icp project show` YAML.
+ICP resolves implicit environments and recipes; the parser preserves exact names
+and refuses malformed or ambiguous facts. Callers retain executable selection,
+capture limits, funding and lifecycle. The YAML parser is absent from defaults.
+
 The optional tools `certificate` feature exposes
 `certificate::{decode_certificate, decode_hash_tree}` with explicit input-byte and
 CBOR-depth limits. It returns owned `ic-certification` values and rejects trailing
