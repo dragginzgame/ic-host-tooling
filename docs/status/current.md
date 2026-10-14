@@ -1,6 +1,6 @@
 # Current handoff
 
-## Descriptor locks for IC Build — pending 0.17.11
+## Descriptor locks for IC Build — delivered 0.17.11
 
 The maintainer approved the scoped owner additions at
 [#89](https://github.com/dragginzgame/ic-host-tooling/issues/89).
@@ -25,28 +25,32 @@ until publication; its normal graph still uses published dependencies. Evidence
 and reviewed consumer patch are under `/tmp/ic-build-cleanup3/`. This task performs
 no staging, commit, own version change, release or publication in either owner.
 
-## Shared Tooling adoption — pending 0.17.11
+## Shared Tooling adoption — pending 0.17.12
 
-Shared 0.12.3 at `ac68c74439e13f19229a35f424f968c64325cc44` is exported
+Shared 0.12.4 at `8b2dbd70a24330fdc6c102a01772f4d3e5b628d7` is exported
 from a clean isolated copy of pushed upstream main. All 92 roots and 109 payloads
-remain selected. Only the baseline, contribution and maintenance rules change;
-every executable payload and tool pin matches the previous snapshot. The rules
-describe isolated cross-repository PR contributions while preserving explicit
-read-only restrictions; this repository's local mutation scope stays intact
-([#73](https://github.com/dragginzgame/ic-host-tooling/issues/73)).
+remain selected. Host/IC setup reuse one verified-selection helper, preserving
+tool-specific verification and unmanaged-path refusal. Tool fixtures gain focused
+path-context modes and unmanaged-selection coverage. Tool pins stay unchanged.
+The new changelog rule gives pending issue links descriptive titles; published
+history stays intact. Optional freshness/rendering/dashboard helpers remain
+outside Host's selected closure
+([#73 — Shared Tooling adoption](https://github.com/dragginzgame/ic-host-tooling/issues/73)).
 
-Snapshot integrity, repeat preview (109 KEEP), shared/local documentation links
-and diff checks pass. Manifest/lock, tool pins and index are preserved. Before-
-images and logs are retained under `/tmp/host-shared0123.FABudy/`. Existing private-
-parent work is untouched; another worker's #89 source/changelog edits arrived
-after the initial preservation check and are excluded from this adoption's
-qualification. This governance-only update needs no release note under the
-shared changelog rules; package versions remain 0.17.10. Full Rust/CI gates are
-not rerun for unchanged executable tooling, and no native macOS result is claimed.
-No staging, commit, release, publication, executable download or sibling mutation
-ran.
+Full combined offline Linux `make ci msrv-workspace` passes. Host/IC full fixtures
+and the new host/Rust/Make path-context modes pass under genuine Bash 3.2 with
+substituted setup effects. Strict ShellCheck, snapshot integrity, repeat preview
+(109 KEEP), shared/local documentation links and diff checks pass. Recorded Rust,
+shared payloads and validation inputs stayed unchanged; manifest/lock, pins and
+index are preserved. Before-images and logs are retained under
+`/tmp/host-shared0124.JnTpCt/`, including `full-validation.log`. The source export
+excludes the sibling's dirty changelog and portable-tool fixture. Package versions
+remain 0.17.11; compatible pending notes select 0.17.12. No contributor reinstall
+or library consumer migration is required. Native macOS qualification remains
+separate. No staging, commit, release, publication, executable download or sibling
+mutation ran.
 
-## Private parent preparation — pending 0.17.11
+## Private parent preparation — delivered 0.17.11
 
 The Host FS durable module now exposes owner-only missing-parent preparation,
 reusing its existing directory-creation and synchronization sequence. Existing
@@ -248,10 +252,10 @@ No native macOS, commit, release, publication or actual provider operation ran.
 
 ## Released source and baseline
 
-The latest finalized release is **0.17.10**, commit
-`330c015e16318eab169cb70424c43c241e3c0093`. Package versions remain unchanged.
-Shared Tooling **0.12.3**, revision
-`ac68c74439e13f19229a35f424f968c64325cc44`, is adopted through the canonical
+The latest finalized release is **0.17.11**, commit
+`afb05ee53c5ade59dad25fc4a9264a5200963e9c`. Package versions remain unchanged.
+Shared Tooling **0.12.4**, revision
+`8b2dbd70a24330fdc6c102a01772f4d3e5b628d7`, is adopted through the canonical
 exporter from a clean isolated checkout of pushed upstream main. The snapshot
 contains 109 payloads, including the shared release-tag checker, fixture
 lifecycle helper, selected publication attempt owner and evidence collector.
