@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.17.8]
+## [0.17.8] - 2026-10-14
 
 - Let custody-aware callers transfer an already spawned direct child into Host's
   bounded IO and cleanup owner, preserving one-spawn authority.
