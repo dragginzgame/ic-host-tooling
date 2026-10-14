@@ -170,7 +170,7 @@ new_fixture() {
     mkdir -p "$(dirname "$file")"
     cp "$repo_root/$file" "$file"
   done
-  for member in crates/ic-testkit crates/ic_testkit_perf_probe; do
+  for member in crates/ic-testkit crates/ic-testkit-native crates/ic_testkit_perf_probe; do
     mkdir -p "$member/src"
     cp "$repo_root/$member/Cargo.toml" "$member/Cargo.toml"
     : > "$member/src/lib.rs"
@@ -269,13 +269,14 @@ for file in CHANGELOG.md crates/ic-testkit/CHANGELOG.md; do
   cmp history-tail old-history-tail || fail "undated history changed: $file"
 done
 
-# One private policy selection drives both cache preparation and gate admission.
-# Local exported variables cannot leak into another fixture.
-check_network_policy() {
-  local policy="$1" ADAPTER_FETCH_TEST=true ADAPTER_REGISTRY_CHECK=true CARGO_NET_OFFLINE
-  export ADAPTER_FETCH_TEST ADAPTER_REGISTRY_CHECK CARGO_NET_OFFLINE
+# A subshell isolates each policy from the caller and other fixtures. Unsetting
+# a local variable can otherwise reveal the caller's exported offline policy.
+check_network_policy() (
+  # shellcheck disable=SC2030 # Each policy override is deliberately subshell-local.
+  local policy="$1" ADAPTER_FETCH_TEST=true ADAPTER_REGISTRY_CHECK=true
+  export ADAPTER_FETCH_TEST ADAPTER_REGISTRY_CHECK
   if [[ "$policy" == unset ]]; then unset CARGO_NET_OFFLINE;
-  else CARGO_NET_OFFLINE="$policy"; fi
+  else export CARGO_NET_OFFLINE="$policy"; fi
   if [[ "$policy" == true || "$policy" == 1 ]]; then
     expect_failure preflight
   else
@@ -300,7 +301,7 @@ check_network_policy() {
   [[ "$(wc -l < gate-trace)" -eq 1 ]] || fail 'gate retried implicitly'
   cmp "$repo_root/Cargo.toml" Cargo.toml || fail 'network fixture changed manifest'
   cmp "$repo_root/Cargo.lock" Cargo.lock || fail 'network fixture changed lock selection'
-}
+)
 for policy in unset false true 1; do
   new_fixture "network-$policy"
   check_network_policy "$policy" || fail "network-policy qualification failed: $policy"
@@ -439,6 +440,7 @@ printf '/.release-state/\n' > .git/info/exclude
 "$REAL_GIT" add -- .gitignore Cargo.toml Cargo.lock CHANGELOG.md \
   crates/ic-testkit/CHANGELOG.md README.md crates/ic-testkit/README.md \
   rust-toolchain.toml crates/ic-testkit/Cargo.toml crates/ic-testkit/src/lib.rs \
+  crates/ic-testkit-native/Cargo.toml crates/ic-testkit-native/src/lib.rs \
   crates/ic_testkit_perf_probe/Cargo.toml crates/ic_testkit_perf_probe/src/lib.rs \
   artifact gate-trace gate-environment tool-trace preparation-trace rejected.log scripts ci
 printf 'interrupted root staging bytes\n' > .release-metadata.fixture
@@ -819,6 +821,7 @@ receipt=".release-state/$RELEASE_VERSION.validation"
 cp "$retained/ready" cache-ready
 cp "$receipt" cache-receipt
 cp "$retained/old/Cargo.toml" Cargo.toml
+# shellcheck disable=SC2031 # This recovery case sets its own policy independently.
 export ADAPTER_FETCH_TEST=true ADAPTER_FETCH_STATUS=23
 CARGO_NET_OFFLINE=false expect_failure preflight
 [[ "$(cat fetch-trace)" == "fetch --manifest-path $retained/new/Cargo.toml --locked" ]] || fail 'recovery fetched the mixed live workspace'
