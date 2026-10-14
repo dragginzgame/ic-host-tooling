@@ -8,13 +8,14 @@ admitted process execution and IC-specific format handling.
 | ic-host-artifacts | Bounded streams and hashing writers, exact byte comparison, SHA-256, gzip encoding/decoding, verified tar members and generic Wasm facts |
 | ic-host-fs | Regular/no-follow reads, missing-suffix path resolution, streamed durable publication, private files and observed descriptor locks |
 | ic-host-process | Executable resolution, digest/version admission, bounded capture, explicit child/group cleanup and Git observations |
-| ic-host-tools | Candid text/extraction, optional service and IC export facts, ICP response decoding and IC resource reports |
+| ic-host-tools | Candid text/extraction, optional service and IC export facts, ICP protocol commands/response decoding and IC resource reports |
 
 These run locally outside canisters. The ic-host prefix identifies their ecosystem;
 the generic crates have no IC runtime dependency. Compression, archive and Wasm
 support are optional features of ic-host-artifacts. Filesystem/process consumers
 select the small default artifact dependency.
-`ic-host-tools` has no default features. Response decoding and
+`ic-host-tools` has no default features. Pure ICP command construction,
+installation projection, response decoding and
 `candid::text::normalize` are always available without artifact/filesystem/process
 dependencies or the Candid parser. Enable `candid-extraction` explicitly for
 the Unix `candid::extraction` API.

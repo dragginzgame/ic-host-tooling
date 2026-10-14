@@ -1,4 +1,4 @@
-//! IC-specific interface facts, Candid extraction and bounded ICP responses.
+//! IC interface facts, Candid extraction, ICP protocol commands and bounded responses.
 pub mod candid;
 pub mod icp;
 #[cfg(feature = "ic-limits")]
