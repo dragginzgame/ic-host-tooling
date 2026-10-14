@@ -7,16 +7,16 @@ root="${BASH_SOURCE[0]}"
 [[ "$root" == /* ]] || root="$PWD/$root"
 root="$(cd -P "${root%/*}/../.." && printf '%s/.' "$PWD")"
 root="${root%/.}"
-fixture_parent="$(mktemp -d "${TMPDIR:-/tmp}/ic-host-publish-test.XXXXXX")"
+FIXTURE_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/ic-host-publish-test.XXXXXX")"
 # shellcheck source=scripts/ci/fixture-lifecycle.sh
 source "$root/scripts/ci/fixture-lifecycle.sh"
-fixture_parent="$(CDPATH="" cd -P -- "$fixture_parent" && printf '%s/.' "$PWD")"
-fixture_parent="${fixture_parent%/.}"
+FIXTURE_ROOT="$(CDPATH="" cd -P -- "$FIXTURE_ROOT" && printf '%s/.' "$PWD")"
+FIXTURE_ROOT="${FIXTURE_ROOT%/.}"
 fixture_complete=false
-trap 'fixture_finish "$?" "$fixture_parent" "Publication fixtures retained"' EXIT
-export TMPDIR="${fixture_parent%/*}"
+trap 'fixture_finish "$?" "$FIXTURE_ROOT" "Publication fixtures retained"' EXIT
+export TMPDIR="${FIXTURE_ROOT%/*}"
 # Spaces are supported; forbidden directory bytes are tested as refusals below.
-fixture="$fixture_parent/checkout with spaces"
+fixture="$FIXTURE_ROOT/checkout with spaces"
 mkdir "$fixture"
 export CARGO_NET_OFFLINE=true RUSTUP_AUTO_INSTALL=0
 mkdir "$fixture/bin"
@@ -24,6 +24,15 @@ bash "$root/scripts/ci/prepare-workspace-fixture.sh" "$root" "$fixture"
 cd "$fixture"
 cargo metadata --no-deps --format-version 1 --locked --offline > metadata.json
 cp metadata.json original-metadata.json
+# Fixture mechanics follow independently prepared Cargo members/paths. Host's
+# adapter retains the separate explicit publication eligibility policy.
+jq -r --arg root "$fixture/" '
+    . as $m | [.packages[] | select(.id as $id | $m.workspace_members | index($id))]
+    | sort_by(.name)[]
+    | [.name, (.manifest_path | if startswith($root) then
+        ltrimstr($root) | rtrimstr("/Cargo.toml") else error("fixture manifest escapes root") end)]
+    | @tsv
+' original-metadata.json > fixture-packages.tsv
 export PUBLISH_FIXTURE="$fixture" REAL_PUBLISH_TEE
 REAL_PUBLISH_TEE="$(command -v tee)"
 cat > bin/git <<'STUB'
@@ -67,17 +76,15 @@ case "$1" in
         printf '%s\0' "$@" > "$PUBLISH_FIXTURE/package-arguments"
         mkdir -p target/package
         version="$(jq -r '.packages[0].version' "$PUBLISH_FIXTURE/metadata.json")"
-        for package in ic-host-artifacts ic-host-fs ic-host-process ic-host-tools ic-host-wasm-inspect; do
+        while IFS=$'\t' read -r package package_root; do
             directory="target/package/$package-$version"
             mkdir -p "$directory"
-            package_root="crates/$package"
-            [[ "$package" != ic-host-wasm-inspect ]] || package_root="apps/$package"
             jq -n --arg source "${PUBLISH_PACKAGE_SOURCE:-0000000000000000000000000000000000000000}" \
                 --arg path "${PUBLISH_PACKAGE_PATH:-$package_root}" --argjson dirty "${PUBLISH_PACKAGE_DIRTY:-false}" \
                 '{git: {sha1: $source, dirty: $dirty}, path_in_vcs: $path}' > "$directory/.cargo_vcs_info.json"
             if [[ "${PUBLISH_VCS_MISSING:-0}" == 1 ]]; then rm "$directory/.cargo_vcs_info.json"; fi
             tar -czf "$directory.crate" -C target/package "$package-$version"
-        done
+        done < "$PUBLISH_FIXTURE/fixture-packages.tsv"
         if [[ "${PUBLISH_CHANGE_SOURCE:-0}" == 1 ]]; then : > "$PUBLISH_FIXTURE/source-changed"; fi ;;
     publish)
         # Intent must exist before dispatch, including when Cargo then fails.
@@ -126,7 +133,7 @@ refuse() {
 # A dry run can review dirty work; an upload cannot admit it.
 PUBLISH_DIRTY=1 refuse publish
 for separator in $'\n' $'\r'; do
-    bad="$fixture_parent/bad${separator}checkout"
+    bad="$FIXTURE_ROOT/bad${separator}checkout"
     mkdir "$bad"
     PUBLISH_FIXTURE="$bad" refuse check
     rg 'CR/LF' refusal.log > /dev/null
@@ -147,9 +154,9 @@ done
 PUBLISH_DIRTY=1 invoke check > check.log 2>&1
 version="$(jq -r '.packages[0].version' metadata.json)"
 selectors=()
-for package in ic-host-artifacts ic-host-fs ic-host-process ic-host-tools ic-host-wasm-inspect; do
+while IFS=$'\t' read -r package package_root; do
     selectors+=(--package "$package@$version")
-done
+done < fixture-packages.tsv
 printf '%s\0' publish --locked --registry crates-io "${selectors[@]}" \
     --manifest-path "$fixture/Cargo.toml" --target-dir "$fixture/target" \
     --all-features --allow-dirty --dry-run > expected-arguments

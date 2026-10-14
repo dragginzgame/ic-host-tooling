@@ -10,54 +10,21 @@ root="${root%/.}"
 fixture="$(mktemp -d "${TMPDIR:-/tmp}/host-fixture-retention.XXXXXX")"
 # shellcheck source=scripts/ci/fixture-lifecycle.sh
 source "$root/scripts/ci/fixture-lifecycle.sh"
+# shellcheck source=scripts/ci/fixture-retention-probes.sh
+source "$root/scripts/ci/fixture-retention-probes.sh"
 fixture="$(CDPATH="" cd -P -- "$fixture" && printf '%s/.' "$PWD")"
 fixture="${fixture%/.}"
 fixture_complete=false
 trap 'fixture_finish "$?" "$fixture" "Host fixture retention evidence retained"' EXIT
 export TMPDIR="${fixture%/*}"
-probe_root="$fixture/probe-source"
-mkdir -p "$probe_root/scripts/ci"
-cp "$root/scripts/ci/fixture-lifecycle.sh" "$probe_root/scripts/ci/"
+# The self-probe sources this companion before installing its EXIT trap.
+mkdir -p "$fixture/exit-source/scripts/ci"
+cp "$root/scripts/ci/fixture-retention-probes.sh" "$fixture/exit-source/scripts/ci/"
 for input in scripts/ci/test-make-snapshot.sh scripts/release/test-adapter.sh \
     scripts/release/test-tools.sh scripts/publish/test-workspace.sh \
     scripts/ci/test-host-fixture-retention.sh scripts/ci/check-host-formatting.sh; do
     name="${input##*/}"
-    mkdir -p "$probe_root/${input%/*}"
-    awk '
-        { print }
-        /^trap .* EXIT$/ {
-            print "printf evidence > \"${fixture_parent:-$fixture}/failure-marker\""
-            print "case \"$HOST_FIXTURE_FAILURE\" in"
-            print "    nounset) unset HOST_FIXTURE_MISSING; printf '\''%s\\n'\'' \"$HOST_FIXTURE_MISSING\" ;;"
-            print "    command) false ;;"
-            print "    status) exit 17 ;;"
-            print "    incomplete) exit 0 ;;"
-            print "    completed) fixture_complete=true; exit 0 ;;"
-            print "    failed-completion) fixture_complete=true; exit 17 ;;"
-            print "esac"
-            exit
-        }
-    ' "$root/$input" > "$probe_root/$input"
-    for failure in nounset command status incomplete completed failed-completion; do
-        attempt="$fixture/$name-$failure"
-        mkdir "$attempt"
-        status=0
-        TMPDIR="$attempt" HOST_FIXTURE_FAILURE="$failure" bash "$probe_root/$input" \
-            > "$attempt.log" 2>&1 || status=$?
-        expected=1
-        case "$failure" in
-            status|failed-completion) expected=17 ;;
-            completed) expected=0 ;;
-        esac
-        [[ "$status" == "$expected" ]] || exit 1
-        retained=("$attempt/"*)
-        if [[ "$expected" == 0 ]]; then
-            [[ ! -e "${retained[0]}" ]] || exit 1
-        else
-            [[ ${#retained[@]} == 1 && -d "${retained[0]}" ]] || exit 1
-            [[ "$(cat "${retained[0]}/failure-marker")" == evidence ]] || exit 1
-        fi
-    done
+    fixture_probe_exits "$root/$input" "$fixture" "$root" "$name" || exit 1
 done
 # Each real fixture must survive changing directories with a relative aliased
 # temporary parent. These use substitutes for release/publication effects.

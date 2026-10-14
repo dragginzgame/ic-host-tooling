@@ -3,15 +3,11 @@ use std::{
     ffi::OsString,
     fs,
     path::{Path, PathBuf},
-    sync::{
-        Mutex, MutexGuard,
-        atomic::{AtomicU64, Ordering},
-    },
+    sync::{Mutex, MutexGuard},
     time::Duration,
 };
 
 static PROCESS_FIXTURES: Mutex<()> = Mutex::new(());
-static SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
 pub const LIMITS: OutputLimits = OutputLimits {
     stdout: crate::tool::OutputLimit::Terminate(256 * 1024),
@@ -32,20 +28,13 @@ impl Fixture {
         let guard = PROCESS_FIXTURES
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        let root = loop {
-            let candidate = std::env::temp_dir().join(format!(
-                "ic-host-process-test-{}-{}",
-                std::process::id(),
-                SEQUENCE.fetch_add(1, Ordering::Relaxed)
-            ));
-            match fs::create_dir(&candidate) {
-                Ok(()) => break candidate,
-                Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {}
-                Err(error) => panic!("cannot create fixture {}: {error}", candidate.display()),
-            }
-        };
+        let root = ic_host_fs::testing::create_fixture_directory(
+            &std::env::temp_dir(),
+            "ic-host-process-test",
+        )
+        .expect("create process fixture");
         Self {
-            root: root.canonicalize().unwrap(),
+            root,
             _guard: guard,
         }
     }

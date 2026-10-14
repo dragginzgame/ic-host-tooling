@@ -233,7 +233,8 @@ consumer policy; no host catalog or version-range resolver is introduced.
 Additional reusable mechanics are extracted from committed sibling source:
 
 - `artifact::hash_gzip` and `hash_gzip_or_raw` reuse bounded hashing over the
-  existing single-member gzip decoder. `gzip_matches` reuses `MatchingWriter`
+  existing single-member gzip decoder. Raw payload slices are hashed directly
+  after both byte allowances. `gzip_matches` reuses `MatchingWriter`
   to compare exact decoded bytes without retaining another payload copy. Input
   admission, CRC/length and trailing-data checks have one owner shared with
   `decode_gzip`. Complete compressed/raw input is still a caller-owned slice;

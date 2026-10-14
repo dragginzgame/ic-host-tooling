@@ -1,10 +1,25 @@
 # Changelog
 
-## [0.18.1]
+## [0.18.2]
 
 - Save and restore explicitly selected Unix signal actions through one opt-in
   guard, retaining caller-owned handlers, cancellation and shutdown policy
   ([#107](https://github.com/dragginzgame/ic-host-tooling/issues/107)).
+  [Detailed notes](docs/changelog/0.18.md).
+
+
+## [0.18.1] - 2026-10-14
+
+- Add opt-in filesystem fixture allocation and reuse it across filesystem,
+  process and tools tests, preserving caller-owned cleanup and retention
+  ([#98 — Fixture directory allocation](https://github.com/dragginzgame/ic-host-tooling/issues/98)).
+- Use canonical bounded file admission in the IC resource-report example and
+  upstream integer encoding in its test builder
+  ([#106 — Resource-report example cleanup](https://github.com/dragginzgame/ic-host-tooling/issues/106)).
+- Hash admitted raw payload slices directly while preserving both byte allowances
+  and typed failures. Consolidate publication fixtures and failure-retention probes
+  around Cargo metadata and the existing Shared helper
+  ([#105 — Raw hashing and fixture simplification](https://github.com/dragginzgame/ic-host-tooling/issues/105)).
   [Detailed notes](docs/changelog/0.18.md).
 
 ## [0.18.0] - 2026-10-14

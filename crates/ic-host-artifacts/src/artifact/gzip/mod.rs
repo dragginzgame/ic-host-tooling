@@ -4,8 +4,8 @@
 mod tests;
 
 use super::{
-    ArtifactError, ArtifactIdentity, BoundedWriter, MatchingWriter, hash_reader, read_reader,
-    visit_reader,
+    ArtifactError, ArtifactIdentity, BoundedWriter, MatchingWriter, Sha256Digest, hash_reader,
+    read_reader, visit_reader,
 };
 use std::{
     fmt,
@@ -159,7 +159,16 @@ pub fn hash_gzip_or_raw(
         hash_gzip(bytes, max_input_bytes, max_payload_bytes)
     } else {
         check_input_limit(bytes, max_input_bytes)?;
-        hash_reader(bytes, max_payload_bytes).map_err(GzipError::Decode)
+        let length = bytes.len() as u64;
+        if length > max_payload_bytes {
+            return Err(GzipError::Decode(ArtifactError::LimitExceeded {
+                limit: max_payload_bytes,
+            }));
+        }
+        Ok(ArtifactIdentity {
+            bytes: length,
+            sha256: Sha256Digest::compute(bytes),
+        })
     }
 }
 

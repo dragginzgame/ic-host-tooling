@@ -14,6 +14,11 @@ These run locally outside canisters. The ic-host prefix identifies their ecosyst
 the generic crates have no IC runtime dependency. Compression, archive and Wasm
 support are optional features of ic-host-artifacts. Filesystem/process consumers
 select the small default artifact dependency.
+For test fixtures, opt in to `ic-host-fs`'s `test-support` feature in a
+dev-dependency and use `testing::create_fixture_directory(parent, prefix)`.
+It allocates beneath an existing physical parent, skips occupied names and
+returns the retained path. Callers own labels, custody and explicit cleanup;
+the allocator supplies no Drop guard or application lifecycle.
 With `wasm`, `wasm::encode_custom_section(CustomSection { name, data }, max_bytes)`
 encodes one complete custom section with an explicit output-byte allowance.
 Callers supply exact names/data and own module assembly, aggregate budgets,

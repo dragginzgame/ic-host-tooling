@@ -1,5 +1,59 @@
 # Current handoff
 
+## Fixture callers and resource reports — pending 0.18.1
+
+The approved remaining tools fixture caller now uses the opt-in filesystem
+allocator from [PR #103](https://github.com/dragginzgame/ic-host-tooling/pull/103).
+Its source changes are applied locally without merging Git refs; filesystem,
+process and tools allocation loops converge while their mutex/Drop policies
+remain intact. [#98 — Fixture directory allocation](https://github.com/dragginzgame/ic-host-tooling/issues/98)
+owns required native acceptance and subsequent published Build adoption.
+
+The resource-report example delegates regular-file admission to the existing
+filesystem reader, and its valid-fixture integer encoding to locked `leb128`.
+[#106 — Resource-report example cleanup](https://github.com/dragginzgame/ic-host-tooling/issues/106)
+owns this cleanup. The new edge is development-only; the response-only normal
+graph excludes it. Independent artifact encoder golden/malformed fixtures,
+selected limits, text/JSON output and reference policy remain unchanged.
+
+Linux focused qualification passes: 94 filesystem units plus the fresh-process
+collision case, 94 process units, 20 extraction-profile units and all three
+resource-report cases. The compiled example rejects directories and a FIFO
+without a writer, with failure status and no report. Changed-crate strict
+Clippy/Rustdoc, actual Rust 1.88, production feature graphs, sorting, formatting
+and links pass. Before-images and exact logs are under
+`/tmp/host-example-cleanup.zyWqMD/`; the prior pending batch below is preserved.
+The full combined Linux `make ci` and `make msrv-workspace` gates also pass;
+the earlier batch's full-gate evidence remains bound to its original source.
+Package versions and the real index/refs remain unchanged; no release or
+publication ran. Required native macOS acceptance is separate from Linux evidence.
+
+## Raw hashing and fixture convergence — pending 0.18.1
+
+Released source is 0.18.0 `013a14ce22ac537e5e7d15942cb2079cc69003ca`.
+The older sections below retain pre-release evidence for that delivered batch.
+[#105 — Raw hashing and fixture simplification](https://github.com/dragginzgame/ic-host-tooling/issues/105)
+owns the approved follow-on cleanup. Raw payload hashing uses the existing slice
+digest after both allowances, preserving typed errors and refusal order.
+Publication fixtures derive names/paths from independently prepared Cargo
+metadata while Host retains explicit publication policy and provenance checks.
+Host's exit-injection loop delegates to Shared's existing probe helper; its
+fixture roster, real round trips and contradictory assertions stay local.
+
+The selected helper extends the same Shared 0.12.7 revision, with 94 roots and
+113 payloads. No sibling changes, helper options, tool-pin changes, package
+version changes or release effects are required. All 13 gzip cases, strict
+artifact Clippy/Rustdoc and actual Rust 1.88 checking pass on Linux. Retention
+and its publication/release round trips pass under current Bash and genuine
+Bash 3.2, including all seven canonical exit cases per Host fixture. Snapshot
+integrity, links and scoped diff checks pass. Source before-images and raw
+qualification logs remain at `/tmp/host-cleanup-next3.PZDmeV/`.
+The full Linux `make ci` gate and `make msrv-workspace` pass for these sources,
+including workspace strict lint/docs, feature profiles and all-target tests.
+Native macOS 15 Intel/Apple Silicon acceptance remains separate at #105.
+The real index, package versions and Git refs are unchanged; no release or
+publication ran.
+
 ## Archive/read/release simplification — pending 0.18.0
 
 [#96 — Archive, read and lock projection](https://github.com/dragginzgame/ic-host-tooling/issues/96)
