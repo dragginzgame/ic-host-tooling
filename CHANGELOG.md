@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.17.12]
+## [0.17.12] - 2026-10-14
 
 - Adopt Shared Tooling 0.12.4, sharing host/IC tool-selection admission and
   extending installation, reuse and failed-evidence fixture coverage
