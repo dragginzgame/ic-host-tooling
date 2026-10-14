@@ -50,6 +50,26 @@ pub fn lock_exclusive(file: &File) -> io::Result<()> {
     }
 }
 
+/// Attempt one exclusive lock acquisition on a caller-owned regular descriptor.
+///
+/// Contention returns `WouldBlock` immediately. The caller owns opening,
+/// namespace, descriptor lifetime and any later retry or wait policy.
+///
+/// # Errors
+/// Returns metadata, non-regular descriptor, native lock or unsupported-host errors.
+pub fn try_lock_exclusive(file: &File) -> io::Result<()> {
+    require_regular_descriptor(file)?;
+    #[cfg(unix)]
+    {
+        rustix::fs::flock(file, rustix::fs::FlockOperation::NonBlockingLockExclusive)
+            .map_err(|error| io::Error::from_raw_os_error(error.raw_os_error()))
+    }
+    #[cfg(not(unix))]
+    {
+        Err(io::Error::from(io::ErrorKind::Unsupported))
+    }
+}
+
 /// Release a caller-owned regular descriptor's lock without closing it.
 ///
 /// Unlocking releases the shared kernel ownership of its duplicated or inherited

@@ -1,6 +1,13 @@
 //! Retained private directory creation and pathname admission.
 use std::{fmt, fs::File, io, path::Path};
 
+mod publish;
+
+pub use publish::{
+    DirectoryCommitError, DirectoryCommitOutcome, DirectoryCommitStep,
+    commit_existing_directory_with,
+};
+
 /// Creation failure distinguishes a refused claim from a possibly visible directory.
 #[derive(Debug)]
 pub enum DirectoryCreationError {

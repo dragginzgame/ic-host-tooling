@@ -1,5 +1,17 @@
 # Current handoff
 
+## Backup-driven Host FS primitives — pending 0.18.4
+
+An isolated Backup contribution adds no-create existing-sidecar admission,
+one-shot exclusive descriptor locking and no-replace publication/recovery of a
+caller-verified directory tree. Host owns path/descriptor effects and phase-aware
+publication errors; Backup retains checksum framing, tree synchronization,
+journals and recovery authority until a published Host graph is qualified.
+Host FS unit tests, strict affected-package Clippy and rustdoc pass on Linux,
+including the Rust 1.88 consumer build. The full Host Make gate stopped at
+missing selected local host tools before compilation; its separate full/native
+qualification remains pending.
+
 ## Literal releases and fixture/walker simplification — pending 0.18.3
 
 [#116 — Release and fixture cleanup](https://github.com/dragginzgame/ic-host-tooling/issues/116)
