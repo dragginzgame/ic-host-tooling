@@ -122,10 +122,11 @@ pub fn copy_from<R: io::Read>(
     permissions: Option<fs::Permissions>,
 ) -> Result<u64, NamedWriteError<io::Error>> {
     write_with(destination, options, |sink| {
+        let copied = io::copy(source, sink)?;
         if let Some(permissions) = permissions {
             sink.set_permissions(permissions)?;
         }
-        io::copy(source, sink)
+        Ok(copied)
     })
 }
 

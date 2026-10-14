@@ -100,17 +100,19 @@ fn durable_stream_copy_keeps_default_or_exact_caller_permissions() {
         fs::metadata(&output).unwrap().permissions().mode() & 0o777,
         ordinary_mode
     );
-    super::copy_from(
-        &mut b"bytes".as_slice(),
-        &output,
-        options,
-        Some(fs::Permissions::from_mode(0o600)),
-    )
-    .unwrap();
-    assert_eq!(
-        fs::metadata(&output).unwrap().permissions().mode() & 0o777,
-        0o600
-    );
+    for permissions in [0o600, 0o4750] {
+        super::copy_from(
+            &mut b"bytes".as_slice(),
+            &output,
+            options,
+            Some(fs::Permissions::from_mode(permissions)),
+        )
+        .unwrap();
+        assert_eq!(
+            fs::metadata(&output).unwrap().permissions().mode() & 0o7777,
+            permissions
+        );
+    }
     assert_eq!(fs::read(&output).unwrap(), b"bytes");
 }
 
