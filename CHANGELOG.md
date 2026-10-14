@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.17.9]
+## [0.17.9] - 2026-10-14
 
 - Adopt Shared Tooling 0.12.2 for shared failure-evidence collection and stricter
   historical release-note admission
