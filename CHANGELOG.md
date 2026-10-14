@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.18.2]
+## [0.18.2] - 2026-10-14
 
 - Add optional strict owned IC certificate/hash-tree decoding, with explicit byte
   and nesting limits; authentication and witness policy remain caller-owned
