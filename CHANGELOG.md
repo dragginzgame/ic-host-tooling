@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.18.3]
+
+- Add Unix directory-capability opening and bounded regular-file selection
+  beneath an explicit root, refusing symlink components and traversal without
+  taking content or cache policy ([#80](https://github.com/dragginzgame/ic-host-tooling/issues/80)).
+  [Detailed notes](docs/changelog/0.18.md).
+
 ## [0.18.2] - 2026-10-14
 
 - Add optional strict owned IC certificate/hash-tree decoding, with explicit byte
