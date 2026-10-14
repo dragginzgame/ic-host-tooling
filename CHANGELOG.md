@@ -2,6 +2,9 @@
 
 ## [0.17.14]
 
+- Reuse shared test-only pipe descriptor observation in Make routing coverage,
+  without reading or writing jobserver tokens.
+
 - Share native host admission with Shared Tooling, rejecting failed observations
   before PATH changes while preserving the existing Linux/macOS matrix.
   [Detailed notes](docs/changelog/0.17.md).

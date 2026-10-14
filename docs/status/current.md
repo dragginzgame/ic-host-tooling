@@ -4,10 +4,12 @@
 
 The isolated contribution starts from released Host 0.17.13 source
 `6f26efe58f2357e92cfdc7178cf3c9e5fbf65316`, preserving the normal checkout's
-independent work. Its 112-file export binds clean committed Shared candidate
-`2f6dbdce7a19ce121dd574e77ee361b4d1aeb57c`
-([Shared PR #186](https://github.com/dragginzgame/shared-tooling/pull/186), stacked
-on #184/#180). These are contribution identities rather than a new Shared release.
+independent work. Its 114-file export binds clean committed Shared candidate
+`17cbb554a4691ffc9ceb6c2c5eaef2552b45ceee`
+([Shared PR #190](https://github.com/dragginzgame/shared-tooling/pull/190), stacked
+on #186/#184/#180). These are contribution identities rather than a new Shared release.
+The shared jobserver observer replaces Host's inline probe; actual Make forwarding
+checks and token custody remain unchanged.
 Refresh the pin if integration changes the reviewed source identity.
 
 CI uses the shared validator before PATH/toolchain changes and retains the

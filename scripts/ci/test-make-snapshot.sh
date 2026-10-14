@@ -34,15 +34,12 @@ printf '%s\n' "$0" >> "$HOST_MAKE_EXTERNAL"
 exit 23
 STUB
 done
+export JOBSERVER_PROBE="$root/scripts/ci/check-pipe-jobserver.pl"
 cat > "$fixture/local/cargo" <<'STUB'
 #!/usr/bin/env bash
 set -euo pipefail
 if [[ "${HOST_MAKE_VERIFY_JOBSERVER:-}" == 1 ]]; then
-    perl -e '
-        ($ENV{MAKEFLAGS} // "") =~ /--jobserver-(?:auth|fds)=(\d+),(\d+)/ or die "missing pipe jobserver\n";
-        open my $reader, "<&=$1" or die "closed jobserver read descriptor: $!\n";
-        open my $writer, ">&=$2" or die "closed jobserver write descriptor: $!\n";
-    '
+    perl "$JOBSERVER_PROBE"
 fi
 case "$*" in
     'sort --version') printf 'cargo-sort %s\n' "$HOST_MAKE_SORT_VERSION" ;;

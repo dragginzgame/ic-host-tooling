@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Shared companions: make/tools.mk scripts/ci/fixture-lifecycle.sh
+# Shared companions: make/tools.mk scripts/ci/fixture-lifecycle.sh scripts/ci/check-pipe-jobserver.pl
 set -euo pipefail
 path_context=false
 if [[ "${1:-}" == --path-context && $# == 1 ]]; then path_context=true;
@@ -25,14 +25,12 @@ mkdir -p "$snapshot/scripts/ci"
 cp "$ROOT/scripts/ci/check-make-execution.sh" "$snapshot/scripts/ci/"
 export TOOL_COMMAND_LOG="$fixture/commands"
 export TOOL_COMMAND_CONSUMER="$consumer"
+export JOBSERVER_PROBE="$ROOT/scripts/ci/check-pipe-jobserver.pl"
 cat > "$fixture/tool-stub" <<'SCRIPT'
 #!/usr/bin/env bash
 set -euo pipefail
 if [[ "${JOBSERVER_TEST_REQUIRED:-0}" == 1 && ( "${0##*/}" == install-rust-tools.sh || "${0##*/}" == cloc.sh ) ]]; then
-    [[ "${MAKEFLAGS:-}" =~ --jobserver-(auth|fds)=([0-9]+),([0-9]+) ]] || exit 1
-    reader="${BASH_REMATCH[2]}"; writer="${BASH_REMATCH[3]}"
-    : <&"$reader"
-    : >&"$writer"
+    perl "$JOBSERVER_PROBE"
 fi
 name="${0##*/}"
 printf '%s' "$name" >> "$TOOL_COMMAND_LOG"
