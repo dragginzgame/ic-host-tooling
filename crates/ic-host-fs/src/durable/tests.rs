@@ -25,6 +25,7 @@ fn private_parent_preparation_preserves_modes_and_refuses_symlinks() {
     }
     prepare_private_parents(&parent).unwrap();
     symlink(&first, fixture.root.join("linked")).unwrap();
+    assert!(prepare_private_parents(&fixture.root.join("linked/nested")).is_err());
     assert!(prepare_private_parents(&fixture.root.join("linked/other")).is_err());
     assert!(!first.join("other").exists());
 }

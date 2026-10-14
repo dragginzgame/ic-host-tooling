@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.18.0]
+
+### Breaking
+
+- `durable::prepare_private_parents` now rejects symlink ancestors and `..` path
+  components. Callers using directory aliases must supply a canonical physical
+  path before requesting private-parent creation.
+  [Detailed notes](docs/changelog/0.18.md).
+
 ## [0.17.11] - 2026-10-14
 
 - Expose durable owner-only parent preparation so callers can retain private

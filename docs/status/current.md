@@ -1,5 +1,17 @@
 # Current handoff
 
+## Private-parent ancestor admission — pending 0.18.0
+
+Released Host FS 0.17.11 exposed durable private-parent preparation. Its
+first implementation rejects a symlink at the missing-directory boundary but
+can accept an existing descendant reached through an earlier symlink. This
+patch checks each existing path component before creation and rejects parent
+components, preserving the documented symlink refusal and caller-owned root
+confinement. A regression covers both an already-existing descendant and a
+missing descendant beneath a symlink. The focused regression, strict FS
+Clippy and complete Linux `make ci msrv-workspace` gate pass on this isolated
+branch. Native macOS acceptance remains separate. No package version or lock changed.
+
 ## Descriptor locks for IC Build — pending 0.17.11
 
 The maintainer approved the scoped owner additions at
