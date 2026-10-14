@@ -31,6 +31,9 @@ response-only graph; IC reference values and comparison remain in the tools owne
 - ic-host-tools owns Candid text/extractor and service-method interpretation,
   IC method export projection over generic Wasm facts, ICP response formats
   and explicit revision-bound IC resource comparisons.
+  Its pure `icp` builders extend caller-configured commands; installation
+  projection interprets only successful status JSON. Credentials, targets,
+  version admission, capture bounds, execution and lifecycle stay with callers.
 
 Source tests move with their owner; public artifact projection tests belong to
 ic-host-artifacts. Runnable examples retain explicit dependencies on each owner.

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.17.14]
+
+- Share pure ICP call/status command syntax and typed installation facts, retaining
+  caller-owned target, credential, execution and capture policy
+  ([#97 — Shared ICP protocol mechanics](https://github.com/dragginzgame/ic-host-tooling/issues/97)).
+  [Detailed notes](docs/changelog/0.17.md).
+
 ## [0.17.13] - 2026-10-14
 
 - Adopt Shared Tooling 0.12.5 and align contributor guidance with focused
