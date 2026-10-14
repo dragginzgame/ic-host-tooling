@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.17.14]
+
+- Share native host admission with Shared Tooling, rejecting failed observations
+  before PATH changes while preserving the existing Linux/macOS matrix.
+  [Detailed notes](docs/changelog/0.17.md).
+
 ## [0.17.13] - 2026-10-14
 
 - Adopt Shared Tooling 0.12.5 and align contributor guidance with focused

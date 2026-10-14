@@ -173,7 +173,7 @@ for failed in ic rust; do
     [[ ! -e "$HOST_MAKE_EXTERNAL" ]] || exit 1
 done
 # Real pipe-descriptor admission in substituted Cargo, without compiling.
-for helper in scripts/ci/check-dependency-pins.sh scripts/release/test-tools.sh \
+for helper in scripts/ci/check-dependency-pins.sh scripts/ci/test-native-host.sh scripts/release/test-tools.sh \
     scripts/release/test-adapter.sh scripts/publish/test-workspace.sh \
     scripts/ci/test-cargo-publication-attempt.sh \
     scripts/ci/test-host-fixture-retention.sh scripts/ci/test-make-snapshot.sh scripts/ci/test-make-consumer.sh \

@@ -41,11 +41,11 @@ jobs:
           EXPECTED_OS: ${{ matrix.os }}
           EXPECTED_ARCHITECTURE: ${{ matrix.architecture }}
         run: |
-          [[ "$(uname -s)" == "$EXPECTED_OS" ]] || exit 1
-          [[ "$(uname -m)" == "$EXPECTED_ARCHITECTURE" ]] || exit 1
           if [[ "$EXPECTED_OS" == Darwin ]]; then
-            [[ "$(sw_vers -productVersion)" == 15.* ]] || exit 1
+            bash scripts/ci/check-native-host.sh "$EXPECTED_OS" "$EXPECTED_ARCHITECTURE" 15
             echo /bin >> "$GITHUB_PATH"
+          else
+            bash scripts/ci/check-native-host.sh "$EXPECTED_OS" "$EXPECTED_ARCHITECTURE"
           fi
       # dtolnay/rust-toolchain v1
       - uses: dtolnay/rust-toolchain@7e38f4b43b4db5c8dd498af069a4f6196df1d067
