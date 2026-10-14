@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.17.11]
+
+- Expose durable owner-only parent preparation so callers can retain private
+  directory permissions while using descriptor-based file publication.
+- Own blocking shared/exclusive regular-descriptor locks and explicit unlock;
+  callers retain descriptor, namespace and final-owner custody
+  ([#89](https://github.com/dragginzgame/ic-host-tooling/issues/89)).
+
 ## [0.17.10] - 2026-10-14
 
 - Restore macOS test compilation with portable FIFO creation while retaining

@@ -1,8 +1,8 @@
 # Shared Tooling snapshot v1
-# version	0.12.2
+# version	0.12.3
 format	1
 source	https://github.com/dragginzgame/shared-tooling
-revision	cff186285829481185e932d3c16514022b897de9
+revision	ac68c74439e13f19229a35f424f968c64325cc44
 # entrypoint	rules/changelogs.md
 # entrypoint	docs/releases.md
 # entrypoint	scripts/ci/run-release.sh
@@ -101,7 +101,7 @@ file	3fe2c246b8691c4ec034271a5c6255afbebabba53585e5431a8202a70f31eee8	x	scripts/
 file	37e028e2d9fee271ffdc06d06fc15d7a148ec524def3d9ed2afcd9910c0ec642	x	scripts/ci/next-release-version.sh
 file	64444da3fd34bd534a7b717c50ef89a55f821c38ea15caad8279415f540815fb	-	scripts/ci/finalize-release-changelog.awk
 file	1e9cc44d774b4e622ac5ac36ede5a889396d90173e3a8f500ae6172bcf896374	x	scripts/ci/test-release-runner.sh
-file	e0d10195d90709b9d41768a7633fe6c44deb5da229f13776f914db2aad787332	-	DRAGGINZGAME.md
+file	45d34cac90fa7313771f8927f6d5b57e5ccf32b224889f28492fc0b6cb18f758	-	DRAGGINZGAME.md
 file	59f6cb0b47fcfa698396776bbb391737292ebf34457ad7c65803fe7b36961499	-	docs/principles/README.md
 file	9315c9faffa4f36cfab496342535bf49d728ddd2111e8e127cbc44b3fac89ce7	-	docs/principles/decision-artifact-discipline.md
 file	c5e5f1018e4747ee4ffe5183a4f1d35545a3bf148fced3ab2c77db4c789b5975	-	docs/principles/reviewable-changes.md
@@ -115,7 +115,7 @@ file	8ebed290dc38497078ebbd1a6bf030ad95cd6968d876612d69bc2f4317df4391	-	rules/gi
 file	d70f32239de9ea0d2d2a3a0eebd2fa862746807cd797f512f95b2e46fc5faa67	x	.githooks/pre-commit
 file	0f86b831af02072f89b74477c73e378fd451f81116def1271a0c0a4552e278bb	x	scripts/dev/install-git-hooks.sh
 file	68e60f5edeb6d8b4e5b1e88898a56b70ce5f297a4476cc71e8a724d89b3a61da	-	rules/dependency-pinning.md
-file	2dd41a7a6cdd927b53df56bb03b70fcbb05b4455007f4376c950076be49e7e5a	-	rules/agent-maintenance.md
+file	32582e5d76c9e6988f4431a96554ba298e52ddb8a424945c7ea4b98815ec0889	-	rules/agent-maintenance.md
 file	de68acd7ba25355c73fa3e9a32cbde5525debf081862c1f1a52eccb4a66c48de	x	scripts/ci/check-dependency-pins.sh
 file	a7b03e2b6676c9461d68219f5aad671e5afbae53df385568e1b966cf6d0a81cd	x	scripts/ci/install-ci-tool.sh
 file	0818fe8f557e478dc35861b2d5a198ab8cef6693c38bfeb7e3ef6713f264d540	-	audits/README.md
@@ -155,7 +155,7 @@ file	51c22fe1610ab5240b79edca0ecd1b8ff0171d20ec2d790521bedf34228f662c	x	scripts/
 file	2a5f899dade5739786c9e5d891b9d755a6bf094fe1b97ea72f2bb5ff4666990c	x	scripts/ci/test-cloc.sh
 file	7fef45969bee38b2e9be9ffc3e100653e48f15e862d5925b739572c5d27def42	x	scripts/dev/install-rust-tools.sh
 file	d552786e2defbe003ec6d1ccc34dba95e2e6437cf60499ec48a1a37ddcbec6f5	x	scripts/ci/test-rust-tools.sh
-file	8d32526932bdaf88a6c78ccc2358fb92a49bd89b7631572766deea51923d8f58	-	rules/contributions.md
+file	8a83020cbfe0c99910c6f0246dc0850ef7a9f65f37f7c6621de6c7e0dc7000fc	-	rules/contributions.md
 file	21513c3b94a5113369e9357e4c54ceec59b1b5894ae9157e789ee1ce08ee2ba2	-	.github/actions/retain-failure-evidence/action.yml
 file	a3af7084956384262842be33100f91a22fdd82b0f91b6091a00e90f8726f67fe	x	scripts/ci/check-release-source.sh
 file	40268196f193f767ca0ecabecde1d81554eba0a77681bd71f292a5f55716f8bb	-	tasks/README.md

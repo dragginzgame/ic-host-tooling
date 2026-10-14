@@ -10,6 +10,27 @@ use std::{
 
 #[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
 #[test]
+fn private_parent_preparation_preserves_modes_and_refuses_symlinks() {
+    use std::os::unix::fs::{MetadataExt, symlink};
+
+    let fixture = crate::test_support::Fixture::new();
+    let first = fixture.root.join("private");
+    let parent = first.join("nested");
+    prepare_private_parents(&parent).unwrap();
+    for directory in [&first, &parent] {
+        assert_eq!(
+            fs::symlink_metadata(directory).unwrap().mode() & 0o777,
+            0o700
+        );
+    }
+    prepare_private_parents(&parent).unwrap();
+    symlink(&first, fixture.root.join("linked")).unwrap();
+    assert!(prepare_private_parents(&fixture.root.join("linked/other")).is_err());
+    assert!(!first.join("other").exists());
+}
+
+#[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
+#[test]
 fn streamed_replacement_returns_producer_value_only_after_complete_publication() {
     use std::io::Write as _;
     let fixture = crate::test_support::Fixture::new();

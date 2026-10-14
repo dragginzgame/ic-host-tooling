@@ -1,4 +1,4 @@
-//! Durable filesystem publication and exclusive descriptor locks.
+//! Durable filesystem publication and regular descriptor locks.
 //!
 //! Responsibility: own atomic durable regular-file publication for host consumers.
 //! Does not own: domain schemas or transitions, path selection, ephemeral protocol files, open
@@ -7,7 +7,7 @@
 //! behind replace and create-new modes. Reads belong to [`crate::read`].
 
 mod lock_wait;
-pub use lock_wait::lock_exclusive_with_wait;
+pub use lock_wait::{lock_exclusive, lock_exclusive_with_wait, lock_shared, unlock};
 #[cfg(unix)]
 mod retained;
 #[cfg(unix)]
@@ -128,6 +128,30 @@ pub fn create_private_bytes_with_parents(
     bytes: &[u8],
 ) -> Result<(), NamedWriteError<io::Error>> {
     commit_bytes(path, bytes, CREATE_PRIVATE_OPTIONS)
+}
+
+/// Durably create missing owner-only parent directories without publishing a file.
+///
+/// New directories use mode `0700`, reduced by the process umask. Existing
+/// directories retain their permissions. Every new directory and its parent link
+/// are synchronized before this returns. Callers retain root confinement and
+/// exclusion of concurrent namespace mutation; symlink path components reject.
+///
+/// # Errors
+/// Rejects a non-directory or symlink component, unsupported host or failed creation/sync.
+pub fn prepare_private_parents(parent: &Path) -> io::Result<()> {
+    #[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
+    {
+        supported::prepare_private_parents(parent)
+    }
+    #[cfg(not(any(target_os = "linux", target_os = "android", target_vendor = "apple")))]
+    {
+        let _ = parent;
+        Err(io::Error::new(
+            io::ErrorKind::Unsupported,
+            "durable private parent creation is unsupported",
+        ))
+    }
 }
 
 /// Open and exclusively lock one durable regular no-follow file.
@@ -302,6 +326,8 @@ mod supported {
         fs::{self as unix_fs, AtFlags, Mode, OFlags, RenameFlags},
     };
 
+    use std::os::unix::fs::DirBuilderExt;
+
     const TEMP_ATTEMPTS: usize = 64;
     static TEMP_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
@@ -342,7 +368,7 @@ mod supported {
     ) -> Result<T, NamedWriteError<E>> {
         validate_permissions(options.permissions).map_err(NamedWriteError::before)?;
         let (parent, file_name) = split_target(path).map_err(NamedWriteError::before)?;
-        create_parent_hierarchy(parent, &mut before).map_err(NamedWriteError::before)?;
+        create_parent_hierarchy(parent, &mut before, false).map_err(NamedWriteError::before)?;
         let parent_fd = open_directory(parent).map_err(NamedWriteError::before)?;
         commit_at_with_hook(
             parent_fd.as_fd(),
@@ -671,9 +697,14 @@ mod supported {
         Ok(())
     }
 
+    pub(super) fn prepare_private_parents(parent: &Path) -> io::Result<()> {
+        create_parent_hierarchy(parent, &mut |_, _| Ok(()), true)
+    }
+
     fn create_parent_hierarchy(
         parent: &Path,
         before: &mut impl FnMut(FileCommitStep, &Path) -> io::Result<()>,
+        private: bool,
     ) -> io::Result<()> {
         let mut missing = Vec::new();
         let mut current = parent;
@@ -699,7 +730,12 @@ mod supported {
 
         for directory in missing.into_iter().rev() {
             before(FileCommitStep::ParentDirectoryCreate, &directory)?;
-            match fs::create_dir(&directory) {
+            let creation = if private {
+                fs::DirBuilder::new().mode(0o700).create(&directory)
+            } else {
+                fs::create_dir(&directory)
+            };
+            match creation {
                 Ok(()) => {}
                 Err(error) if error.kind() == io::ErrorKind::AlreadyExists => {
                     if !fs::symlink_metadata(&directory)?.is_dir() {

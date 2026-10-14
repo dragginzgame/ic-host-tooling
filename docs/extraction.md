@@ -274,6 +274,9 @@ The exact source revisions, file digests and selected mechanics are recorded in
 cache policy, root confinement, tool pin or process-tree ownership. Backup's private
 parent/file modes and crash barriers are stronger than ordinary durable replacement;
 they must not be replaced by `write_with` without preserving those contracts.
+`durable::prepare_private_parents` creates only missing owner-only directories and
+synchronizes each new directory and parent link. Backup retains its own JSON
+encoding, descriptor-relative publication and pre/post-publication crash barriers.
 
 The maintainer authorized retiring the original local checkout after verification
 of a full backup. Existing consumers retain their prior dependency selections;

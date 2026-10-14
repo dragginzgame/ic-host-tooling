@@ -1,6 +1,62 @@
 # Current handoff
 
-## Portable FIFO fixtures — pending 0.17.10
+## Descriptor locks for IC Build — pending 0.17.11
+
+The maintainer approved the scoped owner additions at
+[#89](https://github.com/dragginzgame/ic-host-tooling/issues/89).
+`durable::{lock_shared,lock_exclusive,unlock}` operate on caller-owned regular
+file descriptors. Shared holders coexist; explicit unlock releases duplicated
+kernel ownership without closing files or releasing independent shared holders.
+Callers retain namespaces, clones, deadlines and final-owner policy. Nonregular
+files refuse; no reopening, guard framework or elapsed-time default is added.
+
+Six focused lock-module cases pass, including new shared-holder/duplicate-unlock
+and nonregular regressions. Full Linux `make ci msrv-workspace` passes, preserving
+incoming private-parent preparation. Its descriptor sources match the frozen
+qualified copy byte-for-byte. Concurrent Shared 0.12.3 governance adoption is
+preserved and is outside this task's source delta; no tool pins or Rust graph
+were changed for this addition. Native macOS qualification remains separate.
+
+IC Build's fs2-free candidate passes 161 units and Cargo/Wasm/process, handoff,
+retention and repair cases, strict Clippy/docs and actual Rust 1.88. Its temporary
+Host path overrides and prospective 0.17.11 metadata are confined to `/tmp`.
+Actual registry adoption remains [Build #21](https://github.com/dragginzgame/ic-build/issues/21)
+until publication; its normal graph still uses published dependencies. Evidence
+and reviewed consumer patch are under `/tmp/ic-build-cleanup3/`. This task performs
+no staging, commit, own version change, release or publication in either owner.
+
+## Shared Tooling adoption — pending 0.17.11
+
+Shared 0.12.3 at `ac68c74439e13f19229a35f424f968c64325cc44` is exported
+from a clean isolated copy of pushed upstream main. All 92 roots and 109 payloads
+remain selected. Only the baseline, contribution and maintenance rules change;
+every executable payload and tool pin matches the previous snapshot. The rules
+describe isolated cross-repository PR contributions while preserving explicit
+read-only restrictions; this repository's local mutation scope stays intact
+([#73](https://github.com/dragginzgame/ic-host-tooling/issues/73)).
+
+Snapshot integrity, repeat preview (109 KEEP), shared/local documentation links
+and diff checks pass. Manifest/lock, tool pins and index are preserved. Before-
+images and logs are retained under `/tmp/host-shared0123.FABudy/`. Existing private-
+parent work is untouched; another worker's #89 source/changelog edits arrived
+after the initial preservation check and are excluded from this adoption's
+qualification. This governance-only update needs no release note under the
+shared changelog rules; package versions remain 0.17.10. Full Rust/CI gates are
+not rerun for unchanged executable tooling, and no native macOS result is claimed.
+No staging, commit, release, publication, executable download or sibling mutation
+ran.
+
+## Private parent preparation — pending 0.17.11
+
+The Host FS durable module now exposes owner-only missing-parent preparation,
+reusing its existing directory-creation and synchronization sequence. Existing
+path-based writers retain their ordinary parent modes. A focused private-mode,
+idempotence and symlink regression plus all 29 durable module tests pass. The
+complete Linux `make ci msrv-workspace` gate also passes on the Host checkout.
+Backup adoption remains separate until a published Host version exposes the API;
+no package version, published artifact or consumer graph changed.
+
+## Portable FIFO fixtures — delivered 0.17.10
 
 Released Host 0.17.9 still selects Apple-unavailable `rustix::fs::mkfifoat`
 in process admission and regular-opener tests. Exact 0.17.8 hosted macOS failure
@@ -192,10 +248,10 @@ No native macOS, commit, release, publication or actual provider operation ran.
 
 ## Released source and baseline
 
-The latest finalized release is **0.17.9**, commit
-`6fd078d9b914fff530b1efe521dc08ce18b97cc0`. Package versions remain unchanged.
-Shared Tooling **0.12.2**, revision
-`cff186285829481185e932d3c16514022b897de9`, is adopted through the canonical
+The latest finalized release is **0.17.10**, commit
+`330c015e16318eab169cb70424c43c241e3c0093`. Package versions remain unchanged.
+Shared Tooling **0.12.3**, revision
+`ac68c74439e13f19229a35f424f968c64325cc44`, is adopted through the canonical
 exporter from a clean isolated checkout of pushed upstream main. The snapshot
 contains 109 payloads, including the shared release-tag checker, fixture
 lifecycle helper, selected publication attempt owner and evidence collector.

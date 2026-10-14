@@ -1,4 +1,4 @@
-//! Descriptor acquisition shared by path admission and consumer-owned lock files.
+//! Regular descriptor locking, release and wait observations.
 
 use std::{
     fs::File,
@@ -8,6 +8,79 @@ use std::{
 
 #[cfg(all(test, unix))]
 mod tests;
+
+/// Acquire a blocking shared lock on a caller-owned regular descriptor.
+///
+/// Independent shared holders coexist. Opening, namespace custody, deadlines,
+/// descriptor clones and final unlock/close policy remain caller-owned.
+/// This does not reopen the file or impose an elapsed-time deadline.
+///
+/// # Errors
+/// Returns metadata, non-regular descriptor, native lock or unsupported-host errors.
+pub fn lock_shared(file: &File) -> io::Result<()> {
+    require_regular_descriptor(file)?;
+    #[cfg(unix)]
+    {
+        rustix::fs::flock(file, rustix::fs::FlockOperation::LockShared)
+            .map_err(|error| io::Error::from_raw_os_error(error.raw_os_error()))
+    }
+    #[cfg(not(unix))]
+    {
+        Err(io::Error::from(io::ErrorKind::Unsupported))
+    }
+}
+
+/// Acquire a blocking exclusive lock on a caller-owned regular descriptor.
+///
+/// Ownership and deadline policy are the same as [`lock_shared`]. Use
+/// [`lock_exclusive_with_wait`] when contention needs caller observations.
+///
+/// # Errors
+/// Returns metadata, non-regular descriptor, native lock or unsupported-host errors.
+pub fn lock_exclusive(file: &File) -> io::Result<()> {
+    require_regular_descriptor(file)?;
+    #[cfg(unix)]
+    {
+        rustix::fs::flock(file, rustix::fs::FlockOperation::LockExclusive)
+            .map_err(|error| io::Error::from_raw_os_error(error.raw_os_error()))
+    }
+    #[cfg(not(unix))]
+    {
+        Err(io::Error::from(io::ErrorKind::Unsupported))
+    }
+}
+
+/// Release a caller-owned regular descriptor's lock without closing it.
+///
+/// Unlocking releases the shared kernel ownership of its duplicated or inherited
+/// descriptors too. It does not release independently opened holders. The caller
+/// chooses the final-owner boundary; this does not close or remove any file.
+///
+/// # Errors
+/// Returns metadata, non-regular descriptor, native unlock or unsupported-host errors.
+pub fn unlock(file: &File) -> io::Result<()> {
+    require_regular_descriptor(file)?;
+    #[cfg(unix)]
+    {
+        rustix::fs::flock(file, rustix::fs::FlockOperation::Unlock)
+            .map_err(|error| io::Error::from_raw_os_error(error.raw_os_error()))
+    }
+    #[cfg(not(unix))]
+    {
+        Err(io::Error::from(io::ErrorKind::Unsupported))
+    }
+}
+
+fn require_regular_descriptor(file: &File) -> io::Result<()> {
+    if file.metadata()?.is_file() {
+        Ok(())
+    } else {
+        Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "lock requires a regular file",
+        ))
+    }
+}
 
 /// Acquire an exclusive lock on a caller-owned regular descriptor with wait observations.
 ///
