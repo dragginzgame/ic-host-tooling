@@ -636,3 +636,29 @@ identity. It creates a new isolated scenario/store, drives the canonical install
 or logger, checks preserved inputs and deliberately returns the verified original
 failure status. Callers own evidence selection, upload/download and supported
 host gates; the command activates no workflow and changes no active tool selection.
+
+### Fixture allocation
+
+Source `scripts/ci/fixture-lifecycle.sh` and call `fixture_create TEMPLATE` to
+allocate one directory and return its absolute physical path before changing cwd.
+The caller selects the template/prefix and retains its EXIT trap, completion flag
+and evidence policy. Relative templates, ordinary spaces and directory aliases
+are supported; CDPATH cannot redirect anchoring or add output. Empty templates,
+leading options and CR/LF in templates are rejected before allocation. A resolved
+physical path containing CR/LF is refused, retaining the allocation for inspection.
+Allocation errors preserve their status; normalization failures retain and report
+the created directory without attempting cleanup from an unanchored path.
+
+For example, after sourcing the helper:
+
+```bash
+fixture="$(fixture_create "${TMPDIR:-/tmp}/consumer-check.XXXXXX")"
+fixture_complete=false
+trap 'fixture_finish "$?" "$fixture" "Consumer fixture retained"' EXIT
+# Run the caller-owned checks, then mark successful completion.
+fixture_complete=true
+```
+
+The allocation helper is additive and does not change existing cleanup callers.
+Its focused fixture is `scripts/ci/test-fixture-allocation.sh`; selecting that
+fixture through the snapshot exporter includes the lifecycle helper.

@@ -7,7 +7,7 @@ root="${root%/.}"
 cd "$root"
 # Cargo's actual normal dependency graph, excluding test-only artifact fixtures.
 response="$(cargo tree -p ic-host-tools --edges normal --prefix none --format '{p}' --locked --offline)"
-if printf '%s\n' "$response" | rg '^(ic-host-(artifacts|fs|process)|candid_parser) '; then
+if printf '%s\n' "$response" | rg '^(ic-host-(artifacts|fs|process|text)|candid_parser|ciborium|ic-certification) '; then
     echo 'response/text tools graph includes an optional inspection/extraction owner' >&2
     exit 1
 fi
@@ -55,4 +55,18 @@ for owner in artifacts fs; do
         exit 1
     }
 done
-echo 'tools feature dependency graphs passed'
+certificate="$(cargo tree -p ic-host-tools --no-default-features --features certificate --edges normal --prefix none --format '{p}' --locked --offline)"
+if printf '%s\n' "$certificate" | rg '^(ic-host-(artifacts|fs|process|text)|candid_parser|ic-agent|reqwest) '; then
+    echo 'certificate decoder graph includes execution, transport, text or other inspection owners' >&2
+    exit 1
+fi
+for owner in ciborium ic-certification; do
+    printf '%s\n' "$certificate" | rg "^$owner " >/dev/null || exit 1
+done
+text="$(cargo tree -p ic-host-text --edges normal --prefix none --format '{p}' --locked --offline)"
+if printf '%s\n' "$text" | rg '^(ic-host-(artifacts|fs|process|tools)|candid_parser|ic-agent|ic-certification|ciborium) '; then
+    echo 'text graph includes another Host or IC owner' >&2
+    exit 1
+fi
+printf '%s\n' "$text" | rg '^unicode-width ' >/dev/null || exit 1
+echo 'tools/text feature dependency graphs passed'

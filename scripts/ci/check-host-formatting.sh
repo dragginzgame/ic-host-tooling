@@ -30,6 +30,10 @@ bash "$root/scripts/ci/check-formatting-hooks.sh" "$root" \
     crates/ic-host-fs/src/durable/mod.rs Cargo.toml "$fixture/unsorted.toml" \
     crates/ic-host-fs/src/durable/retained/mod.rs crates/ic-host-fs/src/durable/retained/tests/mod.rs \
     crates/ic-host-process/src/testing/mod.rs crates/ic-host-process/src/testing/tests.rs \
+    crates/ic-host-text/Cargo.toml crates/ic-host-text/src/lib.rs \
+    crates/ic-host-text/src/escape/mod.rs crates/ic-host-text/src/table/mod.rs \
+    crates/ic-host-tools/Cargo.toml crates/ic-host-tools/src/lib.rs \
+    crates/ic-host-tools/src/certificate/mod.rs crates/ic-host-tools/src/certificate/tests.rs \
     apps/ic-host-wasm-inspect/Cargo.toml apps/ic-host-wasm-inspect/src/main.rs \
     apps/ic-host-wasm-inspect/src/args/mod.rs \
     apps/ic-host-wasm-inspect/src/report/mod.rs \

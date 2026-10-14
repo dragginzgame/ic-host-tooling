@@ -1,5 +1,58 @@
 # Current handoff
 
+## Shared Tooling refresh — pending 0.18.2
+
+Shared 0.13.1 at `a348518c86f1b4cc5184ed94b8213c2d75d5e280` is exported
+from an isolated clean copy of pushed main. The snapshot retains 94 entrypoint
+roots and 113 payloads: the fixture-lifecycle helper and two guides change.
+The publication guide was already selected; its new companion declaration adds
+no command or upload effect. Tool pins, dependency selections and pending
+certificate/text sources are preserved. The sibling's dirty 0.13.2 work and
+rustdoc/probe proposals mentioned in pending upstream notes are not adopted.
+The existing [#73 — Shared Tooling adoption](https://github.com/dragginzgame/ic-host-tooling/issues/73)
+owns this refresh; ordinary local source changes do not perform Git/release effects.
+
+Full Linux `make ci msrv-workspace` passes for the combined pending source,
+including strict workspace lint/docs and actual Rust 1.88 checking. The new
+allocator's focused checks pass under current Bash and genuine Bash 3.2;
+ShellCheck and a repeat preview (113 KEEP) pass. Before-images and exact logs
+are retained at `/tmp/host-shared0131.AuVZvH/`. The real index/HEAD and all unrelated
+starting source files are unchanged. Native macOS qualification remains separate.
+
+## Certificate formats and host text — pending 0.18.2
+
+Released base is 0.18.1 `be35654a35f6e2e79728712dd24db76c5daeef02`.
+[#109 — Owned certificate decoding](https://github.com/dragginzgame/ic-host-tooling/issues/109)
+adds an optional tools-only `certificate` profile. Direct Serde visitors return
+owned upstream IC certificates/hash trees without a generic CBOR payload tree.
+Byte/depth budgets, exact node tags/arities, byte payloads, pruned digest lengths,
+strict fields and trailing-data refusal remain mechanical admission. Authentication,
+combined evidence, commitments and leaf interpretation stay Query-owned.
+
+The maintainer's screenshot separately authorizes the fifth generic owner:
+[#110 — Host text ownership](https://github.com/dragginzgame/ic-host-tooling/issues/110).
+`ic-host-text` renders escaped scalar values and Unicode-width tables with
+explicit alignment/gap/separator choices. Report construction, size/truncation,
+stdout, terminal detection, colour and progress remain consumer-owned. It depends
+only on the already locked Unicode-width owner, with no other Host or IC edge.
+The publication roster, workspace metadata, feature gate and ownership docs
+include the new library. No existing API moves or compatibility reexports occur.
+
+Five certificate cases and five text cases pass on Linux, with strict affected-
+package Clippy/Rustdoc and actual Rust 1.88 all-target/all-feature checking.
+Production graph exclusions, formatting and links pass. Initial fixture compiler
+and lint failures are retained alongside corrected passes at
+`/tmp/host-formats.rllgiU/`. Source provenance binds the clean Query inputs to
+`3dd2fe811b5fbdbfebb57694c9937d2dff6c07b7`. Query's current decoder and renderer
+remain until published adoption; no sibling source was edited. Package versions
+and the real index/refs are unchanged; no release or publication ran.
+Native macOS acceptance and consumer adoption remain independent obligations.
+The corrected full Linux `make ci` gate and `make msrv-workspace` pass. The first
+full attempt found missing new-module inputs in Host's disposable formatting
+fixture; its roster now includes the text crate and certificate sources. All
+previous lock selections/checksums are preserved; only required nodes/edges are
+added. The complete failure and corrected gate logs retain their source identities.
+
 ## Fixture callers and resource reports — pending 0.18.1
 
 The approved remaining tools fixture caller now uses the opt-in filesystem
