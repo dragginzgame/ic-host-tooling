@@ -37,15 +37,23 @@ pub(super) fn capture(
         .current_dir(context.current_dir)
         .env_clear()
         .envs(context.environment.iter().map(|(key, value)| (key, value)));
-    capture_command(&mut command, limits, CleanupScope::DirectChild)
+    capture_command(&mut command, limits, CleanupScope::DirectChild, || false)
 }
 
 pub(super) fn capture_command(
     command: &mut Command,
     limits: OutputLimits,
     scope: CleanupScope,
+    mut cancelled: impl FnMut() -> bool,
 ) -> Result<CompletedExecution, ExecutionError> {
     let started = Instant::now();
+    if cancelled() {
+        return Err(ExecutionError {
+            failure: ExecutionFailure::Cancelled,
+            evidence: ExecutionEvidence::default(),
+            cleanup: None,
+        });
+    }
     command
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
@@ -65,7 +73,7 @@ pub(super) fn capture_command(
         limits,
         started,
         SuccessfulExit::Cleanup,
-        || false,
+        cancelled,
         |_, _| Ok(()),
     )
 }

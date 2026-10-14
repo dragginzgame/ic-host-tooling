@@ -463,8 +463,10 @@ pub fn capture_command(
     limits: OutputLimits,
 ) -> Result<CompletedExecution, ToolError> {
     validate_limits(limits)?;
-    process::capture_command(command, limits, process::CleanupScope::DirectChild)
-        .map_err(|source| ToolError::Execution(Box::new(source)))
+    process::capture_command(command, limits, process::CleanupScope::DirectChild, || {
+        false
+    })
+    .map_err(|source| ToolError::Execution(Box::new(source)))
 }
 
 /// Capture one caller-configured command in a newly owned process group.
@@ -490,8 +492,36 @@ pub fn capture_group_command(
     limits: OutputLimits,
 ) -> Result<CompletedExecution, ToolError> {
     validate_limits(limits)?;
-    process::capture_command(command, limits, process::CleanupScope::ProcessGroup)
-        .map_err(|source| ToolError::Execution(Box::new(source)))
+    process::capture_command(command, limits, process::CleanupScope::ProcessGroup, || {
+        false
+    })
+    .map_err(|source| ToolError::Execution(Box::new(source)))
+}
+
+/// Capture a command in an owned process group with caller-selected cancellation.
+///
+/// Shares [`capture_group_command`]'s IO, bounds, exit and cleanup contract.
+/// The callback runs before command modification/spawn and during communication;
+/// it must return promptly. A true value refuses startup or cleans up the owned
+/// group, retaining output and cleanup evidence. No signal handler, deadline,
+/// retry or admission policy is installed. Limits remain caller-selected.
+///
+/// # Errors
+/// Invalid limits refuse before the callback or command effects. Cancellation,
+/// spawn and communication failures retain the existing typed execution evidence.
+pub fn capture_group_command_with_cancellation(
+    command: &mut Command,
+    limits: OutputLimits,
+    cancelled: impl FnMut() -> bool,
+) -> Result<CompletedExecution, ToolError> {
+    validate_limits(limits)?;
+    process::capture_command(
+        command,
+        limits,
+        process::CleanupScope::ProcessGroup,
+        cancelled,
+    )
+    .map_err(|source| ToolError::Execution(Box::new(source)))
 }
 
 /// Successful leader disposition during [`communicate_child`].

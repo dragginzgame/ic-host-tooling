@@ -1,4 +1,32 @@
 use super::*;
+
+#[test]
+fn cancelled_group_capture_refuses_before_spawn_and_reaps_running_group() {
+    let fixture = Fixture::new();
+    let ready = fixture.root.join("cancel-ready");
+    let mut command = Command::new("/bin/sh");
+    command
+        .args([
+            "-c",
+            "printf output; printf diagnostic >&2; printf ready > \"$READY\"; exec sleep 30",
+        ])
+        .env("READY", &ready);
+    let error = capture_group_command_with_cancellation(&mut command, LIMITS, || true).unwrap_err();
+    assert!(matches!(
+        error.execution_error().unwrap().failure,
+        ExecutionFailure::Cancelled
+    ));
+    assert!(error.evidence().unwrap().status.is_none());
+    assert!(!ready.exists());
+    let error = capture_group_command_with_cancellation(&mut command, LIMITS, || ready.exists())
+        .unwrap_err();
+    let execution = error.execution_error().unwrap();
+    assert!(matches!(execution.failure, ExecutionFailure::Cancelled));
+    assert!(!execution.evidence.status.unwrap().success());
+    assert!(execution.cleanup.is_none());
+    assert!(b"output".starts_with(&execution.evidence.stdout));
+    assert!(b"diagnostic".starts_with(&execution.evidence.stderr));
+}
 use std::{process::Command, time::Instant};
 
 #[test]
