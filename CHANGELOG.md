@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.17.10]
+## [0.17.10] - 2026-10-14
 
 - Restore macOS test compilation with portable FIFO creation while retaining
   regular-file and tool-admission refusal checks
