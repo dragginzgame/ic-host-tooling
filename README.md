@@ -5,7 +5,7 @@ admitted process execution and IC-specific format handling.
 
 | Crate | Implemented source ownership |
 | --- | --- |
-| ic-host-artifacts | Bounded streams and hashing writers, exact byte comparison, SHA-256, gzip encoding/decoding, verified tar members and generic Wasm facts |
+| ic-host-artifacts | Bounded streams and hashing writers, exact byte comparison, SHA-256, gzip encoding/decoding, verified tar members, generic Wasm facts and custom-section encoding |
 | ic-host-fs | Regular/no-follow reads, missing-suffix path resolution, streamed durable publication, private files and observed descriptor locks |
 | ic-host-process | Executable resolution, digest/version admission, bounded capture, explicit child/group cleanup and Git observations |
 | ic-host-tools | Candid text/extraction, optional service and IC export facts, ICP response decoding and IC resource reports |
@@ -14,6 +14,15 @@ These run locally outside canisters. The ic-host prefix identifies their ecosyst
 the generic crates have no IC runtime dependency. Compression, archive and Wasm
 support are optional features of ic-host-artifacts. Filesystem/process consumers
 select the small default artifact dependency.
+For test fixtures, opt in to `ic-host-fs`'s `test-support` feature in a
+dev-dependency and use `testing::create_fixture_directory(parent, prefix)`.
+It allocates beneath an existing physical parent, skips occupied names and
+returns the retained path. Callers own labels, custody and explicit cleanup;
+the allocator supplies no Drop guard or application lifecycle.
+With `wasm`, `wasm::encode_custom_section(CustomSection { name, data }, max_bytes)`
+encodes one complete custom section with an explicit output-byte allowance.
+Callers supply exact names/data and own module assembly, aggregate budgets,
+duplicates, append order and subsequent Wasm validation.
 `ic-host-tools` has no default features. Response decoding and
 `candid::text::normalize` are always available without artifact/filesystem/process
 dependencies or the Candid parser. Enable `candid-extraction` explicitly for

@@ -4,6 +4,7 @@ use rustix::process::{Pid, WaitId, WaitIdOptions, waitid};
 use std::{process::Stdio, time::Instant};
 
 mod observe;
+mod retained;
 
 #[test]
 fn nonzero_retained_leader_cleans_descendant_pipes_and_refuses_handoff() {

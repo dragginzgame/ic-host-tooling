@@ -4,14 +4,12 @@
 //! soft warning are caller policy; the three reference comparisons do not prove
 //! instruction/type validity or installation on any deployed subnet.
 
-use ic_host_artifacts::{
-    artifact::read_reader,
-    wasm::{InspectionLimits, WasmFacts, inspect},
-};
+use ic_host_artifacts::wasm::{InspectionLimits, WasmFacts, inspect};
+use ic_host_fs::read::read_file;
 use ic_host_tools::install_limits::{
     InstallReport, LimitUsage, REFERENCE_LIMITS, REFERENCE_REVISION,
 };
-use std::{error::Error, ffi::OsString, fs::File, io, process::ExitCode};
+use std::{error::Error, ffi::OsString, io, path::Path, process::ExitCode};
 
 #[cfg(test)]
 mod tests;
@@ -50,11 +48,7 @@ fn run(
     if args.next().is_some() {
         return Err(invalid_argument("unexpected argument").into());
     }
-    let file = File::open(path)?;
-    if !file.metadata()?.is_file() {
-        return Err(invalid_argument("expected a regular file").into());
-    }
-    let bytes = read_reader(file, limits.module_bytes)?;
+    let bytes = read_file(Path::new(&path), limits.module_bytes)?;
     let facts = inspect(&bytes, limits)?;
     // Select the revision-bound reference explicitly, and inspect only once.
     let report = REFERENCE_LIMITS.report(&facts);

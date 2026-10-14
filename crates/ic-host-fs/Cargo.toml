@@ -13,6 +13,9 @@ publish = ["crates-io"]
 [target.'cfg(unix)'.dependencies]
 rustix.workspace = true
 
+[features]
+test-support = []
+
 [dependencies]
 ic-host-artifacts.workspace = true
 
