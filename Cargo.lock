@@ -488,6 +488,7 @@ name = "ic-host-artifacts"
 version = "0.17.13"
 dependencies = [
  "flate2",
+ "leb128",
  "serde",
  "serde_json",
  "sha2",

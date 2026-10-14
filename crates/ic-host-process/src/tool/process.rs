@@ -6,11 +6,11 @@ use crate::child::OwnedChild;
 use rustix::fs::{OFlags, fcntl_getfl, fcntl_setfl};
 use std::{
     ffi::OsString,
-    io::{self, Read, Write},
+    io::{self, BufReader, Read, Write},
     os::fd::AsFd,
     panic::{AssertUnwindSafe, catch_unwind, resume_unwind},
     path::Path,
-    process::{Command, ExitStatus, Stdio},
+    process::{ChildStdout, Command, ExitStatus, Stdio},
     time::{Duration, Instant},
 };
 
@@ -59,8 +59,11 @@ pub(super) fn capture_command(
         evidence: ExecutionEvidence::default(),
         cleanup: None,
     })?;
+    let stdout = child.take_stdout().map(BufReader::new);
     exchange(
         &mut child,
+        stdout,
+        false,
         None,
         limits,
         started,
@@ -78,8 +81,11 @@ pub(super) fn communicate(
     cancelled: impl FnMut() -> bool,
     output: impl FnMut(OutputStream, &[u8]) -> io::Result<()>,
 ) -> Result<CompletedExecution, ExecutionError> {
+    let stdout = child.take_stdout().map(BufReader::new);
     exchange(
         child,
+        stdout,
+        false,
         input,
         limits,
         Instant::now(),
@@ -89,8 +95,34 @@ pub(super) fn communicate(
     )
 }
 
+pub(super) fn drain_output(
+    child: &mut OwnedChild,
+    stdout: Option<BufReader<ChildStdout>>,
+    limits: OutputLimits,
+    cancelled: impl FnMut() -> bool,
+) -> Result<CompletedExecution, ExecutionError> {
+    let stdout = stdout.or_else(|| child.take_stdout().map(BufReader::new));
+    exchange(
+        child,
+        stdout,
+        true,
+        None,
+        limits,
+        Instant::now(),
+        SuccessfulExit::Cleanup,
+        cancelled,
+        |_, _| Ok(()),
+    )
+}
+
+#[expect(
+    clippy::too_many_arguments,
+    reason = "one capture engine retains caller IO and ownership disposition"
+)]
 fn exchange(
     child: &mut OwnedChild,
+    mut stdout: Option<BufReader<ChildStdout>>,
+    allow_reaped: bool,
     input: Option<&[u8]>,
     limits: OutputLimits,
     started: Instant,
@@ -101,13 +133,18 @@ fn exchange(
     let timeout = limits.timeout;
     let mut evidence = ExecutionEvidence::default();
     let mut stdin = child.take_stdin();
-    let mut stdout = child.take_stdout();
     let mut stderr = child.take_stderr();
     // Resume the original panic after closing pipes and attempting cleanup.
     // The borrowed owner can outlive a caller's catch_unwind, so its Drop alone
     // cannot guarantee cleanup here. No callback is reused after unwinding.
     let result = catch_unwind(AssertUnwindSafe(|| {
-        if !child.is_owned() {
+        let admitted = child.is_owned()
+            || (allow_reaped
+                && child
+                    .try_wait()
+                    .map_err(|source| io_failure(ExecutionOperation::Wait, source))?
+                    .is_some());
+        if !admitted {
             return Err(io_failure(
                 ExecutionOperation::Wait,
                 io::ErrorKind::InvalidInput.into(),
@@ -124,7 +161,10 @@ fn exchange(
             drop(stdin.take());
         }
         stdin.as_ref().map(nonblocking).transpose()?;
-        stdout.as_ref().map(nonblocking).transpose()?;
+        stdout
+            .as_ref()
+            .map(|reader| nonblocking(reader.get_ref()))
+            .transpose()?;
         stderr.as_ref().map(nonblocking).transpose()?;
         loop {
             if cancelled() {
