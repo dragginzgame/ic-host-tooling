@@ -1,5 +1,66 @@
 # Host support and qualification
 
+## Pending 0.43.0: metadata serialization and prepared owner adoption
+
+Benchmark metadata now serializes the typed record directly. A before/after
+probe through the actual report writer preserves decoded fields, escaped values
+and the final newline; JSON keys follow record order instead of the intermediate
+map's sorted order. All other report files are byte-identical. Three metadata/
+report boundary cases and strict selected library/test Clippy pass on the normal
+registry graph. Object-only admission and required/optional fields are unchanged.
+
+The fresh isolated consumer integrates both prepared retirements with the current
+shared report types and published Host table renderer. It uses Host PR #108
+`f9377c547d305e19afa98c66e198e1e15ea99c77` and Build PR #31
+`f791954f7dacd32e51e2727ce6199c73cf1aec52` as temporary source selections. The
+13 driver cases, CLI descendant cancellation, strict affected lint, actual Rust
+1.88 and a fresh/pooled PocketIC smoke pass on Linux. No performance gain is
+claimed. Cargo builds retain caller admission and no default elapsed-time or
+total-diagnostic-output ceiling. External package records and edges match the
+frozen normal lock after restoring incidental Windows edge reselection in the
+private qualification graph; locked complete Cargo metadata admits that graph.
+
+Registry inspection still selects Host 0.18.2 and Build 0.3.2 without these APIs.
+Normal signal/build callers therefore await producer integration/publication
+under [#93](https://github.com/dragginzgame/ic-testkit/issues/93) and
+[#94](https://github.com/dragginzgame/ic-testkit/issues/94). The refreshed patch
+applies to this pending working tree; no temporary override is installed here.
+Before-images, source identities, failed attempts, probes, patch and raw logs
+remain under `/tmp/testkit-final-cuts/`. Own metadata remains 0.42.0; native macOS,
+full release gates and publication remain maintainer-owned.
+
+## Pending 0.43.0: report ownership and native time calls
+
+The normal working tree shares typed fixture-report fields between worker and
+operator driver, retaining raw extra fields and independent workload/duration/
+sampling admission. Its terminal table uses published IC Host Text 0.18.2;
+the archive checksum is
+`fe0d780d03023e8eeaedb5356570f57b32fbdb48c75af58069581929543acc03`
+and its VCS receipt names `55a31aa13a42f55fa3985db33e1586722638ad40`.
+Only the new text selection and local dependency edge are added to the incoming
+lock. Exposed runtime Host selections, existing pins and own 0.42.0 metadata remain.
+
+The redundant time trait is removed; direct PocketIC timestamp conversion replaces
+its consumers. All 13 driver cases, four bounded-polling cases, affected strict
+Clippy, actual Rust 1.88 and a live fresh/pooled smoke pass on Linux. The smoke
+checks worker/driver exchange and fixture correctness, not a performance gain.
+An initial sandbox attempt refused PocketIC loopback binding; the native retry
+uses the same selected binary and sources. Native macOS and full release gates
+remain maintainer-owned. Before-images, exact inputs and raw logs are retained at
+`/tmp/testkit-schema-time/` against released Testkit
+`5d1cce0a1034c7e7bcb2490544b6f81dda5edc32` plus this pending batch.
+
+[Jobs PR #49](https://github.com/dragginzgame/ic-jobs/pull/49) at
+`f0c9ac73cfcbc60ef74f8c89830953274ab74187` passes selected recovery compilation
+and strict lint on its unchanged registry Testkit 0.42.0 graph.
+[Canic PR #565](https://github.com/dragginzgame/canic/pull/565) at
+`fd2257d06dbc05d5fbe834c7fe85934b03f9b1a6` passes selected compilation and strict
+lint on published main. Its earlier rehearsal also passes on the unpublished local anchor
+`644d4b13012b395d6211a6907e2e6aafdf391db9` and published main
+`25b73cd403b20b4e148c6e340f8c760a26d97f6e`; those graphs/evidence remain distinct.
+Normal sibling sources are untouched. Consumer delivery and their governed live
+journeys remain separate from this compile qualification.
+
 ## Pending 0.42.0: canonical release projection and prepared native callers
 
 The working tree adopts Shared Tooling 0.12.7 at

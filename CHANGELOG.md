@@ -6,6 +6,28 @@ documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.43.0]
+
+### Breaking
+
+- Remove the redundant `PocketIcTimeExt` trait and its prelude export. Read
+  nanoseconds directly with `pic.get_time().as_nanos_since_unix_epoch()`;
+  update trait imports and call sites. Simulated polling remains unchanged.
+  Jobs caller preparation is in [PR #49](https://github.com/dragginzgame/ic-jobs/pull/49);
+  Canic caller preparation is in [PR #565](https://github.com/dragginzgame/canic/pull/565).
+
+### Changed
+
+- Share the fixture benchmark worker/driver report types and decode borrowed
+  JSON without cloning the complete report. Preserve raw worker fields, required
+  phases, workload matching and driver-owned sampling admission.
+- Render benchmark terminal columns through IC Host Text 0.18.2 with computed
+  widths and escaped cells. Numeric formatting and JSON reports remain local.
+- Serialize benchmark metadata directly from its typed record, retaining JSON
+  fields and the trailing newline; key presentation follows record order.
+
+[Integration details](crates/ic-testkit/CHANGELOG.md#0430)
+
 ## [0.42.0] - 2026-10-14
 
 ### Breaking
