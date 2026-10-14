@@ -52,8 +52,13 @@ impl SignalActions {
     ///
     /// # Errors
     /// Returns the original installation failure separately from a rollback error.
+    ///
+    /// # Safety
+    /// The caller must supply an async-signal-safe handler and exclusively
+    /// coordinate process-global changes to the selected dispositions through
+    /// restoration/Drop, including reverse-order restoration of overlapping guards.
     #[allow(unsafe_code)]
-    pub fn install(
+    pub unsafe fn install(
         signals: &[libc::c_int],
         handler: extern "C" fn(libc::c_int),
     ) -> Result<Self, SignalActionError> {

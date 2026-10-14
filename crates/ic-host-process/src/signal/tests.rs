@@ -56,17 +56,20 @@ fn dispositions_worker() {
     if std::env::var_os("IC_HOST_SIGNAL_WORKER").is_none() {
         return;
     }
+    // SAFETY: this isolated worker owns the dispositions; both static handlers
+    // use only a lock-free atomic, and overlapping guards restore in LIFO order.
     let before = [disposition(libc::SIGUSR1), disposition(libc::SIGUSR2)];
-    SignalActions::install(&[], observe)
+    unsafe { SignalActions::install(&[], observe) }
         .unwrap()
         .restore()
         .unwrap();
-    let mut outer = SignalActions::install(&[libc::SIGUSR1, libc::SIGUSR2], observe).unwrap();
+    let mut outer =
+        unsafe { SignalActions::install(&[libc::SIGUSR1, libc::SIGUSR2], observe) }.unwrap();
     for signal in [libc::SIGUSR1, libc::SIGUSR2] {
         raise(signal);
         assert_eq!(OBSERVED.load(Ordering::Relaxed), signal);
     }
-    let duplicate = SignalActions::install(&[libc::SIGUSR1, libc::SIGUSR1], nested)
+    let duplicate = unsafe { SignalActions::install(&[libc::SIGUSR1, libc::SIGUSR1], nested) }
         .err()
         .unwrap();
     assert_eq!(duplicate.source.kind(), std::io::ErrorKind::InvalidInput);
@@ -74,7 +77,7 @@ fn dispositions_worker() {
     raise(libc::SIGUSR1);
     assert_eq!(OBSERVED.load(Ordering::Relaxed), libc::SIGUSR1);
     {
-        let _inner = SignalActions::install(&[libc::SIGUSR1], nested).unwrap();
+        let _inner = unsafe { SignalActions::install(&[libc::SIGUSR1], nested) }.unwrap();
         raise(libc::SIGUSR1);
         assert_eq!(OBSERVED.load(Ordering::Relaxed), -1);
     }
@@ -88,7 +91,7 @@ fn dispositions_worker() {
         before
     );
     for invalid in [libc::SIGKILL, -1] {
-        let error = SignalActions::install(&[libc::SIGUSR1, invalid], observe)
+        let error = unsafe { SignalActions::install(&[libc::SIGUSR1, invalid], observe) }
             .err()
             .unwrap();
         assert_eq!(error.signal, invalid);
