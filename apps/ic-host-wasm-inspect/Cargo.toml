@@ -14,5 +14,8 @@ publish = ["crates-io"]
 ic-host-artifacts = { workspace = true, features = ["wasm"] }
 ic-host-fs.workspace = true
 
+[dev-dependencies]
+ic-host-fs = { workspace = true, features = ["test-support"] }
+
 [lints]
 workspace = true

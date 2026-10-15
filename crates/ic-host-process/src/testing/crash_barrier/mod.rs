@@ -70,23 +70,15 @@ pub fn wait_for_child_path(
     description: &str,
     timeout: Duration,
 ) -> io::Result<()> {
-    let deadline = Instant::now() + timeout;
-    while !path.is_file() {
+    wait_for_marker(path, description, timeout, || {
         if let Some(status) = child.try_wait()? {
             return Err(io::Error::new(
                 io::ErrorKind::UnexpectedEof,
                 format!("crash child exited before {description}: {status}"),
             ));
         }
-        if Instant::now() >= deadline {
-            return Err(io::Error::new(
-                io::ErrorKind::TimedOut,
-                format!("timed out waiting for {description}"),
-            ));
-        }
-        thread::sleep(Duration::from_millis(10));
-    }
-    Ok(())
+        Ok(())
+    })
 }
 
 /// Wait for a parent-owned marker without observing a child process.
@@ -94,8 +86,18 @@ pub fn wait_for_child_path(
 /// # Errors
 /// Returns a timeout when the marker does not appear by `timeout`.
 pub fn wait_for_path(path: &Path, description: &str, timeout: Duration) -> io::Result<()> {
+    wait_for_marker(path, description, timeout, || Ok(()))
+}
+
+fn wait_for_marker(
+    path: &Path,
+    description: &str,
+    timeout: Duration,
+    mut check_child: impl FnMut() -> io::Result<()>,
+) -> io::Result<()> {
     let deadline = Instant::now() + timeout;
     while !path.is_file() {
+        check_child()?;
         if Instant::now() >= deadline {
             return Err(io::Error::new(
                 io::ErrorKind::TimedOut,

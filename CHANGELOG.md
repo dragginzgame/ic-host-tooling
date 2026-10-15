@@ -1,12 +1,55 @@
 # Changelog
 
-## [0.19.1]
+## [0.20.1] - 2026-10-15
 
-- Open existing regular lock sidecars without creating them, and try one
-  exclusive descriptor lock without waiting. Publish caller-verified directory
-  trees without replacing an occupied name, retaining failed/recovered evidence.
-  [Detailed notes](docs/changelog/0.19.md).
+- Open existing regular lock sidecars without creating them, try one exclusive
+  lock without waiting, and publish caller-verified directory trees without
+  replacing an occupied name. Callers retain reconciliation authority.
+  [Detailed notes](docs/changelog/0.20.md).
+- Add terminal-line clipping with explicit column limits, control escaping and
+  an ellipsis for host status panels. Callers retain terminal and redraw policy
+  ([#144](https://github.com/dragginzgame/ic-host-tooling/pull/144)).
+  [Detailed notes](docs/changelog/0.20.md).
 
+## [0.20.0] - 2026-10-15
+
+### Breaking
+
+- Remove `ToolSpec`: pinned executable admission now takes `VersionSpec` plus
+  a mandatory digest argument. Update both `admit` and `admit_no_follow` callers;
+  digest verification still precedes version execution.
+- Borrow Git revision/tree IDs from retained captures through accessors, replacing
+  duplicated public strings and mutable capture fields.
+- Retain gzip decoding failures as `ArchiveError::Gzip(GzipError)` instead of
+  parallel archive variants; update matching and error-chain handling.
+- Require explicit `WriteOptions` for named publication so callers select
+  replacement/create-only behavior and staging permissions.
+- Return borrowed-or-owned terminal text with `Cow<str>`, avoiding copies of safe
+  cells. Callers requiring `String` must explicitly take ownership.
+
+### Changed
+
+- Simplify durable-write failure handling and table rendering, and consolidate
+  ordered Git failure evidence.
+- Add optional digest verification and detailed Wasm records to the inspector,
+  replacing the overlapping filesystem example while preserving default TSV.
+- Derive publication paths from admitted Cargo metadata and share Unix read-only
+  opening mechanics across following and no-follow reads.
+- Adopt Shared Tooling 0.15.2 and its Cargo ordering-fixture generator, with
+  explicit fixture variable selection and unchanged common tool pins
+  ([#134 — Shared Cargo ordering fixture](https://github.com/dragginzgame/ic-host-tooling/issues/134)).
+- Keep generic installer/LOC regression matrices in Shared Tooling while retaining
+  Host's actual wiring, failure propagation, tool admission and native checks.
+- Share identical invalid-count artifact test doubles privately, retaining each
+  API's rejection assertions and distinct partial-I/O cases.
+- Reuse filesystem fixture allocation in CLI/example tests and retire unused
+  Shared regression exports while keeping active checkers and integration proofs.
+- Consolidate crash-barrier polling and inspector output errors, preserving
+  marker/child/timeout precedence and admission before output.
+- Share descriptor-lock dispatch and failing-reader fixtures. Use Shared's
+  saved-source renderer instead of Host's duplicate dependency projector
+  ([#131](https://github.com/dragginzgame/ic-host-tooling/issues/131)).
+  [Detailed notes](docs/changelog/0.20.md).
 
 ## [0.19.0] - 2026-10-15
 

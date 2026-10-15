@@ -13,17 +13,8 @@ fixture="$(fixture_create "${TMPDIR:-/tmp}/host-formatting.XXXXXX")"
 fixture_complete=false
 trap 'fixture_finish "$?" "$fixture" "Host formatting input retained"' EXIT
 
-# Swap adjacent workspace dependencies without moving their preceding comment
-# or changing version/feature selections. Fail if those inputs no longer match.
-awk '
-    $1 == "ic-host-artifacts" { saved=$0; next }
-    saved != "" {
-        if ($1 != "ic-host-fs") exit 1
-        print; print saved; saved=""; swapped=1; next
-    }
-    { print }
-    END { if (!swapped || saved != "") exit 1 }
-' "$root/Cargo.toml" > "$fixture/unsorted.toml"
+perl "$root/scripts/ci/prepare-cargo-formatting-fixture.pl" \
+    "$root/Cargo.toml" workspace.dependencies ic-host-artifacts ic-host-fs > "$fixture/unsorted.toml"
 bash "$root/scripts/ci/check-formatting-hooks.sh" "$root" \
     crates/ic-host-fs/src/durable/mod.rs Cargo.toml "$fixture/unsorted.toml" --rust-sources \
     make/consumer.mk make/tools.mk make/rust-format.mk make/release.mk make/execution.mk \

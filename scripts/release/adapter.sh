@@ -28,12 +28,37 @@ local_packages() {
            and all($local[]; .version == $version)
         then $names | sort | join(" ") else error("invalid local package identities") end'
 }
-project_manifest() {
+project_manifest() (
+    temporary="$(mktemp -d "${TMPDIR:-/tmp}/host-release-manifest.XXXXXX")" || return
+    trap 'rm -rf "$temporary"' EXIT
+    "${YQ:-yq}" -p toml -o json '.' "$1" > "$temporary/manifest.json" || return
+    # Host has explicit workspace members. Read their identities from the selected
+    # Git source, never today's manifests or the saved root's scratch directory.
+    # /release-source is a lexical identity only; no workspace is reconstructed.
+    jq -er '.workspace.members |
+        if type == "array" and length > 0 and all(.[];
+            type == "string" and length > 0 and
+            (test("[\u0000\r\n*?\\[\\]\\\\]") | not) and
+            (split("/") | all(. != "" and . != "." and . != "..")))
+        then .[] else error("expected explicit workspace member paths") end' \
+        "$temporary/manifest.json" > "$temporary/directories" || return
+    : > "$temporary/members.jsonl"
+    while IFS= read -r directory; do
+        git show "$RELEASE_SOURCE:$directory/Cargo.toml" > "$temporary/member.toml" || return
+        "${YQ:-yq}" -p toml -o json '.' "$temporary/member.toml" |
+            jq -ec --arg path "/release-source/$directory/Cargo.toml" '
+                .package.name | if type == "string" and test("^[A-Za-z0-9][A-Za-z0-9_-]*$")
+                then {name: ., manifest_path: $path} else error("invalid source member identity") end' \
+            >> "$temporary/members.jsonl" || return
+    done < "$temporary/directories"
+    jq -es --slurpfile manifest "$temporary/manifest.json" --arg packages "$3" '
+        if length > 0 and (map(.name) | sort) == ($packages | split(" "))
+        then {source_root: "/release-source", manifest: $manifest[0], members: .}
+        else error("saved workspace and lock identities differ") end' \
+        "$temporary/members.jsonl" > "$temporary/context.json" || return
     perl "$tooling_root/scripts/ci/render-cargo-workspace-version.pl" \
-        "$1" "$RELEASE_PREVIOUS" "$2" |
-        awk -v mode=manifest -v packages="$3" -v replacement="$2" \
-            -f "$tooling_root/scripts/release/metadata-version.awk"
-}
+        "$1" "$RELEASE_PREVIOUS" "$2" "$temporary/context.json"
+)
 admit_files() {
     local allowed=(--allow CHANGELOG.md)
     if [[ "$operation" != preflight && "$operation" != verify ]]; then
