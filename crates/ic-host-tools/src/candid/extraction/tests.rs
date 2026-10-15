@@ -1,8 +1,3 @@
-#![expect(
-    clippy::significant_drop_tightening,
-    reason = "fixture serialization and directory ownership must last through output/filesystem assertions"
-)]
-
 use super::*;
 use crate::test_support::{Fixture, LIMITS};
 use ic_host_process::tool::{ExecutionFailure, OutputStream};

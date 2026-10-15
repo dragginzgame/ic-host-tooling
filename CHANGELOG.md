@@ -1,9 +1,46 @@
 # Changelog
 
-## [0.18.3]
+## [0.18.6]
 
 - Add no-follow directory selection and held-inode comparison to `ic-host-fs`.
   Callers retain namespace exclusion and recovery decisions.
+  [Detailed notes](docs/changelog/0.18.md).
+
+## [0.18.5] - 2026-10-15
+
+- Adopt integrated Shared release-input validation and fixture-retention probes,
+  preserving tool pins and using the formatting helper now delivered on Shared main
+  ([#124 — Shared release and fixture adoption](https://github.com/dragginzgame/ic-host-tooling/issues/124)).
+  [Detailed notes](docs/changelog/0.18.md).
+
+## [0.18.4] - 2026-10-15
+
+- Adopt Shared Tooling 0.14.0 reporting and changelog guidance while retaining
+  current-source formatting discovery; tool pins and executable behavior stay unchanged
+  ([#73 — Shared Tooling adoption](https://github.com/dragginzgame/ic-host-tooling/issues/73)).
+- Fix the tree-walk fixture on filesystems that reject non-UTF-8 filenames,
+  preserving symlink refusal and native filename-admission coverage
+  ([#116 — Release and fixture cleanup](https://github.com/dragginzgame/ic-host-tooling/issues/116)).
+  [Detailed notes](docs/changelog/0.18.md).
+
+## [0.18.3] - 2026-10-14
+
+- Prepare release metadata with literal rendering and byte/mode rollback,
+  retiring the release-only cargo-edit installation and commands
+  ([#116 — Release and fixture cleanup](https://github.com/dragginzgame/ic-host-tooling/issues/116)).
+- Use fork-safe executable fixture writers and remove global test serialization;
+  finalize the new tree walker's directory-only admission inside the library
+  ([#116 — Release and fixture cleanup](https://github.com/dragginzgame/ic-host-tooling/issues/116)).
+- Discover current Rust sources and crate manifests for formatting fixtures,
+  replacing the manual module roster through Shared's canonical helper
+  ([#113 — Fixture and graph simplification](https://github.com/dragginzgame/ic-host-tooling/issues/113)).
+- Reuse Shared fixture allocation and consolidate feature-graph checks,
+  preserving failed evidence and every dependency-boundary assertion
+  ([#113 — Fixture and graph simplification](https://github.com/dragginzgame/ic-host-tooling/issues/113)).
+- Add a no-follow descriptor tree walker in `ic-host-fs` for caller-owned
+  checksums, synchronization and entry policy; it does not claim tree custody.
+- Add opt-in acknowledged direct-child crash barriers in `ic-host-process`
+  testing, with explicit timeouts and direct-child reaping on handshake failure.
   [Detailed notes](docs/changelog/0.18.md).
 
 ## [0.18.2] - 2026-10-14

@@ -13,6 +13,8 @@ use std::{
 
 use crate::child::OwnedChild;
 
+pub mod crash_barrier;
+
 /// Create or replace a caller-owned executable script with mode 0755.
 ///
 /// A parallel fork can inherit a parent's writable executable descriptor until
