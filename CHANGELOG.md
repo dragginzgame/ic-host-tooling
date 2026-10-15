@@ -1,10 +1,84 @@
 # Changelog
 
-## [0.18.6]
+## [0.20.1] - 2026-10-15
 
-- Add Unix directory-capability opening and bounded regular-file selection beneath
-  an explicit root, retaining traversal, symlink and special-file refusal
+- Open regular files or directories through a retained Unix root descriptor,
+  refusing traversal, symlinks and special entries without pathname reopening.
+  Callers retain root and byte custody
   ([#80 — Capability-rooted filesystem confinement](https://github.com/dragginzgame/ic-host-tooling/issues/80)).
+  [Detailed notes](docs/changelog/0.20.md).
+- Add terminal-line clipping with explicit column limits, control escaping and
+  an ellipsis for host status panels. Callers retain terminal and redraw policy
+  ([#144](https://github.com/dragginzgame/ic-host-tooling/pull/144)).
+  [Detailed notes](docs/changelog/0.20.md).
+
+## [0.20.0] - 2026-10-15
+
+### Breaking
+
+- Remove `ToolSpec`: pinned executable admission now takes `VersionSpec` plus
+  a mandatory digest argument. Update both `admit` and `admit_no_follow` callers;
+  digest verification still precedes version execution.
+- Borrow Git revision/tree IDs from retained captures through accessors, replacing
+  duplicated public strings and mutable capture fields.
+- Retain gzip decoding failures as `ArchiveError::Gzip(GzipError)` instead of
+  parallel archive variants; update matching and error-chain handling.
+- Require explicit `WriteOptions` for named publication so callers select
+  replacement/create-only behavior and staging permissions.
+- Return borrowed-or-owned terminal text with `Cow<str>`, avoiding copies of safe
+  cells. Callers requiring `String` must explicitly take ownership.
+
+### Changed
+
+- Simplify durable-write failure handling and table rendering, and consolidate
+  ordered Git failure evidence.
+- Add optional digest verification and detailed Wasm records to the inspector,
+  replacing the overlapping filesystem example while preserving default TSV.
+- Derive publication paths from admitted Cargo metadata and share Unix read-only
+  opening mechanics across following and no-follow reads.
+- Adopt Shared Tooling 0.15.2 and its Cargo ordering-fixture generator, with
+  explicit fixture variable selection and unchanged common tool pins
+  ([#134 — Shared Cargo ordering fixture](https://github.com/dragginzgame/ic-host-tooling/issues/134)).
+- Keep generic installer/LOC regression matrices in Shared Tooling while retaining
+  Host's actual wiring, failure propagation, tool admission and native checks.
+- Share identical invalid-count artifact test doubles privately, retaining each
+  API's rejection assertions and distinct partial-I/O cases.
+- Reuse filesystem fixture allocation in CLI/example tests and retire unused
+  Shared regression exports while keeping active checkers and integration proofs.
+- Consolidate crash-barrier polling and inspector output errors, preserving
+  marker/child/timeout precedence and admission before output.
+- Share descriptor-lock dispatch and failing-reader fixtures. Use Shared's
+  saved-source renderer instead of Host's duplicate dependency projector
+  ([#131](https://github.com/dragginzgame/ic-host-tooling/issues/131)).
+  [Detailed notes](docs/changelog/0.20.md).
+
+## [0.19.0] - 2026-10-15
+
+### Breaking
+
+- Require explicit native-command capture limits for RSS sampling. macOS capture
+  now retains bounded diagnostics and rejects incomplete tables; callers must
+  pass `OutputLimits` and handle retained command failures. Optional deadlines
+  remain supported without a default time limit
+  ([#130 — Native RSS command capture](https://github.com/dragginzgame/ic-host-tooling/issues/130)).
+- Reject oversized Linux stat records before parsing, preventing a cutoff RSS
+  field from becoming a plausible smaller observation
+  ([#130 — Native RSS command capture](https://github.com/dragginzgame/ic-host-tooling/issues/130)).
+- Reject ancestor symlinks and `..` in private-parent preparation before creating
+  directories. Callers intentionally selecting directory aliases must supply
+  canonical physical paths
+  ([PR #90 — Reject symlink ancestors](https://github.com/dragginzgame/ic-host-tooling/pull/90)).
+
+### Changed
+
+- Consolidate real FIFO fixture creation so filesystem tests share one portable
+  Linux/macOS setup path while retaining their individual modes and assertions.
+  [Detailed notes](docs/changelog/0.19.md).
+
+## [0.18.6] - 2026-10-15
+
+- Record Shared Tooling 0.15.0 as the contributor baseline; selected helpers and
+  tool pins are unchanged, with no tool reinstall required.
   [Detailed notes](docs/changelog/0.18.md).
 
 ## [0.18.5] - 2026-10-15

@@ -27,19 +27,19 @@ fn captures_raw_evidence_and_explicit_status_scope() {
     let context = fixture.context(&environment);
     let git = admit(&fixture_tool(), &context, VERSION).unwrap();
     let result = capture_git(&git, &context, OPTIONS, LIMITS).unwrap();
-    assert_eq!(result.revision, "0".repeat(40));
-    assert_eq!(result.tree, "0".repeat(40));
+    assert_eq!(result.revision(), "0".repeat(40));
+    assert_eq!(result.tree(), "0".repeat(40));
     assert!(result.is_dirty());
     assert_eq!(result.options, OPTIONS);
     assert_eq!(result.tool_identity, git.identity());
-    assert_eq!(result.status_evidence.stdout, b"?? space \xffpath\0");
+    assert_eq!(result.status_evidence().stdout, b"?? space \xffpath\0");
     assert_eq!(
         result.status_identity.sha256,
-        Sha256Digest::compute(&result.status_evidence.stdout)
+        Sha256Digest::compute(&result.status_evidence().stdout)
     );
     assert_eq!(
         result.status_identity.bytes,
-        result.status_evidence.stdout.len() as u64
+        result.status_evidence().stdout.len() as u64
     );
     let queries = fs::read_to_string(marker).unwrap();
     assert_eq!(queries.lines().count(), 3);
@@ -67,8 +67,16 @@ fn accepts_empty_status_and_both_git_object_formats() {
                 ignore_submodules,
             };
             let result = capture_git(&git, &context, options, LIMITS).unwrap();
-            assert_eq!(result.revision.len(), width);
-            assert_eq!(result.tree.len(), width);
+            assert_eq!(result.revision().len(), width);
+            assert_eq!(result.tree().len(), width);
+            assert_eq!(
+                result.revision_evidence().stdout,
+                format!("{}\n", result.revision()).as_bytes()
+            );
+            assert_eq!(
+                result.tree_evidence().stdout,
+                format!("{}\n", result.tree()).as_bytes()
+            );
             assert_eq!(result.options, options);
             assert!(!result.is_dirty());
             assert_eq!(result.status_identity.sha256, Sha256Digest::compute(b""));
@@ -79,17 +87,26 @@ fn accepts_empty_status_and_both_git_object_formats() {
 #[test]
 fn rejects_malformed_successful_output_without_losing_evidence() {
     let fixture = Fixture::new();
+    let marker = fixture.root.join("queries");
     for (mode, query, captures) in [
         ("invalid-id", GitQuery::Revision, 1),
         ("uppercase-id", GitQuery::Revision, 1),
         ("bad-tree", GitQuery::Tree, 2),
         ("bad-status", GitQuery::Status, 3),
     ] {
-        let environment = [("FIXTURE_MODE".into(), mode.into())];
+        fs::write(&marker, b"").unwrap();
+        let environment = [
+            ("FIXTURE_MODE".into(), mode.into()),
+            ("FIXTURE_MARKER".into(), marker.as_os_str().to_owned()),
+        ];
         let context = fixture.context(&environment);
         let git = admit(&fixture_tool(), &context, VERSION).unwrap();
         let error = capture_git(&git, &context, OPTIONS, LIMITS).unwrap_err();
         assert_eq!(error.query, query);
+        assert_eq!(
+            fs::read_to_string(&marker).unwrap().lines().count(),
+            captures
+        );
         assert!(error.completed[..captures].iter().all(Option::is_some));
         assert!(error.completed[captures..].iter().all(Option::is_none));
         if mode == "bad-status" {
@@ -184,24 +201,29 @@ fn retains_prior_captures_on_process_failure_and_bounds_output() {
 }
 
 #[test]
-fn truncated_empty_status_cannot_claim_a_clean_tree() {
+fn truncated_status_cannot_claim_a_clean_tree() {
     let fixture = Fixture::new();
-    let context = fixture.context(&[]);
+    let environment = [("FIXTURE_MODE".into(), "long-status".into())];
+    let context = fixture.context(&environment);
     let git = admit(&fixture_tool(), &context, VERSION).unwrap();
-    let error = observe(
-        &git,
-        &context,
-        OPTIONS,
-        OutputLimits {
-            stdout: crate::tool::OutputLimit::Truncate(0),
-            ..LIMITS
-        },
-        GitQuery::Status,
-    )
-    .unwrap_err();
-    let GitFailure::Tool(error) = error.failure else {
-        panic!("incomplete capture must fail")
-    };
-    assert!(error.evidence().unwrap().stdout_truncated);
-    assert_eq!(error.evidence().unwrap().stdout, []);
+    for (allowance, query, prior) in [(0, GitQuery::Revision, 0), (41, GitQuery::Status, 2)] {
+        let error = capture_git(
+            &git,
+            &context,
+            OPTIONS,
+            OutputLimits {
+                stdout: crate::tool::OutputLimit::Truncate(allowance),
+                ..LIMITS
+            },
+        )
+        .unwrap_err();
+        assert_eq!(error.query, query);
+        assert!(error.completed[..prior].iter().all(Option::is_some));
+        assert!(error.completed[prior..].iter().all(Option::is_none));
+        let GitFailure::Tool(error) = error.failure else {
+            panic!("incomplete capture must fail")
+        };
+        assert!(error.evidence().unwrap().stdout_truncated);
+        assert_eq!(error.evidence().unwrap().stdout.len(), allowance);
+    }
 }

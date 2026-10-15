@@ -638,7 +638,9 @@ fn pathname_writers_reject_nul_before_creating_parents() {
                 4 => write_with(&path, CREATE, |_| -> io::Result<()> {
                     panic!("producer ran")
                 }),
-                5 => write_named_with(&path, |_| -> io::Result<()> { panic!("producer ran") }),
+                5 => write_named_with(&path, REPLACE, |_| -> io::Result<()> {
+                    panic!("producer ran")
+                }),
                 _ => write_validated_with(
                     &path,
                     REPLACE,
@@ -691,7 +693,7 @@ fn pathname_writers_reject_directory_suffixes_before_any_effect() {
                         4 => write_with(&path, CREATE, |_| -> io::Result<()> {
                             panic!("producer ran")
                         }),
-                        5 => write_named_with(&path, |_| -> io::Result<()> {
+                        5 => write_named_with(&path, REPLACE, |_| -> io::Result<()> {
                             panic!("producer ran")
                         }),
                         _ => write_validated_with(

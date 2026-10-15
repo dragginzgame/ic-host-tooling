@@ -3,6 +3,62 @@ use crate::test_support::Fixture;
 use std::{fs, io::Read, os::unix::fs::symlink};
 
 #[test]
+fn root_relative_entry_preserves_file_and_directory_descriptors() {
+    let fixture = Fixture::new();
+    fs::create_dir(fixture.root.join("tree")).unwrap();
+    fs::write(fixture.root.join("tree/data"), b"original").unwrap();
+    let root = File::open(&fixture.root).unwrap();
+    let OpenedEntry::Directory(directory) =
+        open_entry_beneath(root.as_fd(), Path::new("tree")).unwrap()
+    else {
+        panic!("selected directory");
+    };
+    let OpenedEntry::RegularFile(mut file) =
+        open_entry_beneath(root.as_fd(), Path::new("tree/data")).unwrap()
+    else {
+        panic!("selected regular file");
+    };
+    fs::rename(fixture.root.join("tree"), fixture.root.join("moved")).unwrap();
+    fs::create_dir(fixture.root.join("tree")).unwrap();
+    fs::write(fixture.root.join("tree/data"), b"changed").unwrap();
+    assert!(directory.metadata().unwrap().is_dir());
+    let mut bytes = Vec::new();
+    file.read_to_end(&mut bytes).unwrap();
+    assert_eq!(bytes, b"original");
+    assert_eq!(
+        fs::read(fixture.root.join("tree/data")).unwrap(),
+        b"changed"
+    );
+}
+
+#[test]
+fn root_relative_entry_refuses_aliases_and_special_files() {
+    let fixture = Fixture::new();
+    fs::create_dir(fixture.root.join("tree")).unwrap();
+    fs::write(fixture.root.join("tree/data"), b"data").unwrap();
+    symlink("tree", fixture.root.join("alias")).unwrap();
+    symlink("data", fixture.root.join("tree/link")).unwrap();
+    assert!(
+        std::process::Command::new("/usr/bin/mkfifo")
+            .arg(fixture.root.join("tree/fifo"))
+            .status()
+            .unwrap()
+            .success()
+    );
+    let root = File::open(&fixture.root).unwrap();
+    for path in ["", "/tree", "tree/../tree", "alias", "tree/link"] {
+        assert!(matches!(
+            open_entry_beneath(root.as_fd(), Path::new(path)),
+            Err(ArtifactError::Io(ref error)) if error.kind() == io::ErrorKind::InvalidInput
+        ));
+    }
+    assert!(matches!(
+        open_entry_beneath(root.as_fd(), Path::new("tree/fifo")),
+        Err(ArtifactError::NotRegularFile)
+    ));
+}
+
+#[test]
 fn descriptor_selection_survives_path_replacement_and_bounds_reads() {
     let fixture = Fixture::new();
     let dir = &fixture.root;

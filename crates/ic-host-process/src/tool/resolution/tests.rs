@@ -1,7 +1,7 @@
 use super::{ResolutionError, resolve_executable};
 use crate::{
     test_support::{Fixture, LIMITS, VERSION, tool_path},
-    tool::{AdmittedTool, ToolError, ToolSpec},
+    tool::{AdmittedTool, ToolError, VersionSpec},
 };
 use ic_host_artifacts::artifact::{ArtifactError, Sha256Digest};
 use std::{
@@ -246,15 +246,19 @@ fn selected_candidate_must_be_admitted_without_falling_back_after_digest_failure
     let selected =
         resolve_executable(Path::new("tool"), &fixture.root, &[first.clone(), later]).unwrap();
     assert_eq!(selected, first.join("tool"));
-    let spec = ToolSpec {
+    let spec = VersionSpec {
         executable: &selected,
-        sha256: Sha256Digest::compute(b"wrong authority"),
         executable_bytes: 1024 * 1024,
         version_arguments: &[OsString::from("--version")],
         version_identity: VERSION,
     };
     assert!(matches!(
-        AdmittedTool::admit(&spec, &fixture.context(&environment), LIMITS),
+        AdmittedTool::admit(
+            &spec,
+            Sha256Digest::compute(b"wrong authority"),
+            &fixture.context(&environment),
+            LIMITS
+        ),
         Err(ToolError::Artifact(ArtifactError::DigestMismatch { .. }))
     ));
     assert!(!marker.exists());

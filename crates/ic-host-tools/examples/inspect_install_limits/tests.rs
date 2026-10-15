@@ -2,7 +2,6 @@ use super::*;
 use std::{
     fs::{self, File},
     path::PathBuf,
-    sync::atomic::{AtomicUsize, Ordering},
 };
 
 fn leb(value: u32) -> Vec<u8> {
@@ -40,25 +39,20 @@ fn module(functions: u32, imported_globals: u32) -> Vec<u8> {
 struct Input(PathBuf);
 impl Input {
     fn new(bytes: &[u8]) -> Self {
-        static SEQUENCE: AtomicUsize = AtomicUsize::new(0);
-        let (input, mut file) = loop {
-            let path = std::env::temp_dir().join(format!(
-                "ic-host-limits-example-{}-{}",
-                std::process::id(),
-                SEQUENCE.fetch_add(1, Ordering::Relaxed)
-            ));
-            match File::create_new(&path) {
-                Ok(file) => break (Self(path), file),
-                Err(error) if error.kind() == io::ErrorKind::AlreadyExists => {}
-                Err(error) => panic!("cannot create example input {}: {error}", path.display()),
-            }
-        };
+        let input = Self(
+            ic_host_fs::testing::create_fixture_directory(
+                &std::env::temp_dir(),
+                "ic-host-limits-example",
+            )
+            .unwrap(),
+        );
+        let mut file = File::create_new(input.0.join("input.wasm")).unwrap();
         io::Write::write_all(&mut file, bytes).unwrap();
         input
     }
     fn run(&self, max_bytes: usize, json: bool) -> Result<(ExitCode, Vec<u8>), Box<dyn Error>> {
         let mut args = vec![
-            self.0.as_os_str().to_owned(),
+            self.0.join("input.wasm").into_os_string(),
             max_bytes.to_string().into(),
             "10".into(),
             "0".into(),
@@ -79,7 +73,7 @@ impl Drop for Input {
             eprintln!("Failed limits example input retained: {}", self.0.display());
             return;
         }
-        let _ = fs::remove_file(&self.0);
+        let _ = fs::remove_dir_all(&self.0);
     }
 }
 

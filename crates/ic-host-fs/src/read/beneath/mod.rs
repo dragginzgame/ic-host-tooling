@@ -28,6 +28,81 @@ pub fn open_directory_no_follow(path: &Path) -> io::Result<File> {
     .map_err(io::Error::from)
 }
 
+/// One admitted root-relative entry with its original descriptor retained.
+#[derive(Debug)]
+pub enum OpenedEntry {
+    /// A regular file, opened without following any selected component.
+    RegularFile(File),
+    /// A directory, opened without following any selected component.
+    Directory(File),
+}
+
+/// Open one regular file or directory beneath a caller-held root descriptor.
+///
+/// Every component must be normal and is selected through its held parent.
+/// Symlinks and special final entries refuse. A directory result composes with
+/// [`super::tree::walk_tree`]; a file result still needs a caller-selected byte
+/// allowance before reading. The caller owns root custody, stable content and
+/// protection against concurrent namespace mutation. An open descriptor does
+/// not prove that its original pathname still names the same entry.
+///
+/// # Errors
+/// Rejects invalid paths, observed symlinks and unsupported final entry types,
+/// or returns native traversal/open/metadata errors.
+pub fn open_entry_beneath(
+    root: BorrowedFd<'_>,
+    relative: &Path,
+) -> Result<OpenedEntry, ArtifactError> {
+    let mut parts = relative.components().peekable();
+    if parts.peek().is_none() || parts.clone().any(|p| !matches!(p, Component::Normal(_))) {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "relative normal components required",
+        )
+        .into());
+    }
+    let mut parent: Option<OwnedFd> = None;
+    while let Some(Component::Normal(name)) = parts.next() {
+        let directory = parent.as_ref().map_or(root, AsFd::as_fd);
+        let stat = statat(directory, name, AtFlags::SYMLINK_NOFOLLOW).map_err(io::Error::from)?;
+        let observed = FileType::from_raw_mode(stat.st_mode);
+        if observed == FileType::Symlink {
+            return Err(
+                io::Error::new(io::ErrorKind::InvalidInput, "symlink component refused").into(),
+            );
+        }
+        let final_component = parts.peek().is_none();
+        if final_component && !matches!(observed, FileType::RegularFile | FileType::Directory) {
+            return Err(ArtifactError::NotRegularFile);
+        }
+        let flags = OFlags::RDONLY
+            | OFlags::NOFOLLOW
+            | OFlags::NONBLOCK
+            | OFlags::CLOEXEC
+            | if !final_component || observed == FileType::Directory {
+                OFlags::DIRECTORY
+            } else {
+                OFlags::empty()
+            };
+        let opened = openat(directory, name, flags, Mode::empty()).map_err(io::Error::from)?;
+        if final_component {
+            let actual = FileType::from_raw_mode(
+                rustix::fs::fstat(&opened).map_err(io::Error::from)?.st_mode,
+            );
+            let file = File::from(opened);
+            return match (observed, actual) {
+                (FileType::RegularFile, FileType::RegularFile) => {
+                    Ok(OpenedEntry::RegularFile(file))
+                }
+                (FileType::Directory, FileType::Directory) => Ok(OpenedEntry::Directory(file)),
+                _ => Err(ArtifactError::NotRegularFile),
+            };
+        }
+        parent = Some(opened);
+    }
+    unreachable!("validated nonempty normal path");
+}
+
 /// Open one bounded regular file through a caller-owned directory descriptor.
 ///
 /// Rejects empty/absolute paths, parent traversal and symlinks at every selected
@@ -51,42 +126,13 @@ pub fn open_regular_file_beneath(
     relative: &Path,
     max_bytes: u64,
 ) -> Result<File, ArtifactError> {
-    let mut parts = relative.components().peekable();
-    if parts.peek().is_none() || parts.clone().any(|p| !matches!(p, Component::Normal(_))) {
-        return Err(io::Error::new(
-            io::ErrorKind::InvalidInput,
-            "relative normal components required",
-        )
-        .into());
-    }
-    let mut parent: Option<OwnedFd> = None;
-    while let Some(Component::Normal(name)) = parts.next() {
-        let directory = parent.as_ref().map_or(root, AsFd::as_fd);
-        let stat = statat(directory, name, AtFlags::SYMLINK_NOFOLLOW).map_err(io::Error::from)?;
-        if FileType::from_raw_mode(stat.st_mode) == FileType::Symlink {
-            return Err(
-                io::Error::new(io::ErrorKind::InvalidInput, "symlink component refused").into(),
-            );
-        }
-        let final_component = parts.peek().is_none();
-        let flags = OFlags::RDONLY
-            | OFlags::NOFOLLOW
-            | OFlags::NONBLOCK
-            | OFlags::CLOEXEC
-            | if final_component {
-                OFlags::empty()
-            } else {
-                OFlags::DIRECTORY
-            };
-        let opened = openat(directory, name, flags, Mode::empty()).map_err(io::Error::from)?;
-        if final_component {
-            let file = File::from(opened);
+    match open_entry_beneath(root, relative)? {
+        OpenedEntry::RegularFile(file) => {
             check_metadata(&file.metadata()?, max_bytes)?;
-            return Ok(file);
+            Ok(file)
         }
-        parent = Some(opened);
+        OpenedEntry::Directory(_) => Err(ArtifactError::NotRegularFile),
     }
-    unreachable!("validated nonempty normal path");
 }
 
 #[cfg(test)]

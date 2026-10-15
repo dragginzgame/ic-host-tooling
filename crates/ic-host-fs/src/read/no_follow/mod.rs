@@ -4,7 +4,6 @@
 mod tests;
 
 use super::{ArtifactError, ArtifactIdentity, check_metadata, hash_reader, read_opened_file};
-use rustix::fs::{Mode, OFlags, open};
 use std::{
     fs::{self, File},
     io,
@@ -90,11 +89,5 @@ pub(super) fn open_optional_regular_file(path: &Path) -> Result<Option<File>, Ar
 }
 
 fn open_no_follow(path: &Path) -> Result<File, ArtifactError> {
-    let fd = open(
-        path,
-        OFlags::RDONLY | OFlags::NOFOLLOW | OFlags::NONBLOCK | OFlags::CLOEXEC,
-        Mode::empty(),
-    )
-    .map_err(|error| ArtifactError::Io(io::Error::from_raw_os_error(error.raw_os_error())))?;
-    Ok(File::from(fd))
+    super::open_read_only(path, true)
 }

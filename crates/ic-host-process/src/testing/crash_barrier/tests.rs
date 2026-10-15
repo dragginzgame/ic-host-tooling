@@ -1,4 +1,7 @@
-use super::{hold_at_acknowledged_barrier, kill_child_at_acknowledged_barrier, wait_for_path};
+use super::{
+    hold_at_acknowledged_barrier, kill_child_at_acknowledged_barrier, wait_for_child_path,
+    wait_for_path,
+};
 use crate::test_support::Fixture;
 use std::{fs, io, process::Command, time::Duration};
 
@@ -45,4 +48,27 @@ fn missing_marker_times_out_without_creating_it() {
     );
     assert!(!missing.exists());
     drop(fixture);
+}
+
+#[test]
+fn marker_precedes_child_exit_and_child_exit_precedes_timeout() {
+    let fixture = Fixture::new();
+    let marker = fixture.root.join("ready");
+    fs::write(&marker, b"ready\n").unwrap();
+    let mut child = Command::new("/bin/sh")
+        .args(["-c", "exit 17"])
+        .spawn()
+        .unwrap();
+    assert_eq!(child.wait().unwrap().code(), Some(17));
+
+    wait_for_path(&marker, "ready", Duration::ZERO).unwrap();
+    wait_for_child_path(&mut child, &marker, "ready", Duration::ZERO).unwrap();
+    let missing = fixture.root.join("absent");
+    assert_eq!(
+        wait_for_child_path(&mut child, &missing, "missing", Duration::ZERO)
+            .unwrap_err()
+            .kind(),
+        io::ErrorKind::UnexpectedEof
+    );
+    assert!(!missing.exists());
 }
