@@ -56,6 +56,14 @@ display columns. Reports retain their row/header/column decisions; CLIs retain
 stdout, terminal detection, colour and progress. The crate depends only on the
 Unicode-width library, with no other Host or IC dependencies.
 
+The optional tools `registry` feature supplies focused Registry Protobuf
+projections and canonical canister-range shard-key/interval admission. It adds
+Candid and Prost only; no Agent, certificate parser, filesystem or process owner.
+Callers must enforce input/work budgets and own discovery, trusted versions,
+certification, full range ordering, completeness, replay and report policy.
+The projections preserve Query 0.57.0's tags/discriminants and are not a complete
+upstream Registry schema; unknown fields retain normal Prost behavior.
+
 The compiled [IC resource-report example](crates/ic-host-tools/examples/inspect_install_limits/main.rs)
 inspects once and compares code-body bytes, defined functions and all globals
 against the explicitly selected reference revision. Run it with:

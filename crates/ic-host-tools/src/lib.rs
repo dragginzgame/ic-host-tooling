@@ -9,3 +9,6 @@ pub mod interface;
 pub mod response;
 #[cfg(all(test, unix, feature = "candid-extraction"))]
 mod test_support;
+
+#[cfg(feature = "registry")]
+pub mod registry;

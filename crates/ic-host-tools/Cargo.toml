@@ -20,14 +20,17 @@ candid-service = ["dep:candid_parser", "ic-interface"]
 certificate = ["dep:ciborium", "dep:ic-certification"]
 ic-interface = ["dep:ic-host-artifacts", "ic-host-artifacts/wasm"]
 ic-limits = ["dep:ic-host-artifacts", "ic-host-artifacts/wasm"]
+registry = ["dep:candid", "dep:prost"]
 
 [dependencies]
+candid = { workspace = true, optional = true }
 candid_parser = { workspace = true, optional = true }
 ciborium = { workspace = true, optional = true }
 ic-certification = { workspace = true, optional = true }
 ic-host-artifacts = { workspace = true, optional = true }
 ic-host-fs = { workspace = true, optional = true }
 ic-host-process = { workspace = true, optional = true }
+prost = { workspace = true, optional = true }
 serde.workspace = true
 serde_json.workspace = true
 
