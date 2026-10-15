@@ -42,10 +42,8 @@ pub enum ArchiveError {
     InvalidMember,
     /// Compressed bytes failed bounded digest verification.
     Archive(ArtifactError),
-    /// Gzip decoding, its integrity check or its inflated byte bound failed.
-    Decompression(ArtifactError),
-    /// Bytes follow the single gzip stream, including another gzip stream.
-    TrailingCompressedData,
+    /// Gzip input, decoding, integrity, inflated bound or trailing-data failure.
+    Gzip(GzipError),
     /// Tar header framing, checksum or numeric decoding failed.
     Tar(io::Error),
     /// A raw record exceeded its caller-owned resource bound.
@@ -86,8 +84,7 @@ impl fmt::Display for ArchiveError {
                 f.write_str("archive member must be a canonical relative POSIX path")
             }
             Self::Archive(_) => f.write_str("compressed archive admission failed"),
-            Self::Decompression(_) => f.write_str("bounded gzip decoding failed"),
-            Self::TrailingCompressedData => f.write_str("bytes follow the single gzip stream"),
+            Self::Gzip(source) => write!(f, "archive gzip failed: {source}"),
             Self::Tar(_) => f.write_str("tar decoding failed"),
             Self::LimitExceeded { resource, limit } => {
                 write!(f, "archive {resource:?} limit {limit} exceeded")
@@ -108,9 +105,8 @@ impl fmt::Display for ArchiveError {
 impl std::error::Error for ArchiveError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Self::Archive(source) | Self::Decompression(source) | Self::Member(source) => {
-                Some(source)
-            }
+            Self::Archive(source) | Self::Member(source) => Some(source),
+            Self::Gzip(source) => Some(source),
             Self::Tar(source) => Some(source),
             Self::Allocation(source) => Some(source),
             _ => None,
@@ -179,15 +175,7 @@ pub fn extract_tar_gz(
     .verify(archive_sha256)
     .map_err(ArchiveError::Archive)?;
     let inflated = artifact::decode_gzip(bytes, limits.archive_bytes, limits.decompressed_bytes)
-        .map_err(|source| match source {
-            GzipError::InputLimit { limit, .. } => {
-                ArchiveError::Archive(ArtifactError::LimitExceeded {
-                    limit: limit as u64,
-                })
-            }
-            GzipError::Decode(source) => ArchiveError::Decompression(source),
-            GzipError::TrailingData => ArchiveError::TrailingCompressedData,
-        })?;
+        .map_err(ArchiveError::Gzip)?;
     let payload = select_member(&inflated, member, limits)?;
     let member_identity = ArtifactIdentity {
         bytes: payload.len() as u64,

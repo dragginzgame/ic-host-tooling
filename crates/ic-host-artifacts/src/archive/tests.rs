@@ -128,9 +128,9 @@ fn all_four_limits_reject_one_below_the_inclusive_boundary() {
                 ..LIMITS
             }
         ),
-        Err(ArchiveError::Decompression(
+        Err(ArchiveError::Gzip(GzipError::Decode(
             ArtifactError::LimitExceeded { .. }
-        ))
+        )))
     ));
     assert!(matches!(
         extract(
@@ -315,22 +315,35 @@ fn corrupt_truncated_and_concatenated_gzip_streams_are_rejected() {
     let mut corrupt = bytes.clone();
     let crc_offset = corrupt.len() - 8;
     corrupt[crc_offset] ^= 1;
+    let error = extract(&corrupt, LIMITS).unwrap_err();
     assert!(matches!(
-        extract(&corrupt, LIMITS),
-        Err(ArchiveError::Decompression(ArtifactError::Io(_)))
+        &error,
+        ArchiveError::Gzip(GzipError::Decode(ArtifactError::Io(_)))
     ));
+    let gzip_error = std::error::Error::source(&error).unwrap();
+    assert!(gzip_error.is::<GzipError>());
+    let artifact_error = gzip_error.source().unwrap();
+    assert!(artifact_error.is::<ArtifactError>());
+    assert!(artifact_error.source().unwrap().is::<io::Error>());
     for cut in [0, 1, 10, bytes.len() - 1] {
         assert!(matches!(
             extract(&bytes[..cut], LIMITS),
-            Err(ArchiveError::Decompression(ArtifactError::Io(_)))
+            Err(ArchiveError::Gzip(GzipError::Decode(ArtifactError::Io(_))))
         ));
     }
     for suffix in [b"trailing".to_vec(), gzip(b"another stream")] {
         let mut trailing = bytes.clone();
         trailing.extend(suffix);
+        let error = extract(&trailing, LIMITS).unwrap_err();
         assert!(matches!(
-            extract(&trailing, LIMITS),
-            Err(ArchiveError::TrailingCompressedData)
+            &error,
+            ArchiveError::Gzip(GzipError::TrailingData)
+        ));
+        assert!(matches!(
+            std::error::Error::source(&error)
+                .unwrap()
+                .downcast_ref::<GzipError>(),
+            Some(GzipError::TrailingData)
         ));
     }
 }
