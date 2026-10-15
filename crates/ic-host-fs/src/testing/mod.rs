@@ -1,12 +1,9 @@
 //! Opt-in filesystem fixture allocation without cleanup or application lifecycle.
 
 use std::{
-    fs, io,
-    path::{Component, Path, PathBuf},
-    sync::atomic::{AtomicU64, Ordering},
+    io,
+    path::{Path, PathBuf},
 };
-
-static SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
 /// Create one fresh fixture directory beneath the caller-selected existing parent.
 ///
@@ -21,42 +18,14 @@ static SEQUENCE: AtomicU64 = AtomicU64::new(0);
 /// # Errors
 /// Returns invalid-prefix, parent resolution and directory creation errors.
 pub fn create_fixture_directory(parent: &Path, prefix: &str) -> io::Result<PathBuf> {
-    let mut components = Path::new(prefix).components();
-    if prefix.contains(['\r', '\n'])
-        || !matches!(
-            (components.next(), components.next()),
-            (Some(Component::Normal(name)), None) if name == std::ffi::OsStr::new(prefix)
-        )
-    {
-        return Err(io::Error::new(
-            io::ErrorKind::InvalidInput,
-            "invalid fixture prefix",
-        ));
-    }
     let parent = parent.canonicalize()?;
-    let mut builder = fs::DirBuilder::new();
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::DirBuilderExt as _;
-        builder.mode(0o700);
-    }
-    loop {
-        let candidate = parent.join(format!(
-            "{prefix}-{}-{}",
-            std::process::id(),
-            SEQUENCE.fetch_add(1, Ordering::Relaxed),
-        ));
-        match builder.create(&candidate) {
-            Ok(()) => return Ok(candidate),
-            Err(error) if error.kind() == io::ErrorKind::AlreadyExists => {}
-            Err(error) => return Err(error),
-        }
-    }
+    crate::directory::create_unique_directory(&parent, prefix, 0o700, None)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
 
     #[test]
     fn parallel_allocation_preserves_existing_entries_and_caller_retention() {
