@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.19.1]
+
+- Share exact fixed/compact two-place decimal text rendering without floating
+  point or additional dependencies. Callers select decimal scaling and retain
+  token/unit, normalization, sentinel and output policy
+  ([#138 — Exact decimal text](https://github.com/dragginzgame/ic-host-tooling/issues/138)).
+  [Detailed notes](docs/changelog/0.19.md).
+
 ## [0.19.0] - 2026-10-15
 
 ### Breaking

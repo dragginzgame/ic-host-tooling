@@ -8,7 +8,7 @@ admitted process execution and IC-specific format handling.
 | ic-host-artifacts | Bounded streams and hashing writers, exact byte comparison, SHA-256, gzip encoding/decoding, verified tar members, generic Wasm facts and custom-section encoding |
 | ic-host-fs | Regular/no-follow reads, missing-suffix path resolution, streamed durable publication, private files and observed descriptor locks |
 | ic-host-process | Executable resolution, digest/version admission, bounded capture, explicit child/group cleanup and Git observations |
-| ic-host-text | Pure terminal-safe escaping and Unicode display-width tables with explicit formatting choices |
+| ic-host-text | Pure terminal-safe escaping, exact decimal text and Unicode display-width tables with explicit formatting choices |
 | ic-host-tools | Candid text/extraction, optional service and IC export facts, ICP response decoding and IC resource reports |
 
 These run locally outside canisters. The ic-host prefix identifies their ecosystem;
@@ -55,6 +55,11 @@ header_separator }`, returning a String. It measures escaped cells in Unicode
 display columns. Reports retain their row/header/column decisions; CLIs retain
 stdout, terminal detection, colour and progress. The crate depends only on the
 Unicode-width library, with no other Host or IC dependencies.
+
+`ic-host-text::decimal` provides exact two-place fixed and compact decimal
+rendering, including arbitrary-size inputs and caller-selected decimal scaling.
+It rounds half up without floating point. Callers retain unit/symbol selection,
+input normalization, sentinel handling, raw report fields and output policy.
 
 The compiled [IC resource-report example](crates/ic-host-tools/examples/inspect_install_limits/main.rs)
 inspects once and compares code-body bytes, defined functions and all globals
