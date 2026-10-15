@@ -1,5 +1,103 @@
 # Current handoff
 
+## Literal releases and fixture/walker simplification — pending 0.18.3
+
+[#116 — Release and fixture cleanup](https://github.com/dragginzgame/ic-host-tooling/issues/116)
+owns the three approved follow-on changes. Release preparation uses the canonical
+literal renderer from the existing `e5a5bb1` Shared source; the snapshot adds one
+root/payload (95/115). Host's exact dependency spelling, saved-source comparisons
+and receipts remain local. Preparation restores original bytes/modes after failed
+rendering, validation following partial install or catchable interruption, retaining
+the originals. The release-only cargo-edit pin/installer/commands/fixtures and
+native cache salt are retired; existing installations are preserved.
+
+Remaining executable fixture writes/copies use the opt-in Process writer, also
+compiled for Process's unit tests without changing its normal default feature
+graph. Process/Tools global fixture mutexes and obsolete guard lint expectations
+are removed. The unpublished tree visitor loses its directory-open flag callback;
+observed directories always use directory-only opens before descriptor rechecks.
+Native open errors may precede a visitor type callback on substitution. Backup
+retains local walkers until publication and separate consumer qualification.
+
+Source before-images and raw evidence are at `/tmp/host-cleanup-release-tests.XX9gSI/`.
+Initial focused Process (96), extraction (20), tree (2) and release checks pass.
+Three 32-thread runs each of Process and extraction pass after guard removal.
+Strict affected-package lint/docs and actual Rust 1.88 checking pass; stale lint
+expectations found by the first Clippy pass are removed, with its failure retained.
+Release rendering, post-install failure and TERM rollback checks pass under modern
+Bash and genuine Bash 3.2, preserving byte/mode identity. No real release,
+publication, own version change, executable download or sibling edit ran.
+Full combined Linux `make ci msrv-workspace` passes, including strict workspace
+lint/docs, feature profiles and all tests. Final package/lock, index/HEAD and
+common tool-pin comparisons are unchanged. Native macOS qualification remains
+separate. [Backup #48 — Descriptor walk and crash-barrier adoption](https://github.com/dragginzgame/ic-backup/issues/48)
+owns consumer convergence after publication; the sibling source is untouched.
+
+## Formatter source discovery — pending 0.18.3
+
+The maintainer explicitly authorized Git delivery of the prepared Shared change.
+[Shared PR #196](https://github.com/dragginzgame/shared-tooling/pull/196) contains
+commit `e5a5bb14d8521fc5dc7b5fc4ee6b1f1ca08b5ea6`, based on pushed 0.13.3 main
+`d963db4b85b4fa65560fd87e8398f228955a2b71`. Host exports that exact clean committed
+source, retaining 94 roots and adding the selector companion for 114 payloads.
+The checker, selector, lifecycle companion and guide change; tool pins and all
+other selected payloads stay unchanged. The contribution is not merged/released
+upstream; its exact snapshot is approved here and must be refreshed if integration
+changes its source identity.
+
+Host selects `--rust-sources`, retiring its manual crate/module list while keeping
+the selected perturbation and Make/tooling inputs. The newly arrived no-follow
+tree/crash-barrier sources are preserved and discovered automatically. The two
+prior cleanup slices and the real index/HEAD/package versions remain untouched.
+Source before-images and task evidence are at `/tmp/host-formatting-adoption.bNjGQh/`.
+[#113 — Fixture and graph simplification](https://github.com/dragginzgame/ic-host-tooling/issues/113)
+owns Host qualification; [Shared #195 — Formatting source discovery](https://github.com/dragginzgame/shared-tooling/issues/195)
+owns producer acceptance, separately from consumer adoption.
+
+Full combined Linux `make ci msrv-workspace` passes against the adopted snapshot,
+including the incoming tree/crash-barrier source. Selected tooling, actual hooks,
+strict lint/docs, production graphs and Rust 1.88 checking pass. Selector and Host
+hook checks also pass under genuine Bash 3.2; repeat export reports 114 KEEP.
+Shared PR lint checks pass; its Linux/macOS regression jobs remain in progress
+at final observation. Host native macOS acceptance remains separate.
+
+## No-follow tree and crash-test primitives — pending 0.18.3
+
+Host FS now has a proposed no-follow descriptor tree walker, and Host Process
+has opt-in acknowledged direct-child crash barriers. The combined checkout
+passes full Linux `make ci msrv-workspace` against the selected Shared Tooling
+snapshot, including these APIs. Backup retains its local helpers until Host
+publishes them and Backup qualifies that registry graph. Native macOS acceptance
+remains separate.
+
+## Fixture and graph cleanup — pending 0.18.3
+
+Released base is 0.18.2 `55a31aa13a42f55fa3985db33e1586722638ad40`.
+Six local fixtures use the adopted Shared allocator; retention and aliased-parent
+policy remain unchanged. One graph checker retains every profile's exact required
+and forbidden dependency selection and separately propagates observation errors.
+[#113 — Fixture and graph simplification](https://github.com/dragginzgame/ic-host-tooling/issues/113)
+owns the local batch. Package versions, dependencies, tool pins and snapshot stay
+unchanged; ordinary implementation leaves the real index and refs untouched.
+
+The third approved cleanup is implemented at Shared's owner in an isolated copy,
+with the Host adoption patch prepared against the current snapshot. It adds
+opt-in NUL-separated current Rust/manifest discovery, applies tracked deletions
+only in disposable checkouts and rejects nonregular/escaping/failed selections.
+[#195 — Formatting source discovery](https://github.com/dragginzgame/shared-tooling/issues/195)
+owns the producer. Initial automatic approval refusal was resolved by the
+maintainer's explicit Git authorization; committed adoption is described above.
+Review patches and focused evidence are at `/tmp/host-maint-cleanup.4Wz7Za/`.
+Upstream selection and actual Host hooks with an unstaged new crate/nested module
+pass under current Bash and Bash 3.2. Native macOS qualification remains separate.
+
+Full Linux `make ci msrv-workspace` passes for the local batch, including actual
+Rust 1.88, strict lint/docs and workspace tests. Modern/Bash 3.2 graph controls
+reject eight forbidden edges, twelve missing owners and failed Cargo observations;
+selector failures retain their status. Retention and actual Host hooks pass under
+Bash 3.2 too. Initial probe-formatting and empty-array failures remain alongside
+corrected evidence. Final snapshot/link/graph checks and preservation comparisons pass.
+
 ## Shared Tooling refresh — pending 0.18.2
 
 Shared 0.13.1 at `a348518c86f1b4cc5184ed94b8213c2d75d5e280` is exported

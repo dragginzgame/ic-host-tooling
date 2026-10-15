@@ -7,11 +7,9 @@ root="${BASH_SOURCE[0]}"
 [[ "$root" == /* ]] || root="$PWD/$root"
 root="$(cd -P "${root%/*}/../.." && printf '%s/.' "$PWD")"
 root="${root%/.}"
-FIXTURE_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/ic-host-publish-test.XXXXXX")"
 # shellcheck source=scripts/ci/fixture-lifecycle.sh
 source "$root/scripts/ci/fixture-lifecycle.sh"
-FIXTURE_ROOT="$(CDPATH="" cd -P -- "$FIXTURE_ROOT" && printf '%s/.' "$PWD")"
-FIXTURE_ROOT="${FIXTURE_ROOT%/.}"
+FIXTURE_ROOT="$(fixture_create "${TMPDIR:-/tmp}/ic-host-publish-test.XXXXXX")"
 fixture_complete=false
 trap 'fixture_finish "$?" "$FIXTURE_ROOT" "Publication fixtures retained"' EXIT
 export TMPDIR="${FIXTURE_ROOT%/*}"
@@ -154,7 +152,7 @@ done
 PUBLISH_DIRTY=1 invoke check > check.log 2>&1
 version="$(jq -r '.packages[0].version' metadata.json)"
 selectors=()
-while IFS=$'\t' read -r package package_root; do
+while IFS=$'\t' read -r package _; do
     selectors+=(--package "$package@$version")
 done < fixture-packages.tsv
 printf '%s\0' publish --locked --registry crates-io "${selectors[@]}" \

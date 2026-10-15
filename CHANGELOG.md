@@ -1,11 +1,30 @@
 # Changelog
 
-## [0.18.3]
+## [0.18.4]
 
-- Add opt-in bounded environment/network projection over effective ICP YAML;
-  preserve exact identities and reject ambiguous or malformed facts. Process,
-  discovery and funding policy remain caller-owned
+- Add opt-in bounded effective ICP project projection; leave discovery,
+  capture and funding policy with callers
   ([#115](https://github.com/dragginzgame/ic-host-tooling/issues/115)).
+  [Detailed notes](docs/changelog/0.18.md).
+
+## [0.18.3] - 2026-10-14
+
+- Prepare release metadata with literal rendering and byte/mode rollback,
+  retiring the release-only cargo-edit installation and commands
+  ([#116 — Release and fixture cleanup](https://github.com/dragginzgame/ic-host-tooling/issues/116)).
+- Use fork-safe executable fixture writers and remove global test serialization;
+  finalize the new tree walker's directory-only admission inside the library
+  ([#116 — Release and fixture cleanup](https://github.com/dragginzgame/ic-host-tooling/issues/116)).
+- Discover current Rust sources and crate manifests for formatting fixtures,
+  replacing the manual module roster through Shared's canonical helper
+  ([#113 — Fixture and graph simplification](https://github.com/dragginzgame/ic-host-tooling/issues/113)).
+- Reuse Shared fixture allocation and consolidate feature-graph checks,
+  preserving failed evidence and every dependency-boundary assertion
+  ([#113 — Fixture and graph simplification](https://github.com/dragginzgame/ic-host-tooling/issues/113)).
+- Add a no-follow descriptor tree walker in `ic-host-fs` for caller-owned
+  checksums, synchronization and entry policy; it does not claim tree custody.
+- Add opt-in acknowledged direct-child crash barriers in `ic-host-process`
+  testing, with explicit timeouts and direct-child reaping on handshake failure.
   [Detailed notes](docs/changelog/0.18.md).
 
 ## [0.18.2] - 2026-10-14

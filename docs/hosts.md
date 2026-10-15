@@ -33,8 +33,8 @@ the libraries do not invoke every tool. Explicit setup runs `make install-tools`
 `make tools-check` verifies the set offline. Selected release preflight prepares
 it; standalone verification never installs tools. Existing bundles and failed
 evidence are retained. Rust toolchain bootstrap remains explicit.
-Native CI uses the shared Cargo-tool build identity plus Host's release-tool
-inputs to restore builds. Cache hits still run complete setup and admission;
+Native CI uses the shared Cargo-tool build identity to restore builds.
+Cache hits still run complete setup and admission;
 cache transport failure falls through to setup. Main saves only after admission.
 This cache does not qualify native macOS behavior or guarantee a setup duration.
 `make formatting-hook-check` runs the canonical shared hook regressions and the
@@ -49,14 +49,13 @@ Bash 3.2 passes remain separate evidence under
 Shared 0.3.1 setup checks IC platform/catalog admission and Rust/Cargo
 availability before downloading common tools. These preflight checks do not
 install a toolchain or replace the offline verification of installed tools.
-Host extends the aggregate with its [release executable](publishing.md#git-releases),
-using the shared installer and receipt checks. Native CI prepares and checks
-this selection too; Linux installation and substitute installer fixtures do not
-qualify its native macOS build or execution.
+Release preparation uses the shared literal metadata renderers and Host's exact
+dependency projection, with rollback qualification in disposable release fixtures.
+No release-only executable extends the aggregate common toolset.
 CI also owns native macOS execution; Linux qualification is not macOS evidence.
 The reviewed Shared snapshot owns `ci/tool-versions.env` and `ci/ic-tools.tsv`.
-Host uses these common defaults without catalog exceptions; its release executable
-pin and Rust compiler policy remain local. Host, IC and Rust exceptions, if
+Host uses these common defaults without catalog exceptions; Rust compiler policy
+remains local. Host, IC and Rust exceptions, if
 needed later, require independent explicit selection and native qualification.
 The common catalog selects Binaryen 133 for all three supported hosts.
 Explicit IC setup,

@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
+# Shared companions: scripts/ci/select-rust-formatting-sources.sh
 set -euo pipefail
 
 # Consumer-owned Make code is reviewed executable input, not sandboxed code.
 if [[ $# -lt 4 ]]; then
-    echo 'usage: check-formatting-hooks.sh ROOT RUST_PATH MANIFEST_PATH {UNSORTED_MANIFEST|--no-dependency-tables} [OVERLAY_PATH ...]' >&2
+    echo 'usage: check-formatting-hooks.sh ROOT RUST_PATH MANIFEST_PATH {UNSORTED_MANIFEST|--no-dependency-tables} [--rust-sources] [OVERLAY_PATH ...]' >&2
     exit 2
 fi
 root="$1"
@@ -12,6 +13,8 @@ root="$(cd -P "$root" && printf '%s/.' "$PWD")"
 root="${root%/.}"
 rust="$2"; manifest="$3"; unsorted="$4"
 shift 4
+rust_sources=false
+if [[ "${1:-}" == --rust-sources ]]; then rust_sources=true; shift; fi
 perturb_manifest=true
 if [[ "$unsorted" == --no-dependency-tables ]]; then
     perturb_manifest=false
@@ -71,6 +74,20 @@ if LC_ALL=C grep -Ev '^100(644|755) ' "$fixture/entries" > "$fixture/unsupported
     echo 'formatting adoption requires regular tracked files' >&2; exit 1
 fi
 git checkout-index --all
+if [[ "$rust_sources" == true ]]; then
+    bash "$root/scripts/ci/select-rust-formatting-sources.sh" "$root" > "$fixture/rust-sources"
+    while IFS= read -r -d '' path; do
+        if [[ -e "$root/$path" ]]; then
+            parent=.
+            [[ "$path" != */* ]] || parent="${path%/*}"
+            mkdir -p "$parent"
+            cp -p "$root/$path" "$path"
+            git --literal-pathspecs add -- "$path"
+        else
+            git --literal-pathspecs rm --ignore-unmatch -- "$path" > /dev/null
+        fi
+    done < "$fixture/rust-sources"
+fi
 for path in "$rust" "$manifest" Makefile .githooks/pre-commit scripts/dev/install-git-hooks.sh scripts/ci/check-make-execution.sh "$@"; do
     parent=.
     [[ "$path" != */* ]] || parent="${path%/*}"

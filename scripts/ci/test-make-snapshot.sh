@@ -9,11 +9,9 @@ root="$(cd -P "${root%/*}/../.." && printf '%s/.' "$PWD")"
 root="${root%/.}"
 unset MAKEFLAGS MFLAGS MAKEOVERRIDES GNUMAKEFLAGS MAKEFILES
 unset SHARED_TOOLING_ROOT
-fixture="$(mktemp -d "${TMPDIR:-/tmp}/host-make-snapshot.XXXXXX")"
 # shellcheck source=scripts/ci/fixture-lifecycle.sh
 source "$root/scripts/ci/fixture-lifecycle.sh"
-fixture="$(CDPATH="" cd -P -- "$fixture" && printf '%s/.' "$PWD")"
-fixture="${fixture%/.}"
+fixture="$(fixture_create "${TMPDIR:-/tmp}/host-make-snapshot.XXXXXX")"
 fixture_complete=false
 trap 'fixture_finish "$?" "$fixture" "Host Make evidence retained"' EXIT
 export TMPDIR="${fixture%/*}"
@@ -131,17 +129,10 @@ printf '%s %s\n' "$name" "$mode" >> "$HOST_MAKE_EVENTS"
 if [[ "${HOST_MAKE_TOOL_FAIL:-}" == "$name" && "${HOST_MAKE_TOOL_FAIL_MODE:-}" == "$mode" ]]; then exit 23; fi
 STUB
 done
-mkdir -p "$fixture/local/scripts/release"
-cat > "$fixture/local/scripts/release/tools.sh" <<'STUB'
-#!/usr/bin/env bash
-set -euo pipefail
-printf 'install-release-tools.sh %s\n' "$1" >> "$HOST_MAKE_EVENTS"
-[[ "${HOST_MAKE_TOOL_FAIL:-}" != install-release-tools.sh ]] || exit 23
-STUB
 for mode in install check; do
     target=install-tools
     [[ "$mode" != check ]] || target=tools-check
-    for failed in none host ic rust release; do
+    for failed in none host ic rust; do
         : > "$HOST_MAKE_EVENTS"
         status=0
         HOST_MAKE_TOOL_FAIL="install-$failed-tools.sh" HOST_MAKE_TOOL_FAIL_MODE="$mode" make --no-print-directory -j4 "$target" \
@@ -152,7 +143,7 @@ for mode in install check; do
         if [[ "$mode" == install ]]; then
             printf '%s\n' 'install-ic-tools.sh preflight' 'install-rust-tools.sh preflight' >> "$fixture/expected"
         fi
-        for tool in host ic rust release; do
+        for tool in host ic rust; do
             printf 'install-%s-tools.sh %s\n' "$tool" "$mode" >> "$fixture/expected"
             [[ "$tool" != "$failed" ]] || break
         done
@@ -160,7 +151,7 @@ for mode in install check; do
         [[ ! -e "$HOST_MAKE_EXTERNAL" ]] || exit 1
     done
 done
-# Admission must finish before any of the four installation stages may run.
+# Admission must finish before any of the three installation stages may run.
 for failed in ic rust; do
     : > "$HOST_MAKE_EVENTS"
     status=0
@@ -173,7 +164,7 @@ for failed in ic rust; do
     [[ ! -e "$HOST_MAKE_EXTERNAL" ]] || exit 1
 done
 # Real pipe-descriptor admission in substituted Cargo, without compiling.
-for helper in scripts/ci/check-dependency-pins.sh scripts/release/test-tools.sh \
+for helper in scripts/ci/check-dependency-pins.sh \
     scripts/release/test-adapter.sh scripts/publish/test-workspace.sh \
     scripts/ci/test-cargo-publication-attempt.sh \
     scripts/ci/test-host-fixture-retention.sh scripts/ci/test-make-snapshot.sh scripts/ci/test-make-consumer.sh \
@@ -196,7 +187,7 @@ fi
 cargo_targets=(check clippy docs-check test test-artifacts-minimal
     test-tools-response test-tools-interface test-tools-service test-tools-extraction
     test-tools-limits test-wasm-inspection msrv msrv-workspace)
-helper_targets=(publish publish-check dependency-pins-check release-tools-test
+helper_targets=(publish publish-check dependency-pins-check
     release-adapter-check tooling-command-check publish-command-check)
 for target in "${cargo_targets[@]}" "${helper_targets[@]}"; do
     : > "$HOST_MAKE_EVENTS"
@@ -222,7 +213,7 @@ done
 for mode in -i --ignore-errors -n -t -q; do
     for selection in direct inherited cleared replaced erased; do
         for target in fmt fmt-check release-patch release-minor release-major release-resume \
-            install-release-tools "${cargo_targets[@]}" "${helper_targets[@]}"; do
+            "${cargo_targets[@]}" "${helper_targets[@]}"; do
             : > "$HOST_MAKE_EVENTS"
             args=(--no-print-directory "$target" "FORMAT_CARGO=$PWD/cargo" "SHARED_TOOLING_ROOT=$fixture/external" "MAKE=$recursive_make")
             status=0

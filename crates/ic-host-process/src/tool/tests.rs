@@ -1,8 +1,3 @@
-#![expect(
-    clippy::significant_drop_tightening,
-    reason = "fixture serialization and directory ownership must last through output/filesystem assertions"
-)]
-
 use super::*;
 use crate::test_support::{Fixture, LIMITS, VERSION, admit, tool_path};
 use std::os::unix::ffi::OsStringExt as _;
@@ -239,14 +234,14 @@ fn deadlines_cover_running_children_closed_streams_and_descendant_pipe_copies() 
 fn changed_or_nonexecutable_candidates_are_rejected_before_execution() {
     let fixture = Fixture::new();
     let candidate = fixture.root.join("tool");
-    fs::copy(tool_path(), &candidate).unwrap();
+    crate::testing::write_executable_script(&candidate, fs::read(tool_path()).unwrap()).unwrap();
     let tool = admit(&candidate, &fixture.context(&[]), VERSION).unwrap();
-    fs::write(&candidate, b"#!/bin/sh\nexit 0\n").unwrap();
+    crate::testing::write_executable_script(&candidate, b"#!/bin/sh\nexit 0\n").unwrap();
     assert!(matches!(
         tool.run(&[], &fixture.context(&[]), LIMITS),
         Err(ToolError::Artifact(ArtifactError::DigestMismatch { .. }))
     ));
-    fs::copy(tool_path(), &candidate).unwrap();
+    crate::testing::write_executable_script(&candidate, fs::read(tool_path()).unwrap()).unwrap();
     fs::set_permissions(&candidate, fs::Permissions::from_mode(0o600)).unwrap();
     assert!(matches!(
         admit(&candidate, &fixture.context(&[]), VERSION),
