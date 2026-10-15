@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.18.5]
+## [0.18.5] - 2026-10-15
 
 - Adopt integrated Shared release-input validation and fixture-retention probes,
   preserving tool pins and using the formatting helper now delivered on Shared main
