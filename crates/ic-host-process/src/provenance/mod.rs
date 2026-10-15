@@ -96,25 +96,48 @@ impl std::error::Error for GitError {
 /// Raw observations, without a product report or source-cleanliness guarantee.
 #[derive(Debug)]
 pub struct GitObservations {
-    /// Lowercase object ID returned for HEAD.
-    pub revision: String,
-    /// Lowercase object ID returned for the HEAD tree.
-    pub tree: String,
     /// Selected status scope, retained alongside the dirty observation.
     pub options: StatusOptions,
     /// Raw status byte count and SHA-256; not a canonical source-tree identity.
     pub status_identity: ArtifactIdentity,
     /// Admitted Git executable identity.
     pub tool_identity: ArtifactIdentity,
-    /// Original bounded revision output and diagnostics.
-    pub revision_evidence: CompletedExecution,
-    /// Original bounded tree output and diagnostics.
-    pub tree_evidence: CompletedExecution,
-    /// Original bounded status output, including arbitrary pathname bytes.
-    pub status_evidence: CompletedExecution,
+    revision_evidence: CompletedExecution,
+    tree_evidence: CompletedExecution,
+    status_evidence: CompletedExecution,
 }
 
 impl GitObservations {
+    /// Borrow the validated lowercase HEAD object ID, without its final newline.
+    #[must_use]
+    pub fn revision(&self) -> &str {
+        object_id(&self.revision_evidence.stdout)
+    }
+
+    /// Borrow the validated lowercase HEAD tree ID, without its final newline.
+    #[must_use]
+    pub fn tree(&self) -> &str {
+        object_id(&self.tree_evidence.stdout)
+    }
+
+    /// Original bounded revision output and diagnostics, retained without copying.
+    #[must_use]
+    pub const fn revision_evidence(&self) -> &CompletedExecution {
+        &self.revision_evidence
+    }
+
+    /// Original bounded tree output and diagnostics, retained without copying.
+    #[must_use]
+    pub const fn tree_evidence(&self) -> &CompletedExecution {
+        &self.tree_evidence
+    }
+
+    /// Original bounded status output, including arbitrary pathname bytes.
+    #[must_use]
+    pub const fn status_evidence(&self) -> &CompletedExecution {
+        &self.status_evidence
+    }
+
     /// Whether status reported bytes under the selected scope. Ignored files,
     /// excluded untracked files and concurrent changes are not ruled out.
     #[must_use]
@@ -145,14 +168,38 @@ pub fn capture_git(
         .into_iter()
         .enumerate()
     {
-        match observe(git, context, options, limits, query) {
-            Ok(evidence) => completed[index] = Some(evidence),
-            Err(mut error) => {
-                // Preserve the failed query's own capture while moving only
-                // earlier successful observations into its error evidence.
-                error.completed[..index].swap_with_slice(&mut completed[..index]);
-                return Err(error);
+        let evidence = match git
+            .run(&arguments(query, options), context, limits)
+            .and_then(CompletedExecution::require_success)
+            .and_then(CompletedExecution::require_complete)
+        {
+            Ok(evidence) => evidence,
+            Err(source) => {
+                return Err(GitError {
+                    query,
+                    failure: GitFailure::Tool(Box::new(source)),
+                    completed: Box::new(completed),
+                });
             }
+        };
+        let failure = match query {
+            GitQuery::Revision | GitQuery::Tree if !valid_object_id(&evidence.stdout) => {
+                Some(GitFailure::InvalidObjectId)
+            }
+            GitQuery::Status
+                if !evidence.stdout.is_empty() && evidence.stdout.last() != Some(&0) =>
+            {
+                Some(GitFailure::UnterminatedStatus)
+            }
+            _ => None,
+        };
+        completed[index] = Some(evidence);
+        if let Some(failure) = failure {
+            return Err(GitError {
+                query,
+                failure,
+                completed: Box::new(completed),
+            });
         }
     }
     let [Some(revision), Some(tree), Some(status)] = completed else {
@@ -162,12 +209,7 @@ pub fn capture_git(
         bytes: status.stdout.len() as u64,
         sha256: Sha256Digest::compute(&status.stdout),
     };
-    // Object validation above admits only ASCII, so conversion is lossless.
-    let revision_id = object_id(&revision.stdout);
-    let tree_id = object_id(&tree.stdout);
     Ok(GitObservations {
-        revision: revision_id,
-        tree: tree_id,
         options,
         status_identity,
         tool_identity: git.identity(),
@@ -175,53 +217,6 @@ pub fn capture_git(
         tree_evidence: tree,
         status_evidence: status,
     })
-}
-
-fn observe(
-    git: &AdmittedTool,
-    context: &ExecutionContext<'_>,
-    options: StatusOptions,
-    limits: OutputLimits,
-    query: GitQuery,
-) -> Result<CompletedExecution, GitError> {
-    let mut completed = [None, None, None];
-    let index = match query {
-        GitQuery::Revision => 0,
-        GitQuery::Tree => 1,
-        GitQuery::Status => 2,
-    };
-    let evidence = match git
-        .run(&arguments(query, options), context, limits)
-        .and_then(CompletedExecution::require_success)
-        .and_then(CompletedExecution::require_complete)
-    {
-        Ok(evidence) => evidence,
-        Err(source) => {
-            return Err(GitError {
-                query,
-                failure: GitFailure::Tool(Box::new(source)),
-                completed: Box::new(completed),
-            });
-        }
-    };
-    let failure = match query {
-        GitQuery::Revision | GitQuery::Tree if !valid_object_id(&evidence.stdout) => {
-            Some(GitFailure::InvalidObjectId)
-        }
-        GitQuery::Status if !evidence.stdout.is_empty() && evidence.stdout.last() != Some(&0) => {
-            Some(GitFailure::UnterminatedStatus)
-        }
-        _ => None,
-    };
-    if let Some(failure) = failure {
-        completed[index] = Some(evidence);
-        return Err(GitError {
-            query,
-            failure,
-            completed: Box::new(completed),
-        });
-    }
-    Ok(evidence)
 }
 
 fn valid_object_id(bytes: &[u8]) -> bool {
@@ -232,11 +227,10 @@ fn valid_object_id(bytes: &[u8]) -> bool {
             .all(|byte| matches!(byte, b'0'..=b'9' | b'a'..=b'f'))
 }
 
-fn object_id(bytes: &[u8]) -> String {
-    bytes[..bytes.len() - 1]
-        .iter()
-        .map(|&byte| char::from(byte))
-        .collect()
+fn object_id(bytes: &[u8]) -> &str {
+    // Only capture_git constructs observations; their admitted captures are private.
+    std::str::from_utf8(&bytes[..bytes.len() - 1])
+        .expect("captured object ID was validated as ASCII plus LF")
 }
 
 fn arguments(query: GitQuery, options: StatusOptions) -> Vec<OsString> {

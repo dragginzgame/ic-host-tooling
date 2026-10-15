@@ -1,5 +1,6 @@
 //! Named producer access to the existing durable publication engine.
 
+use super::WriteOptions;
 use std::{fmt, io, path::Path};
 
 /// Failure from a named or streamed producer and durable publication, retaining cleanup evidence.
@@ -74,9 +75,12 @@ impl<E: std::error::Error + 'static> std::error::Error for NamedWriteError<E> {
     }
 }
 
-/// Produce and validate output at an owned absolute sibling path, then durably replace a file.
+/// Produce and validate at an owned absolute sibling path, then durably publish it.
 ///
 /// Uses the same creation, synchronization and publication engine as [`super::write_with`].
+/// `options` selects replace/create-only publication and staging permissions;
+/// permissions are reduced by the process umask. Missing parents use ordinary
+/// directory creation, without establishing private parent custody.
 /// The callback receives an exclusively created, empty regular file. An external
 /// tool must write/truncate that inode, not unlink it or replace it by rename.
 /// The callback owns executable admission, arguments, environment, output byte
@@ -99,9 +103,12 @@ impl<E: std::error::Error + 'static> std::error::Error for NamedWriteError<E> {
 /// # Errors
 /// Returns the original producer error or a filesystem failure with explicit
 /// before/after-publication state. After-publication failures must be reconciled
-/// before retrying. Unsupported hosts return a before-publication error.
+/// before retrying. Invalid permissions refuse before staging or production;
+/// create-only mode atomically refuses an existing final entry. Unsupported
+/// hosts return a before-publication error.
 pub fn write_named_with<T, E>(
     path: &Path,
+    options: WriteOptions,
     produce: impl FnOnce(&Path) -> Result<T, E>,
 ) -> Result<T, NamedWriteError<E>> {
     #[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
@@ -110,7 +117,7 @@ pub fn write_named_with<T, E>(
         let absolute = std::path::absolute(path).map_err(NamedWriteError::before)?;
         super::supported::commit_path_with_options(
             &absolute,
-            super::REPLACE_OPTIONS,
+            options,
             |stage, _| produce(stage),
             None::<(bool, fn(&Path, &T) -> Result<(), E>)>,
             |_, _| Ok(()),
@@ -118,7 +125,7 @@ pub fn write_named_with<T, E>(
     }
     #[cfg(not(any(target_os = "linux", target_os = "android", target_vendor = "apple")))]
     {
-        let _ = (path, produce);
+        let _ = (path, options, produce);
         Err(NamedWriteError::before(io::Error::new(
             io::ErrorKind::Unsupported,
             "durable atomic file publication is unsupported",
