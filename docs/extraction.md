@@ -10,8 +10,8 @@ ic-host-tools to ic-host-process and ic-host-fs,
 from ic-host-process to ic-host-fs, and from each to ic-host-artifacts.
 No generic crate depends on ic-host-tools, Canic, IcyDB or an IC runtime.
 Test/example artifact features do not become production filesystem dependencies.
-The empty tools defaults retain response decoding and pure Candid text
-normalization while excluding all three generic extraction dependencies and the
+The empty tools defaults retain pure ICP protocol commands, installation
+projection, response decoding and Candid text normalization while excluding all three generic extraction dependencies and the
 optional Candid parser from its normal graph. The 0.15 hard cut moves extraction
 to `candid::extraction` and normalization to `candid::text`, without reexports.
 The optional `ic-interface` feature adds generic Wasm facts without the Candid
@@ -38,6 +38,9 @@ response-only graph; IC reference values and comparison remain in the tools owne
 - ic-host-tools owns Candid text/extractor and service-method interpretation,
   IC method export projection over generic Wasm facts, ICP response formats
   and explicit revision-bound IC resource comparisons.
+  Its pure `icp` builders extend caller-configured commands; installation
+  projection interprets only successful status JSON. Credentials, targets,
+  version admission, capture bounds, execution and lifecycle stay with callers.
 
 The optional tools `certificate` feature owns strict CBOR decoding into owned
 `ic-certification` certificate/delegation/hash-tree values. It admits complete

@@ -9,7 +9,7 @@ admitted process execution and IC-specific format handling.
 | ic-host-fs | Regular/no-follow reads, missing-suffix path resolution, streamed durable publication, private files and observed descriptor locks |
 | ic-host-process | Executable resolution, digest/version admission, bounded capture, explicit child/group cleanup and Git observations |
 | ic-host-text | Pure terminal-safe escaping and Unicode display-width tables with explicit formatting choices |
-| ic-host-tools | Candid text/extraction, optional service and IC export facts, ICP response decoding and IC resource reports |
+| ic-host-tools | Candid text/extraction, optional service and IC export facts, ICP protocol commands/response decoding and IC resource reports |
 
 These run locally outside canisters. The ic-host prefix identifies their ecosystem;
 the generic crates have no IC runtime dependency. Compression, archive and Wasm
@@ -24,7 +24,8 @@ With `wasm`, `wasm::encode_custom_section(CustomSection { name, data }, max_byte
 encodes one complete custom section with an explicit output-byte allowance.
 Callers supply exact names/data and own module assembly, aggregate budgets,
 duplicates, append order and subsequent Wasm validation.
-`ic-host-tools` has no default features. Response decoding and
+`ic-host-tools` has no default features. Pure ICP command construction,
+installation projection, response decoding and
 `candid::text::normalize` are always available without artifact/filesystem/process
 dependencies or the Candid parser. Enable `candid-extraction` explicitly for
 the Unix `candid::extraction` API.

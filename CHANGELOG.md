@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.18.6]
+
+- Share pure ICP call/status command syntax and typed installation facts, retaining
+  caller-owned target, credential, execution and capture policy
+  ([#97 — Shared ICP protocol mechanics](https://github.com/dragginzgame/ic-host-tooling/issues/97)).
+  [Detailed notes](docs/changelog/0.18.md).
+
 ## [0.18.5] - 2026-10-15
 
 - Adopt integrated Shared release-input validation and fixture-retention probes,
