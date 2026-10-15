@@ -15,7 +15,7 @@ tooling_root="${BASH_SOURCE[0]}"
 tooling_root="$(cd -P "${tooling_root%/*}/../.." && printf '%s/.' "$PWD")"
 tooling_root="${tooling_root%/.}"
 # Publication eligibility is explicit policy, distinct from workspace membership.
-packages=(ic-host-artifacts ic-host-fs ic-host-process ic-host-tools ic-host-wasm-inspect)
+packages=(ic-host-artifacts ic-host-fs ic-host-process ic-host-text ic-host-tools ic-host-wasm-inspect)
 package_path() {
     case "$1" in
         ic-host-wasm-inspect) printf 'apps/%s\n' "$1" ;;

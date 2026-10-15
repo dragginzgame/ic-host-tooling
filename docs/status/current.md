@@ -1,23 +1,369 @@
 # Current handoff
 
-## Private-parent ancestor admission — pending 0.18.0
+## Private-parent ancestor admission — pending 0.19.0
 
-PR #90 is refreshed against delivered 0.17.13, preserving the complete release
-history and adopted Shared 0.12.5 policy. The private-parent helper checks every
-existing path component and rejects `..` before creation. Its Rustdoc explains
-physical-path admission and retains caller-owned namespace stability/root
-confinement; this is a breaking public refusal change
-([PR #90 — Reject symlink ancestors](https://github.com/dragginzgame/ic-host-tooling/pull/90)).
+PR #90 is refreshed onto released Host 0.18.5 through a normal topic merge.
+It preserves current publication history and package versions while rejecting
+ancestor symlinks and parent traversal before private-parent creation. Callers
+using directory aliases must supply canonical physical paths. This refusal
+change remains breaking before 1.0; its pending notes move to the 0.19 line.
 
-The existing regression now checks direct/ancestor aliases, present/missing
-descendants, parent traversal before creation, and retained symlink/file bytes.
-All 29 durable cases, strict FS Clippy/Rustdoc and actual Rust 1.88 all-target/
-all-feature checking pass in the isolated checkout. Formatting, manifest sorting,
-snapshot integrity and documentation links pass. Original branch qualification
-stays bound to `caf82e04dcdf195be63fc7b31c5b5c7a344aec62`; new evidence,
-source hashes and before-images are retained under `/tmp/host-pr90-review.RIGr0I/`.
-Full repository/native gates are not rerun for this PR refresh. Own versions
-remain 0.17.13; the real checkout's pending custom-section work is untouched.
+Focused durable tests, strict FS lint/docs and actual Rust 1.88 checks qualify
+the refreshed Linux source. Native macOS remains with fresh required CI. Earlier
+qualification is retained at `/tmp/host-pr90-review.RIGr0I/`; this refresh evidence
+is at `/tmp/host-pr-refresh-20261015/`. Consumer and release effects remain
+separate, and the ordinary working checkout is preserved.
+
+## Integrated Shared release helpers — pending 0.18.5
+
+Released base is 0.18.4 `fb211b5273aee06772b8a0d1b46ca40b4d1b48c2`,
+with complete [Linux/MSRV/macOS qualification](https://github.com/dragginzgame/ic-host-tooling/actions/runs/38698314201).
+The new snapshot selects pushed Shared main `176992860cbeba806d8d731ee92ea577e3a79b2a`
+(committed version 0.14.0), replacing the now-integrated formatting contribution.
+All 95 entrypoints remain; seven payloads update and one required release-input
+validator brings the closure to 116 payloads. Newer sibling-local commits are not
+adopted. Pins, Rust source and Cargo metadata remain unchanged.
+
+Pure release-input and retained-assertion tests, the adopted release runner,
+Host adapter and actual fixture retention pass under current Bash and genuine
+Bash 3.2. The first Host adapter checks exposed a missing disposable input; its
+copy list now includes the validator required by the increment helper. Failed
+attempts and corrected evidence are retained at `/tmp/host-shared-refresh.93NcbD/`.
+Affected lint/syntax, snapshot, links and repeat-export checks pass. Upstream's
+exact native matrix is green; new Host native acceptance remains separate.
+[#124 — Shared release and fixture adoption](https://github.com/dragginzgame/ic-host-tooling/issues/124)
+owns this local, uncommitted adoption. The real index/HEAD and existing artifacts
+are preserved; no tool download, release or publication ran.
+
+## Shared Tooling 0.14.0 — pending 0.18.4
+
+The canonical snapshot now records `6e46528e7d6f758c6de0c885fc2589949f67c2ae`
+from the already authorized [Shared PR #196](https://github.com/dragginzgame/shared-tooling/pull/196),
+refreshed by normal topic merge of pushed 0.14.0 main `5f70392`. Only unpublished
+note placement conflicted; the formatting helper and its tests are unchanged.
+Shared main and its sibling working checkout are untouched; integration remains
+with the owner. Four selected documentation/reporting payloads change, retaining
+95 entrypoints and 115 payloads. No executable helper or tool pin changes.
+
+Focused selector, affected ShellCheck and producer/consumer documentation checks
+pass. Snapshot verification and repeat export (115 KEEP) pass. The preceding full
+Linux `make ci msrv-workspace` evidence remains applicable to unchanged Rust,
+executable and tool inputs; no broad gate is repeated for this documentation-only
+refresh. The pending filename fix, Cargo metadata, pins, real Host index and HEAD
+are preserved. Evidence is retained at `/tmp/host-shared0140.rihV1h/`.
+[#73 — Shared Tooling adoption](https://github.com/dragginzgame/ic-host-tooling/issues/73)
+owns Host acceptance; new source-bound native checks remain separate.
+
+## Native filename fixture — pending 0.18.4
+
+Released base is 0.18.3 `0e54003395f628c7234919c1882e7779ccab3369`.
+The tree fixture now observes native filename creation: accepted non-UTF-8 names
+must be rejected by the walker without visiting their contents; EILSEQ refusal
+must leave only the retained regular file, which is still walked successfully.
+Other creation errors fail. Symlink rejection and source preservation stay required
+on every host. Production source, dependencies and package versions are unchanged.
+
+All 96 filesystem units, strict selected Clippy/Rustdoc and actual Rust 1.88 checks
+pass. Full Linux `make ci msrv-workspace` passes; raw logs are retained at
+`/tmp/host-tree-fixture-0184/`. These changes remain local and uncommitted.
+[#116 — Release and fixture cleanup](https://github.com/dragginzgame/ic-host-tooling/issues/116)
+still requires the delivered repair's native macOS 15 Intel/Apple Silicon checks;
+Linux exercises the accepting filesystem, not the native EILSEQ branch.
+
+## Literal releases and fixture/walker simplification — pending 0.18.3
+
+[#116 — Release and fixture cleanup](https://github.com/dragginzgame/ic-host-tooling/issues/116)
+owns the three approved follow-on changes. Release preparation uses the canonical
+literal renderer from the existing `e5a5bb1` Shared source; the snapshot adds one
+root/payload (95/115). Host's exact dependency spelling, saved-source comparisons
+and receipts remain local. Preparation restores original bytes/modes after failed
+rendering, validation following partial install or catchable interruption, retaining
+the originals. The release-only cargo-edit pin/installer/commands/fixtures and
+native cache salt are retired; existing installations are preserved.
+
+Remaining executable fixture writes/copies use the opt-in Process writer, also
+compiled for Process's unit tests without changing its normal default feature
+graph. Process/Tools global fixture mutexes and obsolete guard lint expectations
+are removed. The unpublished tree visitor loses its directory-open flag callback;
+observed directories always use directory-only opens before descriptor rechecks.
+Native open errors may precede a visitor type callback on substitution. Backup
+retains local walkers until publication and separate consumer qualification.
+
+Source before-images and raw evidence are at `/tmp/host-cleanup-release-tests.XX9gSI/`.
+Initial focused Process (96), extraction (20), tree (2) and release checks pass.
+Three 32-thread runs each of Process and extraction pass after guard removal.
+Strict affected-package lint/docs and actual Rust 1.88 checking pass; stale lint
+expectations found by the first Clippy pass are removed, with its failure retained.
+Release rendering, post-install failure and TERM rollback checks pass under modern
+Bash and genuine Bash 3.2, preserving byte/mode identity. No real release,
+publication, own version change, executable download or sibling edit ran.
+Full combined Linux `make ci msrv-workspace` passes, including strict workspace
+lint/docs, feature profiles and all tests. Final package/lock, index/HEAD and
+common tool-pin comparisons are unchanged. Native macOS qualification remains
+separate. [Backup #48 — Descriptor walk and crash-barrier adoption](https://github.com/dragginzgame/ic-backup/issues/48)
+owns consumer convergence after publication; the sibling source is untouched.
+
+## Formatter source discovery — pending 0.18.3
+
+The maintainer explicitly authorized Git delivery of the prepared Shared change.
+[Shared PR #196](https://github.com/dragginzgame/shared-tooling/pull/196) contains
+commit `e5a5bb14d8521fc5dc7b5fc4ee6b1f1ca08b5ea6`, based on pushed 0.13.3 main
+`d963db4b85b4fa65560fd87e8398f228955a2b71`. Host exports that exact clean committed
+source, retaining 94 roots and adding the selector companion for 114 payloads.
+The checker, selector, lifecycle companion and guide change; tool pins and all
+other selected payloads stay unchanged. The contribution is not merged/released
+upstream; its exact snapshot is approved here and must be refreshed if integration
+changes its source identity.
+
+Host selects `--rust-sources`, retiring its manual crate/module list while keeping
+the selected perturbation and Make/tooling inputs. The newly arrived no-follow
+tree/crash-barrier sources are preserved and discovered automatically. The two
+prior cleanup slices and the real index/HEAD/package versions remain untouched.
+Source before-images and task evidence are at `/tmp/host-formatting-adoption.bNjGQh/`.
+[#113 — Fixture and graph simplification](https://github.com/dragginzgame/ic-host-tooling/issues/113)
+owns Host qualification; [Shared #195 — Formatting source discovery](https://github.com/dragginzgame/shared-tooling/issues/195)
+owns producer acceptance, separately from consumer adoption.
+
+Full combined Linux `make ci msrv-workspace` passes against the adopted snapshot,
+including the incoming tree/crash-barrier source. Selected tooling, actual hooks,
+strict lint/docs, production graphs and Rust 1.88 checking pass. Selector and Host
+hook checks also pass under genuine Bash 3.2; repeat export reports 114 KEEP.
+Shared PR lint checks pass; its Linux/macOS regression jobs remain in progress
+at final observation. Host native macOS acceptance remains separate.
+
+## No-follow tree and crash-test primitives — pending 0.18.3
+
+Host FS now has a proposed no-follow descriptor tree walker, and Host Process
+has opt-in acknowledged direct-child crash barriers. The combined checkout
+passes full Linux `make ci msrv-workspace` against the selected Shared Tooling
+snapshot, including these APIs. Backup retains its local helpers until Host
+publishes them and Backup qualifies that registry graph. Native macOS acceptance
+remains separate.
+
+## Fixture and graph cleanup — pending 0.18.3
+
+Released base is 0.18.2 `55a31aa13a42f55fa3985db33e1586722638ad40`.
+Six local fixtures use the adopted Shared allocator; retention and aliased-parent
+policy remain unchanged. One graph checker retains every profile's exact required
+and forbidden dependency selection and separately propagates observation errors.
+[#113 — Fixture and graph simplification](https://github.com/dragginzgame/ic-host-tooling/issues/113)
+owns the local batch. Package versions, dependencies, tool pins and snapshot stay
+unchanged; ordinary implementation leaves the real index and refs untouched.
+
+The third approved cleanup is implemented at Shared's owner in an isolated copy,
+with the Host adoption patch prepared against the current snapshot. It adds
+opt-in NUL-separated current Rust/manifest discovery, applies tracked deletions
+only in disposable checkouts and rejects nonregular/escaping/failed selections.
+[#195 — Formatting source discovery](https://github.com/dragginzgame/shared-tooling/issues/195)
+owns the producer. Initial automatic approval refusal was resolved by the
+maintainer's explicit Git authorization; committed adoption is described above.
+Review patches and focused evidence are at `/tmp/host-maint-cleanup.4Wz7Za/`.
+Upstream selection and actual Host hooks with an unstaged new crate/nested module
+pass under current Bash and Bash 3.2. Native macOS qualification remains separate.
+
+Full Linux `make ci msrv-workspace` passes for the local batch, including actual
+Rust 1.88, strict lint/docs and workspace tests. Modern/Bash 3.2 graph controls
+reject eight forbidden edges, twelve missing owners and failed Cargo observations;
+selector failures retain their status. Retention and actual Host hooks pass under
+Bash 3.2 too. Initial probe-formatting and empty-array failures remain alongside
+corrected evidence. Final snapshot/link/graph checks and preservation comparisons pass.
+
+## Shared Tooling refresh — pending 0.18.2
+
+Shared 0.13.1 at `a348518c86f1b4cc5184ed94b8213c2d75d5e280` is exported
+from an isolated clean copy of pushed main. The snapshot retains 94 entrypoint
+roots and 113 payloads: the fixture-lifecycle helper and two guides change.
+The publication guide was already selected; its new companion declaration adds
+no command or upload effect. Tool pins, dependency selections and pending
+certificate/text sources are preserved. The sibling's dirty 0.13.2 work and
+rustdoc/probe proposals mentioned in pending upstream notes are not adopted.
+The existing [#73 — Shared Tooling adoption](https://github.com/dragginzgame/ic-host-tooling/issues/73)
+owns this refresh; ordinary local source changes do not perform Git/release effects.
+
+Full Linux `make ci msrv-workspace` passes for the combined pending source,
+including strict workspace lint/docs and actual Rust 1.88 checking. The new
+allocator's focused checks pass under current Bash and genuine Bash 3.2;
+ShellCheck and a repeat preview (113 KEEP) pass. Before-images and exact logs
+are retained at `/tmp/host-shared0131.AuVZvH/`. The real index/HEAD and all unrelated
+starting source files are unchanged. Native macOS qualification remains separate.
+
+## Certificate formats and host text — pending 0.18.2
+
+Released base is 0.18.1 `be35654a35f6e2e79728712dd24db76c5daeef02`.
+[#109 — Owned certificate decoding](https://github.com/dragginzgame/ic-host-tooling/issues/109)
+adds an optional tools-only `certificate` profile. Direct Serde visitors return
+owned upstream IC certificates/hash trees without a generic CBOR payload tree.
+Byte/depth budgets, exact node tags/arities, byte payloads, pruned digest lengths,
+strict fields and trailing-data refusal remain mechanical admission. Authentication,
+combined evidence, commitments and leaf interpretation stay Query-owned.
+
+The maintainer's screenshot separately authorizes the fifth generic owner:
+[#110 — Host text ownership](https://github.com/dragginzgame/ic-host-tooling/issues/110).
+`ic-host-text` renders escaped scalar values and Unicode-width tables with
+explicit alignment/gap/separator choices. Report construction, size/truncation,
+stdout, terminal detection, colour and progress remain consumer-owned. It depends
+only on the already locked Unicode-width owner, with no other Host or IC edge.
+The publication roster, workspace metadata, feature gate and ownership docs
+include the new library. No existing API moves or compatibility reexports occur.
+
+Five certificate cases and five text cases pass on Linux, with strict affected-
+package Clippy/Rustdoc and actual Rust 1.88 all-target/all-feature checking.
+Production graph exclusions, formatting and links pass. Initial fixture compiler
+and lint failures are retained alongside corrected passes at
+`/tmp/host-formats.rllgiU/`. Source provenance binds the clean Query inputs to
+`3dd2fe811b5fbdbfebb57694c9937d2dff6c07b7`. Query's current decoder and renderer
+remain until published adoption; no sibling source was edited. Package versions
+and the real index/refs are unchanged; no release or publication ran.
+Native macOS acceptance and consumer adoption remain independent obligations.
+The corrected full Linux `make ci` gate and `make msrv-workspace` pass. The first
+full attempt found missing new-module inputs in Host's disposable formatting
+fixture; its roster now includes the text crate and certificate sources. All
+previous lock selections/checksums are preserved; only required nodes/edges are
+added. The complete failure and corrected gate logs retain their source identities.
+
+## Fixture callers and resource reports — pending 0.18.1
+
+The approved remaining tools fixture caller now uses the opt-in filesystem
+allocator from [PR #103](https://github.com/dragginzgame/ic-host-tooling/pull/103).
+Its source changes are applied locally without merging Git refs; filesystem,
+process and tools allocation loops converge while their mutex/Drop policies
+remain intact. [#98 — Fixture directory allocation](https://github.com/dragginzgame/ic-host-tooling/issues/98)
+owns required native acceptance and subsequent published Build adoption.
+
+The resource-report example delegates regular-file admission to the existing
+filesystem reader, and its valid-fixture integer encoding to locked `leb128`.
+[#106 — Resource-report example cleanup](https://github.com/dragginzgame/ic-host-tooling/issues/106)
+owns this cleanup. The new edge is development-only; the response-only normal
+graph excludes it. Independent artifact encoder golden/malformed fixtures,
+selected limits, text/JSON output and reference policy remain unchanged.
+
+Linux focused qualification passes: 94 filesystem units plus the fresh-process
+collision case, 94 process units, 20 extraction-profile units and all three
+resource-report cases. The compiled example rejects directories and a FIFO
+without a writer, with failure status and no report. Changed-crate strict
+Clippy/Rustdoc, actual Rust 1.88, production feature graphs, sorting, formatting
+and links pass. Before-images and exact logs are under
+`/tmp/host-example-cleanup.zyWqMD/`; the prior pending batch below is preserved.
+The full combined Linux `make ci` and `make msrv-workspace` gates also pass;
+the earlier batch's full-gate evidence remains bound to its original source.
+Package versions and the real index/refs remain unchanged; no release or
+publication ran. Required native macOS acceptance is separate from Linux evidence.
+
+## Raw hashing and fixture convergence — pending 0.18.1
+
+Released source is 0.18.0 `013a14ce22ac537e5e7d15942cb2079cc69003ca`.
+The older sections below retain pre-release evidence for that delivered batch.
+[#105 — Raw hashing and fixture simplification](https://github.com/dragginzgame/ic-host-tooling/issues/105)
+owns the approved follow-on cleanup. Raw payload hashing uses the existing slice
+digest after both allowances, preserving typed errors and refusal order.
+Publication fixtures derive names/paths from independently prepared Cargo
+metadata while Host retains explicit publication policy and provenance checks.
+Host's exit-injection loop delegates to Shared's existing probe helper; its
+fixture roster, real round trips and contradictory assertions stay local.
+
+The selected helper extends the same Shared 0.12.7 revision, with 94 roots and
+113 payloads. No sibling changes, helper options, tool-pin changes, package
+version changes or release effects are required. All 13 gzip cases, strict
+artifact Clippy/Rustdoc and actual Rust 1.88 checking pass on Linux. Retention
+and its publication/release round trips pass under current Bash and genuine
+Bash 3.2, including all seven canonical exit cases per Host fixture. Snapshot
+integrity, links and scoped diff checks pass. Source before-images and raw
+qualification logs remain at `/tmp/host-cleanup-next3.PZDmeV/`.
+The full Linux `make ci` gate and `make msrv-workspace` pass for these sources,
+including workspace strict lint/docs, feature profiles and all-target tests.
+Native macOS 15 Intel/Apple Silicon acceptance remains separate at #105.
+The real index, package versions and Git refs are unchanged; no release or
+publication ran.
+
+## Archive/read/release simplification — pending 0.18.0
+
+[#96 — Archive, read and lock projection](https://github.com/dragginzgame/ic-host-tooling/issues/96)
+owns the approved cleanup. Immutable archive/member slices hash directly through
+existing digest/identity APIs after admission, preserving digest-before-decode,
+complete archive validation and typed mismatch evidence. Following reads/hashes
+open once and admit descriptor type/size together, retaining nonblocking FIFO
+refusal and stream growth bounds. Native open errors now precede metadata
+rejection; that public refusal-order hard cut selects 0.18.0 before 1.0.
+Callers must handle open failures before interpreting type or byte-limit errors.
+
+Saved-source Cargo.lock projection uses the selected Shared 0.12.7 rewriter.
+Host retains exact manifest/dependency spelling, receipts, notes and older-commit
+recovery. Same-version preflight checks original local versions through the
+existing TOML reader. The supplemental canonical export adds one root/payload,
+bringing the current snapshot to 93 roots and 112 payloads.
+
+Nine archive and 18 read cases pass in the frozen qualification copy, together
+with strict artifact/fs all-target Clippy/Rustdoc and actual Rust 1.88 checking.
+Direct consumer checks pass for pinned tool admission, Candid extraction and the
+Wasm inspector's unit/CLI cases in that same frozen copy.
+Release fixtures pass under current Bash and genuine Bash 3.2 with Git/setup/full
+gates substituted. The actual prepared Cargo version tool in an isolated fixture
+matches both saved-source projections byte-for-byte. Initial lint evidence,
+before-images, frozen inputs and focused logs remain under
+`/tmp/host-cleanup3.8ZNFM7/`. Snapshot integrity, repeat preview (112 KEEP),
+documentation links, manifest sorting, formatting and scoped diff checks pass;
+all 19 canonical lock-rewriter fixture assertions pass too. Manifest/lock, pins,
+workflow, index and HEAD remain unchanged through the task.
+The complete pending notes, including #77/#94 and Shared adoption, move into the
+0.18 minor-line file; published 0.17 history stays intact. Own versions remain
+0.17.13. Incoming source/graph changes are independently owned and preserved.
+Full repository/native macOS acceptance remains separate; no commit, release,
+publication, executable download or sibling mutation ran.
+
+## Blob custody and buffered-output extraction — pending 0.18.0
+
+[Host #94](https://github.com/dragginzgame/ic-host-tooling/issues/94) owns the
+maintainer-authorized producer additions. Durable private-directory creation
+retains before/after-creation errors, parent sync and the original descriptor;
+pathname admission rejects removed, symlink and substituted claims. Callers keep
+trusted ancestors, namespace custody, naming, recovery and cleanup policy.
+Buffered child-output completion reuses the existing bounded nonblocking engine,
+retaining prefetched bytes, cached nonzero/terminated exits and cleanup scope.
+It neither respawns nor introduces a default elapsed-time deadline.
+
+Linux filesystem/process suites pass (90/92 units plus doctests), strict lint/docs
+and actual Rust 1.88 all-target checks pass. The isolated Blob candidate passes
+115 CLI cases, its buffered-output regression and three installed observation/
+recovery cases. Exact before-images, graph overrides and raw logs remain at
+`/tmp/blob-extract3.lPJtvW/`. These are local/substitute results; native macOS
+and published consumer adoption remain separate. Blob #69 owns activation.
+Real package versions remain 0.17.13; prospective 0.17.14 exists only in the
+original isolated qualification graph. The combined pending notes now select
+0.18.0 for #96's refusal-order hard cut; that does not relabel the older graph.
+No release, publication, staging or Git effects ran.
+
+
+## Bounded Wasm custom sections — pending 0.18.0
+
+`wasm::encode_custom_section` encodes the existing borrowed `CustomSection` view
+into one complete section. Name/payload u32 admission and the caller's encoded-
+byte allowance precede fallible allocation; the existing locked `leb128` writer
+owns integer encoding. A separate typed error preserves length, byte-limit and
+allocation categories. Callers retain names, schemas, duplicates/order, module
+assembly, aggregate budgets and validation
+([#77 — Bounded Wasm custom-section encoder](https://github.com/dragginzgame/ic-host-tooling/issues/77)).
+
+All 13 Wasm cases, 69 artifact units and seven consumer contracts pass on Linux.
+Strict artifact Clippy/docs, actual Rust 1.88 all-target/all-feature checking,
+13 interface-profile cases and six CLI cases pass. Exact-byte, UTF-8, duplicate/
+order, LEB boundary and scalar overflow cases preserve independent parser fixtures.
+The initial Clippy panic-doc diagnostic is retained; the canonical writer's
+infallible preallocated Vec sink is documented in its narrow lint expectation.
+Minimal dependency selection excludes the new optional edge; the lock changes
+only the artifact dependency list, with all selected package versions retained.
+Focused evidence, source before-images and review diff are under
+`/tmp/host-custom-section.JImf0P/`. Full workspace/native gates are not run here.
+Query's private framing remains until published registry adoption under its
+existing [probe metadata adoption issue](https://github.com/dragginzgame/ic-query/issues/53).
+No sibling source was edited. Package versions remain 0.17.13 and the additive
+encoder work is included in the pending 0.18.0 batch; no staging, commit, release
+or publication ran.
+
+PR #90 owns the independent private-parent ancestor hard cut; it is not duplicated
+or integrated here. PR #91's cadence wording is covered by delivered 0.17.13.
+Current release CI `38549093241` has passing MSRV, Linux running and both macOS
+lanes queued at inspection. The complete 0.17.11 matrix is historical evidence;
+it is not relabelled as current encoder or Shared-adoption qualification.
 
 ## Descriptor locks for IC Build — delivered 0.17.11
 
@@ -44,27 +390,31 @@ until publication; its normal graph still uses published dependencies. Evidence
 and reviewed consumer patch are under `/tmp/ic-build-cleanup3/`. This task performs
 no staging, commit, own version change, release or publication in either owner.
 
-## Shared Tooling adoption — delivered 0.17.13
+## Shared Tooling adoption — pending 0.18.0
 
-Shared 0.12.5 at `4256171b5b7ec4c4cc4078548c1c1617ee150699` is exported
-from a clean isolated copy of pushed upstream main. All 92 roots and 109 payloads
-remain selected. Only baseline/contribution/workspace/audit guidance changes;
-executable payloads and tool pins match 0.12.4. Local AGENTS/README instructions
-and Make help now link to the shared focused-check cadence, retaining explicit
-full-release validation and configured native CI. The dashboard change stays
-outside Host's selected closure
+Shared 0.12.7 at `9364ffe3f770a6d5d94809f0bf82c33202054bf8` is exported
+from a clean isolated copy of pushed upstream main. The initial adoption keeps
+92 roots and 111 payloads; #96's supplemental lock helper is described above.
+Release-note layout/issue coverage guidance
+changes, and linked CI-selection/Rust-toolchain guides enter the closure.
+Every selected executable payload and tool pin matches the previous snapshot.
+Host retains its native workflow; the optional classifier and two-toolchain setup
+action are not selected. Local AGENTS.md records the exact new revision
 ([#73 — Shared Tooling adoption](https://github.com/dragginzgame/ic-host-tooling/issues/73)).
 
-Snapshot integrity, repeat preview (109 KEEP), shared/local documentation links,
-actual Make help and consistency/diff checks pass. Rust source, manifest/lock,
-pins and index are preserved. Before-images and logs are retained under
-`/tmp/host-shared0125.bLuQyz/`. Source is a clean isolated copy of pushed main.
-Package versions remain 0.17.12; compatible pending notes select 0.17.13.
-The preceding executable-tooling gate stays bound to the 0.12.4 inputs in
-`/tmp/host-shared0124.JnTpCt/`. No full suite runs for this documentation/help
-update under the adopted cadence, and no new native result is claimed.
-No staging, commit, release, publication, executable download or sibling mutation
-ran.
+Snapshot integrity, repeat preview (111 KEEP), 226 shared/160 local documentation
+references and scoped diff checks pass. Before-images, source selection and logs
+are retained under `/tmp/host-shared0127.hwmzxZ/`. Recorded Rust, manifest/lock,
+pin and workflow bytes plus the index/HEAD stay unchanged; the concurrent worker's
+extraction-guide additions are preserved and excluded from this task's delta.
+Package versions remain 0.17.13; the complete pending batch selects 0.18.0 for the
+read-admission hard cut.
+Concurrent Rust additions and their notes remain independently owned; this
+documentation adoption does not qualify them. Earlier 0.12.5 adoption evidence
+remains in `/tmp/host-shared0125.bLuQyz/`, and executable-tooling evidence stays
+bound to its 0.12.4 inputs in `/tmp/host-shared0124.JnTpCt/`.
+No full suite or new native macOS qualification is claimed. No staging, commit,
+release, publication, executable download or sibling mutation ran.
 
 ## Private parent preparation — delivered 0.17.11
 
@@ -270,10 +620,10 @@ No native macOS, commit, release, publication or actual provider operation ran.
 
 The latest finalized release is **0.17.13**, commit
 `6f26efe58f2357e92cfdc7178cf3c9e5fbf65316`. Package versions remain unchanged.
-Shared Tooling **0.12.5**, revision
-`4256171b5b7ec4c4cc4078548c1c1617ee150699`, is adopted through the canonical
+Shared Tooling **0.12.7**, revision
+`9364ffe3f770a6d5d94809f0bf82c33202054bf8`, is adopted through the canonical
 exporter from a clean isolated checkout of pushed upstream main. The snapshot
-contains 109 payloads, including the shared release-tag checker, fixture
+contains 112 payloads, including the shared release-tag checker, fixture
 lifecycle helper, selected publication attempt owner and evidence collector.
 Tool pins are unchanged by adoption.
 See [the snapshot](../../.shared-tooling.snapshot) and
@@ -396,7 +746,7 @@ checks passed; evidence remains in `/tmp/host-0172-cleanup/` and
 [fixture cleanup #72](https://github.com/dragginzgame/ic-host-tooling/issues/72),
 [fixture pruning #74](https://github.com/dragginzgame/ic-host-tooling/issues/74),
 [Shared adoption #73](https://github.com/dragginzgame/ic-host-tooling/issues/73),
-[interface consumers #71](https://github.com/dragginzgame/ic-host-tooling/issues/71)
+[interface acceptance #72](https://github.com/dragginzgame/ic-host-tooling/issues/72)
 and [lock isolation #70](https://github.com/dragginzgame/ic-host-tooling/issues/70).
 
 The [historical handoff](archive-2026-10-13.md) preserves older source identities,

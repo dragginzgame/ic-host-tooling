@@ -1,8 +1,3 @@
-#![allow(
-    clippy::significant_drop_tightening,
-    reason = "fixture lock covers all child operations"
-)]
-
 use super::*;
 mod direct;
 use crate::test_support::Fixture;

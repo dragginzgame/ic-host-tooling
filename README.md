@@ -5,15 +5,25 @@ admitted process execution and IC-specific format handling.
 
 | Crate | Implemented source ownership |
 | --- | --- |
-| ic-host-artifacts | Bounded streams and hashing writers, exact byte comparison, SHA-256, gzip encoding/decoding, verified tar members and generic Wasm facts |
+| ic-host-artifacts | Bounded streams and hashing writers, exact byte comparison, SHA-256, gzip encoding/decoding, verified tar members, generic Wasm facts and custom-section encoding |
 | ic-host-fs | Regular/no-follow reads, missing-suffix path resolution, streamed durable publication, private files and observed descriptor locks |
 | ic-host-process | Executable resolution, digest/version admission, bounded capture, explicit child/group cleanup and Git observations |
+| ic-host-text | Pure terminal-safe escaping and Unicode display-width tables with explicit formatting choices |
 | ic-host-tools | Candid text/extraction, optional service and IC export facts, ICP response decoding and IC resource reports |
 
 These run locally outside canisters. The ic-host prefix identifies their ecosystem;
 the generic crates have no IC runtime dependency. Compression, archive and Wasm
 support are optional features of ic-host-artifacts. Filesystem/process consumers
 select the small default artifact dependency.
+For test fixtures, opt in to `ic-host-fs`'s `test-support` feature in a
+dev-dependency and use `testing::create_fixture_directory(parent, prefix)`.
+It allocates beneath an existing physical parent, skips occupied names and
+returns the retained path. Callers own labels, custody and explicit cleanup;
+the allocator supplies no Drop guard or application lifecycle.
+With `wasm`, `wasm::encode_custom_section(CustomSection { name, data }, max_bytes)`
+encodes one complete custom section with an explicit output-byte allowance.
+Callers supply exact names/data and own module assembly, aggregate budgets,
+duplicates, append order and subsequent Wasm validation.
 `ic-host-tools` has no default features. Response decoding and
 `candid::text::normalize` are always available without artifact/filesystem/process
 dependencies or the Candid parser. Enable `candid-extraction` explicitly for
@@ -29,6 +39,22 @@ The parser remains absent from the extraction graph. See the
 The optional `ic-limits` feature compares Wasm facts with explicitly selected,
 revision-bound IC resource limits, without filesystem/process dependencies when
 defaults are disabled. See the [0.5 contract changes](docs/changelog/0.5.md).
+
+The optional tools `certificate` feature exposes
+`certificate::{decode_certificate, decode_hash_tree}` with explicit input-byte and
+CBOR-depth limits. It returns owned `ic-certification` values and rejects trailing
+data, malformed trees and invalid certificate fields. Parsing authenticates
+nothing: callers retain Agent verification, trust roots, combined evidence
+budgets, witness commitments and application leaf meanings. The feature adds no
+Agent transport, filesystem/process execution or Candid parser.
+
+`ic-host-text::escape::terminal_text` makes control and bidirectional formatting
+characters visible without choosing output or colour. `table::render` accepts
+headers, fixed-column rows, alignments and explicit `Options { column_gap,
+header_separator }`, returning a String. It measures escaped cells in Unicode
+display columns. Reports retain their row/header/column decisions; CLIs retain
+stdout, terminal detection, colour and progress. The crate depends only on the
+Unicode-width library, with no other Host or IC dependencies.
 
 The compiled [IC resource-report example](crates/ic-host-tools/examples/inspect_install_limits/main.rs)
 inspects once and compares code-body bytes, defined functions and all globals
@@ -163,7 +189,7 @@ decoded bytes exactly with an expected slice. All retain explicit input/payload
 bounds and strict single-member integrity checks; see the
 [gzip contract](docs/changelog/0.4.md#gzip-identities-and-exact-representation-comparison).
 
-The four crates support Linux x86-64 and macOS 15 on Intel and Apple Silicon,
+The five crates support Linux x86-64 and macOS 15 on Intel and Apple Silicon,
 with Rust **1.88.0** as their MSRV. See [host qualification](docs/hosts.md) for
 validation commands and native evidence requirements.
 
@@ -181,7 +207,7 @@ make test PACKAGE=ic-host-artifacts
 Setup is explicit; `tools-check` verifies prepared tools offline. Hook installation
 separately activates the repository-local formatter. Shared Tooling owns these
 [common commands](docs/make-interface.md) and executable installation; this
-workspace owns the four libraries, package checks and publication policy.
+workspace owns the five libraries, package checks and publication policy.
 
 Use `make check`, `make clippy`, `make docs-check`, `make test` or `make msrv`
 with `PACKAGE=<crate>` for focused work. Follow the
@@ -205,7 +231,7 @@ and [agent rules](AGENTS.md). Human and agent contributions follow the
 cargo run -p ic-host-wasm-inspect --locked -- input.wasm 1048576 1000 1000 1000
 ```
 
-The standalone application composes artifact/filesystem owners, keeping the four
+The standalone application composes artifact/filesystem owners, keeping the five
 library boundaries and response-only defaults unchanged. It prints exact SHA-256
 and raw/structural facts after complete admission; budgets and interpretation
 stay caller-owned. It executes no Wasm and estimates no cycles or instructions.

@@ -32,6 +32,38 @@ fn bounded_file_operations_leave_source_intact_and_reject_special_inputs() {
 
 #[cfg(unix)]
 #[test]
+fn following_reads_preserve_open_failure_before_size_admission() {
+    use std::os::unix::fs::PermissionsExt as _;
+    let fixture = crate::test_support::Fixture::new();
+    let path = fixture.root.join("inaccessible");
+    std::fs::write(&path, b"oversized").unwrap();
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o000)).unwrap();
+    // Privileged callers can bypass DAC; qualify ordering when opening refuses.
+    if let Err(expected) = File::open(&path) {
+        for result in [
+            read_file(&path, 0).map(|_| ()),
+            hash_file(&path, 0).map(|_| ()),
+        ] {
+            assert!(
+                matches!(result, Err(ArtifactError::Io(error)) if error.kind() == expected.kind())
+            );
+        }
+    } else {
+        assert!(matches!(
+            read_file(&path, 0),
+            Err(ArtifactError::LimitExceeded { limit: 0 })
+        ));
+        assert!(matches!(
+            hash_file(&path, 0),
+            Err(ArtifactError::LimitExceeded { limit: 0 })
+        ));
+    }
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600)).unwrap();
+    assert_eq!(std::fs::read(&path).unwrap(), b"oversized");
+}
+
+#[cfg(unix)]
+#[test]
 fn regular_opener_follows_links_and_keeps_the_selected_inode() {
     let fixture = crate::test_support::Fixture::new();
     let path = fixture.root.join("source");

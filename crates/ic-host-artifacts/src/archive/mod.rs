@@ -167,9 +167,17 @@ pub fn extract_tar_gz(
     if !valid_member(member) {
         return Err(ArchiveError::InvalidMember);
     }
-    let archive_identity =
-        artifact::verify_reader(bytes, limits.archive_bytes as u64, archive_sha256)
-            .map_err(ArchiveError::Archive)?;
+    if bytes.len() > limits.archive_bytes {
+        return Err(ArchiveError::Archive(ArtifactError::LimitExceeded {
+            limit: limits.archive_bytes as u64,
+        }));
+    }
+    let archive_identity = ArtifactIdentity {
+        bytes: bytes.len() as u64,
+        sha256: Sha256Digest::compute(bytes),
+    }
+    .verify(archive_sha256)
+    .map_err(ArchiveError::Archive)?;
     let inflated = artifact::decode_gzip(bytes, limits.archive_bytes, limits.decompressed_bytes)
         .map_err(|source| match source {
             GzipError::InputLimit { limit, .. } => {
@@ -181,9 +189,12 @@ pub fn extract_tar_gz(
             GzipError::TrailingData => ArchiveError::TrailingCompressedData,
         })?;
     let payload = select_member(&inflated, member, limits)?;
-    let member_identity =
-        artifact::verify_reader(payload, limits.member_bytes as u64, member_sha256)
-            .map_err(ArchiveError::Member)?;
+    let member_identity = ArtifactIdentity {
+        bytes: payload.len() as u64,
+        sha256: Sha256Digest::compute(payload),
+    }
+    .verify(member_sha256)
+    .map_err(ArchiveError::Member)?;
     let mut selected = Vec::new();
     selected
         .try_reserve_exact(payload.len())

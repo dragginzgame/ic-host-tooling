@@ -1,8 +1,3 @@
-#![expect(
-    clippy::significant_drop_tightening,
-    reason = "fixture ownership and serialization must last through filesystem assertions"
-)]
-
 use super::{ResolutionError, resolve_executable};
 use crate::{
     test_support::{Fixture, LIMITS, VERSION, tool_path},
@@ -239,8 +234,10 @@ fn selected_candidate_must_be_admitted_without_falling_back_after_digest_failure
     let later = fixture.root.join("later");
     fs::create_dir(&first).unwrap();
     fs::create_dir(&later).unwrap();
-    fs::copy(tool_path(), first.join("tool")).unwrap();
-    fs::copy(tool_path(), later.join("tool")).unwrap();
+    crate::testing::write_executable_script(&first.join("tool"), fs::read(tool_path()).unwrap())
+        .unwrap();
+    crate::testing::write_executable_script(&later.join("tool"), fs::read(tool_path()).unwrap())
+        .unwrap();
     let marker = fixture.root.join("invocations");
     let environment = [(
         OsString::from("FIXTURE_MARKER"),

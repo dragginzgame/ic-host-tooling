@@ -81,6 +81,21 @@ fn exact_member_has_both_identities_without_disclosing_payload_in_debug() {
 fn archive_admission_precedes_decoding_and_member_mismatch_retains_identity() {
     let wrong = Sha256Digest::compute(b"wrong");
     assert!(matches!(
+        extract_tar_gz(
+            b"not gzip",
+            wrong,
+            MEMBER,
+            wrong,
+            ArchiveLimits {
+                archive_bytes: 0,
+                ..LIMITS
+            }
+        ),
+        Err(ArchiveError::Archive(ArtifactError::LimitExceeded {
+            limit: 0
+        }))
+    ));
+    assert!(matches!(
         extract_tar_gz(b"not gzip", wrong, MEMBER, wrong, LIMITS),
         Err(ArchiveError::Archive(ArtifactError::DigestMismatch { .. }))
     ));
