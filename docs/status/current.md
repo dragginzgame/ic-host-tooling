@@ -1,5 +1,61 @@
 # Current handoff
 
+## Integrated Shared release helpers — pending 0.18.5
+
+Released base is 0.18.4 `fb211b5273aee06772b8a0d1b46ca40b4d1b48c2`,
+with complete [Linux/MSRV/macOS qualification](https://github.com/dragginzgame/ic-host-tooling/actions/runs/38698314201).
+The new snapshot selects pushed Shared main `176992860cbeba806d8d731ee92ea577e3a79b2a`
+(committed version 0.14.0), replacing the now-integrated formatting contribution.
+All 95 entrypoints remain; seven payloads update and one required release-input
+validator brings the closure to 116 payloads. Newer sibling-local commits are not
+adopted. Pins, Rust source and Cargo metadata remain unchanged.
+
+Pure release-input and retained-assertion tests, the adopted release runner,
+Host adapter and actual fixture retention pass under current Bash and genuine
+Bash 3.2. The first Host adapter checks exposed a missing disposable input; its
+copy list now includes the validator required by the increment helper. Failed
+attempts and corrected evidence are retained at `/tmp/host-shared-refresh.93NcbD/`.
+Affected lint/syntax, snapshot, links and repeat-export checks pass. Upstream's
+exact native matrix is green; new Host native acceptance remains separate.
+[#124 — Shared release and fixture adoption](https://github.com/dragginzgame/ic-host-tooling/issues/124)
+owns this local, uncommitted adoption. The real index/HEAD and existing artifacts
+are preserved; no tool download, release or publication ran.
+
+## Shared Tooling 0.14.0 — pending 0.18.4
+
+The canonical snapshot now records `6e46528e7d6f758c6de0c885fc2589949f67c2ae`
+from the already authorized [Shared PR #196](https://github.com/dragginzgame/shared-tooling/pull/196),
+refreshed by normal topic merge of pushed 0.14.0 main `5f70392`. Only unpublished
+note placement conflicted; the formatting helper and its tests are unchanged.
+Shared main and its sibling working checkout are untouched; integration remains
+with the owner. Four selected documentation/reporting payloads change, retaining
+95 entrypoints and 115 payloads. No executable helper or tool pin changes.
+
+Focused selector, affected ShellCheck and producer/consumer documentation checks
+pass. Snapshot verification and repeat export (115 KEEP) pass. The preceding full
+Linux `make ci msrv-workspace` evidence remains applicable to unchanged Rust,
+executable and tool inputs; no broad gate is repeated for this documentation-only
+refresh. The pending filename fix, Cargo metadata, pins, real Host index and HEAD
+are preserved. Evidence is retained at `/tmp/host-shared0140.rihV1h/`.
+[#73 — Shared Tooling adoption](https://github.com/dragginzgame/ic-host-tooling/issues/73)
+owns Host acceptance; new source-bound native checks remain separate.
+
+## Native filename fixture — pending 0.18.4
+
+Released base is 0.18.3 `0e54003395f628c7234919c1882e7779ccab3369`.
+The tree fixture now observes native filename creation: accepted non-UTF-8 names
+must be rejected by the walker without visiting their contents; EILSEQ refusal
+must leave only the retained regular file, which is still walked successfully.
+Other creation errors fail. Symlink rejection and source preservation stay required
+on every host. Production source, dependencies and package versions are unchanged.
+
+All 96 filesystem units, strict selected Clippy/Rustdoc and actual Rust 1.88 checks
+pass. Full Linux `make ci msrv-workspace` passes; raw logs are retained at
+`/tmp/host-tree-fixture-0184/`. These changes remain local and uncommitted.
+[#116 — Release and fixture cleanup](https://github.com/dragginzgame/ic-host-tooling/issues/116)
+still requires the delivered repair's native macOS 15 Intel/Apple Silicon checks;
+Linux exercises the accepting filesystem, not the native EILSEQ branch.
+
 ## Literal releases and fixture/walker simplification — pending 0.18.3
 
 [#116 — Release and fixture cleanup](https://github.com/dragginzgame/ic-host-tooling/issues/116)

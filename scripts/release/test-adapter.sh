@@ -28,6 +28,7 @@ adapter_root="$fixture/adapter"
 for input in scripts/release/adapter.sh scripts/release/metadata-version.awk \
     scripts/ci/read-cargo-workspace-version.sh scripts/ci/check-release-source.sh \
     scripts/ci/next-release-version.sh scripts/ci/finalize-release-changelog.awk \
+    scripts/ci/validate-release-inputs.pl \
     scripts/ci/rewrite-local-lock-versions.pl scripts/ci/render-cargo-workspace-version.pl; do
     mkdir -p "$adapter_root/${input%/*}"
     cp "$root/$input" "$adapter_root/$input"

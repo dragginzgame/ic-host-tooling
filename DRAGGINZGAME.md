@@ -141,8 +141,9 @@ Consumer choices described in those guides remain subject to this baseline.
   Rust, type-declaration and documentation added/removed/net metrics, with explicit
   zeroes or unavailable evidence. Keep Git line churn separate from semantic
   deletion counts. In the final Codex app handoff, use **symbol changes** with
-  separately counted genuine deletions, moves and renames; an edited declaration
-  is not a deletion. Keep the detailed inventory in that handoff only. Ordinary
+  genuinely created and deleted functions, methods and types only. Omit moved,
+  renamed and edited declaration inventories and counts; retained identities are
+  not creations or deletions. Keep the compact inventory in that handoff only. Ordinary
   public API removal and consumer-action documentation stays at its normal owner.
 - Complete changelog maintenance under the [common changelog rules](rules/changelogs.md)
   as part of the coherent batch, including automatically selecting and maintaining
