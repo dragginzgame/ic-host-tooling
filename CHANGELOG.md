@@ -48,6 +48,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Check and package both published libraries. Publication observes each package
   before uploading and skips completed uploads when retrying a partial release.
 
+### Fixed
+
+- Fix release-guard qualification for standalone Candid tests, retaining
+  PocketIC admission and package-specific failure ordering. Surface the failing
+  substituted recipe log when a product target unexpectedly fails.
+
 [Integration details](crates/ic-testkit/CHANGELOG.md#0450)
 
 ## [0.44.0] - 2026-10-15

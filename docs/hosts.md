@@ -1,5 +1,19 @@
 # Host support and qualification
 
+## Pending 0.45.0: package-specific release guard qualification
+
+The release fixture distinguishes standalone Candid tests from PocketIC tests,
+requiring server admission only for the latter. Separate failure injections cover
+Candid execution, server admission and PocketIC execution; unexpected substituted
+recipe failures print their retained log before the guard exits.
+
+The focused Make release-guard target passes on Linux. The updated script also
+passes under genuine Bash 3.2.57 with an inherited server selection; explicit
+`/bin/bash` children still use Linux system Bash. An injected Candid failure
+confirms the recipe and cause reach the outer log. ShellCheck and syntax checks
+pass. This does not establish native macOS or a complete release run.
+Evidence and before-images are retained under `/tmp/testkit-release-guard.2_zlvsdq/`.
+
 ## Pending 0.45.0: portable benchmarks and fallible fixture construction
 
 Native benchmark directory discovery, metadata and CSV/Markdown output now live
