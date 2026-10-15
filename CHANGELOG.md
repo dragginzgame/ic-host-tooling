@@ -1,11 +1,39 @@
 # Changelog
 
-## [0.18.6]
+## [0.19.1]
 
-- Add opt-in `ic_host_process::testing::http` bounded whole/phased HTTP request
-  readers for synthetic peers, preserving caller deadlines and byte admission.
-  Portable HTTP fixtures do not require the Unix executable-fixture APIs.
+- Share bounded synthetic HTTP request capture through Process's opt-in
+  test-support module, keeping response and application policy with callers.
   [#123 — Own bounded synthetic HTTP request fixtures outside Testkit](https://github.com/dragginzgame/ic-host-tooling/issues/123).
+  [Detailed notes](docs/changelog/0.19.md).
+
+## [0.19.0] - 2026-10-15
+
+### Breaking
+
+- Require explicit native-command capture limits for RSS sampling. macOS capture
+  now retains bounded diagnostics and rejects incomplete tables; callers must
+  pass `OutputLimits` and handle retained command failures. Optional deadlines
+  remain supported without a default time limit
+  ([#130 — Native RSS command capture](https://github.com/dragginzgame/ic-host-tooling/issues/130)).
+- Reject oversized Linux stat records before parsing, preventing a cutoff RSS
+  field from becoming a plausible smaller observation
+  ([#130 — Native RSS command capture](https://github.com/dragginzgame/ic-host-tooling/issues/130)).
+- Reject ancestor symlinks and `..` in private-parent preparation before creating
+  directories. Callers intentionally selecting directory aliases must supply
+  canonical physical paths
+  ([PR #90 — Reject symlink ancestors](https://github.com/dragginzgame/ic-host-tooling/pull/90)).
+
+### Changed
+
+- Consolidate real FIFO fixture creation so filesystem tests share one portable
+  Linux/macOS setup path while retaining their individual modes and assertions.
+  [Detailed notes](docs/changelog/0.19.md).
+
+## [0.18.6] - 2026-10-15
+
+- Record Shared Tooling 0.15.0 as the contributor baseline; selected helpers and
+  tool pins are unchanged, with no tool reinstall required.
   [Detailed notes](docs/changelog/0.18.md).
 
 ## [0.18.5] - 2026-10-15

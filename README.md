@@ -21,8 +21,10 @@ It allocates beneath an existing physical parent, skips occupied names and
 returns the retained path. Callers own labels, custody and explicit cleanup;
 the allocator supplies no Drop guard or application lifecycle.
 For bounded synthetic HTTP peers, opt in to `ic-host-process`'s `test-support`
-feature and use `testing::http::{read_http_request, read_http_request_line,
-read_http_request_with_line}`. Callers retain responses, byte budgets and deadlines.
+feature and use `testing::http::{capture_http_request, read_http_request_line,
+read_http_request_with_line}`. Whole capture retains partial bytes and typed
+failures; callers select required or optional Content-Length and own responses,
+byte budgets, deadlines and evidence files.
 With `wasm`, `wasm::encode_custom_section(CustomSection { name, data }, max_bytes)`
 encodes one complete custom section with an explicit output-byte allowance.
 Callers supply exact names/data and own module assembly, aggregate budgets,
