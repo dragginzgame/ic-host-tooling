@@ -2,6 +2,59 @@ use super::*;
 use std::io::Cursor;
 
 #[test]
+fn visiting_reuses_caller_scratch_and_preserves_exact_bytes() {
+    let input = vec![42; 40_001];
+    for scratch_bytes in [1, 7, 16 * 1024, 64 * 1024] {
+        let mut scratch = vec![0; scratch_bytes];
+        let mut observed = Vec::new();
+        let bytes = visit_reader::<ArtifactError>(
+            &mut input.as_slice(),
+            &mut scratch,
+            input.len() as u64,
+            |chunk| {
+                observed.extend_from_slice(chunk);
+                Ok(())
+            },
+        )
+        .unwrap();
+        assert_eq!(bytes, input.len() as u64);
+        assert_eq!(observed, input);
+    }
+    assert_eq!(
+        visit_reader::<ArtifactError>(&mut b"".as_slice(), &mut [0], 0, |_| Ok(())).unwrap(),
+        0
+    );
+}
+
+#[test]
+fn visiting_retains_callback_errors_and_refuses_empty_scratch_and_overflow() {
+    let mut input = Cursor::new(b"abcd");
+    assert!(
+        matches!(visit_reader::<ArtifactError>(&mut input, &mut [], 4, |_| Ok(())),
+        Err(ArtifactError::Io(source)) if source.kind() == io::ErrorKind::InvalidInput)
+    );
+    assert_eq!(input.position(), 0);
+    let mut observed = Vec::new();
+    assert!(matches!(
+        visit_reader::<ArtifactError>(&mut input, &mut [0; 2], 3, |chunk| {
+            observed.extend_from_slice(chunk);
+            Ok(())
+        }),
+        Err(ArtifactError::LimitExceeded { limit: 3 })
+    ));
+    assert_eq!(input.position(), 4);
+    assert_eq!(observed, b"ab");
+
+    let mut input = Cursor::new(b"abcd");
+    let error = visit_reader::<io::Error>(&mut input, &mut [0; 2], 4, |_| {
+        Err(io::Error::from_raw_os_error(13))
+    })
+    .unwrap_err();
+    assert_eq!(error.raw_os_error(), Some(13));
+    assert_eq!(input.position(), 2);
+}
+
+#[test]
 fn io_projection_preserves_native_codes_and_typed_artifact_causes() {
     let native = io::Error::from_raw_os_error(2);
     let projected = io::Error::from(ArtifactError::Io(native));

@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.19.1]
+
+- Expose bounded chunk visitation with caller-owned scratch, sharing the existing
+  stream engine without imposing digest framing or allocation policy.
+- Share fresh directory allocation with explicit permissions and collision
+  budgets; fixture allocation delegates while retaining its physical-parent and
+  owner-only policies. [Detailed notes](docs/changelog/0.19.md).
+
 ## [0.19.0] - 2026-10-15
 
 ### Breaking

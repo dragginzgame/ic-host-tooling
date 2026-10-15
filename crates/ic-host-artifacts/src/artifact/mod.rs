@@ -215,10 +215,11 @@ pub fn hash_reader(
     max_bytes: u64,
 ) -> Result<ArtifactIdentity, ArtifactError> {
     let mut hasher = Sha256::new();
-    let bytes = visit_reader::<ArtifactError>(&mut reader, max_bytes, |chunk| {
-        hasher.update(chunk);
-        Ok(())
-    })?;
+    let bytes =
+        visit_reader::<ArtifactError>(&mut reader, &mut [0; 16 * 1024], max_bytes, |chunk| {
+            hasher.update(chunk);
+            Ok(())
+        })?;
     Ok(ArtifactIdentity {
         bytes,
         sha256: Sha256Digest(hasher.finalize().into()),
@@ -247,11 +248,17 @@ pub fn verify_reader(
 /// count returns IO [`io::ErrorKind::InvalidData`].
 pub fn read_reader(mut reader: impl Read, max_bytes: usize) -> Result<Vec<u8>, ArtifactError> {
     let mut bytes = Vec::new();
-    visit_reader::<ArtifactError>(&mut reader, max_bytes as u64, |chunk| {
-        reserve_bounded(&mut bytes, chunk.len(), max_bytes).map_err(ArtifactError::Allocation)?;
-        bytes.extend_from_slice(chunk);
-        Ok(())
-    })?;
+    visit_reader::<ArtifactError>(
+        &mut reader,
+        &mut [0; 16 * 1024],
+        max_bytes as u64,
+        |chunk| {
+            reserve_bounded(&mut bytes, chunk.len(), max_bytes)
+                .map_err(ArtifactError::Allocation)?;
+            bytes.extend_from_slice(chunk);
+            Ok(())
+        },
+    )?;
     Ok(bytes)
 }
 
@@ -270,13 +277,32 @@ fn reserve_bounded<T>(
     Ok(())
 }
 
-fn visit_reader<E: From<ArtifactError>>(
+/// Visit bounded stream chunks using nonempty caller-owned scratch space.
+///
+/// Returns the complete byte count, observing at most `limit + 1` bytes. Only
+/// interrupted reads are retried. An overflowing chunk is not passed to `visit`;
+/// earlier callback effects remain when a later read, limit or callback fails.
+/// Chunks borrow `buffer` only during each call. Its contents after return are
+/// unspecified. Callers own framing, retained observations and blocking deadlines.
+/// No allocation, digest framing, filesystem or lifecycle policy is supplied.
+///
+/// # Errors
+/// Returns original callback errors or converted [`ArtifactError`] read/limit
+/// errors. Empty scratch is invalid input; impossible read counts are invalid data.
+pub fn visit_reader<E: From<ArtifactError>>(
     reader: &mut impl Read,
+    buffer: &mut [u8],
     limit: u64,
     mut visit: impl FnMut(&[u8]) -> Result<(), E>,
 ) -> Result<u64, E> {
     let mut bytes = 0_u64;
-    let mut buffer = [0_u8; 16 * 1024];
+    if buffer.is_empty() {
+        return Err(ArtifactError::Io(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "stream scratch buffer must not be empty",
+        ))
+        .into());
+    }
     loop {
         let remaining = usize::try_from(limit - bytes).unwrap_or(usize::MAX);
         let allowance = remaining.saturating_add(1).min(buffer.len());

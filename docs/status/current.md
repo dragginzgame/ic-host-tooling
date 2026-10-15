@@ -1,5 +1,28 @@
 # Current handoff
 
+## Build traversal and directory allocation — pending 0.19.1
+
+Released base is 0.19.0 `804a78b`. The existing bounded visitor now exposes
+caller-owned scratch without another stream engine. Directory allocation has one
+production owner with explicit permissions and collision allowance; the fixture
+wrapper retains physical-parent selection, mode 0700 and unlimited collisions.
+Cleanup, digest framing and artifact custody remain consumer-owned. These
+compatible additions select 0.19.1 notes without changing package metadata.
+
+Actual Rust 1.88 passes 49 artifact, six directory-filter and three fixture cases
+on Linux. Strict affected Clippy/rustdoc, actual MSRV all-target checking,
+formatting, links and snapshot verification pass. The isolated Build consumer
+passes all 125 selected digest/staging/transaction/batch/Wasm-cache cases on
+actual Rust 1.91, strict lint and MSRV checking. Four dual-source Cargo recipes
+preserve exact fingerprints against registry Build 0.6.0 using this coherent
+Host family. The first compile's missed gzip call is fixed; its failed log is
+retained separately. Evidence and prepared consumer deletion are retained under
+`/tmp/ic-build-cuts6-20261015/`.
+
+[IC Build #45](https://github.com/dragginzgame/ic-build/issues/45) owns publication
+and consumer activation. Normal sibling checkouts are untouched. Native macOS,
+full release validation, integration and publication remain separate.
+
 ## Complete Linux records and private parents — pending 0.19.0
 
 The approved PR #90 source at `7931347` is applied as local source changes,
