@@ -2,17 +2,15 @@
 set -euo pipefail
 
 # Exercise the consumer adapter with real locked/offline Cargo metadata. Git,
-# setup, fetching, qualification and version mutation are substitutes: no
-# commits, tags or release pushes. CI does not need cargo-edit for this fixture.
+# setup, fetching and qualification are substitutes. Literal version rendering
+# and rollback are real; no commits, tags or release pushes occur.
 root="${BASH_SOURCE[0]}"
 [[ "$root" == /* ]] || root="$PWD/$root"
 root="$(cd -P "${root%/*}/../.." && printf '%s/.' "$PWD")"
 root="${root%/.}"
-fixture="$(mktemp -d "${TMPDIR:-/tmp}/ic-host-release-adapter.XXXXXX")"
 # shellcheck source=scripts/ci/fixture-lifecycle.sh
 source "$root/scripts/ci/fixture-lifecycle.sh"
-fixture="$(CDPATH="" cd -P -- "$fixture" && printf '%s/.' "$PWD")"
-fixture="${fixture%/.}"
+fixture="$(fixture_create "${TMPDIR:-/tmp}/ic-host-release-adapter.XXXXXX")"
 fixture_complete=false
 trap 'fixture_finish "$?" "$fixture" "Release adapter fixtures retained"' EXIT
 export TMPDIR="${fixture%/*}"
@@ -21,29 +19,20 @@ export CARGO_NET_OFFLINE=true RUSTUP_AUTO_INSTALL=0
 ADAPTER_REAL_CARGO="$(command -v cargo)"
 export ADAPTER_REAL_CARGO
 ADAPTER_REAL_BASH="$(command -v bash)"
-ADAPTER_REAL_AWK="$(command -v awk)"
-export ADAPTER_REAL_BASH ADAPTER_REAL_AWK
-export ADAPTER_METADATA_REWRITE="$root/scripts/release/metadata-version.awk"
+ADAPTER_REAL_YQ="$(command -v "${YQ:-yq}")"
+export ADAPTER_REAL_BASH ADAPTER_REAL_YQ
 export ADAPTER_EVENTS="$fixture/events"
 export RELEASE_SOURCE=0000000000000000000000000000000000000000
 export RELEASE_DATE=2026-10-06 RELEASE_KIND=minor
 adapter_root="$fixture/adapter"
 for input in scripts/release/adapter.sh scripts/release/metadata-version.awk \
     scripts/ci/read-cargo-workspace-version.sh scripts/ci/check-release-source.sh \
-    scripts/ci/next-release-version.sh scripts/ci/finalize-release-changelog.awk; do
+    scripts/ci/next-release-version.sh scripts/ci/finalize-release-changelog.awk \
+    scripts/ci/rewrite-local-lock-versions.pl scripts/ci/render-cargo-workspace-version.pl; do
     mkdir -p "$adapter_root/${input%/*}"
     cp "$root/$input" "$adapter_root/$input"
 done
 adapter="$adapter_root/scripts/release/adapter.sh"
-# The real selector/installer boundary is covered by test-tools.sh. Here the
-# selected release executable uses the existing version-mutation substitute.
-cat > "$adapter_root/scripts/release/tools.sh" <<'STUB'
-#!/usr/bin/env bash
-set -euo pipefail
-[[ "$1" == run ]] || exit 1
-shift
-exec cargo set-version "$@"
-STUB
 RELEASE_PREVIOUS="$(cd "$root" && bash scripts/release/adapter.sh version)"
 export RELEASE_PREVIOUS
 RELEASE_VERSION="$(bash "$root/scripts/ci/next-release-version.sh" "$RELEASE_PREVIOUS" "$RELEASE_KIND")"
@@ -126,7 +115,6 @@ case "$*" in
     'metadata --no-deps --format-version 1 --locked --offline')
         "$ADAPTER_REAL_CARGO" "$@"
         exit "${ADAPTER_METADATA_RESULT:-0}" ;;
-    'set-version --help') ;;
     'fetch --locked'|'fetch --locked --offline')
         if [[ -n "${ADAPTER_CACHE:-}" && ! -e "$ADAPTER_CACHE" ]]; then
             if [[ "$*" == *--offline || "${CARGO_NET_OFFLINE:-}" == true ]]; then
@@ -137,13 +125,6 @@ case "$*" in
             fi
             : > "$ADAPTER_CACHE"
         fi ;;
-    "set-version --workspace --offline $RELEASE_VERSION")
-        for mode in manifest lock; do
-            if [[ "$mode" == manifest ]]; then file=Cargo.toml; else file=Cargo.lock; fi
-            awk -v mode="$mode" -v packages="$ADAPTER_PACKAGES" -v replacement="$RELEASE_VERSION" \
-                -f "$ADAPTER_METADATA_REWRITE" "$file" > "$file.candidate"
-            mv "$file.candidate" "$file"
-        done ;;
     *) echo "Unexpected Cargo operation: $*" >&2; exit 2 ;;
 esac
 STUB
@@ -168,13 +149,14 @@ if [[ "${1##*/}" == "${ADAPTER_FAILED_READER:-}" ]]; then
 fi
 exec "$ADAPTER_REAL_BASH" "$@"
 STUB
-cat > "$fixture/bin/awk" <<'STUB'
+cat > "$fixture/bin/yq" <<'STUB'
 #!/usr/bin/env bash
 set -euo pipefail
-"$ADAPTER_REAL_AWK" "$@"
-if [[ "${ADAPTER_FAILED_READER:-}" == lock && "$*" == '-v mode=lock -v read_version=1 '* ]]; then exit 23; fi
+"$ADAPTER_REAL_YQ" "$@"
+if [[ "${ADAPTER_FAILED_READER:-}" == lock && "$*" == '-p toml -o json .' ]]; then exit 23; fi
 STUB
-chmod +x "$fixture/bin/bash" "$fixture/bin/awk"
+chmod +x "$fixture/bin/bash" "$fixture/bin/yq"
+export YQ="$fixture/bin/yq"
 export PATH="$fixture/bin:$PATH"
 cd "$fixture"
 
@@ -263,7 +245,6 @@ cargo metadata --no-deps --format-version 1 --locked --offline
 make --no-print-directory install-tools
 make --no-print-directory tools-check
 make --no-print-directory dependency-pins-check
-cargo set-version --help
 cargo fetch --locked
 EVENTS
 cmp expected "$ADAPTER_EVENTS"
@@ -446,7 +427,6 @@ cargo locate-project --workspace --message-format plain --manifest-path Cargo.to
 cargo metadata --no-deps --format-version 1 --locked --offline
 make --no-print-directory tools-check
 make --no-print-directory dependency-pins-check
-cargo set-version --help
 cargo fetch --locked --offline
 make --no-print-directory ci
 make --no-print-directory msrv-workspace
@@ -546,6 +526,42 @@ bash "$adapter" verify > original-source-revalidated.log 2>&1
 # The prepared fixture must preserve both undated and dated historical notes
 # through saved receipts; real locked/offline Cargo admits its updated graph.
 printf '# Changelog\n\n## [%s] - %s\n\n- Fixture notes.\n\n## [%s]\n\n- Undated imported history.\n\n## [0.0.1] - 2026-10-01\n\n- Dated history.\n' "$RELEASE_VERSION" "$RELEASE_DATE" "$RELEASE_PREVIOUS" > expected-notes
+# Exercise failures after plausible candidate output and after partial install.
+mkdir preparation-controls preparation-before
+ADAPTER_REAL_PERL="$(command -v perl)"
+ADAPTER_REAL_CP="$(command -v cp)"
+export ADAPTER_REAL_PERL ADAPTER_REAL_CP
+cat > preparation-controls/perl <<'STUB'
+#!/usr/bin/env bash
+set -euo pipefail
+"$ADAPTER_REAL_PERL" "$@"
+if [[ "${PREPARATION_CONTROL:-}" == render && "${1##*/}" == render-cargo-workspace-version.pl ]]; then exit 31; fi
+STUB
+cat > preparation-controls/cp <<'STUB'
+#!/usr/bin/env bash
+set -euo pipefail
+"$ADAPTER_REAL_CP" "$@"
+if [[ "${PREPARATION_CONTROL:-}" == interrupt && "$1" == */candidate.lock ]]; then
+    kill -TERM "$PPID"
+fi
+STUB
+chmod +x preparation-controls/perl preparation-controls/cp
+chmod 640 Cargo.toml Cargo.lock CHANGELOG.md
+cp -p Cargo.toml Cargo.lock CHANGELOG.md preparation-before/
+for control in render metadata interrupt; do
+    status=0
+    metadata_status=0 expected_status=31
+    case "$control" in metadata) metadata_status=23; expected_status=23 ;; interrupt) expected_status=143 ;; esac
+    PREPARATION_CONTROL="$control" ADAPTER_METADATA_RESULT="$metadata_status" \
+        PATH="$fixture/preparation-controls:$PATH" bash "$adapter" prepare \
+        > "preparation-$control.log" 2>&1 || status=$?
+    [[ "$status" == "$expected_status" ]] || exit 1
+    for file in Cargo.toml Cargo.lock CHANGELOG.md; do
+        cmp "preparation-before/$file" "$file"
+        perl -e '((stat $ARGV[0])[2] & 0777) == 0640 or die "mode changed\n"' "$file"
+    done
+    grep -F 'originals retained:' "preparation-$control.log" > /dev/null
+done
 bash "$adapter" prepare > prepared.log 2>&1
 "${YQ:-yq}" -p toml -o json '.' Cargo.lock |
     jq -e --arg version "$RELEASE_VERSION" --arg names "$ADAPTER_PACKAGES" '

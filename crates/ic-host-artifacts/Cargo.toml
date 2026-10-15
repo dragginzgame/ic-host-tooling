@@ -14,10 +14,11 @@ publish = ["crates-io"]
 default = []
 archive = ["gzip", "dep:tar"]
 gzip = ["dep:flate2"]
-wasm = ["dep:wasmparser"]
+wasm = ["dep:leb128", "dep:wasmparser"]
 
 [dependencies]
 flate2 = { workspace = true, optional = true }
+leb128 = { workspace = true, optional = true }
 sha2.workspace = true
 tar = { workspace = true, optional = true }
 wasmparser = { workspace = true, optional = true }

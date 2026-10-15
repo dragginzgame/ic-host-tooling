@@ -22,12 +22,19 @@ The optional `ic-limits` profile adds only generic artifact inspection to the
 response-only graph; IC reference values and comparison remain in the tools owner.
 
 - ic-host-artifacts owns stream identities, bounded read/write/copy mechanics,
-  optional gzip encoding/decoding, verified tar member bytes and optional Wasm structural facts.
+  optional gzip encoding/decoding, verified tar member bytes, optional Wasm
+  structural facts and bounded custom-section framing.
 - ic-host-fs owns pathname/descriptor reads and the durable module's replace,
   create-new, private-file, parent synchronization and descriptor-lock operations.
 - ic-host-process owns executable resolution/admission, explicit execution context,
   output limits, deadlines, direct-child/explicit group cleanup evidence, native
   process-table/RSS observations and separate Git queries.
+- ic-host-text owns pure terminal-safe escaping and Unicode display-width tables.
+  Cells, alignments and formatting options are explicit; reports and CLIs retain
+  headers, rows, column choices, size/truncation policy, output, terminal detection,
+  colour and progress. It depends on no other Host or IC owner. This fifth generic
+  boundary was explicitly selected by the maintainer under
+  [#110 — Host text ownership](https://github.com/dragginzgame/ic-host-tooling/issues/110).
 - ic-host-tools owns Candid text/extractor and service-method interpretation,
   IC method export projection over generic Wasm facts, ICP response formats
   and explicit revision-bound IC resource comparisons.
@@ -35,9 +42,32 @@ response-only graph; IC reference values and comparison remain in the tools owne
   projection interprets only successful status JSON. Credentials, targets,
   version admission, capture bounds, execution and lifecycle stay with callers.
 
+The optional tools `certificate` feature owns strict CBOR decoding into owned
+`ic-certification` certificate/delegation/hash-tree values. It admits complete
+input bytes and selected CBOR nesting before returning a single fully consumed
+value. Direct Serde visitors enforce actual array/byte kinds, exact tree tags
+and arities and 32-byte pruned digests without a generic CBOR payload tree.
+Certificate/delegation fields reject unknown, duplicate, missing or invalid
+values. Errors distinguish byte allowance, trailing data and CBOR/shape failures.
+Parser allocations use ordinary upstream Vec/Box storage; a byte bound is not a
+heap/CPU quota. No authentication is implied. Agent verification, network trust
+roots, combined certificate/witness budgets, witness commitment and application
+leaf interpretation remain consumer-owned. No Agent, transport, filesystem,
+process or text dependency enters this profile
+([#109 — Owned certificate decoding](https://github.com/dragginzgame/ic-host-tooling/issues/109)).
+
 Source tests move with their owner; public artifact projection tests belong to
 ic-host-artifacts. Runnable examples retain explicit dependencies on each owner.
 No generic compatibility reexports remain in ic-host-tools.
+
+`wasm::encode_custom_section` encodes an isolated custom section from the existing
+borrowed `CustomSection` view. Name and complete payload lengths must fit Wasm's
+u32 domain; the complete encoded-byte allowance is checked before fallible
+allocation. The optional Wasm feature reuses the existing locked `leb128` integer
+writer; no filesystem/process or Candid dependency is added. Names, raw payloads,
+metadata schemas, duplicate/append policy and aggregate module budgets stay with
+callers. They assemble and validate the containing module. Independent malformed-
+parser fixtures remain separate from encoder round-trip coverage.
 
 `candid::service::inspect` uses the Candid parser for self-contained grammar and
 type checking, returning method names and modes without expanding argument/return
@@ -52,6 +82,14 @@ Canic endpoint presentation remain consumer policy. IC Build owns build/cache
 orchestration separately; these libraries do not install tools or build canisters.
 
 Within `ic-host-fs`, `read` is the sole owner of required/optional/private reads.
+Its Unix `tree` module exposes a no-follow descriptor traversal for caller-owned
+entry handling, but does not own Backup's tree checksum framing, multi-file
+publication or retained byte custody. Callers admit and hold the root, select
+depth/byte limits, and prevent concurrent namespace or content changes where
+stable evidence is required.
+Observed directories always use directory-only opens and descriptor type checks;
+callers do not choose kernel flags. Native open errors may precede type callbacks
+when an entry is replaced during traversal.
 Following paths, final-component no-follow admission and already-open descriptor
 reads remain distinct contracts. Optional reads reuse the same bounded stream
 engine and return `ArtifactError`; private reads add typed permission, link-count
@@ -111,6 +149,9 @@ confinement for following pathname APIs, immutable source bytes, process sandbox
 descendant cleanup, hardware-independent crash durability or safe paid-effect retries.
 Query's capability confinement and refresh leases remain consumer-owned.
 Backup's tree checksums, multi-file publication and journals remain consumer-owned.
+`ic-host-process` opt-in testing also supplies an acknowledged direct-child crash
+barrier. It owns marker timing and direct-child reaping; consumers retain crash
+point selection, fixture evidence and recovery assertions.
 Further adoption must retain each caller's independently established guarantees.
 
 `ic_host_process::tool::capture_command` reuses that same execution engine with a
@@ -226,7 +267,8 @@ consumer policy; no host catalog or version-range resolver is introduced.
 Additional reusable mechanics are extracted from committed sibling source:
 
 - `artifact::hash_gzip` and `hash_gzip_or_raw` reuse bounded hashing over the
-  existing single-member gzip decoder. `gzip_matches` reuses `MatchingWriter`
+  existing single-member gzip decoder. Raw payload slices are hashed directly
+  after both byte allowances. `gzip_matches` reuses `MatchingWriter`
   to compare exact decoded bytes without retaining another payload copy. Input
   admission, CRC/length and trailing-data checks have one owner shared with
   `decode_gzip`. Complete compressed/raw input is still a caller-owned slice;
@@ -290,7 +332,7 @@ pre-1.0 minor release. This contract assigns ownership; GitHub issues own follow
 
 The standalone `apps/ic-host-wasm-inspect` application composes artifact Wasm facts
 with bounded filesystem reads, without process execution or the Candid parser.
-The four library boundaries stay unchanged. Explicit paths, four budgets and
+The library boundaries stay independent. Explicit paths, four budgets and
 performance interpretation stay caller-owned. The standard selected Cargo
 installer can prepare its published binary without feature flags. Metrics
 retirement uses published 0.17.4 and an admitted exact consumer selection; its

@@ -15,8 +15,11 @@ fn communication_without_deadline_accepts_long_elapsed_time() {
         let watchdog = Instant::now();
         // Inject only elapsed time: child, pipes and cleanup are real. The
         // fixture does not require a multi-hour build to exercise this contract.
+        let stdout = child.take_stdout().map(BufReader::new);
         let result = exchange(
             &mut child,
+            stdout,
+            false,
             Some(b"completed"),
             OutputLimits {
                 stdout: crate::tool::OutputLimit::Terminate(9),

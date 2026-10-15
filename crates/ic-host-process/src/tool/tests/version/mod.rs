@@ -5,7 +5,7 @@ fn no_follow_admission_rejects_aliases_and_nonfiles_before_execution() {
     use std::os::unix::fs::symlink;
     let fixture = Fixture::new();
     let candidate = fixture.root.join("installed-tool");
-    fs::copy(tool_path(), &candidate).unwrap();
+    crate::testing::write_executable_script(&candidate, fs::read(tool_path()).unwrap()).unwrap();
     let marker = fixture.root.join("invocations");
     let environment = [(
         OsString::from("FIXTURE_MARKER"),
@@ -68,7 +68,7 @@ fn no_follow_admission_rejects_aliases_and_nonfiles_before_execution() {
 fn observed_identity_is_retained_and_drift_is_rejected_before_execution() {
     let fixture = Fixture::new();
     let candidate = fixture.root.join("installed tool");
-    fs::copy(tool_path(), &candidate).unwrap();
+    crate::testing::write_executable_script(&candidate, fs::read(tool_path()).unwrap()).unwrap();
     let marker = fixture.root.join("invocations");
     let environment = [(
         OsString::from("FIXTURE_MARKER"),
@@ -100,12 +100,12 @@ fn observed_identity_is_retained_and_drift_is_rejected_before_execution() {
     let original = fs::read(&candidate).unwrap();
     let mut changed = original.clone();
     changed.extend_from_slice(b"\n# changed bytes, same version\n");
-    fs::write(&candidate, changed).unwrap();
+    crate::testing::write_executable_script(&candidate, changed).unwrap();
     assert!(matches!(
         tool.run(&[], &fixture.context(&environment), LIMITS),
         Err(ToolError::Artifact(ArtifactError::DigestMismatch { .. }))
     ));
-    fs::write(&candidate, original).unwrap();
+    crate::testing::write_executable_script(&candidate, original).unwrap();
     fs::set_permissions(&candidate, fs::Permissions::from_mode(0o600)).unwrap();
     assert!(matches!(
         tool.run(&[], &fixture.context(&environment), LIMITS),
@@ -163,7 +163,7 @@ fn version_admission_retains_exact_match_and_failure_evidence() {
 fn installed_file_and_spec_are_admitted_before_version_dispatch() {
     let fixture = Fixture::new();
     let candidate = fixture.root.join("tool");
-    fs::copy(tool_path(), &candidate).unwrap();
+    crate::testing::write_executable_script(&candidate, fs::read(tool_path()).unwrap()).unwrap();
     let marker = fixture.root.join("invocations");
     let environment = [(
         OsString::from("FIXTURE_MARKER"),

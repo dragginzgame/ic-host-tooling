@@ -9,8 +9,6 @@ endif
 override SHARED_TOOLING_ROOT := $(CURDIR)
 export SHARED_TOOLING_ROOT
 include ci/tool-versions.env
-LOCAL_TOOL_INSTALL_TARGETS += install-release-tools
-LOCAL_TOOL_CHECK_TARGETS += release-tools-check
 include make/consumer.mk
 export YQ := $(CURDIR)/.tools/host/bin/yq
 
@@ -18,13 +16,12 @@ export YQ := $(CURDIR)/.tools/host/bin/yq
 help:
 	@echo 'Selected package: check, clippy, docs-check, test, msrv (PACKAGE=<crate>)'
 	@echo 'Minimal artifact configuration: test-artifacts-minimal'
-	@echo 'Tools feature configurations: test-tools-response, test-tools-interface, test-tools-service, test-tools-extraction, test-tools-limits and tools-features-check'
+	@echo 'Tools profiles: test-tools-response, test-tools-interface, test-tools-service, test-tools-extraction, test-tools-limits, test-tools-certificate and tools-features-check'
 	@echo 'Formatting and metadata: fmt, fmt-check, shared-tooling-check, dependency-pins-check, check-doc-links, release-adapter-check'
 	@echo 'Hook qualification: formatting-hook-check (disposable Git fixtures; prepared formatters required)'
-	@echo 'Complete setup: install-tools (host, IC, Cargo and pinned release tool); install-hooks is separate'
+	@echo 'Complete setup: install-tools (host, IC and Cargo); install-hooks is separate'
 	@echo 'Offline setup checks: tools-check (complete set), host-tools-check, ic-tools-check, rust-tools-check'
-	@echo 'Individual setup: install-host-tools, install-ic-tools, install-rust-tools, install-release-tools'
-	@echo 'Release tool: release-tools-check (offline); release-tools-test (substitute installer)'
+	@echo 'Individual setup: install-host-tools, install-ic-tools, install-rust-tools'
 	@echo 'Source reports: cloc (this workspace); fleet reports run in Shared Tooling'
 	@echo 'Full release validation: ci, msrv-workspace; focused MSRV: msrv PACKAGE=<crate>'
 	@echo 'Maintainer releases: release-patch, release-minor, release-major, release-resume VERSION=X.Y.Z'
@@ -55,11 +52,13 @@ test-tools-interface:
 test-tools-service:
 	+cargo test -p ic-host-tools --no-default-features --features candid-service --all-targets --locked --offline
 
-.PHONY: test-tools-extraction test-tools-limits test-wasm-inspection
+.PHONY: test-tools-extraction test-tools-limits test-tools-certificate test-wasm-inspection
 test-tools-extraction:
 	+cargo test -p ic-host-tools --no-default-features --features candid-extraction --all-targets --locked --offline
 test-tools-limits:
 	+cargo test -p ic-host-tools --no-default-features --features ic-limits --all-targets --locked --offline
+test-tools-certificate:
+	+cargo test -p ic-host-tools --no-default-features --features certificate --all-targets --locked --offline
 test-wasm-inspection:
 	+cargo test -p ic-host-wasm-inspect --all-targets --locked --offline
 tools-features-check:
@@ -69,22 +68,14 @@ msrv:
 .PHONY: msrv-workspace
 msrv-workspace:
 	+cargo +$(MSRV) check --workspace --all-targets --all-features --locked --offline
-.PHONY: install-release-tools release-tools-check release-tools-test
-install-release-tools:
-	+bash scripts/release/tools.sh install
-release-tools-check:
-	+bash scripts/release/tools.sh check
-release-tools-test:
-	+bash scripts/release/test-tools.sh
 dependency-pins-check:
 	+bash scripts/ci/check-dependency-pins.sh --cargo-inheritance
 check-doc-links:
-	perl scripts/ci/check-documentation-links.pl --root "$(CURDIR)" README.md AGENTS.md CHANGELOG.md docs/changelog/0.4.md docs/changelog/0.5.md docs/changelog/0.6.md docs/changelog/0.7.md docs/changelog/0.8.md docs/changelog/0.9.md docs/changelog/0.10.md docs/changelog/0.11.md docs/changelog/0.12.md docs/changelog/0.13.md docs/changelog/0.14.md docs/changelog/0.15.md docs/changelog/0.16.md docs/changelog/0.17.md docs/extraction.md docs/hosts.md docs/status/current.md docs/publishing.md
+	perl scripts/ci/check-documentation-links.pl --root "$(CURDIR)" README.md AGENTS.md CHANGELOG.md docs/changelog/0.4.md docs/changelog/0.5.md docs/changelog/0.6.md docs/changelog/0.7.md docs/changelog/0.8.md docs/changelog/0.9.md docs/changelog/0.10.md docs/changelog/0.11.md docs/changelog/0.12.md docs/changelog/0.13.md docs/changelog/0.14.md docs/changelog/0.15.md docs/changelog/0.16.md docs/changelog/0.17.md docs/changelog/0.18.md docs/extraction.md docs/hosts.md docs/status/current.md docs/publishing.md
 release-adapter-check:
 	+bash scripts/release/test-adapter.sh
 tooling-command-check:
 	+bash scripts/ci/test-host-fixture-retention.sh
-	+bash scripts/release/test-tools.sh
 	+bash scripts/ci/test-make-snapshot.sh
 	+bash scripts/ci/test-make-consumer.sh
 	+bash scripts/ci/test-tool-commands.sh
@@ -118,6 +109,7 @@ ci:
 	+$(MAKE) --no-print-directory test-tools-service
 	+$(MAKE) --no-print-directory test-tools-extraction
 	+$(MAKE) --no-print-directory test-tools-limits
+	+$(MAKE) --no-print-directory test-tools-certificate
 	+$(MAKE) --no-print-directory test-wasm-inspection
 	+cargo clippy --workspace --all-targets --all-features --locked --offline -- -D warnings
 	+RUSTDOCFLAGS="-D warnings" cargo doc --workspace --all-features --locked --offline --no-deps

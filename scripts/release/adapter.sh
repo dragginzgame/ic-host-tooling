@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Consumer-owned Cargo adapter. Requires Bash 3.2, Git, Make, awk, the selected
-# local cargo-set-version, prepared jq/Mike Farah yq and the provisioned Rust
+# literal metadata renderer, prepared jq/Mike Farah yq and the provisioned Rust
 # toolchains. Release preflight prepares the selected locked dependency cache;
 # verification uses only offline inputs.
 # Git effects belong to the shared runner, never to this adapter.
@@ -20,11 +20,19 @@ version() {
     printf '%s\n' "$observed"
 }
 local_packages() {
-    "${YQ:-yq}" -p toml -o json '.' | jq -er '
-        [.package[] | select(.source == null) | .name] as $names |
+    "${YQ:-yq}" -p toml -o json '.' | jq -er --arg version "${RELEASE_PREVIOUS:?}" '
+        [.package[] | select(.source == null)] as $local |
+        ($local | map(.name)) as $names |
         if ($names | length) > 0 and ($names | unique | length) == ($names | length)
            and all($names[]; test("^[A-Za-z0-9][A-Za-z0-9_-]*$"))
+           and all($local[]; .version == $version)
         then $names | sort | join(" ") else error("invalid local package identities") end'
+}
+project_manifest() {
+    perl "$tooling_root/scripts/ci/render-cargo-workspace-version.pl" \
+        "$1" "$RELEASE_PREVIOUS" "$2" |
+        awk -v mode=manifest -v packages="$3" -v replacement="$2" \
+            -f "$tooling_root/scripts/release/metadata-version.awk"
 }
 admit_files() {
     local allowed=(--allow CHANGELOG.md)
@@ -77,18 +85,25 @@ archive_validation_evidence() {
         cmp "$file" "$archive/${file##*/}" || fail 'validation evidence copy differs'
     done
 }
-check_payload() {
-    local directory="$1" mode file packages
-    packages="$(git show "$RELEASE_SOURCE:Cargo.lock" | local_packages)" || return
-    for mode in manifest lock; do
-        if [[ "$mode" == manifest ]]; then file=Cargo.toml; else file=Cargo.lock; fi
+check_payload() (
+    local directory="$1" file packages scratch
+    local selected=()
+    scratch="$(mktemp -d "$state/$RELEASE_VERSION.payload.XXXXXX")" || return
+    trap 'rm -rf "$scratch"' EXIT
+    git show "$RELEASE_SOURCE:Cargo.lock" > "$scratch/Cargo.lock" || return
+    packages="$(local_packages < "$scratch/Cargo.lock")" || return
+    read -r -a selected <<< "$packages"
+    for file in Cargo.toml Cargo.lock; do
         [[ -f "$directory/$file" && ! -L "$directory/$file" ]] || fail "missing or symlinked Cargo metadata"
-        git show "$RELEASE_SOURCE:$file" |
-            awk -v mode="$mode" -v packages="$packages" -v replacement="$RELEASE_VERSION" -f "$tooling_root/scripts/release/metadata-version.awk" |
-            cmp - "$directory/$file"
     done
+    git show "$RELEASE_SOURCE:Cargo.toml" > "$scratch/Cargo.toml" || return
+    project_manifest "$scratch/Cargo.toml" "$RELEASE_VERSION" "$packages" |
+        cmp - "$directory/Cargo.toml"
+    perl "$tooling_root/scripts/ci/rewrite-local-lock-versions.pl" \
+        "$scratch/Cargo.lock" "$RELEASE_PREVIOUS" "$RELEASE_VERSION" "${selected[@]}" |
+        cmp - "$directory/Cargo.lock"
     finalize_notes "$notes" | cmp - "$directory/CHANGELOG.md"
-}
+)
 check_prepared() {
     local observed_version
     check_receipt
@@ -129,11 +144,8 @@ case "$operation" in
         # TOML reading belongs to the shared helper. Keep this consumer's exact
         # version-only metadata layout and synchronized path requirements here.
         packages="$(local_packages < Cargo.lock)" || exit $?
-        awk -v mode=manifest -v packages="$packages" -v replacement="$RELEASE_PREVIOUS" \
-            -f "$tooling_root/scripts/release/metadata-version.awk" Cargo.toml |
+        project_manifest Cargo.toml "$RELEASE_PREVIOUS" "$packages" |
             cmp - Cargo.toml || fail "unsupported or unsynchronized release metadata"
-        observed_lock_version="$(awk -v mode=lock -v read_version=1 -v packages="$packages" -f "$tooling_root/scripts/release/metadata-version.awk" Cargo.lock)" || exit $?
-        [[ "$observed_lock_version" == "$RELEASE_PREVIOUS" ]] || fail "lockfile version differs"
         admit_files
         # Git releases and registry publication are separate effects. Validate
         # the workspace without requiring its packages to permit publication.
@@ -150,7 +162,6 @@ case "$operation" in
         fi
         CARGO_NET_OFFLINE=true make --no-print-directory tools-check
         CARGO_NET_OFFLINE=true make --no-print-directory dependency-pins-check
-        bash "$tooling_root/scripts/release/tools.sh" run --help > /dev/null
         if [[ "$operation" == preflight ]]; then
             # The selected release prepares its existing graph before validation.
             # Cargo still honours explicit offline environment/configuration.
@@ -188,12 +199,42 @@ case "$operation" in
         check_receipt
         cmp "$notes" CHANGELOG.md
         scratch="$(mktemp -d "$state/$RELEASE_VERSION.prepare.XXXXXX")"
-        trap 'rm -rf "$scratch"' EXIT
-        cp -p CHANGELOG.md "$scratch/notes"
-        finalize_notes "$notes" > "$scratch/notes"
-        bash "$tooling_root/scripts/release/tools.sh" run --workspace --offline "$RELEASE_VERSION"
-        mv "$scratch/notes" CHANGELOG.md
+        complete=false
+        originals=(Cargo.toml Cargo.lock CHANGELOG.md)
+        for file in "${originals[@]}"; do
+            [[ -f "$file" && ! -L "$file" ]] || fail 'preparation requires regular metadata'
+            cp -p "$file" "$scratch/$file"
+        done
+        # Retain originals on failure, including catchable interruption.
+        finish_prepare() {
+            local status=$? file
+            trap - EXIT
+            if [[ "$complete" == true ]]; then rm -rf "$scratch" || status=$?;
+            else
+                [[ "$status" != 0 ]] || status=1
+                for file in "${originals[@]}"; do
+                    cp -p "$scratch/$file" "$file" || status=1
+                done
+                printf 'Failed preparation restored; originals retained: %s\n' "$scratch" >&2
+            fi
+            exit "$status"
+        }
+        trap finish_prepare EXIT
+        trap 'exit 130' INT
+        trap 'exit 143' TERM
+        printf 'Release preparation originals retained: %s\n' "$scratch" >&2
+        packages="$(local_packages < "$scratch/Cargo.lock")" || exit $?
+        read -r -a selected <<< "$packages"
+        project_manifest "$scratch/Cargo.toml" "$RELEASE_VERSION" "$packages" > "$scratch/candidate.toml"
+        perl "$tooling_root/scripts/ci/rewrite-local-lock-versions.pl" \
+            "$scratch/Cargo.lock" "$RELEASE_PREVIOUS" "$RELEASE_VERSION" "${selected[@]}" > "$scratch/candidate.lock"
+        finalize_notes "$notes" > "$scratch/candidate.notes"
+        "${YQ:-yq}" -p toml -o json '.' "$scratch/candidate.toml" > /dev/null
+        cp "$scratch/candidate.toml" Cargo.toml
+        cp "$scratch/candidate.lock" Cargo.lock
+        cp "$scratch/candidate.notes" CHANGELOG.md
         check_prepared
+        complete=true
         ;;
     check) check_prepared ;;
     committed-check) check_committed ;;

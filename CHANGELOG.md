@@ -1,11 +1,99 @@
 # Changelog
 
-## [0.17.14]
+## [0.18.5]
 
 - Share pure ICP call/status command syntax and typed installation facts, retaining
   caller-owned target, credential, execution and capture policy
   ([#97 — Shared ICP protocol mechanics](https://github.com/dragginzgame/ic-host-tooling/issues/97)).
-  [Detailed notes](docs/changelog/0.17.md).
+  [Detailed notes](docs/changelog/0.18.md).
+
+## [0.18.4] - 2026-10-15
+
+- Adopt Shared Tooling 0.14.0 reporting and changelog guidance while retaining
+  current-source formatting discovery; tool pins and executable behavior stay unchanged
+  ([#73 — Shared Tooling adoption](https://github.com/dragginzgame/ic-host-tooling/issues/73)).
+- Fix the tree-walk fixture on filesystems that reject non-UTF-8 filenames,
+  preserving symlink refusal and native filename-admission coverage
+  ([#116 — Release and fixture cleanup](https://github.com/dragginzgame/ic-host-tooling/issues/116)).
+  [Detailed notes](docs/changelog/0.18.md).
+
+## [0.18.3] - 2026-10-14
+
+- Prepare release metadata with literal rendering and byte/mode rollback,
+  retiring the release-only cargo-edit installation and commands
+  ([#116 — Release and fixture cleanup](https://github.com/dragginzgame/ic-host-tooling/issues/116)).
+- Use fork-safe executable fixture writers and remove global test serialization;
+  finalize the new tree walker's directory-only admission inside the library
+  ([#116 — Release and fixture cleanup](https://github.com/dragginzgame/ic-host-tooling/issues/116)).
+- Discover current Rust sources and crate manifests for formatting fixtures,
+  replacing the manual module roster through Shared's canonical helper
+  ([#113 — Fixture and graph simplification](https://github.com/dragginzgame/ic-host-tooling/issues/113)).
+- Reuse Shared fixture allocation and consolidate feature-graph checks,
+  preserving failed evidence and every dependency-boundary assertion
+  ([#113 — Fixture and graph simplification](https://github.com/dragginzgame/ic-host-tooling/issues/113)).
+- Add a no-follow descriptor tree walker in `ic-host-fs` for caller-owned
+  checksums, synchronization and entry policy; it does not claim tree custody.
+- Add opt-in acknowledged direct-child crash barriers in `ic-host-process`
+  testing, with explicit timeouts and direct-child reaping on handshake failure.
+  [Detailed notes](docs/changelog/0.18.md).
+
+## [0.18.2] - 2026-10-14
+
+- Add optional strict owned IC certificate/hash-tree decoding, with explicit byte
+  and nesting limits; authentication and witness policy remain caller-owned
+  ([#109 — Owned certificate decoding](https://github.com/dragginzgame/ic-host-tooling/issues/109)).
+- Add `ic-host-text` for pure terminal-safe escaping and Unicode-aware tables,
+  with explicit formatting choices and no terminal/output policy
+  ([#110 — Host text ownership](https://github.com/dragginzgame/ic-host-tooling/issues/110)).
+- Adopt Shared Tooling 0.13.1, including its reusable fixture allocation helper
+  and publication-guide export correction; contributor tool pins stay unchanged
+  ([#73 — Shared Tooling adoption](https://github.com/dragginzgame/ic-host-tooling/issues/73)).
+  [Detailed notes](docs/changelog/0.18.md).
+
+## [0.18.1] - 2026-10-14
+
+- Add opt-in filesystem fixture allocation and reuse it across filesystem,
+  process and tools tests, preserving caller-owned cleanup and retention
+  ([#98 — Fixture directory allocation](https://github.com/dragginzgame/ic-host-tooling/issues/98)).
+- Use canonical bounded file admission in the IC resource-report example and
+  upstream integer encoding in its test builder
+  ([#106 — Resource-report example cleanup](https://github.com/dragginzgame/ic-host-tooling/issues/106)).
+- Hash admitted raw payload slices directly while preserving both byte allowances
+  and typed failures. Consolidate publication fixtures and failure-retention probes
+  around Cargo metadata and the existing Shared helper
+  ([#105 — Raw hashing and fixture simplification](https://github.com/dragginzgame/ic-host-tooling/issues/105)).
+  [Detailed notes](docs/changelog/0.18.md).
+
+## [0.18.0] - 2026-10-14
+
+### Breaking
+
+- Following filesystem reads/hashes now open first, then admit descriptor type
+  and size. Callers must handle native open failures before metadata rejection
+  ([#96 — Archive, read and lock projection](https://github.com/dragginzgame/ic-host-tooling/issues/96)).
+
+### Changed
+
+- Hash admitted immutable archive slices directly, retaining digest-before-decode
+  ordering and mismatch evidence ([#96 — Archive, read and lock projection](https://github.com/dragginzgame/ic-host-tooling/issues/96)).
+- Delegate saved-source release lockfile projection to Shared Tooling while
+  retaining exact payload and historical recovery checks ([#96 — Archive, read and lock projection](https://github.com/dragginzgame/ic-host-tooling/issues/96)).
+
+- Adopt Shared Tooling 0.12.7 with clearer release-note layout and reviewed
+  CI-selection/toolchain guidance
+  ([#73 — Shared Tooling adoption](https://github.com/dragginzgame/ic-host-tooling/issues/73)).
+
+- Add retained private-directory creation and pathname admission, preserving creation
+  phase, owner-only modes and caller-owned namespace custody.
+  ([#94 — Directory and buffered-output custody](https://github.com/dragginzgame/ic-host-tooling/issues/94)).
+- Complete retained buffered child stdout through the existing bounded capture
+  engine, preserving prefetched bytes, cached exits and cleanup ownership.
+  ([#94 — Directory and buffered-output custody](https://github.com/dragginzgame/ic-host-tooling/issues/94)).
+
+- Add bounded generic Wasm custom-section encoding so consumers can share framing
+  while retaining metadata and module-assembly policy
+  ([#77 — Bounded Wasm custom-section encoder](https://github.com/dragginzgame/ic-host-tooling/issues/77)).
+  [Detailed notes](docs/changelog/0.18.md).
 
 ## [0.17.13] - 2026-10-14
 
