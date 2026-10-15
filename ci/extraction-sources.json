@@ -89,6 +89,32 @@
           "selection": "query_output caller-configured Command capture contract; existing Host nonblocking capture engine remains canonical, while version policy, command construction, observation errors and platform setup remain caller-owned"
         }
       ]
+    },
+    {
+      "repository": "https://github.com/dragginzgame/ic-query",
+      "revision": "3dd2fe811b5fbdbfebb57694c9937d2dff6c07b7",
+      "files": [
+        {
+          "path": "crates/ic-query/src/certificate/mod.rs",
+          "sha256": "e3c5204ed7ffca0c77cd27e57e98dc1e5d1ebabf2a8cfde32decd5cecac69d13",
+          "selection": "strict owned certificate/hash-tree format requirements; direct Serde visitors replace the temporary generic CBOR tree; authentication, trust roots, combined evidence and commitments stay Query-owned"
+        },
+        {
+          "path": "crates/ic-query/src/certificate/tests.rs",
+          "sha256": "5d57bdd83ee20e3826354c221f371c933ec23fa5c3013574c2a4b89f219704ea",
+          "selection": "mechanical owned/pruned, bounded/trailing-byte fixtures; authentication and policy composition coverage stays in Query"
+        },
+        {
+          "path": "crates/ic-query/src/table.rs",
+          "sha256": "f7528c85a5862ae9a014e8c650fd200a11ccc425ba37a0573e507f6b34e26ccd",
+          "selection": "Unicode-width alignment and terminal-escaped cell requirement, adapted to explicit formatting options in ic-host-text; report choices remain consumer-owned"
+        },
+        {
+          "path": "crates/ic-query/src/text_value.rs",
+          "sha256": "cb14673e788a53a4fa4e4514d8fb387115287957be174b67f459794e5dd5ff3f",
+          "selection": "pure scalar control-character escaping, additionally covering Unicode line and bidirectional controls; optional-value, truncation and report labels stay Query-owned"
+        }
+      ]
     }
   ]
 }

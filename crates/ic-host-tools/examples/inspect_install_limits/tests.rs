@@ -1,20 +1,14 @@
 use super::*;
 use std::{
-    fs,
+    fs::{self, File},
     path::PathBuf,
     sync::atomic::{AtomicUsize, Ordering},
 };
 
-fn leb(mut value: u32) -> Vec<u8> {
+fn leb(value: u32) -> Vec<u8> {
     let mut bytes = Vec::new();
-    loop {
-        let low = u8::try_from(value & 0x7f).unwrap();
-        value >>= 7;
-        bytes.push(low | if value == 0 { 0 } else { 0x80 });
-        if value == 0 {
-            return bytes;
-        }
-    }
+    leb128::write::unsigned(&mut bytes, u64::from(value)).unwrap();
+    bytes
 }
 
 fn section(module: &mut Vec<u8>, id: u8, payload: &[u8]) {

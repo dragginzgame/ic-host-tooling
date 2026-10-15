@@ -1,8 +1,3 @@
-#![expect(
-    clippy::significant_drop_tightening,
-    reason = "fixture ownership and serialization must cover evidence assertions"
-)]
-
 use super::*;
 use crate::{
     test_support::{Fixture, LIMITS, VERSION, admit},
