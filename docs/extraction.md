@@ -29,7 +29,8 @@ response-only graph; IC reference values and comparison remain in the tools owne
 - ic-host-process owns executable resolution/admission, explicit execution context,
   output limits, deadlines, direct-child/explicit group cleanup evidence, native
   process-table/RSS observations and separate Git queries.
-- ic-host-text owns pure terminal-safe escaping and Unicode display-width tables.
+- ic-host-text owns pure terminal-safe escaping, exact decimal rendering and
+  Unicode display-width tables.
   Cells, alignments and formatting options are explicit; reports and CLIs retain
   headers, rows, column choices, size/truncation policy, output, terminal detection,
   colour and progress. It depends on no other Host or IC owner. This fifth generic
@@ -38,6 +39,11 @@ response-only graph; IC reference values and comparison remain in the tools owne
 - ic-host-tools owns Candid text/extractor and service-method interpretation,
   IC method export projection over generic Wasm facts, ICP response formats
   and explicit revision-bound IC resource comparisons.
+
+`ic-host-text::decimal` provides exact two-place fixed and compact decimal
+rendering, including arbitrary-size inputs and caller-selected decimal scaling.
+It rounds half up without floating point. Callers retain unit/symbol selection,
+input normalization, sentinel handling, raw report fields and output policy.
 
 `sampling::snapshot(record_bytes, command_limits)` keeps native RSS observation
 in the Process owner. Linux selects the per-record procfs allowance; macOS uses
