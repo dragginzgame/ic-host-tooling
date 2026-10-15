@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.18.4]
+
+- Add pure compact duration labels for host reports and CLIs. Consumers retain
+  their units, columns and output policy.
+  [Detailed notes](docs/changelog/0.18.md).
+
 ## [0.18.3] - 2026-10-14
 
 - Prepare release metadata with literal rendering and byte/mode rollback,

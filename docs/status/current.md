@@ -1,5 +1,12 @@
 # Current handoff
 
+## Compact duration contribution
+
+The Text duration module extracts Canic’s existing whole-second formatting.
+Canic adoption requires a published Host release; no compatibility reexport is
+planned. Focused Linux checks qualify this contribution; native macOS remains
+with hosted validation. Package versions remain unchanged.
+
 ## Literal releases and fixture/walker simplification — pending 0.18.3
 
 [#116 — Release and fixture cleanup](https://github.com/dragginzgame/ic-host-tooling/issues/116)
