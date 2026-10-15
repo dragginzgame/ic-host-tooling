@@ -17,29 +17,43 @@ fn digest_rejection_precedes_any_version_execution() {
         OsString::from("FIXTURE_MARKER"),
         marker.as_os_str().to_owned(),
     )];
-    let mut spec = ToolSpec {
+    let mut spec = VersionSpec {
         executable: &tool_path(),
-        sha256: Sha256Digest::compute(b"wrong"),
         executable_bytes: 1024 * 1024,
         version_arguments: &[OsString::from("--version")],
         version_identity: VERSION,
     };
     assert!(matches!(
-        AdmittedTool::admit(&spec, &fixture.context(&environment), LIMITS),
+        AdmittedTool::admit(
+            &spec,
+            Sha256Digest::compute(b"wrong"),
+            &fixture.context(&environment),
+            LIMITS
+        ),
         Err(ToolError::Artifact(ArtifactError::DigestMismatch { .. }))
     ));
     assert!(!marker.exists());
 
     let identity = hash_file(spec.executable, spec.executable_bytes).unwrap();
-    spec.sha256 = identity.sha256;
-    let tool = AdmittedTool::admit(&spec, &fixture.context(&environment), LIMITS).unwrap();
+    let tool = AdmittedTool::admit(
+        &spec,
+        identity.sha256,
+        &fixture.context(&environment),
+        LIMITS,
+    )
+    .unwrap();
     assert_eq!(tool.path(), tool_path());
     assert_eq!(tool.identity(), identity);
     assert_eq!(tool.version_identity(), VERSION);
     assert_eq!(fs::read(&marker).unwrap(), b"invoked\n");
 
     spec.version_identity = "different";
-    let wrong = AdmittedTool::admit(&spec, &fixture.context(&environment), LIMITS);
+    let wrong = AdmittedTool::admit(
+        &spec,
+        identity.sha256,
+        &fixture.context(&environment),
+        LIMITS,
+    );
     assert!(
         matches!(wrong, Err(ToolError::VersionMismatch { evidence }) if evidence.stdout == format!("{VERSION}\n").as_bytes() && evidence.status.is_some_and(|status| status.success()))
     );

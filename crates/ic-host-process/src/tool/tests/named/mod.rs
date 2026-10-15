@@ -1,7 +1,12 @@
 use super::*;
 use ic_host_fs::{
-    durable::{NamedWriteError, write_named_with},
+    durable::{NamedWriteError, PublicationMode, WriteOptions, write_named_with},
     read::read_file_no_follow,
+};
+
+const REPLACE: WriteOptions = WriteOptions {
+    mode: PublicationMode::Replace,
+    permissions: 0o666,
 };
 
 #[test]
@@ -20,7 +25,7 @@ fn named_output_keeps_bounded_capture_and_direct_child_cleanup_evidence() {
                 Duration::from_secs(5)
             }),
         };
-        let result = write_named_with(&output, |_| {
+        let result = write_named_with(&output, REPLACE, |_| {
             tool.run(&[argument.into()], &fixture.context(&[]), limits)
         });
         let NamedWriteError::Producer {
@@ -62,7 +67,7 @@ fn admitted_named_output_preserves_process_evidence_and_validates_before_publica
         ("invalid", "0", false),
         ("complete", "0", true),
     ] {
-        let result = write_named_with(&output, |stage| {
+        let result = write_named_with(&output, REPLACE, |stage| {
             let evidence = tool
                 .run(
                     &[
