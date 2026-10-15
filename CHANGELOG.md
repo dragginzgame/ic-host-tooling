@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.19.1]
+
+- Add pure terminal-line clipping with explicit column limits and visible control
+  escaping for host status panels. Callers retain terminal and redraw policy.
+
 ## [0.19.0] - 2026-10-15
 
 ### Breaking
