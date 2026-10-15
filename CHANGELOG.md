@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.18.7]
+
+- Write retained evidence through a typed producer with explicit file/directory
+  durability failures, preserving partial entries on failure or interruption.
+  [Detailed notes](docs/changelog/0.18.md).
+
 ## [0.18.6] - 2026-10-15
 
 - Record Shared Tooling 0.15.0 as the contributor baseline; selected helpers and

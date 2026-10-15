@@ -1,5 +1,22 @@
 # Current handoff
 
+## Typed retained evidence completion — pending 0.18.7
+
+Based on released main 0.18.6 `7f291760ac1184e5235d08f75e3c1aee0fa60cc3`.
+The existing retained-file owner now completes caller-bounded production and
+file/directory synchronization without staging, replacement, retry or cleanup.
+Typed failures distinguish creation, the original producer error and each final
+sync. Failed or panicking producers keep their named partial evidence without
+claiming failed bytes durable. Names, permissions, schemas, budgets and recovery
+policy remain with the caller; platform support and package metadata stay fixed.
+
+Five focused retained-file cases pass, including held-parent relocation,
+occupied/symlink refusal and partial-error/panic retention. Strict filesystem
+package lint/Rustdoc and actual Rust 1.88 all-target/all-feature compilation pass
+on the committed graph. Logs are retained in the authorizing Blob checkout at
+`.tmp/review-validation/adoption0270/host-*.log`. Full delivery/native macOS
+qualification remains separate; integration and publication remain owner actions.
+
 ## PR refreshes against released 0.18.5
 
 Twelve existing PR branches incorporate released main `26bfae9` through normal

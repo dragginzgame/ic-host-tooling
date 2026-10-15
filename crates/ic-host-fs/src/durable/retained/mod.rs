@@ -1,6 +1,71 @@
 //! Caller-named staging retained across failed or interrupted production.
 use super::NamedWriteError;
-use std::{convert::Infallible, ffi::OsStr, fs::File, io, os::fd::BorrowedFd};
+use std::{convert::Infallible, ffi::OsStr, fmt, fs::File, io, os::fd::BorrowedFd};
+
+/// A retained write failed; an error never authorizes deleting or retrying its name.
+#[derive(Debug)]
+pub enum RetainedWriteError<E> {
+    /// Admission, exclusive creation or the initial directory sync failed.
+    /// A newly created entry can remain even when this phase fails.
+    Create(io::Error),
+    /// The producer failed; its original error and any partial entry are retained.
+    Produce(E),
+    /// Production completed but file durability is unconfirmed.
+    SyncFile(io::Error),
+    /// File synchronization completed but final directory durability is unconfirmed.
+    SyncDirectory(io::Error),
+}
+
+impl<E> fmt::Display for RetainedWriteError<E> {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(match self {
+            Self::Create(_) => "retained file creation failed",
+            Self::Produce(_) => "retained file production failed",
+            Self::SyncFile(_) => "retained file synchronization failed",
+            Self::SyncDirectory(_) => "retained directory synchronization failed",
+        })
+    }
+}
+
+impl<E: std::error::Error + 'static> std::error::Error for RetainedWriteError<E> {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(match self {
+            Self::Create(source) | Self::SyncFile(source) | Self::SyncDirectory(source) => source,
+            Self::Produce(source) => source,
+        })
+    }
+}
+
+/// Write one caller-named entry that must survive incomplete production.
+///
+/// The name is exclusively created and directory-synchronized before invoking
+/// the producer, using [`create_retained_at`]. Success synchronizes the held
+/// file and directory after production. Failure or panic never unlinks the entry;
+/// partial contents can remain and are not promised durable on failure.
+/// There is no staging rename, replacement, cleanup or automatic retry.
+///
+/// Callers own the admitted directory, single-component name, permissions, byte
+/// budgets, schema and recovery decision. Exclude concurrent namespace writers,
+/// keep the entry bound to its held file and finish other writable handles before
+/// returning success. A visible name alone is not proof of successful production.
+///
+/// # Errors
+/// Preserves creation, producer, file-sync and final directory-sync failures.
+/// Invalid inputs and unsupported hosts refuse before the producer runs.
+pub fn write_retained_at_with<T, E>(
+    parent: BorrowedFd<'_>,
+    name: &OsStr,
+    permissions: u32,
+    produce: impl FnOnce(&mut File) -> Result<T, E>,
+) -> Result<T, RetainedWriteError<E>> {
+    let mut file =
+        create_retained_at(parent, name, permissions).map_err(RetainedWriteError::Create)?;
+    let output = produce(&mut file).map_err(RetainedWriteError::Produce)?;
+    file.sync_all().map_err(RetainedWriteError::SyncFile)?;
+    #[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
+    rustix::fs::fsync(parent).map_err(|error| RetainedWriteError::SyncDirectory(error.into()))?;
+    Ok(output)
+}
 
 /// Exclusively create a named regular staging file beneath an admitted directory.
 ///
