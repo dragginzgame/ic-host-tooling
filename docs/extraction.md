@@ -334,3 +334,8 @@ performance interpretation stay caller-owned. The standard selected Cargo
 installer can prepare its published binary without feature flags. Metrics
 retirement uses published 0.17.4 and an admitted exact consumer selection; its
 working-tree integration and native acceptance remain separately qualified.
+
+The opt-in `ic-host-process::testing::http` module owns bounded synthetic request
+reading, including phased request-line admission and remaining-deadline socket
+reads. It does not own response generation, application policy or evidence files.
+HTTP fixtures are portable; executable fixtures and crash barriers remain Unix-only.

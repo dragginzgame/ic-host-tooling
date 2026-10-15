@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.18.5]
+
+- Add opt-in `ic_host_process::testing::http` bounded whole/phased HTTP request
+  readers for synthetic peers, preserving caller deadlines and byte admission.
+  Portable HTTP fixtures do not require the Unix executable-fixture APIs.
+  [#123 — Own bounded synthetic HTTP request fixtures outside Testkit](https://github.com/dragginzgame/ic-host-tooling/issues/123).
+  [Detailed notes](docs/changelog/0.18.md).
+
 ## [0.18.4] - 2026-10-15
 
 - Adopt Shared Tooling 0.14.0 reporting and changelog guidance while retaining
