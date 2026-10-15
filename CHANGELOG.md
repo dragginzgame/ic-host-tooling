@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.18.7]
+
+- Project observed child termination into shell-style numeric exit statuses,
+  retaining caller-owned fallback and CLI range policy.
+  [Detailed notes](docs/changelog/0.18.md).
+
 ## [0.18.6] - 2026-10-15
 
 - Record Shared Tooling 0.15.0 as the contributor baseline; selected helpers and
