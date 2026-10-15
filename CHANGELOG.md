@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.20.2]
+
+- Expose bounded encoded indirect-call and data-payload statistics without
+  executing a tool; retain the existing framing inspector contract
+  ([#145 — Encoded Wasm statistics](https://github.com/dragginzgame/ic-host-tooling/issues/145)).
+  [Detailed notes](docs/changelog/0.20.md).
+
 ## [0.20.1] - 2026-10-15
 
 - Add terminal-line clipping with explicit column limits, control escaping and
