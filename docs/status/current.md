@@ -2,10 +2,61 @@
 
 ## Compact duration contribution
 
+Refreshed PR #120 onto released Host 0.18.6 (`7f29176`) through a normal
+topic merge. Published notes and package metadata remain intact; compatible
+pending notes now select 0.18.7. Both duration cases pass on actual Rust 1.88;
+strict Text all-target/all-feature Clippy, warning-denied Rustdoc and formatting
+pass. Native hosted qualification must apply to the new head. Retained evidence:
+`/tmp/canic-upstream-prs-20261015/`. No integration merge or release ran.
+
 The Text duration module extracts Canic’s existing whole-second formatting.
 Canic adoption requires a published Host release; no compatibility reexport is
 planned. Focused Linux checks qualify this contribution; native macOS remains
 with hosted validation. Package versions remain unchanged.
+
+## PR refreshes against released 0.18.5
+
+Twelve existing PR branches incorporate released main `26bfae9` through normal
+topic merges. Focused package/module tests, strict affected-package Clippy/docs,
+actual Rust 1.88 checks, formatting, links and snapshot admission pass on Linux.
+Their production implementations are preserved; the only authored Rust delta
+repairs PR #114's macOS FIFO fixtures with the existing POSIX utility convention.
+Its refreshed head passes Apple Silicon CI; Intel qualification remains separate.
+Compatible pending notes select 0.18.6; PR #90's breaking private-parent refusal
+selects 0.19.0 and preserves the published 0.18 history.
+
+[PR #100](https://github.com/dragginzgame/ic-host-tooling/pull/100) remains a draft
+awaiting canonical integration of its Shared helpers in
+[Shared PR #205](https://github.com/dragginzgame/shared-tooling/pull/205).
+No distributed payload or manifest is hand-merged to bypass that dependency.
+Exact branch receipts and focused logs are at `/tmp/host-pr-refresh-20261015/`.
+Required hosted checks qualify each updated head separately; integration,
+publication and consumer activation remain owner actions. This checkout's
+pending Shared adoption, index, package metadata and refs are preserved.
+
+## Shared Tooling 0.15.0 — pending 0.18.6
+
+Released Host base is 0.18.5 `26bfae9ebc23773f53576db367d06478afdea7a1`.
+The snapshot now selects pushed Shared main
+`2737450d60fe176ea5a620a4e72acaa8f4a99650`, whose committed version is 0.15.0.
+All 95 entrypoints and 116 payloads are retained byte-for-byte, including their
+executable modes and tool pins. This refresh changes the recorded source identity
+and local baseline reference only; it does not require a tool reinstall.
+
+Shared's larger release/fixture integration remains in open
+[PR #205](https://github.com/dragginzgame/shared-tooling/pull/205) and is not part
+of this source. Its optional license checker is not selected. The requested
+changelog records this provenance-only update under compatible patch 0.18.6;
+package versions remain unchanged. Earlier pending sections below retain
+historical evidence; the 0.18.5 adoption is now released.
+
+Snapshot verification, repeat preview, local documentation links and diff checks
+pass. Cargo metadata, pins, index and HEAD are preserved. Evidence is retained at
+`/tmp/host-shared015.Tgm4vS/`; unchanged executable and Rust inputs do not need
+fresh local execution. Host's complete
+[0.18.5 native/MSRV CI](https://github.com/dragginzgame/ic-host-tooling/actions/runs/38704924922)
+now passes; [#124 — Shared release and fixture adoption](https://github.com/dragginzgame/ic-host-tooling/issues/124)
+is closed with delivered-source acceptance evidence.
 
 ## Integrated Shared release helpers — pending 0.18.5
 
