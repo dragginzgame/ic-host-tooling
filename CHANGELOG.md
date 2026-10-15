@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.18.5]
+
+- Adopt integrated Shared release-input validation and fixture-retention probes,
+  preserving tool pins and using the formatting helper now delivered on Shared main
+  ([#124 — Shared release and fixture adoption](https://github.com/dragginzgame/ic-host-tooling/issues/124)).
+  [Detailed notes](docs/changelog/0.18.md).
+
 ## [0.18.4] - 2026-10-15
 
 - Adopt Shared Tooling 0.14.0 reporting and changelog guidance while retaining
