@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.18.4]
+## [0.18.4] - 2026-10-15
 
 - Adopt Shared Tooling 0.14.0 reporting and changelog guidance while retaining
   current-source formatting discovery; tool pins and executable behavior stay unchanged
