@@ -1,5 +1,26 @@
 # Current handoff
 
+## Integrated Shared release helpers — pending 0.18.5
+
+Released base is 0.18.4 `fb211b5273aee06772b8a0d1b46ca40b4d1b48c2`,
+with complete [Linux/MSRV/macOS qualification](https://github.com/dragginzgame/ic-host-tooling/actions/runs/38698314201).
+The new snapshot selects pushed Shared main `176992860cbeba806d8d731ee92ea577e3a79b2a`
+(committed version 0.14.0), replacing the now-integrated formatting contribution.
+All 95 entrypoints remain; seven payloads update and one required release-input
+validator brings the closure to 116 payloads. Newer sibling-local commits are not
+adopted. Pins, Rust source and Cargo metadata remain unchanged.
+
+Pure release-input and retained-assertion tests, the adopted release runner,
+Host adapter and actual fixture retention pass under current Bash and genuine
+Bash 3.2. The first Host adapter checks exposed a missing disposable input; its
+copy list now includes the validator required by the increment helper. Failed
+attempts and corrected evidence are retained at `/tmp/host-shared-refresh.93NcbD/`.
+Affected lint/syntax, snapshot, links and repeat-export checks pass. Upstream's
+exact native matrix is green; new Host native acceptance remains separate.
+[#124 — Shared release and fixture adoption](https://github.com/dragginzgame/ic-host-tooling/issues/124)
+owns this local, uncommitted adoption. The real index/HEAD and existing artifacts
+are preserved; no tool download, release or publication ran.
+
 ## Shared Tooling 0.14.0 — pending 0.18.4
 
 The canonical snapshot now records `6e46528e7d6f758c6de0c885fc2589949f67c2ae`
