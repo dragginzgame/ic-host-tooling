@@ -98,14 +98,44 @@ fn rejects_symlink_and_non_utf8_names_without_visiting_targets() {
     assert_eq!(error.to_string(), "unsupported entry");
     fs::remove_file(fixture.root.join("link")).unwrap();
     let non_utf8 = OsStr::from_bytes(b"\xff");
-    fs::write(fixture.root.join(non_utf8), b"retained").unwrap();
-    let error = walk_tree(
+    // Observe native name admission independently: some filesystems reject
+    // these bytes before the walker can encounter a directory entry.
+    let native = fs::write(fixture.root.join(non_utf8), b"retained");
+    let mut visitor = RecordingVisitor::default();
+    let result = walk_tree(
         &opened_root(&fixture.root),
         Path::new(""),
         &fixture.root,
-        &mut RecordingVisitor::default(),
-    )
-    .unwrap_err();
-    assert_eq!(error.to_string(), "non-UTF-8 entry");
+        &mut visitor,
+    );
+    match native {
+        Ok(()) => {
+            assert_eq!(result.unwrap_err().to_string(), "non-UTF-8 entry");
+            assert!(
+                visitor
+                    .files
+                    .iter()
+                    .all(|(path, _)| path == Path::new("target"))
+            );
+            assert_eq!(fs::read(fixture.root.join(non_utf8)).unwrap(), b"retained");
+        }
+        Err(error) => {
+            assert_eq!(
+                error.raw_os_error(),
+                Some(rustix::io::Errno::ILSEQ.raw_os_error())
+            );
+            result.unwrap();
+            assert_eq!(
+                visitor.files,
+                [(PathBuf::from("target"), b"retained".to_vec())]
+            );
+            // Enumerate rather than looking up a name the filesystem refused.
+            let names: Vec<_> = fs::read_dir(&fixture.root)
+                .unwrap()
+                .map(|entry| entry.unwrap().file_name())
+                .collect();
+            assert_eq!(names, [OsStr::new("target")]);
+        }
+    }
     assert_eq!(fs::read(fixture.root.join("target")).unwrap(), b"retained");
 }
