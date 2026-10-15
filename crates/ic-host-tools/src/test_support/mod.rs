@@ -3,11 +3,8 @@ use std::{
     ffi::OsString,
     fs,
     path::{Path, PathBuf},
-    sync::{Mutex, MutexGuard},
     time::Duration,
 };
-
-static PROCESS_FIXTURES: Mutex<()> = Mutex::new(());
 
 pub const LIMITS: OutputLimits = OutputLimits {
     stdout: ic_host_process::tool::OutputLimit::Terminate(256 * 1024),
@@ -18,25 +15,16 @@ pub const VERSION: &str = "test-host-tool version 1";
 
 pub struct Fixture {
     pub root: PathBuf,
-    _guard: MutexGuard<'static, ()>,
 }
 
 impl Fixture {
     pub fn new() -> Self {
-        // Serialize mutable executable-fixture writes against subprocess fork
-        // within this test binary; no production executable-busy retry is added.
-        let guard = PROCESS_FIXTURES
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
         let root = ic_host_fs::testing::create_fixture_directory(
             &std::env::temp_dir(),
             "ic-host-tools-test",
         )
         .expect("create tools fixture");
-        Self {
-            root,
-            _guard: guard,
-        }
+        Self { root }
     }
 
     pub fn context<'a>(&'a self, environment: &'a [(OsString, OsString)]) -> ExecutionContext<'a> {

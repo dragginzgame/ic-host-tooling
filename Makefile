@@ -9,8 +9,6 @@ endif
 override SHARED_TOOLING_ROOT := $(CURDIR)
 export SHARED_TOOLING_ROOT
 include ci/tool-versions.env
-LOCAL_TOOL_INSTALL_TARGETS += install-release-tools
-LOCAL_TOOL_CHECK_TARGETS += release-tools-check
 include make/consumer.mk
 export YQ := $(CURDIR)/.tools/host/bin/yq
 
@@ -21,10 +19,9 @@ help:
 	@echo 'Tools profiles: test-tools-response, test-tools-interface, test-tools-service, test-tools-extraction, test-tools-limits, test-tools-certificate and tools-features-check'
 	@echo 'Formatting and metadata: fmt, fmt-check, shared-tooling-check, dependency-pins-check, check-doc-links, release-adapter-check'
 	@echo 'Hook qualification: formatting-hook-check (disposable Git fixtures; prepared formatters required)'
-	@echo 'Complete setup: install-tools (host, IC, Cargo and pinned release tool); install-hooks is separate'
+	@echo 'Complete setup: install-tools (host, IC and Cargo); install-hooks is separate'
 	@echo 'Offline setup checks: tools-check (complete set), host-tools-check, ic-tools-check, rust-tools-check'
-	@echo 'Individual setup: install-host-tools, install-ic-tools, install-rust-tools, install-release-tools'
-	@echo 'Release tool: release-tools-check (offline); release-tools-test (substitute installer)'
+	@echo 'Individual setup: install-host-tools, install-ic-tools, install-rust-tools'
 	@echo 'Source reports: cloc (this workspace); fleet reports run in Shared Tooling'
 	@echo 'Full release validation: ci, msrv-workspace; focused MSRV: msrv PACKAGE=<crate>'
 	@echo 'Maintainer releases: release-patch, release-minor, release-major, release-resume VERSION=X.Y.Z'
@@ -71,13 +68,6 @@ msrv:
 .PHONY: msrv-workspace
 msrv-workspace:
 	+cargo +$(MSRV) check --workspace --all-targets --all-features --locked --offline
-.PHONY: install-release-tools release-tools-check release-tools-test
-install-release-tools:
-	+bash scripts/release/tools.sh install
-release-tools-check:
-	+bash scripts/release/tools.sh check
-release-tools-test:
-	+bash scripts/release/test-tools.sh
 dependency-pins-check:
 	+bash scripts/ci/check-dependency-pins.sh --cargo-inheritance
 check-doc-links:
@@ -86,7 +76,6 @@ release-adapter-check:
 	+bash scripts/release/test-adapter.sh
 tooling-command-check:
 	+bash scripts/ci/test-host-fixture-retention.sh
-	+bash scripts/release/test-tools.sh
 	+bash scripts/ci/test-make-snapshot.sh
 	+bash scripts/ci/test-make-consumer.sh
 	+bash scripts/ci/test-tool-commands.sh

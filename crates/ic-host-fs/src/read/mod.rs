@@ -11,6 +11,8 @@ pub use beneath::{open_directory_no_follow, open_regular_file_beneath};
 #[cfg(unix)]
 mod no_follow;
 #[cfg(unix)]
+pub mod tree;
+#[cfg(unix)]
 pub use no_follow::hash_file_no_follow;
 #[cfg(unix)]
 pub use no_follow::read_file_no_follow;

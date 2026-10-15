@@ -30,12 +30,13 @@ fn traversal_aliases_special_files_and_missing_inputs_fail_closed() {
     fs::write(dir.join("input/body"), b"data").unwrap();
     symlink("input", dir.join("alias")).unwrap();
     symlink("body", dir.join("input/link")).unwrap();
-    rustix::fs::mkfifoat(
-        rustix::fs::CWD,
-        dir.join("input/fifo"),
-        Mode::RUSR | Mode::WUSR,
-    )
-    .unwrap();
+    assert!(
+        std::process::Command::new("/usr/bin/mkfifo")
+            .arg(dir.join("input/fifo"))
+            .status()
+            .unwrap()
+            .success()
+    );
     let root = File::open(dir).unwrap();
     for path in [
         "",
@@ -72,7 +73,13 @@ fn root_opening_refuses_aliases_files_and_fifos_without_waiting() {
     fs::create_dir(dir.join("root")).unwrap();
     fs::write(dir.join("file"), b"data").unwrap();
     symlink("root", dir.join("alias")).unwrap();
-    rustix::fs::mkfifoat(rustix::fs::CWD, dir.join("fifo"), Mode::RUSR | Mode::WUSR).unwrap();
+    assert!(
+        std::process::Command::new("/usr/bin/mkfifo")
+            .arg(dir.join("fifo"))
+            .status()
+            .unwrap()
+            .success()
+    );
     assert!(open_directory_no_follow(&dir.join("root")).is_ok());
     for name in ["alias", "file", "fifo"] {
         assert!(open_directory_no_follow(&dir.join(name)).is_err());
