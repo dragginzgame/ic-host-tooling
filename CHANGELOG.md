@@ -1,12 +1,14 @@
 # Changelog
 
-## [0.20.1] - 2026-10-15
+## [0.20.2]
 
 - Open regular files or directories through a retained Unix root descriptor,
   refusing traversal, symlinks and special entries without pathname reopening.
   Callers retain root and byte custody
   ([#80 — Capability-rooted filesystem confinement](https://github.com/dragginzgame/ic-host-tooling/issues/80)).
   [Detailed notes](docs/changelog/0.20.md).
+## [0.20.1] - 2026-10-15
+
 - Add terminal-line clipping with explicit column limits, control escaping and
   an ellipsis for host status panels. Callers retain terminal and redraw policy
   ([#144](https://github.com/dragginzgame/ic-host-tooling/pull/144)).
