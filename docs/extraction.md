@@ -39,6 +39,10 @@ response-only graph; IC reference values and comparison remain in the tools owne
   IC method export projection over generic Wasm facts, ICP response formats
   and explicit revision-bound IC resource comparisons.
 
+Host Text's `timestamp` module owns pure canonical UTC second spelling and calendar
+conversion. It reads no clock, chooses no freshness window and authenticates no
+collection time. Formatting covers `u64`; parsing admits zero through `i64::MAX`.
+
 `sampling::snapshot(record_bytes, command_limits)` keeps native RSS observation
 in the Process owner. Linux selects the per-record procfs allowance; macOS uses
 caller-selected `OutputLimits` through the existing direct-child capture engine.

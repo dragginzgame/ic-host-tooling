@@ -56,6 +56,11 @@ display columns. Reports retain their row/header/column decisions; CLIs retain
 stdout, terminal detection, colour and progress. The crate depends only on the
 Unicode-width library, with no other Host or IC dependencies.
 
+`ic-host-text::timestamp` formats unsigned Unix seconds and parses canonical UTC
+second timestamps through `i64::MAX`, without clocks or timezone selection.
+It preserves expanded positive years, strict spelling and impossible-date refusal;
+callers retain freshness and collection-time policy.
+
 The compiled [IC resource-report example](crates/ic-host-tools/examples/inspect_install_limits/main.rs)
 inspects once and compares code-body bytes, defined functions and all globals
 against the explicitly selected reference revision. Run it with:

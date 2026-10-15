@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.19.1]
+
+- Share canonical UTC second timestamp parsing and formatting, including expanded
+  positive years, without clocks, timezone policy or new dependencies
+  ([#140 — Canonical UTC text](https://github.com/dragginzgame/ic-host-tooling/issues/140)).
+  [Detailed notes](docs/changelog/0.19.md).
+
 ## [0.19.0] - 2026-10-15
 
 ### Breaking
