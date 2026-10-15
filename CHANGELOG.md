@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.18.6]
+## [0.18.6] - 2026-10-15
 
 - Record Shared Tooling 0.15.0 as the contributor baseline; selected helpers and
   tool pins are unchanged, with no tool reinstall required.
