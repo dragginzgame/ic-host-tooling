@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.19.1]
+
+- Add opt-in focused Registry wire projections and shard-boundary admission,
+  retaining caller-owned trust, budgets, discovery and replay policy
+  ([#141 — Registry wire interpretation](https://github.com/dragginzgame/ic-host-tooling/issues/141)).
+  [Detailed notes](docs/changelog/0.19.md).
+
 ## [0.19.0] - 2026-10-15
 
 ### Breaking

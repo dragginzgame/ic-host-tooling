@@ -39,6 +39,14 @@ response-only graph; IC reference values and comparison remain in the tools owne
   IC method export projection over generic Wasm facts, ICP response formats
   and explicit revision-bound IC resource comparisons.
 
+The optional tools `registry` feature supplies focused Registry Protobuf
+projections and canonical canister-range shard-key/interval admission. It adds
+Candid and Prost only; no Agent, certificate parser, filesystem or process owner.
+Callers must enforce input/work budgets and own discovery, trusted versions,
+certification, full range ordering, completeness, replay and report policy.
+The projections preserve Query 0.57.0's tags/discriminants and are not a complete
+upstream Registry schema; unknown fields retain normal Prost behavior.
+
 `sampling::snapshot(record_bytes, command_limits)` keeps native RSS observation
 in the Process owner. Linux selects the per-record procfs allowance; macOS uses
 caller-selected `OutputLimits` through the existing direct-child capture engine.

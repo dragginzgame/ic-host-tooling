@@ -16,7 +16,7 @@ export YQ := $(CURDIR)/.tools/host/bin/yq
 help:
 	@echo 'Selected package: check, clippy, docs-check, test, msrv (PACKAGE=<crate>)'
 	@echo 'Minimal artifact configuration: test-artifacts-minimal'
-	@echo 'Tools profiles: test-tools-response, test-tools-interface, test-tools-service, test-tools-extraction, test-tools-limits, test-tools-certificate and tools-features-check'
+	@echo 'Tools profiles: test-tools-response, test-tools-interface, test-tools-service, test-tools-extraction, test-tools-limits, test-tools-certificate, test-tools-registry and tools-features-check'
 	@echo 'Formatting and metadata: fmt, fmt-check, shared-tooling-check, dependency-pins-check, check-doc-links, release-adapter-check'
 	@echo 'Hook qualification: formatting-hook-check (disposable Git fixtures; prepared formatters required)'
 	@echo 'Complete setup: install-tools (host, IC and Cargo); install-hooks is separate'
@@ -52,13 +52,15 @@ test-tools-interface:
 test-tools-service:
 	+cargo test -p ic-host-tools --no-default-features --features candid-service --all-targets --locked --offline
 
-.PHONY: test-tools-extraction test-tools-limits test-tools-certificate test-wasm-inspection
+.PHONY: test-tools-extraction test-tools-limits test-tools-certificate test-tools-registry test-wasm-inspection
 test-tools-extraction:
 	+cargo test -p ic-host-tools --no-default-features --features candid-extraction --all-targets --locked --offline
 test-tools-limits:
 	+cargo test -p ic-host-tools --no-default-features --features ic-limits --all-targets --locked --offline
 test-tools-certificate:
 	+cargo test -p ic-host-tools --no-default-features --features certificate --all-targets --locked --offline
+test-tools-registry:
+	+cargo test -p ic-host-tools --no-default-features --features registry --all-targets --locked --offline
 test-wasm-inspection:
 	+cargo test -p ic-host-wasm-inspect --all-targets --locked --offline
 tools-features-check:
@@ -110,6 +112,7 @@ ci:
 	+$(MAKE) --no-print-directory test-tools-extraction
 	+$(MAKE) --no-print-directory test-tools-limits
 	+$(MAKE) --no-print-directory test-tools-certificate
+	+$(MAKE) --no-print-directory test-tools-registry
 	+$(MAKE) --no-print-directory test-wasm-inspection
 	+cargo clippy --workspace --all-targets --all-features --locked --offline -- -D warnings
 	+RUSTDOCFLAGS="-D warnings" cargo doc --workspace --all-features --locked --offline --no-deps

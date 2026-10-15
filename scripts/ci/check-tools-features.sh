@@ -41,7 +41,7 @@ check_graph() {
 }
 
 check_graph response ic-host-tools default '' '' \
-    '^(ic-host-(artifacts|fs|process|text)|candid_parser|ciborium|ic-certification) '
+    '^(ic-host-(artifacts|fs|process|text)|candid|prost|candid_parser|ciborium|ic-certification) '
 check_graph extraction ic-host-tools default candid-extraction \
     'ic-host-artifacts ic-host-fs ic-host-process' '^candid_parser '
 for feature in ic-interface ic-limits; do
@@ -54,6 +54,8 @@ check_graph inspection ic-host-wasm-inspect default '' 'ic-host-artifacts ic-hos
     '^(ic-host-process|candid_parser) '
 check_graph certificate ic-host-tools none certificate 'ciborium ic-certification' \
     '^(ic-host-(artifacts|fs|process|text)|candid_parser|ic-agent|reqwest) '
+check_graph registry ic-host-tools none registry 'candid prost' \
+    '^(ic-host-(artifacts|fs|process|text)|candid_parser|ciborium|ic-certification|ic-agent|reqwest) '
 check_graph text ic-host-text default '' unicode-width \
     '^(ic-host-(artifacts|fs|process|tools)|candid_parser|ic-agent|ic-certification|ciborium) '
 echo 'tools/text feature dependency graphs passed'
