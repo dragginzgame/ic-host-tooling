@@ -3,31 +3,29 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-#[cfg(target_os = "macos")]
-use std::process::{Command, Stdio};
+use crate::tool::{OutputLimits, ToolError};
+
+#[cfg(any(target_os = "macos", test))]
+use std::process::Command;
 #[cfg(target_os = "linux")]
 use std::{
     fs::{self, File},
-    io::Read as _,
     path::Path,
 };
 
-use std::{fmt, io, path::PathBuf, process::ExitStatus};
+use std::{fmt, io};
 
 /// Failure to observe a native process table or sum its resident bytes.
 #[derive(Debug)]
 pub enum SamplingError {
-    /// Native filesystem or process invocation failed.
+    /// Native I/O, stat-record storage/byte admission or stat UTF-8 failed.
+    /// Non-I/O stream refusals retain an artifact error as the I/O error's cause.
     Io(io::Error),
     /// A native record was malformed or its byte arithmetic overflowed.
     InvalidData(&'static str),
-    /// The native process-table command failed.
-    CommandFailed {
-        /// Executed native program.
-        program: PathBuf,
-        /// Original exit status.
-        status: ExitStatus,
-    },
+    /// Native table capture, exit or completeness admission failed, with bounded
+    /// output and independent cleanup evidence retained by the capture engine.
+    Command(Box<ToolError>),
     /// This host has no supported process-table observation backend.
     UnsupportedHost,
 }
@@ -37,9 +35,7 @@ impl fmt::Display for SamplingError {
         match self {
             Self::Io(error) => error.fmt(formatter),
             Self::InvalidData(message) => formatter.write_str(message),
-            Self::CommandFailed { program, status } => {
-                write!(formatter, "{} exited with {status}", program.display())
-            }
+            Self::Command(source) => write!(formatter, "process table capture failed: {source}"),
             Self::UnsupportedHost => formatter.write_str("native sampling requires Linux or macOS"),
         }
     }
@@ -49,6 +45,7 @@ impl std::error::Error for SamplingError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Io(error) => Some(error),
+            Self::Command(error) => Some(error.as_ref()),
             _ => None,
         }
     }
@@ -115,6 +112,8 @@ fn process_snapshot(
     page_bytes: u64,
     record_bytes: u64,
 ) -> Result<Snapshot, SamplingError> {
+    let record_bytes = usize::try_from(record_bytes)
+        .map_err(|_| SamplingError::InvalidData("stat allowance exceeds the host address space"))?;
     let mut processes = Snapshot::new();
     for entry in fs::read_dir(proc)? {
         let entry = entry?;
@@ -125,16 +124,14 @@ fn process_snapshot(
         else {
             continue;
         };
-        let stat = (|| -> io::Result<String> {
-            let mut stat = String::new();
-            File::open(entry.path().join("stat"))?
-                .take(record_bytes)
-                .read_to_string(&mut stat)?;
-            Ok(stat)
-        })();
+        let stat = File::open(entry.path().join("stat")).and_then(|file| {
+            ic_host_artifacts::artifact::read_reader(file, record_bytes).map_err(io::Error::from)
+        });
         match stat {
             Ok(stat) => {
-                processes.insert(pid, parse_stat(&stat, page_bytes)?);
+                let stat = std::str::from_utf8(&stat)
+                    .map_err(|source| io::Error::new(io::ErrorKind::InvalidData, source))?;
+                processes.insert(pid, parse_stat(stat, page_bytes)?);
             }
             Err(error)
                 if matches!(
@@ -190,18 +187,48 @@ fn parse_ps(output: &str) -> Result<Snapshot, SamplingError> {
     Ok(processes)
 }
 
+#[cfg(any(target_os = "macos", test))]
+fn command_snapshot(
+    command: &mut Command,
+    limits: OutputLimits,
+) -> Result<Snapshot, SamplingError> {
+    let output = crate::tool::capture_command(command, limits)
+        .and_then(crate::tool::CompletedExecution::require_success)
+        .and_then(crate::tool::CompletedExecution::require_complete)
+        .map_err(|source| SamplingError::Command(Box::new(source)))?;
+    let output = std::str::from_utf8(&output.stdout)
+        .map_err(|_| SamplingError::InvalidData("ps output is not UTF-8"))?;
+    parse_ps(output)
+}
+
 /// Observe process leaders using Linux /proc or the macOS native ps table.
 ///
-/// `record_bytes` bounds each Linux stat record. Consumers own sampling cadence,
-/// workload selection and total snapshot memory; no elapsed-time deadline is set.
+/// `record_bytes` bounds each complete Linux stat record; oversized records refuse
+/// before parsing, even if a retained prefix contains plausible numeric fields.
+/// Consumers own sampling cadence,
+/// workload selection and total snapshot memory. `command_limits` selects macOS
+/// stdout/stderr retention and an optional capture deadline; `timeout: None`
+/// imposes no elapsed-time deadline. Linux does not use `command_limits`, and
+/// macOS does not use `record_bytes`.
 /// Processes that disappear or deny stat access during Linux enumeration are skipped.
 /// macOS ps RSS uses 1024-byte units, independently of native memory page size.
+/// The native command's stderr is captured rather than printed. Failed captures
+/// retain bounded output and cleanup evidence in [`SamplingError::Command`].
+/// Successful but truncated output refuses before parsing, even if the retained
+/// prefix contains complete rows. This is not a bound on total parsed table memory.
 ///
 /// # Errors
-/// Returns native I/O, command, malformed-record or checked-arithmetic failures.
-pub fn snapshot(record_bytes: u64) -> Result<Snapshot, SamplingError> {
+/// Returns native I/O, capture/exit/truncation, malformed-record or checked-arithmetic
+/// failures. macOS uses the direct-child capture engine; deadlines and cleanup
+/// have that engine's documented synchronous syscall and reaping limitations.
+pub fn snapshot(
+    record_bytes: u64,
+    command_limits: OutputLimits,
+) -> Result<Snapshot, SamplingError> {
     #[cfg(not(target_os = "linux"))]
     let _ = record_bytes;
+    #[cfg(not(target_os = "macos"))]
+    let _ = command_limits;
     #[cfg(target_os = "linux")]
     {
         let page_bytes = rustix::param::page_size();
@@ -213,20 +240,12 @@ pub fn snapshot(record_bytes: u64) -> Result<Snapshot, SamplingError> {
     }
     #[cfg(target_os = "macos")]
     {
-        let output = Command::new("/bin/ps")
-            .args(["-A", "-o", "pid=,ppid=,rss="])
-            .env("LC_ALL", "C")
-            .stderr(Stdio::inherit())
-            .output()?;
-        if !output.status.success() {
-            return Err(SamplingError::CommandFailed {
-                program: "/bin/ps".into(),
-                status: output.status,
-            });
-        }
-        let output = std::str::from_utf8(&output.stdout)
-            .map_err(|_| SamplingError::InvalidData("ps output is not UTF-8"))?;
-        parse_ps(output)
+        command_snapshot(
+            Command::new("/bin/ps")
+                .args(["-A", "-o", "pid=,ppid=,rss="])
+                .env("LC_ALL", "C"),
+            command_limits,
+        )
     }
     #[cfg(not(any(target_os = "linux", target_os = "macos")))]
     Err(SamplingError::UnsupportedHost)
@@ -267,7 +286,81 @@ pub fn tree_rss(root: u32, processes: &Snapshot) -> Result<(u64, usize), Samplin
 #[cfg(test)]
 mod tests {
     use super::SamplingError;
-    use super::{Process, Snapshot, parse_ps, parse_stat, snapshot, tree_rss};
+    use super::{Process, Snapshot, command_snapshot, parse_ps, parse_stat, snapshot, tree_rss};
+    use crate::tool::{ExecutionFailure, OutputLimit, OutputLimits, OutputStream};
+    use std::process::Command;
+
+    const COMMAND_LIMITS: OutputLimits = OutputLimits {
+        stdout: OutputLimit::Terminate(1024 * 1024),
+        stderr: OutputLimit::Terminate(4096),
+        timeout: None,
+    };
+
+    #[test]
+    fn command_capture_admits_complete_rows_without_a_deadline() {
+        let observed = command_snapshot(
+            Command::new("/bin/sh").args(["-c", "printf '10 1 4\\n20 10 8\\n'"]),
+            COMMAND_LIMITS,
+        )
+        .unwrap();
+        assert_eq!(tree_rss(10, &observed).unwrap(), (12 * 1024, 2));
+        assert!(matches!(
+            command_snapshot(
+                Command::new("/bin/sh").args(["-c", "printf '\\377'"]),
+                COMMAND_LIMITS
+            ),
+            Err(SamplingError::InvalidData(_))
+        ));
+    }
+
+    #[test]
+    fn failed_table_commands_preserve_evidence_without_printing_it() {
+        use std::error::Error as _;
+        let error = command_snapshot(
+            Command::new("/bin/sh").args([
+                "-c",
+                "printf '10 1 4\\n'; printf 'private diagnostic' >&2; exit 23",
+            ]),
+            COMMAND_LIMITS,
+        )
+        .unwrap_err();
+        assert!(!error.to_string().contains("private diagnostic"));
+        let SamplingError::Command(source) = &error else {
+            panic!("table command failure retains the capture error");
+        };
+        let capture = source.execution_error().unwrap();
+        assert!(matches!(capture.failure, ExecutionFailure::ExitStatus));
+        assert_eq!(capture.evidence.status.unwrap().code(), Some(23));
+        assert_eq!(capture.evidence.stdout, b"10 1 4\n");
+        assert_eq!(capture.evidence.stderr, b"private diagnostic");
+        assert!(error.source().unwrap().is::<crate::tool::ToolError>());
+    }
+
+    #[test]
+    fn overflowing_or_truncated_tables_never_yield_partial_snapshots() {
+        for stdout in [OutputLimit::Terminate(7), OutputLimit::Truncate(7)] {
+            let error = command_snapshot(
+                Command::new("/bin/sh").args(["-c", "printf '10 1 4\\n20 10 8\\n'"]),
+                OutputLimits {
+                    stdout,
+                    ..COMMAND_LIMITS
+                },
+            )
+            .unwrap_err();
+            let SamplingError::Command(source) = error else {
+                panic!("partial tables must fail capture admission");
+            };
+            let capture = source.execution_error().unwrap();
+            assert!(matches!(
+                capture.failure,
+                ExecutionFailure::OutputLimit {
+                    stream: OutputStream::Stdout
+                }
+            ));
+            assert!(capture.evidence.stdout.len() <= 7);
+            assert!(capture.evidence.stdout_truncated);
+        }
+    }
 
     #[test]
     fn tree_counts_runner_and_descendants_but_not_parent_or_sibling() {
@@ -334,6 +427,55 @@ mod tests {
     }
 
     #[test]
+    #[cfg(target_os = "linux")]
+    fn linux_stat_records_must_be_complete_within_the_byte_allowance() {
+        use ic_host_artifacts::artifact::ArtifactError;
+        use std::{fs, io};
+
+        let fixture = crate::test_support::Fixture::new();
+        fs::create_dir(fixture.root.join("123")).unwrap();
+        let fields = ["S", "42"]
+            .into_iter()
+            .chain(["0"; 19])
+            .chain(["12345"])
+            .collect::<Vec<_>>()
+            .join(" ");
+        let record = format!("123 (name with ) parentheses) {fields}");
+        fs::write(fixture.root.join("123/stat"), &record).unwrap();
+        let exact = u64::try_from(record.len()).unwrap();
+
+        // Cutting within RSS must not turn 12345 pages into a valid 123-page
+        // observation. Zero and one-byte-short bounds must also detect overflow.
+        for allowance in [exact - 2, 0, exact - 1] {
+            let error = super::process_snapshot(&fixture.root, 4096, allowance)
+                .expect_err("oversized stat records cannot yield partial RSS");
+            let SamplingError::Io(source) = error else {
+                panic!("record allowance refusal retains its typed stream cause");
+            };
+            assert_eq!(source.kind(), io::ErrorKind::Other);
+            assert!(matches!(
+                source.get_ref().unwrap().downcast_ref::<ArtifactError>(),
+                Some(ArtifactError::LimitExceeded { limit }) if *limit == allowance
+            ));
+        }
+        for allowance in [exact, exact + 1] {
+            let observed = super::process_snapshot(&fixture.root, 4096, allowance).unwrap();
+            assert_eq!(observed[&123].parent, 42);
+            assert_eq!(observed[&123].resident_bytes, 12345 * 4096);
+        }
+
+        fs::create_dir(fixture.root.join("124")).unwrap();
+        let observed = super::process_snapshot(&fixture.root, 4096, exact).unwrap();
+        assert_eq!(observed.len(), 1); // A vanished stat entry still skips.
+
+        fs::write(fixture.root.join("124/stat"), [0xff]).unwrap();
+        assert!(matches!(
+            super::process_snapshot(&fixture.root, 4096, exact),
+            Err(SamplingError::Io(source)) if source.kind() == io::ErrorKind::InvalidData
+        ));
+    }
+
+    #[test]
     fn darwin_ps_preserves_parents_and_kib_units_and_rejects_bad_rows() {
         let processes = parse_ps(" 10 1 4\n 20 10 8\n 21 20 0\n").unwrap();
         assert_eq!(tree_rss(10, &processes).unwrap(), (12 * 1024, 3));
@@ -354,7 +496,7 @@ mod tests {
     #[test]
     #[cfg(any(target_os = "linux", target_os = "macos"))]
     fn native_snapshot_includes_this_process_once() {
-        let processes = snapshot(64 * 1024).unwrap();
+        let processes = snapshot(64 * 1024, COMMAND_LIMITS).unwrap();
         let own = processes
             .get(&std::process::id())
             .expect("native sampler observes test process");
