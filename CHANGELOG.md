@@ -1,12 +1,14 @@
 # Changelog
 
-## [0.20.1] - 2026-10-15
+## [0.20.2]
 
 - Share bounded synthetic HTTP request capture through Process's opt-in
   `test-support` module, retaining partial bytes and typed failures. Consumers
   own responses and evidence publication
   ([#123 — Own bounded synthetic HTTP request fixtures](https://github.com/dragginzgame/ic-host-tooling/issues/123)).
   [Detailed notes](docs/changelog/0.20.md).
+## [0.20.1] - 2026-10-15
+
 - Add terminal-line clipping with explicit column limits, control escaping and
   an ellipsis for host status panels. Callers retain terminal and redraw policy
   ([#144](https://github.com/dragginzgame/ic-host-tooling/pull/144)).
