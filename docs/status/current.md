@@ -4,7 +4,7 @@
 
 The pending Host FS contribution adds existing-sidecar admission and a
 caller-verified directory commit primitive. Its topic branch now includes
-released Host 0.20.0; consumer replacement remains pending a published Host
+released Host 0.20.1; consumer replacement remains pending a published Host
 release and Backup's own native qualification. Focused source checks are
 recorded with this contribution, not as a combined release receipt.
 

@@ -1,11 +1,13 @@
 # Changelog
 
-## [0.20.1] - 2026-10-15
+## [0.20.2]
 
 - Open existing regular lock sidecars without creating them, try one exclusive
   lock without waiting, and publish caller-verified directory trees without
   replacing an occupied name. Callers retain reconciliation authority.
   [Detailed notes](docs/changelog/0.20.md).
+## [0.20.1] - 2026-10-15
+
 - Add terminal-line clipping with explicit column limits, control escaping and
   an ellipsis for host status panels. Callers retain terminal and redraw policy
   ([#144](https://github.com/dragginzgame/ic-host-tooling/pull/144)).
