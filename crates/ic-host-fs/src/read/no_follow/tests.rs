@@ -13,7 +13,6 @@ use std::{
     io::{self, Seek as _, SeekFrom},
     os::unix::fs::symlink,
     path::Path,
-    process::Command,
     sync::mpsc,
     thread,
     time::Duration,
@@ -127,17 +126,7 @@ fn ancestor_symlinks_remain_an_explicit_consumer_confinement_obligation() {
 fn fifo_without_a_writer_is_rejected_without_waiting_for_one() {
     let fixture = Fixture::new();
     let path = fixture.root.join("fifo");
-    // rustix::mkfifoat is unavailable on Apple hosts. The native POSIX utility
-    // creates the same real FIFO on every required host, without a shell.
-    assert!(
-        Command::new("/usr/bin/mkfifo")
-            .args(["-m", "600"])
-            .arg(&path)
-            .env_clear()
-            .status()
-            .unwrap()
-            .success()
-    );
+    crate::test_support::create_fifo(&path, Some(0o600)).unwrap();
     let (tx, rx) = mpsc::channel();
     let path_for_reader = path.clone();
     let reader = thread::spawn(move || {
