@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.18.5]
+
+- Share caller-bounded newline framing for process protocols, preserving queued
+  messages and distinct EOF, partial, oversized and I/O refusals without owning
+  message schemas, deadlines or process lifecycle
+  ([#126](https://github.com/dragginzgame/ic-host-tooling/issues/126)).
+
+[Detailed notes](docs/changelog/0.18.md).
+
 ## [0.18.4] - 2026-10-15
 
 - Adopt Shared Tooling 0.14.0 reporting and changelog guidance while retaining

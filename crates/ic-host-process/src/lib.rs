@@ -1,6 +1,7 @@
 //! Native process observations, consumer-admitted execution and Git provenance.
 #[cfg(unix)]
 pub mod child;
+pub mod framing;
 #[cfg(unix)]
 pub mod provenance;
 pub mod sampling;

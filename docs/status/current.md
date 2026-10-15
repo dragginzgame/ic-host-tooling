@@ -1,5 +1,20 @@
 # Current handoff
 
+## Bounded process framing — pending 0.18.5
+
+The isolated contribution from released 0.18.4 `fb211b5` adds explicit
+`framing::read_line` in Host Process. [#126](https://github.com/dragginzgame/ic-host-tooling/issues/126)
+owns producer acceptance; Blob retains schemas, byte limits, deadlines, error
+mapping and thread/process lifecycle. Refused prefixes stay bounded and ordinary
+display does not print them. No JSON dependency or implicit retry is introduced.
+
+Three focused framing cases, strict process lint, warnings-denied Rustdoc and
+actual Rust 1.88 pass on the unchanged committed graph. Blob's isolated candidate
+separately passes 123 CLI/probe tests and actual Rust 1.88 on Host 0.18.4 sources,
+with installed caller evidence retained by Blob. Full release/native macOS gates
+remain separate. Normal sibling source, package versions and release refs are
+untouched; integration/publication and consumer activation are still owner actions.
+
 ## Shared Tooling 0.14.0 — pending 0.18.4
 
 The canonical snapshot now records `6e46528e7d6f758c6de0c885fc2589949f67c2ae`
