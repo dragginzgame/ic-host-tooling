@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.19.1]
+
+- Add opt-in, allocation-free canonical unsigned `u64` LEB128 decoding without
+  certificate, filesystem or process dependencies. Callers retain semantic limits
+  and field-specific diagnostics
+  ([#136 — Canonical integer admission](https://github.com/dragginzgame/ic-host-tooling/issues/136)).
+  [Detailed notes](docs/changelog/0.19.md).
+
 ## [0.19.0] - 2026-10-15
 
 ### Breaking
