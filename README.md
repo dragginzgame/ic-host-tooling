@@ -55,8 +55,11 @@ borrowing safe input; use `.into_owned()` when independent ownership is required
 headers, fixed-column rows, alignments and explicit `Options { column_gap,
 header_separator }`, returning a String. It measures escaped cells in Unicode
 display columns. Reports retain their row/header/column decisions; CLIs retain
-stdout, terminal detection, colour and progress. The crate depends only on the
-Unicode-width library, with no other Host or IC dependencies.
+stdout, terminal detection, colour and progress. `width::fit_line` escapes controls
+and clips with an ellipsis to caller-selected columns, using conservative scalar
+widths. It preserves UTF-8 boundaries without promising grapheme-cluster boundaries.
+The crate depends only on the Unicode-width library, with no other Host or IC
+dependencies.
 
 The compiled [IC resource-report example](crates/ic-host-tools/examples/inspect_install_limits/main.rs)
 inspects once and compares code-body bytes, defined functions and all globals

@@ -29,7 +29,8 @@ response-only graph; IC reference values and comparison remain in the tools owne
 - ic-host-process owns executable resolution/admission, explicit execution context,
   output limits, deadlines, direct-child/explicit group cleanup evidence, native
   process-table/RSS observations and separate Git queries.
-- ic-host-text owns pure terminal-safe escaping and Unicode display-width tables.
+- ic-host-text owns pure terminal-safe escaping, explicit column clipping and
+  Unicode display-width tables.
   Escaping borrows unchanged input through `Cow<str>` and owns changed text;
   tables keep safe cell borrows and return one owned rendered string.
   Cells, alignments and formatting options are explicit; reports and CLIs retain

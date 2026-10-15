@@ -2,10 +2,17 @@
 
 ## Source and pending release
 
-Released base: **0.19.0**, commit
-`804a78bcbef4b0698c66df0253f8c37fc8d2e5dd`. Package versions remain 0.19.0;
-local, uncommitted work is collected in the **0.20.0** draft. The authoritative
+Released base: **0.20.0**, commit
+`73b70e562ebd221baed93e311e1d8aef902452ce`. Package versions remain 0.20.0;
+local, uncommitted work is collected in the **0.20.1** draft. The authoritative
 scope and consumer actions are in [the release notes](../changelog/0.20.md).
+
+Pending [PR #144](https://github.com/dragginzgame/ic-host-tooling/pull/144) source
+adds pure terminal-column clipping, adapted from `0b95f12` to current `Cow<str>`
+escaping. Zero columns return empty text; clipping escapes controls first and
+reserves an ellipsis using conservative scalar widths. Relay retains dimensions,
+queue presentation and redraw policy; its temporary Git selection can change
+after publication. No sibling source, dependency or release metadata changes.
 
 Shared Tooling selects **0.15.2**, committed revision
 `f5080b812489654eaa04d368a09f460aea07d4ce`, with 89 entrypoints and 110 exact
@@ -13,7 +20,7 @@ payloads. Common tool pins are unchanged. Preserve pending source, index/refs,
 Cargo versions/lock and existing artifacts; sibling working checkouts remain
 read-only.
 
-The pending hard cut unifies pinned admission around `VersionSpec` plus a
+Released 0.20.0 unifies pinned admission around `VersionSpec` plus a
 mandatory digest, borrows Git IDs from private captures, retains typed gzip
 causes in archive errors, requires explicit named-write options and returns
 borrowed-or-owned terminal text. Build, Testkit, IcyDB, Canic and Query adoption
@@ -33,6 +40,12 @@ have one private owner, and release projection uses Shared's saved-source render
 
 These are scoped Linux records for the inputs identified by each task, not a
 combined release receipt. Before-images and command logs remain at their owners:
+
+The 0.20.1 clipping batch passes all nine Host Text cases on Rust 1.99 and actual
+Rust 1.88, strict package Clippy/rustdoc, formatting, 175 local links and snapshot
+verification. Evidence and before-images remain at `/tmp/host-144.Mux6V1/`.
+The older PR's native CI does not qualify this adapted source. Full release and
+native macOS qualification remain separate.
 
 | Evidence directory | Qualified scope |
 | --- | --- |
@@ -71,7 +84,7 @@ remains separate from Linux evidence. Follow [the host guide](../hosts.md) and
 
 ## Release projection ownership
 
-Host's AWK dependency projector is retired in the pending source for
+Host's AWK dependency projector was retired in 0.20.0 for
 [#131 — Retire the local dependency projector](https://github.com/dragginzgame/ic-host-tooling/issues/131).
 Shared 0.15.2 contains the saved-source fix tracked by
 [Shared #210](https://github.com/dragginzgame/shared-tooling/issues/210).
