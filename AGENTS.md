@@ -1,7 +1,7 @@
 # IC Host Tooling Agent Rules
 
 Read docs/status/current.md first, then [DRAGGINZGAME.md](DRAGGINZGAME.md).
-The baseline is Shared Tooling revision 9364ffe3f770a6d5d94809f0bf82c33202054bf8,
+The baseline is Shared Tooling revision 176992860cbeba806d8d731ee92ea577e3a79b2a,
 recorded with exact file digests in [.shared-tooling.snapshot](.shared-tooling.snapshot).
 
 - Mutate only this repository. Existing sibling repositories remain read-only.
@@ -9,7 +9,7 @@ recorded with exact file digests in [.shared-tooling.snapshot](.shared-tooling.s
   local; an explicit commit or PR request authorizes its scoped Git workflow.
   Merges, direct integration-branch pushes, releases, publication, tool downloads
   and deployment retain their own target/effect authorization.
-- Keep the four crate boundaries in [the extraction contract](docs/extraction.md).
+- Keep the five crate boundaries in [the extraction contract](docs/extraction.md).
   Do not add compatibility reexports for moved APIs or duplicate production owners.
 - Consumers own product-tool pins, byte budgets, credentials, targets, retries, schemas,
   installation policy and paid-operation recovery. Libraries never claim lifecycle ownership.
