@@ -1,10 +1,16 @@
 # Changelog
 
-## [0.18.6]
+## [0.18.7]
 
-- Add cancellable group capture through the existing bounded process engine;
-  consumers retain command, deadline, admission and recovery policy
-  ([#95 — Expose cancellable group capture through the existing process engine](https://github.com/dragginzgame/ic-host-tooling/issues/95)).
+- Add group capture with explicit cancellation, cleanup policy and an optional
+  shared absolute deadline through the existing bounded process engine
+  ([#95 — Cancellable group capture](https://github.com/dragginzgame/ic-host-tooling/issues/95)).
+  [Detailed notes](docs/changelog/0.18.md).
+
+## [0.18.6] - 2026-10-15
+
+- Record Shared Tooling 0.15.0 as the contributor baseline; selected helpers and
+  tool pins are unchanged, with no tool reinstall required.
   [Detailed notes](docs/changelog/0.18.md).
 
 ## [0.18.5] - 2026-10-15

@@ -1,5 +1,72 @@
 # Current handoff
 
+## Build-controlled capture extension — pending 0.18.7
+
+This isolated topic extends existing PR #99, normally incorporating released
+0.18.6 main `7f291760ac1184e5235d08f75e3c1aee0fa60cc3`. The unpublished
+cancellation entrypoint now additionally accepts explicit cleanup and an optional
+absolute deadline. One capture engine owns admission, spawning and communication;
+the earlier relative/absolute bound applies without restarting the shared budget.
+Queued three-argument consumer calls must supply their cleanup policy and `None`
+when no absolute deadline is selected. No compatibility alias is introduced.
+
+All 53 public tool cases and six internal engine cases pass on actual Rust 1.88,
+including pre-spawn expiration, both deadline orderings, cancellation and actual
+TERM cleanup. Strict affected all-target Clippy, MSRV checking, Rustdoc,
+formatting, links and snapshot verification pass on Linux. A coherent temporary
+Build consumer deletes its local controlled-probe composition; all 65 Wasm-cache
+cases, strict Clippy and actual Rust 1.91 all-target checks pass with unchanged
+external dependencies. Source provenance binds the extraction to Build 0.5.0.
+
+Build #43 owns registry adoption after review/publication and consumer migration.
+Normal sibling source, pins and artifacts remain untouched. Native acceptance,
+upstream PR delivery and publication are separate. Patches and raw evidence are
+retained under `/tmp/ic-build-cleanup5-20261015/`.
+
+## PR refreshes against released 0.18.5
+
+Twelve existing PR branches incorporate released main `26bfae9` through normal
+topic merges. Focused package/module tests, strict affected-package Clippy/docs,
+actual Rust 1.88 checks, formatting, links and snapshot admission pass on Linux.
+Their production implementations are preserved; the only authored Rust delta
+repairs PR #114's macOS FIFO fixtures with the existing POSIX utility convention.
+Its refreshed head passes Apple Silicon CI; Intel qualification remains separate.
+Compatible pending notes select 0.18.6; PR #90's breaking private-parent refusal
+selects 0.19.0 and preserves the published 0.18 history.
+
+[PR #100](https://github.com/dragginzgame/ic-host-tooling/pull/100) remains a draft
+awaiting canonical integration of its Shared helpers in
+[Shared PR #205](https://github.com/dragginzgame/shared-tooling/pull/205).
+No distributed payload or manifest is hand-merged to bypass that dependency.
+Exact branch receipts and focused logs are at `/tmp/host-pr-refresh-20261015/`.
+Required hosted checks qualify each updated head separately; integration,
+publication and consumer activation remain owner actions. This checkout's
+pending Shared adoption, index, package metadata and refs are preserved.
+
+## Shared Tooling 0.15.0 — pending 0.18.6
+
+Released Host base is 0.18.5 `26bfae9ebc23773f53576db367d06478afdea7a1`.
+The snapshot now selects pushed Shared main
+`2737450d60fe176ea5a620a4e72acaa8f4a99650`, whose committed version is 0.15.0.
+All 95 entrypoints and 116 payloads are retained byte-for-byte, including their
+executable modes and tool pins. This refresh changes the recorded source identity
+and local baseline reference only; it does not require a tool reinstall.
+
+Shared's larger release/fixture integration remains in open
+[PR #205](https://github.com/dragginzgame/shared-tooling/pull/205) and is not part
+of this source. Its optional license checker is not selected. The requested
+changelog records this provenance-only update under compatible patch 0.18.6;
+package versions remain unchanged. Earlier pending sections below retain
+historical evidence; the 0.18.5 adoption is now released.
+
+Snapshot verification, repeat preview, local documentation links and diff checks
+pass. Cargo metadata, pins, index and HEAD are preserved. Evidence is retained at
+`/tmp/host-shared015.Tgm4vS/`; unchanged executable and Rust inputs do not need
+fresh local execution. Host's complete
+[0.18.5 native/MSRV CI](https://github.com/dragginzgame/ic-host-tooling/actions/runs/38704924922)
+now passes; [#124 — Shared release and fixture adoption](https://github.com/dragginzgame/ic-host-tooling/issues/124)
+is closed with delivered-source acceptance evidence.
+
 ## Integrated Shared release helpers — pending 0.18.5
 
 Released base is 0.18.4 `fb211b5273aee06772b8a0d1b46ca40b4d1b48c2`,
