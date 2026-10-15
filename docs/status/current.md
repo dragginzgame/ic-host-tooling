@@ -1,27 +1,75 @@
 # Current handoff
 
-## Build-controlled capture extension — pending 0.18.7
+## Build-controlled capture extension — pending 0.19.1
 
-This isolated topic extends existing PR #99, normally incorporating released
-0.18.6 main `7f291760ac1184e5235d08f75e3c1aee0fa60cc3`. The unpublished
-cancellation entrypoint now additionally accepts explicit cleanup and an optional
-absolute deadline. One capture engine owns admission, spawning and communication;
-the earlier relative/absolute bound applies without restarting the shared budget.
-Queued three-argument consumer calls must supply their cleanup policy and `None`
-when no absolute deadline is selected. No compatibility alias is introduced.
+This isolated PR #99 topic normally incorporates released 0.19.0 main
+`804a78bcbef4b0698c66df0253f8c37fc8d2e5dd`, which advanced during delivery.
+The unpublished cancellation entrypoint additionally accepts explicit cleanup
+and an optional absolute deadline through the existing capture engine. Queued
+three-argument calls must supply their cleanup policy and `None` when they have
+no absolute deadline. No compatibility alias is introduced.
 
-All 53 public tool cases and six internal engine cases pass on actual Rust 1.88,
-including pre-spawn expiration, both deadline orderings, cancellation and actual
-TERM cleanup. Strict affected all-target Clippy, MSRV checking, Rustdoc,
-formatting, links and snapshot verification pass on Linux. A coherent temporary
-Build consumer deletes its local controlled-probe composition; all 65 Wasm-cache
-cases, strict Clippy and actual Rust 1.91 all-target checks pass with unchanged
-external dependencies. Source provenance binds the extraction to Build 0.5.0.
+The refreshed candidate passes all 53 public tool and six internal engine cases
+on actual Rust 1.88, strict affected all-target Clippy, Rustdoc, formatting,
+links and snapshot checks. A coherent temporary Build caller deletion passes all
+65 Wasm-cache cases and actual Rust 1.91 all-target checking; all other external
+dependency selections are unchanged. Source provenance binds Build 0.5.0.
+Build #43 retains registry adoption after review/publication, along with native
+acceptance and consumer migration. Normal sibling checkouts remain unchanged.
+Patches and raw evidence are at `/tmp/ic-build-cleanup5-20261015/`.
 
-Build #43 owns registry adoption after review/publication and consumer migration.
-Normal sibling source, pins and artifacts remain untouched. Native acceptance,
-upstream PR delivery and publication are separate. Patches and raw evidence are
-retained under `/tmp/ic-build-cleanup5-20261015/`.
+## Complete Linux records and private parents — pending 0.19.0
+
+The approved PR #90 source at `7931347` is applied as local source changes,
+preserving the earlier FIFO and native-capture work. Private-parent preparation
+refuses ancestor symlinks and parent traversal before directory creation; callers
+intentionally selecting aliases must provide physical paths. No Git merge,
+staging, commit, ref or version change is performed. The isolated PR's earlier
+native matrix remains evidence for its source, not for this combined checkout.
+
+Linux sampling reuses the artifact owner's complete bounded read. The new real
+file regression first reproduced a 12345-page RSS field being accepted as 123
+pages after truncation; fixed checks reject that prefix and other oversized
+records while admitting exact/roomier limits. Typed limit and native I/O causes,
+invalid-UTF-8 refusal and disappearing stat entries retain their distinctions.
+The source before-images and original failed regression are retained at
+`/tmp/host-019-followups.mlPpdL/`; its failed process fixture remains retained too.
+
+The 66 selected durable and eight sampling cases pass on Linux, along with strict
+affected-package Clippy/rustdoc, actual Rust 1.88, formatting, documentation links
+and snapshot verification. These changes extend the same 0.19.0 hard cut;
+supported native acceptance remains separate at
+[#130 — Native RSS command capture](https://github.com/dragginzgame/ic-host-tooling/issues/130)
+and [PR #90](https://github.com/dragginzgame/ic-host-tooling/pull/90).
+The earlier release-projector blocker remains unchanged below.
+
+## Native capture and fixture convergence — pending 0.19.0
+
+Released base is 0.18.6 `7f29176`. Five filesystem FIFO setups share one private
+creator, retaining explicit modes/default umask and their real special-file
+assertions. RSS sampling uses existing bounded direct-child capture for macOS.
+Its public signature now takes `OutputLimits`; command failures retain typed
+capture/cleanup evidence, stderr is captured and truncated tables refuse.
+This hard cut selects 0.19.0 notes without changing package metadata. No default
+deadline is introduced; Linux procfs selection/parsing remains unchanged.
+
+All 96 filesystem units plus the allocation integration case, seven sampling
+cases, strict affected-package lint/docs and actual Rust 1.88 checks pass on
+Linux. macOS command substitutes run on Linux; native macOS qualification is
+still required by [#130 — Native RSS command capture](https://github.com/dragginzgame/ic-host-tooling/issues/130).
+[Testkit #101 — Explicit Host RSS limits](https://github.com/dragginzgame/ic-testkit/issues/101)
+owns the known driver's migration after publication; sibling source is unchanged.
+
+The approved local release-projector retirement remains blocked at
+[#131 — Retire the local dependency projector](https://github.com/dragginzgame/ic-host-tooling/issues/131).
+The exact unmerged Shared candidate updates live dependency requirements but
+leaves them stale when identical saved-source manifests are read from scratch
+directories. [Shared #210 — Saved-source manifest projection](https://github.com/dragginzgame/shared-tooling/issues/210)
+owns that reproduced missing contract. Current snapshot ownership and the AWK
+projection remain intact until canonical support is integrated. Source
+before-images, focused logs and the live/archive reproducer are retained at
+`/tmp/host-native-cleanup.O2BlN1/`. Work remains local and uncommitted; the real
+index/refs, pins, versions and existing artifacts are preserved.
 
 ## PR refreshes against released 0.18.5
 
