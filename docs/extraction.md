@@ -39,6 +39,18 @@ response-only graph; IC reference values and comparison remain in the tools owne
   IC method export projection over generic Wasm facts, ICP response formats
   and explicit revision-bound IC resource comparisons.
 
+`sampling::snapshot(record_bytes, command_limits)` keeps native RSS observation
+in the Process owner. Linux selects the per-record procfs allowance; macOS uses
+caller-selected `OutputLimits` through the existing direct-child capture engine.
+An optional deadline remains explicit, with no default elapsed-time bound.
+Incomplete tables refuse before parsing; command failures retain typed capture,
+diagnostic and cleanup evidence instead of printing stderr. Workload lifetime,
+sampling cadence, process visibility interpretation and aggregate table memory
+remain consumer-owned. See the [0.19 hard cut](changelog/0.19.md).
+Linux requires each stat record to fit completely within its allowance before
+parsing; bounded artifact-reader refusals retain their typed cause through
+`SamplingError::Io`, while native disappearance/access skip rules stay intact.
+
 The optional tools `certificate` feature owns strict CBOR decoding into owned
 `ic-certification` certificate/delegation/hash-tree values. It admits complete
 input bytes and selected CBOR nesting before returning a single fully consumed
@@ -317,7 +329,10 @@ cache policy, root confinement, tool pin or process-tree ownership. Backup's pri
 parent/file modes and crash barriers are stronger than ordinary durable replacement;
 they must not be replaced by `write_with` without preserving those contracts.
 `durable::prepare_private_parents` creates only missing owner-only directories and
-synchronizes each new directory and parent link. Backup retains its own JSON
+synchronizes each new directory and parent link. Ancestor symlinks and `..`
+refuse before creation, including through already-existing descendants. Callers
+intentionally selecting an alias supply its canonical physical path; namespace
+stability and root confinement remain caller-owned. Backup retains its own JSON
 encoding, descriptor-relative publication and pre/post-publication crash barriers.
 
 The maintainer authorized retiring the original local checkout after verification

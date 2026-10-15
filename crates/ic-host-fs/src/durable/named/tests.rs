@@ -80,12 +80,7 @@ fn replaced_missing_or_linked_staging_is_never_published_or_blindly_removed() {
                     "file" => fs::write(stage, b"foreign")?,
                     "symlink" => symlink(&other, stage)?,
                     "directory" => fs::create_dir(stage)?,
-                    "fifo" => assert!(
-                        std::process::Command::new("/usr/bin/mkfifo")
-                            .arg(stage)
-                            .status()?
-                            .success()
-                    ),
+                    "fifo" => crate::test_support::create_fifo(stage, None)?,
                     _ => unreachable!(),
                 }
             }
