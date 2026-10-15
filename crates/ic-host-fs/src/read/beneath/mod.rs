@@ -3,6 +3,7 @@
 use super::{ArtifactError, check_metadata};
 use rustix::fs::{AtFlags, FileType, Mode, OFlags, openat, statat};
 use std::{
+    fmt,
     fs::File,
     io,
     os::fd::{AsFd, BorrowedFd, OwnedFd},
@@ -37,6 +38,42 @@ pub enum OpenedEntry {
     Directory(File),
 }
 
+/// Refusal or native failure when selecting a root-relative entry.
+#[derive(Debug)]
+pub enum OpenEntryError {
+    /// A native open or metadata operation failed.
+    Io(io::Error),
+    /// The selected entry is neither a regular file nor a directory.
+    UnsupportedEntry {
+        /// Observed descriptor kind.
+        kind: FileType,
+    },
+}
+
+impl fmt::Display for OpenEntryError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Io(error) => write!(formatter, "root-relative opening failed: {error}"),
+            Self::UnsupportedEntry { kind } => write!(formatter, "unsupported entry: {kind:?}"),
+        }
+    }
+}
+
+impl std::error::Error for OpenEntryError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Io(error) => Some(error),
+            Self::UnsupportedEntry { .. } => None,
+        }
+    }
+}
+
+impl From<io::Error> for OpenEntryError {
+    fn from(error: io::Error) -> Self {
+        Self::Io(error)
+    }
+}
+
 /// Open one regular file or directory beneath a caller-held root descriptor.
 ///
 /// Every component must be normal and is selected through its held parent.
@@ -52,7 +89,7 @@ pub enum OpenedEntry {
 pub fn open_entry_beneath(
     root: BorrowedFd<'_>,
     relative: &Path,
-) -> Result<OpenedEntry, ArtifactError> {
+) -> Result<OpenedEntry, OpenEntryError> {
     let mut parts = relative.components().peekable();
     if parts.peek().is_none() || parts.clone().any(|p| !matches!(p, Component::Normal(_))) {
         return Err(io::Error::new(
@@ -73,7 +110,7 @@ pub fn open_entry_beneath(
         }
         let final_component = parts.peek().is_none();
         if final_component && !matches!(observed, FileType::RegularFile | FileType::Directory) {
-            return Err(ArtifactError::NotRegularFile);
+            return Err(OpenEntryError::UnsupportedEntry { kind: observed });
         }
         let flags = OFlags::RDONLY
             | OFlags::NOFOLLOW
@@ -95,7 +132,7 @@ pub fn open_entry_beneath(
                     Ok(OpenedEntry::RegularFile(file))
                 }
                 (FileType::Directory, FileType::Directory) => Ok(OpenedEntry::Directory(file)),
-                _ => Err(ArtifactError::NotRegularFile),
+                _ => Err(OpenEntryError::UnsupportedEntry { kind: actual }),
             };
         }
         parent = Some(opened);
@@ -126,7 +163,11 @@ pub fn open_regular_file_beneath(
     relative: &Path,
     max_bytes: u64,
 ) -> Result<File, ArtifactError> {
-    match open_entry_beneath(root, relative)? {
+    let opened = open_entry_beneath(root, relative).map_err(|error| match error {
+        OpenEntryError::Io(error) => ArtifactError::Io(error),
+        OpenEntryError::UnsupportedEntry { .. } => ArtifactError::NotRegularFile,
+    })?;
+    match opened {
         OpenedEntry::RegularFile(file) => {
             check_metadata(&file.metadata()?, max_bytes)?;
             Ok(file)

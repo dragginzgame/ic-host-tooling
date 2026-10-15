@@ -49,12 +49,14 @@ fn root_relative_entry_refuses_aliases_and_special_files() {
     for path in ["", "/tree", "tree/../tree", "alias", "tree/link"] {
         assert!(matches!(
             open_entry_beneath(root.as_fd(), Path::new(path)),
-            Err(ArtifactError::Io(ref error)) if error.kind() == io::ErrorKind::InvalidInput
+            Err(OpenEntryError::Io(ref error)) if error.kind() == io::ErrorKind::InvalidInput
         ));
     }
     assert!(matches!(
         open_entry_beneath(root.as_fd(), Path::new("tree/fifo")),
-        Err(ArtifactError::NotRegularFile)
+        Err(OpenEntryError::UnsupportedEntry {
+            kind: FileType::Fifo
+        })
     ));
 }
 

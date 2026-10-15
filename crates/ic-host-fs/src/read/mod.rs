@@ -7,7 +7,8 @@ use std::{fs::File, path::Path};
 mod beneath;
 #[cfg(unix)]
 pub use beneath::{
-    OpenedEntry, open_directory_no_follow, open_entry_beneath, open_regular_file_beneath,
+    OpenEntryError, OpenedEntry, open_directory_no_follow, open_entry_beneath,
+    open_regular_file_beneath,
 };
 
 #[cfg(unix)]
