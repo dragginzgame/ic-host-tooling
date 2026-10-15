@@ -138,9 +138,12 @@ pub fn create_private_bytes_with_parents(
 /// directories retain their permissions. Every new directory and its parent link
 /// are synchronized before this returns. Callers retain root confinement and
 /// exclusion of concurrent namespace mutation; symlink path components reject.
+/// Supply a physical path when an ancestor alias is intentionally selected.
+/// Parent-directory (`..`) components reject before any directory is created.
 ///
 /// # Errors
-/// Rejects a non-directory or symlink component, unsupported host or failed creation/sync.
+/// Rejects a non-directory or symlink component, a parent-directory component,
+/// unsupported host or failed creation/sync.
 pub fn prepare_private_parents(parent: &Path) -> io::Result<()> {
     #[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
     {
@@ -319,7 +322,7 @@ mod supported {
     use std::{
         ffi::{OsStr, OsString},
         fs, io,
-        path::{Path, PathBuf},
+        path::{Component, Path, PathBuf},
         sync::atomic::{AtomicU64, Ordering},
     };
 
@@ -389,7 +392,7 @@ mod supported {
         file_name: &OsStr,
         options: WriteOptions,
         produce: impl FnOnce(&Path, &mut fs::File) -> Result<T, E>,
-        admit: Option<(bool, impl FnOnce(&Path, &T) -> Result<(), E>)>,
+        mut admit: Option<(bool, impl FnOnce(&Path, &T) -> Result<(), E>)>,
         mut before: impl FnMut(FileCommitStep, &Path) -> io::Result<()>,
     ) -> Result<T, NamedWriteError<E>> {
         validate_permissions(options.permissions).map_err(NamedWriteError::before)?;
@@ -411,82 +414,67 @@ mod supported {
             create_sibling_temp(&parent_fd, parent, file_name, permissions, &mut before)
                 .map_err(NamedWriteError::before)?;
 
-        let cleanup = || remove_owned_temp(&parent_fd, &temp_name, &temp_file).err();
-        if let Err(source) = before(FileCommitStep::TemporaryFileWrite, &temp_path) {
-            return Err(NamedWriteError::BeforePublication {
-                source,
-                cleanup_error: cleanup(),
-            });
-        }
-        let value = match produce(&temp_path, &mut temp_file) {
-            Ok(value) => value,
-            Err(source) => {
-                return Err(NamedWriteError::Producer {
-                    source,
-                    cleanup_error: remove_owned_temp(&parent_fd, &temp_name, &temp_file).err(),
-                });
-            }
-        };
-
-        let staged = (|| {
-            before(FileCommitStep::TemporaryFileSync, &temp_path)?;
-            verify_staging(&parent_fd, parent_path, &temp_name, &temp_file)?;
-            temp_file.sync_all()
-        })();
-        if let Err(source) = staged {
-            return Err(NamedWriteError::BeforePublication {
-                source,
-                cleanup_error: remove_owned_temp(&parent_fd, &temp_name, &temp_file).err(),
-            });
-        }
-        if let Some((close_writer, admit)) = admit {
-            if close_writer {
-                match retain_read_only(&parent_fd, parent_path, &temp_name, &temp_file) {
-                    Ok(read_only) => drop(std::mem::replace(&mut temp_file, read_only)),
-                    Err(source) => {
-                        return Err(NamedWriteError::BeforePublication {
-                            source,
-                            cleanup_error: remove_owned_temp(&parent_fd, &temp_name, &temp_file)
-                                .err(),
-                        });
-                    }
+        // Keep unused callbacks and the produced value alive through cleanup,
+        // just as when each failure returned directly from this function.
+        let mut produce = Some(produce);
+        let mut value = None;
+        let published = (|| {
+            before(FileCommitStep::TemporaryFileWrite, &temp_path)
+                .map_err(NamedWriteError::before)?;
+            value = Some(
+                produce.take().expect("producer runs once")(&temp_path, &mut temp_file).map_err(
+                    |source| NamedWriteError::Producer {
+                        source,
+                        cleanup_error: None,
+                    },
+                )?,
+            );
+            before(FileCommitStep::TemporaryFileSync, &temp_path)
+                .map_err(NamedWriteError::before)?;
+            verify_staging(&parent_fd, parent_path, &temp_name, &temp_file)
+                .map_err(NamedWriteError::before)?;
+            temp_file.sync_all().map_err(NamedWriteError::before)?;
+            if let Some((close_writer, admit)) = admit.take() {
+                if close_writer {
+                    let read_only =
+                        retain_read_only(&parent_fd, parent_path, &temp_name, &temp_file)
+                            .map_err(NamedWriteError::before)?;
+                    drop(std::mem::replace(&mut temp_file, read_only));
                 }
+                admit(&temp_path, value.as_ref().expect("production succeeded")).map_err(
+                    |source| NamedWriteError::Producer {
+                        source,
+                        cleanup_error: None,
+                    },
+                )?;
             }
-            if let Err(source) = admit(&temp_path, &value) {
-                return Err(NamedWriteError::Producer {
-                    source,
-                    cleanup_error: remove_owned_temp(&parent_fd, &temp_name, &temp_file).err(),
-                });
-            }
-        }
-        let staged = (|| {
-            before(FileCommitStep::Publication, &path)?;
+            before(FileCommitStep::Publication, &path).map_err(NamedWriteError::before)?;
             // Keep the descriptor alive through rename so its identity cannot
             // be recycled after a producer unlinks or replaces the pathname.
             verify_staging(&parent_fd, parent_path, &temp_name, &temp_file)
+                .map_err(NamedWriteError::before)?;
+            match options.mode {
+                PublicationMode::Replace => {
+                    unix_fs::renameat(parent_fd, &temp_name, parent_fd, file_name)
+                        .map_err(|error| NamedWriteError::before(errno_to_io(error)))
+                }
+                PublicationMode::CreateNew => {
+                    publish_create_new(&parent_fd, &temp_name, file_name, &temp_file)
+                }
+            }?;
+            Ok(())
         })();
-        if let Err(source) = staged {
-            return Err(NamedWriteError::BeforePublication {
-                source,
-                cleanup_error: remove_owned_temp(&parent_fd, &temp_name, &temp_file).err(),
-            });
-        }
-        let published = match options.mode {
-            PublicationMode::Replace => {
-                unix_fs::renameat(parent_fd, &temp_name, parent_fd, file_name)
-                    .map_err(|error| NamedWriteError::before(errno_to_io(error)))
+        published.map_err(|mut error| {
+            // Only ordinary prepublication failures remove the still-owned stage.
+            // Publication/cleanup uncertainty must retain its original evidence.
+            if let NamedWriteError::Producer { cleanup_error, .. }
+            | NamedWriteError::BeforePublication { cleanup_error, .. } = &mut error
+            {
+                *cleanup_error = remove_owned_temp(&parent_fd, &temp_name, &temp_file).err();
             }
-            PublicationMode::CreateNew => {
-                publish_create_new(&parent_fd, &temp_name, file_name, &temp_file)
-            }
-        };
-        if let Err(NamedWriteError::BeforePublication { source, .. }) = published {
-            return Err(NamedWriteError::BeforePublication {
-                source,
-                cleanup_error: remove_owned_temp(&parent_fd, &temp_name, &temp_file).err(),
-            });
-        }
-        published?;
+            error
+        })?;
+        let value = value.expect("publication requires successful production");
 
         before(FileCommitStep::FinalParentSync, parent)
             .map_err(|source| NamedWriteError::AfterPublication { source })?;
@@ -700,6 +688,30 @@ mod supported {
     }
 
     pub(super) fn prepare_private_parents(parent: &Path) -> io::Result<()> {
+        let mut component_path = PathBuf::new();
+        for component in parent.components() {
+            if component == Component::ParentDir {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidInput,
+                    "private parent path may not contain '..'",
+                ));
+            }
+            component_path.push(component.as_os_str());
+            match fs::symlink_metadata(&component_path) {
+                Ok(metadata) if metadata.is_dir() => {}
+                Ok(_) => {
+                    return Err(io::Error::new(
+                        io::ErrorKind::NotADirectory,
+                        format!(
+                            "output parent is not a directory: {}",
+                            component_path.display()
+                        ),
+                    ));
+                }
+                Err(error) if error.kind() == io::ErrorKind::NotFound => {}
+                Err(error) => return Err(error),
+            }
+        }
         create_parent_hierarchy(parent, &mut |_, _| Ok(()), true)
     }
 

@@ -5,7 +5,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     use ic_host_process::provenance::{
         IgnoreSubmodules, StatusOptions, UntrackedFiles, capture_git,
     };
-    use ic_host_process::tool::{AdmittedTool, ExecutionContext, OutputLimits, ToolSpec};
+    use ic_host_process::tool::{AdmittedTool, ExecutionContext, OutputLimits, VersionSpec};
 
     use std::{ffi::OsString, io, path::PathBuf, time::Duration};
 
@@ -60,13 +60,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         environment: &[],
     };
     let git = AdmittedTool::admit(
-        &ToolSpec {
+        &VersionSpec {
             executable: &executable,
-            sha256: digest,
             executable_bytes,
             version_arguments: &[OsString::from("--version")],
             version_identity: &version,
         },
+        digest,
         &context,
         limits,
     )?;
@@ -79,8 +79,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         },
         limits,
     )?;
-    println!("revision={}", observed.revision);
-    println!("tree={}", observed.tree);
+    println!("revision={}", observed.revision());
+    println!("tree={}", observed.tree());
     println!("dirty={}", observed.is_dirty());
     println!("status_bytes={}", observed.status_identity.bytes);
     println!("status_sha256={}", observed.status_identity.sha256);

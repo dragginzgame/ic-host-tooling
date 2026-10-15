@@ -151,6 +151,34 @@ for mode in install check; do
         [[ ! -e "$HOST_MAKE_EXTERNAL" ]] || exit 1
     done
 done
+# Keep the actual Host LOC caller, argument selection and failure propagation
+# qualified without replaying Shared's synthetic workspace/parser matrix.
+cat > "$fixture/local/scripts/dev/cloc.sh" <<'STUB'
+#!/usr/bin/env bash
+set -euo pipefail
+printf 'cloc' >> "$HOST_MAKE_EVENTS"
+printf ' <%s>' "$@" >> "$HOST_MAKE_EVENTS"
+printf '\n' >> "$HOST_MAKE_EVENTS"
+exit "${HOST_MAKE_CLOC_STATUS:-0}"
+STUB
+for selection in default manifest; do
+    options=(--no-print-directory -j4 cloc)
+    [[ "$selection" != manifest ]] || options+=(CLOC_MANIFEST='apps/selected app/Cargo.toml')
+    for result in 0 23; do
+        : > "$HOST_MAKE_EVENTS"
+        status=0
+        HOST_MAKE_CLOC_STATUS="$result" make "${options[@]}" \
+            > "$fixture/cloc-$selection-$result.log" 2>&1 || status=$?
+        if [[ "$result" == 0 ]]; then [[ "$status" == 0 ]] || exit 1;
+        else [[ "$status" == 2 ]] || exit 1; fi
+        if [[ "$selection" == default ]]; then
+            printf 'cloc <%s>\n' "$PWD" > "$fixture/expected"
+        else
+            printf 'cloc <--manifest> <apps/selected app/Cargo.toml> <%s>\n' "$PWD" > "$fixture/expected"
+        fi
+        cmp "$fixture/expected" "$HOST_MAKE_EVENTS"
+    done
+done
 # Admission must finish before any of the three installation stages may run.
 for failed in ic rust; do
     : > "$HOST_MAKE_EVENTS"
@@ -168,8 +196,7 @@ for helper in scripts/ci/check-dependency-pins.sh \
     scripts/release/test-adapter.sh scripts/publish/test-workspace.sh \
     scripts/ci/test-cargo-publication-attempt.sh \
     scripts/ci/test-host-fixture-retention.sh scripts/ci/test-make-snapshot.sh scripts/ci/test-make-consumer.sh \
-    scripts/ci/test-tool-commands.sh scripts/ci/test-host-tools.sh scripts/ci/test-ic-tools.sh scripts/ci/test-rust-tools.sh \
-    scripts/ci/check-release-commands.sh scripts/ci/test-cloc.sh; do
+    scripts/ci/test-tool-commands.sh scripts/ci/check-release-commands.sh; do
     mkdir -p "$fixture/local/${helper%/*}"
     printf '#!/usr/bin/env bash\nexec cargo fixture "$@"\n' > "$fixture/local/$helper"
 done

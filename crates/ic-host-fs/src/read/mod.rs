@@ -82,21 +82,23 @@ pub fn open_regular_file(path: &Path) -> Result<File, ArtifactError> {
 
 fn open_file(path: &Path, limit: u64) -> Result<File, ArtifactError> {
     #[cfg(unix)]
-    let file = {
-        use rustix::fs::{Mode, OFlags, open};
-        File::from(
-            open(
-                path,
-                OFlags::RDONLY | OFlags::NONBLOCK | OFlags::CLOEXEC,
-                Mode::empty(),
-            )
-            .map_err(std::io::Error::from)?,
-        )
-    };
+    let file = open_read_only(path, false)?;
     #[cfg(not(unix))]
     let file = File::open(path)?;
     check_metadata(&file.metadata()?, limit)?;
     Ok(file)
+}
+
+#[cfg(unix)]
+fn open_read_only(path: &Path, no_follow: bool) -> Result<File, ArtifactError> {
+    use rustix::fs::{Mode, OFlags, open};
+    let mut flags = OFlags::RDONLY | OFlags::NONBLOCK | OFlags::CLOEXEC;
+    if no_follow {
+        flags |= OFlags::NOFOLLOW;
+    }
+    Ok(File::from(
+        open(path, flags, Mode::empty()).map_err(std::io::Error::from)?,
+    ))
 }
 
 fn check_metadata(metadata: &std::fs::Metadata, limit: u64) -> Result<(), ArtifactError> {

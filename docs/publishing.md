@@ -12,8 +12,11 @@ These commands do not publish crates to a registry.
 Prepare the development toolchain selected in [rust-toolchain.toml](../rust-toolchain.toml),
 then run `make install-tools` and `make tools-check`. Shared Tooling owns
 [common setup and executable storage](local-setup.md). Release preparation uses
-the canonical literal workspace-version and lock renderers, with Host's exact
-dependency-requirement projection. It validates candidate TOML and the prepared
+the canonical literal workspace-version and lock renderers. Host admits its
+explicit workspace member paths and reads member identities from the selected
+Git source; Shared projects owned dependency requirements for live and saved
+manifests. Recovery does not need today's member paths or a reconstructed old
+workspace. It validates candidate TOML and the prepared
 locked Cargo graph, restoring original bytes/modes after failure or catchable
 interruption and retaining recovery evidence. No cargo-edit executable or
 release-only tool installation is required. The development toolchain is separate
@@ -60,8 +63,11 @@ Before any upload, the wrapper prepares all selected archives with `cargo packag
 --workspace --all-features --locked --no-verify`. This step resolves package
 dependencies but does not compile or upload; the final Cargo publication still
 verifies packages. Each archive's `.cargo_vcs_info.json` must name the selected
-clean `HEAD` and its exact source path: `crates/<package>` for a library or
-`apps/ic-host-wasm-inspect` for the CLI. All package metadata must
+clean `HEAD` and the package directory recorded by admitted Cargo metadata.
+Package paths must be physical directories beneath the checkout, without parent
+traversal or CR/LF. License notices are checked in those same directories after
+metadata admission and before package preparation or upload. The explicit package
+allowlist remains separate from workspace membership. All package metadata must
 declare `https://github.com/dragginzgame/ic-host-tooling` as the repository.
 
 The wrapper then fetches that exact commit from the declared HTTPS repository
