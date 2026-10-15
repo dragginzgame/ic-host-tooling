@@ -142,7 +142,7 @@ impl GitObservations {
     /// excluded untracked files and concurrent changes are not ruled out.
     #[must_use]
     pub const fn is_dirty(&self) -> bool {
-        self.status_identity.bytes != 0
+        !self.status_evidence.stdout.is_empty()
     }
 }
 

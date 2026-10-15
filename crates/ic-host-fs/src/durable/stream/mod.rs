@@ -3,6 +3,9 @@
 use super::NamedWriteError;
 use std::{fs, path::Path};
 
+#[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
+use super::supported::WriterCustody;
+
 /// How complete staging becomes the selected directory entry.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PublicationMode {
@@ -58,7 +61,7 @@ pub fn write_with<T, E>(
             path,
             options,
             |_, file| produce(file),
-            None::<(bool, fn(&Path, &T) -> Result<(), E>)>,
+            (WriterCustody::Writable, |_, _| Ok(())),
             |_, _| Ok(()),
         )
     }
@@ -108,7 +111,7 @@ pub fn write_at_with<T, E>(
             name,
             options,
             |_, file| produce(file),
-            None::<(bool, fn(&Path, &T) -> Result<(), E>)>,
+            (WriterCustody::Writable, |_, _| Ok(())),
             |_, _| Ok(()),
         )
     }
@@ -155,7 +158,7 @@ pub fn write_at_validated_with<T, E>(
             name,
             options,
             |_, file| produce(file),
-            Some((false, |_: &Path, value: &T| admit(value))),
+            (WriterCustody::Writable, |_, value| admit(value)),
             |_, _| Ok(()),
         )
     }
@@ -204,7 +207,7 @@ pub fn write_validated_with<T, E>(
             &absolute,
             options,
             |_, file| produce(file),
-            Some((true, admit)),
+            (WriterCustody::ReadOnly, admit),
             |_, _| Ok(()),
         )
     }

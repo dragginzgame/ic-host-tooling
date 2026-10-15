@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.21.0]
+
+### Breaking
+
+- Candid service inspection no longer enables Wasm export inspection implicitly.
+  Select both `candid-service` and `ic-interface` when both APIs are needed;
+  Candid-only consumers no longer select Host Artifacts or the Wasm parser.
+
+### Changed
+
+- Simplify durable publication's internal admission modes while preserving
+  closed-writer validation, cleanup and publication error states.
+
+### Fixed
+
+- Derive Git's dirty observation from retained status bytes, so editing report
+  metadata cannot change it.
+- Admit optional-file descriptor metadata once in the consuming reader, retaining
+  no-follow opening, private-file checks and rejection before reading.
+  [Detailed notes](docs/changelog/0.21.md).
+
 ## [0.20.1] - 2026-10-15
 
 - Add terminal-line clipping with explicit column limits, control escaping and

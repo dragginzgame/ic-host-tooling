@@ -336,6 +336,11 @@ mod supported {
     const TEMP_ATTEMPTS: usize = 64;
     static TEMP_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
+    pub(super) enum WriterCustody {
+        Writable,
+        ReadOnly,
+    }
+
     #[derive(Clone, Copy, Debug, Eq, PartialEq)]
     pub(super) enum FileCommitStep {
         ParentDirectoryCreate,
@@ -359,7 +364,7 @@ mod supported {
             path,
             options,
             |_, file| std::io::Write::write_all(file, bytes),
-            None::<(bool, fn(&Path, &()) -> io::Result<()>)>,
+            (WriterCustody::Writable, |_, ()| Ok(())),
             before,
         )
     }
@@ -368,7 +373,7 @@ mod supported {
         path: &Path,
         options: WriteOptions,
         produce: impl FnOnce(&Path, &mut fs::File) -> Result<T, E>,
-        admit: Option<(bool, impl FnOnce(&Path, &T) -> Result<(), E>)>,
+        admission: (WriterCustody, impl FnOnce(&Path, &T) -> Result<(), E>),
         mut before: impl FnMut(FileCommitStep, &Path) -> io::Result<()>,
     ) -> Result<T, NamedWriteError<E>> {
         validate_permissions(options.permissions).map_err(NamedWriteError::before)?;
@@ -381,7 +386,7 @@ mod supported {
             file_name,
             options,
             produce,
-            admit,
+            admission,
             before,
         )
     }
@@ -392,7 +397,7 @@ mod supported {
         file_name: &OsStr,
         options: WriteOptions,
         produce: impl FnOnce(&Path, &mut fs::File) -> Result<T, E>,
-        mut admit: Option<(bool, impl FnOnce(&Path, &T) -> Result<(), E>)>,
+        admission: (WriterCustody, impl FnOnce(&Path, &T) -> Result<(), E>),
         mut before: impl FnMut(FileCommitStep, &Path) -> io::Result<()>,
     ) -> Result<T, NamedWriteError<E>> {
         validate_permissions(options.permissions).map_err(NamedWriteError::before)?;
@@ -417,6 +422,8 @@ mod supported {
         // Keep unused callbacks and the produced value alive through cleanup,
         // just as when each failure returned directly from this function.
         let mut produce = Some(produce);
+        let (writer_custody, admit) = admission;
+        let mut admit = Some(admit);
         let mut value = None;
         let published = (|| {
             before(FileCommitStep::TemporaryFileWrite, &temp_path)
@@ -434,20 +441,18 @@ mod supported {
             verify_staging(&parent_fd, parent_path, &temp_name, &temp_file)
                 .map_err(NamedWriteError::before)?;
             temp_file.sync_all().map_err(NamedWriteError::before)?;
-            if let Some((close_writer, admit)) = admit.take() {
-                if close_writer {
-                    let read_only =
-                        retain_read_only(&parent_fd, parent_path, &temp_name, &temp_file)
-                            .map_err(NamedWriteError::before)?;
-                    drop(std::mem::replace(&mut temp_file, read_only));
-                }
-                admit(&temp_path, value.as_ref().expect("production succeeded")).map_err(
-                    |source| NamedWriteError::Producer {
-                        source,
-                        cleanup_error: None,
-                    },
-                )?;
+            let admit = admit.take().expect("admission runs once");
+            if matches!(writer_custody, WriterCustody::ReadOnly) {
+                let read_only = retain_read_only(&parent_fd, parent_path, &temp_name, &temp_file)
+                    .map_err(NamedWriteError::before)?;
+                drop(std::mem::replace(&mut temp_file, read_only));
             }
+            admit(&temp_path, value.as_ref().expect("production succeeded")).map_err(|source| {
+                NamedWriteError::Producer {
+                    source,
+                    cleanup_error: None,
+                }
+            })?;
             before(FileCommitStep::Publication, &path).map_err(NamedWriteError::before)?;
             // Keep the descriptor alive through rename so its identity cannot
             // be recycled after a producer unlinks or replaces the pathname.
