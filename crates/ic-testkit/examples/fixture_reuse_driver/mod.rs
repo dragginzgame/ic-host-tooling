@@ -26,7 +26,9 @@ use std::os::unix::{fs::PermissionsExt as _, process::CommandExt as _};
 
 use ic_build::{
     artifacts::{WasmBuildError, WasmBuildOutcome, WasmBuildSpec, build_wasm_canisters_cached},
-    cargo::observation::workspace_root_for,
+    cargo::observation::{
+        CargoFeatureSelection, CargoMetadataSpec, observe_metadata, workspace_root_for,
+    },
 };
 use ic_host_artifacts::artifact::ArtifactError;
 use ic_host_fs::{
@@ -34,15 +36,21 @@ use ic_host_fs::{
     read::{hash_file, read_opened_file},
 };
 use ic_host_process::{
+    provenance::{
+        GitError, GitObservations, IgnoreSubmodules, StatusOptions, UntrackedFiles, capture_git,
+    },
     sampling,
-    tool::{OutputLimit, OutputLimits, ResolutionError, resolve_executable},
+    tool::{
+        AdmittedTool, CompletedExecution, ExecutionContext, OutputLimit, OutputLimits,
+        ResolutionError, ToolError, VersionSpec, capture_command, resolve_executable,
+    },
 };
 use ic_host_text::table::{self, Alignment};
-use serde_json::{Map, Value, json};
+use serde_json::{Value, json};
 
 use crate::fixture_reuse_protocol::{Mode, WorkerArguments};
 use arguments::{HELP, Options, parse_arguments};
-use report::{MeasuredRun, Summary, summarize};
+use report::{DriverReport, MeasuredRun, Summary, summarize};
 
 const WORKSPACE_DISCOVERY_LIMITS: OutputLimits = OutputLimits {
     stdout: OutputLimit::Terminate(64 * 1024),
@@ -60,10 +68,14 @@ pub enum Error {
     InvalidData(&'static str),
     Io(io::Error),
     Json(serde_json::Error),
+    Statistics(ic_metrics::SampleStatisticsError),
     Artifact(ArtifactError),
     Resolution(ResolutionError),
     Build(Box<WasmBuildError>),
+    CargoObservation(Box<dyn StdError>),
     Sampling(sampling::SamplingError),
+    Tool(Box<ToolError>),
+    Git(Box<GitError>),
     CommandFailed {
         program: PathBuf,
         status: ExitStatus,
@@ -78,10 +90,14 @@ impl fmt::Display for Error {
             Self::InvalidData(message) => write!(f, "invalid benchmark data: {message}"),
             Self::Io(error) => error.fmt(f),
             Self::Json(error) => error.fmt(f),
+            Self::Statistics(error) => error.fmt(f),
             Self::Artifact(error) => error.fmt(f),
             Self::Resolution(error) => error.fmt(f),
             Self::Build(error) => error.fmt(f),
+            Self::CargoObservation(error) => error.fmt(f),
             Self::Sampling(error) => error.fmt(f),
+            Self::Tool(error) => error.fmt(f),
+            Self::Git(error) => error.fmt(f),
             Self::CommandFailed { program, status } => {
                 write!(f, "{} exited with {status}", program.display())
             }
@@ -95,10 +111,14 @@ impl StdError for Error {
         match self {
             Self::Io(error) => Some(error),
             Self::Json(error) => Some(error),
+            Self::Statistics(error) => Some(error),
             Self::Artifact(error) => Some(error),
             Self::Resolution(error) => Some(error),
             Self::Build(error) => Some(error.as_ref()),
+            Self::CargoObservation(error) => Some(error.as_ref()),
             Self::Sampling(error) => Some(error),
+            Self::Tool(error) => Some(error.as_ref()),
+            Self::Git(error) => Some(error.as_ref()),
             _ => None,
         }
     }
@@ -228,7 +248,7 @@ fn publish_report(
 }
 
 struct CapturedRun {
-    raw: Map<String, Value>,
+    report: crate::fixture_reuse_report::WorkerReport,
     rss: (u64, usize, usize),
 }
 
@@ -277,8 +297,8 @@ fn measure(
         usize::try_from(REPORT_LIMIT).expect("report limit fits supported hosts"),
     )
     .map_err(Error::Artifact)?;
-    let raw = serde_json::from_slice(&bytes)?;
-    Ok(CapturedRun { raw, rss })
+    let report = serde_json::from_slice(&bytes)?;
+    Ok(CapturedRun { report, rss })
 }
 
 fn text_command(command: &mut Command) -> Result<String, Error> {
@@ -428,22 +448,31 @@ fn prepare(options: &Options) -> Result<Inputs, Error> {
     if !ic_testkit::pic::supports_pocket_ic_server(server_version.as_bytes()) {
         return Err(Error::InvalidData("expected pocket-ic-server 16.x.y"));
     }
-    let metadata: Value = serde_json::from_str(&text_command(
-        cargo_command(&cargo, &root, rustc.as_deref()).args([
-            "metadata",
-            "--locked",
-            "--offline",
-            "--no-deps",
-            "--format-version",
-            "1",
-        ]),
-    )?)?;
-    let target = metadata["target_directory"]
-        .as_str()
-        .filter(|path| Path::new(path).is_absolute())
-        .ok_or(Error::InvalidData(
+    check_interrupted()?;
+    let metadata = observe_metadata(
+        &CargoMetadataSpec {
+            manifest_path: &root.join("Cargo.toml"),
+            include_dependencies: false,
+            filter_platform: None,
+            locked: true,
+            offline: true,
+            features: &CargoFeatureSelection::default(),
+        },
+        OutputLimits {
+            stdout: OutputLimit::Terminate(16 * 1024 * 1024),
+            stderr: OutputLimit::Terminate(64 * 1024),
+            timeout: None,
+        },
+        cargo_command(&cargo, &root, rustc.as_deref()),
+    )
+    .map_err(Error::CargoObservation)?;
+    check_interrupted()?;
+    let target = metadata.target_directory.as_std_path();
+    if !target.is_absolute() {
+        return Err(Error::InvalidData(
             "Cargo metadata lacks absolute target directory",
-        ))?;
+        ));
+    }
     build_command(cargo_command(&cargo, &root, rustc.as_deref()).args([
         "build",
         "--locked",
@@ -455,7 +484,6 @@ fn prepare(options: &Options) -> Result<Inputs, Error> {
         "--example",
         "fixture_reuse_benchmark",
     ]))?;
-    let target = Path::new(target);
     let mut spec = WasmBuildSpec::new(
         &root,
         &target.join("ic-testkit-fixture-benchmark-wasm"),
@@ -496,6 +524,59 @@ fn prepare(options: &Options) -> Result<Inputs, Error> {
     })
 }
 
+// Git is selected from the operator's installed PATH, then admitted and
+// rechecked by Host. The observed identity is not a trusted installation pin.
+fn git_provenance(root: &Path, limits: OutputLimits) -> Result<GitObservations, Error> {
+    check_interrupted()?;
+    let environment = std::env::vars_os().collect::<Vec<_>>();
+    let search = std::env::var_os("PATH")
+        .map(|path| std::env::split_paths(&path).collect::<Vec<_>>())
+        .unwrap_or_default();
+    let executable =
+        resolve_executable(Path::new("git"), root, &search).map_err(Error::Resolution)?;
+    let context = ExecutionContext {
+        current_dir: root,
+        environment: &environment,
+    };
+    let version = capture_command(
+        Command::new(&executable)
+            .arg("--version")
+            .current_dir(root)
+            .env_clear()
+            .envs(environment.iter().cloned()),
+        limits,
+    )
+    .and_then(CompletedExecution::require_success)
+    .and_then(CompletedExecution::require_complete)
+    .map_err(|error| Error::Tool(Box::new(error)))?;
+    let version_identity = std::str::from_utf8(&version.stdout)
+        .map_err(|_| Error::InvalidData("Git version is not UTF-8"))?
+        .trim();
+    let git = AdmittedTool::admit_version(
+        &VersionSpec {
+            executable: &executable,
+            executable_bytes: 128 * 1024 * 1024,
+            version_arguments: &["--version".into()],
+            version_identity,
+        },
+        &context,
+        limits,
+    )
+    .map_err(|error| Error::Tool(Box::new(error)))?;
+    let observed = capture_git(
+        &git,
+        &context,
+        StatusOptions {
+            untracked: UntrackedFiles::Normal,
+            ignore_submodules: IgnoreSubmodules::None,
+        },
+        limits,
+    )
+    .map_err(|error| Error::Git(Box::new(error)))?;
+    check_interrupted()?;
+    Ok(observed)
+}
+
 fn provenance(
     root: &Path,
     options: &Options,
@@ -505,6 +586,14 @@ fn provenance(
     rustc: Option<&Path>,
 ) -> Result<Value, Error> {
     // Capture the selected build and source facts before running cases.
+    let git = git_provenance(
+        root,
+        OutputLimits {
+            stdout: OutputLimit::Terminate(16 * 1024 * 1024),
+            stderr: OutputLimit::Terminate(64 * 1024),
+            timeout: None,
+        },
+    )?;
     // SAFETY: sysconf reads the host's online CPU count with no pointer arguments.
     #[cfg(unix)]
     let cpus = unsafe { libc::sysconf(libc::_SC_NPROCESSORS_ONLN) };
@@ -518,8 +607,8 @@ fn provenance(
         "server": server, "server_version": server_version,
         "platform": text_command(Command::new("uname").arg("-srm"))?, "logical_cpus": cpus,
         "rustc": text_command(Command::new(rustc.unwrap_or_else(|| Path::new("rustc"))).arg("--version").current_dir(root))?,
-        "revision": text_command(Command::new("git").args(["rev-parse", "HEAD"]).current_dir(root))?,
-        "working_tree_dirty": !text_command(Command::new("git").args(["status", "--porcelain"]).current_dir(root))?.is_empty(),
+        "revision": git.revision,
+        "working_tree_dirty": git.is_dirty(),
         "host_profile": options.profile, "wasm_profile": "dev", "wasm_sha256": hash_file(wasm, WASM_LIMIT).map_err(Error::Artifact)?.sha256.to_string(),
         "rss_sample_interval_ms": SAMPLE_INTERVAL.as_millis(), "rss_sampler": sampling::source(),
         "rss_command_stdout_bytes": options.rss_limits.stdout.retained_bytes(),
@@ -572,7 +661,7 @@ pub fn run() -> Result<(), Error> {
                     .current_dir(&inputs.root),
                 || sampling::snapshot(64 * 1024, options.rss_limits),
             )?;
-            let measured = MeasuredRun::from_worker(captured.raw, &options, case, captured.rss)?;
+            let measured = MeasuredRun::from_worker(captured.report, &options, case, captured.rss)?;
             runs.get_mut(&case.label)
                 .expect("case owns run list")
                 .push(measured);
@@ -580,11 +669,16 @@ pub fn run() -> Result<(), Error> {
     }
     let summaries = runs
         .iter()
-        .map(|(label, runs)| (label.clone(), summarize(runs)))
-        .collect::<BTreeMap<_, _>>();
+        .map(|(label, runs)| Ok((label.clone(), summarize(runs)?)))
+        .collect::<Result<BTreeMap<_, _>, Error>>()?;
     check_interrupted()?;
     if let Some(output) = &options.output {
-        let document = json!({"format": "ic-testkit-fixture-benchmark-v1", "provenance": inputs.provenance, "runs": runs, "summary": summaries});
+        let document = DriverReport {
+            format: "ic-testkit-fixture-benchmark-v1",
+            provenance: &inputs.provenance,
+            runs: &runs,
+            summary: &summaries,
+        };
         publish_report(output, |file| {
             serde_json::to_writer_pretty(&mut *file, &document)?;
             file.write_all(b"\n")?;
@@ -607,7 +701,7 @@ mod tests {
 
     #[cfg(unix)]
     use super::InterruptHandler;
-    use serde_json::json;
+    use serde_json::{Value, json};
     use std::{
         ffi::OsString,
         fs,
@@ -629,6 +723,84 @@ mod tests {
             .permissions(Permissions::from_mode(0o700))
             .tempdir()
             .unwrap()
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn git_observations_preserve_dirty_path_bytes_and_typed_failures() {
+        use ic_host_process::{
+            provenance::GitQuery,
+            tool::{OutputLimit, OutputLimits},
+        };
+        use std::{error::Error as _, os::unix::ffi::OsStringExt as _};
+
+        let scratch = fixture_directory();
+        let root = scratch.path().canonicalize().unwrap();
+        let limits = OutputLimits {
+            stdout: OutputLimit::Terminate(64 * 1024),
+            stderr: OutputLimit::Terminate(64 * 1024),
+            timeout: None,
+        };
+        for args in [
+            vec!["init", "-q"],
+            vec![
+                "-c",
+                "user.name=Fixture",
+                "-c",
+                "user.email=fixture@example.invalid",
+                "commit",
+                "-q",
+                "--allow-empty",
+                "-m",
+                "fixture",
+            ],
+        ] {
+            assert!(
+                Command::new("git")
+                    .args(args)
+                    .current_dir(&root)
+                    .status()
+                    .unwrap()
+                    .success()
+            );
+        }
+        let clean = super::git_provenance(&root, limits).unwrap();
+        assert!(!clean.is_dirty());
+        let name = OsString::from_vec(b"untracked-\xff".to_vec());
+        fs::write(root.join(name), b"fixture").unwrap();
+        let dirty = super::git_provenance(&root, limits).unwrap();
+        assert_eq!(dirty.revision, clean.revision);
+        assert!(dirty.is_dirty());
+        assert!(dirty.status_evidence.stdout.contains(&0xff));
+        assert_eq!(
+            dirty.options.untracked,
+            ic_host_process::provenance::UntrackedFiles::Normal
+        );
+        assert_eq!(
+            dirty.options.ignore_submodules,
+            ic_host_process::provenance::IgnoreSubmodules::None
+        );
+
+        let missing = fixture_directory();
+        let error =
+            super::git_provenance(&missing.path().canonicalize().unwrap(), limits).unwrap_err();
+        assert!(
+            error
+                .source()
+                .unwrap()
+                .downcast_ref::<ic_host_process::provenance::GitError>()
+                .is_some()
+        );
+        assert!(matches!(error, Error::Git(error) if error.query == GitQuery::Revision));
+        let error = super::git_provenance(
+            &root,
+            OutputLimits {
+                stdout: OutputLimit::Terminate(1),
+                ..limits
+            },
+        )
+        .unwrap_err();
+        assert!(matches!(error, Error::Tool(_)));
     }
 
     #[cfg(unix)]
@@ -741,11 +913,6 @@ mod tests {
         let wasm = target.join("wasm32-unknown-unknown/debug/ic_testkit_perf_probe.wasm");
         fs::create_dir_all(wasm.parent().unwrap()).unwrap();
         fs::write(wasm, b"\0asm\x01\0\0\0").unwrap();
-        fs::write(
-            root.join("metadata.json"),
-            serde_json::to_vec(&json!({"target_directory": target})).unwrap(),
-        )
-        .unwrap();
         let metadata = Command::new(env!("CARGO"))
             .current_dir(env!("CARGO_MANIFEST_DIR"))
             .args(["metadata", "--locked", "--offline", "--format-version", "1"])
@@ -756,7 +923,15 @@ mod tests {
             "{}",
             String::from_utf8_lossy(&metadata.stderr)
         );
-        fs::write(root.join("full-metadata.json"), metadata.stdout).unwrap();
+        let mut catalog: Value = serde_json::from_slice(&metadata.stdout).unwrap();
+        fs::write(root.join("full-metadata.json"), &metadata.stdout).unwrap();
+        catalog["target_directory"] = json!(target);
+        catalog["resolve"] = Value::Null;
+        fs::write(
+            root.join("metadata.json"),
+            serde_json::to_vec(&catalog).unwrap(),
+        )
+        .unwrap();
         fs::write(root.join("probe.wasm"), b"\0asm\x01\0\0\0").unwrap();
         fs::write(
             root.join("workspace.json"),
@@ -1033,10 +1208,21 @@ esac
     fn native_measurement_keeps_large_reports_and_rejects_failed_workers() {
         let scratch = fixture_directory();
         let input = scratch.path().join("input.json");
-        let padding = "a".repeat(128 * 1024);
+        let samples = (0..1024).map(|iteration| json!({
+            "iteration": iteration,
+            "phases": { "wait_ms": 0.0, "build_ms": 1.0, "restore_ms": null,
+                "reset_ms": null, "readiness_ms": null, "validation_ms": 1.0, "acquisition_ms": 2.0 },
+            "body_ms": 1.0, "release_ms": 1.0, "total_ms": 4.0,
+        })).collect::<Vec<_>>();
         fs::write(
             &input,
-            serde_json::to_vec(&json!({"padding": padding})).unwrap(),
+            serde_json::to_vec(&json!({
+                "mode": "fresh", "capacity": 1, "iterations": 1024, "workers": 1,
+                "state_bytes_per_canister": 0, "wall_ms": 4.0, "fixture_wall_ms": 5.0,
+                "server_startup_ms": 1.0, "cold_preparation": [], "preparation_wall_ms": 0.0,
+                "pool_teardown_ms": 0.0, "server_teardown_ms": 0.0, "samples": samples,
+            }))
+            .unwrap(),
         )
         .unwrap();
         let captured = measure(
@@ -1046,7 +1232,7 @@ esac
             snapshot,
         )
         .unwrap();
-        assert_eq!(captured.raw["padding"], padding);
+        assert_eq!(captured.report.samples.len(), 1024);
         assert!(captured.rss.2 > 0);
         assert!(captured.rss.0 > 0);
         assert!(

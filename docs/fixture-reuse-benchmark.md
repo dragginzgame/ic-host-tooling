@@ -47,6 +47,21 @@ Build 0.6's workspace observation uses that selected Cargo command with 64 KiB
 stdout/stderr limits and no deadline; discovery does not resolve dependencies or
 install a toolchain. Cargo builds retain their existing unlimited duration.
 
+The worker and driver share one complete, closed report schema. Rebuild them
+from the same checkout when updating: startup, cold-preparation and teardown
+measurements are required, alongside task and phase measurements. Unknown
+worker fields, including driver-owned RSS projections, are rejected. The driver
+keeps one typed report for admission and summaries, and borrows it when encoding
+JSON output. Existing retained
+report files are neither reinterpreted nor rewritten by this schema hard cut.
+
+Sample summaries use Metrics 0.11.1 with an explicit 95/100 nearest-rank
+selection. Count/mean/p50/p95 field names are unchanged. Floating-point
+projections remain approximate; an even median uses the midpoint of the middle
+samples. Non-finite input, derived rates or rounded means return the original
+typed Metrics error before the output file is replaced. No failed summary is
+published as a successful report containing null numeric values.
+
 ## Workload and correctness
 
 Every fixture has two canisters with configurable deterministic heap state.
@@ -505,3 +520,11 @@ These changes have correctness and filesystem-behavior verification, including
 a regression reproduced on separately compiled released `0.14.8`. They have no
 new runtime measurements. The earlier tables describe their recorded versions;
 they are not measurements of `0.14.9` or downstream test-suite speedups.
+
+Git provenance uses Host's admitted Git observations with explicit normal
+untracked-file coverage and no ignored submodule changes. Each Git command has
+16 MiB stdout and 64 KiB stderr ceilings and no elapsed-time limit. The selected
+installed executable is observed and rechecked, without claiming a trusted
+installation pin. Git status retains native pathname bytes; the report projects
+only the revision and dirty flag. Separate observations do not establish an
+atomic source snapshot. Typed tool/Git errors retain their captured evidence.

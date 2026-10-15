@@ -84,8 +84,8 @@ impl PocketIcBaselineRecipe for TwoCanisterRecipe {
         &self,
         baseline: &CachedPocketIcBaseline<Self::Metadata>,
     ) -> Result<CanisterRestoreReceipt, Self::Error> {
-        baseline.restore(SnapshotRestoreFunding::Preserve)?;
-        CanisterRestoreReceipt::try_from_baseline(baseline, CycleResetPolicy::PreserveCurrent)
+        baseline
+            .restore(SnapshotRestoreFunding::Preserve)
             .map_err(Into::into)
     }
 

@@ -20,6 +20,7 @@ pub struct Phases {
 }
 
 #[derive(Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct Sample {
     pub(super) iteration: usize,
     pub(super) phases: Phases,
@@ -29,6 +30,7 @@ pub struct Sample {
 }
 
 #[derive(Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct WorkerReport {
     pub(super) mode: String,
     pub(super) capacity: usize,
@@ -38,4 +40,9 @@ pub struct WorkerReport {
     pub(super) wall_ms: f64,
     pub(super) fixture_wall_ms: f64,
     pub(super) samples: Vec<Sample>,
+    pub(super) server_startup_ms: f64,
+    pub(super) cold_preparation: Vec<Phases>,
+    pub(super) preparation_wall_ms: f64,
+    pub(super) pool_teardown_ms: f64,
+    pub(super) server_teardown_ms: f64,
 }

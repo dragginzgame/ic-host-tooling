@@ -1,13 +1,9 @@
-//! Native benchmark report directories, metadata, CSV and Markdown output.
+//! Native benchmark metadata, CSV and Markdown report output.
 //!
 //! Paths and synchronization remain caller-owned; retained report formats are
 //! unchanged. Marker parsing and arithmetic live in the parent module.
 
-use std::{
-    fmt::Write as _,
-    fs, io,
-    path::{Path, PathBuf},
-};
+use std::{fmt::Write as _, fs, io, path::Path};
 
 use serde_json::Value;
 
@@ -27,123 +23,6 @@ impl BenchmarkScope {
             Self::All => ALL_SUITES_LABEL,
         }
     }
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct BenchmarkRunDirectory {
-    pub path: PathBuf,
-    pub directory_name: String,
-    pub run_index: u32,
-    pub git_commit_hash: Option<String>,
-    pub git_commit_short_hash: Option<String>,
-}
-
-#[must_use]
-pub fn benchmark_run_directory_name(
-    timestamp: &str,
-    git_commit_short_hash: Option<&str>,
-    run_index: u32,
-) -> String {
-    let commit = git_commit_short_hash
-        .filter(|hash| !hash.is_empty())
-        .unwrap_or("unknown");
-    format!("{timestamp}-{commit}-{run_index:04}")
-}
-
-/// Compute the next available benchmark run path for one timestamp and commit.
-///
-/// This function does not create or reserve the returned directory. Callers
-/// allocating the same prefix concurrently must synchronize that shared
-/// resource or provide unique timestamps.
-/// A missing runs root starts at index one; other directory errors are returned.
-pub fn next_benchmark_run_directory(
-    runs_root: impl AsRef<Path>,
-    timestamp: &str,
-    git_commit_hash: Option<&str>,
-) -> io::Result<BenchmarkRunDirectory> {
-    let runs_root = runs_root.as_ref();
-    let git_commit_hash = git_commit_hash.filter(|hash| !hash.is_empty());
-    let git_commit_short_hash = git_commit_hash.map(short_commit_hash);
-    let prefix = format!(
-        "{}-{}-",
-        timestamp,
-        git_commit_short_hash.as_deref().unwrap_or("unknown")
-    );
-    let run_index = next_run_index_for_prefix(runs_root, &prefix)?;
-    let directory_name =
-        benchmark_run_directory_name(timestamp, git_commit_short_hash.as_deref(), run_index);
-
-    Ok(BenchmarkRunDirectory {
-        path: runs_root.join(&directory_name),
-        directory_name,
-        run_index,
-        git_commit_hash: git_commit_hash.map(str::to_string),
-        git_commit_short_hash,
-    })
-}
-
-/// Find the latest earlier run with readable metadata and a matching command.
-///
-/// Names must follow [`benchmark_run_directory_name`]; indices are ordered
-/// numerically even when they exceed four digits. Eligible runs are ranked by
-/// metadata timestamp, directory prefix, then numeric index. An invalid current
-/// name returns [`io::ErrorKind::InvalidInput`]. Unreadable or malformed
-/// candidates are skipped.
-/// A missing runs root has no previous run; other directory errors are returned.
-pub fn find_latest_previous_run(
-    runs_root: impl AsRef<Path>,
-    current_run_directory_name: &str,
-    benchmark_command: Option<&str>,
-) -> io::Result<Option<PathBuf>> {
-    let runs_root = runs_root.as_ref();
-    let current_key = run_directory_sort_key(current_run_directory_name).ok_or_else(|| {
-        io::Error::new(
-            io::ErrorKind::InvalidInput,
-            "invalid benchmark run directory name",
-        )
-    })?;
-    let mut latest: Option<((String, String, u32), PathBuf)> = None;
-
-    let entries = match fs::read_dir(runs_root) {
-        Ok(entries) => entries,
-        Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(None),
-        Err(error) => return Err(error),
-    };
-    for entry in entries {
-        let entry = entry?;
-        if !entry.file_type()?.is_dir() {
-            continue;
-        }
-
-        let directory_name = entry.file_name().to_string_lossy().into_owned();
-        let Some((prefix, index)) = run_directory_sort_key(&directory_name) else {
-            continue;
-        };
-        if (prefix, index) >= current_key {
-            continue;
-        }
-
-        let metadata_path = entry.path().join("metadata.json");
-        let Ok(metadata) = read_benchmark_run_metadata(&metadata_path) else {
-            continue;
-        };
-
-        if let Some(command) = benchmark_command
-            && metadata.benchmark_command.as_deref() != Some(command)
-        {
-            continue;
-        }
-
-        let key = (metadata.timestamp, prefix.to_owned(), index);
-        if latest
-            .as_ref()
-            .is_none_or(|(latest_key, _)| key >= *latest_key)
-        {
-            latest = Some((key, entry.path()));
-        }
-    }
-
-    Ok(latest.map(|(_, path)| path))
 }
 
 pub fn read_benchmark_run_metadata(path: impl AsRef<Path>) -> io::Result<BenchmarkRunMetadata> {
@@ -404,51 +283,6 @@ fn metadata_json(metadata: &BenchmarkRunMetadata) -> String {
     let mut output = serde_json::to_string_pretty(metadata).expect("metadata JSON must serialize");
     output.push('\n');
     output
-}
-
-fn next_run_index_for_prefix(runs_root: &Path, prefix: &str) -> io::Result<u32> {
-    let entries = match fs::read_dir(runs_root) {
-        Ok(entries) => entries,
-        Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(1),
-        Err(error) => return Err(error),
-    };
-    let mut max_index = 0;
-    for entry in entries {
-        let entry = entry?;
-        if !entry.file_type()?.is_dir() {
-            continue;
-        }
-
-        if let Some(index) = entry
-            .file_name()
-            .to_str()
-            .and_then(|name| name.strip_prefix(prefix))
-            .and_then(parse_run_index)
-        {
-            max_index = max_index.max(index);
-        }
-    }
-
-    max_index
-        .checked_add(1)
-        .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "benchmark run index exhausted"))
-}
-
-fn parse_run_index(index: &str) -> Option<u32> {
-    if index.len() >= 4 && index.chars().all(|char| char.is_ascii_digit()) {
-        index.parse().ok()
-    } else {
-        None
-    }
-}
-
-fn run_directory_sort_key(name: &str) -> Option<(&str, u32)> {
-    let (prefix, index) = name.rsplit_once('-')?;
-    Some((prefix, parse_run_index(index)?))
-}
-
-fn short_commit_hash(hash: &str) -> String {
-    hash.chars().take(7).collect()
 }
 
 fn metadata_json_error(err: serde_json::Error) -> io::Error {

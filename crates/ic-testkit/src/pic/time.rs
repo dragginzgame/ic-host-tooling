@@ -33,6 +33,23 @@ impl<E: std::error::Error + 'static> std::error::Error for TickUntilError<E> {
     }
 }
 
+/// Advance simulated time once, then deliver exactly the caller-selected ticks.
+///
+/// Zero duration performs no time read or write; zero ticks permits advancement
+/// without delivering a round. This function does not poll, retry, start a server
+/// or decide application readiness. Callers own completion and cadence budgets.
+///
+/// # Panics
+/// PocketIC operation failures retain the upstream client's panic behavior.
+pub fn advance_and_tick(pic: &PocketIc, advance: Duration, ticks: u32) {
+    if !advance.is_zero() {
+        pic.advance_time(advance);
+    }
+    for _ in 0..ticks {
+        pic.tick();
+    }
+}
+
 /// Check a caller-owned predicate, advancing simulated time and ticking while pending.
 ///
 /// The predicate runs once before any mutation. Each pending result permits one
@@ -52,12 +69,7 @@ pub fn tick_until<T, E>(
 ) -> Result<T, TickUntilError<E>> {
     poll_with_rounds(
         max_rounds,
-        || {
-            if !advance.is_zero() {
-                pic.advance_time(advance);
-            }
-            pic.tick();
-        },
+        || advance_and_tick(pic, advance, 1),
         || poll(pic),
     )
 }
@@ -174,81 +186,102 @@ mod tests {
     }
     #[test]
     fn polling_transport_skips_zero_time_and_preserves_nonzero_advancement() {
-        use std::{io::Write as _, net::TcpListener, thread, time::Instant};
         for advance in [Duration::ZERO, Duration::from_nanos(7)] {
-            let listener = TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0)).unwrap();
-            listener.set_nonblocking(true).unwrap();
-            let url = format!("http://{}/", listener.local_addr().unwrap())
-                .parse()
-                .unwrap();
-            let worker = thread::spawn(move || {
-                let deadline = Instant::now() + Duration::from_secs(5);
-                let mut requests = Vec::new();
-                loop {
-                    assert!(Instant::now() < deadline, "polling peer timed out");
-                    let (mut stream, _) = match listener.accept() {
-                        Ok(connection) => connection,
-                        Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
-                            thread::sleep(Duration::from_millis(1));
-                            continue;
-                        }
-                        Err(error) => panic!("accept polling request: {error}"),
-                    };
-                    let request = crate::testing::read_http_request(
-                        &mut stream,
-                        Duration::from_secs(1),
-                        16_384,
-                        16_384,
-                    )
-                    .unwrap();
-                    let text = std::str::from_utf8(&request).unwrap();
-                    let path = text.split_whitespace().nth(1).unwrap().to_owned();
-                    let reply = if path.ends_with("/read/get_time") {
-                        "{\"nanos_since_epoch\":100}"
+            assert_time_requests(advance, 1, |pic| {
+                let mut polls = 0;
+                let result = tick_until(pic, 1, advance, |_| {
+                    polls += 1;
+                    if polls == 2 {
+                        Poll::Ready(Ok::<_, ()>(42))
                     } else {
-                        "null"
-                    };
-                    if path.ends_with("/update/set_time") {
-                        let body = text.split_once("\r\n\r\n").unwrap().1;
-                        assert_eq!(
-                            serde_json::from_str::<serde_json::Value>(body).unwrap()["nanos_since_epoch"],
-                            100 + u64::from(advance.subsec_nanos())
-                        );
+                        Poll::Pending
                     }
-                    stream
-                        .set_write_timeout(Some(Duration::from_secs(1)))
-                        .unwrap();
-                    write!(stream, "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{reply}", reply.len()).unwrap();
-                    let finished = path.ends_with("/update/tick");
-                    requests.push(path);
-                    if finished {
-                        return requests;
-                    }
-                }
+                });
+                assert_eq!(result, Ok(42));
+                assert_eq!(polls, 2);
             });
-            let pic = PocketIc::new_from_existing_instance(url, 0, Some(1_000));
-            let mut polls = 0;
-            let result = tick_until(&pic, 1, advance, |_| {
-                polls += 1;
-                if polls == 2 {
-                    Poll::Ready(Ok::<_, ()>(42))
-                } else {
-                    Poll::Pending
-                }
-            });
-            assert_eq!(result, Ok(42));
-            assert_eq!(polls, 2);
-            let requests = worker.join().unwrap();
-            let expected = if advance.is_zero() {
-                vec!["/instances/0/update/tick"]
-            } else {
-                vec![
-                    "/instances/0/read/get_time",
-                    "/instances/0/update/set_time",
-                    "/instances/0/update/tick",
-                ]
-            };
-            assert_eq!(requests, expected);
         }
+    }
+
+    #[test]
+    fn tick_batches_preserve_exact_transport_order_and_selected_counts() {
+        for advance in [Duration::ZERO, Duration::from_nanos(7)] {
+            for ticks in [0, 2, 4, 24] {
+                assert_time_requests(advance, ticks, |pic| advance_and_tick(pic, advance, ticks));
+            }
+        }
+    }
+
+    #[test]
+    fn install_cooldown_uses_exactly_two_ticks() {
+        use crate::pic::CanisterInstallExt as _;
+        for advance in [Duration::ZERO, Duration::from_nanos(7)] {
+            assert_time_requests(advance, 2, |pic| {
+                pic.wait_out_install_code_rate_limit(advance);
+            });
+        }
+    }
+
+    fn assert_time_requests(advance: Duration, ticks: u32, run: impl FnOnce(&PocketIc)) {
+        use std::{io::Write as _, net::TcpListener, thread, time::Instant};
+        let mut expected = Vec::new();
+        if !advance.is_zero() {
+            expected.extend(["/instances/0/read/get_time", "/instances/0/update/set_time"]);
+        }
+        expected.extend(std::iter::repeat_n(
+            "/instances/0/update/tick",
+            ticks as usize,
+        ));
+        let request_count = expected.len();
+        let listener = TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0)).unwrap();
+        listener.set_nonblocking(true).unwrap();
+        let url = format!("http://{}/", listener.local_addr().unwrap())
+            .parse()
+            .unwrap();
+        let worker = thread::spawn(move || {
+            let deadline = Instant::now() + Duration::from_secs(5);
+            let mut requests = Vec::new();
+            while requests.len() < request_count {
+                assert!(Instant::now() < deadline, "simulated-time peer timed out");
+                let (mut stream, _) = match listener.accept() {
+                    Ok(connection) => connection,
+                    Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                        thread::sleep(Duration::from_millis(1));
+                        continue;
+                    }
+                    Err(error) => panic!("accept simulated-time request: {error}"),
+                };
+                let request = crate::testing::read_http_request(
+                    &mut stream,
+                    Duration::from_secs(1),
+                    16_384,
+                    16_384,
+                )
+                .unwrap();
+                let text = std::str::from_utf8(&request).unwrap();
+                let path = text.split_whitespace().nth(1).unwrap().to_owned();
+                let reply = if path.ends_with("/read/get_time") {
+                    "{\"nanos_since_epoch\":100}"
+                } else {
+                    "null"
+                };
+                if path.ends_with("/update/set_time") {
+                    let body = text.split_once("\r\n\r\n").unwrap().1;
+                    assert_eq!(
+                        serde_json::from_str::<serde_json::Value>(body).unwrap()["nanos_since_epoch"],
+                        100 + u64::from(advance.subsec_nanos())
+                    );
+                }
+                stream
+                    .set_write_timeout(Some(Duration::from_secs(1)))
+                    .unwrap();
+                write!(stream, "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{reply}", reply.len()).unwrap();
+                requests.push(path);
+            }
+            requests
+        });
+        let pic = PocketIc::new_from_existing_instance(url, 0, Some(1_000));
+        run(&pic);
+        assert_eq!(worker.join().unwrap(), expected);
     }
 }

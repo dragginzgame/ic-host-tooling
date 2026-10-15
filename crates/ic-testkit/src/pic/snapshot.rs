@@ -48,6 +48,8 @@ pub enum SnapshotRestoreFunding {
 #[non_exhaustive]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ControllerSnapshotError {
+    /// A cached baseline requires at least one canister.
+    EmptyCanisterSet,
     /// Input contained the same canister more than once.
     DuplicateCanisterId {
         /// Repeated canister id.
@@ -273,6 +275,9 @@ impl SnapshotCleanupFailure {
 impl std::fmt::Display for ControllerSnapshotError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::EmptyCanisterSet => {
+                f.write_str("a cached baseline requires at least one canister")
+            }
             Self::DuplicateCanisterId { canister_id } => {
                 write!(f, "duplicate canister id in snapshot set: {canister_id}")
             }

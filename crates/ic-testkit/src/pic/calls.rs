@@ -204,11 +204,16 @@ where
     F: FnOnce(Vec<u8>) -> Result<Vec<u8>, RejectResponse>,
     D: FnOnce(&[u8]) -> Result<T, candid::Error>,
 {
-    let bytes = encode_args(args)
-        .map_err(|err| CandidCallError::encode(context.to_error_context(), err))?;
+    let bytes = encode_args(args).map_err(|err| CandidCallError::Encode {
+        context: Box::new(context.to_error_context()),
+        message: err.to_string(),
+    })?;
     let result = run_raw_call(context, || call(bytes))?;
-    decode(&result)
-        .map_err(|err| CandidCallError::decode(context.to_error_context(), result.len(), err))
+    decode(&result).map_err(|err| CandidCallError::Decode {
+        context: Box::new(context.to_error_context()),
+        bytes: result.len(),
+        message: err.to_string(),
+    })
 }
 
 fn run_raw_call<F>(context: CallContext<'_>, call: F) -> Result<Vec<u8>, CandidCallError>
@@ -217,15 +222,15 @@ where
 {
     match catch_unwind(AssertUnwindSafe(call)) {
         Ok(Ok(bytes)) => Ok(bytes),
-        Ok(Err(response)) => Err(CandidCallError::canister_reject(
-            context.to_error_context(),
-            response,
-        )),
+        Ok(Err(response)) => Err(CandidCallError::CanisterReject {
+            context: Box::new(context.to_error_context()),
+            response: Box::new(response),
+        }),
         Err(payload) if transport::panic_is_dead_instance_transport(payload.as_ref()) => {
-            Err(CandidCallError::transport(
-                context.to_error_context(),
-                transport::panic_payload_to_string(payload.as_ref()),
-            ))
+            Err(CandidCallError::Transport {
+                context: Box::new(context.to_error_context()),
+                message: transport::panic_payload_to_string(payload.as_ref()),
+            })
         }
         Err(payload) => resume_unwind(payload),
     }
@@ -235,9 +240,7 @@ where
 mod tests {
     use candid::Principal;
 
-    use crate::pic::CandidCallErrorKind;
-
-    use super::{CallContext, call_candid, run_raw_call};
+    use super::{CallContext, CandidCallError, call_candid, run_raw_call};
 
     #[test]
     fn decode_error_includes_call_context() {
@@ -256,15 +259,15 @@ mod tests {
         )
         .expect_err("decode fails");
 
-        assert!(err.message.contains("candid decode failed"));
-        assert!(err.message.contains("operation=query_call"));
-        assert!(err.message.contains("method=get"));
-        assert!(err.message.contains("bytes=2"));
-        assert_eq!(err.kind, CandidCallErrorKind::Decode);
-        assert_eq!(
-            err.context.as_deref().expect("decode error context").method,
-            "get"
-        );
+        assert!(err.to_string().contains("candid decode failed"));
+        assert!(err.to_string().contains("operation=query_call"));
+        assert!(err.to_string().contains("method=get"));
+        assert!(err.to_string().contains("bytes=2"));
+        let CandidCallError::Decode { context, bytes, .. } = err else {
+            panic!("expected decode failure");
+        };
+        assert_eq!(bytes, 2);
+        assert_eq!(context.method, "get");
     }
 
     #[test]
@@ -319,13 +322,20 @@ mod tests {
                 |bytes| candid::decode_args::<(u64, bool)>(bytes),
             )
             .unwrap_err();
-            assert_eq!(err.kind, CandidCallErrorKind::Decode);
-            let observed = err.context.as_deref().unwrap();
+            assert!(err.to_string().contains(&format!("bytes={length}")));
+            let CandidCallError::Decode {
+                context: observed,
+                bytes,
+                ..
+            } = err
+            else {
+                panic!("expected decode failure");
+            };
+            assert_eq!(bytes, length);
             assert_eq!(observed.operation, "query_call");
             assert_eq!(observed.canister_id, context.canister_id);
             assert_eq!(observed.caller, context.caller);
             assert_eq!(observed.method, "measure");
-            assert!(err.message.contains(&format!("bytes={length}")));
         }
     }
 
@@ -342,8 +352,7 @@ mod tests {
         })
         .unwrap_err();
 
-        assert_eq!(error.kind, crate::pic::CandidCallErrorKind::Transport);
-        assert!(error.reject_response.is_none());
+        assert!(matches!(error, CandidCallError::Transport { .. }));
     }
 
     #[test]

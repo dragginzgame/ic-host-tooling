@@ -8,7 +8,7 @@ resolver = "2"
 
 [workspace.package]
 edition = "2024"
-rust-version = "1.88.0"
+rust-version = "1.91.0"
 version = "0.46.0"
 license = "MIT"
 authors = ["borovan <84897664+borovan@users.noreply.github.com>"]
@@ -23,11 +23,11 @@ readme = "README.md"
 candid = { version = "0.10", default-features = false }
 ic-build = { version = "0.6" }
 ic-cdk = "0.20.2"
-ic-host-artifacts = { version = "0.19", features = ["archive", "wasm"] }
-ic-host-fs = "0.19"
-ic-host-process = "0.19"
-ic-host-text = { version = "0.19", default-features = false }
-ic-metrics = "0.10"
+ic-host-artifacts = { version = "0.20", features = ["archive", "wasm"] }
+ic-host-fs = "0.20"
+ic-host-process = "0.20"
+ic-host-text = { version = "0.20", default-features = false }
+ic-metrics = "0.11.1"
 ic-testkit = { path = "crates/ic-testkit" }
 libc = "0.2"
 pocket-ic = "16.1"

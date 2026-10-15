@@ -27,7 +27,7 @@
   <a href="https://docs.rs/ic-testkit"><img src="https://docs.rs/ic-testkit/badge.svg" alt="Docs.rs"></a>
   <a href="https://crates.io/crates/ic-testkit"><img src="https://img.shields.io/crates/d/ic-testkit.svg" alt="Downloads"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
-  <a href="Cargo.toml"><img src="https://img.shields.io/badge/MSRV-1.88.0-blue.svg" alt="MSRV"></a>
+  <a href="Cargo.toml"><img src="https://img.shields.io/badge/MSRV-1.91.0-blue.svg" alt="MSRV"></a>
   <a href="README.md#toolchains-and-checks"><img src="https://img.shields.io/badge/internal%20rust-1.99.0-orange.svg" alt="Internal Rust"></a>
   <a href="Cargo.toml"><img src="https://img.shields.io/badge/edition-2024-purple.svg" alt="Rust edition"></a>
   <a href="Cargo.toml"><img src="https://img.shields.io/badge/PocketIC-16.1-green.svg" alt="PocketIC"></a>
@@ -109,7 +109,7 @@ ic-testkit = "0.46"
 Canister crates that emit benchmark markers can add the same version under
 `[dependencies]` and use `ic_testkit::performance`.
 
-The crate supports Rust 1.88 and uses PocketIC 16. The `pocket_ic` and `pic`
+The crate supports Rust 1.91 and uses PocketIC 16. The `pocket_ic` and `pic`
 modules are host-only; `performance` emits markers on Wasm. Benchmark counters,
 marker parsing, aggregation and `Fake` are available on native and Wasm targets.
 Native benchmark directory, metadata and file-output APIs live in
@@ -255,15 +255,16 @@ Handle `CandidCallError` through the returned result or choose an explicit
 caller-side `.expect("call context")`. Application values such as `Result<T, E>`
 remain unchanged.
 
-`CandidCallErrorKind` distinguishes:
+`CandidCallError` variants distinguish:
 
 - `Encode` and `Decode` failures with call context;
 - `CanisterReject`, retaining the complete upstream `RejectResponse`;
 - `Transport` when the PocketIC instance is unreachable;
-- `Other` for uncategorized harness failures.
 
-A canister rejection is not a transport failure. Inspect it through
-`CandidCallError::reject_response()`.
+A canister rejection is not a transport failure. Match
+`CandidCallError::CanisterReject { context, response }` to inspect its complete
+rejection and call context. Codec and transport variants retain their original
+failure text; `Display` renders context when needed.
 
 ## Startup and runtime provenance
 
@@ -721,9 +722,11 @@ The pool checks the complete captured set and cycle policy directly against
 `CanisterRestoreReceipt`; `ResetReceipt` reports only non-snapshot guarantees.
 Every required policy must have an exact matching achievement before a warm
 lease is returned. Built and restored slots
-run the same validation hook. After a successful baseline restore, prefer
-`CanisterRestoreReceipt::try_from_baseline` so receipt membership is derived
-from the captured set rather than duplicated in recipe metadata.
+run the same validation hook. `baseline.restore(funding)` returns the receipt
+for its captured set and selected funding; return it directly from ordinary
+recipe restore hooks. Cached baseline capture rejects empty canister sets before
+capture. Custom recipes that establish additional cycle guarantees can use
+`CanisterRestoreReceipt::try_new` to report their complete achieved contract.
 
 A recoverable preparation failure discards the slot and rebuilds once; if that
 also fails, `BaselinePoolError::RecoveryFailed` retains both errors. Recipe or
@@ -990,7 +993,7 @@ rustdoc.
 
 ## Toolchains and checks
 
-- Published MSRV: Rust 1.88
+- Published MSRV: Rust 1.91
 - Repository toolchain: Rust 1.99
 - PocketIC client/server line: 16
 
@@ -1095,7 +1098,7 @@ make release-check
 
 The release gate includes formatting, native and Wasm checks, warnings-denied
 Clippy, rustdoc, unit and live PocketIC tests, package verification, publish
-dry-run, and the Rust 1.88 MSRV check. The test suite builds its own canister
+dry-run, and the Rust 1.91 MSRV check. The test suite builds its own canister
 artifacts; CI runs the canister integration target once through `make test`.
 
 CI, release, and publish flows preserve Cargo build artifacts for incremental

@@ -100,7 +100,8 @@ pub trait CanisterInstallExt {
     where
         I: IntoIterator<Item = InstallSpec>;
 
-    /// Advance simulated time and rounds past an install-code cooldown.
+    /// Advance simulated time once, then tick twice for an install-code cooldown.
+    /// Zero duration skips time reads/writes while retaining both ticks.
     fn wait_out_install_code_rate_limit(&self, cooldown: Duration);
 
     /// Retry only while PocketIC reports install-code rate limiting.
@@ -183,9 +184,7 @@ impl CanisterInstallExt for PocketIc {
 
     /// Wait out the PocketIC `install_code` cooldown window inside the same instance.
     fn wait_out_install_code_rate_limit(&self, cooldown: Duration) {
-        self.advance_time(cooldown);
-        self.tick();
-        self.tick();
+        super::time::advance_and_tick(self, cooldown, 2);
     }
 
     fn retry_install_code<T, F>(&self, policy: RetryPolicy, op: F) -> Result<T, RejectResponse>

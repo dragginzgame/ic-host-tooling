@@ -1,5 +1,132 @@
 # Host support and qualification
 
+## Pending 0.47.0: benchmark report ownership
+
+The driver retains one complete `WorkerReport` for validation, summaries and
+serialization. Startup, cold-preparation and teardown measurements move into the
+shared schema with the task/phase fields; the worker-only outer report and the
+driver's duplicate raw JSON tree are removed. Unknown root/sample fields now
+refuse, as unknown phase fields already did. Driver RSS projections remain
+outside the worker schema. Build worker and driver from the same checkout;
+existing retained report files are left untouched and are not read through a
+second schema.
+
+The public benchmark-history directory record, name/index allocation and
+previous-run discovery are removed. A checked-out Rust caller trace finds only
+their owning Testkit tests, which retire with those APIs. Report rendering and
+metadata IO remain available; applications own their filesystem/history policy.
+No retained directory is reset or reinterpreted by this source removal.
+
+The normal registry graph passes 23 benchmark cases, 18 driver cases and strict
+affected library/test/example Clippy. Actual Rust 1.91 library/example checks,
+warning-denied documentation, formatting and a live two-task fresh/pooled smoke
+pass on prepared PocketIC 16.1. The final report borrows the collected typed
+runs when encoding output rather than constructing another JSON copy.
+
+### Published Metrics arithmetic adoption
+
+The normal registry graph selects Metrics 0.11.1, and the workspace requirement
+now starts at that first supplying version. The maintainer's incoming lock
+selection is preserved. The official registry checksum
+`a26a294c2207605f600f5859a12752da5097f37c4eb592d24cf350e884c55c2d`
+matches the cached crate archive; its VCS source is
+`98e5c2f6788d142b6d0fe3fb111f8bb8d1936632`. Its sample-statistics module matches
+the earlier prepared producer byte-for-byte. Publication supplies the API even
+though [Metrics PR #86](https://github.com/dragginzgame/ic-metrics/pull/86) was
+not used as the merge path.
+
+The driver delegates sample sorting, mean, median and observed nearest ranks to
+Metrics, keeping only the count/mean/p50/p95 report projection and explicit 95/100
+selection. Original typed numeric causes remain in the driver's error chain;
+non-finite derived rates refuse before report publication. Midpoint arithmetic
+also preserves equal subnormal medians. Workload selection, sample collection,
+units, report fields and process cleanup remain Testkit-owned. The old numerical
+implementation is removed without a source override or compatibility branch.
+
+Explicit locked cache admission, 19 driver cases, 23 benchmark cases and strict
+affected Clippy pass on the registry graph. Actual Rust 1.91 native/Wasm library
+and example checks, warning-denied documentation, formatting and dependency-pin
+admission also pass. A live two-task fresh/pooled PocketIC 16.1 smoke preserves
+required task/lifecycle/sampling fields and count/mean/p50/p95 summary names.
+This local normal-graph receipt is separate from configured Testkit native CI;
+the pending Testkit source has not yet been delivered for hosted qualification.
+Earlier source-only rehearsal and producer checks remain under
+`/tmp/testkit-three-report-cuts-0rjddwfr/`; current normal-graph before-images,
+archive receipt and focused logs are under `/tmp/testkit-metrics-registry-jj001_ka/`.
+[#103 — Adopt published Metrics sample statistics](https://github.com/dragginzgame/ic-testkit/issues/103)
+owns Testkit delivery and its current native acceptance. No Testkit version,
+index/ref, incoming lock record or sibling checkout is changed by this adoption.
+
+## Pending 0.47.0: typed Cargo observations and Rust 1.91
+
+The benchmark driver uses Build's canonical metadata observation rather than
+launching and interpreting a separate untyped Cargo catalog. It retains selected
+Cargo/Rustc commands, locked/offline policy, an absolute target-directory check
+and interruption checks around the observation. Metadata output is bounded to
+16 MiB stdout and 64 KiB stderr with no elapsed-time deadline; original command
+and schema errors remain available through the driver's source chain. Synthetic
+catalog fixtures now carry the canonical complete Cargo shape.
+
+The maintainer approved aligning both published packages to Rust 1.91 for the
+incoming Metrics 0.11 selection. Workspace metadata, Make, hosted MSRV selection
+and current package documentation agree; own release versions remain unchanged.
+On the normal registry graph, 18 driver cases and all four Candid cases pass,
+with actual Rust 1.91 native/Wasm library and probe checks, strict affected
+Clippy, warning-denied documentation, formatting and dependency-pin checks.
+The live two-task fresh/pooled smoke also passes on prepared PocketIC 16.1.
+
+### Simulated-time operation
+
+`pic::advance_and_tick` implements only the caller-selected time advance and
+exact tick count, including zero duration and zero ticks. The existing polling
+loop and install cooldown reuse it; predicate budgets, two cooldown ticks and
+retry ordering remain at their existing owners. Zero cooldown now omits the
+redundant same-time read/write while retaining both ticks.
+
+Seven focused time cases and three retry cases pass on the normal locked graph.
+The actual-client transport peer checks zero/nonzero advancement, exact
+0/2/4/24 tick batches, polling and install cooldown ordering. Strict affected
+Clippy, actual Rust 1.91 checking, warning-denied Rustdoc and formatting pass.
+The initial restricted-socket refusal is retained separately from the passing
+localhost-enabled run. Evidence is in `/tmp/testkit-more-hardcut-40jftvpu/`;
+this pending source has no hosted or native macOS receipt yet.
+
+### Prepared Host owner retirement
+
+[Host PR #108](https://github.com/dragginzgame/ic-host-tooling/pull/108) is refreshed
+onto released 0.19.0 at `c6c55a7b107912b536ab3e0c1a42d4c849b9e140`;
+[Host PR #125](https://github.com/dragginzgame/ic-host-tooling/pull/125) is refreshed
+at `f7d12b8782ed8a39384ea54b21e05603f8ac6d57`. Published history is preserved and
+both proposals select additive 0.19.1 notes. The HTTP proposal also carries the
+partial-byte/typed-failure engine from Testkit PR #92 at this generic owner.
+The two signal and seven HTTP producer cases, strict Process lint/docs and
+actual Rust 1.88 producer checks pass on Linux. Both exact heads now pass their required Linux, Intel macOS, Apple Silicon
+macOS and MSRV checks; owner merge/publication remain separate.
+
+The earlier disposable Testkit candidate removes both local signal guards and the public
+simulator-independent HTTP module, imports Host directly and preserves caller
+callbacks, cancellation, framing policy and evidence custody. Its 66 active
+focused driver/startup/polling/CLI/interruption/teardown cases pass (seven dedicated
+server cases remain ignored), as do strict affected lint/docs, Rust 1.91 native/
+Wasm checks and a live fresh/pooled smoke. Those are explicit temporary-source
+rehearsals, not normal Cargo adoption. The real checkout retains its current
+implementations until a supplying Host version is published and selected.
+The prepared patch now incorporates the shared tick operation: seven current time
+cases, three retry cases and strict affected Clippy pass against the combined Host
+source. `testkit-host-adoption-current.patch` applies to the current normal tree;
+the earlier 66-case receipt remains bound to its original prepared source.
+
+The isolated Backup source update keeps signed-request limits, required length
+and evidence-file formatting in its Agent fixture while delegating capture to
+Host. Backup forbids local sibling Cargo patches, so its actual package checks
+must wait for registry publication; no normal sibling checkout was modified.
+The prepared Testkit retirement needs a 0.47.0 hard cut, and Backup's caller-only
+fixture change is compatible with its published package API.
+
+Before-images, exact isolated sources, source patches and focused logs are
+retained at `/tmp/testkit-three-cuts-e5vusihf/`. Host merge/publication remain
+maintainer-owned under the contribution rules. No release execution ran.
+
 ## Pending 0.46.0: Host 0.19, Build 0.6 and Shared Tooling 0.15
 
 The incoming Host 0.19 selection is adopted normally from the registry. Host
@@ -5610,3 +5737,18 @@ requires published Testkit 0.38; no Canic source or lock was changed. The consum
 checkout has active validation, so no competing consumer build was launched.
 Both native macOS hosts, full maintainer-owned validation and release remain
 outstanding. Own package metadata stays at 0.37.0; pending notes move to 0.38.0.
+
+### Pending 0.47 restore receipts, Candid variants and Git observations
+
+Linux qualification of the current working tree passes five selected live
+baseline cases (including empty admission, full-set/funding receipts, mismatch
+recovery and mutation guards), the live Candid rejection case and six teardown
+cases. Five call-codec and ten transport unit tests pass. All 20 driver tests
+pass, including byte-preserving Git status and retained typed failures. A live
+fresh/pooled two-task smoke passes with the prepared PocketIC 16.1 server.
+Strict affected-target Clippy, Rust 1.91 library/three-example checks, formatting
+and warning-denied native documentation pass. Evidence is retained at
+`/tmp/testkit-three-simplifications-nzoXH8/`; the first live attempt was refused
+by sandbox loopback restrictions and is retained separately. Native macOS and
+full CI remain maintainer qualification; Git observations remain separate reads,
+not an atomic source snapshot. No persistent layout or format identity changes.

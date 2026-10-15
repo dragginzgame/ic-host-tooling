@@ -104,7 +104,7 @@ pub fn is_dead_pocket_ic_transport_error(error: &(dyn std::error::Error + 'stati
         }
         if candidate
             .downcast_ref::<super::CandidCallError>()
-            .is_some_and(|error| error.kind == super::CandidCallErrorKind::Transport)
+            .is_some_and(|error| matches!(error, super::CandidCallError::Transport { .. }))
         {
             return true;
         }
@@ -360,9 +360,16 @@ mod tests {
             candid::Principal::anonymous(),
             "get",
         );
-        let error = super::super::CandidCallError::transport(context.clone(), REFUSED);
+        let error = super::super::CandidCallError::Transport {
+            context: Box::new(context.clone()),
+            message: REFUSED.into(),
+        };
         assert!(is_dead_pocket_ic_transport_error(&error));
-        let error = super::super::CandidCallError::decode(context, 0, "channel closed");
+        let error = super::super::CandidCallError::Decode {
+            context: Box::new(context),
+            bytes: 0,
+            message: "channel closed".into(),
+        };
         assert!(!is_dead_pocket_ic_transport_error(&error));
     }
 
@@ -376,11 +383,18 @@ mod tests {
         );
         for (error, expected) in [
             (
-                super::super::CandidCallError::transport(context.clone(), REFUSED),
+                super::super::CandidCallError::Transport {
+                    context: Box::new(context.clone()),
+                    message: REFUSED.into(),
+                },
                 true,
             ),
             (
-                super::super::CandidCallError::decode(context, 0, REFUSED),
+                super::super::CandidCallError::Decode {
+                    context: Box::new(context),
+                    bytes: 0,
+                    message: REFUSED.into(),
+                },
                 false,
             ),
         ] {

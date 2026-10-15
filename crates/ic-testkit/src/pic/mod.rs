@@ -55,8 +55,8 @@ pub use diagnostics::{
     LabeledCanisterDiagnosticsRequest, PocketIcDiagnosticsExt,
 };
 pub use errors::{
-    CandidCallContext, CandidCallError, CandidCallErrorKind, CanisterInstallError,
-    CanisterInstallPhase, StandaloneCanisterInstallError,
+    CandidCallContext, CandidCallError, CanisterInstallError, CanisterInstallPhase,
+    StandaloneCanisterInstallError,
 };
 pub use lifecycle::{CanisterInstallExt, InstallSpec, RetryPolicy};
 pub use snapshot::{
@@ -69,7 +69,7 @@ pub use startup::{
     PocketIcInstance, PocketIcManagedServer, PocketIcManagedServerOutput, PocketIcStartupConfig,
     PocketIcStartupError, PocketIcStartupFailure,
 };
-pub use time::{TickUntilError, tick_until};
+pub use time::{TickUntilError, advance_and_tick, tick_until};
 pub use transport::{PocketIcOperationError, is_dead_pocket_ic_transport_error};
 
 /// All PocketIC extension traits, and no data types.

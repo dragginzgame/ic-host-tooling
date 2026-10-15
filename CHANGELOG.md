@@ -6,6 +6,57 @@ documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.47.0]
+
+### Breaking
+
+- Return `CanisterRestoreReceipt` directly from cached baseline restores and
+  reject empty cached captures before effects. Return that receipt from ordinary
+  recipe hooks; custom restore contracts still use `try_new`.
+- Match `CandidCallError` variants for context and rejection details. Remove
+  `CandidCallErrorKind`, duplicated formatted messages and constructor wrappers;
+  contextual codec/transport text and complete rejections remain available.
+
+- Remove `BenchmarkRunDirectory`, `benchmark_run_directory_name`,
+  `next_benchmark_run_directory` and `find_latest_previous_run`. Benchmark
+  commands now own naming, allocation and previous-run selection; report
+  rendering and metadata IO remain available.
+- Build the fixture benchmark worker and driver together: they now exchange one
+  complete typed report, requiring startup, cold-preparation and teardown fields
+  and rejecting unknown fields. Retained report files are left unchanged.
+
+- Require Rust 1.91 for both published packages, matching the selected Metrics
+  0.11 dependency and the workspace's coordinated compiler floor.
+
+### Added
+
+- Share `pic::advance_and_tick` for caller-selected time advancement and exact
+  tick batches. Zero duration skips time reads/writes; zero ticks permits
+  advancement alone. Polling and install cooldowns reuse the same operation.
+  [#98 — Share caller-selected simulated-time and tick batches](https://github.com/dragginzgame/ic-testkit/issues/98).
+
+### Changed
+
+- Capture benchmark Git provenance through Host's existing admitted observation
+  API, with 16 MiB stdout and 64 KiB stderr limits per command and no deadline.
+  Include untracked files and all submodule changes explicitly, preserve native
+  pathname bytes, and retain typed Git/tool failure evidence.
+
+- Use published Metrics 0.11.1 for sample mean, median and nearest-rank statistics,
+  removing the driver's private calculation. Preserve count/mean/p50/p95 report
+  fields; numeric failures retain their original cause and refuse publication.
+  [#103 — Adopt published Metrics sample statistics](https://github.com/dragginzgame/ic-testkit/issues/103).
+
+- Keep one worker report for admission, summaries and output, removing the raw
+  JSON duplicate and the worker-only outer report type. Preserve all lifecycle
+  measurements and driver-owned RSS fields.
+
+- Observe the benchmark driver's Cargo catalog through IC Build's typed API,
+  retaining selected tools, locked/offline policy, complete bounded output and
+  original command/schema failures. Cargo builds retain unlimited duration.
+
+[Integration details](crates/ic-testkit/CHANGELOG.md#0470)
+
 ## [0.46.0] - 2026-10-15
 
 ### Breaking

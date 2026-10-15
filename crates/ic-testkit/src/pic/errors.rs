@@ -4,33 +4,41 @@ use pocket_ic::{PocketIc, RejectResponse};
 use super::{PocketIcInstance, PocketIcOperationError};
 
 /// Structured failure from a [`super::CandidCallExt`] operation.
+///
+/// Match the variant to inspect its required context and original failure details.
 #[non_exhaustive]
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct CandidCallError {
-    /// Human-readable error with available call context.
-    pub message: String,
-    /// Stable high-level failure classification.
-    pub kind: CandidCallErrorKind,
-    /// Target, caller, method, and raw PocketIC operation when available.
-    pub context: Option<Box<CandidCallContext>>,
-    /// Complete upstream rejection for [`CandidCallErrorKind::CanisterReject`].
-    pub reject_response: Option<Box<RejectResponse>>,
-}
-
-/// High-level Candid call failure classification.
-#[non_exhaustive]
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum CandidCallErrorKind {
+pub enum CandidCallError {
     /// Arguments could not be Candid-encoded.
-    Encode,
+    Encode {
+        /// Target, caller, method and raw PocketIC operation.
+        context: Box<CandidCallContext>,
+        /// Original codec failure text.
+        message: String,
+    },
     /// Successful response bytes could not be Candid-decoded.
-    Decode,
+    Decode {
+        /// Target, caller, method and raw PocketIC operation.
+        context: Box<CandidCallContext>,
+        /// Number of reply bytes presented to the decoder.
+        bytes: usize,
+        /// Original codec failure text.
+        message: String,
+    },
     /// PocketIC returned a structured canister rejection.
-    CanisterReject,
+    CanisterReject {
+        /// Target, caller, method and raw PocketIC operation.
+        context: Box<CandidCallContext>,
+        /// Complete upstream rejection.
+        response: Box<RejectResponse>,
+    },
     /// The PocketIC instance became unreachable.
-    Transport,
-    /// A harness failure without a narrower stable classification.
-    Other,
+    Transport {
+        /// Target, caller, method and raw PocketIC operation.
+        context: Box<CandidCallContext>,
+        /// Original upstream failure text.
+        message: String,
+    },
 }
 
 /// Stable call metadata attached to a contextual call failure.
@@ -103,90 +111,39 @@ impl CandidCallContext {
     }
 }
 
-impl CandidCallError {
-    /// Capture one PocketIC call/codec failure.
-    #[must_use]
-    pub fn new(message: impl Into<String>) -> Self {
-        Self {
-            message: message.into(),
-            kind: CandidCallErrorKind::Other,
-            context: None,
-            reject_response: None,
-        }
-    }
-
-    /// Capture one contextual Candid encode failure.
-    #[must_use]
-    pub fn encode(context: CandidCallContext, source: impl std::fmt::Display) -> Self {
-        let message = format!(
-            "candid encode_args failed (operation={}, canister={}, caller={}, method={}): {source}",
-            context.operation, context.canister_id, context.caller, context.method
-        );
-
-        Self {
-            message,
-            kind: CandidCallErrorKind::Encode,
-            context: Some(Box::new(context)),
-            reject_response: None,
-        }
-    }
-
-    /// Capture one contextual Candid decode failure.
-    #[must_use]
-    pub fn decode(
-        context: CandidCallContext,
-        bytes: usize,
-        source: impl std::fmt::Display,
-    ) -> Self {
-        let message = format!(
-            "candid decode failed (operation={}, canister={}, caller={}, method={}, bytes={}): {source}",
-            context.operation, context.canister_id, context.caller, context.method, bytes
-        );
-
-        Self {
-            message,
-            kind: CandidCallErrorKind::Decode,
-            context: Some(Box::new(context)),
-            reject_response: None,
-        }
-    }
-
-    /// Capture one structured rejection returned by PocketIC.
-    #[must_use]
-    pub fn canister_reject(context: CandidCallContext, response: RejectResponse) -> Self {
-        let message = format!(
-            "pocket_ic {} was rejected (canister={}, caller={}, method={}): {response}",
-            context.operation, context.canister_id, context.caller, context.method
-        );
-
-        Self {
-            message,
-            kind: CandidCallErrorKind::CanisterReject,
-            context: Some(Box::new(context)),
-            reject_response: Some(Box::new(response)),
-        }
-    }
-
-    /// Capture one contextual PocketIC transport failure.
-    #[must_use]
-    pub fn transport(context: CandidCallContext, source: impl std::fmt::Display) -> Self {
-        let message = format!(
-            "pocket_ic {} failed (canister={}, caller={}, method={}): {source}",
-            context.operation, context.canister_id, context.caller, context.method
-        );
-
-        Self {
-            message,
-            kind: CandidCallErrorKind::Transport,
-            context: Some(Box::new(context)),
-            reject_response: None,
-        }
-    }
-}
-
 impl std::fmt::Display for CandidCallError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&self.message)
+        let context = match self {
+            Self::Encode { context, message } => {
+                write!(f, "candid encode_args failed: {message}")?;
+                context
+            }
+            Self::Decode {
+                context,
+                bytes,
+                message,
+            } => {
+                write!(f, "candid decode failed (bytes={bytes}): {message}")?;
+                context
+            }
+            Self::CanisterReject { context, response } => {
+                write!(
+                    f,
+                    "pocket_ic {} was rejected: {response}",
+                    context.operation
+                )?;
+                context
+            }
+            Self::Transport { context, message } => {
+                write!(f, "pocket_ic {} failed: {message}", context.operation)?;
+                context
+            }
+        };
+        write!(
+            f,
+            " (operation={}, canister={}, caller={}, method={})",
+            context.operation, context.canister_id, context.caller, context.method
+        )
     }
 }
 
@@ -311,9 +268,8 @@ impl std::error::Error for StandaloneCanisterInstallError {
 #[cfg(test)]
 mod tests {
     use candid::Principal;
-    use pocket_ic::{ErrorCode, RejectCode, RejectResponse};
 
-    use super::{CandidCallContext, CandidCallError, CandidCallErrorKind, CanisterInstallError};
+    use super::CanisterInstallError;
 
     #[test]
     fn labeled_install_error_display_includes_label() {
@@ -326,27 +282,5 @@ mod tests {
 
         assert_eq!(err.label(), Some("authority"));
         assert!(err.to_string().contains("(authority): trap"));
-    }
-
-    #[test]
-    fn canister_reject_preserves_the_upstream_response() {
-        let response = RejectResponse {
-            reject_code: RejectCode::DestinationInvalid,
-            reject_message: "missing canister".to_string(),
-            error_code: ErrorCode::CanisterNotFound,
-            certified: true,
-        };
-        let error = CandidCallError::canister_reject(
-            CandidCallContext::new(
-                "query_call",
-                Principal::anonymous(),
-                Principal::management_canister(),
-                "get",
-            ),
-            response.clone(),
-        );
-
-        assert_eq!(error.kind, CandidCallErrorKind::CanisterReject);
-        assert_eq!(error.reject_response.as_deref(), Some(&response));
     }
 }

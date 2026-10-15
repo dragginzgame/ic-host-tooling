@@ -22,7 +22,6 @@ use ic_testkit::pic::{
     PocketIcBuilder, PocketIcInstance, PocketIcStartupConfig, PreparedBaseline, ReadinessReceipt,
     ResetReceipt, ResetRequirements, SnapshotRestoreFunding, ValidationReceipt,
 };
-use serde::Serialize;
 
 type Result<T> = std::result::Result<T, Box<dyn Error + Send + Sync>>;
 const TIMEOUT: Duration = Duration::from_secs(30);
@@ -140,8 +139,6 @@ impl PocketIcBaselineRecipe for Recipe {
     ) -> std::result::Result<CanisterRestoreReceipt, Self::Error> {
         baseline
             .restore(SnapshotRestoreFunding::Preserve)
-            .map_err(recipe_error)?;
-        CanisterRestoreReceipt::try_from_baseline(baseline, CycleResetPolicy::PreserveCurrent)
             .map_err(recipe_error)
     }
 
@@ -192,17 +189,6 @@ impl From<BaselinePoolTimings> for Phases {
             acquisition_ms: ms(timings.total()),
         }
     }
-}
-
-#[derive(Serialize)]
-struct WorkloadReport {
-    #[serde(flatten)]
-    measurements: WorkerReport,
-    server_startup_ms: f64,
-    cold_preparation: Vec<Phases>,
-    preparation_wall_ms: f64,
-    pool_teardown_ms: f64,
-    server_teardown_ms: f64,
 }
 
 fn ms(duration: Duration) -> f64 {
@@ -351,21 +337,19 @@ fn main() -> Result<()> {
     let teardown = Instant::now();
     drop(server);
     let server_teardown_ms = ms(teardown.elapsed());
-    let report = WorkloadReport {
-        measurements: WorkerReport {
-            mode: mode.as_str().into(),
-            capacity: if mode == Mode::Fresh {
-                workers.get()
-            } else {
-                capacity.get()
-            },
-            iterations: iterations.get(),
-            workers: workers.get(),
-            state_bytes_per_canister: state_bytes,
-            wall_ms,
-            fixture_wall_ms,
-            samples,
+    let report = WorkerReport {
+        mode: mode.as_str().into(),
+        capacity: if mode == Mode::Fresh {
+            workers.get()
+        } else {
+            capacity.get()
         },
+        iterations: iterations.get(),
+        workers: workers.get(),
+        state_bytes_per_canister: state_bytes,
+        wall_ms,
+        fixture_wall_ms,
+        samples,
         server_startup_ms,
         cold_preparation: cold,
         preparation_wall_ms,

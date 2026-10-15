@@ -1,6 +1,6 @@
 use super::{
-    CanisterSnapshotTarget, ControllerSnapshotError, ControllerSnapshots, PocketIcInstance,
-    PocketIcSnapshotExt, SnapshotRestoreFunding,
+    CanisterRestoreReceipt, CanisterSnapshotTarget, ControllerSnapshotError, ControllerSnapshots,
+    PocketIcInstance, PocketIcSnapshotExt, SnapshotRestoreFunding,
 };
 use candid::Principal;
 use pocket_ic::PocketIc;
@@ -18,7 +18,7 @@ pub struct CachedPocketIcBaseline<T> {
 impl<T> CachedPocketIcBaseline<T> {
     /// Capture a cached baseline with an explicit sender for every canister.
     ///
-    /// Capture is ordered and transactional as documented by
+    /// Empty inputs are rejected before capture. Capture is ordered and transactional as documented by
     /// [`PocketIcSnapshotExt::capture_snapshots`]. No sender fallback is performed.
     pub fn capture<I>(
         instance: PocketIcInstance<PocketIc>,
@@ -28,6 +28,10 @@ impl<T> CachedPocketIcBaseline<T> {
     where
         I: IntoIterator<Item = CanisterSnapshotTarget>,
     {
+        let mut targets = targets.into_iter().peekable();
+        if targets.peek().is_none() {
+            return Err(ControllerSnapshotError::EmptyCanisterSet);
+        }
         let snapshots = instance.instance.capture_snapshots(targets)?;
         Ok(Self {
             instance,
@@ -37,10 +41,18 @@ impl<T> CachedPocketIcBaseline<T> {
     }
 
     /// Restore with exactly the captured senders and selected cycle funding.
-    pub fn restore(&self, funding: SnapshotRestoreFunding) -> Result<(), ControllerSnapshotError> {
+    /// The receipt describes the complete successful restore and selected funding.
+    pub fn restore(
+        &self,
+        funding: SnapshotRestoreFunding,
+    ) -> Result<CanisterRestoreReceipt, ControllerSnapshotError> {
         self.instance
             .instance
-            .restore_snapshots(&self.snapshots, funding)
+            .restore_snapshots(&self.snapshots, funding)?;
+        Ok(CanisterRestoreReceipt::from_restore(
+            &self.snapshots,
+            funding,
+        ))
     }
 
     /// Borrow the owned PocketIC instance behind this cached baseline.

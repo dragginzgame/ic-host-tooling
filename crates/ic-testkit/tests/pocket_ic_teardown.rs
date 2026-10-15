@@ -3,7 +3,7 @@
 
 use candid::Principal;
 use ic_testkit::pic::{
-    CandidCallErrorKind, CandidCallExt, CanisterDiagnosticFailure, CanisterDiagnosticsRequest,
+    CandidCallError, CandidCallExt, CanisterDiagnosticFailure, CanisterDiagnosticsRequest,
     CanisterInstallPhase, InstallSpec, PocketIc, PocketIcBuilder, PocketIcDiagnosticsExt,
     PocketIcInstance, PocketIcStartupConfig, StandaloneCanisterFixture,
     is_dead_pocket_ic_transport_error,
@@ -185,7 +185,7 @@ fn refused_instance_request_probe() {
     let error = pic
         .query_candid::<u64, _>(Principal::anonymous(), "get", ())
         .expect_err("peer is gone");
-    assert_eq!(error.kind, CandidCallErrorKind::Transport);
+    assert!(matches!(error, CandidCallError::Transport { .. }));
     assert!(is_dead_pocket_ic_transport_error(&error));
     let error = std::io::Error::other(error);
     assert!(is_dead_pocket_ic_transport_error(&error));

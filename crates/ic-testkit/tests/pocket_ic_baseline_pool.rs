@@ -208,7 +208,7 @@ impl PocketIcBaselineRecipe for TwoCanisterRecipe {
             return Err(TestRecipeError::Synthetic("requested restore failure"));
         }
 
-        baseline.restore(SnapshotRestoreFunding::Preserve)?;
+        let restored = baseline.restore(SnapshotRestoreFunding::Preserve)?;
         if self
             .controls
             .report_incomplete_restore
@@ -231,7 +231,8 @@ impl PocketIcBaselineRecipe for TwoCanisterRecipe {
         } else {
             CycleResetPolicy::PreserveCurrent
         };
-        CanisterRestoreReceipt::try_from_baseline(baseline, cycle_policy).map_err(Into::into)
+        CanisterRestoreReceipt::try_new(restored.canister_ids().iter().copied(), cycle_policy)
+            .map_err(Into::into)
     }
 
     fn reset_non_snapshot_state(
@@ -407,8 +408,11 @@ fn multi_canister_pool_restores_and_explicitly_rebuilds_one_slot() {
     assert!(timings.validation().is_some());
     assert!(matches!(outcome, BaselinePoolOutcome::Built { .. }));
     let policy = CycleResetPolicy::TopUpTo(123);
-    let receipt = CanisterRestoreReceipt::try_from_baseline(&baseline, policy)
-        .expect("derive checked baseline receipt");
+    let receipt = baseline
+        .restore(SnapshotRestoreFunding::TopUpTo {
+            minimum_cycles: 123,
+        })
+        .expect("restore returns its checked receipt");
     let expected =
         CanisterRestoreReceipt::try_new(baseline.metadata().canister_ids.into_iter().rev(), policy)
             .unwrap();
@@ -460,14 +464,11 @@ fn multi_canister_pool_restores_and_explicitly_rebuilds_one_slot() {
 }
 
 #[test]
-fn restore_receipt_rejects_an_empty_captured_baseline() {
-    let baseline = CachedPocketIcBaseline::capture(support::pocket_ic(), [], ())
-        .expect("empty snapshot capture remains valid");
-    assert_eq!(baseline.snapshot_count(), 0);
-    assert_eq!(
-        CanisterRestoreReceipt::try_from_baseline(&baseline, CycleResetPolicy::PreserveCurrent),
-        Err(BaselinePoolContractError::EmptyCanisterSet),
-    );
+fn cached_baseline_rejects_an_empty_capture() {
+    assert!(matches!(
+        CachedPocketIcBaseline::capture(support::pocket_ic(), [], ()),
+        Err(ControllerSnapshotError::EmptyCanisterSet),
+    ));
 }
 
 #[test]

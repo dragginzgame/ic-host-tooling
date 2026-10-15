@@ -31,7 +31,7 @@ server-check:
 		echo 'Owner CLI missing; run make install-tools during explicit setup.' >&2; exit 1; }
 	"$(SERVER_CLI)" check
 
-MSRV ?= 1.88.0
+MSRV ?= 1.91.0
 CI_TARGETS := shared-tooling-check tools-check format-tools-check dependency-pins-check installation-check publish-guards-check \
 	release-guards-check git-hooks-check fmt-check check check-wasm clippy docs-check test \
 	package publish-dry-run

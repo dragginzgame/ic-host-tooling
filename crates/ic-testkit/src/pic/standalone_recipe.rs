@@ -3,10 +3,10 @@ use std::io;
 use candid::Principal;
 
 use super::{
-    CachedPocketIcBaseline, CanisterRestoreReceipt, CanisterSnapshotTarget, CycleResetPolicy,
-    FailureDisposition, FixtureRecipeId, PocketIcBaselineRecipe, PreparedBaseline,
-    ReadinessReceipt, RebuildReason, ResetReceipt, ResetRequirements, SnapshotRestoreFunding,
-    StandaloneCanisterFixture, ValidationReceipt, is_dead_pocket_ic_transport_error,
+    CachedPocketIcBaseline, CanisterRestoreReceipt, CanisterSnapshotTarget, FailureDisposition,
+    FixtureRecipeId, PocketIcBaselineRecipe, PreparedBaseline, ReadinessReceipt, RebuildReason,
+    ResetReceipt, ResetRequirements, SnapshotRestoreFunding, StandaloneCanisterFixture,
+    ValidationReceipt, is_dead_pocket_ic_transport_error,
 };
 
 /// Snapshot-only recipe for one caller-built, installed canister.
@@ -36,15 +36,9 @@ impl<B> StandaloneCanisterRecipe<B> {
     /// Static suites can initialize the recipe and pool with [`std::sync::LazyLock`].
     #[must_use]
     pub fn new(id: FixtureRecipeId, funding: SnapshotRestoreFunding, build: B) -> Self {
-        let cycle_policy = match funding {
-            SnapshotRestoreFunding::Preserve => CycleResetPolicy::PreserveCurrent,
-            SnapshotRestoreFunding::TopUpTo { minimum_cycles } => {
-                CycleResetPolicy::TopUpTo(minimum_cycles)
-            }
-        };
         Self {
             id,
-            requirements: ResetRequirements::try_new(cycle_policy, [])
+            requirements: ResetRequirements::try_new(funding.into(), [])
                 .expect("empty non-snapshot requirements are valid"),
             funding,
             build,
@@ -82,9 +76,7 @@ where
         &self,
         baseline: &CachedPocketIcBaseline<Principal>,
     ) -> Result<CanisterRestoreReceipt, io::Error> {
-        baseline.restore(self.funding).map_err(io::Error::other)?;
-        CanisterRestoreReceipt::try_from_baseline(baseline, self.requirements.cycle_policy())
-            .map_err(io::Error::other)
+        baseline.restore(self.funding).map_err(io::Error::other)
     }
 
     fn reset_non_snapshot_state(

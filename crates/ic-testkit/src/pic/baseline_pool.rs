@@ -8,13 +8,22 @@ use std::{
 };
 
 use super::{
-    CachedPocketIcBaseline,
+    CachedPocketIcBaseline, ControllerSnapshots, SnapshotRestoreFunding,
     bounded_pool::{BoundedSlotLease, BoundedSlotPool},
 };
 
 /// Caller-owned stable identity for one pooled fixture recipe.
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct FixtureRecipeId(String);
+
+impl From<SnapshotRestoreFunding> for CycleResetPolicy {
+    fn from(funding: SnapshotRestoreFunding) -> Self {
+        match funding {
+            SnapshotRestoreFunding::Preserve => Self::PreserveCurrent,
+            SnapshotRestoreFunding::TopUpTo { minimum_cycles } => Self::TopUpTo(minimum_cycles),
+        }
+    }
+}
 
 /// Reset domain whose handling is declared by a pooled baseline recipe.
 #[non_exhaustive]
@@ -587,26 +596,16 @@ impl CanisterRestoreReceipt {
         })
     }
 
-    /// Construct a restore receipt for the exact canister set captured by a baseline.
-    ///
-    /// This is the preferred constructor after successfully calling
-    /// [`CachedPocketIcBaseline::restore`] or
-    /// [`CachedPocketIcBaseline::restore`]. Deriving the set from
-    /// the baseline avoids duplicating canister ids in recipe metadata solely
-    /// to satisfy the pool contract.
-    pub fn try_from_baseline<M>(
-        baseline: &CachedPocketIcBaseline<M>,
-        cycle_policy: CycleResetPolicy,
-    ) -> Result<Self, BaselinePoolContractError> {
-        if baseline.snapshot_count() == 0 {
-            return Err(BaselinePoolContractError::EmptyCanisterSet);
+    // Only a completed baseline restore produces this receipt. Capture already
+    // admitted the nonempty set, duplicate validation and deterministic order.
+    pub(super) fn from_restore(
+        snapshots: &ControllerSnapshots,
+        funding: SnapshotRestoreFunding,
+    ) -> Self {
+        Self {
+            canister_ids: snapshots.canister_ids().collect(),
+            cycle_policy: funding.into(),
         }
-        // Capture owns duplicate validation and deterministic ordering. The
-        // immutable baseline can supply that checked set without rebuilding it.
-        Ok(Self {
-            canister_ids: baseline.snapshot_canister_ids().collect(),
-            cycle_policy,
-        })
     }
 
     /// Restored canister ids in deterministic order.

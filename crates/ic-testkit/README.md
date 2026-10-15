@@ -11,7 +11,7 @@ PocketIC-oriented test utilities for Internet Computer canister tests.
 ic-testkit = "0.46"
 ```
 
-The published MSRV is Rust 1.88, and the selected PocketIC line is 16.
+The published MSRV is Rust 1.91, and the selected PocketIC line is 16.
 Canisters using benchmark markers can add the crate under `[dependencies]`.
 `pocket_ic` and `pic` are host-only. `performance` is Wasm-only;
 `benchmark` counters, parsing and aggregation, and `Fake` are available on both
@@ -137,3 +137,7 @@ For 0.39, invoke Candid extensions on `fixture.pocket_ic()` with
 `fixture.canister_id()` explicitly; the standalone fixture owns installation
 and lifetime, while `CandidCallExt` owns encoding, invocation and decoding.
 See the [packaged migration notes](CHANGELOG.md#0390).
+
+Benchmark commands own their run-directory naming, allocation and selection of
+previous runs. The report module writes supplied reports and reads supplied
+metadata paths; it no longer discovers or allocates benchmark history directories.
