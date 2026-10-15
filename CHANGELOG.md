@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.18.6]
+
+- Open existing regular lock sidecars without creating them, and try one
+  exclusive descriptor lock without waiting. Publish caller-verified directory
+  trees without replacing an occupied name, retaining failed/recovered evidence.
+  [Detailed notes](docs/changelog/0.18.md).
+
 ## [0.18.5] - 2026-10-15
 
 - Adopt integrated Shared release-input validation and fixture-retention probes,

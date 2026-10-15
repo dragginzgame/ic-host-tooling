@@ -1,5 +1,17 @@
 # Current handoff
 
+## Existing lock admission and directory commit — pending 0.18.6
+
+An isolated contribution based on released 0.18.5 adds no-create existing
+regular lock admission, one-shot exclusive descriptor locking and a generic
+no-replace directory commit around caller-owned tree verification. Its Backup
+consumer retains exact checksums, journal authority and recovery decisions.
+On this 0.18.5 base, all 99 FS unit tests and the fixture integration test pass,
+as do focused all-target clippy, strict rustdoc, Rust 1.88 package check,
+formatting and local link checks. The first PR's macOS jobs encountered the
+non-UTF-8 fixture failure corrected by released 0.18.4. Native macOS checks
+remain with the hosted PR; this new API has not been published or adopted.
+
 ## Integrated Shared release helpers — pending 0.18.5
 
 Released base is 0.18.4 `fb211b5273aee06772b8a0d1b46ca40b4d1b48c2`,
