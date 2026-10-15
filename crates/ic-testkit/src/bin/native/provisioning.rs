@@ -6,7 +6,7 @@ use ic_host_process::{
     child::OwnedChild,
     tool::{
         AdmittedTool, ExecutionContext, ExecutionError, ExecutionEvidence, ExecutionFailure,
-        ExecutionOperation, OutputLimit, OutputLimits, SuccessfulExit, ToolError, ToolSpec,
+        ExecutionOperation, OutputLimit, OutputLimits, SuccessfulExit, ToolError, VersionSpec,
         communicate_child,
     },
 };
@@ -114,13 +114,13 @@ fn payload(archive: &Path, digest: Sha256Digest) -> Result<Vec<u8>> {
 fn admit(executable: &Path, digest: Sha256Digest) -> Result<()> {
     let directory = executable.parent().ok_or("missing executable parent")?;
     AdmittedTool::admit_no_follow(
-        &ToolSpec {
+        &VersionSpec {
             executable,
             executable_bytes: EXECUTABLE_LIMIT as u64,
-            sha256: digest,
             version_arguments: &[OsString::from("--version")],
             version_identity: &format!("pocket-ic-server {POCKET_IC_SERVER_VERSION}"),
         },
+        digest,
         &ExecutionContext {
             current_dir: directory,
             environment: &[],

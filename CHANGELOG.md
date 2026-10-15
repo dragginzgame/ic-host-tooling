@@ -37,6 +37,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Changed
 
+- Use Host 0.20's explicit trusted-digest admission and borrowed Git observations,
+  preserving authenticated offline server checks and byte-safe provenance.
+
 - Capture benchmark Git provenance through Host's existing admitted observation
   API, with 16 MiB stdout and 64 KiB stderr limits per command and no deadline.
   Include untracked files and all submodule changes explicitly, preserve native

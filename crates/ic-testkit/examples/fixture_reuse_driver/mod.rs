@@ -607,7 +607,7 @@ fn provenance(
         "server": server, "server_version": server_version,
         "platform": text_command(Command::new("uname").arg("-srm"))?, "logical_cpus": cpus,
         "rustc": text_command(Command::new(rustc.unwrap_or_else(|| Path::new("rustc"))).arg("--version").current_dir(root))?,
-        "revision": git.revision,
+        "revision": git.revision(),
         "working_tree_dirty": git.is_dirty(),
         "host_profile": options.profile, "wasm_profile": "dev", "wasm_sha256": hash_file(wasm, WASM_LIMIT).map_err(Error::Artifact)?.sha256.to_string(),
         "rss_sample_interval_ms": SAMPLE_INTERVAL.as_millis(), "rss_sampler": sampling::source(),
@@ -769,9 +769,9 @@ mod tests {
         let name = OsString::from_vec(b"untracked-\xff".to_vec());
         fs::write(root.join(name), b"fixture").unwrap();
         let dirty = super::git_provenance(&root, limits).unwrap();
-        assert_eq!(dirty.revision, clean.revision);
+        assert_eq!(dirty.revision(), clean.revision());
         assert!(dirty.is_dirty());
-        assert!(dirty.status_evidence.stdout.contains(&0xff));
+        assert!(dirty.status_evidence().stdout.contains(&0xff));
         assert_eq!(
             dirty.options.untracked,
             ic_host_process::provenance::UntrackedFiles::Normal
