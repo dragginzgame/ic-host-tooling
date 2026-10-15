@@ -1,10 +1,16 @@
 # Changelog
 
-## [0.18.6]
+## [0.18.7]
 
 - Open existing regular lock sidecars without creating them, and try one
   exclusive descriptor lock without waiting. Publish caller-verified directory
   trees without replacing an occupied name, retaining failed/recovered evidence.
+  [Detailed notes](docs/changelog/0.18.md).
+
+## [0.18.6] - 2026-10-15
+
+- Record Shared Tooling 0.15.0 as the contributor baseline; selected helpers and
+  tool pins are unchanged, with no tool reinstall required.
   [Detailed notes](docs/changelog/0.18.md).
 
 ## [0.18.5] - 2026-10-15
