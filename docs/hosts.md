@@ -16,6 +16,7 @@ features. `make test-tools-response` checks the response/text library,
 `make test-tools-extraction` checks native Candid extraction,
 `make test-tools-limits` checks IC resource comparison.
 `make test-tools-certificate` checks strict owned certificate/hash-tree decoding.
+`make test-tools-encoding` checks the pure canonical unsigned LEB128 decoder.
 `make test PACKAGE=ic-host-text` checks escaping and Unicode table alignment.
 `make tools-features-check` verifies its production dependency exclusions and
 the explicitly selected extractor's required owners. Native CI includes these profiles.

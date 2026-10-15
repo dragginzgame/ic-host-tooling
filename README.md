@@ -40,6 +40,11 @@ The optional `ic-limits` feature compares Wasm facts with explicitly selected,
 revision-bound IC resource limits, without filesystem/process dependencies when
 defaults are disabled. See the [0.5 contract changes](docs/changelog/0.5.md).
 
+The optional tools `encoding` feature decodes a complete canonical unsigned
+`u64` LEB128 value without allocation or new dependencies. It rejects truncated,
+overflowing, nonminimal and trailing encodings while inspecting at most ten bytes.
+Callers retain field names, semantic limits, transport and trust policy.
+
 The optional tools `certificate` feature exposes
 `certificate::{decode_certificate, decode_hash_tree}` with explicit input-byte and
 CBOR-depth limits. It returns owned `ic-certification` values and rejects trailing

@@ -15,6 +15,7 @@ rustix.workspace = true
 
 [features]
 default = []
+encoding = []
 candid-extraction = ["dep:ic-host-artifacts", "dep:ic-host-fs", "dep:ic-host-process"]
 candid-service = ["dep:candid_parser", "ic-interface"]
 certificate = ["dep:ciborium", "dep:ic-certification"]

@@ -54,6 +54,8 @@ check_graph inspection ic-host-wasm-inspect default '' 'ic-host-artifacts ic-hos
     '^(ic-host-process|candid_parser) '
 check_graph certificate ic-host-tools none certificate 'ciborium ic-certification' \
     '^(ic-host-(artifacts|fs|process|text)|candid_parser|ic-agent|reqwest) '
+check_graph encoding ic-host-tools none encoding '' \
+    '^(ic-host-(artifacts|fs|process|text)|candid_parser|ciborium|ic-certification|ic-agent|reqwest) '
 check_graph text ic-host-text default '' unicode-width \
     '^(ic-host-(artifacts|fs|process|tools)|candid_parser|ic-agent|ic-certification|ciborium) '
 echo 'tools/text feature dependency graphs passed'
