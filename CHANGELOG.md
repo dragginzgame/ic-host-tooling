@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.18.6]
+
+- Add terminal-safe dynamic bordered tables to Host Text, sharing escaping and
+  Unicode alignment with the existing plain renderer
+  ([#110 — Host text ownership](https://github.com/dragginzgame/ic-host-tooling/issues/110)).
+
 ## [0.18.5] - 2026-10-15
 
 - Adopt integrated Shared release-input validation and fixture-retention probes,

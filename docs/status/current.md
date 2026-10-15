@@ -1,5 +1,29 @@
 # Current handoff
 
+## Dynamic bordered text tables — pending 0.18.6
+
+Released base is Host 0.18.5 `26bfae9ebc23773f53576db367d06478afdea7a1`.
+The IcyDB-approved cleanup adds `table::render_bordered` to the existing pure
+Text owner under [#110 — Host text ownership](https://github.com/dragginzgame/ic-host-tooling/issues/110).
+It serves dynamic SQL projections with left-aligned ASCII borders and preserves
+missing/extra cell padding and header-only output. The maintained plain renderer
+and this operation share cell escaping, Unicode widths and row padding. There
+is no new crate, dependency, configurable layout mode, error variant or output
+policy. Callers still own row/value semantics and allocation/output allowances.
+
+All seven Text tests, strict selected Clippy/Rustdoc and actual Rust 1.88 checks
+pass on Linux. New controls cover ragged/dynamic columns, empty/header-only
+reports, wide/combining Unicode and malicious cells/headers. The independently
+prepared IcyDB consumer removes its three layout helpers and passes all 30 SQL
+facade tests, including existing ASCII/Candid goldens and malicious projection/
+grouped cells. It uses only a disposable Text path override; normal adoption
+awaits publication and remains with [IcyDB #54 — SQL rendering](https://github.com/dragginzgame/icydb/issues/54).
+This does not close the wider rendering-safety or native qualification issues.
+Native macOS, full workspace/release gates and raw Wasm/cycles/instructions are
+not qualified here. Own versions/lock selections remain unchanged; no release,
+publication or sibling checkout mutation occurs. Source/evidence is retained at
+`/tmp/icydb-bordered-host` and `/tmp/icydb-bordered-consumer`.
+
 ## Integrated Shared release helpers — pending 0.18.5
 
 Released base is 0.18.4 `fb211b5273aee06772b8a0d1b46ca40b4d1b48c2`,
