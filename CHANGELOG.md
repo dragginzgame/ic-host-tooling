@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.20.1]
+## [0.20.1] - 2026-10-15
 
 - Add terminal-line clipping with explicit column limits, control escaping and
   an ellipsis for host status panels. Callers retain terminal and redraw policy
