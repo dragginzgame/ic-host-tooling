@@ -10,12 +10,12 @@ recorded with this contribution, not as a combined release receipt.
 
 ## Source and pending release
 
-Released base: **0.20.0**, commit
-`73b70e562ebd221baed93e311e1d8aef902452ce`. Package versions remain 0.20.0;
-local, uncommitted work is collected in the **0.20.1** draft. The authoritative
+Released base: **0.20.1**, commit
+`6952903377eb36f9d35c92770e334b30721f1d20`. Package versions remain 0.20.1;
+this branch's additive work is collected in the **0.20.2** draft. The authoritative
 scope and consumer actions are in [the release notes](../changelog/0.20.md).
 
-Pending [PR #144](https://github.com/dragginzgame/ic-host-tooling/pull/144) source
+Released [PR #144](https://github.com/dragginzgame/ic-host-tooling/pull/144) source
 adds pure terminal-column clipping, adapted from `0b95f12` to current `Cow<str>`
 escaping. Zero columns return empty text; clipping escapes controls first and
 reserves an ellipsis using conservative scalar widths. Relay retains dimensions,
