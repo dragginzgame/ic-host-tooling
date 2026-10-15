@@ -6,6 +6,42 @@ policy. They require Perl core modules or Bash 3.2+, as noted below, and run on
 Linux and macOS. The portable regression suite includes offline fixtures;
 native CI qualifies each supported host separately.
 
+## Complete release-change paths
+
+```bash
+bash scripts/ci/collect-release-changes.sh v0.3.8 > changed-paths.nul
+```
+
+The optional Bash 3.2 helper emits NUL-separated tracked changes from the selected
+base commit to the current worktree, followed by nonignored untracked paths.
+Without a base, it selects the most recent reachable canonical `vX.Y.Z` tag.
+Explicit bases must resolve to commits. The verified commit ID, rather than its
+mutable ref spelling, is used for the comparison even if the tag moves afterwards.
+It anchors Git observation at the checkout
+root, disables optional index writes, and publishes no paths until both Git
+producers succeed. Failed observations preserve their status and clean the
+scratch file; its own newly allocated file is excluded if scratch storage is
+inside the worktree. Empty output after success means no changed paths. Output order is
+not a classification contract. Consumers own package/repository path policy,
+release authority and how they use the complete observation. This does not replace
+index/worktree admission or commit-to-commit CI selection.
+
+## Release-prose advisory
+
+```bash
+bash scripts/ci/warn-release-prose.sh 0.3.7 docs/status/current.md
+```
+
+This optional Bash 3.2/awk helper warns when the selected status file describes
+its target version as a candidate, or its `Next action` section contains release
+instructions likely to become stale. The caller supplies the version and file;
+the default file is `docs/status/current.md`, resolved from the caller's directory.
+It does not parse package identity or decide release readiness. Missing inputs
+and reader failures remain advisory, and the command always returns success.
+Run it before release metadata mutation; never turn interpreted prose into a
+post-mutation blocker. Consumers retain invocation timing and their own status
+layout. The owner fixture qualifies heuristics and failure behavior.
+
 ## Evidence archives
 
 ```bash
