@@ -79,6 +79,14 @@ Canic endpoint presentation remain consumer policy. IC Build owns build/cache
 orchestration separately; these libraries do not install tools or build canisters.
 
 Within `ic-host-fs`, `read` is the sole owner of required/optional/private reads.
+Its Unix `tree` module exposes a no-follow descriptor traversal for caller-owned
+entry handling, but does not own Backup's tree checksum framing, multi-file
+publication or retained byte custody. Callers admit and hold the root, select
+depth/byte limits, and prevent concurrent namespace or content changes where
+stable evidence is required.
+Observed directories always use directory-only opens and descriptor type checks;
+callers do not choose kernel flags. Native open errors may precede type callbacks
+when an entry is replaced during traversal.
 Following paths, final-component no-follow admission and already-open descriptor
 reads remain distinct contracts. Optional reads reuse the same bounded stream
 engine and return `ArtifactError`; private reads add typed permission, link-count
@@ -138,6 +146,9 @@ confinement for following pathname APIs, immutable source bytes, process sandbox
 descendant cleanup, hardware-independent crash durability or safe paid-effect retries.
 Query's capability confinement and refresh leases remain consumer-owned.
 Backup's tree checksums, multi-file publication and journals remain consumer-owned.
+`ic-host-process` opt-in testing also supplies an acknowledged direct-child crash
+barrier. It owns marker timing and direct-child reaping; consumers retain crash
+point selection, fixture evidence and recovery assertions.
 Further adoption must retain each caller's independently established guarantees.
 
 `ic_host_process::tool::capture_command` reuses that same execution engine with a

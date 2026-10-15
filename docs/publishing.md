@@ -11,13 +11,13 @@ These commands do not publish crates to a registry.
 
 Prepare the development toolchain selected in [rust-toolchain.toml](../rust-toolchain.toml),
 then run `make install-tools` and `make tools-check`. Shared Tooling owns
-[common setup and executable storage](local-setup.md); Host adds one ordered
-release prerequisite, `cargo-set-version` from the cargo-edit version pinned in
-[ci/release-tools.env](../ci/release-tools.env). `make install-release-tools`
-prepares this executable through the shared selected-tool installer, and
-`make release-tools-check` verifies its receipt, digest and version offline.
-The release adapter uses the installer's admitted path without a global PATH
-fallback. The development toolchain is separate from the library MSRV.
+[common setup and executable storage](local-setup.md). Release preparation uses
+the canonical literal workspace-version and lock renderers, with Host's exact
+dependency-requirement projection. It validates candidate TOML and the prepared
+locked Cargo graph, restoring original bytes/modes after failure or catchable
+interruption and retaining recovery evidence. No cargo-edit executable or
+release-only tool installation is required. The development toolchain is separate
+from the library MSRV.
 
 The read-only `make release-version` query needs prepared host parsers and never
 installs them. Selected release preflight prepares the complete toolset and
