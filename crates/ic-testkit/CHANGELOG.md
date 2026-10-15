@@ -8,6 +8,47 @@ This file ships in the crate archive so upgrades can be completed without the
 repository checkout. The complete historical changelog remains at
 <https://github.com/dragginzgame/ic-testkit/blob/main/CHANGELOG.md>.
 
+## [0.46.0]
+
+### Breaking
+
+- Adopt Host 0.19 for native process and filesystem operations. Callers using
+  Host types exposed by Testkit must select the same Host minor line. Private
+  parent preparation now rejects ancestor symlinks and `..`; supply canonical
+  physical paths when intentionally selecting an alias.
+
+### Changed
+
+- Use Build 0.6's Cargo observation API for workspace discovery, preserving
+  selected tools, bounded diagnostics and unlimited build duration.
+- Refresh the reviewed Shared Tooling snapshot to committed 0.15.0, carry its
+  release-input validator into isolated metadata qualification, and share
+  formatter failure-evidence selection with the common owner.
+- Bound macOS RSS command capture with driver-selected, configurable output
+  limits, retaining complete-table admission, original causes and worker cleanup.
+  No elapsed-time limit is added.
+  [#101 — Adopt explicit Host RSS command limits](https://github.com/dragginzgame/ic-testkit/issues/101).
+
+### Added
+
+- Decode multiple top-level Candid reply arguments with `query_candid_args` and
+  `update_candid_args`, preserving explicit callers and contextual failures.
+  Existing single-result calls keep their decoding semantics.
+
+### Fixed
+
+- Skip simulated-time reads and same-time writes during zero-duration readiness
+  polling; preserve nonzero advancement, tick budgets and predicate ordering.
+- Give successful version-probe fixtures scheduling headroom on loaded hosts,
+  retaining the short deadline for the deliberately stalled probe.
+- Include MIT license text in both published crates and inherit the existing
+  workspace license in the private performance probe.
+
+Pass a tuple of reply types, such as `(u128, u128)`, to the new functions.
+This describes two top-level arguments; `CandidCallExt` still decodes one value,
+including tuple-valued replies. Both paths share encoding and transport/error
+handling. Use `()` for no replies and `(T,)` for one reply.
+
 ## [0.45.0] - 2026-10-15
 
 ### Breaking

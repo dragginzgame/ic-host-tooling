@@ -21,12 +21,12 @@ readme = "README.md"
 
 [workspace.dependencies]
 candid = { version = "0.10", default-features = false }
-ic-build = { version = "0.5" }
+ic-build = { version = "0.6" }
 ic-cdk = "0.20.2"
-ic-host-artifacts = { version = "0.18", features = ["archive", "wasm"] }
-ic-host-fs = "0.18"
-ic-host-process = "0.18"
-ic-host-text = { version = "0.18.2", default-features = false }
+ic-host-artifacts = { version = "0.19", features = ["archive", "wasm"] }
+ic-host-fs = "0.19"
+ic-host-process = "0.19"
+ic-host-text = { version = "0.19", default-features = false }
 ic-metrics = "0.10"
 ic-testkit = { path = "crates/ic-testkit" }
 libc = "0.2"

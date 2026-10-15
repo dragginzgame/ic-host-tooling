@@ -1,5 +1,75 @@
 # Host support and qualification
 
+## Pending 0.46.0: Host 0.19, Build 0.6 and Shared Tooling 0.15
+
+The incoming Host 0.19 selection is adopted normally from the registry. Host
+error/cleanup types exposed by Testkit now belong to that minor line, selecting
+breaking 0.46.0 notes without changing Testkit's package metadata. Callers must
+also respect Host's stricter private-parent admission and supply physical paths
+when intentionally selecting aliases.
+
+The driver supplies configurable macOS RSS command budgets (16 MiB stdout,
+64 KiB stderr) with no elapsed-time deadline. Provenance records those budgets;
+Linux retains 64 KiB complete-record admission. Original sampling causes and
+worker cleanup remain intact. The new real native sampling-failure case proves
+that the worker finishes before the sampling error returns. This is the local
+adoption for [#101 — Explicit Host RSS limits](https://github.com/dragginzgame/ic-testkit/issues/101);
+native macOS qualification and publication remain separate.
+
+A concurrent incoming Build 0.6 update removed the old discovery import while
+checks were running. Both repository callers now use Cargo observation with
+explicit selected commands and 64 KiB discovery stdout/stderr budgets, preserving
+relative tool resolution and unlimited build duration. Build 0.6 unifies the
+selected Host graph on 0.19. The contributor-only Build floor remains Rust 1.91;
+Testkit's native library still passes actual Rust 1.88 checking.
+
+Shared Tooling records committed main `fec7c9b97f6a35a23daf54abe9a6472a5d1829b0`
+(version 0.15.0), with 110 verified payloads and unchanged executable pins.
+Unmerged/local sibling changes are excluded. The release-metadata fixture copies
+the new release-input validator. Formatter evidence uses the canonical shared
+selector; its isolated partial-output fixture carries that required companion.
+No tool reinstall is needed for the unchanged catalog selections.
+
+On Linux, 18 driver cases, 27 startup cases (four dedicated-server cases ignored),
+eight CLI cases and the live canister marker case pass. A live two-task fresh
+and pooled smoke emits complete reports with the selected RSS budgets. Strict
+affected Clippy, native Rust 1.88 library checking, warning-denied Rustdoc,
+formatting, dependency pins and snapshot verification pass. Release metadata/
+guards and the shared runner's substituted effects pass in disposable fixtures;
+runner and consumer failure-evidence fixtures also pass under genuine Bash
+3.2.57 on Linux. These are focused receipts, not native macOS or full-suite proof.
+
+Evidence and before-images are retained at `/tmp/testkit-host-shared-qozq10yu/`.
+Earlier pending fixes are carried into the same 0.46.0 notes. The real index,
+package versions and refs are preserved; full release validation remains with
+the maintainer. The previously published 0.45.0 CI matrix has now completed
+successfully on all configured hosts.
+
+## Pending 0.46.0: polling, Candid replies and package licensing
+
+Adapt [PR #96](https://github.com/dragginzgame/ic-testkit/pull/96),
+[PR #89](https://github.com/dragginzgame/ic-testkit/pull/89) and
+[PR #99](https://github.com/dragginzgame/ic-testkit/pull/99) to released 0.45.0.
+Zero-duration polling sends only ticks; nonzero rounds retain get/set/tick order.
+Explicit-caller Candid argument helpers decode multiple top-level results while
+existing single-result calls preserve tuple-valued semantics and typed failures.
+Both published packages include the workspace's MIT license text.
+
+On Linux, five Candid unit cases, five polling cases (including actual bounded
+HTTP requests), the live PocketIC 16.1 rejection case and the focused environment
+version-probe case pass. Strict library/test Clippy, warning-denied Rustdoc,
+actual Rust 1.88 library checking, formatting and package file-list checks pass.
+Test-target checking on Rust 1.88 is unavailable with the selected development
+Build 0.5 / cargo-platform graph, which requires Rust 1.91; native test evidence
+uses the prepared Rust 1.99 contributor toolchain. Library MSRV remains 1.88.
+
+The Intel macOS job on PR #99 timed out a successful version fixture at 200 ms
+before it produced output. Successful fixtures now receive five seconds of
+scheduling headroom; the deliberately stalled case retains its 200 ms deadline.
+This changes test policy only. Native macOS reruns and full release validation
+remain maintainer-owned. Source/receipt evidence is retained under
+`/tmp/testkit-0451-jzsqt9wn/`; package versions and locked selections are unchanged.
+
 ## Pending 0.45.0: package-specific release guard qualification
 
 The release fixture distinguishes standalone Candid tests from PocketIC tests,

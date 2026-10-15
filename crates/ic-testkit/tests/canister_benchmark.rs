@@ -1,7 +1,11 @@
 mod support;
 use candid::Principal;
-use ic_build::artifacts::{WasmBuildSpec, build_wasm_canisters_cached, workspace_root_for};
+use ic_build::{
+    artifacts::{WasmBuildSpec, build_wasm_canisters_cached},
+    cargo::observation::workspace_root_for,
+};
 use ic_host_fs::read::read_file;
+use ic_host_process::tool::{OutputLimit, OutputLimits};
 use ic_testkit::{
     benchmark::{
         BenchmarkEventSource, BenchmarkParserConfig, pair_benchmark_spans,
@@ -9,13 +13,22 @@ use ic_testkit::{
     },
     pic::{CandidCallExt, InstallSpec, StandaloneCanisterFixture},
 };
+use std::process::Command;
 use support::unique_temp_directory as unique_temp_dir;
 const PERF_PROBE_PACKAGE: &str = "ic_testkit_perf_probe";
 
 #[test]
 fn perf_probe_canister_emits_parseable_benchmark_markers() {
-    let workspace =
-        workspace_root_for(env!("CARGO_MANIFEST_DIR")).expect("resolve Cargo workspace");
+    let workspace = workspace_root_for(
+        env!("CARGO_MANIFEST_DIR"),
+        OutputLimits {
+            stdout: OutputLimit::Terminate(64 * 1024),
+            stderr: OutputLimit::Terminate(64 * 1024),
+            timeout: None,
+        },
+        Command::new(std::env::var_os("CARGO").unwrap_or_else(|| env!("CARGO").into())),
+    )
+    .expect("resolve Cargo workspace");
     if !workspace
         .join("crates/ic_testkit_perf_probe/Cargo.toml")
         .is_file()

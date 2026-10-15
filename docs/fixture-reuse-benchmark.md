@@ -43,6 +43,9 @@ apply its toolchain selection. Explicit relative tool paths are interpreted
 from the caller's directory before commands enter the workspace. The selected
 Rust toolchain and Wasm target must already be installed; an invalid override
 returns failure rather than switching tools.
+Build 0.6's workspace observation uses that selected Cargo command with 64 KiB
+stdout/stderr limits and no deadline; discovery does not resolve dependencies or
+install a toolchain. Cargo builds retain their existing unlimited duration.
 
 ## Workload and correctness
 
@@ -67,6 +70,14 @@ within the run. Repeat order rotates over all selected cases.
 On Ctrl-C, the driver waits for the current worker to finish so its owned server
 can be torn down normally; it does not start another mode or write a partial
 report. Sampling errors also wait for worker cleanup before returning failure.
+Host 0.19 requires complete RSS observations. Linux stat records retain their
+64 KiB allowance. On macOS, process-table stdout is bounded to 16 MiB (room for
+hundreds of thousands of short PID/PPID/RSS rows), and diagnostics to 64 KiB.
+Select different positive byte budgets with `--rss-stdout-bytes` and
+`--rss-stderr-bytes`; the report records those selections. Overflow, truncation
+and native command failures refuse the sample and retain their original cause.
+These limits apply only to the RSS command; no capture or Cargo build deadline
+is introduced.
 Worker stdout is captured in an explicitly private temporary file held through
 worker completion and bounded reading, without a named scratch directory.
 Each worker report is bounded to 16 MiB and checked against the requested
