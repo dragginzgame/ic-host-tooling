@@ -1,11 +1,35 @@
 # Changelog
 
-## [0.18.7]
+## [0.19.1]
 
 - Open existing regular lock sidecars without creating them, and try one
   exclusive descriptor lock without waiting. Publish caller-verified directory
   trees without replacing an occupied name, retaining failed/recovered evidence.
-  [Detailed notes](docs/changelog/0.18.md).
+  [Detailed notes](docs/changelog/0.19.md).
+
+
+## [0.19.0] - 2026-10-15
+
+### Breaking
+
+- Require explicit native-command capture limits for RSS sampling. macOS capture
+  now retains bounded diagnostics and rejects incomplete tables; callers must
+  pass `OutputLimits` and handle retained command failures. Optional deadlines
+  remain supported without a default time limit
+  ([#130 — Native RSS command capture](https://github.com/dragginzgame/ic-host-tooling/issues/130)).
+- Reject oversized Linux stat records before parsing, preventing a cutoff RSS
+  field from becoming a plausible smaller observation
+  ([#130 — Native RSS command capture](https://github.com/dragginzgame/ic-host-tooling/issues/130)).
+- Reject ancestor symlinks and `..` in private-parent preparation before creating
+  directories. Callers intentionally selecting directory aliases must supply
+  canonical physical paths
+  ([PR #90 — Reject symlink ancestors](https://github.com/dragginzgame/ic-host-tooling/pull/90)).
+
+### Changed
+
+- Consolidate real FIFO fixture creation so filesystem tests share one portable
+  Linux/macOS setup path while retaining their individual modes and assertions.
+  [Detailed notes](docs/changelog/0.19.md).
 
 ## [0.18.6] - 2026-10-15
 

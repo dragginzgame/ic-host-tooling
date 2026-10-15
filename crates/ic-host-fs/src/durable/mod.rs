@@ -143,9 +143,12 @@ pub fn create_private_bytes_with_parents(
 /// directories retain their permissions. Every new directory and its parent link
 /// are synchronized before this returns. Callers retain root confinement and
 /// exclusion of concurrent namespace mutation; symlink path components reject.
+/// Supply a physical path when an ancestor alias is intentionally selected.
+/// Parent-directory (`..`) components reject before any directory is created.
 ///
 /// # Errors
-/// Rejects a non-directory or symlink component, unsupported host or failed creation/sync.
+/// Rejects a non-directory or symlink component, a parent-directory component,
+/// unsupported host or failed creation/sync.
 pub fn prepare_private_parents(parent: &Path) -> io::Result<()> {
     #[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
     {
@@ -349,7 +352,7 @@ mod supported {
     use std::{
         ffi::{OsStr, OsString},
         fs, io,
-        path::{Path, PathBuf},
+        path::{Component, Path, PathBuf},
         sync::atomic::{AtomicU64, Ordering},
     };
 
@@ -730,6 +733,30 @@ mod supported {
     }
 
     pub(super) fn prepare_private_parents(parent: &Path) -> io::Result<()> {
+        let mut component_path = PathBuf::new();
+        for component in parent.components() {
+            if component == Component::ParentDir {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidInput,
+                    "private parent path may not contain '..'",
+                ));
+            }
+            component_path.push(component.as_os_str());
+            match fs::symlink_metadata(&component_path) {
+                Ok(metadata) if metadata.is_dir() => {}
+                Ok(_) => {
+                    return Err(io::Error::new(
+                        io::ErrorKind::NotADirectory,
+                        format!(
+                            "output parent is not a directory: {}",
+                            component_path.display()
+                        ),
+                    ));
+                }
+                Err(error) if error.kind() == io::ErrorKind::NotFound => {}
+                Err(error) => return Err(error),
+            }
+        }
         create_parent_hierarchy(parent, &mut |_, _| Ok(()), true)
     }
 

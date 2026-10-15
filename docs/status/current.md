@@ -1,23 +1,66 @@
 # Current handoff
 
-## Existing lock admission and directory commit — pending 0.18.7
+## Backup filesystem contribution refresh
 
-PR #127 is reconciled with released Host 0.18.6 (`7f29176`); its API and
-published metadata remain intact. All 69 affected durable filesystem cases pass
-on actual Rust 1.88, along with strict FS all-target/all-feature Clippy,
-warning-denied Rustdoc and formatting. Hosted checks must qualify the updated
-head. Evidence is retained under `/tmp/canic-upstream-prs-20261015/`.
-No consumer override, integration merge, release or sibling edit ran.
+PR #127 incorporates released Host 0.19.0 through a normal topic merge.
+Published notes and metadata are preserved; compatible pending notes now select
+0.19.1. The contribution implementation is unchanged. All 69 durable tests pass on
+Rust 1.88; strict FS lint, Rustdoc and formatting pass. Focused qualification
+logs are retained under `/tmp/canic-refresh-followup-20261015/`.
+Integration, publication and native checks on the new head remain separate.
 
-An isolated contribution based on released 0.18.5 adds no-create existing
-regular lock admission, one-shot exclusive descriptor locking and a generic
-no-replace directory commit around caller-owned tree verification. Its Backup
-consumer retains exact checksums, journal authority and recovery decisions.
-On this 0.18.5 base, all 99 FS unit tests and the fixture integration test pass,
-as do focused all-target clippy, strict rustdoc, Rust 1.88 package check,
-formatting and local link checks. The first PR's macOS jobs encountered the
-non-UTF-8 fixture failure corrected by released 0.18.4. Native macOS checks
-remain with the hosted PR; this new API has not been published or adopted.
+## Complete Linux records and private parents — pending 0.19.0
+
+The approved PR #90 source at `7931347` is applied as local source changes,
+preserving the earlier FIFO and native-capture work. Private-parent preparation
+refuses ancestor symlinks and parent traversal before directory creation; callers
+intentionally selecting aliases must provide physical paths. No Git merge,
+staging, commit, ref or version change is performed. The isolated PR's earlier
+native matrix remains evidence for its source, not for this combined checkout.
+
+Linux sampling reuses the artifact owner's complete bounded read. The new real
+file regression first reproduced a 12345-page RSS field being accepted as 123
+pages after truncation; fixed checks reject that prefix and other oversized
+records while admitting exact/roomier limits. Typed limit and native I/O causes,
+invalid-UTF-8 refusal and disappearing stat entries retain their distinctions.
+The source before-images and original failed regression are retained at
+`/tmp/host-019-followups.mlPpdL/`; its failed process fixture remains retained too.
+
+The 66 selected durable and eight sampling cases pass on Linux, along with strict
+affected-package Clippy/rustdoc, actual Rust 1.88, formatting, documentation links
+and snapshot verification. These changes extend the same 0.19.0 hard cut;
+supported native acceptance remains separate at
+[#130 — Native RSS command capture](https://github.com/dragginzgame/ic-host-tooling/issues/130)
+and [PR #90](https://github.com/dragginzgame/ic-host-tooling/pull/90).
+The earlier release-projector blocker remains unchanged below.
+
+## Native capture and fixture convergence — pending 0.19.0
+
+Released base is 0.18.6 `7f29176`. Five filesystem FIFO setups share one private
+creator, retaining explicit modes/default umask and their real special-file
+assertions. RSS sampling uses existing bounded direct-child capture for macOS.
+Its public signature now takes `OutputLimits`; command failures retain typed
+capture/cleanup evidence, stderr is captured and truncated tables refuse.
+This hard cut selects 0.19.0 notes without changing package metadata. No default
+deadline is introduced; Linux procfs selection/parsing remains unchanged.
+
+All 96 filesystem units plus the allocation integration case, seven sampling
+cases, strict affected-package lint/docs and actual Rust 1.88 checks pass on
+Linux. macOS command substitutes run on Linux; native macOS qualification is
+still required by [#130 — Native RSS command capture](https://github.com/dragginzgame/ic-host-tooling/issues/130).
+[Testkit #101 — Explicit Host RSS limits](https://github.com/dragginzgame/ic-testkit/issues/101)
+owns the known driver's migration after publication; sibling source is unchanged.
+
+The approved local release-projector retirement remains blocked at
+[#131 — Retire the local dependency projector](https://github.com/dragginzgame/ic-host-tooling/issues/131).
+The exact unmerged Shared candidate updates live dependency requirements but
+leaves them stale when identical saved-source manifests are read from scratch
+directories. [Shared #210 — Saved-source manifest projection](https://github.com/dragginzgame/shared-tooling/issues/210)
+owns that reproduced missing contract. Current snapshot ownership and the AWK
+projection remain intact until canonical support is integrated. Source
+before-images, focused logs and the live/archive reproducer are retained at
+`/tmp/host-native-cleanup.O2BlN1/`. Work remains local and uncommitted; the real
+index/refs, pins, versions and existing artifacts are preserved.
 
 ## PR refreshes against released 0.18.5
 

@@ -25,8 +25,37 @@ fn private_parent_preparation_preserves_modes_and_refuses_symlinks() {
     }
     prepare_private_parents(&parent).unwrap();
     symlink(&first, fixture.root.join("linked")).unwrap();
-    assert!(prepare_private_parents(&fixture.root.join("linked/other")).is_err());
+    for path in ["linked", "linked/nested", "linked/other"] {
+        assert_eq!(
+            prepare_private_parents(&fixture.root.join(path))
+                .unwrap_err()
+                .kind(),
+            std::io::ErrorKind::NotADirectory
+        );
+    }
+    assert_eq!(fs::read_link(fixture.root.join("linked")).unwrap(), first);
     assert!(!first.join("other").exists());
+
+    for path in ["private/../outside", "missing/../outside"] {
+        assert_eq!(
+            prepare_private_parents(&fixture.root.join(path))
+                .unwrap_err()
+                .kind(),
+            std::io::ErrorKind::InvalidInput
+        );
+    }
+    assert!(!fixture.root.join("missing").exists());
+    assert!(!fixture.root.join("outside").exists());
+
+    let file = fixture.root.join("file");
+    fs::write(&file, b"preserved").unwrap();
+    assert_eq!(
+        prepare_private_parents(&file.join("child"))
+            .unwrap_err()
+            .kind(),
+        std::io::ErrorKind::NotADirectory
+    );
+    assert_eq!(fs::read(file).unwrap(), b"preserved");
 }
 
 #[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
@@ -380,13 +409,7 @@ fn private_lock_refuses_missing_parents_and_unsafe_entries_without_changes() {
     let dangling = fixture.root.join("dangling");
     symlink(&missing, &dangling).unwrap();
     let fifo = fixture.root.join("fifo");
-    assert!(
-        std::process::Command::new("/usr/bin/mkfifo")
-            .arg(&fifo)
-            .status()
-            .unwrap()
-            .success()
-    );
+    crate::test_support::create_fifo(&fifo, None).unwrap();
     for path in [&link, &dangling, &fixture.root, &fifo] {
         let before = fs::symlink_metadata(path).unwrap();
         assert!(matches!(
@@ -462,14 +485,7 @@ fn lock_errors_preserve_admission_and_original_io_causes() {
     let link = fixture.root.join("link");
     std::os::unix::fs::symlink(&target, &link).unwrap();
     let fifo = fixture.root.join("fifo");
-    // rustix's mknodat/mkfifoat are unavailable on Apple hosts.
-    assert!(
-        std::process::Command::new("/usr/bin/mkfifo")
-            .arg(&fifo)
-            .status()
-            .unwrap()
-            .success()
-    );
+    crate::test_support::create_fifo(&fifo, None).unwrap();
     // Existing special entries must be rejected without staging in their parent.
     for path in [&fixture.root, &link, &fifo, Path::new("/dev/null")] {
         let result = open_regular_lock_file_with_parents(path);
