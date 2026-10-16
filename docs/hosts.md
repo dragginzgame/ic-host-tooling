@@ -19,15 +19,22 @@ features. `make test-tools-response` checks the response/text library,
 `make test PACKAGE=ic-host-text` checks escaping and Unicode table alignment.
 `make tools-features-check` verifies its production dependency exclusions and
 the explicitly selected extractor's required owners. Native CI includes these profiles.
-The `candid-service` profile introduces the optional Candid parser;
-`ic-interface` excludes it. Both must qualify on the same Rust 1.88 and native
-Linux/macOS matrix as the existing libraries.
+The `candid-service` profile introduces the optional Candid parser without Host
+Artifacts or Wasm parsing; `ic-interface` excludes the Candid parser. Their combined
+profile explicitly selects both owners. These profiles must qualify on the same
+Rust 1.88 and native Linux/macOS matrix as the existing libraries.
 
 Native CI prepares pinned Rust and the complete common toolsets, then verifies
 the shared snapshot, declarations, formatter prerequisites, actual hook behavior,
 release adapter,
 common tool/LOC command wiring,
 minimal artifact tests and each selected package with all features in sequence.
+Shared owns the synthetic host/IC/Rust installer and LOC parser matrices in
+`shared-tooling/scripts/ci/test-portable-tools.sh`. Host retains its actual
+Make routing, aggregate failure ordering, LOC arguments/status and pipe-jobserver
+checks in `scripts/ci/test-make-snapshot.sh`, plus prepared-tool admission and
+native qualification. Snapshot checks retain all selected bytes and modes;
+the CI cache-key helper is an explicit snapshot root for its workflow caller.
 The release gate uses the same complete host, IC and Cargo toolsets, even though
 the libraries do not invoke every tool. Explicit setup runs `make install-tools`;
 `make tools-check` verifies the set offline. Selected release preflight prepares
@@ -49,8 +56,8 @@ Bash 3.2 passes remain separate evidence under
 Shared 0.3.1 setup checks IC platform/catalog admission and Rust/Cargo
 availability before downloading common tools. These preflight checks do not
 install a toolchain or replace the offline verification of installed tools.
-Release preparation uses the shared literal metadata renderers and Host's exact
-dependency projection, with rollback qualification in disposable release fixtures.
+Release preparation uses the shared literal metadata renderers with source-bound
+member identities, with rollback qualification in disposable release fixtures.
 No release-only executable extends the aggregate common toolset.
 CI also owns native macOS execution; Linux qualification is not macOS evidence.
 The reviewed Shared snapshot owns `ci/tool-versions.env` and `ci/ic-tools.tsv`.

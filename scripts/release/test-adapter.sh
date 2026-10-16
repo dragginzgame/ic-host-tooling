@@ -25,7 +25,7 @@ export ADAPTER_EVENTS="$fixture/events"
 export RELEASE_SOURCE=0000000000000000000000000000000000000000
 export RELEASE_DATE=2026-10-06 RELEASE_KIND=minor
 adapter_root="$fixture/adapter"
-for input in scripts/release/adapter.sh scripts/release/metadata-version.awk \
+for input in scripts/release/adapter.sh \
     scripts/ci/read-cargo-workspace-version.sh scripts/ci/check-release-source.sh \
     scripts/ci/next-release-version.sh scripts/ci/finalize-release-changelog.awk \
     scripts/ci/validate-release-inputs.pl \
@@ -73,6 +73,16 @@ printf '# Changelog\n\n## [%s] \t \n\n- Fixture notes.\n' "$RELEASE_VERSION" > "
 printf '\n## [%s]\n\n- Undated imported history.\n\n## [0.0.1] - 2026-10-01\n\n- Dated history.\n' "$RELEASE_PREVIOUS" >> "$fixture/CHANGELOG.md"
 mkdir "$fixture/source" "$fixture/committed"
 cp "$fixture/Cargo.toml" "$fixture/Cargo.lock" "$fixture/CHANGELOG.md" "$fixture/source/"
+# Saved-source projection reads member identity from Git, independently of the
+# current workspace. The Git substitute below serves these immutable inputs.
+jq -r '. as $m | .packages[] |
+    select(.id as $id | $m.workspace_members | index($id)) | .manifest_path' \
+    "$fixture/source-metadata.json" |
+    while IFS= read -r manifest; do
+        relative="${manifest#"$root"/}"
+        mkdir -p "$fixture/source/${relative%/*}"
+        cp "$manifest" "$fixture/source/$relative"
+    done
 export ADAPTER_SOURCE="$fixture/source" ADAPTER_COMMITTED="$fixture/committed"
 export RELEASE_COMMIT=1111111111111111111111111111111111111111
 cat > "$fixture/bin/git" <<'STUB'
@@ -155,6 +165,7 @@ cat > "$fixture/bin/yq" <<'STUB'
 set -euo pipefail
 "$ADAPTER_REAL_YQ" "$@"
 if [[ "${ADAPTER_FAILED_READER:-}" == lock && "$*" == '-p toml -o json .' ]]; then exit 23; fi
+if [[ "${ADAPTER_FAILED_READER:-}" == member && "${*: -1}" == */member.toml ]]; then exit 23; fi
 STUB
 chmod +x "$fixture/bin/bash" "$fixture/bin/yq"
 export YQ="$fixture/bin/yq"
@@ -330,6 +341,25 @@ for requirement in "$RELEASE_PREVIOUS" "${RELEASE_PREVIOUS%.*}"; do
     cmp accepted-events "$ADAPTER_EVENTS"
 done
 cp source/Cargo.toml Cargo.toml
+
+# Member admission must retain failures even after plausible TOML/JSON output.
+# Neither a failed Git source read nor a failed member parser can reach setup.
+for reader in git member; do
+    : > "$ADAPTER_EVENTS"
+    rm -f query-count
+    status=0
+    if [[ "$reader" == git ]]; then
+        ADAPTER_GIT_QUERY="show $RELEASE_SOURCE:crates/ic-host-fs/Cargo.toml" \
+            bash "$adapter" preflight > failed-member-git.log 2>&1 || status=$?
+    else
+        ADAPTER_FAILED_READER=member bash "$adapter" preflight \
+            > failed-member-parser.log 2>&1 || status=$?
+    fi
+    [[ "$status" != 0 ]] || exit 1
+    printf '%s\n' 'cargo locate-project --workspace --message-format plain --manifest-path Cargo.toml' > expected
+    cmp expected "$ADAPTER_EVENTS"
+    cmp source/Cargo.toml Cargo.toml
+done
 
 # A failed Cargo query may print valid metadata: its failure must still stop
 # preflight before any setup or fetch is attempted.
@@ -601,7 +631,10 @@ cmp committed/CHANGELOG.md CHANGELOG.md
 printf '# Newer working notes\n' > CHANGELOG.md
 printf '# Newer working metadata\n' > Cargo.toml
 printf '# Newer working lockfile\n' > Cargo.lock
+# The old member path need not remain present in today's checkout either.
+mv crates/ic-host-fs retained-current-fs
 bash "$adapter" committed-check > committed.log 2>&1
+mv retained-current-fs crates/ic-host-fs
 printf '\nAltered historical notes.\n' >> committed/CHANGELOG.md
 if bash "$adapter" committed-check > rejected-committed.log 2>&1; then
     echo 'Committed check accepted an altered release payload' >&2; exit 1
@@ -633,5 +666,44 @@ bash "$adapter" verify > whitespace-verify.log 2>&1
 bash "$adapter" prepare > whitespace-prepare.log 2>&1
 printf '# Changelog\n\n## [%s] - %s\n\n- Candidate.\n\n## [%s]\n\n- History without final LF.' "$RELEASE_VERSION" "$RELEASE_DATE" "$RELEASE_PREVIOUS" > expected-notes
 cmp expected-notes CHANGELOG.md
+# The actual Host adapter must advance aliased requirements and preserve their
+# operators/precision across a major release, including saved-payload recovery.
+(
+    export RELEASE_KIND=major
+    RELEASE_VERSION="$(bash "$root/scripts/ci/next-release-version.sh" "$RELEASE_PREVIOUS" major)"
+    export RELEASE_VERSION
+    awk -v previous="$RELEASE_PREVIOUS" '
+        { print }
+        /^\[workspace.dependencies\]$/ {
+            print "exact_alias = { package = \"ic-host-fs\", path = \"crates/ic-host-fs\", version = \"=" previous "\" }"
+            sub(/\.[^.]+$/, "", previous)
+            print "short_alias = { package = \"ic-host-fs\", path = \"crates/ic-host-fs\", version = \"~ " previous "\" }"
+        }
+    ' source/Cargo.toml > Cargo.toml
+    # Source/member identities must support ordinary names and spaces in apps/.
+    awk '{ gsub(/crates\/ic-host-fs/, "apps/consumer fs"); print }' Cargo.toml > relocated.toml
+    mv relocated.toml Cargo.toml
+    mkdir -p source/apps
+    mv source/crates/ic-host-fs 'source/apps/consumer fs'
+    mv crates/ic-host-fs 'apps/consumer fs'
+    cp Cargo.toml source/Cargo.toml
+    cp source/Cargo.lock Cargo.lock
+    printf '# Changelog\n\n## [%s]\n\n- Major fixture.\n' "$RELEASE_VERSION" > CHANGELOG.md
+    bash "$adapter" verify > major-verified.log 2>&1
+    bash "$adapter" prepare > major-prepared.log 2>&1
+    "$ADAPTER_REAL_YQ" -p toml -o json '.' Cargo.toml |
+        jq -e --arg exact "=$RELEASE_VERSION" --arg short "~ ${RELEASE_VERSION%.*}" '
+            .workspace.dependencies.exact_alias.version == $exact and
+            .workspace.dependencies.short_alias.version == $short' > /dev/null
+    cp Cargo.toml Cargo.lock CHANGELOG.md committed/
+    printf '# Current root no longer represents the selected source\n' > Cargo.toml
+    mv 'apps/consumer fs' major-retained-current-fs
+    bash "$adapter" committed-check > major-committed.log 2>&1
+    mv major-retained-current-fs 'apps/consumer fs'
+    printf '\n# Altered selected payload\n' >> committed/Cargo.toml
+    if bash "$adapter" committed-check > major-altered-payload.log 2>&1; then
+        echo 'Committed check accepted altered manifest bytes' >&2; exit 1
+    fi
+)
 echo 'Release adapter checks passed (setup, qualification and Git effects substituted).'
 fixture_complete=true

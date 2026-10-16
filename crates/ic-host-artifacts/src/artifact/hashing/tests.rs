@@ -1,5 +1,5 @@
 use super::HashingWriter;
-use crate::artifact::{Sha256Digest, WriterError};
+use crate::artifact::{Sha256Digest, WriterError, test_support::InvalidWriter};
 use std::io::{self, IoSlice, Write};
 
 #[test]
@@ -106,19 +106,9 @@ fn allowance_rejection_keeps_sink_and_hash_unchanged() {
     assert_eq!(identity.sha256, Sha256Digest::compute(b"abc"));
 }
 
-struct InvalidSink;
-impl Write for InvalidSink {
-    fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
-        Ok(bytes.len() + 1)
-    }
-    fn flush(&mut self) -> io::Result<()> {
-        Ok(())
-    }
-}
-
 #[test]
 fn impossible_sink_counts_are_typed_errors_without_advancing_the_identity() {
-    let mut writer = HashingWriter::new(InvalidSink, 2);
+    let mut writer = HashingWriter::new(InvalidWriter, 2);
     let error = writer.write(b"ab").unwrap_err();
     assert_eq!(error.kind(), io::ErrorKind::InvalidData);
     assert_eq!(

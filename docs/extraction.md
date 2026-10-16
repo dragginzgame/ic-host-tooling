@@ -29,7 +29,10 @@ response-only graph; IC reference values and comparison remain in the tools owne
 - ic-host-process owns executable resolution/admission, explicit execution context,
   output limits, deadlines, direct-child/explicit group cleanup evidence, native
   process-table/RSS observations and separate Git queries.
-- ic-host-text owns pure terminal-safe escaping and Unicode display-width tables.
+- ic-host-text owns pure terminal-safe escaping, explicit column clipping and
+  Unicode display-width tables.
+  Escaping borrows unchanged input through `Cow<str>` and owns changed text;
+  tables keep safe cell borrows and return one owned rendered string.
   Cells, alignments and formatting options are explicit; reports and CLIs retain
   headers, rows, column choices, size/truncation policy, output, terminal detection,
   colour and progress. It depends on no other Host or IC owner. This fifth generic
@@ -86,6 +89,9 @@ heap, stack or CPU quota for the parser. `interface::exported_methods` borrows
 function export facts without reparsing Wasm. It preserves internal methods,
 empty names and mode differences for caller admission. Oneway remains distinct
 in Candid and maps explicitly to the update export namespace through `as_export`.
+`candid-service` selects only the Candid parser; shared method identities remain
+in `interface` without requiring Wasm support. Select `ic-interface` explicitly
+for export projection, including when combining it with Candid service inspection.
 Expected interfaces, CDK allowlists, type compatibility, payload annotations and
 Canic endpoint presentation remain consumer policy. IC Build owns build/cache
 orchestration separately; these libraries do not install tools or build canisters.
@@ -138,7 +144,8 @@ The [0.10 migration](changelog/0.10.md) replaces the old two-argument writer and
 removes the `write_typed_with` name without a compatibility alias.
 
 `durable::write_named_with` exposes an absolute owned staging pathname to external
-producers through the existing publication engine. Filesystem code owns exclusive
+producers through the existing publication engine. Callers supply `WriteOptions`
+for publication mode and staging permissions. Filesystem code owns exclusive
 creation, descriptor lifetime, identity checks, cleanup and sync/rename outcomes.
 The callback owns executable admission, process completion, bounded output
 validation and any domain interpretation. Its original error and cleanup evidence
@@ -268,8 +275,9 @@ version becomes a macOS-only direct dependency, without a bindgen toolchain.
 installation the caller already trusts. It takes a `VersionSpec`, records the
 bounded executable identity and admits exact version output; later runs enforce
 that observed digest. It removes consumer-side hash/admit composition without
-claiming that observed bytes are a trusted published pin. Existing `ToolSpec`
-admission still compares its supplied digest before executing the version probe.
+claiming that observed bytes are a trusted published pin. Pinned admission takes
+the same `VersionSpec` plus a mandatory digest and compares it before executing
+the version probe.
 Installation provenance, per-host pins and selection of either contract remain
 consumer policy; no host catalog or version-range resolver is introduced.
 
@@ -349,3 +357,7 @@ performance interpretation stay caller-owned. The standard selected Cargo
 installer can prepare its published binary without feature flags. Metrics
 retirement uses published 0.17.4 and an admitted exact consumer selection; its
 working-tree integration and native acceptance remain separately qualified.
+Optional expected-digest verification and export/custom-section details are also
+owned by this CLI; the duplicate filesystem `inspect_artifact` example is retired.
+Default TSV output remains stable, and the filesystem development profile no
+longer selects the Wasm parser for that example.

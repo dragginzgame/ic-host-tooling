@@ -1,4 +1,4 @@
-//! Narrow no-follow directory selection and held-inode comparison.
+//! Narrow no-follow directory selection; held identity admission is durable-owned.
 
 use std::{fs::File, io, path::Path};
 
@@ -24,25 +24,6 @@ pub fn open_no_follow(path: &Path) -> io::Result<File> {
     #[cfg(not(unix))]
     {
         let _ = path;
-        Err(io::Error::from(io::ErrorKind::Unsupported))
-    }
-}
-
-/// Compare a current path entry with an already held directory descriptor.
-///
-/// # Errors
-/// Returns filesystem failures or unsupported-host admission errors.
-pub fn same_held_inode(path: &Path, held: &File) -> io::Result<bool> {
-    #[cfg(unix)]
-    {
-        use std::{fs, os::unix::fs::MetadataExt};
-        let current = fs::symlink_metadata(path)?;
-        let original = held.metadata()?;
-        Ok(current.is_dir() && current.dev() == original.dev() && current.ino() == original.ino())
-    }
-    #[cfg(not(unix))]
-    {
-        let _ = (path, held);
         Err(io::Error::from(io::ErrorKind::Unsupported))
     }
 }

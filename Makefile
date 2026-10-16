@@ -71,7 +71,7 @@ msrv-workspace:
 dependency-pins-check:
 	+bash scripts/ci/check-dependency-pins.sh --cargo-inheritance
 check-doc-links:
-	perl scripts/ci/check-documentation-links.pl --root "$(CURDIR)" README.md AGENTS.md CHANGELOG.md docs/changelog/0.4.md docs/changelog/0.5.md docs/changelog/0.6.md docs/changelog/0.7.md docs/changelog/0.8.md docs/changelog/0.9.md docs/changelog/0.10.md docs/changelog/0.11.md docs/changelog/0.12.md docs/changelog/0.13.md docs/changelog/0.14.md docs/changelog/0.15.md docs/changelog/0.16.md docs/changelog/0.17.md docs/changelog/0.18.md docs/changelog/0.19.md docs/extraction.md docs/hosts.md docs/status/current.md docs/publishing.md
+	perl scripts/ci/check-documentation-links.pl --root "$(CURDIR)" README.md AGENTS.md CHANGELOG.md docs/changelog/0.4.md docs/changelog/0.5.md docs/changelog/0.6.md docs/changelog/0.7.md docs/changelog/0.8.md docs/changelog/0.9.md docs/changelog/0.10.md docs/changelog/0.11.md docs/changelog/0.12.md docs/changelog/0.13.md docs/changelog/0.14.md docs/changelog/0.15.md docs/changelog/0.16.md docs/changelog/0.17.md docs/changelog/0.18.md docs/changelog/0.19.md docs/changelog/0.20.md docs/changelog/0.21.md docs/extraction.md docs/hosts.md docs/status/current.md docs/status/archive-2026-10-15.md docs/publishing.md
 release-adapter-check:
 	+bash scripts/release/test-adapter.sh
 tooling-command-check:
@@ -79,11 +79,7 @@ tooling-command-check:
 	+bash scripts/ci/test-make-snapshot.sh
 	+bash scripts/ci/test-make-consumer.sh
 	+bash scripts/ci/test-tool-commands.sh
-	+bash scripts/ci/test-host-tools.sh
-	+bash scripts/ci/test-ic-tools.sh
-	+bash scripts/ci/test-rust-tools.sh
 	+bash scripts/ci/check-release-commands.sh "$(CURDIR)" ci/tool-versions.env make/consumer.mk make/tools.mk make/rust-format.mk make/release.mk make/execution.mk scripts/ci/check-make-execution.sh scripts/ci/run-formatting.sh
-	+bash scripts/ci/test-cloc.sh
 publish:
 	+bash scripts/publish/workspace.sh publish
 publish-check:

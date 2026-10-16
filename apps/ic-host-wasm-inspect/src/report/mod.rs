@@ -1,20 +1,43 @@
 //! Structural facts and exact input identity, without IC cost estimates.
 
-use std::io::Write;
+use std::io::{self, Write};
 
 use ic_host_artifacts::{
-    artifact::Sha256Digest,
-    wasm::{InspectionLimits, inspect},
+    artifact::{ArtifactIdentity, Sha256Digest},
+    wasm::{InspectionLimits, WasmFacts, inspect},
 };
 
 use crate::Error;
 
-pub fn write(bytes: &[u8], limits: InspectionLimits, output: &mut impl Write) -> Result<(), Error> {
+pub fn write(
+    bytes: &[u8],
+    limits: InspectionLimits,
+    expected: Option<Sha256Digest>,
+    details: bool,
+    output: &mut impl Write,
+) -> Result<(), Error> {
     // Complete admission before publishing a header or an observed fact.
+    let identity = ArtifactIdentity {
+        bytes: bytes.len() as u64,
+        sha256: Sha256Digest::compute(bytes),
+    };
+    if let Some(expected) = expected {
+        identity.verify(expected).map_err(Error::Input)?;
+    }
     let facts = inspect(bytes, limits).map_err(Error::Inspection)?;
-    let digest = Sha256Digest::compute(bytes);
-    writeln!(output, "sha256\traw_wasm_bytes\tcode_section_bytes\tcode_body_bytes\tdata_section_bytes\tdefined_functions\timported_functions\tdefined_globals\timported_globals\tdata_segments\texports\tcustom_sections")
-        .map_err(Error::Output)?;
+    render(output, identity.sha256, facts, details).map_err(Error::Output)
+}
+
+fn render(
+    output: &mut impl Write,
+    digest: Sha256Digest,
+    facts: WasmFacts<'_>,
+    details: bool,
+) -> io::Result<()> {
+    writeln!(
+        output,
+        "sha256\traw_wasm_bytes\tcode_section_bytes\tcode_body_bytes\tdata_section_bytes\tdefined_functions\timported_functions\tdefined_globals\timported_globals\tdata_segments\texports\tcustom_sections"
+    )?;
     writeln!(
         output,
         "{digest}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
@@ -29,8 +52,25 @@ pub fn write(bytes: &[u8], limits: InspectionLimits, output: &mut impl Write) ->
         facts.data_segments,
         facts.exports.len(),
         facts.custom_sections.len()
-    )
-    .map_err(Error::Output)
+    )?;
+    if details {
+        for (name, export) in facts.exports {
+            writeln!(
+                output,
+                "export={name:?} kind={:?} index={}",
+                export.kind, export.index
+            )?;
+        }
+        for section in facts.custom_sections {
+            writeln!(
+                output,
+                "custom_section={:?} bytes={}",
+                section.name,
+                section.data.len()
+            )?;
+        }
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -50,7 +90,7 @@ mod tests {
     #[test]
     fn reports_raw_and_structural_units_separately() {
         let mut output = Vec::new();
-        write(MODULE, LIMITS, &mut output).unwrap();
+        write(MODULE, LIMITS, None, false, &mut output).unwrap();
         let text = String::from_utf8(output).unwrap();
         let rows: Vec<_> = text.lines().collect();
         assert_eq!(rows.len(), 2);
@@ -66,7 +106,20 @@ mod tests {
     fn malformed_and_over_budget_inputs_publish_no_report() {
         let mut output = Vec::new();
         assert!(matches!(
-            write(b"not Wasm", LIMITS, &mut output),
+            write(
+                MODULE,
+                LIMITS,
+                Some(Sha256Digest::compute(b"different")),
+                true,
+                &mut output
+            ),
+            Err(Error::Input(
+                ic_host_artifacts::artifact::ArtifactError::DigestMismatch { .. }
+            ))
+        ));
+        assert_eq!(output.as_slice(), b"");
+        assert!(matches!(
+            write(b"not Wasm", LIMITS, None, false, &mut output),
             Err(Error::Inspection(_))
         ));
         assert_eq!(output.as_slice(), b"");
@@ -85,7 +138,7 @@ mod tests {
             },
         ] {
             assert!(matches!(
-                write(MODULE, limits, &mut output),
+                write(MODULE, limits, None, false, &mut output),
                 Err(Error::Inspection(InspectionError::LimitExceeded {
                     resource: InspectionResource::ModuleBytes
                         | InspectionResource::CustomSections
@@ -112,7 +165,7 @@ mod tests {
             }
         }
         assert!(
-            matches!(write(MODULE, LIMITS, &mut FailedOutput), Err(Error::Output(error)) if error.kind() == io::ErrorKind::BrokenPipe)
+            matches!(write(MODULE, LIMITS, None, false, &mut FailedOutput), Err(Error::Output(error)) if error.kind() == io::ErrorKind::BrokenPipe)
         );
     }
 }
