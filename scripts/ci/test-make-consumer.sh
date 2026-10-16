@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Shared companions: make/consumer.mk scripts/ci/check-make-execution.sh scripts/ci/verify-file-checksum.sh .githooks/pre-commit
+# Shared companions: make/consumer.mk scripts/ci/check-make-execution.sh scripts/ci/verify-file-checksum.sh .githooks/pre-commit scripts/ci/check-pipe-jobserver.pl
 set -euo pipefail
 unset MAKEFLAGS MFLAGS MAKEOVERRIDES GNUMAKEFLAGS MAKEFILES
 root="${BASH_SOURCE[0]}"
@@ -128,6 +128,7 @@ FORMAT_CHECK_COMMAND = bash "$(CURDIR)/custom formatter.sh" --check 'workspace w
 fmt fmt-check: export CARGO_HOME := $(CURDIR)/selected cargo home
 include Makefile
 MAKE
+export JOBSERVER_PROBE="$root/scripts/ci/check-pipe-jobserver.pl"
 cat > "$consumer/custom formatter.sh" <<'FORMAT'
 #!/usr/bin/env bash
 set -eu
@@ -135,9 +136,7 @@ set -eu
 [[ "$CARGO_NET_OFFLINE" == true && "$RUSTUP_AUTO_INSTALL" == 0 ]]
 [[ $# == 2 && "$2" == 'workspace with spaces' ]]
 if [[ "${REQUIRE_JOBSERVER:-0}" == 1 ]]; then
-    [[ "$MAKEFLAGS" =~ --jobserver-(auth|fds)=([0-9]+),([0-9]+) ]]
-    reader="${BASH_REMATCH[2]}"; writer="${BASH_REMATCH[3]}"
-    : <&"$reader"; : >&"$writer"
+    perl "$JOBSERVER_PROBE"
 fi
 echo "$1" >> "$MAKE_CONSUMER_EVENTS"
 echo custom-detail >&2

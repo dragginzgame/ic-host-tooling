@@ -1,5 +1,6 @@
 //! Unicode display-width alignment over escaped caller-selected cells.
 use crate::escape::terminal_text;
+use std::borrow::Cow;
 use unicode_width::UnicodeWidthStr;
 
 /// Caller-selected alignment of one complete column.
@@ -45,48 +46,52 @@ pub fn render<const N: usize>(
         .collect::<Vec<_>>();
     let widths = std::array::from_fn(|index| {
         rows.iter().fold(
-            UnicodeWidthStr::width(headers[index].as_str()),
-            |width, row| width.max(UnicodeWidthStr::width(row[index].as_str())),
+            UnicodeWidthStr::width(headers[index].as_ref()),
+            |width, row| width.max(UnicodeWidthStr::width(row[index].as_ref())),
         )
     });
     let gap = " ".repeat(options.column_gap);
-    let mut lines = vec![render_row(&headers, &widths, alignments, &gap)];
+    let mut output = String::new();
+    render_row(&headers, &widths, alignments, &gap, &mut output);
     if options.header_separator {
-        lines.push(
-            widths
-                .iter()
-                .map(|width| "-".repeat(*width))
-                .collect::<Vec<_>>()
-                .join(&gap),
-        );
+        output.push('\n');
+        for (index, width) in widths.iter().enumerate() {
+            if index != 0 {
+                output.push_str(&gap);
+            }
+            output.extend(std::iter::repeat_n('-', *width));
+        }
     }
-    lines.extend(
-        rows.iter()
-            .map(|row| render_row(row, &widths, alignments, &gap)),
-    );
-    lines.join("\n")
+    for row in &rows {
+        output.push('\n');
+        render_row(row, &widths, alignments, &gap, &mut output);
+    }
+    output
 }
 
 fn render_row<const N: usize>(
-    row: &[String; N],
+    row: &[Cow<'_, str>; N],
     widths: &[usize; N],
     alignments: &[Alignment; N],
     gap: &str,
-) -> String {
-    row.iter()
-        .zip(widths)
-        .zip(alignments)
-        .map(|((value, width), alignment)| {
-            let padding = " ".repeat(width.saturating_sub(UnicodeWidthStr::width(value.as_str())));
-            match alignment {
-                Alignment::Left => format!("{value}{padding}"),
-                Alignment::Right => format!("{padding}{value}"),
-            }
-        })
-        .collect::<Vec<_>>()
-        .join(gap)
-        .trim_end()
-        .to_string()
+    output: &mut String,
+) {
+    let start = output.len();
+    for (index, ((value, width), alignment)) in row.iter().zip(widths).zip(alignments).enumerate() {
+        if index != 0 {
+            output.push_str(gap);
+        }
+        let padding = width.saturating_sub(UnicodeWidthStr::width(value.as_ref()));
+        if *alignment == Alignment::Right {
+            output.extend(std::iter::repeat_n(' ', padding));
+        }
+        output.push_str(value);
+        if *alignment == Alignment::Left {
+            output.extend(std::iter::repeat_n(' ', padding));
+        }
+    }
+    // Trim only this row so empty cells cannot erase earlier line separators.
+    output.truncate(start + output[start..].trim_end().len());
 }
 
 #[cfg(test)]
@@ -122,6 +127,27 @@ mod tests {
         assert!(text.starts_with("H\\n\n"));
         assert!(text.ends_with("x\\u{1b}[2J\\t\\u{2029}"));
         assert!(!text.contains('\x1b'));
+    }
+
+    #[test]
+    fn whitespace_cells_preserve_empty_rows_and_separator_spacing() {
+        assert_eq!(
+            render(
+                &["  ", "B "],
+                &[["", ""], ["x ", "\u{2003}"], ["界", "7"]],
+                &[Alignment::Left, Alignment::Right],
+                OPTIONS,
+            ),
+            "    B\n--  --\n\nx\n界   7"
+        );
+        assert_eq!(
+            render(&["H"], &[[""], [""]], &[Alignment::Left], OPTIONS),
+            "H\n-\n\n"
+        );
+        assert_eq!(
+            render(&["", ""], &[["", ""]], &[Alignment::Left; 2], OPTIONS),
+            "\n  \n"
+        );
     }
 
     #[test]

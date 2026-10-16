@@ -75,5 +75,90 @@ pub fn read_line(reader: &mut impl BufRead, maximum: u64) -> Result<Vec<u8>, Fra
     Ok(bytes)
 }
 
+/// Incremental newline framing for process-output callbacks.
+///
+/// The byte allowance includes the newline. Completed frames borrow reusable
+/// scratch until the callback returns. JSON, EOF acceptance, process lifetime
+/// and deadlines remain caller policy. After any failure, stop using the framer;
+/// no later input is admitted or implicitly drained.
+pub struct LineFramer {
+    maximum: u64,
+    pending: Option<Vec<u8>>,
+}
+
+impl LineFramer {
+    /// Create an empty framer with the caller's per-frame byte allowance.
+    #[must_use]
+    pub const fn new(maximum: u64) -> Self {
+        Self {
+            maximum,
+            pending: Some(Vec::new()),
+        }
+    }
+
+    /// Deliver each complete newline-terminated frame in order, retaining a tail.
+    ///
+    /// Oversized frames retain at most the allowance plus one refused byte.
+    /// On failure, the rest of this supplied chunk is abandoned; the caller must
+    /// stop the stream or choose its own recovery. Allocator capacity is not a
+    /// byte allowance, and already emitted frames are not rolled back.
+    ///
+    /// # Errors
+    /// Returns overflow, the original allocation/sink failure, or an invalid-input
+    /// I/O error when called again after refusal. Display never includes bytes.
+    pub fn feed(
+        &mut self,
+        chunk: &[u8],
+        mut emit: impl FnMut(&[u8]) -> io::Result<()>,
+    ) -> Result<(), FrameReadError> {
+        let mut pending = self.pending.take().ok_or_else(refused)?;
+        for fragment in chunk.split_inclusive(|byte| *byte == b'\n') {
+            let remaining = self.maximum.saturating_sub(pending.len() as u64);
+            if fragment.len() as u64 > remaining {
+                let prefix = usize::try_from(remaining)
+                    .map_err(|error| FrameReadError::Io(io::Error::other(error)))?
+                    + 1;
+                pending
+                    .try_reserve_exact(prefix)
+                    .map_err(|error| FrameReadError::Io(io::Error::other(error)))?;
+                pending.extend_from_slice(&fragment[..prefix]);
+                return Err(FrameReadError::TooLarge(pending));
+            }
+            pending
+                .try_reserve_exact(fragment.len())
+                .map_err(|error| FrameReadError::Io(io::Error::other(error)))?;
+            pending.extend_from_slice(fragment);
+            if pending.ends_with(b"\n") {
+                emit(&pending).map_err(FrameReadError::Io)?;
+                pending.clear();
+            }
+        }
+        self.pending = Some(pending);
+        Ok(())
+    }
+
+    /// Finish cleanly at a frame boundary, or return the owned unterminated tail.
+    ///
+    /// Callers may explicitly accept that tail when their protocol permits it.
+    ///
+    /// # Errors
+    /// Returns an unterminated frame, or invalid input after an earlier refusal.
+    pub fn finish(self) -> Result<(), FrameReadError> {
+        let pending = self.pending.ok_or_else(refused)?;
+        if pending.is_empty() {
+            Ok(())
+        } else {
+            Err(FrameReadError::Unterminated(pending))
+        }
+    }
+}
+
+fn refused() -> FrameReadError {
+    FrameReadError::Io(io::Error::new(
+        io::ErrorKind::InvalidInput,
+        "framer previously refused the stream",
+    ))
+}
+
 #[cfg(test)]
 mod tests;

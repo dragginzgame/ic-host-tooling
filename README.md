@@ -30,9 +30,12 @@ dependencies or the Candid parser. Enable `candid-extraction` explicitly for
 the Unix `candid::extraction` API.
 The optional `ic-interface` feature adds `interface::exported_methods` over
 generic Wasm facts without the Candid parser. Enable `candid-service` for
-parser-backed `candid::service::inspect`; it also enables `ic-interface`.
+parser-backed `candid::service::inspect` and shared method identities, without
+the artifact crate or Wasm parser. Select both features to compare Candid services
+with Wasm exports; `candid-service` no longer enables `ic-interface` implicitly.
 Neither feature introduces Host filesystem/process dependencies on its own.
 The parser remains absent from the extraction graph. See the
+[0.21 feature migration](docs/changelog/0.21.md),
 [0.17 feature migration](docs/changelog/0.17.md),
 [0.16 extraction migration](docs/changelog/0.16.md) and
 [0.15 API usage](docs/changelog/0.15.md).
@@ -49,12 +52,17 @@ budgets, witness commitments and application leaf meanings. The feature adds no
 Agent transport, filesystem/process execution or Candid parser.
 
 `ic-host-text::escape::terminal_text` makes control and bidirectional formatting
-characters visible without choosing output or colour. `table::render` accepts
+characters visible without choosing output or colour. It returns `Cow<str>`,
+borrowing safe input; use `.into_owned()` when independent ownership is required.
+`table::render` accepts
 headers, fixed-column rows, alignments and explicit `Options { column_gap,
 header_separator }`, returning a String. It measures escaped cells in Unicode
 display columns. Reports retain their row/header/column decisions; CLIs retain
-stdout, terminal detection, colour and progress. The crate depends only on the
-Unicode-width library, with no other Host or IC dependencies.
+stdout, terminal detection, colour and progress. `width::fit_line` escapes controls
+and clips with an ellipsis to caller-selected columns, using conservative scalar
+widths. It preserves UTF-8 boundaries without promising grapheme-cluster boundaries.
+The crate depends only on the Unicode-width library, with no other Host or IC
+dependencies.
 
 The compiled [IC resource-report example](crates/ic-host-tools/examples/inspect_install_limits/main.rs)
 inspects once and compares code-body bytes, defined functions and all globals
@@ -124,7 +132,7 @@ use `CompletedExecution::require_complete` before parsing retained output.
 
 Examples live with their owners: `ic-host-artifacts` has `hash_serialized_json`;
 `ic-host-fs` has `inspect_regular_file` and
-the artifact/file compositions `inspect_archive`, `inspect_artifact`, `inspect_gzip`;
+the artifact/file compositions `inspect_archive` and `inspect_gzip`;
 `ic-host-process` has `inspect_git` and `resolve_tool`. `ic-host-tools` retains
 `extract_candid`, `inspect_install_limits` and `inspect_response`; the response
 example runs with `--no-default-features`. Example-only dependencies do not widen
@@ -134,7 +142,10 @@ the tools crate's production feature graph.
 tools without a published binary digest. It records the installed identity,
 checks the exact version and rejects byte drift before later execution. That
 observed identity is not authentication; installation provenance stays with the
-caller. `admit` with `ToolSpec` continues to require an exact digest pin.
+caller. `admit` and `admit_no_follow` take the same `VersionSpec` with a separate,
+mandatory digest pin, checked before executing the version probe.
+The [0.20 upgrade notes](docs/changelog/0.20.md) describe the pinned-admission
+signature change.
 
 Filesystem reads live under `ic_host_fs::read`, including optional bounded
 no-follow reads and typed private-file admission. Durable publication and locks
@@ -165,9 +176,10 @@ and permissions, returns an unlocked close-on-exec descriptor, and performs no
 durability syncs. Callers retain locking, trusted ancestors and descriptor custody.
 
 `durable::write_named_with` lets an external tool write to an owned absolute
-staging path, then shares the normal durable publication engine. Callers validate
-bounded output before success and retain typed producer/cleanup errors. See the
-[named-output contract](docs/changelog/0.4.md#named-external-output) before adopting it.
+staging path with explicit `WriteOptions`, then shares the normal durable
+publication engine. Callers validate bounded output before success and retain
+typed producer/cleanup errors. See the
+[current publication contract](docs/changelog/0.20.md#named-publication) before adopting it.
 
 `durable::write_validated_with` closes the staging writer before a caller's
 prepublication admission callback, enabling executable probes while preserving
@@ -237,3 +249,7 @@ and raw/structural facts after complete admission; budgets and interpretation
 stay caller-owned. It executes no Wasm and estimates no cycles or instructions.
 Select the published package, version and binary through the standard
 Shared Tooling Cargo installer; no extra feature selection is required.
+Append `--expect-sha256 SHA256` for digest verification before reporting, or
+`--details` for export/custom-section records after the TSV summary. These options
+replace the retired `ic-host-fs` `inspect_artifact` example; default CLI output
+is unchanged. See the [inspector guide](apps/ic-host-wasm-inspect/README.md).
