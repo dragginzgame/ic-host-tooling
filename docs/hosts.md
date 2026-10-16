@@ -19,9 +19,10 @@ features. `make test-tools-response` checks the response/text library,
 `make test PACKAGE=ic-host-text` checks escaping and Unicode table alignment.
 `make tools-features-check` verifies its production dependency exclusions and
 the explicitly selected extractor's required owners. Native CI includes these profiles.
-The `candid-service` profile introduces the optional Candid parser;
-`ic-interface` excludes it. Both must qualify on the same Rust 1.88 and native
-Linux/macOS matrix as the existing libraries.
+The `candid-service` profile introduces the optional Candid parser without Host
+Artifacts or Wasm parsing; `ic-interface` excludes the Candid parser. Their combined
+profile explicitly selects both owners. These profiles must qualify on the same
+Rust 1.88 and native Linux/macOS matrix as the existing libraries.
 
 Native CI prepares pinned Rust and the complete common toolsets, then verifies
 the shared snapshot, declarations, formatter prerequisites, actual hook behavior,
