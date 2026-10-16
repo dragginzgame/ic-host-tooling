@@ -1,12 +1,26 @@
 # Changelog
 
-## [0.21.1]
+## [0.22.0]
 
-- Share read-only physical-directory validation for callers that permit missing
-  components. Private-parent preparation uses the same symlink, non-directory
-  and parent-traversal checks before creating directories. Qualify native filename
-  acceptance and rejection without assuming all Unix filesystems permit arbitrary bytes.
-  [Detailed notes](docs/changelog/0.21.md).
+### Breaking
+
+- Add `ArtifactError::LengthMismatch` for an exact stream that ends early.
+  Consumers exhaustively matching artifact errors must handle the new variant.
+
+### Added
+
+- Add exact-length streaming hash and bounded read operations to Host Artifacts.
+  They reject premature EOF and probe one excess byte; callers still select
+  byte limits and own stream custody.
+- Share read-only physical-directory validation and use it before private-parent
+  creation. Symlink, non-directory and parent-traversal checks retain one owner.
+
+### Fixed
+
+- Qualify native filename lookup without assuming directory creation and lookup
+  return identical errors or all Unix filesystems accept arbitrary bytes.
+
+[Detailed notes](docs/changelog/0.22.md).
 
 ## [0.21.0] - 2026-10-15
 

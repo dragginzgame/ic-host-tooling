@@ -4,8 +4,10 @@
 
 Released base: **0.21.0**, commit
 `69da6d4b02344a38506738184197491a7813c296`. Package versions remain 0.21.0.
-This scoped contribution selects the compatible **0.21.1** draft for shared
-read-only physical-directory validation. See [the release notes](../changelog/0.21.md).
+Upstream main `a0a969a67ed75d65589a5f14303b9a0335dc7d0a` already selects
+**0.22.0** for exact-length artifact streams and their new error variant.
+This additive physical-directory contribution joins that existing pending line;
+no package version changes. See [the release notes](../changelog/0.22.md).
 
 [PR #147](https://github.com/dragginzgame/ic-host-tooling/pull/147)'s original
 macOS jobs reached the native path fixture but failed while creating an invalid
