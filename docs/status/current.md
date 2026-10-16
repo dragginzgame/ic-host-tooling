@@ -2,12 +2,11 @@
 
 ## Source and pending release
 
-Latest tagged release: **0.22.0**, commit
-`984d4f34be230d735f629babe312a07df883fca6`. Package versions remain 0.22.0.
-The compatible contributor-tooling adoption is collected in the **0.22.1** draft.
-At its start, HEAD was `5b9be6f` and the HTTP-fixture merge of `a8f11e0` was still
-in progress. Preserve its staged source and corrected working-tree changelog;
-this adoption does not stage files or conclude that merge. Release scope and
+Latest tagged release: **0.22.1**, commit
+`b99beeae7c3115ee5323ea3b48fccad2fe325596`. Package versions are 0.22.1.
+The **0.22.2** draft adds existing lock-sidecar admission, one-shot locking
+and caller-verified directory commit primitives. Backup adoption requires a
+published Host package and separate consumer qualification. Release scope and
 consumer actions are in [the release notes](../changelog/0.22.md).
 
 Released 0.22.0 consolidates byte publication into `write_bytes(path, options,

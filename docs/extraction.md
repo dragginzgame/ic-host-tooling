@@ -106,8 +106,8 @@ orchestration separately; these libraries do not install tools or build canister
 
 Within `ic-host-fs`, `read` is the sole owner of required/optional/private reads.
 Its Unix `tree` module exposes a no-follow descriptor traversal for caller-owned
-entry handling, but does not own Backup's tree checksum framing, multi-file
-publication or retained byte custody. Callers admit and hold the root, select
+entry handling, but does not own Backup's tree checksum framing, complete
+artifact publication policy or retained byte custody. Callers admit and hold the root, select
 depth/byte limits, and prevent concurrent namespace or content changes where
 stable evidence is required.
 Observed directories always use directory-only opens and descriptor type checks;
@@ -127,6 +127,12 @@ It does not guarantee immutable bytes or continuing pathname containment.
 Durable publication and locks do not own a second
 reader hierarchy. Lock errors retain typed admission and original I/O causes;
 durable creation errors retain `NamedWriteError` in `RegularFileLockError::Publication`.
+The durable directory owner sequences a caller-verified existing tree through
+no-replace sibling publication and parent synchronization. It does not create,
+clean, hash or traverse that tree. The verification callback owns complete
+child/root synchronization and exact retained-byte comparison before the rename;
+the consumer owns namespace exclusion, recovery meaning and retry authority.
+Post-rename failures are explicitly distinct from before-publication failures.
 `try_lock_regular_file_with_parents` adds one nonblocking acquisition attempt
 through the same path opener; contention retains native `WouldBlock`. Blocking
 callers retain their existing behavior. Observed waits compose the opener with

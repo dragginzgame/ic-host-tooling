@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.22.2]
+
+- Admit existing regular lock sidecars, try one nonblocking exclusive lock, and
+  publish caller-verified directory trees without replacing an occupied name.
+  [Detailed notes](docs/changelog/0.22.md).
+
 ## [0.22.1] - 2026-10-16
 
 - Adopt Shared Tooling 0.15.7, strengthening fixture failure-retention checks
