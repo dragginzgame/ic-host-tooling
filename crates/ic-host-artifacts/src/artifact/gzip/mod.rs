@@ -98,7 +98,7 @@ impl std::error::Error for GzipError {
 /// Compressed and decoded bytes may be resident together. Callers own limits,
 /// digest admission and payload interpretation: decoding establishes neither
 /// Wasm validity nor an admitted executable identity. Verify downloaded archive
-/// digests before decoding, as `archive::extract_tar_gz` (when the archive feature is enabled) does.
+/// digests before decoding when a trusted compressed-input digest is required.
 ///
 /// # Errors
 /// Returns typed input overflow, gzip/read/integrity, decoded overflow,

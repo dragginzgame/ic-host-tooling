@@ -1,11 +1,11 @@
-//! Bounded Candid text normalization without parsing or process execution.
+//! Bounded line normalization without grammar, terminal or output policy.
 
 use std::fmt;
 
 #[cfg(test)]
 mod tests;
 
-/// UTF-8 or resource failure while normalizing captured extractor output.
+/// UTF-8 or resource failure while normalizing text lines.
 #[derive(Debug)]
 pub enum NormalizationError {
     /// Input bytes exceed the caller's bound before decoding.
@@ -15,7 +15,7 @@ pub enum NormalizationError {
         /// Maximum permitted bytes.
         limit: usize,
     },
-    /// Captured output is not valid UTF-8; no lossy decoding is performed.
+    /// Input is not valid UTF-8; no lossy decoding is performed.
     Utf8(std::str::Utf8Error),
     /// Normalized text, including added line endings, would exceed the bound.
     OutputLimit {
@@ -30,11 +30,14 @@ impl fmt::Display for NormalizationError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::InputLimit { actual, limit } => {
-                write!(f, "Candid output has {actual} bytes, exceeding {limit}")
+                write!(
+                    f,
+                    "normalization input has {actual} bytes, exceeding {limit}"
+                )
             }
-            Self::Utf8(_) => f.write_str("Candid extractor output is not UTF-8"),
-            Self::OutputLimit { limit } => write!(f, "normalized Candid exceeds {limit} bytes"),
-            Self::Allocation(_) => f.write_str("Candid normalization allocation failed"),
+            Self::Utf8(_) => f.write_str("normalization input is not UTF-8"),
+            Self::OutputLimit { limit } => write!(f, "normalized text exceeds {limit} bytes"),
+            Self::Allocation(_) => f.write_str("line normalization allocation failed"),
         }
     }
 }
@@ -48,17 +51,17 @@ impl std::error::Error for NormalizationError {
     }
 }
 
-/// Normalize UTF-8 extractor bytes with an explicit input/output byte bound.
+/// Normalize UTF-8 lines with an explicit input/output byte bound.
 ///
-/// Matches Canic's `str::lines` / `trim_end` contract: remove each line's
+/// Uses `str::lines` / `trim_end`: remove each line's
 /// trailing Unicode whitespace, emit LF endings, and preserve blank lines.
 /// Empty input stays empty; a nonempty unterminated line gains one LF.
-/// This does not parse Candid or select an expected service contract.
+/// This does not parse a grammar, escape terminal controls or canonicalize a format.
 ///
 /// # Errors
 /// Returns input overflow, invalid UTF-8, normalized-output overflow or
 /// allocation failure. No partial normalized text is returned.
-pub fn normalize(bytes: &[u8], max_bytes: usize) -> Result<String, NormalizationError> {
+pub fn normalize_lines(bytes: &[u8], max_bytes: usize) -> Result<String, NormalizationError> {
     if bytes.len() > max_bytes {
         return Err(NormalizationError::InputLimit {
             actual: bytes.len(),

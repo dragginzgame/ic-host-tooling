@@ -6,6 +6,16 @@ policy. They require Perl core modules or Bash 3.2+, as noted below, and run on
 Linux and macOS. The portable regression suite includes offline fixtures;
 native CI qualifies each supported host separately.
 
+## Fixture diagnostic replay
+
+`fixture_replay_logs FILE...` in `scripts/ci/fixture-lifecycle.sh` writes existing
+regular-file inputs to stderr in caller order, without adding separators. Missing
+paths, directories and unmatched glob literals are skipped. Reader/output failures
+are best effort and the helper returns success; callers save their original status
+before invoking it and retain their existing failure/completion handling. Callers
+own explicit file/glob selection, whether replay runs, and cleanup/retention policy.
+No files are removed or collected into a separate artifact.
+
 ## Cargo dependency-order fixtures
 
 ```bash
@@ -233,8 +243,11 @@ of working versus committed sources and their release/preparation transactions.
 ## CI binary installers
 
 Use `scripts/ci/install-ci-tool.sh TOOL` for actionlint, shellcheck, gitleaks,
-sccache and yq. Their existing version, SHA-256 and installation
-directory arguments are unchanged. The implementation shares host selection,
+sccache and yq. Supply exact `--version`, `--sha256` and `--install-dir` arguments.
+Since 0.16.0, installation requires an explicit destination; add the flag before
+refreshing callers that used `TOOL_INSTALL_DIR` or the home-directory default.
+Missing or empty destinations refuse before host probes, downloads or filesystem
+setup. The implementation shares host selection,
 HTTPS download, checksum admission, extraction, exact version admission and
 publication. Asset names and version-output formats remain explicit per tool.
 Staging lives on the destination filesystem; failures retain the candidate and
@@ -802,10 +815,18 @@ runs locked offline Cargo fetching followed by check targets; PREPARE=1 runs
 locked fetching followed by the caller's complete ordered preparation targets.
 Explicit Cargo offline policy remains authoritative. Cargo retains the caller's
 selected-source working directory; tool targets run with Make in TOOL-ROOT.
+`RELEASE_MAKE` selects one Make executable (including a path with spaces),
+defaulting to `make`; its failure status is preserved without fallback.
 Every selected catalog is hashed before preparation and rechecked after each
 tool target. Failures preserve fetch/Make status or refuse changed selections.
 The helper owns no version/source admission, index, release or publication effect.
-Focused coverage is `scripts/ci/test-cargo-release-preflight.sh`.
+Focused coverage is `scripts/ci/test-cargo-release-preflight.sh`, including
+simulated cold/warm caches, offline policy, fetch failure, missing executables,
+setup/check failure and selected-pin drift. These use substituted Cargo/Make
+effects. A frozen one-dependency workspace additionally uses real Cargo with an
+empty cache to verify environment/configuration offline refusal before tool
+dispatch, preserving its manifest and lock. Consumers retain preparation
+authority, catalog overrides, runner ordering and Git-state custody.
 
 ## Current Rust formatting inputs
 
@@ -832,11 +853,18 @@ coverage is `scripts/ci/test-workflow-step.sh`.
 ## Consumer flow qualification
 
 Source `scripts/ci/make-adapter-probes.sh` for
-`make_probe_execution_modes MAKE MAKEFILE DIRECTORY EVENTS TARGET...` and
+`make_probe_target_admission MAKE MAKEFILE DIRECTORY EVENTS TARGET...` and
 `make_probe_parallel_dispatch` with the same arguments. Callers prepare reviewed
-Makefiles and substituted effects. The first checks unsafe direct/inherited
-execution modes and hidden flag assignments; the second requires observable
-dispatch under a real pipe jobserver. Both fail when required assertions disagree.
+Makefiles and substituted effects. The first checks each unsafe behavior once;
+the second requires observable dispatch under a real pipe jobserver. Exhaustive
+flag aliases and hidden assignments stay in `test-consumer-flow-probes.sh`.
+The producer-only `make_probe_execution_modes` is no longer exported; consumer
+admission checks use `make_probe_target_admission` instead.
+
+When adopting 0.16.0, update any calls to the removed helper before refreshing
+the reviewed snapshot. Keep the consumer's target roster, effect assertions and
+parallel jobserver checks. Existing snapshots stay bound to their recorded
+source; refresh through the exporter rather than editing vendored helpers.
 
 `fixture_probe_effect SCRIPT RUN PREFIX STATUS BASH MARKER` runs a fixture with
 caller-prepared PATH/environment, captures `result.log` and `status.txt`, and
@@ -853,26 +881,29 @@ the tool collector's nonfatal status on partial collection, or 2 on fatal
 admission/archive errors. Consumers retain source/outcome records, the selected
 roster, upload policy and complete outer archives including Git recovery state.
 
-Focused coverage is `scripts/ci/test-consumer-flow-probes.sh`; no helper is a
-sandbox for an unreviewed Makefile, script or selected payload.
+Focused coverage is `scripts/ci/test-consumer-flow-probes.sh` and
+`scripts/ci/test-native-diagnostics.sh`. The latter owns referenced host/IC/Rust
+bundle selection, rejected-store local retention and fatal candidate-archive
+failures after readable diagnostics are published. Consumers retain actual
+workflow dispatch/status and outer recovery-state checks. No helper is a sandbox
+for an unreviewed Makefile, script or selected payload.
 ## Assertion retention probes
 
 Source `scripts/ci/fixture-retention-probes.sh` for
-`fixture_probe_assertion OWNER PROBE_ROOT SOURCE_ROOT NAME [ARGUMENTS...]`.
-The default probe contradicts the first status assertion in a lower-case
-`root`/`fixture` owner and runs its existing setup. Consumers retain the fixture
-roster and arguments.
+`fixture_probe_assertion OWNER PROBE_ROOT SOURCE_ROOT NAME
+--selected ASSERTION_SOURCE LITERAL_PREFIX BINDINGS`.
+Since 0.16.0, assertion selection is mandatory. Replace inferred-assertion calls
+with the existing explicit form before refreshing the helper. Consumers retain
+the fixture roster, exact assertion selection and contradictory bindings.
 
-For an assertion in a workflow or another script, pass
-`--selected ASSERTION_SOURCE LITERAL_PREFIX BINDINGS` after `NAME` instead.
 Exactly one source line must match the literal prefix after leading whitespace.
 The child runs only the owner's initialization through its EXIT trap, followed
 by caller bindings and the selected assertion. Bindings are trusted shell source
 maintained by the caller; never pass user input. Bodies that build, install or
-mutate Git are excluded in this mode. Keep contradictory values and product
+mutate Git are excluded from execution. Keep contradictory values and product
 assertion selection in the consumer.
 
-Both modes require the supported root anchor and EXIT boundary, evidence
+The probe requires the supported root anchor and EXIT boundary, evidence
 retention, status 1, and a receipt proving the intended assertion was reached.
 Ignored assertions and earlier setup failures are rejected. The focused owner
 suite is `scripts/ci/test-fixture-assertion-probe.sh`.
@@ -897,6 +928,21 @@ after admission, then physically anchored so relative paths, aliases and spaces
 retain the same scenario identity. Refused inputs create no evidence directories.
 The focused owner fixture is `scripts/ci/test-hosted-failure.sh`.
 
+The producer fixture `scripts/ci/test-checker-retention.sh` qualifies retained
+release/formatting inputs, logs and Git index after child or assertion failures.
+Consumers retain their own status/diagnostic checks without inspecting these
+shared checkers' internal directory layout.
+
+`collect-native-evidence.sh EVIDENCE OUTPUT` inventories available top-level files
+and packages the caller-owned tree verbatim, including hidden Git recovery state,
+with an archive checksum. Keep the same relative evidence-root spelling for
+inventory replay. The caller selects trusted inputs and artifact upload policy;
+this helper does not sanitize a tree for public distribution. Output must be
+outside the evidence tree; existing outputs refuse. Failures preserve inputs and
+partial output with their command status. Publish separately selected readable
+diagnostics before calling it. `test-native-evidence-archive.sh` owns packaging,
+checksum, containment, refusal and partial-failure qualification.
+
 ## Controlled hosted-scenario verification
 
 `failure_evidence.py` also exports
@@ -909,3 +955,27 @@ from their receipts. Consumers retain source/job/run identity, collection policy
 native tool pins and compact-tool qualification. Negative owner cases exercise
 both stages and malformed/missing/ambiguous evidence; consumer collector tests
 still qualify the complete upload/download boundary.
+
+## Read-only changelog preflight
+
+`check-release-changelog.sh VERSION PREVIOUS DATE CHANGELOG` admits a regular
+changelog with the canonical candidate selector before any setup or mutation.
+It writes no temporary/output file, preserves failed reader/selector status and
+keeps empty notes advisory. Coordinated metadata preparation remains the writer;
+consumer source, tag, impact and release authority stay local. Focused coverage
+is `scripts/ci/test-release-changelog.sh`.
+
+## Focused verifier qualification
+
+`bash scripts/ci/test-snapshot-verifier.sh` checks generic snapshot directory
+admission, ordinary aliases, resolved manifest parents and corruption of inert
+checksum helpers against a controlled three-file export. Distribution tests
+retain refresh/source/index obligations; consumers retain their actual exported
+manifest and representative payload corruption checks. This Bash 3.2 fixture
+requires no Git repository, tool installation or Cargo inputs.
+
+`python3 scripts/ci/test-failure-evidence.py` owns generic downloaded-archive,
+compact-tool receipt and hosted-scenario rejection cases. The standard-library
+suite runs in Linux CI; it adds no Python prerequisite to native shell consumers.
+Consumers retain actual collector integration, source/run identity, caller pin
+selection and representative rejection checks through their own verifier.

@@ -20,7 +20,7 @@ test-support = []
 ic-host-artifacts.workspace = true
 
 [dev-dependencies]
-ic-host-artifacts = { workspace = true, features = ["archive"] }
+ic-host-artifacts = { workspace = true, features = ["gzip"] }
 serde.workspace = true
 serde_json.workspace = true
 

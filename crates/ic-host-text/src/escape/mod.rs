@@ -1,5 +1,5 @@
 //! Escape untrusted scalar text without selecting terminal or colour policy.
-use std::{borrow::Cow, fmt::Write as _};
+use std::borrow::Cow;
 
 /// Escape terminal controls, Unicode line separators and bidirectional controls.
 ///
@@ -16,19 +16,44 @@ pub fn terminal_text(value: &str) -> Cow<'_, str> {
     };
     let mut escaped = String::with_capacity(value.len());
     escaped.push_str(&value[..start]);
-    for character in value[start..].chars() {
-        match character {
-            '\n' => escaped.push_str("\\n"),
-            '\r' => escaped.push_str("\\r"),
-            '\t' => escaped.push_str("\\t"),
-            character if needs_escape(character) => {
-                write!(escaped, "\\u{{{:x}}}", u32::from(character))
-                    .expect("String writes cannot fail");
-            }
-            character => escaped.push(character),
-        }
-    }
+    escaped.extend(escaped_chars(&value[start..]));
     Cow::Owned(escaped)
+}
+
+// Yield the presentation encoding without allocating a complete escaped copy.
+pub(crate) fn escaped_chars(value: &str) -> impl Iterator<Item = char> + '_ {
+    let mut characters = value.chars();
+    let mut short = None;
+    let mut unicode: Option<std::char::EscapeUnicode> = None;
+    std::iter::from_fn(move || {
+        if let Some(character) = short.take() {
+            return Some(character);
+        }
+        if let Some(escaped) = &mut unicode
+            && let Some(character) = escaped.next()
+        {
+            return Some(character);
+        }
+        unicode = None;
+        let character = characters.next()?;
+        match character {
+            '\n' | '\r' | '\t' => {
+                short = Some(match character {
+                    '\n' => 'n',
+                    '\r' => 'r',
+                    _ => 't',
+                });
+                Some('\\')
+            }
+            character if needs_escape(character) => {
+                let mut escaped = character.escape_unicode();
+                let first = escaped.next();
+                unicode = Some(escaped);
+                first
+            }
+            character => Some(character),
+        }
+    })
 }
 
 fn needs_escape(character: char) -> bool {

@@ -20,9 +20,6 @@ tasks/code-audit.md
 tasks/tooling-duplication.md
 tasks/maintenance-prompt.md
 tasks/local-schedule.md
-tasks/systemd/shared-tooling-maintenance.service
-tasks/systemd/shared-tooling-maintenance.timer
-scripts/dev/run-maintenance.sh
 audits/README.md
 audits/ic-canister-applications.md
 audits/code-hygiene.md
@@ -60,5 +57,6 @@ scripts/ci/verify-file-checksum.sh
 scripts/ci/verify-shared-tooling-snapshot.sh
 docs/tag-maintenance.md
 scripts/distribution/governance-files.txt
+scripts/distribution/maintenance-files.txt
 docs/tool-catalog-bindings.md
 docs/cargo-publication.md

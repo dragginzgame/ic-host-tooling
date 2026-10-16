@@ -87,7 +87,7 @@ fn direct_cleanup_preserves_other_members_of_the_selected_group() {
     let _fixture = Fixture::new();
     let mut keeper_command = command("cat");
     keeper_command.stdin(Stdio::piped()).stdout(Stdio::null());
-    let mut keeper = OwnedChild::spawn(&mut keeper_command).unwrap();
+    let mut keeper = OwnedChild::spawn(&mut keeper_command, CleanupPolicy::KillAndWait).unwrap();
     let group = i32::try_from(keeper.id()).unwrap();
     for case in ["success", "cancel", "overflow", "panic", "drop"] {
         let script = if case == "success" {

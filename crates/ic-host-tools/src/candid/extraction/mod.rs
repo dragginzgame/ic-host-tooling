@@ -1,7 +1,6 @@
 //! Admitted extractor execution with source identity and bounded output evidence.
 //! Callers own grammar validation, publication and exclusion of concurrent writers.
 
-use super::text::{NormalizationError, normalize};
 use ic_host_artifacts::artifact::{ArtifactError, ArtifactIdentity};
 use ic_host_fs::read::hash_file;
 use ic_host_process::tool::{
@@ -37,13 +36,6 @@ pub enum ExtractionError {
         /// Bounded process output that must not be published as valid extraction.
         evidence: Box<CompletedExecution>,
     },
-    /// Successful output could not be normalized under the selected bound.
-    Normalize {
-        /// Normalization failure.
-        source: NormalizationError,
-        /// Exact bounded process output, including invalid UTF-8 when present.
-        evidence: Box<CompletedExecution>,
-    },
 }
 
 impl fmt::Display for ExtractionError {
@@ -54,7 +46,6 @@ impl fmt::Display for ExtractionError {
             Self::Tool(source) => source.fmt(f),
             Self::SourceInspection { .. } => f.write_str("Candid source re-inspection failed"),
             Self::SourceChanged { .. } => f.write_str("Candid source changed during extraction"),
-            Self::Normalize { source, .. } => source.fmt(f),
         }
     }
 }
@@ -63,16 +54,13 @@ impl std::error::Error for ExtractionError {
         match self {
             Self::Input(source) | Self::SourceInspection { source, .. } => Some(source),
             Self::Tool(source) => Some(source),
-            Self::Normalize { source, .. } => Some(source),
             _ => None,
         }
     }
 }
 
-/// Normalized text, source/tool identities, and exact bounded process evidence.
+/// Source/tool identities and exact bounded process evidence, without text conversion.
 pub struct ExtractedCandid {
-    /// Normalized UTF-8 declaration; grammar acceptance remains caller-owned.
-    pub text: String,
     /// Matching source identity observed before and after invocation.
     pub source_identity: ArtifactIdentity,
     /// Tool bytes admitted by the consumer.
@@ -84,7 +72,6 @@ pub struct ExtractedCandid {
 impl fmt::Debug for ExtractedCandid {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("ExtractedCandid")
-            .field("text_bytes", &self.text.len())
             .field("source_identity", &self.source_identity)
             .field("tool_identity", &self.tool_identity)
             .field("evidence", &self.evidence)
@@ -94,15 +81,17 @@ impl fmt::Debug for ExtractedCandid {
 
 /// Invoke the admitted extractor once with the absolute source path as one arg.
 ///
-/// Input regular-file hashing is bounded by `source_bytes`. Normalized text is
-/// bounded by `output.stdout.retained_bytes()`, independently of capture storage. The
-/// source is inspected again on successful completion; observed changes reject
+/// Input regular-file hashing is bounded by `source_bytes`; process output uses
+/// the selected retention limits and must be complete. No UTF-8 conversion,
+/// normalization or grammar validation occurs. Callers can explicitly apply
+/// `ic_host_text::normalize::normalize_lines` to retained stdout with their own
+/// normalized-byte allowance. The source is inspected again on successful completion; observed changes reject
 /// publication. Callers must exclude concurrent writers to source/tool paths:
 /// before/after digests cannot prove that transient changes did not occur.
 ///
 /// # Errors
-/// Returns typed path/read, tool-execution, source-change or normalization
-/// failures. After invocation, process failure/validation evidence is retained.
+/// Returns typed path/read, tool-execution or source-change failures.
+/// After invocation, process failure/validation evidence is retained.
 pub fn extract(
     tool: &AdmittedTool,
     source: &Path,
@@ -135,17 +124,7 @@ pub fn extract(
             evidence: Box::new(evidence),
         });
     }
-    let text = match normalize(&evidence.stdout, output.stdout.retained_bytes()) {
-        Ok(text) => text,
-        Err(source) => {
-            return Err(ExtractionError::Normalize {
-                source,
-                evidence: Box::new(evidence),
-            });
-        }
-    };
     Ok(ExtractedCandid {
-        text,
         source_identity: before,
         tool_identity: tool.identity(),
         evidence,

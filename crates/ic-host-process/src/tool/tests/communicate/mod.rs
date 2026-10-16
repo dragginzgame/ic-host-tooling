@@ -1,5 +1,5 @@
 use super::*;
-use crate::child::OwnedChild;
+use crate::child::{CleanupPolicy, OwnedChild};
 use rustix::process::{Pid, WaitId, WaitIdOptions, waitid};
 use std::{process::Stdio, time::Instant};
 
@@ -9,7 +9,11 @@ mod retained;
 #[test]
 fn nonzero_retained_leader_cleans_descendant_pipes_and_refuses_handoff() {
     let _fixture = Fixture::new();
-    let mut child = OwnedChild::spawn(&mut command("sleep 30 & printf done; exit 17")).unwrap();
+    let mut child = OwnedChild::spawn(
+        &mut command("sleep 30 & printf done; exit 17"),
+        CleanupPolicy::KillAndWait,
+    )
+    .unwrap();
     let output =
         communicate_child(&mut child, None, LIMITS, SuccessfulExit::Retain, || false).unwrap();
     assert_eq!(output.status.code(), Some(17));
@@ -50,7 +54,7 @@ fn full_duplex_io_is_bounded_fair_and_leaves_success_reserved() {
             "n=0; while [ \"$n\" -lt 10000 ]; do printf 0123456789abcdef; \
          printf fedcba9876543210 >&2; n=$((n + 1)); done; cat",
         );
-        let mut child = OwnedChild::spawn(&mut command).unwrap();
+        let mut child = OwnedChild::spawn(&mut command, CleanupPolicy::KillAndWait).unwrap();
         let input = vec![b'x'; 256 * 1024];
         let (mut stdout, mut stderr) = (Vec::new(), Vec::new());
         let evidence = communicate_child_with_observer(
@@ -99,7 +103,8 @@ fn full_duplex_io_is_bounded_fair_and_leaves_success_reserved() {
 fn absent_input_closes_piped_stdin_and_caller_io_is_preserved() {
     let fixture = Fixture::new();
     for input in [None, Some(&b""[..])] {
-        let mut child = OwnedChild::spawn(&mut command("cat; printf eof")).unwrap();
+        let mut child =
+            OwnedChild::spawn(&mut command("cat; printf eof"), CleanupPolicy::KillAndWait).unwrap();
         assert_eq!(
             communicate_child(&mut child, input, LIMITS, SuccessfulExit::Retain, || false)
                 .unwrap()
@@ -116,7 +121,7 @@ fn absent_input_closes_piped_stdin_and_caller_io_is_preserved() {
         .stdin(fs::File::open(input_path).unwrap())
         .stdout(Stdio::inherit())
         .stderr(fs::File::create(&output_path).unwrap());
-    let mut child = OwnedChild::spawn(&mut command).unwrap();
+    let mut child = OwnedChild::spawn(&mut command, CleanupPolicy::KillAndWait).unwrap();
     let evidence = communicate_child(
         &mut child,
         None,
@@ -138,9 +143,10 @@ fn absent_input_closes_piped_stdin_and_caller_io_is_preserved() {
 fn early_stdin_close_preserves_command_status_and_diagnostics() {
     let _fixture = Fixture::new();
     for code in [0, 23] {
-        let mut child = OwnedChild::spawn(&mut command(&format!(
-            "exec 0<&-; printf diagnostic >&2; exit {code}"
-        )))
+        let mut child = OwnedChild::spawn(
+            &mut command(&format!("exec 0<&-; printf diagnostic >&2; exit {code}")),
+            CleanupPolicy::KillAndWait,
+        )
         .unwrap();
         let input = vec![b'x'; 1024 * 1024];
         let result = communicate_child(
@@ -177,7 +183,7 @@ fn cancellation_interrupts_blocked_input_and_reaps_the_group() {
         .env("READY", &ready)
         .env("GO", &go)
         .env("LATE", &late);
-    let mut child = OwnedChild::spawn(&mut command).unwrap();
+    let mut child = OwnedChild::spawn(&mut command, CleanupPolicy::KillAndWait).unwrap();
     let input = vec![b'x'; 1024 * 1024];
     let result = communicate_child(
         &mut child,
@@ -213,7 +219,7 @@ fn successful_background_handoff_requires_explicit_post_io_admission() {
             .env("READY", ready)
             .env("GO", &go)
             .env("LATE", &late);
-        let mut child = OwnedChild::spawn(&mut command).unwrap();
+        let mut child = OwnedChild::spawn(&mut command, CleanupPolicy::KillAndWait).unwrap();
         let evidence =
             communicate_child(&mut child, None, LIMITS, SuccessfulExit::Retain, || false).unwrap();
         assert!(std::str::from_utf8(&evidence.stdout).is_err());
@@ -252,7 +258,8 @@ fn held_pipe_deadline_and_overflow_keep_cleanup_armed_after_leader_exit() {
         ("sleep 30 & exit 0", false),
         ("printf 12345; sleep 30 & exit 0", true),
     ] {
-        let mut child = OwnedChild::spawn(&mut command(script)).unwrap();
+        let mut child =
+            OwnedChild::spawn(&mut command(script), CleanupPolicy::KillAndWait).unwrap();
         let error = communicate_child(
             &mut child,
             None,
@@ -285,7 +292,7 @@ fn held_pipe_deadline_and_overflow_keep_cleanup_armed_after_leader_exit() {
 #[test]
 fn invalid_deadline_retains_owner_and_missing_input_pipe_cleans_it() {
     let _fixture = Fixture::new();
-    let mut child = OwnedChild::spawn(&mut command("cat")).unwrap();
+    let mut child = OwnedChild::spawn(&mut command("cat"), CleanupPolicy::KillAndWait).unwrap();
     for timeout in [Duration::ZERO, Duration::MAX] {
         assert!(matches!(
             communicate_child(
@@ -320,7 +327,7 @@ fn invalid_deadline_retains_owner_and_missing_input_pipe_cleans_it() {
 
     let mut command = command("sleep 30");
     command.stdin(Stdio::null());
-    let mut child = OwnedChild::spawn(&mut command).unwrap();
+    let mut child = OwnedChild::spawn(&mut command, CleanupPolicy::KillAndWait).unwrap();
     let error = communicate_child(
         &mut child,
         Some(b""),
@@ -342,7 +349,7 @@ fn invalid_deadline_retains_owner_and_missing_input_pipe_cleans_it() {
 #[test]
 fn cancellation_is_checked_again_before_returning_reserved_success() {
     let _fixture = Fixture::new();
-    let mut child = OwnedChild::spawn(&mut command("exit 0")).unwrap();
+    let mut child = OwnedChild::spawn(&mut command("exit 0"), CleanupPolicy::KillAndWait).unwrap();
     let deadline = Instant::now() + Duration::from_secs(5);
     while child.poll_exit().unwrap().is_none() {
         assert!(Instant::now() < deadline);
@@ -375,7 +382,7 @@ fn communication_uses_owned_term_grace_with_blocked_input_and_held_pipes() {
         );
         command.env("READY", &ready).env("MODE", mode);
         let grace = Duration::from_millis(50);
-        let mut child = OwnedChild::spawn_with_cleanup(
+        let mut child = OwnedChild::spawn(
             &mut command,
             crate::child::CleanupPolicy::TermThenKill {
                 grace,
