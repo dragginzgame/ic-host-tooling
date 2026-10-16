@@ -89,6 +89,9 @@ heap, stack or CPU quota for the parser. `interface::exported_methods` borrows
 function export facts without reparsing Wasm. It preserves internal methods,
 empty names and mode differences for caller admission. Oneway remains distinct
 in Candid and maps explicitly to the update export namespace through `as_export`.
+`candid-service` selects only the Candid parser; shared method identities remain
+in `interface` without requiring Wasm support. Select `ic-interface` explicitly
+for export projection, including when combining it with Candid service inspection.
 Expected interfaces, CDK allowlists, type compatibility, payload annotations and
 Canic endpoint presentation remain consumer policy. IC Build owns build/cache
 orchestration separately; these libraries do not install tools or build canisters.
@@ -110,6 +113,9 @@ and descriptor admission with the artifact owner's constant-memory hash traversa
 metadata and streamed bytes have independent bounds. It rejects final symlinks,
 while existing `hash_file` continues to follow them. Ancestor confinement,
 concurrent-writer custody and exact expected-length checks remain caller-owned.
+`open_entry_beneath` selects a regular file or directory through held root and
+parent descriptors, refusing traversal, observed symlinks and special entries.
+It does not guarantee immutable bytes or continuing pathname containment.
 Durable publication and locks do not own a second
 reader hierarchy. Lock errors retain typed admission and original I/O causes;
 durable creation errors retain `NamedWriteError` in `RegularFileLockError::Publication`.
@@ -358,3 +364,8 @@ Optional expected-digest verification and export/custom-section details are also
 owned by this CLI; the duplicate filesystem `inspect_artifact` example is retired.
 Default TSV output remains stable, and the filesystem development profile no
 longer selects the Wasm parser for that example.
+
+The opt-in `ic-host-process::testing::http` module owns bounded synthetic request
+reading, including phased request-line admission and remaining-deadline socket
+reads. It does not own response generation, application policy or evidence files.
+HTTP fixtures are portable; executable fixtures and crash barriers remain Unix-only.

@@ -20,6 +20,11 @@ dev-dependency and use `testing::create_fixture_directory(parent, prefix)`.
 It allocates beneath an existing physical parent, skips occupied names and
 returns the retained path. Callers own labels, custody and explicit cleanup;
 the allocator supplies no Drop guard or application lifecycle.
+For bounded synthetic HTTP peers, opt in to `ic-host-process`'s `test-support`
+feature and use `testing::http::{capture_http_request, read_http_request_line,
+read_http_request_with_line}`. Whole capture retains partial bytes and typed
+failures; callers select required or optional Content-Length and own responses,
+byte budgets, deadlines and evidence files.
 With `wasm`, `wasm::encode_custom_section(CustomSection { name, data }, max_bytes)`
 encodes one complete custom section with an explicit output-byte allowance.
 Callers supply exact names/data and own module assembly, aggregate budgets,
@@ -30,9 +35,12 @@ dependencies or the Candid parser. Enable `candid-extraction` explicitly for
 the Unix `candid::extraction` API.
 The optional `ic-interface` feature adds `interface::exported_methods` over
 generic Wasm facts without the Candid parser. Enable `candid-service` for
-parser-backed `candid::service::inspect`; it also enables `ic-interface`.
+parser-backed `candid::service::inspect` and shared method identities, without
+the artifact crate or Wasm parser. Select both features to compare Candid services
+with Wasm exports; `candid-service` no longer enables `ic-interface` implicitly.
 Neither feature introduces Host filesystem/process dependencies on its own.
 The parser remains absent from the extraction graph. See the
+[0.21 feature migration](docs/changelog/0.21.md),
 [0.17 feature migration](docs/changelog/0.17.md),
 [0.16 extraction migration](docs/changelog/0.16.md) and
 [0.15 API usage](docs/changelog/0.15.md).
@@ -148,6 +156,14 @@ Filesystem reads live under `ic_host_fs::read`, including optional bounded
 no-follow reads and typed private-file admission. Durable publication and locks
 remain under `durable`. Upgrading from 0.3 requires the
 [0.4 consumer changes](docs/changelog/0.4.md).
+
+On Unix, `read::open_directory_no_follow` opens an explicit root capability;
+`read::open_regular_file_beneath` selects a regular file relative to that borrowed
+descriptor without following symlink components. `read::open_entry_beneath`
+also admits a directory descriptor for a caller-owned tree walk. Use
+`read_opened_file` to read a selected regular inode under an explicit byte
+allowance. Root custody, content validation, deadlines and concurrent writers
+remain caller-owned.
 
 On Unix, `read::hash_file_no_follow(path, max_bytes)` hashes regular files with
 constant working memory, rejecting final symlinks and opened special files.

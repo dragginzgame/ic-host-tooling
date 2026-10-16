@@ -119,7 +119,7 @@ pub fn write_named_with<T, E>(
             &absolute,
             options,
             |stage, _| produce(stage),
-            None::<(bool, fn(&Path, &T) -> Result<(), E>)>,
+            (super::supported::WriterCustody::Writable, |_, _| Ok(())),
             |_, _| Ok(()),
         )
     }

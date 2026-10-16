@@ -1,11 +1,53 @@
 # Changelog
 
-## [0.20.2]
+## [0.22.0]
 
-- Add group capture with explicit cancellation, cleanup policy and an optional
-  shared absolute deadline through the existing bounded process engine
+### Breaking
+
+- Add `ArtifactError::LengthMismatch` for an exact stream that ends early.
+  Consumers exhaustively matching artifact errors must handle the new variant.
+
+### Added
+
+- Run caller-configured group commands with explicit cancellation and cleanup,
+  preserving inherited/file output or capturing selected pipes through the same
+  bounded engine. Shared deadlines remain optional
   ([#95 — Cancellable group capture](https://github.com/dragginzgame/ic-host-tooling/issues/95)).
-  [Detailed notes](docs/changelog/0.20.md).
+
+- Add exact-length streaming hash and bounded read operations to Host Artifacts.
+  They reject premature EOF and probe one excess byte; callers still select
+  byte limits and own stream custody.
+- Open regular files or directories through a retained Unix root descriptor,
+  refusing traversal, symlinks and special entries without pathname reopening.
+  Callers retain root and byte custody
+  ([#80 — Capability-rooted filesystem confinement](https://github.com/dragginzgame/ic-host-tooling/issues/80)).
+  [Detailed notes](docs/changelog/0.22.md).
+- Share bounded synthetic HTTP request capture through Process's opt-in
+  `test-support` module, retaining partial bytes and typed failures. Consumers
+  own responses and evidence publication
+  ([#123 — Own bounded synthetic HTTP request fixtures](https://github.com/dragginzgame/ic-host-tooling/issues/123)).
+  [Detailed notes](docs/changelog/0.22.md).
+
+## [0.21.0] - 2026-10-15
+
+### Breaking
+
+- Candid service inspection no longer enables Wasm export inspection implicitly.
+  Select both `candid-service` and `ic-interface` when both APIs are needed;
+  Candid-only consumers no longer select Host Artifacts or the Wasm parser.
+
+### Changed
+
+- Simplify durable publication's internal admission modes while preserving
+  closed-writer validation, cleanup and publication error states.
+
+### Fixed
+
+- Derive Git's dirty observation from retained status bytes, so editing report
+  metadata cannot change it.
+- Admit optional-file descriptor metadata once in the consuming reader, retaining
+  no-follow opening, private-file checks and rejection before reading.
+  [Detailed notes](docs/changelog/0.21.md).
 
 ## [0.20.1] - 2026-10-15
 

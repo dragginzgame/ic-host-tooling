@@ -1,39 +1,40 @@
 # Current handoff
 
-## Controlled group capture refresh — pending 0.20.2
+## Controlled command execution refresh — pending 0.22.0
 
-PR #99 normally incorporates released Host 0.20.1 at
-`6952903377eb36f9d35c92770e334b30721f1d20`. Its existing controlled capture
-implementation is preserved, sharing one process engine for caller cancellation,
-explicit cleanup and a shared optional absolute deadline. No finite default,
-signal handler or consumer admission policy is added. Own package metadata and
-external selections match 0.20.1; pending notes select compatible 0.20.2.
+The existing PR #99 incorporates Host main `a8f11e0` without rewriting history.
+Controlled capture keeps its cancellation, caller cleanup and optional shared
+absolute deadline. `run_group_command` additionally preserves configured streams,
+so Testkit Cargo builds keep inherited output and unlimited elapsed time. Both
+entry points share the existing process engine and pre-spawn refusal boundary.
+No package versions or external dependency selections are authored by this refresh.
 
-All 68 selected tool/resolution/internal-engine cases pass on actual Rust 1.88,
-along with strict affected all-target Clippy, actual MSRV checks, Rustdoc,
-formatting, links and snapshot integrity. A frozen Build 0.7 consumer deletes
-its local composition and passes all 65 Wasm-cache cases, strict all-target
-Clippy and actual Rust 1.91 checking against this coherent Host candidate family.
-Only the three Host registry identities are replaced in that temporary graph;
-all other locked selections remain unchanged. The older native receipts remain
-bound to their previous head; this exact source needs new hosted/native checks.
-Build keeps its published graph until the API is released.
-Normal sibling checkouts remain untouched. Evidence is retained at
-`/tmp/ic-build-cuts071-20261015/`.
+Focused Linux tool/engine cases and eight group cases pass, including configured
+file output and reuse of command IO after pre-spawn refusal. All eight group cases
+pass on actual Rust 1.88, with strict affected all-target/all-feature Clippy,
+warning-denied Rustdoc and formatting. The merged HTTP producer passes all seven
+focused cases. Testkit and Build source-override qualification is retained under
+`/tmp/testkit-049-http-command-startup-hmcq9x34/`; normal registry adoption awaits
+publication. Earlier source-specific consumer evidence remains separate. Native
+macOS and the full release gate remain maintainer qualifications. Normal sibling
+checkouts and their pending merge/tooling work remain unchanged.
 
 ## Source and pending release
 
-Released base: **0.20.0**, commit
-`73b70e562ebd221baed93e311e1d8aef902452ce`. Package versions remain 0.20.0;
-local, uncommitted work is collected in the **0.20.1** draft. The authoritative
-scope and consumer actions are in [the release notes](../changelog/0.20.md).
+Released base: **0.20.1**, commit
+`6952903377eb36f9d35c92770e334b30721f1d20`. Package versions remain 0.20.1;
+local, uncommitted work is collected in the **0.21.0** draft. The authoritative
+scope and consumer actions are in [the release notes](../changelog/0.21.md).
 
-Pending [PR #144](https://github.com/dragginzgame/ic-host-tooling/pull/144) source
-adds pure terminal-column clipping, adapted from `0b95f12` to current `Cow<str>`
-escaping. Zero columns return empty text; clipping escapes controls first and
-reserves an ellipsis using conservative scalar widths. Relay retains dimensions,
-queue presentation and redraw policy; its temporary Git selection can change
-after publication. No sibling source, dependency or release metadata changes.
+Pending work derives Git's dirty observation from retained status bytes and
+admits optional-file descriptor metadata once at its reader. It also decouples
+Candid service inspection from Wasm parsing: callers needing both select
+`candid-service` and `ic-interface` explicitly. This feature-contract change
+requires the pending minor release; package versions remain untouched. Durable
+publication uses explicit writer custody through the same admission/cleanup engine.
+Released 0.20.1 includes the column-clipping source from
+[PR #144](https://github.com/dragginzgame/ic-host-tooling/pull/144), adapted to
+`Cow<str>` escaping. Consumer adoption retains its own qualification.
 
 Shared Tooling selects **0.15.2**, committed revision
 `f5080b812489654eaa04d368a09f460aea07d4ce`, with 89 entrypoints and 110 exact
@@ -61,6 +62,26 @@ have one private owner, and release projection uses Shared's saved-source render
 
 These are scoped Linux records for the inputs identified by each task, not a
 combined release receipt. Before-images and command logs remain at their owners:
+
+The earlier Git/read batch passes five Git provenance and 20 read cases on Linux, strict
+affected-package Clippy/rustdoc and actual Rust 1.88. Regressions first reproduced
+both dirty-state disagreements and missing private-descriptor type admission.
+The unchanged certificate profile passes five cases. A standalone probe observes
+three wire-type coercions accepted by selected `ic-certification 3.2.0` with
+`ciborium 0.2.2` and refused by Host. Reviewed upstream main `88dd491` has identical
+certificate/hash-tree decoder files; its workspace was not built. Evidence,
+before-images and failed attempts remain at `/tmp/host-0202-admission.zAxStk/`.
+Formatting, 176 local links and snapshot integrity pass for this batch.
+
+The feature/admission simplification passes 69 durable cases and the Candid-only,
+Wasm-only and combined Tools profiles (16, 13 and 18 cases). The Candid-only
+production graph excludes Host Artifacts and Wasm parsing; its 16 cases also pass
+on actual Rust 1.88. Strict affected-package Clippy/rustdoc and Rust 1.88
+all-target/all-feature checks pass. The Candid-only lint/docs profile passes
+separately. Formatting, 177 local links and all 110 snapshot payloads pass.
+Before-images, the reproduced feature-boundary failure, repaired lint attempts
+and command logs remain at `/tmp/host-021-simplify.917Cwh/`. These are focused Linux
+checks, not full release or native macOS qualification.
 
 The 0.20.1 clipping batch passes all nine Host Text cases on Rust 1.99 and actual
 Rust 1.88, strict package Clippy/rustdoc, formatting, 175 local links and snapshot
@@ -114,6 +135,25 @@ workspace paths; no new receipt format or old workspace reconstruction is needed
 Host's Cargo ordering fixture already uses the canonical pair preparer from
 Shared 0.15.1 ([#134](https://github.com/dragginzgame/ic-host-tooling/issues/134));
 native and consumer acceptance remain distinct from source adoption.
+
+## Certificate decoding ownership
+
+The opt-in upstream request is
+[DFINITY #503 — Strict CBOR decoding without byte/array coercions](https://github.com/dfinity/response-verification/issues/503).
+Host retains its strict wire types and visitors until an accepted upstream
+replacement preserves the admission tests. No certificate dependency, decoder,
+authentication policy or sibling source is changed by this proposal.
+
+## Operational directory admission
+
+The private-directory creator retains its CR/LF guard. Blob's current artifact
+tests depend on it; Canic's dirty Backup adoption also delegates to that creator.
+Moving operational-path policy requires consumer checks before Host removes the
+guard. The reviewed prerequisites are recorded on
+[Blob #69 — Host custody and archive adoption](https://github.com/dragginzgame/ic-blob-storage/issues/69#issuecomment-6198024538)
+and [Canic #575 — Own Backup operational path admission](https://github.com/dragginzgame/canic/issues/575).
+Testkit already checks its absolute root and rejects symlink components. Sibling
+sources and artifacts remain unchanged; inspection is not consumer qualification.
 
 GitHub issues are the sole follow-up tracker. Update this handoff in place;
 retain historical source and qualification evidence in its archive.

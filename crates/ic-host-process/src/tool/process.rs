@@ -40,13 +40,20 @@ pub(super) fn capture(
         .current_dir(context.current_dir)
         .env_clear()
         .envs(context.environment.iter().map(|(key, value)| (key, value)));
-    capture_command(&mut command, limits, CleanupScope::DirectChild, || false)
+    capture_command(
+        &mut command,
+        limits,
+        CleanupScope::DirectChild,
+        true,
+        || false,
+    )
 }
 
 pub(super) fn capture_command(
     command: &mut Command,
     mut limits: OutputLimits,
     scope: CleanupScope,
+    capture_output: bool,
     mut cancelled: impl FnMut() -> bool,
 ) -> Result<CompletedExecution, ExecutionError> {
     let started = Instant::now();
@@ -76,10 +83,12 @@ pub(super) fn capture_command(
                 .map_or(remaining, |timeout| timeout.min(remaining)),
         );
     }
-    command
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped());
+    if capture_output {
+        command
+            .stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
+    }
     let spawned = match scope {
         CleanupScope::DirectChild => OwnedChild::spawn_direct(command),
         CleanupScope::ProcessGroup { cleanup, .. } => {

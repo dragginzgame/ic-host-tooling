@@ -256,3 +256,91 @@ fn direct_capture_still_leaves_descendant_lifetime_to_the_caller() {
         std::thread::sleep(Duration::from_millis(5));
     }
 }
+
+#[test]
+fn configured_group_execution_preserves_file_output_and_pipe_evidence() {
+    use crate::child::CleanupPolicy;
+    use std::process::Stdio;
+
+    let fixture = Fixture::new();
+    let path = fixture.root.join("configured-stdout");
+    let mut command = Command::new("/bin/sh");
+    command
+        .args(["-c", "printf file-output; printf diagnostic >&2; exit 23"])
+        .stdin(Stdio::piped())
+        .stdout(fs::File::create(&path).unwrap())
+        .stderr(Stdio::piped());
+    let completed = run_group_command(
+        &mut command,
+        OutputLimits {
+            stdout: OutputLimit::Terminate(0),
+            stderr: OutputLimit::Terminate(10),
+            timeout: None,
+        },
+        CleanupPolicy::KillAndWait,
+        None,
+        || false,
+    )
+    .unwrap();
+    assert_eq!(completed.status.code(), Some(23));
+    assert_eq!(completed.stdout, b"");
+    assert_eq!(completed.stderr, b"diagnostic");
+    assert_eq!(fs::read(path).unwrap(), b"file-output");
+    assert!(matches!(
+        completed
+            .require_success()
+            .unwrap_err()
+            .execution_error()
+            .unwrap()
+            .failure,
+        ExecutionFailure::ExitStatus
+    ));
+}
+
+#[test]
+fn configured_group_refusal_preserves_the_original_command_io() {
+    use crate::child::CleanupPolicy;
+    use std::process::Stdio;
+
+    let fixture = Fixture::new();
+    let path = fixture.root.join("original-stdout");
+    let mut command = Command::new("/bin/sh");
+    command
+        .args(["-c", "cat; printf original"])
+        .stdin(Stdio::piped())
+        .stdout(fs::File::create(&path).unwrap())
+        .stderr(Stdio::null());
+    for (timeout, deadline, cancelled) in [
+        (Some(Duration::ZERO), None, false),
+        (None, None, true),
+        (None, Some(Instant::now()), false),
+    ] {
+        let error = run_group_command(
+            &mut command,
+            OutputLimits { timeout, ..LIMITS },
+            CleanupPolicy::KillAndWait,
+            deadline,
+            || cancelled,
+        )
+        .unwrap_err();
+        assert!(matches!(
+            error,
+            ToolError::InvalidInvocation(InvalidInvocation::Deadline) | ToolError::Execution(_)
+        ));
+        assert_eq!(fs::read(&path).unwrap(), b"");
+    }
+    let completed = run_group_command(
+        &mut command,
+        OutputLimits {
+            timeout: None,
+            ..LIMITS
+        },
+        CleanupPolicy::KillAndWait,
+        None,
+        || false,
+    )
+    .unwrap();
+    assert!(completed.status.success());
+    assert_eq!(completed.stdout, b"");
+    assert_eq!(fs::read(path).unwrap(), b"original");
+}
