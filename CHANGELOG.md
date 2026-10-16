@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.21.1]
+
+- Add Unix non-aliasing export writes with caller-selected protected paths and
+  symlink limits. Check names and opened file identity before truncation; retain
+  parent-creation, write and sync failures. Existing files are updated in place.
+  [#153](https://github.com/dragginzgame/ic-host-tooling/issues/153).
+  [Detailed notes](docs/changelog/0.21.md).
+
 ## [0.21.0] - 2026-10-15
 
 ### Breaking
