@@ -1,14 +1,19 @@
-//! Durable filesystem publication and regular descriptor locks.
+//! Durable publication, guarded in-place exports and regular descriptor locks.
 //!
 //! Responsibility: own atomic durable regular-file publication for host consumers.
 //! Does not own: domain schemas or transitions, path selection, ephemeral protocol files, open
 //! command-result descriptors, backup persistence, or multi-file transactions.
 //! Boundary: writes own sibling staging, publication, cleanup and filesystem syncs
 //! behind replace and create-new modes. Reads belong to [`crate::read`].
+//! Guarded exports retain their explicit in-place file-sync contract.
 
 mod directory;
+#[cfg(unix)]
+mod export;
 mod lock_wait;
 pub use directory::{DirectoryCreationError, admit_directory, create_private_directory};
+#[cfg(unix)]
+pub use export::{NonAliasingWriteError, validate_non_aliasing, write_non_aliasing};
 pub use lock_wait::{lock_exclusive, lock_exclusive_with_wait, lock_shared, unlock};
 #[cfg(unix)]
 mod retained;

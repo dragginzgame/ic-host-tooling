@@ -20,6 +20,11 @@ dev-dependency and use `testing::create_fixture_directory(parent, prefix)`.
 It allocates beneath an existing physical parent, skips occupied names and
 returns the retained path. Callers own labels, custody and explicit cleanup;
 the allocator supplies no Drop guard or application lifecycle.
+On Unix, durable::write_non_aliasing(path, bytes, protected, symlink_limit) writes
+and syncs a caller-selected export in place while refusing protected path/inode
+aliases. It retains parent-creation, write and sync failures and leaves all
+cleanup to the caller. Select the existing atomic writer when replacement is
+required; the guarded export does not synchronize newly created parent links.
 With `wasm`, `wasm::encode_custom_section(CustomSection { name, data }, max_bytes)`
 encodes one complete custom section with an explicit output-byte allowance.
 Callers supply exact names/data and own module assembly, aggregate budgets,
