@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.22.2]
+
+- Share controlled group commands with explicit cancellation, cleanup and optional
+  shared deadlines. Configured execution preserves inherited/file output; capture
+  execution selects pipes. Both use the existing bounded engine
+  ([#95 — Cancellable group capture](https://github.com/dragginzgame/ic-host-tooling/issues/95)).
+  [Detailed notes](docs/changelog/0.22.md).
+
 ## [0.22.1] - 2026-10-16
 
 - Adopt Shared Tooling 0.15.7, strengthening fixture failure-retention checks

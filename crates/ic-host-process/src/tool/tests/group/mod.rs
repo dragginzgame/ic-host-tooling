@@ -1,5 +1,122 @@
 use super::*;
+
+#[test]
+fn cancelled_group_capture_refuses_before_spawn_and_reaps_running_group() {
+    let fixture = Fixture::new();
+    let ready = fixture.root.join("cancel-ready");
+    let mut command = Command::new("/bin/sh");
+    command
+        .args([
+            "-c",
+            "printf output; printf diagnostic >&2; printf ready > \"$READY\"; exec sleep 30",
+        ])
+        .env("READY", &ready);
+    let error = capture_group_command_with_cancellation(
+        &mut command,
+        LIMITS,
+        crate::child::CleanupPolicy::KillAndWait,
+        None,
+        || true,
+    )
+    .unwrap_err();
+    assert!(matches!(
+        error.execution_error().unwrap().failure,
+        ExecutionFailure::Cancelled
+    ));
+    assert!(error.evidence().unwrap().status.is_none());
+    assert!(!ready.exists());
+    let error = capture_group_command_with_cancellation(
+        &mut command,
+        LIMITS,
+        crate::child::CleanupPolicy::KillAndWait,
+        None,
+        || ready.exists(),
+    )
+    .unwrap_err();
+    let execution = error.execution_error().unwrap();
+    assert!(matches!(execution.failure, ExecutionFailure::Cancelled));
+    assert!(!execution.evidence.status.unwrap().success());
+    assert!(execution.cleanup.is_none());
+    assert!(b"output".starts_with(&execution.evidence.stdout));
+    assert!(b"diagnostic".starts_with(&execution.evidence.stderr));
+}
 use std::{process::Command, time::Instant};
+
+#[test]
+fn controlled_group_capture_uses_earlier_bound_and_refuses_expired_startup() {
+    use crate::child::CleanupPolicy;
+
+    let fixture = Fixture::new();
+    let marker = fixture.root.join("expired-command-ran");
+    let mut command = Command::new("/bin/sh");
+    command
+        .args(["-c", "printf ran > \"$MARKER\""])
+        .env("MARKER", &marker);
+    let error = capture_group_command_with_cancellation(
+        &mut command,
+        LIMITS,
+        CleanupPolicy::KillAndWait,
+        Some(Instant::now()),
+        || false,
+    )
+    .unwrap_err();
+    assert!(matches!(
+        error.execution_error().unwrap().failure,
+        ExecutionFailure::TimedOut
+    ));
+    assert!(error.evidence().unwrap().status.is_none());
+    assert!(!marker.exists());
+
+    for absolute_first in [false, true] {
+        let short = Duration::from_millis(25);
+        let long = Duration::from_secs(30);
+        let started = Instant::now();
+        let mut command = Command::new("/bin/sh");
+        command.args(["-c", "exec sleep 30"]);
+        let error = capture_group_command_with_cancellation(
+            &mut command,
+            OutputLimits {
+                timeout: Some(if absolute_first { long } else { short }),
+                ..LIMITS
+            },
+            CleanupPolicy::KillAndWait,
+            Some(started + if absolute_first { short } else { long }),
+            || started.elapsed() > Duration::from_secs(5),
+        )
+        .unwrap_err();
+        let execution = error.execution_error().unwrap();
+        assert!(matches!(execution.failure, ExecutionFailure::TimedOut));
+        assert!(execution.evidence.status.is_some());
+        assert!(execution.cleanup.is_none());
+    }
+}
+
+#[test]
+fn controlled_group_capture_honors_caller_term_cleanup() {
+    let fixture = Fixture::new();
+    let ready = fixture.root.join("term-ready");
+    let marker = fixture.root.join("term-observed");
+    let mut command = Command::new("/bin/sh");
+    command.args(["-c", "trap 'printf term > \"$TERM_MARKER\"; exit 0' TERM; sh -c 'trap \"\" TERM; printf ready > \"$READY\"; exec sleep 30' & wait"])
+        .env("READY", &ready).env("TERM_MARKER", &marker);
+    let error = capture_group_command_with_cancellation(
+        &mut command,
+        LIMITS,
+        crate::child::CleanupPolicy::TermThenKill {
+            grace: Duration::from_secs(1),
+            reap_timeout: Duration::from_secs(1),
+        },
+        None,
+        || ready.exists(),
+    )
+    .unwrap_err();
+    assert!(matches!(
+        error.execution_error().unwrap().failure,
+        ExecutionFailure::Cancelled
+    ));
+    assert!(error.execution_error().unwrap().cleanup.is_none());
+    assert_eq!(fs::read(marker).unwrap(), b"term");
+}
 
 #[test]
 fn group_capture_cleans_wrapper_descendants_on_exit_timeout_and_overflow() {
@@ -138,4 +255,92 @@ fn direct_capture_still_leaves_descendant_lifetime_to_the_caller() {
         );
         std::thread::sleep(Duration::from_millis(5));
     }
+}
+
+#[test]
+fn configured_group_execution_preserves_file_output_and_pipe_evidence() {
+    use crate::child::CleanupPolicy;
+    use std::process::Stdio;
+
+    let fixture = Fixture::new();
+    let path = fixture.root.join("configured-stdout");
+    let mut command = Command::new("/bin/sh");
+    command
+        .args(["-c", "printf file-output; printf diagnostic >&2; exit 23"])
+        .stdin(Stdio::piped())
+        .stdout(fs::File::create(&path).unwrap())
+        .stderr(Stdio::piped());
+    let completed = run_group_command(
+        &mut command,
+        OutputLimits {
+            stdout: OutputLimit::Terminate(0),
+            stderr: OutputLimit::Terminate(10),
+            timeout: None,
+        },
+        CleanupPolicy::KillAndWait,
+        None,
+        || false,
+    )
+    .unwrap();
+    assert_eq!(completed.status.code(), Some(23));
+    assert_eq!(completed.stdout, b"");
+    assert_eq!(completed.stderr, b"diagnostic");
+    assert_eq!(fs::read(path).unwrap(), b"file-output");
+    assert!(matches!(
+        completed
+            .require_success()
+            .unwrap_err()
+            .execution_error()
+            .unwrap()
+            .failure,
+        ExecutionFailure::ExitStatus
+    ));
+}
+
+#[test]
+fn configured_group_refusal_preserves_the_original_command_io() {
+    use crate::child::CleanupPolicy;
+    use std::process::Stdio;
+
+    let fixture = Fixture::new();
+    let path = fixture.root.join("original-stdout");
+    let mut command = Command::new("/bin/sh");
+    command
+        .args(["-c", "cat; printf original"])
+        .stdin(Stdio::piped())
+        .stdout(fs::File::create(&path).unwrap())
+        .stderr(Stdio::null());
+    for (timeout, deadline, cancelled) in [
+        (Some(Duration::ZERO), None, false),
+        (None, None, true),
+        (None, Some(Instant::now()), false),
+    ] {
+        let error = run_group_command(
+            &mut command,
+            OutputLimits { timeout, ..LIMITS },
+            CleanupPolicy::KillAndWait,
+            deadline,
+            || cancelled,
+        )
+        .unwrap_err();
+        assert!(matches!(
+            error,
+            ToolError::InvalidInvocation(InvalidInvocation::Deadline) | ToolError::Execution(_)
+        ));
+        assert_eq!(fs::read(&path).unwrap(), b"");
+    }
+    let completed = run_group_command(
+        &mut command,
+        OutputLimits {
+            timeout: None,
+            ..LIMITS
+        },
+        CleanupPolicy::KillAndWait,
+        None,
+        || false,
+    )
+    .unwrap();
+    assert!(completed.status.success());
+    assert_eq!(completed.stdout, b"");
+    assert_eq!(fs::read(path).unwrap(), b"original");
 }

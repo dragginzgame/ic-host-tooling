@@ -2,7 +2,7 @@ use super::{
     CompletedExecution, ExecutionContext, ExecutionError, ExecutionEvidence, ExecutionFailure,
     ExecutionOperation, OutputLimit, OutputLimits, OutputStream, SuccessfulExit,
 };
-use crate::child::OwnedChild;
+use crate::child::{CleanupPolicy, OwnedChild};
 use rustix::fs::{OFlags, fcntl_getfl, fcntl_setfl};
 use std::{
     ffi::OsString,
@@ -22,7 +22,10 @@ const POLL_INTERVAL: Duration = Duration::from_millis(2);
 #[derive(Clone, Copy)]
 pub(super) enum CleanupScope {
     DirectChild,
-    ProcessGroup,
+    ProcessGroup {
+        cleanup: CleanupPolicy,
+        deadline: Option<Instant>,
+    },
 }
 
 pub(super) fn capture(
@@ -37,22 +40,60 @@ pub(super) fn capture(
         .current_dir(context.current_dir)
         .env_clear()
         .envs(context.environment.iter().map(|(key, value)| (key, value)));
-    capture_command(&mut command, limits, CleanupScope::DirectChild)
+    capture_command(
+        &mut command,
+        limits,
+        CleanupScope::DirectChild,
+        true,
+        || false,
+    )
 }
 
 pub(super) fn capture_command(
     command: &mut Command,
-    limits: OutputLimits,
+    mut limits: OutputLimits,
     scope: CleanupScope,
+    capture_output: bool,
+    mut cancelled: impl FnMut() -> bool,
 ) -> Result<CompletedExecution, ExecutionError> {
     let started = Instant::now();
-    command
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped());
+    let deadline = match scope {
+        CleanupScope::DirectChild => None,
+        CleanupScope::ProcessGroup { deadline, .. } => deadline,
+    };
+    let failure = if cancelled() {
+        Some(ExecutionFailure::Cancelled)
+    } else if deadline.is_some_and(|deadline| deadline <= Instant::now()) {
+        Some(ExecutionFailure::TimedOut)
+    } else {
+        None
+    };
+    if let Some(failure) = failure {
+        return Err(ExecutionError {
+            failure,
+            evidence: ExecutionEvidence::default(),
+            cleanup: None,
+        });
+    }
+    if let Some(deadline) = deadline {
+        let remaining = deadline.saturating_duration_since(started);
+        limits.timeout = Some(
+            limits
+                .timeout
+                .map_or(remaining, |timeout| timeout.min(remaining)),
+        );
+    }
+    if capture_output {
+        command
+            .stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
+    }
     let spawned = match scope {
         CleanupScope::DirectChild => OwnedChild::spawn_direct(command),
-        CleanupScope::ProcessGroup => OwnedChild::spawn(command),
+        CleanupScope::ProcessGroup { cleanup, .. } => {
+            OwnedChild::spawn_with_cleanup(command, cleanup)
+        }
     };
     let mut child = spawned.map_err(|source| ExecutionError {
         failure: io_failure(ExecutionOperation::Spawn, source),
@@ -68,7 +109,7 @@ pub(super) fn capture_command(
         limits,
         started,
         SuccessfulExit::Cleanup,
-        || false,
+        cancelled,
         |_, _| Ok(()),
     )
 }

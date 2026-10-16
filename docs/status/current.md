@@ -1,5 +1,22 @@
 # Current handoff
 
+## Controlled command execution refresh — pending 0.22.2
+
+PR #99 incorporates published Host 0.22.1 `b99beea` without rewriting history.
+Controlled capture and configured-IO execution share the existing process engine;
+callers retain cleanup, cancellation and optional relative/absolute deadlines.
+Cargo builds can retain inherited progress with no elapsed-time deadline.
+Package versions and external selections match the imported release.
+
+Seventy focused tool/engine cases pass on this base; eight group cases also pass
+on actual Rust 1.88, with strict all-target/all-feature Clippy, warning-denied
+Rustdoc and formatting. Earlier `f4ea565` consumer evidence remains bound to its
+0.21 source graph. Current source-override qualification is retained under
+`/tmp/testkit-049-http-command-startup-hmcq9x34/`. The published HTTP API can be
+adopted once Build’s public Host family is aligned; configured execution still
+requires this PR’s reviewed publication. Native macOS and full release checks
+remain maintainer qualifications. Normal sibling checkouts are untouched.
+
 ## Source and pending release
 
 Latest tagged release: **0.22.0**, commit

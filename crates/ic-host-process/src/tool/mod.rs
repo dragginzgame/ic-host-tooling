@@ -21,7 +21,7 @@ use std::{
     os::unix::{ffi::OsStrExt as _, fs::PermissionsExt as _},
     path::{Path, PathBuf},
     process::{Command, ExitStatus},
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 /// Retention and overflow behavior for one output stream.
@@ -452,8 +452,14 @@ pub fn capture_command(
     limits: OutputLimits,
 ) -> Result<CompletedExecution, ToolError> {
     validate_limits(limits)?;
-    process::capture_command(command, limits, process::CleanupScope::DirectChild)
-        .map_err(|source| ToolError::Execution(Box::new(source)))
+    process::capture_command(
+        command,
+        limits,
+        process::CleanupScope::DirectChild,
+        true,
+        || false,
+    )
+    .map_err(|source| ToolError::Execution(Box::new(source)))
 }
 
 /// Capture one caller-configured command in a newly owned process group.
@@ -479,8 +485,83 @@ pub fn capture_group_command(
     limits: OutputLimits,
 ) -> Result<CompletedExecution, ToolError> {
     validate_limits(limits)?;
-    process::capture_command(command, limits, process::CleanupScope::ProcessGroup)
-        .map_err(|source| ToolError::Execution(Box::new(source)))
+    process::capture_command(
+        command,
+        limits,
+        process::CleanupScope::ProcessGroup {
+            cleanup: crate::child::CleanupPolicy::KillAndWait,
+            deadline: None,
+        },
+        true,
+        || false,
+    )
+    .map_err(|source| ToolError::Execution(Box::new(source)))
+}
+
+/// Capture a command with caller-selected group cleanup, deadline and cancellation.
+///
+/// Shares [`capture_group_command`]'s IO, bounds, exit and cleanup contract.
+/// The callback runs before command modification/spawn and during communication;
+/// it must return promptly. A true value refuses startup or cleans up the owned
+/// group, retaining output and cleanup evidence. An expired absolute deadline
+/// refuses before command effects; a live deadline is shared across calls without
+/// restarting its allowance. If `limits.timeout` is also set, the earlier bound
+/// applies. Both bounds include callback/spawn time, but synchronous spawning and
+/// cleanup may exceed them. `None` adds no deadline. No signal handler, retry or
+/// admission policy is installed. Cleanup and limits remain caller-selected.
+///
+/// # Errors
+/// Invalid limits refuse before the callback or command effects. Cancellation,
+/// spawn and communication failures retain the existing typed execution evidence.
+pub fn capture_group_command_with_cancellation(
+    command: &mut Command,
+    limits: OutputLimits,
+    cleanup: crate::child::CleanupPolicy,
+    deadline: Option<Instant>,
+    cancelled: impl FnMut() -> bool,
+) -> Result<CompletedExecution, ToolError> {
+    validate_limits(limits)?;
+    process::capture_command(
+        command,
+        limits,
+        process::CleanupScope::ProcessGroup { cleanup, deadline },
+        true,
+        cancelled,
+    )
+    .map_err(|source| ToolError::Execution(Box::new(source)))
+}
+
+/// Run one caller-configured command in an owned process group.
+///
+/// Preserves the caller's stdin/stdout/stderr selection, including inherited
+/// progress output and file-backed streams. Only piped output is captured and
+/// bounded. Any piped stdin is closed; this entry point sends no input bytes.
+/// Group selection is replaced with a new owned group. This shares
+/// [`capture_group_command_with_cancellation`]'s pre-spawn validation,
+/// cancellation, absolute/relative deadlines and typed cleanup evidence.
+/// The caller selects budgets, cleanup and cancellation; `None` adds no deadline.
+/// Ordinary nonzero/signalled exits return [`CompletedExecution`]; callers
+/// choose [`CompletedExecution::require_success`]. There is no admission or retry.
+///
+/// # Errors
+/// Invalid limits, initial cancellation and expired deadlines refuse before
+/// modifying/spawning the command. Later failures clean up the owned group.
+pub fn run_group_command(
+    command: &mut Command,
+    limits: OutputLimits,
+    cleanup: crate::child::CleanupPolicy,
+    deadline: Option<Instant>,
+    cancelled: impl FnMut() -> bool,
+) -> Result<CompletedExecution, ToolError> {
+    validate_limits(limits)?;
+    process::capture_command(
+        command,
+        limits,
+        process::CleanupScope::ProcessGroup { cleanup, deadline },
+        false,
+        cancelled,
+    )
+    .map_err(|source| ToolError::Execution(Box::new(source)))
 }
 
 /// Successful leader disposition during [`communicate_child`].
