@@ -6,7 +6,7 @@ platforms receive their existing explicit refusal rather than simulated behavior
 
 Select one changed crate with `PACKAGE=<crate>` for `make check`, `make clippy`,
 `make docs-check` or `make test`. Artifact checks use its actual enabled gzip,
-archive and Wasm features; production filesystem dependencies select none of them.
+and Wasm features; production filesystem dependencies select none of them.
 Check target-directory ownership before compilation. Preserve failure logs and artifacts.
 
 `make test-artifacts-minimal` checks the artifact library without optional
@@ -29,11 +29,15 @@ the shared snapshot, declarations, formatter prerequisites, actual hook behavior
 release adapter,
 common tool/LOC command wiring,
 minimal artifact tests and each selected package with all features in sequence.
-Shared owns the synthetic host/IC/Rust installer and LOC parser matrices in
-`shared-tooling/scripts/ci/test-portable-tools.sh`. Host retains its actual
+Shared owns the synthetic Make-consumer, host/IC/Rust installer and LOC parser
+matrices in `shared-tooling/scripts/ci/test-portable-tools.sh`. Host retains its actual
 Make routing, aggregate failure ordering, LOC arguments/status and pipe-jobserver
 checks in `scripts/ci/test-make-snapshot.sh`, plus prepared-tool admission and
-native qualification. Snapshot checks retain all selected bytes and modes;
+native qualification. Common fixture copying and per-target unsafe-mode probes
+use Shared helpers; exhaustive flag aliases and inherited/replaced combinations
+remain producer checks. Native CI's shared common-tool action retains setup/check
+logs and publishes PATH only after both succeed. Snapshot checks retain all
+selected bytes and modes;
 the CI cache-key helper is an explicit snapshot root for its workflow caller.
 The release gate uses the same complete host, IC and Cargo toolsets, even though
 the libraries do not invoke every tool. Explicit setup runs `make install-tools`;
@@ -44,12 +48,14 @@ Native CI uses the shared Cargo-tool build identity to restore builds.
 Cache hits still run complete setup and admission;
 cache transport failure falls through to setup. Main saves only after admission.
 This cache does not qualify native macOS behavior or guarantee a setup duration.
-`make formatting-hook-check` runs the canonical shared hook regressions and the
-shared adoption checker with Host's real Cargo manifest, Rust input and Make
-formatters. Failed Git observations, partial staging, formatting failures and
+`make formatting-hook-check` runs the shared adoption checker with Host's real
+Cargo manifest, Rust input and Make formatters. Generic formatter prerequisite
+and hook implementation matrices remain in Shared Tooling's own CI. Host keeps
+prepared-tool admission and its actual Make failure-propagation checks.
+Failed Git observations, partial staging, formatting failures and
 unrelated edits are covered in disposable checkouts; the real index, working
-files and hook configuration are preserved. The shared frontend helper is a
-companion of the canonical regression fixture, not a Host frontend build step.
+files and hook configuration are preserved. The frontend formatter companion
+retires with its unused generic fixture; Host has no frontend build step.
 Both native macOS jobs run this same target through `make ci`; local Linux and
 Bash 3.2 passes remain separate evidence under
 [Host #55](https://github.com/dragginzgame/ic-host-tooling/issues/55).
@@ -70,8 +76,7 @@ offline admission and optimization/execution smoke pass on Linux. Both native
 macOS setup/check jobs passed on Host 0.12.9
 ([Host #53](https://github.com/dragginzgame/ic-host-tooling/issues/53)); later
 changes retain their own qualification obligation.
-Host has no production optimizer invocation or canister build;
-archive fixtures containing `binaryen-version_132` exercise member lookup only.
+Host has no production optimizer invocation or canister build.
 The upstream Node-based optimizer smoke is not added to this Rust library's
 validation surface. Native producer optimizer qualification remains owned by
 [Shared #102](https://github.com/dragginzgame/shared-tooling/issues/102).

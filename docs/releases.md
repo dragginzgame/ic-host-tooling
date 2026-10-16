@@ -565,8 +565,11 @@ outside immutable shared snapshots until adopting a reviewed upstream revision.
 
 ### Fixture ownership
 
-Consumer adoption runs the canonical `scripts/ci/test-release-runner.sh` suite.
-It simulates repository and release effects; its native Git delegate accepts only
+Shared Tooling owns the canonical `scripts/ci/test-release-runner.sh` regression
+suite. Consumers qualify their actual Make/metadata/logger wiring, source admission
+and evidence custody against the reviewed snapshot; they need not rerun the
+producer's exhaustive implementation suites in every ordinary CI run. The owner
+suite simulates repository and release effects; its native Git delegate accepts only
 `hash-object --stdin`, without object writes. Any attempted real Git operation
 fails the suite even if a negative case consumes its immediate failure status.
 

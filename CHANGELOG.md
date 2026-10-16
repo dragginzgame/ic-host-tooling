@@ -1,11 +1,48 @@
 # Changelog
 
-## [0.22.0]
+## [0.22.1]
+
+- Adopt Shared Tooling 0.15.7, strengthening fixture failure-retention checks
+  while preserving the selected tooling, package versions and library APIs.
+  [Detailed notes](docs/changelog/0.22.md).
+- Admit existing regular lock sidecars, try one nonblocking exclusive lock, and
+  publish caller-verified directory trees without replacing an occupied name.
+  [Detailed notes](docs/changelog/0.22.md).
+
+## [0.22.0] - 2026-10-16
 
 ### Breaking
 
+- Require explicit `WriteOptions` for `durable::write_bytes`; retire the two
+  create-only byte wrappers. Callers select publication mode and permissions.
+- Return raw Candid extraction evidence without a duplicate normalized string.
+  Callers needing normalized text invoke `candid::text::normalize` explicitly.
+- Retire the Artifacts `archive` feature and tar-member extraction API, its tar
+  dependency and filesystem example. Gzip support remains available separately.
+- Remove labeled-hex response decoding. Select JSON or plain hex explicitly;
+  CLI labels and preambles remain the caller's presentation policy. The saved
+  response example now accepts only `json` or `hex`.
 - Add `ArtifactError::LengthMismatch` for an exact stream that ends early.
   Consumers exhaustively matching artifact errors must handle the new variant.
+
+### Changed
+
+- Add durable publication beneath an existing parent, retaining descriptor
+  custody and refusing missing or special-file parents before production
+  ([#148 — Existing-parent pathname publication](https://github.com/dragginzgame/ic-host-tooling/issues/148)).
+- Share explicitly requested process failure diagnostics, including captured
+  streams and cleanup evidence, while ordinary error display keeps omitting them
+  ([#149 — Explicit process failure-evidence rendering](https://github.com/dragginzgame/ic-host-tooling/issues/149)).
+- Route descriptor publication through one adapter, preserving producer results,
+  validation, publication errors and cleanup behavior.
+- Adopt Shared Tooling 0.15.6 at `5910c9f`, sharing CI tool preparation and Make
+  fixture setup while preserving common tool pins, package versions and MIT license.
+- Clip terminal text while escaping, avoiding a complete escaped intermediate
+  and preserving existing Unicode, control and ellipsis output.
+- Keep generic formatter/hook, Make-consumer and tool-command regression suites
+  in Shared Tooling while retaining Host's actual integration, preservation and
+  prepared-tool checks.
+  [Detailed notes](docs/changelog/0.22.md).
 
 ### Added
 
@@ -16,10 +53,6 @@
   refusing traversal, symlinks and special entries without pathname reopening.
   Callers retain root and byte custody
   ([#80 — Capability-rooted filesystem confinement](https://github.com/dragginzgame/ic-host-tooling/issues/80)).
-  [Detailed notes](docs/changelog/0.22.md).
-- Open existing regular lock sidecars without creating them, try one exclusive
-  lock without waiting, and publish caller-verified directory trees without
-  replacing an occupied name. Callers retain reconciliation authority.
   [Detailed notes](docs/changelog/0.22.md).
 - Share bounded synthetic HTTP request capture through Process's opt-in
   `test-support` module, retaining partial bytes and typed failures. Consumers

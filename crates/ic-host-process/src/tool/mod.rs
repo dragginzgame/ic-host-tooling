@@ -4,11 +4,13 @@
 //! directories. Execution is not a sandbox or process-tree supervisor. Calls
 //! execute once, including on timeout or ambiguous completion; no retry occurs.
 
+mod diagnostics;
 mod process;
 mod resolution;
 #[cfg(test)]
 mod tests;
 
+pub use diagnostics::format_failure_evidence;
 pub use resolution::{ResolutionError, resolve_executable};
 
 use ic_host_artifacts::artifact::{ArtifactError, ArtifactIdentity, Sha256Digest};

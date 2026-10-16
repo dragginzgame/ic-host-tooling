@@ -11,13 +11,15 @@ unset MAKEFLAGS MFLAGS MAKEOVERRIDES GNUMAKEFLAGS MAKEFILES
 unset SHARED_TOOLING_ROOT
 # shellcheck source=scripts/ci/fixture-lifecycle.sh
 source "$root/scripts/ci/fixture-lifecycle.sh"
+# shellcheck source=scripts/ci/make-adapter-probes.sh
+source "$root/scripts/ci/make-adapter-probes.sh"
 fixture="$(fixture_create "${TMPDIR:-/tmp}/host-make-snapshot.XXXXXX")"
 fixture_complete=false
 trap 'fixture_finish "$?" "$fixture" "Host Make evidence retained"' EXIT
 export TMPDIR="${fixture%/*}"
-for input in Makefile ci/tool-versions.env make/consumer.mk make/tools.mk make/rust-format.mk \
-    make/release.mk make/execution.mk scripts/ci/check-make-execution.sh \
-    scripts/ci/check-format-tools.sh scripts/ci/run-formatting.sh; do
+mkdir -p "$fixture/local"
+bash "$root/scripts/ci/prepare-make-fixture.sh" "$root" "$fixture/local"
+for input in Makefile ci/tool-versions.env scripts/ci/check-format-tools.sh; do
     parent=.
     [[ "$input" != */* ]] || parent="${input%/*}"
     mkdir -p "$fixture/local/$parent"
@@ -195,8 +197,8 @@ done
 for helper in scripts/ci/check-dependency-pins.sh \
     scripts/release/test-adapter.sh scripts/publish/test-workspace.sh \
     scripts/ci/test-cargo-publication-attempt.sh \
-    scripts/ci/test-host-fixture-retention.sh scripts/ci/test-make-snapshot.sh scripts/ci/test-make-consumer.sh \
-    scripts/ci/test-tool-commands.sh scripts/ci/check-release-commands.sh; do
+    scripts/ci/test-host-fixture-retention.sh scripts/ci/test-make-snapshot.sh \
+    scripts/ci/check-release-commands.sh; do
     mkdir -p "$fixture/local/${helper%/*}"
     printf '#!/usr/bin/env bash\nexec cargo fixture "$@"\n' > "$fixture/local/$helper"
 done
@@ -236,28 +238,10 @@ for target in fmt fmt-check; do
     cmp "$fixture/expected-log" "$detail"
     [[ "$(wc -l < "$HOST_MAKE_EVENTS")" -eq 1 ]] || exit 1
 done
-# Outer Make must reject unsafe modes before any substituted effect can run.
-for mode in -i --ignore-errors -n -t -q; do
-    for selection in direct inherited cleared replaced erased; do
-        for target in fmt fmt-check release-patch release-minor release-major release-resume \
-            "${cargo_targets[@]}" "${helper_targets[@]}"; do
-            : > "$HOST_MAKE_EVENTS"
-            args=(--no-print-directory "$target" "FORMAT_CARGO=$PWD/cargo" "SHARED_TOOLING_ROOT=$fixture/external" "MAKE=$recursive_make")
-            status=0
-            if [[ "$selection" == cleared ]]; then
-                make "$mode" "${args[@]}" MAKEFLAGS= > "$fixture/$selection-$mode-$target.log" 2>&1 || status=$?
-            elif [[ "$selection" == replaced ]]; then
-                make "$mode" "${args[@]}" MAKEFLAGS=-j2 > "$fixture/$selection-$mode-$target.log" 2>&1 || status=$?
-            elif [[ "$selection" == erased ]]; then
-                make "$mode" "${args[@]}" MAKEFLAGS= MFLAGS= > "$fixture/$selection-$mode-$target.log" 2>&1 || status=$?
-            elif [[ "$selection" == direct ]]; then
-                make "$mode" "${args[@]}" > "$fixture/$selection-$mode-$target.log" 2>&1 || status=$?
-            else
-                MAKEFLAGS="$mode" make "${args[@]}" > "$fixture/$selection-$mode-$target.log" 2>&1 || status=$?
-            fi
-            [[ "$status" == 2 && ! -s "$HOST_MAKE_EVENTS" && ! -e "$HOST_MAKE_EXTERNAL" ]] || exit 1
-        done
-    done
-done
+# Qualify every actual Host target; Shared owns flag aliases and combinations.
+make_probe_target_admission "$(command -v make)" "$PWD/Makefile" "$fixture/local" \
+    "$HOST_MAKE_EVENTS" fmt fmt-check release-patch release-minor release-major release-resume \
+    "${cargo_targets[@]}" "${helper_targets[@]}"
+[[ ! -e "$HOST_MAKE_EXTERNAL" ]] || exit 1
 echo 'Host Make snapshot routing and execution admission passed (substitute effects)'
 fixture_complete=true
