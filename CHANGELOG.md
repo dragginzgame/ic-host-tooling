@@ -13,6 +13,8 @@
 - Remove labeled-hex response decoding. Select JSON or plain hex explicitly;
   CLI labels and preambles remain the caller's presentation policy. The saved
   response example now accepts only `json` or `hex`.
+- Add `ArtifactError::LengthMismatch` for an exact stream that ends early.
+  Consumers exhaustively matching artifact errors must handle the new variant.
 
 ### Changed
 
@@ -32,6 +34,12 @@
   in Shared Tooling while retaining Host's actual integration, preservation and
   prepared-tool checks.
   [Detailed notes](docs/changelog/0.22.md).
+
+### Added
+
+- Add exact-length streaming hash and bounded read operations to Host Artifacts.
+  They reject premature EOF and probe one excess byte; callers still select
+  byte limits and own stream custody.
 
 ## [0.21.0] - 2026-10-15
 
