@@ -16,7 +16,9 @@ Canisters using benchmark markers can add the crate under `[dependencies]`.
 `pocket_ic` and `pic` are host-only. `performance` is Wasm-only;
 `benchmark` counters, parsing and aggregation, and `Fake` are available on both
 targets. Native directory, metadata and file-output APIs live in
-`benchmark::report`. Candid calls return contextual errors; choose caller-side
+`benchmark::report`. Candid calls require caller-selected
+`ic_testkit_candid::DecodeLimits` and return contextual errors with typed decode
+causes; add `ic-testkit-candid` directly to select those budgets. Choose caller-side
 `expect` when a fixture must panic. Standalone recipe builders return
 `std::io::Result<StandaloneCanisterFixture>`.
 
