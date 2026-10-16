@@ -12,7 +12,7 @@ include ci/tool-versions.env
 include make/consumer.mk
 export YQ := $(CURDIR)/.tools/host/bin/yq
 
-.PHONY: help format-tools-test check clippy docs-check test test-artifacts-minimal test-tools-response tools-features-check msrv ci install-hooks tooling-command-check shared-tooling-check dependency-pins-check check-doc-links release-adapter-check publish publish-check publish-command-check release-version release-preflight release-verify release-prepare-version release-prepared-check release-files release-commit-check release-committed-check release-tagged-check release-push-check
+.PHONY: help check clippy docs-check test test-artifacts-minimal test-tools-response tools-features-check msrv ci install-hooks tooling-command-check shared-tooling-check dependency-pins-check check-doc-links release-adapter-check publish publish-check publish-command-check release-version release-preflight release-verify release-prepare-version release-prepared-check release-files release-commit-check release-committed-check release-tagged-check release-push-check
 help:
 	@echo 'Selected package: check, clippy, docs-check, test, msrv (PACKAGE=<crate>)'
 	@echo 'Minimal artifact configuration: test-artifacts-minimal'
@@ -26,11 +26,8 @@ help:
 	@echo 'Full release validation: ci, msrv-workspace; focused MSRV: msrv PACKAGE=<crate>'
 	@echo 'Maintainer releases: release-patch, release-minor, release-major, release-resume VERSION=X.Y.Z'
 	@echo 'crates.io publication: publish-check (dry run), publish (upload); offline fixture: publish-command-check'
-format-tools-test:
-	bash scripts/ci/test-format-tools.sh
 .PHONY: formatting-hook-check
 formatting-hook-check:
-	+bash scripts/ci/test-git-hooks.sh
 	+bash scripts/ci/check-host-formatting.sh
 check:
 	+cargo check -p $(PACKAGE) --all-targets --all-features --locked --offline
@@ -71,14 +68,12 @@ msrv-workspace:
 dependency-pins-check:
 	+bash scripts/ci/check-dependency-pins.sh --cargo-inheritance
 check-doc-links:
-	perl scripts/ci/check-documentation-links.pl --root "$(CURDIR)" README.md AGENTS.md CHANGELOG.md docs/changelog/0.4.md docs/changelog/0.5.md docs/changelog/0.6.md docs/changelog/0.7.md docs/changelog/0.8.md docs/changelog/0.9.md docs/changelog/0.10.md docs/changelog/0.11.md docs/changelog/0.12.md docs/changelog/0.13.md docs/changelog/0.14.md docs/changelog/0.15.md docs/changelog/0.16.md docs/changelog/0.17.md docs/changelog/0.18.md docs/changelog/0.19.md docs/changelog/0.20.md docs/extraction.md docs/hosts.md docs/status/current.md docs/status/archive-2026-10-15.md docs/publishing.md
+	perl scripts/ci/check-documentation-links.pl --root "$(CURDIR)" README.md AGENTS.md CHANGELOG.md docs/changelog/0.4.md docs/changelog/0.5.md docs/changelog/0.6.md docs/changelog/0.7.md docs/changelog/0.8.md docs/changelog/0.9.md docs/changelog/0.10.md docs/changelog/0.11.md docs/changelog/0.12.md docs/changelog/0.13.md docs/changelog/0.14.md docs/changelog/0.15.md docs/changelog/0.16.md docs/changelog/0.17.md docs/changelog/0.18.md docs/changelog/0.19.md docs/changelog/0.20.md docs/changelog/0.21.md docs/changelog/0.22.md docs/extraction.md docs/hosts.md docs/status/current.md docs/status/archive-2026-10-15.md docs/publishing.md
 release-adapter-check:
 	+bash scripts/release/test-adapter.sh
 tooling-command-check:
 	+bash scripts/ci/test-host-fixture-retention.sh
 	+bash scripts/ci/test-make-snapshot.sh
-	+bash scripts/ci/test-make-consumer.sh
-	+bash scripts/ci/test-tool-commands.sh
 	+bash scripts/ci/check-release-commands.sh "$(CURDIR)" ci/tool-versions.env make/consumer.mk make/tools.mk make/rust-format.mk make/release.mk make/execution.mk scripts/ci/check-make-execution.sh scripts/ci/run-formatting.sh
 publish:
 	+bash scripts/publish/workspace.sh publish
@@ -92,7 +87,6 @@ ci:
 	+$(MAKE) --no-print-directory tools-check
 	+$(MAKE) --no-print-directory dependency-pins-check
 	+$(MAKE) --no-print-directory fmt-check
-	+$(MAKE) --no-print-directory format-tools-test
 	+$(MAKE) --no-print-directory formatting-hook-check
 	+$(MAKE) --no-print-directory check-doc-links
 	+$(MAKE) --no-print-directory release-adapter-check

@@ -1,5 +1,5 @@
 use super::{
-    hash_file_no_follow, open_no_follow, open_optional_regular_file, read_file_no_follow,
+    hash_file_no_follow, open_no_follow, open_optional_no_follow, read_file_no_follow,
     read_optional_file_no_follow,
 };
 use crate::{
@@ -250,7 +250,7 @@ fn bounded_regular_read_rejects_existing_and_growing_oversize_content() {
         Err(ArtifactError::LimitExceeded { limit: 4 })
     ));
     fs::write(&path, b"1234").unwrap();
-    let file = open_optional_regular_file(&path).unwrap().unwrap();
+    let file = open_optional_no_follow(&path).unwrap().unwrap();
     fs::write(&path, b"12345").unwrap();
     assert!(matches!(
         read_opened_file(file, 4),

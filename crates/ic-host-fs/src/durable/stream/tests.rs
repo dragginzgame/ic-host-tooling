@@ -1,4 +1,5 @@
 use super::*;
+mod existing_parent;
 use crate::{
     durable::supported::{FileCommitStep, commit_at_with_hook},
     test_support::Fixture,
@@ -264,6 +265,10 @@ fn filename_and_descriptor_admission_precedes_any_producer_or_stage() {
         assert!(
             matches!(error, NamedWriteError::BeforePublication { source, cleanup_error: None } if source.kind() == io::ErrorKind::InvalidInput)
         );
+        let error = crate::durable::write_bytes(&path, options, b"must not publish").unwrap_err();
+        assert!(
+            matches!(error, NamedWriteError::BeforePublication { source, cleanup_error: None } if source.kind() == io::ErrorKind::InvalidInput)
+        );
         let error = write_at_with(
             directory.as_fd(),
             OsStr::new("output"),
@@ -394,7 +399,7 @@ fn descriptor_publication_preserves_sync_state_and_foreign_stage_cleanup_evidenc
             OsStr::new("output"),
             REPLACE,
             |_, file| file.write_all(b"new"),
-            None::<(bool, fn(&Path, &()) -> io::Result<()>)>,
+            (WriterCustody::Writable, |_, ()| Ok(())),
             |current, _| {
                 if current == step {
                     Err(io::Error::from_raw_os_error(5))
@@ -427,7 +432,7 @@ fn descriptor_publication_preserves_sync_state_and_foreign_stage_cleanup_evidenc
             fs::write(fixture.root.join(stage), b"foreign").unwrap();
             Err("producer evidence")
         },
-        None::<(bool, fn(&Path, &()) -> Result<(), &'static str>)>,
+        (WriterCustody::Writable, |_, ()| Ok(())),
         |_, _| Ok(()),
     )
     .unwrap_err();
@@ -550,10 +555,13 @@ fn validated_publication_retains_sync_and_publication_failure_phases() {
             &output,
             REPLACE,
             |_, file| file.write_all(b"new"),
-            Some((true, |_: &Path, (): &()| -> io::Result<()> {
-                admitted = true;
-                Ok(())
-            })),
+            (
+                WriterCustody::ReadOnly,
+                |_: &Path, (): &()| -> io::Result<()> {
+                    admitted = true;
+                    Ok(())
+                },
+            ),
             |current, _| {
                 if current == step {
                     Err(io::Error::from_raw_os_error(5))
@@ -619,19 +627,23 @@ fn link_fallback_cleanup_failure_reports_already_published_output() {
 
 #[test]
 fn pathname_writers_reject_nul_before_creating_parents() {
-    use crate::durable::{
-        create_new_bytes_with_parents, create_private_bytes_with_parents, write_bytes,
-        write_named_with,
-    };
+    use crate::durable::{write_bytes, write_named_with};
 
     let fixture = Fixture::new();
     for name in ["invalid\0name", "invalid\0parent/output", "invalid/child\0"] {
         let path = fixture.root.join("missing/nested").join(name);
         for writer in 0..7 {
             let error = match writer {
-                0 => write_bytes(&path, b"contents"),
-                1 => create_new_bytes_with_parents(&path, b"contents"),
-                2 => create_private_bytes_with_parents(&path, b"contents"),
+                0 => write_bytes(&path, REPLACE, b"contents"),
+                1 => write_bytes(
+                    &path,
+                    WriteOptions {
+                        mode: PublicationMode::CreateNew,
+                        permissions: 0o666,
+                    },
+                    b"contents",
+                ),
+                2 => write_bytes(&path, CREATE, b"contents"),
                 3 => write_with(&path, REPLACE, |_| -> io::Result<()> {
                     panic!("producer ran")
                 }),
@@ -660,10 +672,7 @@ fn pathname_writers_reject_nul_before_creating_parents() {
 
 #[test]
 fn pathname_writers_reject_directory_suffixes_before_any_effect() {
-    use crate::durable::{
-        create_new_bytes_with_parents, create_private_bytes_with_parents, write_bytes,
-        write_named_with,
-    };
+    use crate::durable::{write_bytes, write_named_with};
     use std::path::PathBuf;
 
     let fixture = Fixture::new();
@@ -684,9 +693,16 @@ fn pathname_writers_reject_directory_suffixes_before_any_effect() {
                 let path = PathBuf::from(raw);
                 for writer in 0..7 {
                     let error = match writer {
-                        0 => write_bytes(&path, b"replacement"),
-                        1 => create_new_bytes_with_parents(&path, b"replacement"),
-                        2 => create_private_bytes_with_parents(&path, b"replacement"),
+                        0 => write_bytes(&path, REPLACE, b"replacement"),
+                        1 => write_bytes(
+                            &path,
+                            WriteOptions {
+                                mode: PublicationMode::CreateNew,
+                                permissions: 0o666,
+                            },
+                            b"replacement",
+                        ),
+                        2 => write_bytes(&path, CREATE, b"replacement"),
                         3 => write_with(&path, REPLACE, |_| -> io::Result<()> {
                             panic!("producer ran")
                         }),
@@ -715,6 +731,6 @@ fn pathname_writers_reject_directory_suffixes_before_any_effect() {
         }
     }
     // Ordinary current-directory components in the parent remain valid.
-    write_bytes(&fixture.root.join("./existing"), b"updated").unwrap();
+    write_bytes(&fixture.root.join("./existing"), REPLACE, b"updated").unwrap();
     assert_eq!(fs::read(&existing).unwrap(), b"updated");
 }

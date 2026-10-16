@@ -1,11 +1,12 @@
-//! IC method export interpretation over the artifact owner's structural facts.
+//! IC method identities shared by Candid services and optional Wasm export interpretation.
 //!
 //! No expected service, internal-export allowlist, signature validation or
 //! installation policy is implied. Source names are preserved without trimming.
 
+#[cfg(feature = "ic-interface")]
 use ic_host_artifacts::wasm::{ExportKind, WasmFacts};
 
-#[cfg(test)]
+#[cfg(all(test, feature = "ic-interface"))]
 mod tests;
 
 /// Candid method mode, retaining the distinction between update and oneway.
@@ -48,6 +49,7 @@ pub struct ExportedMethod<'a> {
 /// allocation performed. Lifecycle and non-function exports are omitted. Internal
 /// CDK methods, empty names and the same name in different modes are retained as
 /// facts for explicit caller admission. This does not validate Wasm signatures.
+#[cfg(feature = "ic-interface")]
 pub fn exported_methods<'a>(
     facts: &'a WasmFacts<'_>,
 ) -> impl Iterator<Item = ExportedMethod<'a>> + 'a {

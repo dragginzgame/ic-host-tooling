@@ -1,11 +1,93 @@
 # Changelog
 
-## [0.20.2]
+## [0.22.2]
 
 - Add opt-in bounded effective ICP project projection; callers retain discovery,
   capture limits, funding and lifecycle policy
   ([#115 — Effective ICP environment facts](https://github.com/dragginzgame/ic-host-tooling/issues/115)).
-  [Detailed notes](docs/changelog/0.20.md).
+  [Detailed notes](docs/changelog/0.22.md).
+
+- Admit existing regular lock sidecars, try one nonblocking exclusive lock, and
+  publish caller-verified directory trees without replacing an occupied name.
+  [Detailed notes](docs/changelog/0.22.md).
+
+## [0.22.1] - 2026-10-16
+
+- Adopt Shared Tooling 0.15.7, strengthening fixture failure-retention checks
+  while preserving the selected tooling, package versions and library APIs.
+  [Detailed notes](docs/changelog/0.22.md).
+
+## [0.22.0] - 2026-10-16
+
+### Breaking
+
+- Require explicit `WriteOptions` for `durable::write_bytes`; retire the two
+  create-only byte wrappers. Callers select publication mode and permissions.
+- Return raw Candid extraction evidence without a duplicate normalized string.
+  Callers needing normalized text invoke `candid::text::normalize` explicitly.
+- Retire the Artifacts `archive` feature and tar-member extraction API, its tar
+  dependency and filesystem example. Gzip support remains available separately.
+- Remove labeled-hex response decoding. Select JSON or plain hex explicitly;
+  CLI labels and preambles remain the caller's presentation policy. The saved
+  response example now accepts only `json` or `hex`.
+- Add `ArtifactError::LengthMismatch` for an exact stream that ends early.
+  Consumers exhaustively matching artifact errors must handle the new variant.
+
+### Changed
+
+- Add durable publication beneath an existing parent, retaining descriptor
+  custody and refusing missing or special-file parents before production
+  ([#148 — Existing-parent pathname publication](https://github.com/dragginzgame/ic-host-tooling/issues/148)).
+- Share explicitly requested process failure diagnostics, including captured
+  streams and cleanup evidence, while ordinary error display keeps omitting them
+  ([#149 — Explicit process failure-evidence rendering](https://github.com/dragginzgame/ic-host-tooling/issues/149)).
+- Route descriptor publication through one adapter, preserving producer results,
+  validation, publication errors and cleanup behavior.
+- Adopt Shared Tooling 0.15.6 at `5910c9f`, sharing CI tool preparation and Make
+  fixture setup while preserving common tool pins, package versions and MIT license.
+- Clip terminal text while escaping, avoiding a complete escaped intermediate
+  and preserving existing Unicode, control and ellipsis output.
+- Keep generic formatter/hook, Make-consumer and tool-command regression suites
+  in Shared Tooling while retaining Host's actual integration, preservation and
+  prepared-tool checks.
+  [Detailed notes](docs/changelog/0.22.md).
+
+### Added
+
+- Add exact-length streaming hash and bounded read operations to Host Artifacts.
+  They reject premature EOF and probe one excess byte; callers still select
+  byte limits and own stream custody.
+- Open regular files or directories through a retained Unix root descriptor,
+  refusing traversal, symlinks and special entries without pathname reopening.
+  Callers retain root and byte custody
+  ([#80 — Capability-rooted filesystem confinement](https://github.com/dragginzgame/ic-host-tooling/issues/80)).
+  [Detailed notes](docs/changelog/0.22.md).
+- Share bounded synthetic HTTP request capture through Process's opt-in
+  `test-support` module, retaining partial bytes and typed failures. Consumers
+  own responses and evidence publication
+  ([#123 — Own bounded synthetic HTTP request fixtures](https://github.com/dragginzgame/ic-host-tooling/issues/123)).
+  [Detailed notes](docs/changelog/0.22.md).
+
+## [0.21.0] - 2026-10-15
+
+### Breaking
+
+- Candid service inspection no longer enables Wasm export inspection implicitly.
+  Select both `candid-service` and `ic-interface` when both APIs are needed;
+  Candid-only consumers no longer select Host Artifacts or the Wasm parser.
+
+### Changed
+
+- Simplify durable publication's internal admission modes while preserving
+  closed-writer validation, cleanup and publication error states.
+
+### Fixed
+
+- Derive Git's dirty observation from retained status bytes, so editing report
+  metadata cannot change it.
+- Admit optional-file descriptor metadata once in the consuming reader, retaining
+  no-follow opening, private-file checks and rejection before reading.
+  [Detailed notes](docs/changelog/0.21.md).
 
 ## [0.20.1] - 2026-10-15
 

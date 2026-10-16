@@ -1,8 +1,9 @@
-//! Opt-in Unix executable fixtures for consumer tests.
+//! Opt-in synthetic HTTP and Unix executable fixtures for consumer tests.
 //!
-//! This module owns only safe writer-process lifetime. Callers own fixture
-//! content, paths, namespace custody and assertions; no tool is admitted here.
+//! Callers own fixture content, paths, namespace custody, transport policy and
+//! assertions. Executable helpers own writer-process lifetime; no tool is admitted.
 
+#[cfg(unix)]
 use std::{
     fs,
     io::{self, Write as _},
@@ -11,9 +12,12 @@ use std::{
     process::{Command, Stdio},
 };
 
+#[cfg(unix)]
 use crate::child::OwnedChild;
 
+#[cfg(unix)]
 pub mod crash_barrier;
+pub mod http;
 
 /// Create or replace a caller-owned executable script with mode 0755.
 ///
@@ -29,6 +33,7 @@ pub mod crash_barrier;
 /// Returns spawn, pipe, write, wait, failed writer exit or filesystem errors.
 /// The writer is waited after a write failure; that original failure remains
 /// primary. The owned process group is cleaned up if waiting fails or unwinds.
+#[cfg(unix)]
 pub fn write_executable_script(path: &Path, contents: impl AsRef<[u8]>) -> io::Result<()> {
     let mut writer = OwnedChild::spawn(
         Command::new("/bin/sh")
@@ -51,5 +56,5 @@ pub fn write_executable_script(path: &Path, contents: impl AsRef<[u8]>) -> io::R
     fs::set_permissions(path, permissions)
 }
 
-#[cfg(test)]
+#[cfg(all(test, unix))]
 mod tests;

@@ -8,8 +8,13 @@
 
 mod directory;
 mod lock_wait;
-pub use directory::{DirectoryCreationError, admit_directory, create_private_directory};
-pub use lock_wait::{lock_exclusive, lock_exclusive_with_wait, lock_shared, unlock};
+pub use directory::{
+    DirectoryCommitError, DirectoryCommitOutcome, DirectoryCommitStep, DirectoryCreationError,
+    admit_directory, commit_existing_directory_with, create_private_directory,
+};
+pub use lock_wait::{
+    lock_exclusive, lock_exclusive_with_wait, lock_shared, try_lock_exclusive, unlock,
+};
 #[cfg(unix)]
 mod retained;
 #[cfg(unix)]
@@ -17,7 +22,10 @@ pub use retained::{create_retained_at, publish_retained_at};
 mod named;
 pub use named::{NamedWriteError, write_named_with};
 mod stream;
-pub use stream::{PublicationMode, WriteOptions, write_validated_with, write_with};
+pub use stream::{
+    PublicationMode, WriteOptions, write_existing_parent_validated_with,
+    write_existing_parent_with, write_validated_with, write_with,
+};
 #[cfg(unix)]
 pub use stream::{write_at_validated_with, write_at_with};
 
@@ -80,56 +88,24 @@ impl From<RegularFileLockError> for io::Error {
     }
 }
 
-const REPLACE_OPTIONS: WriteOptions = WriteOptions {
-    mode: PublicationMode::Replace,
-    permissions: 0o666,
-};
-const CREATE_NEW_OPTIONS: WriteOptions = WriteOptions {
-    mode: PublicationMode::CreateNew,
-    permissions: 0o666,
-};
-const CREATE_PRIVATE_OPTIONS: WriteOptions = WriteOptions {
-    mode: PublicationMode::CreateNew,
-    permissions: 0o600,
-};
-
-/// Durably replace one file through atomic publication of complete bytes.
+/// Durably publish complete bytes with explicit mode and staging permissions.
 ///
 /// Missing parent directories are created and durably linked before the file
-/// is published. Serialization must complete before calling this helper.
+/// is published. Uses the same engine and caller obligations as [`write_with`].
+/// Serialization must complete before calling this helper. `options` selects
+/// replace/create-only publication and permission bits reduced by the umask.
 ///
 /// # Errors
 /// Retains write, cleanup and filesystem failures in [`NamedWriteError`], including
 /// the distinct after-publication state when the complete output is already visible.
-pub fn write_bytes(path: &Path, bytes: &[u8]) -> Result<(), NamedWriteError<io::Error>> {
-    commit_bytes(path, bytes, REPLACE_OPTIONS)
-}
-
-/// Durably create one file and its missing parent hierarchy without replacing
-/// an existing destination.
-///
-/// # Errors
-/// Retains write, cleanup and filesystem failures in [`NamedWriteError`]. An existing
-/// destination is a before-publication `AlreadyExists`; a final sync failure is
-/// after-publication. Reconcile the latter before retrying.
-pub fn create_new_bytes_with_parents(
+/// Create-only mode refuses an occupied destination; invalid permissions refuse
+/// before parent creation. Reconcile after-publication errors before retrying.
+pub fn write_bytes(
     path: &Path,
+    options: WriteOptions,
     bytes: &[u8],
 ) -> Result<(), NamedWriteError<io::Error>> {
-    commit_bytes(path, bytes, CREATE_NEW_OPTIONS)
-}
-
-/// Create owner-only bytes atomically, without replacing an existing destination.
-///
-/// # Errors
-/// Retains write, cleanup and filesystem failures in [`NamedWriteError`], including
-/// an existing destination or unsupported host before publication, and a final
-/// sync failure after publication. Reconcile the latter before retrying.
-pub fn create_private_bytes_with_parents(
-    path: &Path,
-    bytes: &[u8],
-) -> Result<(), NamedWriteError<io::Error>> {
-    commit_bytes(path, bytes, CREATE_PRIVATE_OPTIONS)
+    write_with(path, options, |file| std::io::Write::write_all(file, bytes))
 }
 
 /// Durably create missing owner-only parent directories without publishing a file.
@@ -218,7 +194,14 @@ pub fn open_regular_lock_file_with_parents(path: &Path) -> Result<fs::File, Regu
     let metadata = match fs::symlink_metadata(path) {
         Ok(metadata) => metadata,
         Err(source) if source.kind() == io::ErrorKind::NotFound => {
-            match create_new_bytes_with_parents(path, &[]) {
+            match write_bytes(
+                path,
+                WriteOptions {
+                    mode: PublicationMode::CreateNew,
+                    permissions: 0o666,
+                },
+                &[],
+            ) {
                 Ok(()) => {}
                 Err(NamedWriteError::BeforePublication {
                     source,
@@ -280,6 +263,31 @@ pub fn open_private_regular_lock_file(path: &Path) -> Result<fs::File, RegularFi
     }
 }
 
+/// Open an existing regular no-follow sidecar without creating it or its parents.
+///
+/// The returned read/write descriptor is close-on-exec and unlocked. Existing
+/// bytes, permissions and inode are preserved. A missing entry returns the
+/// native not-found error; a known special entry returns `NotRegular`.
+/// The caller owns trusted parents, stable namespace and lock acquisition.
+///
+/// # Errors
+/// Returns typed entry admission, native open/metadata or unsupported-host errors.
+pub fn open_existing_regular_lock_file(path: &Path) -> Result<fs::File, RegularFileLockError> {
+    #[cfg(not(windows))]
+    {
+        let metadata = fs::symlink_metadata(path).map_err(RegularFileLockError::Io)?;
+        if !metadata.file_type().is_file() {
+            return Err(RegularFileLockError::NotRegular);
+        }
+        open_regular_lock_descriptor(path, None)
+    }
+    #[cfg(windows)]
+    {
+        let _ = path;
+        Err(RegularFileLockError::UnsupportedPlatform)
+    }
+}
+
 #[cfg(not(windows))]
 fn open_regular_lock_descriptor(
     path: &Path,
@@ -307,14 +315,6 @@ fn errno_to_lock_error(source: rustix::io::Errno) -> RegularFileLockError {
     RegularFileLockError::Io(io::Error::from_raw_os_error(source.raw_os_error()))
 }
 
-fn commit_bytes(
-    path: &Path,
-    bytes: &[u8],
-    options: WriteOptions,
-) -> Result<(), NamedWriteError<io::Error>> {
-    write_with(path, options, |file| std::io::Write::write_all(file, bytes))
-}
-
 #[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
 mod supported {
     use super::{NamedWriteError, PublicationMode, WriteOptions};
@@ -335,6 +335,11 @@ mod supported {
 
     const TEMP_ATTEMPTS: usize = 64;
     static TEMP_SEQUENCE: AtomicU64 = AtomicU64::new(0);
+
+    pub(super) enum WriterCustody {
+        Writable,
+        ReadOnly,
+    }
 
     #[derive(Clone, Copy, Debug, Eq, PartialEq)]
     pub(super) enum FileCommitStep {
@@ -359,7 +364,7 @@ mod supported {
             path,
             options,
             |_, file| std::io::Write::write_all(file, bytes),
-            None::<(bool, fn(&Path, &()) -> io::Result<()>)>,
+            (WriterCustody::Writable, |_, ()| Ok(())),
             before,
         )
     }
@@ -368,7 +373,7 @@ mod supported {
         path: &Path,
         options: WriteOptions,
         produce: impl FnOnce(&Path, &mut fs::File) -> Result<T, E>,
-        admit: Option<(bool, impl FnOnce(&Path, &T) -> Result<(), E>)>,
+        admission: (WriterCustody, impl FnOnce(&Path, &T) -> Result<(), E>),
         mut before: impl FnMut(FileCommitStep, &Path) -> io::Result<()>,
     ) -> Result<T, NamedWriteError<E>> {
         validate_permissions(options.permissions).map_err(NamedWriteError::before)?;
@@ -381,7 +386,7 @@ mod supported {
             file_name,
             options,
             produce,
-            admit,
+            admission,
             before,
         )
     }
@@ -392,7 +397,7 @@ mod supported {
         file_name: &OsStr,
         options: WriteOptions,
         produce: impl FnOnce(&Path, &mut fs::File) -> Result<T, E>,
-        mut admit: Option<(bool, impl FnOnce(&Path, &T) -> Result<(), E>)>,
+        admission: (WriterCustody, impl FnOnce(&Path, &T) -> Result<(), E>),
         mut before: impl FnMut(FileCommitStep, &Path) -> io::Result<()>,
     ) -> Result<T, NamedWriteError<E>> {
         validate_permissions(options.permissions).map_err(NamedWriteError::before)?;
@@ -417,6 +422,8 @@ mod supported {
         // Keep unused callbacks and the produced value alive through cleanup,
         // just as when each failure returned directly from this function.
         let mut produce = Some(produce);
+        let (writer_custody, admit) = admission;
+        let mut admit = Some(admit);
         let mut value = None;
         let published = (|| {
             before(FileCommitStep::TemporaryFileWrite, &temp_path)
@@ -434,20 +441,18 @@ mod supported {
             verify_staging(&parent_fd, parent_path, &temp_name, &temp_file)
                 .map_err(NamedWriteError::before)?;
             temp_file.sync_all().map_err(NamedWriteError::before)?;
-            if let Some((close_writer, admit)) = admit.take() {
-                if close_writer {
-                    let read_only =
-                        retain_read_only(&parent_fd, parent_path, &temp_name, &temp_file)
-                            .map_err(NamedWriteError::before)?;
-                    drop(std::mem::replace(&mut temp_file, read_only));
-                }
-                admit(&temp_path, value.as_ref().expect("production succeeded")).map_err(
-                    |source| NamedWriteError::Producer {
-                        source,
-                        cleanup_error: None,
-                    },
-                )?;
+            let admit = admit.take().expect("admission runs once");
+            if matches!(writer_custody, WriterCustody::ReadOnly) {
+                let read_only = retain_read_only(&parent_fd, parent_path, &temp_name, &temp_file)
+                    .map_err(NamedWriteError::before)?;
+                drop(std::mem::replace(&mut temp_file, read_only));
             }
+            admit(&temp_path, value.as_ref().expect("production succeeded")).map_err(|source| {
+                NamedWriteError::Producer {
+                    source,
+                    cleanup_error: None,
+                }
+            })?;
             before(FileCommitStep::Publication, &path).map_err(NamedWriteError::before)?;
             // Keep the descriptor alive through rename so its identity cannot
             // be recycled after a producer unlinks or replaces the pathname.
@@ -645,7 +650,7 @@ mod supported {
         Ok(())
     }
 
-    fn split_target(path: &Path) -> io::Result<(&Path, &OsStr)> {
+    pub(super) fn split_target(path: &Path) -> io::Result<(&Path, &OsStr)> {
         validate_target_path(path)?;
         let file_name = path.file_name().ok_or_else(|| {
             io::Error::new(
