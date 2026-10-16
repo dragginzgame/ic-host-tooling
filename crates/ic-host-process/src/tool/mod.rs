@@ -4,12 +4,11 @@
 //! directories. Execution is not a sandbox or process-tree supervisor. Calls
 //! execute once, including on timeout or ambiguous completion; no retry occurs.
 
+mod diagnostics;
 mod process;
 mod resolution;
 #[cfg(test)]
 mod tests;
-
-pub use resolution::{ResolutionError, resolve_executable};
 
 use ic_host_artifacts::artifact::{ArtifactError, ArtifactIdentity, Sha256Digest};
 use ic_host_fs::read::{hash_file, hash_file_no_follow};
@@ -21,6 +20,9 @@ use std::{
     process::{Command, ExitStatus},
     time::Duration,
 };
+
+pub use diagnostics::format_failure_evidence;
+pub use resolution::{ResolutionError, resolve_executable};
 
 /// Retention and overflow behavior for one output stream.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

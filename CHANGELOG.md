@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.21.1]
+
+- Expose explicit process failure-evidence rendering without changing ordinary error display.
+  ([#149 — Own explicitly requested process failure-evidence rendering](https://github.com/dragginzgame/ic-host-tooling/issues/149)).
+  [Detailed notes](docs/changelog/0.21.md).
+
 ## [0.21.0] - 2026-10-15
 
 ### Breaking
