@@ -29,10 +29,21 @@ fixture_probe_prefix() {
     ' "$source" > "$output"
 }
 
+# Optional caller selections: FIXTURE_PROBE_ROOT_VARIABLE, DIRECTORY_VARIABLE,
+# COMPLETION_VARIABLE and TEMPORARY_ROOT use the existing FIXTURE_PROBE_ prefix.
+# Defaults retain the standard fixture contract. A selected scratch root may be
+# relative or aliased; returned fixture_probe_retained is checked against its
+# physical directory. Callers own cwd, RUNNER_TEMP and product diagnostics.
 fixture_probe_exit() {
     local source="$1" probe_root="$2" source_root="$3" name="$4" failure="$5"
     shift 5
     local injection expected status=0 retained
+    local completion="${FIXTURE_PROBE_COMPLETION_VARIABLE:-fixture_complete}"
+    local temporary_root="${FIXTURE_PROBE_TEMPORARY_ROOT:-$probe_root}" physical_root
+    fixture_probe_retained=''
+    [[ "$completion" =~ ^[A-Za-z_][A-Za-z0-9_]*$ && -d "$temporary_root" ]] || return 2
+    physical_root="$(CDPATH='' cd -P -- "$temporary_root" && printf '%s/.' "$PWD")" || return
+    physical_root="${physical_root%/.}"
     # Expand probe variables only when the generated child script executes.
     # shellcheck disable=SC2016
     case "$failure" in
@@ -41,10 +52,10 @@ fixture_probe_exit() {
         command) injection='false'; expected=1 ;;
         nonzero) injection='exit 23'; expected=23 ;;
         premature) injection='exit 0'; expected=1 ;;
-        completed) injection='fixture_complete=true; exit 0'; expected=0 ;;
-        retained-completed) injection='fixture_complete=true; exit 0'; expected=0 ;;
-        failed-completion) injection='fixture_complete=true; exit 23'; expected=23 ;;
-        cleanup-failure) injection='rm() { return 37; }; fixture_complete=true; exit 0'; expected=37 ;;
+        completed) injection="$completion=true; exit 0"; expected=0 ;;
+        retained-completed) injection="$completion=true; exit 0"; expected=0 ;;
+        failed-completion) injection="$completion=true; exit 23"; expected=23 ;;
+        cleanup-failure) injection="rm() { return 37; }; $completion=true; exit 0"; expected=37 ;;
         diagnostic) injection='printf "fixture output\n" > "$'"${FIXTURE_PROBE_DIRECTORY_VARIABLE:-fixture}"'/output"; cat() { return 7; }; exit 23'; expected=23 ;;
         *) printf 'Unknown retention probe: %s\n' "$failure" >&2; return 2 ;;
     esac
@@ -56,18 +67,24 @@ fixture_probe_exit() {
     fixture_probe_prefix "$source" "$directory/probe.sh" \
         "${FIXTURE_PROBE_ROOT_VARIABLE:-ROOT}" "${FIXTURE_PROBE_DIRECTORY_VARIABLE:-fixture}" \
         "$injection" || return
+    # A repeated name must prove this child reached its EXIT boundary. Keep
+    # earlier retained payloads, but never accept their receipt for a new run.
+    rm -f -- "$exit_path" || return
     env -u fixture -u TEST_ROOT -u FIXTURE -u FIXTURE_ROOT -u scratch \
         RETENTION_SOURCE_ROOT="$source_root" RETENTION_EXIT_PATH="$exit_path" \
-        TMPDIR="$probe_root" "$BASH" "$directory/probe.sh" "$@" \
+        TMPDIR="$temporary_root" "$BASH" "$directory/probe.sh" "$@" \
         > "$probe_root/$name-$failure.log" 2>&1 || status=$?
-    [[ "$status" == "$expected" ]] || return 1
+    [[ "$status" == "$expected" && -f "$exit_path" ]] || return 1
     retained="$(cat "$exit_path")" || return
-    [[ "$retained" == "$probe_root/"* ]] || return 1
+    [[ -n "$retained" ]] || return 1
+    [[ "$retained" == "$physical_root/"* ]] || return 1
     if [[ "$expected" == 0 && "$failure" != retained-completed ]]; then
         [[ ! -e "$retained" ]] || return 1
     else
         [[ -d "$retained" && "$(cat "$retained/exit-evidence")" == 'retained evidence' ]] || return 1
     fi
+    # shellcheck disable=SC2034 # Caller-owned diagnostics may name the exact path.
+    fixture_probe_retained="$retained"
 }
 
 fixture_probe_exits() {
@@ -140,7 +157,11 @@ fixture_probe_assertion() {
             if (ENVIRON["RETENTION_SELECTED"] == "true") {
                 print ENVIRON["RETENTION_BINDINGS"]
                 print "printf reached > \"$RETENTION_ASSERTION_REACHED\""
+                # Preserve return-based function guards as well as exit guards.
+                print "_retention_selected_assertion() {"
                 print ENVIRON["RETENTION_ASSERTION"]
+                print "}"
+                print "_retention_selected_assertion"
                 print "fixture_complete=true; exit 0"
                 injected=1; exit
             }

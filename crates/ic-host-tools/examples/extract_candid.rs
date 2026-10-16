@@ -59,7 +59,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         limits,
     )?;
     let candid = extract(&tool, &source, &context, source_bytes, limits)?;
-    io::stdout().lock().write_all(candid.text.as_bytes())?;
+    // This example explicitly selects normalization and its output allowance.
+    let text = ic_host_tools::candid::text::normalize(
+        &candid.evidence.stdout,
+        limits.stdout.retained_bytes(),
+    )?;
+    io::stdout().lock().write_all(text.as_bytes())?;
     Ok(())
 }
 

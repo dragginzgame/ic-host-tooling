@@ -13,6 +13,7 @@ profile and the caller's required target. It does not change the default toolcha
     minimum: '1.88.0'
     development-target: wasm32-unknown-unknown
     minimum-target: wasm32-unknown-unknown
+    minimum-components: clippy,rustfmt
 ```
 
 These versions illustrate the original Jobs caller, not fleet-wide pins. Each
@@ -24,8 +25,20 @@ failure stops immediately and preserves rustup's status and diagnostics.
 
 The action provides setup only. Consumers retain validation gates, caches,
 `rustc +VERSION --version --verbose` evidence, release/publication authority and
-native host qualification. It does not provide general component selection;
-workflows needing other component policies should keep their explicit setup.
+native host qualification. Optional `minimum-components` selects comma-separated
+components when the minimum-toolchain lane also runs lint or formatting.
+
+Local setup or single-toolchain CI lanes can call the same installer directly:
+
+```bash
+bash scripts/dev/prepare-rust-toolchain.sh 1.91.0 \
+  --component clippy --component rustfmt --target wasm32-unknown-unknown
+```
+
+The standalone entrypoint admits the complete explicit argument list before
+calling rustup. It accepts repeated component/target options, uses the minimal
+profile and preserves rustup failures. Consumers retain their component policy
+and version selection; checks must never call this setup entrypoint implicitly.
 
 Adopt from a reviewed, published Shared Tooling revision using the
 [snapshot workflow](consuming-snapshots.md), then replace the local action and

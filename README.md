@@ -5,14 +5,14 @@ admitted process execution and IC-specific format handling.
 
 | Crate | Implemented source ownership |
 | --- | --- |
-| ic-host-artifacts | Bounded streams and hashing writers, exact byte comparison, SHA-256, gzip encoding/decoding, verified tar members, generic Wasm facts and custom-section encoding |
+| ic-host-artifacts | Bounded streams and hashing writers, exact byte comparison, SHA-256, gzip encoding/decoding, generic Wasm facts and custom-section encoding |
 | ic-host-fs | Regular/no-follow reads, missing-suffix path resolution, streamed durable publication, private files and observed descriptor locks |
 | ic-host-process | Executable resolution, digest/version admission, bounded capture, explicit child/group cleanup and Git observations |
 | ic-host-text | Pure terminal-safe escaping and Unicode display-width tables with explicit formatting choices |
 | ic-host-tools | Candid text/extraction, optional service and IC export facts, ICP response decoding and IC resource reports |
 
 These run locally outside canisters. The ic-host prefix identifies their ecosystem;
-the generic crates have no IC runtime dependency. Compression, archive and Wasm
+the generic crates have no IC runtime dependency. Gzip and Wasm
 support are optional features of ic-host-artifacts. Filesystem/process consumers
 select the small default artifact dependency.
 For test fixtures, opt in to `ic-host-fs`'s `test-support` feature in a
@@ -32,7 +32,9 @@ duplicates, append order and subsequent Wasm validation.
 `ic-host-tools` has no default features. Response decoding and
 `candid::text::normalize` are always available without artifact/filesystem/process
 dependencies or the Candid parser. Enable `candid-extraction` explicitly for
-the Unix `candid::extraction` API.
+the Unix `candid::extraction` API. Extraction returns bounded raw process evidence
+and source/tool identities. Call `candid::text::normalize` explicitly when your
+consumer needs normalized text, selecting its output-byte allowance separately.
 The optional `ic-interface` feature adds `interface::exported_methods` over
 generic Wasm facts without the Candid parser. Enable `candid-service` for
 parser-backed `candid::service::inspect` and shared method identities, without
@@ -56,6 +58,11 @@ nothing: callers retain Agent verification, trust roots, combined evidence
 budgets, witness commitments and application leaf meanings. The feature adds no
 Agent transport, filesystem/process execution or Candid parser.
 
+`ic-host-tools::response::decode` accepts explicitly selected JSON envelopes or
+plain hex. CLI presentation labels, preambles and any broader whitespace policy
+belong to callers; the codec does not infer or strip them. See the
+[0.22 response migration](docs/changelog/0.22.md).
+
 `ic-host-text::escape::terminal_text` makes control and bidirectional formatting
 characters visible without choosing output or colour. It returns `Cow<str>`,
 borrowing safe input; use `.into_owned()` when independent ownership is required.
@@ -66,6 +73,7 @@ display columns. Reports retain their row/header/column decisions; CLIs retain
 stdout, terminal detection, colour and progress. `width::fit_line` escapes controls
 and clips with an ellipsis to caller-selected columns, using conservative scalar
 widths. It preserves UTF-8 boundaries without promising grapheme-cluster boundaries.
+Clipping consumes escapes as needed without allocating the complete escaped line.
 The crate depends only on the Unicode-width library, with no other Host or IC
 dependencies.
 
@@ -88,6 +96,9 @@ the consumer owns executable admission. It shares bounded capture and direct-chi
 cleanup with `AdmittedTool`, whose exact digest/version checks remain in place.
 `ToolError::evidence` and `execution_error` borrow retained diagnostics without
 copying output; callers own presentation and recovery.
+`tool::format_failure_evidence(context, &error)` explicitly renders status, lossy
+stdout/stderr and cleanup failures when raw diagnostics are requested. Callers
+retain terminal escaping and redaction; ordinary error display omits captures.
 Capture and communication return `CompletedExecution` with a required exit
 status, including nonzero and signalled exits. Use `require_success()` when zero
 exit is required. Interrupted execution retains optional status in `ExecutionEvidence`.
@@ -137,7 +148,7 @@ use `CompletedExecution::require_complete` before parsing retained output.
 
 Examples live with their owners: `ic-host-artifacts` has `hash_serialized_json`;
 `ic-host-fs` has `inspect_regular_file` and
-the artifact/file compositions `inspect_archive` and `inspect_gzip`;
+the artifact/file composition `inspect_gzip`;
 `ic-host-process` has `inspect_git` and `resolve_tool`. `ic-host-tools` retains
 `extract_candid`, `inspect_install_limits` and `inspect_response`; the response
 example runs with `--no-default-features`. Example-only dependencies do not widen
@@ -201,8 +212,14 @@ the working destination on rejection. See the
 
 `durable::write_with(path, options, producer)` retains serializer errors while streaming through
 the same engine, with explicit replace/create-only options and file permissions.
-Byte writers also return `NamedWriteError<io::Error>`, preserving publication
-state and separate cleanup failures. See the [0.10 migration](docs/changelog/0.10.md).
+`durable::write_bytes(path, options, bytes)` shares that engine and returns
+`NamedWriteError<io::Error>`, preserving publication state and separate cleanup
+failures. Select mode and permissions explicitly; see the
+[0.22 migration](docs/changelog/0.22.md).
+`durable::write_existing_parent_with` instead refuses missing parents and opens
+the selected parent once as a directory. Its `_validated_with` variant admits the
+producer's result before publication. Parent aliases are followed and the held
+directory stays selected across renames; callers retain namespace custody.
 `durable::write_at_with` borrows an admitted directory descriptor so publication
 stays anchored to it even when its original path moves. Consumers retain path
 admission, budgets and recovery; see the
