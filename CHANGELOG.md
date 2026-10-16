@@ -12,6 +12,15 @@
 - Add exact-length streaming hash and bounded read operations to Host Artifacts.
   They reject premature EOF and probe one excess byte; callers still select
   byte limits and own stream custody.
+- Share read-only physical-directory validation and use it before private-parent
+  creation. Symlink, non-directory and parent-traversal checks retain one owner.
+
+### Fixed
+
+- Qualify native filename lookup without assuming directory creation and lookup
+  return identical errors or all Unix filesystems accept arbitrary bytes.
+
+[Detailed notes](docs/changelog/0.22.md).
 
 ## [0.21.0] - 2026-10-15
 

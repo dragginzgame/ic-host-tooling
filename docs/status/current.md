@@ -2,17 +2,24 @@
 
 ## Source and pending release
 
-Released base: **0.20.1**, commit
-`6952903377eb36f9d35c92770e334b30721f1d20`. Package versions remain 0.20.1;
-local, uncommitted work is collected in the **0.21.0** draft. The authoritative
-scope and consumer actions are in [the release notes](../changelog/0.21.md).
+Released base: **0.21.0**, commit
+`69da6d4b02344a38506738184197491a7813c296`. Package versions remain 0.21.0.
+Upstream main `a0a969a67ed75d65589a5f14303b9a0335dc7d0a` already selects
+**0.22.0** for exact-length artifact streams and their new error variant.
+This additive physical-directory contribution joins that existing pending line;
+no package version changes. See [the release notes](../changelog/0.22.md).
 
-Pending work derives Git's dirty observation from retained status bytes and
-admits optional-file descriptor metadata once at its reader. It also decouples
-Candid service inspection from Wasm parsing: callers needing both select
-`candid-service` and `ic-interface` explicitly. This feature-contract change
-requires the pending minor release; package versions remain untouched. Durable
-publication uses explicit writer custody through the same admission/cleanup engine.
+[PR #147](https://github.com/dragginzgame/ic-host-tooling/pull/147)'s original
+macOS jobs reached the native path fixture but failed while creating an invalid
+UTF-8 directory name. A first repair incorrectly equated creation and lookup
+errors; both native runners reported creation error 92 and lookup error 2.
+The fixture now follows metadata lookup: NotFound permits a missing path, while
+other errors remain intact. Positive Unicode/relative/missing-path coverage and
+production admission are unchanged. Both native macOS architectures require
+qualification on the new head; Linux evidence does not qualify those hosts.
+
+Released 0.21.0 delivers the Git observation, reader admission, independent
+Candid/Wasm feature selection and explicit durable writer custody changes.
 Released 0.20.1 includes the column-clipping source from
 [PR #144](https://github.com/dragginzgame/ic-host-tooling/pull/144), adapted to
 `Cow<str>` escaping. Consumer adoption retains its own qualification.
