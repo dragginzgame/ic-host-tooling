@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.23.2]
+
+- Decode bounded gzip payloads directly into caller-owned sinks while returning
+  their SHA-256 identity, avoiding a complete decoded buffer and separate hash
+  traversal. Authentication, staging and publication remain caller-owned
+  ([#170 — Stream bounded gzip payloads into caller-owned sinks](https://github.com/dragginzgame/ic-host-tooling/issues/170)).
+  [Detailed notes](docs/changelog/0.23.md).
+
 ## [0.23.1] - 2026-10-16
 
 - Add caller-selected inherited command custody and exact existing-sidecar
