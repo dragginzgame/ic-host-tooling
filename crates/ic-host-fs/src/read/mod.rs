@@ -1,7 +1,7 @@
 //! Bounded regular-file reads; callers own path confinement and concurrent writers.
 
 use ic_host_artifacts::artifact::{ArtifactError, ArtifactIdentity, hash_reader, read_reader};
-use std::{fs::File, path::Path};
+use std::{fs::File, io::Read as _, path::Path};
 
 #[cfg(unix)]
 mod no_follow;
@@ -43,6 +43,27 @@ pub fn hash_file(path: &Path, max_bytes: u64) -> Result<ArtifactIdentity, Artifa
 /// Returns filesystem, non-regular-file, allocation, or byte-limit failures.
 pub fn read_file(path: &Path, max_bytes: usize) -> Result<Vec<u8>, ArtifactError> {
     read_reader(open_file(path, max_bytes as u64)?, max_bytes)
+}
+
+/// Read at most `max_bytes` from a regular file, returning its prefix and observed length.
+///
+/// Unlike [`read_file`], a longer file is permitted. The returned length is
+/// observed through the opened descriptor before reading; concurrent growth,
+/// truncation and writes can make it differ from the length after this call.
+/// A zero byte allowance still opens and admits the file, returning empty bytes.
+/// Storage is allocated fallibly and no bytes beyond the prefix are read.
+///
+/// Follows symlinks with [`open_regular_file`]'s descriptor admission, including
+/// nonblocking FIFO rejection on Unix. Callers own path confinement, concurrent
+/// writers, decoding, truncation presentation and any filesystem latency policy.
+///
+/// # Errors
+/// Returns filesystem, non-regular-file, read or allocation failures.
+pub fn read_file_prefix(path: &Path, max_bytes: usize) -> Result<(Vec<u8>, u64), ArtifactError> {
+    let file = open_regular_file(path)?;
+    let observed_length = file.metadata()?.len();
+    let bytes = read_reader(file.take(max_bytes as u64), max_bytes)?;
+    Ok((bytes, observed_length))
 }
 
 /// Validate an already-open regular file and read it into bounded storage.

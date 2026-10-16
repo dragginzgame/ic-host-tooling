@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.21.1]
+
+- Add caller-bounded regular-file prefix reads with the descriptor-observed length,
+  permitting larger files without loading them completely.
+  [Detailed notes](docs/changelog/0.21.md).
+
 ## [0.21.0] - 2026-10-15
 
 ### Breaking
