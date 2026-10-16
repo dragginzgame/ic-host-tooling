@@ -154,3 +154,31 @@ No old public command is removed by this addition. Any later retirement must
 identify callers and actual replacement coverage before selecting a breaking
 Shared Tooling release. Consumer library adoption is normally contributor tooling
 work, not a reason to bump the library's minor version.
+
+## Hosted preparation and disposable fixtures
+
+Shared Tooling's producer fixtures own exhaustive Make flag aliases, inherited
+and replaced flags, and common-tool preflight/install/check failure permutations.
+Consumers can use `make_probe_target_admission` from
+`scripts/ci/make-adapter-probes.sh` to exercise each actual target with the four
+unsafe behaviors (`-i`, `-n`, `-t`, `-q`), requiring status 2 and no recorded
+effects. Keep local target rosters, effect stubs, parallel descriptor checks,
+diagnostic selection and recovery-state custody at the consumer. The existing
+`make_probe_execution_modes` retains the full matrix for producer qualification.
+The common-tool action fixture executes the actual shared Make aggregates with
+only installer leaves substituted; it admits phase order, failure stopping,
+stdout/stderr retention and PATH publication. No tools are installed by it.
+
+The optional `.github/actions/prepare-common-tools` action runs `make install-tools`
+then `make tools-check`, retaining complete `tools-install.log` and `tools-check.log`
+under `RUNNER_TEMP`. It appends common host/IC/Cargo executable directories to
+`GITHUB_PATH` only after both commands succeed. Consumers own compiler setup,
+Make's ordered local extensions, caches and product gates. The action requires
+an existing checkout, `RUNNER_TEMP` and `GITHUB_PATH`; it does not select a compiler.
+
+`bash scripts/ci/prepare-make-fixture.sh SOURCE EXISTING-FIXTURE` copies the common
+Make includes and execution/formatting runners into a disposable consumer. It
+preserves modes and unrelated files, rejects missing inputs or symlink outputs
+before copying, and preserves copy failures. It invokes no Make, Git, installer
+or release command. Callers keep the Makefile, catalogs, leaf stubs, assertions
+and fixture retention; this is a test skeleton, not a complete consumer export.

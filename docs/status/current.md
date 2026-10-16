@@ -4,8 +4,10 @@
 
 Released base: **0.21.0**, commit
 `69da6d4b02344a38506738184197491a7813c296`. Package versions remain 0.21.0;
-local, uncommitted work is collected in the **0.22.0** draft. The authoritative
-scope and consumer actions are in [the release notes](../changelog/0.22.md).
+prepared work is collected in the **0.22.0** draft. Source at `69432cd` includes
+the prior preparation; this adoption adds local tooling/documentation changes.
+The authoritative scope and consumer actions are in
+[the release notes](../changelog/0.22.md).
 
 Pending work consolidates byte publication into `write_bytes(path, options,
 bytes)`, makes Candid normalization an explicit caller operation and retires the
@@ -35,11 +37,16 @@ Released 0.20.1 includes the column-clipping source from
 [PR #144](https://github.com/dragginzgame/ic-host-tooling/pull/144), adapted to
 `Cow<str>` escaping. Consumer adoption retains its own qualification.
 
-Shared Tooling selects **0.15.4**, committed revision
-`879eb2b021522252a67e908dbc217a0f4efb2a6f`, with 85 entrypoints and 105 exact
-payloads. The new required maintenance-selection catalog preserves the existing
-optional runtime selection without activating it. Uncommitted upstream
-work is excluded. Common tool pins and Host's MIT license are unchanged.
+Shared Tooling selects **0.15.6**, committed revision
+`5910c9fe95429aa5741589f7e6d0cec9b6c84384`, with 88 entrypoints and 108 exact
+payloads. The prepared Make/CI adoption is now applied: Shared owns common
+fixture copying, per-target unsafe-mode probes and CI tool preparation with
+logs and PATH publication.
+Host retains its actual target roster, routing, ordered aggregate/preflight,
+LOC, jobserver and formatter-failure checks, compiler selection and cache identity.
+Existing optional maintenance runtime selection remains inactive. The optional
+Rust panic scanner is not selected. Common tool pins and Host's MIT license
+are unchanged.
 Preserve pending source, index/refs,
 Cargo versions and existing artifacts; sibling working checkouts remain
 read-only.
@@ -65,18 +72,25 @@ have one private owner, and release projection uses Shared's saved-source render
 These are scoped Linux records for the inputs identified by each task, not a
 combined release receipt. Before-images and command logs remain at their owners:
 
+The Shared 0.15.6 adoption verifies all 108 payloads from a clean checkout of the
+published revision. The three new helper/action payloads match the saved rehearsal
+bytes; actual Host Make routing, ordered setup/preflight, LOC, jobserver and
+formatter-failure checks pass on current Bash and genuine Bash 3.2.57. The adopted
+CI action passes selected-caller install/check failure, output-log and PATH
+publication checks on both interpreters with substituted Make effects; no tools
+were installed. Failure-retention and relative-temporary-path checks pass on both
+interpreters. Actionlint and affected ShellCheck pass. Source before-images,
+reviewed previews and logs remain at `/tmp/host-shared0156.Eutrxn/`.
+Package source, Cargo metadata/lock, tool pins, MIT license, index and refs remain
+unchanged. Full release, hosted workflow execution and native macOS qualification
+remain separate from this tooling adoption.
+
 The descriptor-adapter cleanup passes all 22 stream-publication cases on current
 Rust and actual Rust 1.88, strict Filesystem Clippy/rustdoc and source formatting.
 Before-images and logs remain at `/tmp/host-022-converge.HlZlTL/`.
-Prepared Make/CI adoption patches are retained there separately from live source.
-The proposed Make caller passes on current Bash and genuine Bash 3.2.57, including
-its failure-retention and relative-temporary-path checks. The proposed CI caller
-passes actionlint and install/check failure, log and PATH-publication checks with
-substituted effects on both interpreters. These use saved, hashed uncommitted
-Shared helper bytes for rehearsal only, not a committed snapshot or hosted proof.
-The maintainer requested leaving adoption pending while Shared prepares delivery;
-Host's snapshot and live Make/CI callers remain unchanged. Native macOS and full
-release qualification remain separate.
+That directory also retains the earlier Make/CI patches and rehearsal against
+then-uncommitted Shared helper bytes. Current adoption evidence is recorded above;
+the earlier rehearsal is not relabelled as committed or native qualification.
 
 The existing-parent/diagnostics batch passes 74 durable and 68 Process tool cases,
 strict affected-package Clippy/rustdoc and actual Rust 1.88 all-target/all-feature

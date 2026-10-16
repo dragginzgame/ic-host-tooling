@@ -853,7 +853,9 @@ claim deployment or PocketIC client/server compatibility from `--version` alone.
 Snapshot integrity and consumer adoption remain separate from upstream fixtures.
 
 The Rust setup action is an independent entrypoint:
-`.github/actions/prepare-rust-toolchains/action.yml`. It has no helper dependencies.
+`.github/actions/prepare-rust-toolchains/action.yml`. Its declared companion is
+`scripts/dev/prepare-rust-toolchain.sh`; the canonical exporter includes that
+helper automatically when selecting or refreshing the action.
 Select `docs/rust-toolchains.md` too for its [caller contract](rust-toolchains.md).
 
 The evidence archiver can be adopted independently as

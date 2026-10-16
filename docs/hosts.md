@@ -33,7 +33,11 @@ Shared owns the synthetic Make-consumer, host/IC/Rust installer and LOC parser
 matrices in `shared-tooling/scripts/ci/test-portable-tools.sh`. Host retains its actual
 Make routing, aggregate failure ordering, LOC arguments/status and pipe-jobserver
 checks in `scripts/ci/test-make-snapshot.sh`, plus prepared-tool admission and
-native qualification. Snapshot checks retain all selected bytes and modes;
+native qualification. Common fixture copying and per-target unsafe-mode probes
+use Shared helpers; exhaustive flag aliases and inherited/replaced combinations
+remain producer checks. Native CI's shared common-tool action retains setup/check
+logs and publishes PATH only after both succeed. Snapshot checks retain all
+selected bytes and modes;
 the CI cache-key helper is an explicit snapshot root for its workflow caller.
 The release gate uses the same complete host, IC and Cargo toolsets, even though
 the libraries do not invoke every tool. Explicit setup runs `make install-tools`;

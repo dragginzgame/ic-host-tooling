@@ -109,16 +109,20 @@ consumer_state() {
 
 committed_mode() {
     local revision="$1" path="$2" tree_entry tree_metadata entry_mode entry_type mode=""
-    while IFS= read -r -d '' tree_entry; do
-        [[ "${tree_entry#*$'\t'}" == "$path" ]] || continue
-        tree_metadata="${tree_entry%%$'\t'*}"
-        read -r entry_mode entry_type _ <<<"$tree_metadata"
-        [[ "$entry_type" == blob && "$entry_mode" =~ ^100(644|755)$ ]] ||
-            fail "source revision does not contain a regular file: $path"
-        mode="$entry_mode"
-    done < <(git -C "$SOURCE_ROOT" ls-tree -z "$revision" -- "$path")
-    [[ -n "$mode" ]] || fail "source file is not recorded in revision $revision: $path"
-    printf '%s\n' "$mode"
+    # pipefail carries a failed Git observation even after a complete row. A
+    # process substitution hides that status, and Bash 3.2 cannot wait for it.
+    git -C "$SOURCE_ROOT" ls-tree -z "$revision" -- "$path" | {
+        while IFS= read -r -d '' tree_entry; do
+            [[ "${tree_entry#*$'\t'}" == "$path" ]] || continue
+            tree_metadata="${tree_entry%%$'\t'*}"
+            read -r entry_mode entry_type _ <<<"$tree_metadata"
+            [[ "$entry_type" == blob && "$entry_mode" =~ ^100(644|755)$ ]] ||
+                fail "source revision does not contain a regular file: $path"
+            mode="$entry_mode"
+        done
+        [[ -n "$mode" ]] || fail "source file is not recorded in revision $revision: $path"
+        printf '%s\n' "$mode"
+    }
 }
 
 check_consumer_unchanged() {
@@ -409,7 +413,9 @@ while [[ "$cursor" -lt "${#proposed[@]}" ]]; do
     # These observations belong to the immutable selected revision. Retain them
     # for export; mutable checkout and consumer admission still run below.
     source_modes[cursor]="$(committed_mode "$source_revision" "$path")" || fail "cannot read committed companion source: $path"
-    mkdir -p "$staged_files/$(dirname "$path")"
+    staged_parent="$staged_files"
+    if [[ "$path" == */* ]]; then staged_parent+="/${path%/*}"; fi
+    mkdir -p "$staged_parent"
     git -C "$SOURCE_ROOT" cat-file blob "$source_revision:$path" > "$staged_files/$path" || fail "cannot inspect companions: $path"
     declaration="$(sed -n '2s/^# Shared companions: //p' "$staged_files/$path")"
     if [[ "$path" == *.md && -z "$declaration" ]]; then
@@ -609,16 +615,18 @@ if [[ "$preview" == true ]]; then
 fi
 
 # Prepare a custom manifest's parent before replacing any consumer files.
-mkdir -p "$(dirname "$manifest")" || fail "cannot create consumer manifest directory"
+mkdir -p "${manifest%/*}" || fail "cannot create consumer manifest directory"
 
 for index in "${!files[@]}"; do
     path="${files[$index]}"
     check_consumer_unchanged "$path" "${consumer_states[$index]}"
     check_index_unchanged "$index" "$path"
-    mkdir -p "$CONSUMER_ROOT/$(dirname "$path")"
+    destination_parent="$CONSUMER_ROOT"
+    if [[ "$path" == */* ]]; then destination_parent+="/${path%/*}"; fi
+    mkdir -p "$destination_parent"
     # Copy beside the destination so even a mounted subtree gets an atomic
     # rename. A failed/interrupted copy must leave the admitted old bytes intact.
-    replacement="$(mktemp "$CONSUMER_ROOT/$(dirname "$path")/.shared-tooling-payload.XXXXXX")"
+    replacement="$(mktemp "$destination_parent/.shared-tooling-payload.XXXXXX")"
     cp -p "$staged_files/$path" "$replacement"
     check_consumer_unchanged "$path" "${consumer_states[$index]}"
     check_index_unchanged "$index" "$path"

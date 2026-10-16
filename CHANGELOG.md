@@ -24,8 +24,8 @@
   ([#149 — Explicit process failure-evidence rendering](https://github.com/dragginzgame/ic-host-tooling/issues/149)).
 - Route descriptor publication through one adapter, preserving producer results,
   validation, publication errors and cleanup behavior.
-- Adopt Shared Tooling 0.15.4 at `879eb2b`, preserving common tool pins and Host's
-  existing entrypoint selection, package versions and MIT license.
+- Adopt Shared Tooling 0.15.6 at `5910c9f`, sharing CI tool preparation and Make
+  fixture setup while preserving common tool pins, package versions and MIT license.
 - Clip terminal text while escaping, avoiding a complete escaped intermediate
   and preserving existing Unicode, control and ellipsis output.
 - Keep generic formatter/hook, Make-consumer and tool-command regression suites
