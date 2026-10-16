@@ -1,8 +1,8 @@
 # Shared Tooling snapshot v1
-# version	0.16.0
+# version	0.16.1
 format	1
 source	https://github.com/dragginzgame/shared-tooling
-revision	989752490b392f7f4c542c7652dcb84e75ecf363
+revision	472f7ab7a749f8931ee9559d3026e266d4f12af2
 # entrypoint	rules/changelogs.md
 # entrypoint	docs/releases.md
 # entrypoint	scripts/ci/run-release.sh
@@ -126,13 +126,13 @@ file	922d482affa0a2538e3fca2a3eb07b266c7e07aabf96a71d8b8e987d97ff216a	-	docs/ic-
 file	ba1082789770ea7eff53a7f2974efe424aaed79e3d8830dd55105fdfebd85f59	-	ci/tool-versions.env
 file	0fe0525667d3d96eb9f25968cb648bfeb3072a0afa980599692776fac256a2ee	x	scripts/dev/install-host-tools.sh
 file	9fc0f0eb833b0db3087adaac90bfe98382a8a43decc23116dd4e962da1da8c0c	x	scripts/dev/install-ic-tools.sh
-file	53cf01beff70b80604c0a87cff1f687c751be325f8ebf5f3933719e49b5b1eb4	-	docs/verification-helpers.md
+file	a7e9317aad2c1979ff9da928b2b7ef72748c9464419cf4f3c756283bc0b80994	-	docs/verification-helpers.md
 file	6fe7da8acbeb862b26047d08c63a95a5d2b93223bb9c929d65c56dd2f30551ac	x	scripts/ci/check-release-commands.sh
 file	a04ef3105e7851b83bb682120873e29a6c3c604183c275bc53051dd9e4b300a7	x	scripts/ci/check-documentation-links.pl
 file	3634f4eef80eeaf69ebf2d8480adae7fdee1a7f369546e1feb0ece90e6206be0	x	scripts/ci/check-formatting-hooks.sh
 file	1063002468575e2f821cfec71524bde06a64634bf30455d64d2d9fed872969d6	-	docs/tag-maintenance.md
 file	40f31a19d6115411ebffe7c26e3ed30b8af7eead10dd4830de8d5a9312291222	x	scripts/ci/read-cargo-workspace-version.sh
-file	e02a4b573cf23cfdd81ce2492b7c45d2c55f7af04aa7526d457ee33089c4a131	x	scripts/distribution/refresh-consumer.sh
+file	8b717edbb6b8c5a3e93e7ae5ba65063145365f16db37defe7c6e91e5a4ca1ff4	x	scripts/distribution/refresh-consumer.sh
 file	a52db278800a9f02d85a6b8a780a9b1eed860c49d5442cef9db1f7f9d7ddee0a	x	scripts/ci/check-format-tools.sh
 file	acb25a83d8dbc0924b5b4139646b02a4f1714b66dc945e78c00d3fe8b1d0853b	-	rules/rust-workspaces.md
 file	9aa56d97300364d95bfaf44ce95fc906023bc73ed9e2c8d1f7001bb6f55ba47b	-	scripts/distribution/governance-files.txt
@@ -183,7 +183,7 @@ file	4c981184847462ab3c01cac087e28309f8e054253fd95c7bbe56f643877aa708	x	scripts/
 file	d7b179f9ceaec6e11c690c975b61f91bedc80526415f71571615064db14f0c9c	x	scripts/ci/check-release-tag.sh
 file	567f3e1618305539cf99365454040638788d035fe59742e574bcd4c30b9ba546	x	scripts/ci/validate-release-inputs.pl
 file	523996a3e4eb9dbe87e8daa4285293a28c5e005223feaa84bd5383d430784b09	-	scripts/ci/fixture-lifecycle.sh
-file	80965ecb2736e0b45330271f6e9485622fafbdbe54a21cde1d749b6303c04b11	-	docs/rust-toolchains.md
+file	5ab0c438a0b65ebf46d186e36baf4432558ff44ead2e96b90ecd1cbfc4ac08bf	-	docs/rust-toolchains.md
 file	9aa52699f4f7f8069cddd6b6ec295afc7a781e48b09bf104d2fff8f262a4720d	-	scripts/distribution/maintenance-files.txt
 file	3824050479f26a6d8533dadc6a53826d365274e0840b11691c46dacceb191e00	-	docs/ci-change-selection.md
 file	3d56ca1b0c5952b9534ece61b6754ca39e6ec1980d929f09de3dbd967a0c4977	-	scripts/ci/dependency-pins.jq

@@ -588,10 +588,7 @@ dependencies = [
  "ic-certification",
  "ic-host-artifacts",
  "ic-host-fs",
- "ic-host-process",
- "ic-host-text",
  "leb128",
- "rustix",
  "serde",
  "serde_json",
 ]

@@ -3,6 +3,7 @@ use super::{
     ExecutionOperation, OutputLimit, OutputLimits, OutputStream, SuccessfulExit,
 };
 use crate::child::{CleanupPolicy, OwnedChild};
+use ic_host_artifacts::artifact::buffer::reserve_bounded;
 use rustix::fs::{OFlags, fcntl_getfl, fcntl_setfl};
 use std::{
     ffi::OsString,
@@ -360,16 +361,8 @@ fn read_chunk(
         }
         Err(source) => return Err(io_failure(ExecutionOperation::ReadOutput, source)),
     };
-    let retained = count.min(limit - bytes.len());
-    let required = bytes.len() + retained;
-    if required > bytes.capacity() {
-        // Keep requested capacity within the stream budget while amortizing
-        // small pipe reads. This crate owns process capture storage.
-        let capacity = bytes.capacity().saturating_mul(2).max(required).min(limit);
-        bytes
-            .try_reserve_exact(capacity - bytes.len())
-            .map_err(|source| ExecutionFailure::Allocation { stream, source })?;
-    }
+    let retained = reserve_bounded(bytes, count, limit)
+        .map_err(|source| ExecutionFailure::Allocation { stream, source })?;
     bytes.extend_from_slice(&buffer[..retained]);
     // Preserve observed overflow even when the sink rejects this chunk.
     *truncated |= retained != count;

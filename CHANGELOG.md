@@ -1,5 +1,44 @@
 # Changelog
 
+## [0.24.0]
+
+### Breaking
+
+- Move native Candid extraction to IC Build; remove Host Tools' extraction API,
+  feature and example. Consumers use `ic_build::artifacts::candid` after the
+  Build release, preserving their tool, normalization and publication policies
+  ([Build #51 — Own native Candid extraction](https://github.com/dragginzgame/ic-build/issues/51)).
+  [Detailed notes](docs/changelog/0.24.md).
+
+- Remove `artifact::hash_gzip_or_raw` without an alias. Callers select raw
+  `hash_reader` or strict `hash_gzip` explicitly and retain their input/payload
+  allowances. Gzip encoding, decoding and exact comparison are unchanged.
+
+### Added
+
+- Observe installed tool version and byte identity with one provenance probe;
+  retain exact-version and digest-pinned admission as separate contracts
+  ([#166 — Observe installed tool version with one probe](https://github.com/dragginzgame/ic-host-tooling/issues/166)).
+- Share invocation-owned directory cleanup with explicit preservation and error
+  custody; Build retains cache policy and artifact lifecycle
+  ([#159 — Own invocation directory custody for Build](https://github.com/dragginzgame/ic-host-tooling/issues/159)).
+
+### Changed
+
+- Add fixed-buffer SHA-256 hexadecimal output and share its encoder with Display,
+  preserving lowercase bytes, leading zeroes and formatting behavior
+  ([#161 — Fixed-buffer SHA-256 output](https://github.com/dragginzgame/ic-host-tooling/issues/161)).
+  [Detailed notes](docs/changelog/0.24.md).
+- Add bounded regular-file prefix reads with the descriptor-observed length;
+  larger files are permitted without loading them completely
+  ([PR #155 — Bounded file-prefix reads](https://github.com/dragginzgame/ic-host-tooling/pull/155)).
+- Adopt Shared Tooling 0.16.1, reading snapshot companion headers directly with
+  Bash while preserving the selected payloads, compiler policy and tool pins.
+- Share fallible bounded buffer growth between stream reads, chunk identities
+  and process capture; preserve caller-selected byte limits and overflow policy.
+- Keep publication status combinations at their Shared owner; retain Host's
+  delegation, preparation-lock cleanup and package/recovery qualification.
+
 ## [0.23.1] - 2026-10-16
 
 - Add caller-selected inherited command custody and exact existing-sidecar

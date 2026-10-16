@@ -417,9 +417,19 @@ while [[ "$cursor" -lt "${#proposed[@]}" ]]; do
     if [[ "$path" == */* ]]; then staged_parent+="/${path%/*}"; fi
     mkdir -p "$staged_parent"
     git -C "$SOURCE_ROOT" cat-file blob "$source_revision:$path" > "$staged_files/$path" || fail "cannot inspect companions: $path"
-    declaration="$(sed -n '2s/^# Shared companions: //p' "$staged_files/$path")"
-    if [[ "$path" == *.md && -z "$declaration" ]]; then
-        declaration="$(sed -n '2s/^<!-- Shared companions: \(.*\) -->$/\1/p' "$staged_files/$path")"
+    # Only line two declares companions. Read it without launching a parser for
+    # every payload; an unterminated second line is still a complete declaration.
+    {
+        IFS= read -r declaration || :
+        IFS= read -r declaration || :
+    } < "$staged_files/$path"
+    if [[ "$declaration" == '# Shared companions: '* ]]; then
+        declaration="${declaration#'# Shared companions: '}"
+    elif [[ "$path" == *.md && "$declaration" == '<!-- Shared companions: '*' -->' ]]; then
+        declaration="${declaration#'<!-- Shared companions: '}"
+        declaration="${declaration%' -->'}"
+    else
+        declaration=''
     fi
     companions=()
     read -r -a companions <<< "$declaration"

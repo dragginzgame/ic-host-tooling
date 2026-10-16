@@ -15,6 +15,11 @@ These run locally outside canisters. The ic-host prefix identifies their ecosyst
 the generic crates have no IC runtime dependency. Gzip and Wasm
 support are optional features of ic-host-artifacts. Filesystem/process consumers
 select the small default artifact dependency.
+`ic_host_fs::owned_directory::OwnedDirectory` holds caller-asserted cleanup
+custody without creating an entry. Explicit preservation/disarming transfers
+recovery; armed Drop attempts removal. Callers retain namespace custody,
+destructive-operation policy and cache/application lifecycle.
+
 For test fixtures, opt in to `ic-host-fs`'s `test-support` feature in a
 dev-dependency and use `testing::create_fixture_directory(parent, prefix)`.
 It allocates beneath an existing physical parent, skips occupied names and
@@ -36,18 +41,17 @@ optimizer reachability metrics. Type/feature validation and report policy remain
 caller-owned; the structural `wasm::inspect` contract is unchanged.
 `ic-host-tools` has no default features. Response decoding is always available
 without artifact/filesystem/process/text dependencies or the Candid parser.
-Enable `candid-extraction` explicitly for
-the Unix `candid::extraction` API. Extraction returns bounded raw process evidence
-and source/tool identities. Call `ic_host_text::normalize::normalize_lines`
-explicitly when your
-consumer needs normalized text, selecting its output-byte allowance separately.
+Native Candid extraction belongs to IC Build's `artifacts::candid` module;
+Host Tools no longer supplies an extraction feature or invocation wrapper.
+Consumers select tools, source custody, output limits and optional normalization.
+See the [0.24 migration](docs/changelog/0.24.md) for the required Build release.
 The optional `ic-interface` feature adds `interface::exported_methods` over
 generic Wasm facts without the Candid parser. Enable `candid-service` for
 parser-backed `candid::service::inspect` and shared method identities, without
 the artifact crate or Wasm parser. Select both features to compare Candid services
 with Wasm exports; `candid-service` no longer enables `ic-interface` implicitly.
 Neither feature introduces Host filesystem/process dependencies on its own.
-The parser remains absent from the extraction graph. See the
+See the
 [0.21 feature migration](docs/changelog/0.21.md),
 [0.17 feature migration](docs/changelog/0.17.md),
 [0.16 extraction migration](docs/changelog/0.16.md) and
@@ -178,9 +182,14 @@ Examples live with their owners: `ic-host-artifacts` has `hash_serialized_json`;
 `ic-host-fs` has `inspect_regular_file` and
 the artifact/file composition `inspect_gzip`;
 `ic-host-process` has `inspect_git` and `resolve_tool`. `ic-host-tools` retains
-`extract_candid`, `inspect_install_limits` and `inspect_response`; the response
+`inspect_install_limits` and `inspect_response`; the response
 example runs with `--no-default-features`. Example-only dependencies do not widen
 the tools crate's production feature graph.
+
+`AdmittedTool::observe_version` accepts a `VersionObservationSpec` and observes
+installed bytes plus one nonempty, complete UTF-8 version result when no expected
+version is selected. It supplies provenance, not installation authenticity; later
+runs retain byte-drift rejection.
 
 `AdmittedTool::admit_version` accepts a `VersionSpec` for caller-trusted installed
 tools without a published binary digest. It records the installed identity,
@@ -259,8 +268,9 @@ simultaneously active missing-target depth explicitly; `usize::MAX` preserves
 unlimited expansion. This supplies no root confinement or filesystem deadline.
 See the [0.23 resolver migration](docs/changelog/0.23.md).
 
-With the artifact `gzip` feature, `hash_gzip` and `hash_gzip_or_raw` identify
-decoded payloads without a full decoded allocation. `gzip_matches` compares
+With the artifact `gzip` feature, `hash_gzip` identifies decoded payloads
+without a full decoded allocation. Callers select raw versus gzip handling
+explicitly; raw streams use `hash_reader`. `gzip_matches` compares
 decoded bytes exactly with an expected slice. All retain explicit input/payload
 bounds and strict single-member integrity checks; see the
 [gzip contract](docs/changelog/0.4.md#gzip-identities-and-exact-representation-comparison).

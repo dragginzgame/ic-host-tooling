@@ -2,12 +2,40 @@
 
 ## Source and pending release
 
-Latest tagged release: **0.23.0**, commit
-`52794c85c417aebb9dd8e2c80e8d2bcead91059c`. Package versions remain 0.23.0.
-The pending candidate is **0.23.1**, combining incoming inherited command custody,
-existing-sidecar admission and caller-verified directory publication with that
-released contract. Consumer records, effect recovery and publication acceptance
-remain local; retired 0.23 entrypoints are not restored.
+Latest tagged release: **0.23.1**, commit
+`bcd4f9c32b4c3c8f1ea219632fc813fe846039e3`. Package versions remain 0.23.1.
+The pending candidate is **0.24.0**, removing native Candid extraction from
+Host Tools in favor of IC Build's `artifacts::candid`. The Build producer move
+and release must precede Host publication; consumers retain tool admission,
+normalization, budgets and artifact policy. Producer work belongs to
+[Build #51 — Own native Candid extraction](https://github.com/dragginzgame/ic-build/issues/51).
+Host retains five crate boundaries and generic execution/hashing. The same draft
+shares bounded allocation across artifact reads/chunks and process capture,
+and keeps generic publication failure combinations at Shared's test owner.
+The same draft adds single-probe installed-version observation for
+[#166 — Observe installed tool version with one probe](https://github.com/dragginzgame/ic-host-tooling/issues/166)
+and explicit invocation-directory cleanup custody for
+[#159 — Own invocation directory custody for Build](https://github.com/dragginzgame/ic-host-tooling/issues/159).
+It removes the unused mixed raw/gzip hashing wrapper without an alias; callers
+select raw or strict gzip handling and retain both byte allowances. Testkit's
+existing strict streaming gzip hashing is preserved.
+Package versions and own release operations remain user-owned.
+
+The draft also adds fixed-buffer SHA-256
+hexadecimal output for [#161 — Fixed-buffer SHA-256 output](https://github.com/dragginzgame/ic-host-tooling/issues/161).
+Display shares that encoder; raw identities, parsing and formatting remain stable.
+Build owns inventory framing and adoption after reviewed publication.
+The same draft adds bounded regular-file prefix reads with the
+descriptor length retained from admission. Testkit owns its startup diagnostic
+limits, decoding, omitted-byte messages and published adoption. Existing full
+reads retain their size rejection; no new filesystem deadline is introduced.
+The same candidate adopts Shared 0.16.1, preserving compiler policy, tool pins
+and the existing snapshot selection.
+
+Tagged 0.23.1 combines inherited command custody, existing-sidecar admission and
+caller-verified directory publication with the 0.23 contract. Consumer records,
+effect recovery and publication acceptance remain local; retired entrypoints are
+not restored.
 
 Tagged 0.23.0 moved bounded line normalization from Tools' Candid module into
 `ic_host_text::normalize::normalize_lines` without an alias. Callers update imports
@@ -91,9 +119,13 @@ Released 0.20.1 includes the column-clipping source from
 [PR #144](https://github.com/dragginzgame/ic-host-tooling/pull/144), adapted to
 `Cow<str>` escaping. Consumer adoption retains its own qualification.
 
-Shared Tooling selects **0.16.0**, committed revision
-`989752490b392f7f4c542c7652dcb84e75ecf363`, with 88 entrypoints and 108 exact
-payloads. CI binary installs and assertion-retention probes require explicit
+Shared Tooling selects **0.16.1**, committed revision
+`472f7ab7a749f8931ee9559d3026e266d4f12af2`, with 88 entrypoints and 108 exact
+payloads. Companion headers are read directly with Bash; closure selection and
+literal second-line behavior remain unchanged. The optional workspace Rust-floor
+reader is not selected; Host's existing MSRV setup needs no new prerequisite.
+Unpublished sibling 0.16.2 work is excluded. CI binary installs and
+assertion-retention probes require explicit
 destinations and selections. Host has no caller needing those migrations and
 already selects the retained Make target-admission helper. Fleet LOC commands now
 remain in Shared's own Makefile; Host retains local LOC. Standard fixture exit
@@ -128,8 +160,102 @@ have one private owner, and release projection uses Shared's saved-source render
 
 ## Qualification evidence
 
+The additional 0.24 batch adapts PR #167 at `15187737` and PR #160 at
+`6eb96bd5` over the incoming working tree captured in
+`/tmp/host024-more.Bg7LJK/before/`. Thirteen gzip, 71 tool, five Git provenance
+and four invocation-directory cases pass on Rust 1.99 and actual Rust 1.88.
+The directory permission-failure/retry case ran as UID 1000. Strict affected
+Artifacts/FS/Process all-target/all-feature Clippy, actual MSRV all-target checking,
+warning-denied Rust 1.88 rustdoc, formatting, sorting and local links pass.
+
+A frozen Build 0.11.0 `dff188fe` rehearsal deletes its local directory guard
+and final-entry remover. Twelve staging cases plus transaction error/cleanup,
+transaction unwind/drop and failed-Wasm cleanup cases pass on actual Rust 1.91,
+along with all-target compilation and strict production Clippy. Only the three
+Host registry sources become explicit frozen path overrides; all versions and
+external edges remain unchanged. This is source qualification, not published
+Build adoption. The prepared Testkit single-probe patch applies to its captured
+dirty benchmark module; no fresh Testkit execution is claimed. Existing driver
+and live-smoke receipts stay with their original source in
+[Testkit #112 — Adopt single-probe observed-version admission](https://github.com/dragginzgame/ic-testkit/issues/112).
+Build publication/adoption remains in
+[#49 — Relocate directory custody](https://github.com/dragginzgame/ic-build/issues/49).
+Normal sibling checkouts, current Host versions/lock, index/refs and prior pending
+source are preserved; patches, before-images and logs remain at the path above.
+The original producer PRs' native passes qualify their own heads; current 0.24
+native acceptance and full release gates remain separate. No release ran.
+
+Producer issues #145 and #157 are closed on tagged 0.23.1 `bcd4f9c3` and its
+[successful native/MSRV CI](https://github.com/dragginzgame/ic-host-tooling/actions/runs/38910019520).
+This closes their prior delivery/native gaps; IcyDB #307 and Query #70 retain
+consumer adoption. That released-source receipt is not current 0.24 qualification.
+
+The 0.24 ownership/consolidation batch preserves the incoming digest, prefix and
+Shared work captured at `/tmp/host-next-three.OIiCVP/before/`. All 51 Artifact
+stream/buffer/chunk cases and 68 Process tool cases pass on Rust 1.99 and actual
+1.88; Tools' 23 units and three example cases pass on both as well. Strict
+affected-package all-target/all-feature Clippy, Rust 1.88 warning-denied rustdoc,
+feature graphs, formatting, manifest sorting and documentation links pass.
+Host publication and Make adapter fixtures pass on Bash 5 and genuine Bash 3.2;
+Git, uploads and other external effects are substitutes.
+
+[Build PR #52 — Move native Candid extraction](https://github.com/dragginzgame/ic-build/pull/52)
+moves the implementation and eight passing native cases into an isolated Build
+checkout on its actual Rust 1.91 floor. Production MSRV Clippy/rustdoc and current
+all-target Clippy pass. The MSRV all-target lint attempt retains an unrelated
+existing formatting-literal warning in Build's Cargo-observation test; its source
+is unchanged. [Shared PR #250 — Qualify publication logger status](https://github.com/dragginzgame/shared-tooling/pull/250)
+adds the missing producer receipt assertion, passing on Bash 5 and 3.2. Both PRs
+remain unmerged; the adopted Shared snapshot is unchanged. Build publication must
+precede Host's removal release. Build's exposed Host dependency must subsequently
+align before consumers upgrade their complete Host graph. Native macOS, full
+release gates and fresh application adoption remain separate; no such acceptance
+is claimed. Own versions, index/refs, external dependency selections and sibling
+working source/artifacts remain preserved. Cargo.lock drops only the retired
+Tools-specific dependency entries. Task before-images and logs stay at the path
+above.
+
 These are scoped Linux records for the inputs identified by each task, not a
 combined release receipt. Before-images and command logs remain at their owners:
+
+The bounded-prefix batch adapts PR #155 with a single descriptor metadata
+observation for regular-file admission and reported length. All 26 filesystem
+read cases and six executable-admission cases pass on Rust 1.99 and actual
+Rust 1.88, including sparse files, zero/exact/oversized limits, aliases, missing
+and unsafe entries, permission ordering and FIFO rejection. Strict affected-package
+all-target/all-feature Clippy/rustdoc, Rust 1.88 compilation and formatting pass.
+Before-images, reviewed source, the current Testkit patch and logs remain at
+`/tmp/host0232-prefix.pj1lrX/`.
+[Testkit #79 — Review regular-file opening and startup ownership](https://github.com/dragginzgame/ic-testkit/issues/79#issuecomment-6218135654)
+carries published consumer adoption; its checkout and graph remain untouched.
+No fresh Testkit, full-workspace or native macOS qualification is claimed.
+Incoming digest/tooling work, versions, lock, pins, snapshot, index and refs are
+preserved.
+
+The Shared 0.16.1 adoption verifies all 108 payloads on current Bash and genuine
+Bash 3.2.57. Repeat canonical previews agree on both interpreters with 108 retained
+payloads and no changes. Exporter ShellCheck passes. The clean pinned source
+excludes the sibling's staged 0.16.2 work; the optional Rust-floor reader is not
+selected because Host has no caller requiring it. Before-images, reviewed
+previews and command logs remain at `/tmp/host-shared0161.MSnsvl/`.
+The pending digest source, Cargo versions/lock, common pins, license, index and
+refs remain preserved. Host's GitHub description still matches its scope.
+No Rust build, tool installation, release or native macOS run was performed.
+
+The fixed-buffer digest batch adapts PR #163's encoder and tests on tagged 0.23.1.
+Ten stream/identity and six public-composition cases pass on Rust 1.99 and actual
+Rust 1.88, covering const use, all byte values at every digest position, known
+vectors, leading zeroes, parse round trips and formatting flags. Strict Artifacts
+all-target/all-feature Clippy/rustdoc, Rust 1.88 compilation and formatting pass.
+Before-images, reviewed PR source, the current Build caller patch and logs remain
+at `/tmp/host0232-digest.85fo70/`.
+[Host #161 — Fixed-buffer SHA-256 output](https://github.com/dragginzgame/ic-host-tooling/issues/161#issuecomment-6216956391)
+records producer delivery/qualification, while
+[Build #50 — Simplify grouping, snapshot metrics and digest encoding](https://github.com/dragginzgame/ic-build/issues/50#issuecomment-6216956838)
+retains published adoption. The original PR's native/MSRV CI and frozen Build
+rehearsal identify their original source, not this combined tree or a fresh
+consumer run. Native candidate acceptance remains separate. Build's active dirty
+source, Host versions/lock, index, refs, pins and snapshot are unchanged.
 
 The merge of tagged 0.23.0 (`52794c85`) with incoming Backup primitives
 (`2307c39f`) passes 77 durable-filesystem, seven custody and 18 child-ownership
