@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.23.1]
+## [0.23.1] - 2026-10-16
 
 - Add caller-selected inherited command custody and exact existing-sidecar
   quiescence in Host Process; journal schemas and effect recovery stay local.
