@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.24.0]
+
+### Breaking
+
+- Require explicit result admission for existing-parent and descriptor-relative
+  durable publication. Replace `write_existing_parent_with` and `write_at_with`
+  with `write_existing_parent_validated_with` and `write_at_validated_with`,
+  supplying `|_| Ok(())` when successful production already admits the result.
+  Publication ordering, directory custody and typed recovery evidence are unchanged.
+  [Migration guidance](README.md),
+  [#168 — Explicit durable result admission](https://github.com/dragginzgame/ic-host-tooling/issues/168).
+
 ## [0.23.1] - 2026-10-16
 
 - Add caller-selected inherited command custody and exact existing-sidecar

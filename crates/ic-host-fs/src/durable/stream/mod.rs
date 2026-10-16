@@ -81,33 +81,17 @@ pub fn write_with<T, E>(
 /// then delegates to the descriptor publication engine. Parent symlinks are followed;
 /// the final entry uses the caller's publication mode and is never followed.
 /// The caller owns parent hierarchy custody and all producer obligations described
-/// by [`write_at_with`]. This is pathname convenience, not root confinement or
-/// private-parent admission. The selected directory remains held across renames.
+/// by [`write_at_validated_with`]. This is pathname convenience, not root confinement
+/// or private-parent admission. The selected directory remains held across renames.
+/// After file synchronization, `admit` checks the producer's result before publication.
+/// Use `|_| Ok(())` explicitly when successful production is sufficient admission.
 ///
 /// # Errors
 /// Missing or non-directory parents, invalid target spellings/permissions and
 /// unsupported hosts fail before staging or producer invocation. A special-file
 /// parent is rejected by directory-only opening rather than waiting for FIFO IO.
 /// Producer, cleanup and before/after-publication errors retain the same typed
-/// evidence as [`write_at_with`]. Filesystem syscall latency remains unbounded.
-pub fn write_existing_parent_with<T, E>(
-    path: &Path,
-    options: WriteOptions,
-    produce: impl FnOnce(&mut fs::File) -> Result<T, E>,
-) -> Result<T, NamedWriteError<E>> {
-    write_existing_parent_validated_with(path, options, produce, |_| Ok(()))
-}
-
-/// Publish through an existing parent, admitting the result before publication.
-///
-/// Uses [`write_existing_parent_with`]'s pathname and parent selection and
-/// [`write_at_validated_with`]'s producer-result admission after file synchronization.
-/// The parent is never created. Callers retain cancellation, validation and retry
-/// policy, and must finish all writable handles before successful production.
-///
-/// # Errors
-/// Retains typed producer/admission rejection and separate cleanup failures.
-/// Path and filesystem failures preserve their before/after-publication state.
+/// evidence as [`write_at_validated_with`]. Filesystem syscall latency remains unbounded.
 pub fn write_existing_parent_validated_with<T, E>(
     path: &Path,
     options: WriteOptions,
@@ -161,7 +145,12 @@ pub fn write_existing_parent_validated_with<T, E>(
 /// namespace mutation. Replace mode replaces the entry itself, including a final
 /// symlink; it does not follow it. Create-new mode atomically refuses every existing
 /// entry. Neither mode is compare-and-swap against a hostile directory writer.
-/// The callback and interruption obligations of [`write_with`] also apply.
+/// After production and file synchronization, `admit` receives the producer's
+/// value before publication. It can reject cancellation or consumer validation
+/// while the previous destination remains untouched. Use `|_| Ok(())` explicitly
+/// when successful production is sufficient admission. All writable clones and
+/// external producers must finish before production returns. Admission must not
+/// modify staging. The interruption obligations of [`write_with`] also apply.
 ///
 /// # Errors
 /// Rejects invalid filename components/permissions and non-directory descriptors before staging
@@ -169,30 +158,6 @@ pub fn write_existing_parent_validated_with<T, E>(
 /// errors through the same engine and [`NamedWriteError`] as pathname publication.
 /// Name validation checks components, not filesystem-specific byte encoding:
 /// the filesystem may reject a name at publication after the producer runs.
-#[cfg(unix)]
-pub fn write_at_with<T, E>(
-    parent: std::os::fd::BorrowedFd<'_>,
-    name: &std::ffi::OsStr,
-    options: WriteOptions,
-    produce: impl FnOnce(&mut fs::File) -> Result<T, E>,
-) -> Result<T, NamedWriteError<E>> {
-    write_at_validated_with(parent, name, options, produce, |_| Ok(()))
-}
-
-/// Stream beneath an admitted directory and check the result after file sync, before publication.
-///
-/// Shares [`write_at_with`]'s staging, permissions, descriptor custody and
-/// before/after-publication errors. No parent is created or reopened by pathname.
-/// After production and file synchronization, `admit` receives the
-/// producer's value. It can reject cancellation or consumer validation while
-/// the previous destination remains untouched. It does not receive a pathname
-/// or choose content, lifecycle or retry policy.
-///
-/// All writable clones and external producers must finish before production
-/// returns. Admission must not modify staging. The caller retains exclusive
-/// directory custody throughout the call, as required by [`write_at_with`].
-///
-/// # Errors
 /// Producer/admission rejection retains `E` and independent cleanup failures.
 /// Filesystem errors retain their before/after-publication state; reconcile
 /// already-published results before retrying.

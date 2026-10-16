@@ -22,12 +22,12 @@ pub use retained::{create_retained_at, publish_retained_at};
 mod named;
 pub use named::{NamedWriteError, write_named_with};
 mod stream;
-pub use stream::{
-    PublicationMode, WriteOptions, write_existing_parent_validated_with,
-    write_existing_parent_with, write_validated_with, write_with,
-};
 #[cfg(unix)]
-pub use stream::{write_at_validated_with, write_at_with};
+pub use stream::write_at_validated_with;
+pub use stream::{
+    PublicationMode, WriteOptions, write_existing_parent_validated_with, write_validated_with,
+    write_with,
+};
 
 #[cfg(test)]
 mod tests;

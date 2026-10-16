@@ -244,14 +244,17 @@ the same engine, with explicit replace/create-only options and file permissions.
 `NamedWriteError<io::Error>`, preserving publication state and separate cleanup
 failures. Select mode and permissions explicitly; see the
 [0.22 migration](docs/changelog/0.22.md).
-`durable::write_existing_parent_with` instead refuses missing parents and opens
-the selected parent once as a directory. Its `_validated_with` variant admits the
-producer's result before publication. Parent aliases are followed and the held
+`durable::write_existing_parent_validated_with` instead refuses missing parents
+and opens the selected parent once as a directory. It admits the producer's
+result after file sync and before publication. Parent aliases are followed and the held
 directory stays selected across renames; callers retain namespace custody.
-`durable::write_at_with` borrows an admitted directory descriptor so publication
+`durable::write_at_validated_with` borrows an admitted directory descriptor so publication
 stays anchored to it even when its original path moves. Consumers retain path
 admission, budgets and recovery; see the
 [publication contract](docs/changelog/0.4.md#typed-and-descriptor-relative-publication).
+Both APIs require an explicit result-admission callback. Select `|_| Ok(())`
+when successful production already establishes admission; the former
+`write_existing_parent_with` and `write_at_with` wrappers are removed in 0.24.
 
 `path::canonicalize_allow_missing(path, base, max_symlink_depth)` resolves existing
 components and dangling symlinks while normalizing a missing suffix. Choose the
