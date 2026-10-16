@@ -903,7 +903,7 @@ checksum = "4624e2c3b463e5a3468b29979ddb2d17ec16877f1aa048679c337a75d63bdad7"
 
 [[package]]
 name = "ic-testkit"
-version = "0.47.0"
+version = "0.48.0"
 dependencies = [
  "candid",
  "ic-build",
@@ -923,7 +923,7 @@ dependencies = [
 
 [[package]]
 name = "ic-testkit-candid"
-version = "0.47.0"
+version = "0.48.0"
 dependencies = [
  "candid",
  "serde",
@@ -968,7 +968,7 @@ dependencies = [
 
 [[package]]
 name = "ic_testkit_perf_probe"
-version = "0.47.0"
+version = "0.48.0"
 dependencies = [
  "candid",
  "ic-cdk",
