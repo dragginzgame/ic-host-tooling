@@ -1,6 +1,59 @@
-use super::{canonicalize_allow_missing, canonicalize_allow_missing_with_symlink_limit};
+use super::{
+    canonicalize_allow_missing, canonicalize_allow_missing_with_symlink_limit,
+    validate_physical_directory_allow_missing,
+};
 use crate::test_support::Fixture;
 use std::{fs, io, path::Path};
+
+#[test]
+fn physical_directory_validation_leaves_missing_paths_uncreated() {
+    let fixture = Fixture::new();
+    let missing = fixture.root.join("missing/nested");
+    validate_physical_directory_allow_missing(&fixture.root).unwrap();
+    validate_physical_directory_allow_missing(&missing).unwrap();
+    assert!(!fixture.root.join("missing").exists());
+}
+
+#[test]
+fn physical_directory_validation_rejects_unsafe_components_before_creation() {
+    use std::os::unix::fs::symlink;
+
+    let fixture = Fixture::new();
+    fs::create_dir(fixture.root.join("real")).unwrap();
+    fs::write(fixture.root.join("file"), b"retained").unwrap();
+    symlink("real", fixture.root.join("alias")).unwrap();
+    symlink("missing", fixture.root.join("dangling")).unwrap();
+    for suffix in ["alias/child", "dangling/child", "file/child"] {
+        assert_eq!(
+            validate_physical_directory_allow_missing(&fixture.root.join(suffix))
+                .unwrap_err()
+                .kind(),
+            io::ErrorKind::NotADirectory,
+        );
+    }
+    assert_eq!(
+        validate_physical_directory_allow_missing(&fixture.root.join("missing/../real"))
+            .unwrap_err()
+            .kind(),
+        io::ErrorKind::InvalidInput,
+    );
+    assert!(!fixture.root.join("missing").exists());
+    assert!(!fixture.root.join("real/child").exists());
+    assert_eq!(fs::read(fixture.root.join("file")).unwrap(), b"retained");
+}
+
+#[test]
+fn physical_directory_validation_preserves_native_names_and_relative_selection() {
+    use std::{ffi::OsString, os::unix::ffi::OsStringExt as _};
+
+    let fixture = Fixture::new();
+    let native = fixture.root.join(OsString::from_vec(vec![b'n', 0xff]));
+    fs::create_dir(&native).unwrap();
+    validate_physical_directory_allow_missing(&native).unwrap();
+    validate_physical_directory_allow_missing(Path::new(".")).unwrap();
+    validate_physical_directory_allow_missing(&native.join("missing")).unwrap();
+    assert!(!native.join("missing").exists());
+}
 
 #[test]
 fn missing_parent_traversal_resumes_symlink_resolution() {

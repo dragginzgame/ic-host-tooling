@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.21.1]
+
+- Share read-only physical-directory validation for callers that permit missing
+  components. Private-parent preparation uses the same symlink, non-directory
+  and parent-traversal checks before creating directories.
+  [Detailed notes](docs/changelog/0.21.md).
+
 ## [0.21.0] - 2026-10-15
 
 ### Breaking
