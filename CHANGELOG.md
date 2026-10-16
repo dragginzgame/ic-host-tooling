@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.22.1]
+## [0.22.1] - 2026-10-16
 
 - Adopt Shared Tooling 0.15.7, strengthening fixture failure-retention checks
   while preserving the selected tooling, package versions and library APIs.
