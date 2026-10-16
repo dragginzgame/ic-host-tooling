@@ -2,6 +2,11 @@
 
 ## [0.22.0]
 
+### Changed
+
+- Document direct managed installation, offline admission and execution of the
+  published Wasm inspector, allowing consumers to retire wrapper-only tooling.
+
 ### Breaking
 
 - Add `ArtifactError::LengthMismatch` for an exact stream that ends early.

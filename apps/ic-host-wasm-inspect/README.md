@@ -24,3 +24,27 @@ twelve-column TSV report is unchanged.
 Consumers can select the published package/version/binary through the
 standard Shared Tooling Cargo installer. Checks remain offline and never install
 it. Consumers own budgets, interpretation and performance evidence.
+
+From a consumer checkout with a reviewed Shared Tooling snapshot, select a
+published version that the consumer has qualified. Setup is explicit:
+
+```sh
+: "${INSPECTOR_VERSION:?Select a qualified published inspector version}"
+bash scripts/dev/install-rust-tools.sh --consumer "$PWD" \
+    --package ic-host-wasm-inspect --version "$INSPECTOR_VERSION" \
+    --bin ic-host-wasm-inspect --profile release
+```
+
+Later checks and execution use the admitted executable without installation:
+
+```sh
+inspector="$(bash scripts/dev/install-rust-tools.sh --consumer "$PWD" \
+    --package ic-host-wasm-inspect --version "$INSPECTOR_VERSION" \
+    --bin ic-host-wasm-inspect --profile release --check)"
+"$inspector" input.wasm 1048576 1000 1000 1000
+```
+
+No consumer-specific wrapper or Make target is required. The inspector's CLI
+tests live here; consumers retain checks for any integration behavior they add.
+Frozen experiments retain their selected version, executable identity and limits
+instead of silently substituting a newer tool.
