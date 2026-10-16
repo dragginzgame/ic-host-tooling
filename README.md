@@ -188,6 +188,11 @@ checks the exact version and rejects byte drift before later execution. That
 observed identity is not authentication; installation provenance stays with the
 caller. `admit` and `admit_no_follow` take the same `VersionSpec` with a separate,
 mandatory digest pin, checked before executing the version probe.
+For provenance without an independently selected expected version,
+`AdmittedTool::observe_version` accepts `VersionObservationSpec` and records
+the installed bytes and complete, nonempty UTF-8 version with one probe.
+Later runs retain the same byte-drift checks. Observation is not authentication;
+callers still own installation trust, executable writers and execution limits.
 The [0.20 upgrade notes](docs/changelog/0.20.md) describe the pinned-admission
 signature change.
 

@@ -1,5 +1,7 @@
 use super::*;
 
+mod observation;
+
 #[test]
 fn no_follow_admission_rejects_aliases_and_nonfiles_before_execution() {
     use std::os::unix::fs::symlink;

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.23.2]
+
+- Observe an installed tool's version and retain its byte identity with one
+  probe when no expected version is selected. Exact-version and digest-pinned
+  admission retain their contracts. [Detailed notes](docs/changelog/0.23.md).
+
 ## [0.23.1] - 2026-10-16
 
 - Add caller-selected inherited command custody and exact existing-sidecar
