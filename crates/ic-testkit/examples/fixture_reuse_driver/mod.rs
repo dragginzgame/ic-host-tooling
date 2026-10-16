@@ -926,6 +926,27 @@ mod tests {
             String::from_utf8_lossy(&metadata.stderr)
         );
         let mut catalog: Value = serde_json::from_slice(&metadata.stdout).unwrap();
+        let probe = catalog["packages"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|package| package["name"] == "ic_testkit_perf_probe")
+            .unwrap();
+        let artifact = json!({
+            "reason": "compiler-artifact",
+            "package_id": probe["id"],
+            "manifest_path": probe["manifest_path"],
+            "target": probe["targets"][0],
+            "profile": {
+                "opt_level": "0", "debuginfo": 2, "debug_assertions": true,
+                "overflow_checks": true, "test": false
+            },
+            "features": [],
+            "filenames": [target.join("ic-testkit-incremental/wasm32-unknown-unknown/debug/ic_testkit_perf_probe.wasm")],
+            "executable": null,
+            "fresh": false
+        });
+        fs::write(root.join("artifact-message.json"), format!("{artifact}\n")).unwrap();
         fs::write(root.join("full-metadata.json"), &metadata.stdout).unwrap();
         catalog["target_directory"] = json!(target);
         catalog["resolve"] = Value::Null;
@@ -982,6 +1003,7 @@ case "${0##*/}" in
           output="$CARGO_TARGET_DIR/wasm32-unknown-unknown/debug/ic_testkit_perf_probe.wasm"
           mkdir -p "${output%/*}"
           cp "$IC_TESTKIT_BENCHMARK_TOOL_TEST_ROOT/probe.wasm" "$output"
+          cat "$IC_TESTKIT_BENCHMARK_TOOL_TEST_ROOT/artifact-message.json"
         fi ;;
       *) exit 96 ;;
     esac ;;

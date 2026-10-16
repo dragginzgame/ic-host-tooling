@@ -751,14 +751,14 @@ dependencies = [
 
 [[package]]
 name = "ic-build"
-version = "0.9.0"
+version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "240e8a4d44883a00575eacb69bd349860913154a762e1fe811e3af0121789f66"
+checksum = "bc3e5dd7a9a9d61f8e702229c956dd7c879c4c52bd79624e5abe2e897d92a7ab"
 dependencies = [
  "cargo_metadata",
- "ic-host-artifacts 0.21.0",
- "ic-host-fs 0.21.0",
- "ic-host-process 0.21.0",
+ "ic-host-artifacts",
+ "ic-host-fs",
+ "ic-host-process",
  "libc",
  "rustix",
  "serde",
@@ -832,17 +832,6 @@ dependencies = [
 
 [[package]]
 name = "ic-host-artifacts"
-version = "0.21.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f9a5215ee0a28d7db14cc79a05f35fa0e87f189b021134406d45dcad95831249"
-dependencies = [
- "leb128",
- "sha2",
- "wasmparser",
-]
-
-[[package]]
-name = "ic-host-artifacts"
 version = "0.22.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e6f3a928ca2e39a011d0b651d9c224b12b4f5fb36b8e1119e397f8191ad67a0f"
@@ -855,33 +844,11 @@ dependencies = [
 
 [[package]]
 name = "ic-host-fs"
-version = "0.21.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "30461a795ad433f19ed23c515d47ba27fded4115033f01c7005307cbb15f6854"
-dependencies = [
- "ic-host-artifacts 0.21.0",
- "rustix",
-]
-
-[[package]]
-name = "ic-host-fs"
 version = "0.22.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e9223b3a3c75e05c6c04aa7525359933c1dfc134ac1003993a3d911d462e8771"
 dependencies = [
- "ic-host-artifacts 0.22.1",
- "rustix",
-]
-
-[[package]]
-name = "ic-host-process"
-version = "0.21.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d052b089a517cf9f598d17712c0757d276b6b969532d68c21aabbac4a358736f"
-dependencies = [
- "ic-host-artifacts 0.21.0",
- "ic-host-fs 0.21.0",
- "libc",
+ "ic-host-artifacts",
  "rustix",
 ]
 
@@ -891,8 +858,8 @@ version = "0.22.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d819b7ae33a757762adc24ac78ea55cb5b6821bd47dfc60496adca86d2d57fe0"
 dependencies = [
- "ic-host-artifacts 0.22.1",
- "ic-host-fs 0.22.1",
+ "ic-host-artifacts",
+ "ic-host-fs",
  "libc",
  "rustix",
 ]
@@ -930,9 +897,9 @@ dependencies = [
  "candid",
  "ic-build",
  "ic-cdk",
- "ic-host-artifacts 0.22.1",
- "ic-host-fs 0.22.1",
- "ic-host-process 0.22.1",
+ "ic-host-artifacts",
+ "ic-host-fs",
+ "ic-host-process",
  "ic-host-text",
  "ic-metrics",
  "libc",

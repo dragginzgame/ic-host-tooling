@@ -2,6 +2,19 @@
 
 ## Pending 0.49.0: shared hook qualification and benchmark rows
 
+The normal registry graph now selects Build 0.10.0 and one Host 0.22.1 family,
+resolving the driver's output-limit type mismatch at workspace discovery and
+metadata observation. The fake Cargo fixture emits a compiler-artifact message
+using the probe's actual metadata; Build now discovers Wasm through those messages.
+All 18 driver cases pass, including retained-byte and failed-producer behavior.
+Strict Clippy and actual Rust 1.91 checks pass for the driver and worker examples,
+as do formatting and a live PocketIC 16.1 fresh/pooled smoke with two tasks per
+mode, one worker and capacity one. This is Linux correctness evidence, not a
+performance comparison or full release qualification. Source before-images and
+logs are retained at `/tmp/testkit-build010-boundary.othovz/`; earlier candidate
+receipts below remain bound to their source overrides. The Build publication
+blocker described there is resolved; Host PR #99's command API remains separate.
+
 Testkit's hook adapter supplies its actual workspace manifest and Rust sources
 plus reviewed Make inputs to Shared Tooling's canonical formatting checker.
 The snapshot adds that checker and its Rust-source selector from the already
