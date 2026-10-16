@@ -48,11 +48,30 @@ fn physical_directory_validation_preserves_native_names_and_relative_selection()
 
     let fixture = Fixture::new();
     let native = fixture.root.join(OsString::from_vec(vec![b'n', 0xff]));
-    fs::create_dir(&native).unwrap();
-    validate_physical_directory_allow_missing(&native).unwrap();
-    validate_physical_directory_allow_missing(Path::new(".")).unwrap();
-    validate_physical_directory_allow_missing(&native.join("missing")).unwrap();
+    match fs::create_dir(&native) {
+        Ok(()) => {
+            validate_physical_directory_allow_missing(&native).unwrap();
+            validate_physical_directory_allow_missing(&native.join("missing")).unwrap();
+        }
+        Err(creation_error) => {
+            // Some native filesystems reject non-UTF-8 names. Preserve their
+            // metadata error rather than assuming every Unix host accepts bytes.
+            let expected = fs::symlink_metadata(&native).unwrap_err();
+            assert_eq!(creation_error.raw_os_error(), expected.raw_os_error());
+            for path in [&native, &native.join("missing")] {
+                let observed = validate_physical_directory_allow_missing(path).unwrap_err();
+                assert_eq!(observed.kind(), expected.kind());
+                assert_eq!(observed.raw_os_error(), expected.raw_os_error());
+            }
+        }
+    }
     assert!(!native.join("missing").exists());
+    let unicode = fixture.root.join("naïve-é");
+    fs::create_dir(&unicode).unwrap();
+    validate_physical_directory_allow_missing(&unicode).unwrap();
+    validate_physical_directory_allow_missing(&unicode.join("missing")).unwrap();
+    validate_physical_directory_allow_missing(Path::new(".")).unwrap();
+    assert!(!unicode.join("missing").exists());
 }
 
 #[test]

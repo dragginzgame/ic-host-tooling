@@ -4,7 +4,8 @@
 
 - Share read-only physical-directory validation for callers that permit missing
   components. Private-parent preparation uses the same symlink, non-directory
-  and parent-traversal checks before creating directories.
+  and parent-traversal checks before creating directories. Qualify native filename
+  acceptance and rejection without assuming all Unix filesystems permit arbitrary bytes.
   [Detailed notes](docs/changelog/0.21.md).
 
 ## [0.21.0] - 2026-10-15
