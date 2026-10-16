@@ -29,6 +29,10 @@ response-only graph; IC reference values and comparison remain in the tools owne
 - ic-host-process owns executable resolution/admission, explicit execution context,
   output limits, deadlines, direct-child/explicit group cleanup evidence, native
   process-table/RSS observations and separate Git queries.
+  Its Unix `custody` module also owns inherited regular-sidecar descriptors and
+  exact existing-sidecar quiescence. Callers retain paths, environment names,
+  durable identity records, wait settings, command/effect admission and recovery;
+  custody neither kills processes nor implies a remote effect outcome.
 - ic-host-text owns pure terminal-safe escaping, explicit column clipping and
   Unicode display-width tables.
   Escaping borrows unchanged input through `Cow<str>` and owns changed text;
