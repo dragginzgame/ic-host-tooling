@@ -11,6 +11,7 @@ readme = "../../README.md"
 publish = ["crates-io"]
 
 [target.'cfg(unix)'.dependencies]
+command-fds.workspace = true
 libc.workspace = true
 rustix = { workspace = true, features = ["param", "process"] }
 

@@ -2,7 +2,7 @@
 
 #[cfg(unix)]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    use ic_host_process::tool::{AdmittedTool, ExecutionContext, OutputLimits, ToolSpec};
+    use ic_host_process::tool::{AdmittedTool, ExecutionContext, OutputLimits, VersionSpec};
     use ic_host_tools::candid::extraction::extract;
 
     use std::{
@@ -48,18 +48,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         environment: &[],
     };
     let tool = AdmittedTool::admit(
-        &ToolSpec {
+        &VersionSpec {
             executable: &executable,
-            sha256: digest,
             executable_bytes,
             version_arguments: &[OsString::from("--version")],
             version_identity: &version,
         },
+        digest,
         &context,
         limits,
     )?;
     let candid = extract(&tool, &source, &context, source_bytes, limits)?;
-    io::stdout().lock().write_all(candid.text.as_bytes())?;
+    // This example explicitly selects normalization and its output allowance.
+    let text = ic_host_text::normalize::normalize_lines(
+        &candid.evidence.stdout,
+        limits.stdout.retained_bytes(),
+    )?;
+    io::stdout().lock().write_all(text.as_bytes())?;
     Ok(())
 }
 

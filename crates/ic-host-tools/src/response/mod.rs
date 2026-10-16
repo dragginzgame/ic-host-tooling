@@ -3,6 +3,7 @@
 //! This boundary returns opaque bytes. Consumers own Candid decoding, canister
 //! rejection semantics, CLI version admission, capture limits and replay policy.
 //! No command is executed and no output format is inferred.
+//! Presentation labels, preambles and broader whitespace normalization stay with callers.
 
 #[cfg(test)]
 mod tests;
@@ -21,16 +22,12 @@ pub enum ResponseFormat {
     /// Nonempty hex, permitting ASCII space, tab, CR, LF and form feed between
     /// any two digits (Rust's `is_ascii_whitespace` set).
     Hex,
-    /// An exact `response (hex):` prefix followed by nonempty whitespace-tolerant
-    /// hex. Leading ASCII whitespace is permitted; preambles and repeated labels
-    /// are rejected rather than discarded.
-    LabeledHex,
 }
 
 /// Caller-owned bounds for input parsing and decoded byte allocation.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct ResponseLimits {
-    /// Maximum complete input length, including JSON metadata or the hex label.
+    /// Maximum complete input length, including JSON metadata or hex whitespace.
     pub input_bytes: usize,
     /// Maximum decoded byte length, independent of the input allowance.
     pub decoded_bytes: usize,
@@ -73,8 +70,6 @@ pub enum ResponseError {
     },
     /// The top-level response field is absent or null.
     MissingResponseBytes,
-    /// Labeled hex does not begin with the exact admitted label.
-    MissingHexLabel,
     /// The selected text hex format contains no digits.
     EmptyHex,
     /// A byte is not a hex digit or permitted whitespace.
@@ -105,7 +100,6 @@ impl fmt::Display for ResponseError {
                 write!(f, "response JSON failed ({kind:?}) at {line}:{column}")
             }
             Self::MissingResponseBytes => f.write_str("response JSON lacks response_bytes"),
-            Self::MissingHexLabel => f.write_str("response hex label is missing"),
             Self::EmptyHex => f.write_str("response hex is empty"),
             Self::InvalidHex { offset } => write!(f, "invalid response hex at byte {offset}"),
             Self::OddHexLength => f.write_str("response hex has an odd digit count"),
@@ -157,13 +151,6 @@ pub fn decode(
             decode_hex(hex.as_bytes(), false, limits.decoded_bytes)
         }
         ResponseFormat::Hex => decode_hex(input, true, limits.decoded_bytes),
-        ResponseFormat::LabeledHex => {
-            let input = input.trim_ascii_start();
-            let hex = input
-                .strip_prefix(b"response (hex):")
-                .ok_or(ResponseError::MissingHexLabel)?;
-            decode_hex(hex, true, limits.decoded_bytes)
-        }
     }
 }
 

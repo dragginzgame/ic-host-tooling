@@ -75,12 +75,7 @@ jobs:
           # Host's extra Cargo tool pin and installer extend the shared identity.
           key: cargo-tools-${{ runner.os }}-${{ runner.arch }}-${{ steps.tool-cache-key.outputs.key }}
       - name: Prepare pinned local tools
-        run: |
-          make --no-print-directory install-tools
-          make --no-print-directory tools-check
-          echo "$PWD/.tools/host/bin" >> "$GITHUB_PATH"
-          echo "$PWD/.tools/ic/bin" >> "$GITHUB_PATH"
-          echo "$PWD/.tools/rust/common/bin" >> "$GITHUB_PATH"
+        uses: ./.github/actions/prepare-common-tools
       - name: Save admitted Cargo tool builds
         if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.tool-cache.outputs.cache-hit != 'true' }}
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
