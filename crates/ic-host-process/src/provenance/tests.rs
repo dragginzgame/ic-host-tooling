@@ -26,7 +26,7 @@ fn captures_raw_evidence_and_explicit_status_scope() {
     let environment = [("FIXTURE_MARKER".into(), marker.as_os_str().to_owned())];
     let context = fixture.context(&environment);
     let git = admit(&fixture_tool(), &context, VERSION).unwrap();
-    let result = capture_git(&git, &context, OPTIONS, LIMITS).unwrap();
+    let mut result = capture_git(&git, &context, OPTIONS, LIMITS).unwrap();
     assert_eq!(result.revision(), "0".repeat(40));
     assert_eq!(result.tree(), "0".repeat(40));
     assert!(result.is_dirty());
@@ -41,6 +41,8 @@ fn captures_raw_evidence_and_explicit_status_scope() {
         result.status_identity.bytes,
         result.status_evidence().stdout.len() as u64
     );
+    result.status_identity.bytes = 0;
+    assert!(result.is_dirty());
     let queries = fs::read_to_string(marker).unwrap();
     assert_eq!(queries.lines().count(), 3);
     assert!(queries.contains("rev-parse --verify HEAD^{tree}"));
@@ -66,7 +68,7 @@ fn accepts_empty_status_and_both_git_object_formats() {
                 untracked,
                 ignore_submodules,
             };
-            let result = capture_git(&git, &context, options, LIMITS).unwrap();
+            let mut result = capture_git(&git, &context, options, LIMITS).unwrap();
             assert_eq!(result.revision().len(), width);
             assert_eq!(result.tree().len(), width);
             assert_eq!(
@@ -80,6 +82,8 @@ fn accepts_empty_status_and_both_git_object_formats() {
             assert_eq!(result.options, options);
             assert!(!result.is_dirty());
             assert_eq!(result.status_identity.sha256, Sha256Digest::compute(b""));
+            result.status_identity.bytes = 1;
+            assert!(!result.is_dirty());
         }
     }
 }

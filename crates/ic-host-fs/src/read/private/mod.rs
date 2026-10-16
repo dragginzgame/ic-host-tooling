@@ -1,6 +1,6 @@
 //! Fixed-size private reads with explicit admission failures.
 
-use super::no_follow::open_optional_regular_file;
+use super::no_follow::open_optional_no_follow;
 use ic_host_artifacts::artifact::ArtifactError;
 use std::{
     fmt,
@@ -81,7 +81,7 @@ impl std::error::Error for PrivateFileReadError {
 pub fn read_private_bytes<const N: usize>(
     path: &Path,
 ) -> Result<Option<[u8; N]>, PrivateFileReadError> {
-    open_optional_regular_file(path)
+    open_optional_no_follow(path)
         .map_err(PrivateFileReadError::Read)?
         .map(read_private_descriptor)
         .transpose()
@@ -92,6 +92,9 @@ fn read_private_descriptor<const N: usize>(
 ) -> Result<[u8; N], PrivateFileReadError> {
     let io_error = |source| PrivateFileReadError::Read(ArtifactError::Io(source));
     let metadata = file.metadata().map_err(io_error)?;
+    if !metadata.is_file() {
+        return Err(PrivateFileReadError::Read(ArtifactError::NotRegularFile));
+    }
     if metadata.len() != N as u64 {
         return Err(PrivateFileReadError::Length { expected: N });
     }

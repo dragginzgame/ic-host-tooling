@@ -468,3 +468,31 @@ fn code_statistics_reject_malformed_operators_and_data_without_changing_inspect(
         Err(InspectionError::UnsupportedEncoding)
     ));
 }
+
+#[test]
+fn code_statistics_count_instructions_not_operand_or_data_bytes() {
+    let mut module = HEADER.to_vec();
+    section(&mut module, 3, &[1, 0]);
+    // The constants contain indirect-call opcode bytes, followed by a direct
+    // call and an indirect call after unreachable. Only the encoded indirect
+    // instruction counts; this is neither a byte search nor reachability analysis.
+    let body = [
+        0, 0x41, 0x11, 0x1a, 0x41, 0x13, 0x1a, 0x10, 0, 0x00, 0x41, 0, 0x11, 0, 0, 0x0b,
+    ];
+    let mut code = vec![1, u8::try_from(body.len()).unwrap()];
+    code.extend(body);
+    section(&mut module, 10, &code);
+    // Active and passive payloads can contain the same opcode bytes as code.
+    section(
+        &mut module,
+        11,
+        &[2, 0, 0x41, 0, 0x0b, 3, 0x11, 0x13, 0x10, 1, 2, 0x11, 0x13],
+    );
+    assert_eq!(
+        code_statistics(&module, module.len()).unwrap(),
+        WasmCodeStatistics {
+            call_indirect_count: 1,
+            data_payload_bytes: 5,
+        }
+    );
+}

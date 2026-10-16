@@ -1,4 +1,7 @@
-use super::{lock_exclusive, lock_exclusive_with_wait, lock_shared, unlock, wait_for_lock};
+use super::{
+    lock_exclusive, lock_exclusive_with_wait, lock_shared, try_lock_exclusive, unlock,
+    wait_for_lock,
+};
 use crate::test_support::Fixture;
 use std::{fs::File, io, time::Duration};
 
@@ -42,7 +45,8 @@ fn shared_holders_and_explicit_unlock_preserve_descriptor_custody() {
 fn direct_descriptor_operations_refuse_nonregular_files() {
     let fixture = Fixture::new();
     let directory = File::open(&fixture.root).unwrap();
-    let operations: [fn(&File) -> io::Result<()>; 3] = [lock_shared, lock_exclusive, unlock];
+    let operations: [fn(&File) -> io::Result<()>; 4] =
+        [lock_shared, lock_exclusive, try_lock_exclusive, unlock];
     for operation in operations {
         assert_eq!(
             operation(&directory).unwrap_err().kind(),

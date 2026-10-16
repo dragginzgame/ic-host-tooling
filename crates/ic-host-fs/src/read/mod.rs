@@ -4,6 +4,14 @@ use ic_host_artifacts::artifact::{ArtifactError, ArtifactIdentity, hash_reader, 
 use std::{fs::File, path::Path};
 
 #[cfg(unix)]
+mod beneath;
+#[cfg(unix)]
+pub use beneath::{
+    OpenEntryError, OpenedEntry, open_directory_no_follow, open_entry_beneath,
+    open_regular_file_beneath,
+};
+
+#[cfg(unix)]
 mod no_follow;
 #[cfg(unix)]
 pub mod tree;

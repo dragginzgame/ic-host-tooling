@@ -424,16 +424,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "filetime"
-version = "0.2.29"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5c287a33c7f0a620c38e641e7f60827713987b3c0f26e8ddc9462cc69cf75759"
-dependencies = [
- "cfg-if",
- "libc",
-]
-
-[[package]]
 name = "find-msvc-tools"
 version = "0.1.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -535,20 +525,19 @@ dependencies = [
 
 [[package]]
 name = "ic-host-artifacts"
-version = "0.20.1"
+version = "0.22.1"
 dependencies = [
  "flate2",
  "leb128",
  "serde",
  "serde_json",
  "sha2",
- "tar",
  "wasmparser",
 ]
 
 [[package]]
 name = "ic-host-fs"
-version = "0.20.1"
+version = "0.22.1"
 dependencies = [
  "ic-host-artifacts",
  "rustix",
@@ -558,7 +547,7 @@ dependencies = [
 
 [[package]]
 name = "ic-host-process"
-version = "0.20.1"
+version = "0.22.1"
 dependencies = [
  "ic-host-artifacts",
  "ic-host-fs",
@@ -568,14 +557,14 @@ dependencies = [
 
 [[package]]
 name = "ic-host-text"
-version = "0.20.1"
+version = "0.22.1"
 dependencies = [
  "unicode-width 0.2.2",
 ]
 
 [[package]]
 name = "ic-host-tools"
-version = "0.20.1"
+version = "0.22.1"
 dependencies = [
  "candid_parser",
  "ciborium",
@@ -591,7 +580,7 @@ dependencies = [
 
 [[package]]
 name = "ic-host-wasm-inspect"
-version = "0.20.1"
+version = "0.22.1"
 dependencies = [
  "ic-host-artifacts",
  "ic-host-fs",
@@ -1201,16 +1190,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "unicode-ident",
-]
-
-[[package]]
-name = "tar"
-version = "0.4.46"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3f6221d9a6003c78398e3b239969f352578258df48c8eb051caadae0015bc840"
-dependencies = [
- "filetime",
- "libc",
 ]
 
 [[package]]

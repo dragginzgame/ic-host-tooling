@@ -15,14 +15,14 @@ normalization while excluding all three generic extraction dependencies and the
 optional Candid parser from its normal graph. The 0.15 hard cut moves extraction
 to `candid::extraction` and normalization to `candid::text`, without reexports.
 The optional `ic-interface` feature adds generic Wasm facts without the Candid
-parser. `candid-service` adds parser-backed service inspection and implies
-`ic-interface`. Neither adds filesystem/process dependencies unless extraction
-is also selected.
+parser. `candid-service` adds parser-backed service inspection independently;
+select `ic-interface` as well when both APIs are needed. Neither adds
+filesystem/process dependencies unless extraction is also selected.
 The optional `ic-limits` profile adds only generic artifact inspection to the
 response-only graph; IC reference values and comparison remain in the tools owner.
 
 - ic-host-artifacts owns stream identities, bounded read/write/copy mechanics,
-  optional gzip encoding/decoding, verified tar member bytes, optional Wasm
+  optional gzip encoding/decoding, optional Wasm
   structural facts and bounded custom-section framing.
 - ic-host-fs owns pathname/descriptor reads and the durable module's replace,
   create-new, private-file, parent synchronization and descriptor-lock operations.
@@ -39,8 +39,16 @@ response-only graph; IC reference values and comparison remain in the tools owne
   boundary was explicitly selected by the maintainer under
   [#110 — Host text ownership](https://github.com/dragginzgame/ic-host-tooling/issues/110).
 - ic-host-tools owns Candid text/extractor and service-method interpretation,
-  IC method export projection over generic Wasm facts, ICP response formats
+  IC method export projection over generic Wasm facts, JSON/plain-hex ICP responses
   and explicit revision-bound IC resource comparisons.
+  CLI labels, preambles and any Unicode whitespace normalization remain with
+  consumers rather than a second presentation adapter in the codec.
+
+Candid extraction retains complete bounded raw stdout/stderr and source/tool
+identities. It does not require UTF-8 or normalization. Consumers needing text
+call `candid::text::normalize` explicitly with an output allowance; UTF-8,
+normalization, grammar and expected-service admission remain separate decisions.
+No duplicate normalized string is stored beside the process evidence.
 
 `sampling::snapshot(record_bytes, command_limits)` keeps native RSS observation
 in the Process owner. Linux selects the per-record procfs allowance; macOS uses
@@ -89,14 +97,17 @@ heap, stack or CPU quota for the parser. `interface::exported_methods` borrows
 function export facts without reparsing Wasm. It preserves internal methods,
 empty names and mode differences for caller admission. Oneway remains distinct
 in Candid and maps explicitly to the update export namespace through `as_export`.
+`candid-service` selects only the Candid parser; shared method identities remain
+in `interface` without requiring Wasm support. Select `ic-interface` explicitly
+for export projection, including when combining it with Candid service inspection.
 Expected interfaces, CDK allowlists, type compatibility, payload annotations and
 Canic endpoint presentation remain consumer policy. IC Build owns build/cache
 orchestration separately; these libraries do not install tools or build canisters.
 
 Within `ic-host-fs`, `read` is the sole owner of required/optional/private reads.
 Its Unix `tree` module exposes a no-follow descriptor traversal for caller-owned
-entry handling, but does not own Backup's tree checksum framing, multi-file
-publication or retained byte custody. Callers admit and hold the root, select
+entry handling, but does not own Backup's tree checksum framing, complete
+artifact publication policy or retained byte custody. Callers admit and hold the root, select
 depth/byte limits, and prevent concurrent namespace or content changes where
 stable evidence is required.
 Observed directories always use directory-only opens and descriptor type checks;
@@ -110,9 +121,18 @@ and descriptor admission with the artifact owner's constant-memory hash traversa
 metadata and streamed bytes have independent bounds. It rejects final symlinks,
 while existing `hash_file` continues to follow them. Ancestor confinement,
 concurrent-writer custody and exact expected-length checks remain caller-owned.
+`open_entry_beneath` selects a regular file or directory through held root and
+parent descriptors, refusing traversal, observed symlinks and special entries.
+It does not guarantee immutable bytes or continuing pathname containment.
 Durable publication and locks do not own a second
 reader hierarchy. Lock errors retain typed admission and original I/O causes;
 durable creation errors retain `NamedWriteError` in `RegularFileLockError::Publication`.
+The durable directory owner sequences a caller-verified existing tree through
+no-replace sibling publication and parent synchronization. It does not create,
+clean, hash or traverse that tree. The verification callback owns complete
+child/root synchronization and exact retained-byte comparison before the rename;
+the consumer owns namespace exclusion, recovery meaning and retry authority.
+Post-rename failures are explicitly distinct from before-publication failures.
 `try_lock_regular_file_with_parents` adds one nonblocking acquisition attempt
 through the same path opener; contention retains native `WouldBlock`. Blocking
 callers retain their existing behavior. Observed waits compose the opener with
@@ -134,9 +154,16 @@ adding this opener does not transfer command lifecycle or recovery to Host.
 The [0.4 notes](changelog/0.4.md) describe the required consumer changes.
 
 `durable::write_with(path, options, producer)` is the single generic pathname
-writer. Byte helpers use it and return `NamedWriteError<io::Error>` rather than
-discarding publication state or cleanup evidence. Consumers retain error projection
+writer. `write_bytes(path, options, bytes)` uses it with explicit publication mode
+and permissions, returning `NamedWriteError<io::Error>` rather than discarding
+publication state or cleanup evidence. Consumers retain error projection
 and recovery decisions; an after-publication failure requires reconciliation.
+`write_existing_parent_with` and `write_existing_parent_validated_with` reuse
+descriptor publication after directory-only opening of an existing selected
+parent. They refuse missing/special-file parents without creating them, retain
+parent-alias following and select the directory once across renames. The validated
+form admits the producer's result after file sync and before publication. This
+pathname convenience supplies no root confinement or independent lifecycle policy.
 The [0.10 migration](changelog/0.10.md) replaces the old two-argument writer and
 removes the `write_typed_with` name without a compatibility alias.
 
@@ -358,3 +385,8 @@ Optional expected-digest verification and export/custom-section details are also
 owned by this CLI; the duplicate filesystem `inspect_artifact` example is retired.
 Default TSV output remains stable, and the filesystem development profile no
 longer selects the Wasm parser for that example.
+
+The opt-in `ic-host-process::testing::http` module owns bounded synthetic request
+reading, including phased request-line admission and remaining-deadline socket
+reads. It does not own response generation, application policy or evidence files.
+HTTP fixtures are portable; executable fixtures and crash barriers remain Unix-only.

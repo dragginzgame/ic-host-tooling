@@ -1,5 +1,18 @@
 use super::*;
 
+pub(super) const REPLACE_OPTIONS: WriteOptions = WriteOptions {
+    mode: PublicationMode::Replace,
+    permissions: 0o666,
+};
+const CREATE_NEW_OPTIONS: WriteOptions = WriteOptions {
+    mode: PublicationMode::CreateNew,
+    permissions: 0o666,
+};
+const CREATE_PRIVATE_OPTIONS: WriteOptions = WriteOptions {
+    mode: PublicationMode::CreateNew,
+    permissions: 0o600,
+};
+
 #[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
 use super::supported::{FileCommitStep, commit_with_hook, publish_create_new_after_error};
 
@@ -90,7 +103,7 @@ fn producer_failure_and_bounded_copy_preserve_previous_destination() {
     let fixture = crate::test_support::Fixture::new();
     let root = fixture.root.join("streamed-failure");
     let path = root.join("output");
-    write_bytes(&path, b"original").unwrap();
+    write_bytes(&path, REPLACE_OPTIONS, b"original").unwrap();
     let error = write_with(&path, REPLACE_OPTIONS, |file| {
         file.write_all(b"partial")?;
         Err::<(), _>(io::Error::from(io::ErrorKind::InvalidData))
@@ -287,13 +300,24 @@ fn durable_write_creates_parents_and_replaces_complete_contents() {
     let root = fixture.root.join("replace");
     let path = root.join("reports/nested/state.json");
 
-    write_bytes(&path, b"old").expect("write initial contents");
-    write_bytes(&path, b"new complete contents").expect("replace contents");
+    write_bytes(&path, REPLACE_OPTIONS, b"old").expect("write initial contents");
+    write_bytes(&path, REPLACE_OPTIONS, b"new complete contents").expect("replace contents");
 
     assert_eq!(
         fs::read(&path).expect("read target"),
         b"new complete contents"
     );
+    let private = WriteOptions {
+        permissions: 0o600,
+        ..REPLACE_OPTIONS
+    };
+    write_bytes(&path, private, b"private replacement").unwrap();
+    assert_eq!(fs::read(&path).unwrap(), b"private replacement");
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt as _;
+        assert_eq!(fs::metadata(&path).unwrap().permissions().mode() & 0o077, 0);
+    }
     assert_no_temporary_files(&root);
 }
 
@@ -433,6 +457,46 @@ fn private_lock_refuses_missing_parents_and_unsafe_entries_without_changes() {
     assert_eq!(fs::read(&target).unwrap(), b"original target");
     assert!(!fixture.root.join("missing").exists());
     assert_eq!(fs::read_dir(&fixture.root).unwrap().count(), 4);
+}
+
+#[cfg(unix)]
+#[test]
+fn existing_sidecar_open_never_creates_and_one_try_reports_contention() {
+    use std::os::unix::fs::{MetadataExt, symlink};
+
+    let fixture = crate::test_support::Fixture::new();
+    let path = fixture.root.join("original.lock");
+    assert!(matches!(
+        open_existing_regular_lock_file(&path),
+        Err(RegularFileLockError::Io(error)) if error.kind() == io::ErrorKind::NotFound
+    ));
+    assert!(!path.exists());
+    fs::write(&path, b"retained evidence").unwrap();
+    let before = fs::metadata(&path).unwrap();
+    let first = open_existing_regular_lock_file(&path).unwrap();
+    let second = open_existing_regular_lock_file(&path).unwrap();
+    try_lock_exclusive(&first).unwrap();
+    assert_eq!(
+        try_lock_exclusive(&second).unwrap_err().kind(),
+        io::ErrorKind::WouldBlock
+    );
+    unlock(&first).unwrap();
+    try_lock_exclusive(&second).unwrap();
+    unlock(&second).unwrap();
+    assert_eq!(fs::read(&path).unwrap(), b"retained evidence");
+    let after = fs::metadata(&path).unwrap();
+    assert_eq!((before.dev(), before.ino()), (after.dev(), after.ino()));
+
+    let link = fixture.root.join("link.lock");
+    symlink(&path, &link).unwrap();
+    assert!(matches!(
+        open_existing_regular_lock_file(&link),
+        Err(RegularFileLockError::NotRegular)
+    ));
+    assert!(matches!(
+        open_existing_regular_lock_file(&fixture.root),
+        Err(RegularFileLockError::NotRegular)
+    ));
 }
 
 #[cfg(unix)]
@@ -609,8 +673,8 @@ fn durable_create_new_with_parents_never_replaces_an_existing_file() {
     fs::create_dir_all(&root).expect("create temp root");
     let path = root.join("nested/report.json");
 
-    create_new_bytes_with_parents(&path, b"first complete contents").expect("create output");
-    let error = create_new_bytes_with_parents(&path, b"replacement")
+    write_bytes(&path, CREATE_NEW_OPTIONS, b"first complete contents").expect("create output");
+    let error = write_bytes(&path, CREATE_NEW_OPTIONS, b"replacement")
         .expect_err("existing output must reject");
 
     assert!(
@@ -635,8 +699,12 @@ fn durable_create_new_with_parents_rejects_a_symlinked_parent() {
     fs::create_dir_all(&outside).expect("create outside root");
     symlink(&outside, root.join("linked")).expect("create parent symlink");
 
-    let error = create_new_bytes_with_parents(&root.join("linked/report.json"), b"contents")
-        .expect_err("symlinked parent must reject");
+    let error = write_bytes(
+        &root.join("linked/report.json"),
+        CREATE_NEW_OPTIONS,
+        b"contents",
+    )
+    .expect_err("symlinked parent must reject");
 
     assert!(
         matches!(error, NamedWriteError::BeforePublication { source, cleanup_error: None } if source.kind() == io::ErrorKind::NotADirectory)
@@ -646,7 +714,8 @@ fn durable_create_new_with_parents_rejects_a_symlinked_parent() {
 
 #[test]
 fn durable_write_rejects_a_target_without_a_file_name() {
-    let error = write_bytes(Path::new("/"), b"value").expect_err("directory target must fail");
+    let error = write_bytes(Path::new("/"), REPLACE_OPTIONS, b"value")
+        .expect_err("directory target must fail");
 
     assert!(
         matches!(error, NamedWriteError::BeforePublication { source, cleanup_error: None } if source.kind() == io::ErrorKind::InvalidInput)
@@ -861,7 +930,8 @@ fn failed_replacement_removes_its_staging_file() {
     fs::create_dir_all(&path).expect("create non-file destination");
     fs::write(path.join("child"), b"preserved").expect("write destination child");
 
-    write_bytes(&path, b"new contents").expect_err("non-empty directory must reject replacement");
+    write_bytes(&path, REPLACE_OPTIONS, b"new contents")
+        .expect_err("non-empty directory must reject replacement");
 
     assert_eq!(
         fs::read(path.join("child")).expect("read destination child"),
@@ -986,7 +1056,7 @@ fn private_publication_is_owner_only_before_writing_and_never_replaces() {
         crate::read::read_private_bytes::<32>(&path).unwrap(),
         Some([7; 32])
     );
-    let error = create_private_bytes_with_parents(&path, &[8; 32]).unwrap_err();
+    let error = write_bytes(&path, CREATE_PRIVATE_OPTIONS, &[8; 32]).unwrap_err();
     assert!(
         matches!(error, NamedWriteError::BeforePublication { source, cleanup_error: None } if source.kind() == io::ErrorKind::AlreadyExists)
     );
@@ -1004,7 +1074,7 @@ fn replacement_supports_long_destination_names() {
     fs::create_dir(&root).unwrap();
     let path = root.join("a".repeat(255));
     fs::write(&path, b"previous").unwrap();
-    write_bytes(&path, b"complete").unwrap();
+    write_bytes(&path, REPLACE_OPTIONS, b"complete").unwrap();
     let copied = write_with(&path, REPLACE_OPTIONS, |file| {
         std::io::Write::write_all(file, b"streamed")?;
         Ok::<_, io::Error>(8)
