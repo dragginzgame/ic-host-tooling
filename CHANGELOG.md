@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.22.0]
+
+### Breaking
+
+- Add `ArtifactError::LengthMismatch` for an exact stream that ends early.
+  Consumers exhaustively matching artifact errors must handle the new variant.
+
+### Added
+
+- Add exact-length streaming hash and bounded read operations to Host Artifacts.
+  They reject premature EOF and probe one excess byte; callers still select
+  byte limits and own stream custody.
+
 ## [0.21.0] - 2026-10-15
 
 ### Breaking

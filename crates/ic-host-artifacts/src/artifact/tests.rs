@@ -10,11 +10,22 @@ fn io_projection_preserves_native_codes_and_typed_artifact_causes() {
     for error in [
         ArtifactError::NotRegularFile,
         ArtifactError::LimitExceeded { limit: 42 },
+        ArtifactError::LengthMismatch {
+            expected: 42,
+            actual: 41,
+        },
     ] {
         let projected = io::Error::from(error);
         assert!(matches!(
             projected.get_ref().unwrap().downcast_ref::<ArtifactError>(),
-            Some(ArtifactError::NotRegularFile | ArtifactError::LimitExceeded { limit: 42 })
+            Some(
+                ArtifactError::NotRegularFile
+                    | ArtifactError::LimitExceeded { limit: 42 }
+                    | ArtifactError::LengthMismatch {
+                        expected: 42,
+                        actual: 41
+                    }
+            )
         ));
     }
 }
@@ -97,6 +108,40 @@ fn byte_limits_are_inclusive_and_consume_only_one_overflow_byte() {
     assert_eq!(stream.position(), 1);
     assert_eq!(hash_reader(b"".as_slice(), 0).unwrap().bytes, 0);
     assert_eq!(hash_reader(b"abc".as_slice(), u64::MAX).unwrap().bytes, 3);
+}
+
+#[test]
+fn exact_hash_and_read_reject_short_and_overlong_streams() {
+    let exact = b"abc";
+    assert_eq!(
+        hash_exact_reader(exact.as_slice(), 3).unwrap().sha256,
+        Sha256Digest::compute(exact)
+    );
+    assert_eq!(read_exact_reader(exact.as_slice(), 3).unwrap(), exact);
+    for (expected, actual) in [(1_usize, 0_usize), (4, 3)] {
+        assert!(matches!(
+            hash_exact_reader(&exact[..actual], expected as u64),
+            Err(ArtifactError::LengthMismatch { expected: e, actual: a })
+                if e == expected as u64 && a == actual as u64
+        ));
+        assert!(matches!(
+            read_exact_reader(&exact[..actual], expected),
+            Err(ArtifactError::LengthMismatch { expected: e, actual: a })
+                if e == expected as u64 && a == actual as u64
+        ));
+    }
+    let mut hash_input = Cursor::new(exact);
+    assert!(matches!(
+        hash_exact_reader(&mut hash_input, 2),
+        Err(ArtifactError::LimitExceeded { limit: 2 })
+    ));
+    assert_eq!(hash_input.position(), 3);
+    let mut read_input = Cursor::new(exact);
+    assert!(matches!(
+        read_exact_reader(&mut read_input, 2),
+        Err(ArtifactError::LimitExceeded { limit: 2 })
+    ));
+    assert_eq!(read_input.position(), 3);
 }
 
 #[test]
