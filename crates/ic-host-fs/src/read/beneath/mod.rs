@@ -1,7 +1,10 @@
 //! No-follow traversal relative to an explicitly supplied directory capability.
 
-use super::{ArtifactError, check_metadata};
-use rustix::fs::{AtFlags, FileType, Mode, OFlags, openat, statat};
+use super::{
+    ArtifactError, check_metadata,
+    entry::{entry_type, open_child, opened_type},
+};
+use rustix::fs::{FileType, Mode, OFlags};
 use std::{
     fmt,
     fs::File,
@@ -101,8 +104,7 @@ pub fn open_entry_beneath(
     let mut parent: Option<OwnedFd> = None;
     while let Some(Component::Normal(name)) = parts.next() {
         let directory = parent.as_ref().map_or(root, AsFd::as_fd);
-        let stat = statat(directory, name, AtFlags::SYMLINK_NOFOLLOW).map_err(io::Error::from)?;
-        let observed = FileType::from_raw_mode(stat.st_mode);
+        let observed = entry_type(directory, name)?;
         if observed == FileType::Symlink {
             return Err(
                 io::Error::new(io::ErrorKind::InvalidInput, "symlink component refused").into(),
@@ -112,20 +114,13 @@ pub fn open_entry_beneath(
         if final_component && !matches!(observed, FileType::RegularFile | FileType::Directory) {
             return Err(OpenEntryError::UnsupportedEntry { kind: observed });
         }
-        let flags = OFlags::RDONLY
-            | OFlags::NOFOLLOW
-            | OFlags::NONBLOCK
-            | OFlags::CLOEXEC
-            | if !final_component || observed == FileType::Directory {
-                OFlags::DIRECTORY
-            } else {
-                OFlags::empty()
-            };
-        let opened = openat(directory, name, flags, Mode::empty()).map_err(io::Error::from)?;
+        let opened = open_child(
+            directory,
+            name,
+            !final_component || observed == FileType::Directory,
+        )?;
         if final_component {
-            let actual = FileType::from_raw_mode(
-                rustix::fs::fstat(&opened).map_err(io::Error::from)?.st_mode,
-            );
+            let actual = opened_type(&opened)?;
             let file = File::from(opened);
             return match (observed, actual) {
                 (FileType::RegularFile, FileType::RegularFile) => {

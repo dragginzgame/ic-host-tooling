@@ -407,3 +407,92 @@ fn does_not_silently_claim_type_or_instruction_validation() {
     section(&mut bytes, 7, &[1, 1, b'x', 0, 99]);
     assert_eq!(inspect(&bytes, LIMITS).unwrap().exports["x"].index, 99);
 }
+
+#[test]
+fn code_statistics_distinguish_payload_framing_and_indirect_call_kinds() {
+    let mut module = HEADER.to_vec();
+    section(&mut module, 1, &[1, 0x60, 0, 0]);
+    section(&mut module, 3, &[1, 0]);
+    // Locals, i32.const 0, call_indirect type=0/table=0,
+    // i32.const 0, return_call_indirect type=0/table=0, end.
+    section(
+        &mut module,
+        10,
+        &[1, 12, 0, 0x41, 0, 0x11, 0, 0, 0x41, 0, 0x13, 0, 0, 0x0b],
+    );
+    section(
+        &mut module,
+        11,
+        &[2, 1, 3, b'a', b'b', b'c', 1, 2, b'd', b'e'],
+    );
+    let statistics = code_statistics(&module, module.len()).unwrap();
+    assert_eq!(
+        statistics,
+        WasmCodeStatistics {
+            call_indirect_count: 2,
+            data_payload_bytes: 5
+        }
+    );
+    assert!(inspect(&module, LIMITS).unwrap().data_section_bytes > 5);
+    assert!(matches!(
+        code_statistics(&module, module.len() - 1),
+        Err(InspectionError::LimitExceeded {
+            resource: InspectionResource::ModuleBytes,
+            ..
+        })
+    ));
+    assert_eq!(
+        code_statistics(HEADER, HEADER.len()).unwrap(),
+        WasmCodeStatistics::default()
+    );
+}
+
+#[test]
+fn code_statistics_reject_malformed_operators_and_data_without_changing_inspect() {
+    let mut malformed_code = HEADER.to_vec();
+    section(&mut malformed_code, 3, &[1, 0]);
+    section(&mut malformed_code, 10, &[1, 2, 0, 0xff]);
+    assert!(inspect(&malformed_code, LIMITS).is_ok());
+    assert!(matches!(
+        code_statistics(&malformed_code, 4096),
+        Err(InspectionError::Parse(_))
+    ));
+    let mut malformed_data = HEADER.to_vec();
+    section(&mut malformed_data, 11, &[1, 1, 9, b'a']);
+    assert!(matches!(
+        code_statistics(&malformed_data, 4096),
+        Err(InspectionError::Parse(_))
+    ));
+    assert!(matches!(
+        code_statistics(b"\0asm\x0d\0\x01\0", 4096),
+        Err(InspectionError::UnsupportedEncoding)
+    ));
+}
+
+#[test]
+fn code_statistics_count_instructions_not_operand_or_data_bytes() {
+    let mut module = HEADER.to_vec();
+    section(&mut module, 3, &[1, 0]);
+    // The constants contain indirect-call opcode bytes, followed by a direct
+    // call and an indirect call after unreachable. Only the encoded indirect
+    // instruction counts; this is neither a byte search nor reachability analysis.
+    let body = [
+        0, 0x41, 0x11, 0x1a, 0x41, 0x13, 0x1a, 0x10, 0, 0x00, 0x41, 0, 0x11, 0, 0, 0x0b,
+    ];
+    let mut code = vec![1, u8::try_from(body.len()).unwrap()];
+    code.extend(body);
+    section(&mut module, 10, &code);
+    // Active and passive payloads can contain the same opcode bytes as code.
+    section(
+        &mut module,
+        11,
+        &[2, 0, 0x41, 0, 0x0b, 3, 0x11, 0x13, 0x10, 1, 2, 0x11, 0x13],
+    );
+    assert_eq!(
+        code_statistics(&module, module.len()).unwrap(),
+        WasmCodeStatistics {
+            call_indirect_count: 1,
+            data_payload_bytes: 5,
+        }
+    );
+}

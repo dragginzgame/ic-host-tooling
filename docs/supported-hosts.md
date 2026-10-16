@@ -283,6 +283,17 @@ the selected temporary root while preserving pipeline failure status.
 The local composite action `.github/actions/retain-failure-evidence/action.yml`
 owns that path selection and uploads one `evidence.tar.gz` created by the shared
 evidence archiver, including hidden inputs and excluding `.git` metadata.
+Consumers with a product-specific collector may instead pass absolute
+`prepared-archive` and `collection-log` paths. That branch never selects tools,
+repackages evidence or runs a collector; the caller owns original collection
+status, archive safety and content qualification. Both files are required inputs,
+but a missing or final-symlink file is excluded while the other is still uploaded;
+completeness then fails after upload. Relative/multiline, glob-pattern or identical paths are
+rejected. The prepared branch runs even after a previous step fails or is
+cancelled, preserving the caller's log independently of archive creation.
+`temp-root` and `repository-root` remain required by the collecting branch only.
+Uploads use zero ZIP compression because the selected archive is already compressed.
+
 The same action collects a
 disposable negative qualification on each native host: the real IC installer
 downloads Quill and rejects an intentionally incorrect pin, then offline checking

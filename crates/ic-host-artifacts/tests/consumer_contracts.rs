@@ -1,11 +1,10 @@
 //! Public consumer projections: policy remains with the artifact owner.
 
 use ic_host_artifacts::{
-    archive::{ArchiveError, ArchiveLimits, extract_tar_gz},
-    artifact::{ArtifactError, BoundedWriter, Sha256Digest, copy_reader, verify_reader},
+    artifact::{ArtifactError, BoundedWriter, Sha256Digest, copy_reader, hash_reader},
     wasm::{ExportKind, InspectionError, InspectionLimits, ParseError, WasmFacts, inspect},
 };
-use std::{collections::BTreeMap, io, io::Write as _};
+use std::{collections::BTreeMap, io};
 
 #[test]
 fn wasm_parse_errors_expose_owned_offsets_and_diagnostics() {
@@ -114,72 +113,6 @@ fn a_successful_serialization_preflight_does_not_unbound_the_staging_pass() {
 }
 
 #[test]
-fn tool_bundle_publication_waits_for_all_member_digests_and_retains_failed_staging() {
-    const EXECUTABLE: &str = "binaryen-version_132/bin/wasm-opt";
-    const LIBRARY: &str = "binaryen-version_132/lib/libbinaryen.dylib";
-    let executable = b"substitute optimizer bytes".as_slice();
-    let library = b"substitute runtime library bytes".as_slice();
-    let mut tar = tar::Builder::new(Vec::new());
-    for (name, payload) in [(EXECUTABLE, executable), (LIBRARY, library)] {
-        let mut header = tar::Header::new_ustar();
-        header.set_mode(0o755);
-        header.set_size(payload.len() as u64);
-        tar.append_data(&mut header, name, payload).unwrap();
-    }
-    let tar = tar.into_inner().unwrap();
-    let mut gzip = flate2::GzBuilder::new()
-        .mtime(0)
-        .write(Vec::new(), flate2::Compression::fast());
-    gzip.write_all(&tar).unwrap();
-    let archive = gzip.finish().unwrap();
-    let original = archive.clone();
-    let archive_sha256 = Sha256Digest::compute(&archive);
-    let executable_sha256 = Sha256Digest::compute(executable);
-    let library_sha256 = Sha256Digest::compute(library);
-    let limits = ArchiveLimits {
-        archive_bytes: archive.len(),
-        decompressed_bytes: tar.len(),
-        members: 2,
-        member_bytes: library.len().max(executable.len()),
-    };
-    let admit = |staged: &mut BTreeMap<_, _>, expected_library| {
-        for (name, expected) in [(EXECUTABLE, executable_sha256), (LIBRARY, expected_library)] {
-            let member = extract_tar_gz(&archive, archive_sha256, name, expected, limits)?;
-            assert_eq!(member.archive_identity.sha256, archive_sha256);
-            staged.insert(name, member.bytes);
-        }
-        Ok::<(), ArchiveError>(())
-    };
-
-    let old = BTreeMap::from([
-        (EXECUTABLE, b"old optimizer".to_vec()),
-        (LIBRARY, b"old library".to_vec()),
-    ]);
-    let mut published = old.clone();
-    let mut staged = BTreeMap::new();
-    let wrong = Sha256Digest::compute(b"wrong library authority");
-    assert!(matches!(admit(&mut staged, wrong),
-        Err(ArchiveError::Member(ArtifactError::DigestMismatch { expected, actual }))
-        if expected == wrong && actual.sha256 == library_sha256));
-    assert_eq!(published, old);
-    assert_eq!(staged.get(EXECUTABLE).unwrap(), executable);
-    assert!(!staged.contains_key(LIBRARY));
-    assert_eq!(archive, original);
-
-    // The consumer retains the failed attempt and prepares a separate candidate.
-    let failed_staging = staged;
-    let mut staged = BTreeMap::new();
-    admit(&mut staged, library_sha256).unwrap();
-    assert_eq!(staged.len(), 2);
-    // Its existing publisher owns the final bin/lib layout and durable selection.
-    published = staged;
-    assert_eq!(published.get(EXECUTABLE).unwrap(), executable);
-    assert_eq!(published.get(LIBRARY).unwrap(), library);
-    assert_eq!(failed_staging.get(EXECUTABLE).unwrap(), executable);
-    assert_eq!(archive, original);
-}
-
-#[test]
 fn staged_stream_identity_is_checked_before_consumer_publication() {
     let old = b"existing published artifact".to_vec();
     let candidate = b"candidate artifact";
@@ -269,7 +202,10 @@ fn transform_contract_preserves_export_kinds_and_selected_metadata_after_reindex
 fn report_facts_support_consumer_budgets_after_exact_digest_verification() {
     let bytes = artifact(0, b"service : {}\n");
     let expected = Sha256Digest::compute(&bytes);
-    let identity = verify_reader(bytes.as_slice(), LIMITS.module_bytes as u64, expected).unwrap();
+    let identity = hash_reader(bytes.as_slice(), LIMITS.module_bytes as u64)
+        .unwrap()
+        .verify(expected)
+        .unwrap();
     let report = inspect(&bytes, LIMITS).unwrap();
     assert_eq!(identity.bytes, report.raw_bytes as u64);
     assert_eq!(
@@ -290,11 +226,9 @@ fn report_facts_support_consumer_budgets_after_exact_digest_verification() {
         .collect();
     assert_eq!(application_functions, ["canister_query status"]);
     assert!(matches!(
-        verify_reader(
-            bytes.as_slice(),
-            LIMITS.module_bytes as u64,
-            Sha256Digest::compute(b"wrong")
-        ),
+        hash_reader(bytes.as_slice(), LIMITS.module_bytes as u64)
+            .unwrap()
+            .verify(Sha256Digest::compute(b"wrong")),
         Err(ArtifactError::DigestMismatch { .. })
     ));
 }

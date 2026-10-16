@@ -5,14 +5,14 @@ admitted process execution and IC-specific format handling.
 
 | Crate | Implemented source ownership |
 | --- | --- |
-| ic-host-artifacts | Bounded streams and hashing writers, exact byte comparison, SHA-256, gzip encoding/decoding, verified tar members, generic Wasm facts and custom-section encoding |
+| ic-host-artifacts | Bounded streams and hashing writers, exact byte comparison, SHA-256, gzip encoding/decoding, generic Wasm facts and custom-section encoding |
 | ic-host-fs | Regular/no-follow reads, missing-suffix path resolution, streamed durable publication, private files and observed descriptor locks |
 | ic-host-process | Executable resolution, digest/version admission, bounded capture, explicit child/group cleanup and Git observations |
-| ic-host-text | Pure terminal-safe escaping and Unicode display-width tables with explicit formatting choices |
-| ic-host-tools | Candid text/extraction, optional service and IC export facts, ICP response decoding and IC resource reports |
+| ic-host-text | Bounded line normalization, terminal-safe escaping, Unicode display-width tables and progress frames |
+| ic-host-tools | Candid extraction, optional service and IC export facts, ICP response decoding and IC resource reports |
 
 These run locally outside canisters. The ic-host prefix identifies their ecosystem;
-the generic crates have no IC runtime dependency. Compression, archive and Wasm
+the generic crates have no IC runtime dependency. Gzip and Wasm
 support are optional features of ic-host-artifacts. Filesystem/process consumers
 select the small default artifact dependency.
 For test fixtures, opt in to `ic-host-fs`'s `test-support` feature in a
@@ -20,14 +20,27 @@ dev-dependency and use `testing::create_fixture_directory(parent, prefix)`.
 It allocates beneath an existing physical parent, skips occupied names and
 returns the retained path. Callers own labels, custody and explicit cleanup;
 the allocator supplies no Drop guard or application lifecycle.
+For bounded synthetic HTTP peers, opt in to `ic-host-process`'s `test-support`
+feature and use `testing::http::{capture_http_request, read_http_request_line,
+read_http_request_with_line}`. Whole capture retains partial bytes and typed
+failures; callers select required or optional Content-Length and own responses,
+byte budgets, deadlines and evidence files.
 With `wasm`, `wasm::encode_custom_section(CustomSection { name, data }, max_bytes)`
 encodes one complete custom section with an explicit output-byte allowance.
 Callers supply exact names/data and own module assembly, aggregate budgets,
 duplicates, append order and subsequent Wasm validation.
-`ic-host-tools` has no default features. Response decoding and
-`candid::text::normalize` are always available without artifact/filesystem/process
-dependencies or the Candid parser. Enable `candid-extraction` explicitly for
-the Unix `candid::extraction` API.
+With the same `wasm` feature, `wasm::code_statistics(bytes, module_bytes)` counts
+encoded indirect calls, including tail calls, and data payload bytes without a
+subprocess. These counts differ from encoded section sizes and need not match
+optimizer reachability metrics. Type/feature validation and report policy remain
+caller-owned; the structural `wasm::inspect` contract is unchanged.
+`ic-host-tools` has no default features. Response decoding is always available
+without artifact/filesystem/process/text dependencies or the Candid parser.
+Enable `candid-extraction` explicitly for
+the Unix `candid::extraction` API. Extraction returns bounded raw process evidence
+and source/tool identities. Call `ic_host_text::normalize::normalize_lines`
+explicitly when your
+consumer needs normalized text, selecting its output-byte allowance separately.
 The optional `ic-interface` feature adds `interface::exported_methods` over
 generic Wasm facts without the Candid parser. Enable `candid-service` for
 parser-backed `candid::service::inspect` and shared method identities, without
@@ -51,6 +64,11 @@ nothing: callers retain Agent verification, trust roots, combined evidence
 budgets, witness commitments and application leaf meanings. The feature adds no
 Agent transport, filesystem/process execution or Candid parser.
 
+`ic-host-tools::response::decode` accepts explicitly selected JSON envelopes or
+plain hex. CLI presentation labels, preambles and any broader whitespace policy
+belong to callers; the codec does not infer or strip them. See the
+[0.22 response migration](docs/changelog/0.22.md).
+
 `ic-host-text::escape::terminal_text` makes control and bidirectional formatting
 characters visible without choosing output or colour. It returns `Cow<str>`,
 borrowing safe input; use `.into_owned()` when independent ownership is required.
@@ -58,11 +76,22 @@ borrowing safe input; use `.into_owned()` when independent ownership is required
 headers, fixed-column rows, alignments and explicit `Options { column_gap,
 header_separator }`, returning a String. It measures escaped cells in Unicode
 display columns. Reports retain their row/header/column decisions; CLIs retain
-stdout, terminal detection, colour and progress. `width::fit_line` escapes controls
+stdout, terminal detection, colour and progress lifecycle. `width::fit_line`
+escapes controls
 and clips with an ellipsis to caller-selected columns, using conservative scalar
 widths. It preserves UTF-8 boundaries without promising grapheme-cluster boundaries.
+Clipping consumes escapes as needed without allocating the complete escaped line.
+`progress::ProgressLine` returns escaped update, finish and clear frames with
+scalar-column padding. Callers prevent wrapping and own writing, flushing,
+output failures and cleanup timing; dropping the helper performs no IO.
 The crate depends only on the Unicode-width library, with no other Host or IC
 dependencies.
+
+`ic_host_text::normalize::normalize_lines(bytes, max_bytes)` separately admits
+UTF-8, trims each line's trailing Unicode whitespace and emits LF endings while
+preserving blank lines. It bounds both input and normalized output and reserves
+storage fallibly. It does not escape controls or validate a document grammar.
+See the [0.23 import migration](docs/changelog/0.23.md).
 
 The compiled [IC resource-report example](crates/ic-host-tools/examples/inspect_install_limits/main.rs)
 inspects once and compares code-body bytes, defined functions and all globals
@@ -83,13 +112,16 @@ the consumer owns executable admission. It shares bounded capture and direct-chi
 cleanup with `AdmittedTool`, whose exact digest/version checks remain in place.
 `ToolError::evidence` and `execution_error` borrow retained diagnostics without
 copying output; callers own presentation and recovery.
+`tool::format_failure_evidence(context, &error)` explicitly renders status, lossy
+stdout/stderr and cleanup failures once when raw diagnostics are requested. Callers
+retain terminal escaping and redaction; ordinary error display omits captures.
 Capture and communication return `CompletedExecution` with a required exit
 status, including nonzero and signalled exits. Use `require_success()` when zero
 exit is required. Interrupted execution retains optional status in `ExecutionEvidence`.
 
-`child::OwnedChild::spawn` starts a caller-configured command in a new owned
-process group. It preserves command IO and supports polling, waiting, explicit
-termination and cleanup during unwinding. Callers retain admission, readiness,
+`child::OwnedChild::spawn(command, cleanup)` starts a caller-configured command
+in a new owned process group. It preserves command IO and supports polling,
+waiting, explicit termination and cleanup during unwinding. Callers retain admission, readiness,
 cancellation and application lifecycle policy. For deliberate background startup,
 `poll_exit` retains cleanup ownership through result admission; explicit `handoff`
 then reaps a successful leader without stopping the background group. See the
@@ -97,9 +129,21 @@ then reaps a successful leader without stopping the background group. See the
 [child cleanup contract](docs/changelog/0.5.md#explicit-child-and-process-group-cleanup)
 for exclusive ownership and descendant limitations.
 
-`spawn_with_cleanup` selects `CleanupPolicy::TermThenKill` for caller-owned TERM
-grace and bounded reaping. Communication failures and Drop use that same policy;
-the default remains immediate KILL with synchronous reaping. Reap timeout retains
+Unix `custody::CommandCustody` instead retains a caller-selected sidecar lock
+through one command's inherited descriptor and cooperating descendants. Persist
+its `FileIdentity` with original intent before `spawn`, selecting the descriptor
+environment name explicitly. `finish` closes owner custody and probes exact
+existing-sidecar quiescence using caller-selected grace and polling. A missing or
+replaced sidecar never proves quiescence. `QuiescenceGuard` cannot spawn and
+explicitly unlocks on drop. Callers own namespace stability, descendant descriptor
+preservation, output/reaping, records, remote effects and recovery; no sidecar is
+deleted and a failed spawn consumes the local allowance. Group cleanup and
+inherited custody are distinct contracts.
+
+For `OwnedChild::spawn`, select `CleanupPolicy::KillAndWait` for immediate KILL
+with synchronous reaping, or `CleanupPolicy::TermThenKill` for caller-owned TERM
+grace and bounded reaping.
+Communication failures and Drop use that same explicit policy. Reap timeout retains
 the owner for explicit recovery and does not start a background reaper. See the
 [bounded cleanup contract](docs/changelog/0.8.md#caller-selected-termination-timing).
 
@@ -132,7 +176,7 @@ use `CompletedExecution::require_complete` before parsing retained output.
 
 Examples live with their owners: `ic-host-artifacts` has `hash_serialized_json`;
 `ic-host-fs` has `inspect_regular_file` and
-the artifact/file compositions `inspect_archive` and `inspect_gzip`;
+the artifact/file composition `inspect_gzip`;
 `ic-host-process` has `inspect_git` and `resolve_tool`. `ic-host-tools` retains
 `extract_candid`, `inspect_install_limits` and `inspect_response`; the response
 example runs with `--no-default-features`. Example-only dependencies do not widen
@@ -165,18 +209,18 @@ constant working memory, rejecting final symlinks and opened special files.
 It shares the bounded stream hasher and preserves typed errors. Callers retain
 trusted ancestors, concurrent-writer custody and any exact expected-length check.
 
-`durable::try_lock_regular_file_with_parents` shares regular-file admission and
-durable creation with the blocking lock API, but returns a native `WouldBlock`
-I/O cause on contention. It preserves existing bytes and holds the lock through
-the returned close-on-exec descriptor. Callers retain retry and waiting policy.
-
-`durable::open_regular_lock_file_with_parents` exposes that same admitted file
-without acquiring a lock. Consumers can select shared locking or compose it with
-`lock_exclusive_with_wait`, keeping wait timing and explicit unlock policy local.
+`durable::open_regular_lock_file_with_parents` prepares an admitted regular file
+without acquiring a lock. Consumers then select `lock_shared`, `lock_exclusive`,
+`try_lock_exclusive` or `lock_exclusive_with_wait` on its close-on-exec descriptor.
+The immediate exclusive attempt returns native `WouldBlock` on contention and
+performs no waiting or retry. Keep the descriptor alive through the protected
+operation; callers retain polling, clone lifetime and explicit unlock policy.
 Existing lock files need no staging or parent write permission; durable creation
 runs only when the entry is missing.
 The [0.13 migration](docs/changelog/0.13.md) replaces the fixed-cadence pathname
 progress helper with this composition; callers keep polling and reporting policy.
+The [0.23 migration](docs/changelog/0.23.md) removes the two combined pathname
+open-and-lock shortcuts in favor of this explicit preparation/acquisition boundary.
 
 `durable::open_private_regular_lock_file` instead creates a missing sidecar with
 owner-only permissions in an existing parent. It preserves existing bytes, inode
@@ -196,12 +240,24 @@ the working destination on rejection. See the
 
 `durable::write_with(path, options, producer)` retains serializer errors while streaming through
 the same engine, with explicit replace/create-only options and file permissions.
-Byte writers also return `NamedWriteError<io::Error>`, preserving publication
-state and separate cleanup failures. See the [0.10 migration](docs/changelog/0.10.md).
+`durable::write_bytes(path, options, bytes)` shares that engine and returns
+`NamedWriteError<io::Error>`, preserving publication state and separate cleanup
+failures. Select mode and permissions explicitly; see the
+[0.22 migration](docs/changelog/0.22.md).
+`durable::write_existing_parent_with` instead refuses missing parents and opens
+the selected parent once as a directory. Its `_validated_with` variant admits the
+producer's result before publication. Parent aliases are followed and the held
+directory stays selected across renames; callers retain namespace custody.
 `durable::write_at_with` borrows an admitted directory descriptor so publication
 stays anchored to it even when its original path moves. Consumers retain path
 admission, budgets and recovery; see the
 [publication contract](docs/changelog/0.4.md#typed-and-descriptor-relative-publication).
+
+`path::canonicalize_allow_missing(path, base, max_symlink_depth)` resolves existing
+components and dangling symlinks while normalizing a missing suffix. Choose the
+simultaneously active missing-target depth explicitly; `usize::MAX` preserves
+unlimited expansion. This supplies no root confinement or filesystem deadline.
+See the [0.23 resolver migration](docs/changelog/0.23.md).
 
 With the artifact `gzip` feature, `hash_gzip` and `hash_gzip_or_raw` identify
 decoded payloads without a full decoded allocation. `gzip_matches` compares

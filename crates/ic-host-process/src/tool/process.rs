@@ -2,7 +2,7 @@ use super::{
     CompletedExecution, ExecutionContext, ExecutionError, ExecutionEvidence, ExecutionFailure,
     ExecutionOperation, OutputLimit, OutputLimits, OutputStream, SuccessfulExit,
 };
-use crate::child::OwnedChild;
+use crate::child::{CleanupPolicy, OwnedChild};
 use rustix::fs::{OFlags, fcntl_getfl, fcntl_setfl};
 use std::{
     ffi::OsString,
@@ -52,7 +52,7 @@ pub(super) fn capture_command(
         .stderr(Stdio::piped());
     let spawned = match scope {
         CleanupScope::DirectChild => OwnedChild::spawn_direct(command),
-        CleanupScope::ProcessGroup => OwnedChild::spawn(command),
+        CleanupScope::ProcessGroup => OwnedChild::spawn(command, CleanupPolicy::KillAndWait),
     };
     let mut child = spawned.map_err(|source| ExecutionError {
         failure: io_failure(ExecutionOperation::Spawn, source),

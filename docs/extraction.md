@@ -10,37 +10,53 @@ ic-host-tools to ic-host-process and ic-host-fs,
 from ic-host-process to ic-host-fs, and from each to ic-host-artifacts.
 No generic crate depends on ic-host-tools, Canic, IcyDB or an IC runtime.
 Test/example artifact features do not become production filesystem dependencies.
-The empty tools defaults retain response decoding and pure Candid text
-normalization while excluding all three generic extraction dependencies and the
-optional Candid parser from its normal graph. The 0.15 hard cut moves extraction
-to `candid::extraction` and normalization to `candid::text`, without reexports.
+The empty tools defaults retain response decoding while excluding all three
+generic extraction dependencies, Host Text and the optional Candid parser from
+its normal graph. The 0.15 hard cut moves extraction
+to `candid::extraction`, without reexports. The 0.23 hard cut moves generic
+line normalization out of Tools into `ic_host_text::normalize`.
 The optional `ic-interface` feature adds generic Wasm facts without the Candid
-parser. `candid-service` adds parser-backed service inspection and implies
-`ic-interface`. Neither adds filesystem/process dependencies unless extraction
-is also selected.
+parser. `candid-service` adds parser-backed service inspection independently;
+select `ic-interface` as well when both APIs are needed. Neither adds
+filesystem/process dependencies unless extraction is also selected.
 The optional `ic-limits` profile adds only generic artifact inspection to the
 response-only graph; IC reference values and comparison remain in the tools owner.
 
 - ic-host-artifacts owns stream identities, bounded read/write/copy mechanics,
-  optional gzip encoding/decoding, verified tar member bytes, optional Wasm
-  structural facts and bounded custom-section framing.
+  optional gzip encoding/decoding, optional Wasm
+  structural facts, encoded code/data statistics and bounded custom-section framing.
 - ic-host-fs owns pathname/descriptor reads and the durable module's replace,
   create-new, private-file, parent synchronization and descriptor-lock operations.
 - ic-host-process owns executable resolution/admission, explicit execution context,
   output limits, deadlines, direct-child/explicit group cleanup evidence, native
   process-table/RSS observations and separate Git queries.
-- ic-host-text owns pure terminal-safe escaping, explicit column clipping and
-  Unicode display-width tables.
+  Its Unix `custody` module also owns inherited regular-sidecar descriptors and
+  exact existing-sidecar quiescence. Callers retain paths, environment names,
+  durable identity records, wait settings, command/effect admission and recovery;
+  custody neither kills processes nor implies a remote effect outcome.
+- ic-host-text owns bounded UTF-8 line normalization, pure terminal-safe escaping,
+  explicit column clipping, Unicode display-width tables and pure single-line
+  progress frames.
+  Progress callers retain terminal detection, wrapping limits, output, flushing,
+  failure policy and cleanup timing; the helper never selects a sink or writes.
   Escaping borrows unchanged input through `Cow<str>` and owns changed text;
   tables keep safe cell borrows and return one owned rendered string.
   Cells, alignments and formatting options are explicit; reports and CLIs retain
   headers, rows, column choices, size/truncation policy, output, terminal detection,
-  colour and progress. It depends on no other Host or IC owner. This fifth generic
+  colour and progress lifecycle. It depends on no other Host or IC owner. This fifth generic
   boundary was explicitly selected by the maintainer under
   [#110 — Host text ownership](https://github.com/dragginzgame/ic-host-tooling/issues/110).
-- ic-host-tools owns Candid text/extractor and service-method interpretation,
-  IC method export projection over generic Wasm facts, ICP response formats
+- ic-host-tools owns Candid extraction and service-method interpretation,
+  IC method export projection over generic Wasm facts, JSON/plain-hex ICP responses
   and explicit revision-bound IC resource comparisons.
+  CLI labels, preambles and any Unicode whitespace normalization remain with
+  consumers rather than a second presentation adapter in the codec.
+
+Candid extraction retains complete bounded raw stdout/stderr and source/tool
+identities. It does not require UTF-8 or normalization. Consumers needing text
+call `ic_host_text::normalize::normalize_lines` explicitly with an output allowance;
+UTF-8, normalization, grammar and expected-service admission remain separate decisions.
+No duplicate normalized string is stored beside the process evidence.
 
 `sampling::snapshot(record_bytes, command_limits)` keeps native RSS observation
 in the Process owner. Linux selects the per-record procfs allowance; macOS uses
@@ -98,8 +114,8 @@ orchestration separately; these libraries do not install tools or build canister
 
 Within `ic-host-fs`, `read` is the sole owner of required/optional/private reads.
 Its Unix `tree` module exposes a no-follow descriptor traversal for caller-owned
-entry handling, but does not own Backup's tree checksum framing, multi-file
-publication or retained byte custody. Callers admit and hold the root, select
+entry handling, but does not own Backup's tree checksum framing, complete
+artifact publication policy or retained byte custody. Callers admit and hold the root, select
 depth/byte limits, and prevent concurrent namespace or content changes where
 stable evidence is required.
 Observed directories always use directory-only opens and descriptor type checks;
@@ -119,13 +135,19 @@ It does not guarantee immutable bytes or continuing pathname containment.
 Durable publication and locks do not own a second
 reader hierarchy. Lock errors retain typed admission and original I/O causes;
 durable creation errors retain `NamedWriteError` in `RegularFileLockError::Publication`.
-`try_lock_regular_file_with_parents` adds one nonblocking acquisition attempt
-through the same path opener; contention retains native `WouldBlock`. Blocking
-callers retain their existing behavior. Observed waits compose the opener with
+The durable directory owner sequences a caller-verified existing tree through
+no-replace sibling publication and parent synchronization. It does not create,
+clean, hash or traverse that tree. The verification callback owns complete
+child/root synchronization and exact retained-byte comparison before the rename;
+the consumer owns namespace exclusion, recovery meaning and retry authority.
+Post-rename failures are explicitly distinct from before-publication failures.
+`try_lock_exclusive` makes one nonblocking attempt on a caller-owned regular
+descriptor; contention retains native `WouldBlock`. Blocking callers use
+`lock_exclusive` on that descriptor. Observed waits compose the opener with
 `lock_exclusive_with_wait` and caller-owned polling/reporting intervals. No filesystem latency
 deadline, retry controller or stale-lock removal is introduced.
 `open_regular_lock_file_with_parents` is that single admission owner, exposed
-without acquisition so consumers can choose shared locks or descriptor waiting.
+without acquisition so consumers choose shared, blocking, immediate or observed locks.
 It preserves existing bytes and returns a close-on-exec read/write descriptor.
 Consumers retain stable namespace, clone lifetime and explicit unlock policy;
 opening does not establish root confinement or lock ownership.
@@ -140,9 +162,16 @@ adding this opener does not transfer command lifecycle or recovery to Host.
 The [0.4 notes](changelog/0.4.md) describe the required consumer changes.
 
 `durable::write_with(path, options, producer)` is the single generic pathname
-writer. Byte helpers use it and return `NamedWriteError<io::Error>` rather than
-discarding publication state or cleanup evidence. Consumers retain error projection
+writer. `write_bytes(path, options, bytes)` uses it with explicit publication mode
+and permissions, returning `NamedWriteError<io::Error>` rather than discarding
+publication state or cleanup evidence. Consumers retain error projection
 and recovery decisions; an after-publication failure requires reconciliation.
+`write_existing_parent_with` and `write_existing_parent_validated_with` reuse
+descriptor publication after directory-only opening of an existing selected
+parent. They refuse missing/special-file parents without creating them, retain
+parent-alias following and select the directory once across renames. The validated
+form admits the producer's result after file sync and before publication. This
+pathname convenience supplies no root confinement or independent lifecycle policy.
 The [0.10 migration](changelog/0.10.md) replaces the old two-argument writer and
 removes the `write_typed_with` name without a compatibility alias.
 
@@ -201,8 +230,8 @@ processes remain outside its scope; signalling does not prove descendant exit.
 Public `OwnedChild::spawn_direct` exposes the existing direct-child constructor
 used by ordinary capture. It preserves inherited or configured process groups
 and cleans up only the direct child, allowing foreground callers to retain group
-membership. Group-owning `spawn` remains unchanged. Terminal control, signal
-handling and descendants remain consumer-owned; communication cannot force EOF
+membership. Group-owning `spawn` requires an explicit cleanup policy. Terminal
+control, signal handling and descendants remain consumer-owned; communication cannot force EOF
 from descendant-held pipes under direct ownership.
 Callers configure stdin/stdout/stderr before spawn, select borrowed input and
 output budgets, and supply a prompt cancellation predicate. Piped IO is fair,
@@ -258,9 +287,9 @@ natural waiting or cancellation; Drop provides best-effort cleanup, including
 unwinding. Typed cleanup evidence remains separate from the original operation
 failure. No application readiness, global signal handler, lifecycle controller,
 retry, descendant-exit barrier or process-tree containment is introduced.
-Exclusive reaping and an unchanged child group are required. The default cleanup
-has no wall-clock bound and only reaps the direct child. `spawn_with_cleanup`
-can select `CleanupPolicy::TermThenKill` with caller-owned grace and reap limits.
+Exclusive reaping and an unchanged child group are required. Group spawning
+requires `CleanupPolicy`: `KillAndWait` has no wall-clock bound and only reaps
+the direct child; `TermThenKill` uses caller-owned grace and reap limits.
 TERM leaves the leader reserved until group KILL, even if it exits during grace.
 Repeated termination and Drop share the original reap allowance rather than
 restarting it. Timeout retains the child for explicit caller recovery; dropping
@@ -286,6 +315,10 @@ consumer policy; no host catalog or version-range resolver is introduced.
 
 Additional reusable mechanics are extracted from committed sibling source:
 
+- `artifact::hash_reader` captures a bounded stream identity once;
+  `ArtifactIdentity::verify` admits that identity against caller-selected authority.
+  The combined `verify_reader` wrapper is retired. Hash/limit failures precede
+  digest comparison; a mismatch retains both authority and observed identity.
 - `artifact::hash_gzip` and `hash_gzip_or_raw` reuse bounded hashing over the
   existing single-member gzip decoder. Raw payload slices are hashed directly
   after both byte allowances. `gzip_matches` reuses `MatchingWriter`
@@ -322,9 +355,9 @@ Additional reusable mechanics are extracted from committed sibling source:
   normalizes missing suffixes against an explicit absolute base for relative
   paths, including dangling symlink targets. It resumes existing-component
   resolution after parent traversal and retains native directory requirements.
-  `canonicalize_allow_missing_with_symlink_limit` additionally accepts the
-  consumer's limit on simultaneously active missing-target expansions. Neither
-  entry confines a root or creates files. Hard-link identity, opening and
+  Its third argument requires the consumer's limit on simultaneously active
+  missing-target expansions; `usize::MAX` explicitly selects no added depth bound.
+  It neither confines a root nor creates files. Hard-link identity, opening and
   concurrent pathname revalidation remain consumer-owned.
 - `ic_host_fs::durable::lock_exclusive_with_wait` acquires a caller-owned regular
   descriptor with explicit polling and contention observations, retrying
@@ -364,3 +397,8 @@ Optional expected-digest verification and export/custom-section details are also
 owned by this CLI; the duplicate filesystem `inspect_artifact` example is retired.
 Default TSV output remains stable, and the filesystem development profile no
 longer selects the Wasm parser for that example.
+
+The opt-in `ic-host-process::testing::http` module owns bounded synthetic request
+reading, including phased request-line admission and remaining-deadline socket
+reads. It does not own response generation, application policy or evidence files.
+HTTP fixtures are portable; executable fixtures and crash barriers remain Unix-only.
