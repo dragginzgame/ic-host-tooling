@@ -1,5 +1,28 @@
 # Current handoff
 
+## Fixed-buffer digest encoding for Build — pending 0.22.2
+
+An isolated topic from pushed main `798fd42` implements
+[#161](https://github.com/dragginzgame/ic-host-tooling/issues/161).
+`Sha256Digest::hex_bytes` returns 64 lowercase ASCII bytes without allocation;
+Display delegates to that encoder. Known vectors, every byte value at every
+digest position, leading zeroes, parser round trips and existing formatting flags
+pass on actual Rust 1.88. Strict affected all-target/all-feature Clippy,
+warning-denied Rustdoc and formatting pass on Linux.
+
+A frozen Build caller removes the per-file temporary String and passes 37
+affected units, the real Cargo depfile integration, strict all-target Clippy and
+actual Rust 1.91 all-target checking. Four retained inventories with 256 varied
+files preserve exact absolute and relative digests against the released source.
+Only the three Host registry identities become coherent temporary path selections;
+every other lock selection stays. Build retains ordering and field framing.
+Normal Build waits for reviewed publication under
+[#50](https://github.com/dragginzgame/ic-build/issues/50). The apply-checked caller
+patch has SHA-256
+`ea532e8ac3c048823d0441ed179f06531593fac5168b5a7ec313e10ef253164e`.
+Evidence remains under `/tmp/ic-build-borrowed-grouping-20261016.P9JwS3/`.
+No full suite, native macOS qualification, version bump or release ran.
+
 ## Source and pending release
 
 Latest tagged release: **0.22.1**, commit

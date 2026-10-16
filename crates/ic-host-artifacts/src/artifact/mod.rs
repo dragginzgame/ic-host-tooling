@@ -49,6 +49,24 @@ impl Sha256Digest {
         &self.0
     }
 
+    /// Encode the digest as exactly 64 lowercase ASCII hexadecimal bytes.
+    ///
+    /// Returns a fixed-size buffer without allocation or a product-specific
+    /// prefix. Leading zeroes are retained, matching this type's Display output.
+    #[must_use]
+    pub const fn hex_bytes(self) -> [u8; 64] {
+        const HEX: &[u8; 16] = b"0123456789abcdef";
+        let mut encoded = [0; 64];
+        let mut index = 0;
+        while index < self.0.len() {
+            let byte = self.0[index];
+            encoded[index * 2] = HEX[(byte >> 4) as usize];
+            encoded[index * 2 + 1] = HEX[(byte & 0x0f) as usize];
+            index += 1;
+        }
+        encoded
+    }
+
     /// Hash bytes already held by the caller.
     #[must_use]
     pub fn compute(bytes: &[u8]) -> Self {
@@ -58,10 +76,7 @@ impl Sha256Digest {
 
 impl fmt::Display for Sha256Digest {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        for byte in self.0 {
-            write!(f, "{byte:02x}")?;
-        }
-        Ok(())
+        f.write_str(std::str::from_utf8(&self.hex_bytes()).expect("hex encoding is ASCII"))
     }
 }
 

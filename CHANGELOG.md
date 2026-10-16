@@ -2,6 +2,10 @@
 
 ## [0.22.2]
 
+- Add fixed-buffer SHA-256 hexadecimal output and share its encoder with Display,
+  preserving lowercase bytes, leading zeroes and formatting behavior
+  ([#161](https://github.com/dragginzgame/ic-host-tooling/issues/161)).
+
 - Admit existing regular lock sidecars, try one nonblocking exclusive lock, and
   publish caller-verified directory trees without replacing an occupied name.
   [Detailed notes](docs/changelog/0.22.md).
