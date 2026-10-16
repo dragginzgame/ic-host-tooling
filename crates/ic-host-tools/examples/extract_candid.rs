@@ -2,7 +2,7 @@
 
 #[cfg(unix)]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    use ic_host_process::tool::{AdmittedTool, ExecutionContext, OutputLimits, ToolSpec};
+    use ic_host_process::tool::{AdmittedTool, ExecutionContext, OutputLimits, VersionSpec};
     use ic_host_tools::candid::extraction::extract;
 
     use std::{
@@ -48,13 +48,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         environment: &[],
     };
     let tool = AdmittedTool::admit(
-        &ToolSpec {
+        &VersionSpec {
             executable: &executable,
-            sha256: digest,
             executable_bytes,
             version_arguments: &[OsString::from("--version")],
             version_identity: &version,
         },
+        digest,
         &context,
         limits,
     )?;

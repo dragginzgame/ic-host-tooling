@@ -4,6 +4,14 @@ use ic_host_artifacts::artifact::{ArtifactError, ArtifactIdentity, hash_reader, 
 use std::{fs::File, path::Path};
 
 #[cfg(unix)]
+mod beneath;
+#[cfg(unix)]
+pub use beneath::{
+    OpenEntryError, OpenedEntry, open_directory_no_follow, open_entry_beneath,
+    open_regular_file_beneath,
+};
+
+#[cfg(unix)]
 mod no_follow;
 #[cfg(unix)]
 pub mod tree;
@@ -82,21 +90,23 @@ pub fn open_regular_file(path: &Path) -> Result<File, ArtifactError> {
 
 fn open_file(path: &Path, limit: u64) -> Result<File, ArtifactError> {
     #[cfg(unix)]
-    let file = {
-        use rustix::fs::{Mode, OFlags, open};
-        File::from(
-            open(
-                path,
-                OFlags::RDONLY | OFlags::NONBLOCK | OFlags::CLOEXEC,
-                Mode::empty(),
-            )
-            .map_err(std::io::Error::from)?,
-        )
-    };
+    let file = open_read_only(path, false)?;
     #[cfg(not(unix))]
     let file = File::open(path)?;
     check_metadata(&file.metadata()?, limit)?;
     Ok(file)
+}
+
+#[cfg(unix)]
+fn open_read_only(path: &Path, no_follow: bool) -> Result<File, ArtifactError> {
+    use rustix::fs::{Mode, OFlags, open};
+    let mut flags = OFlags::RDONLY | OFlags::NONBLOCK | OFlags::CLOEXEC;
+    if no_follow {
+        flags |= OFlags::NOFOLLOW;
+    }
+    Ok(File::from(
+        open(path, flags, Mode::empty()).map_err(std::io::Error::from)?,
+    ))
 }
 
 fn check_metadata(metadata: &std::fs::Metadata, limit: u64) -> Result<(), ArtifactError> {

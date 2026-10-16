@@ -22,7 +22,10 @@ for input in scripts/ci/test-make-snapshot.sh scripts/release/test-adapter.sh \
     scripts/publish/test-workspace.sh \
     scripts/ci/test-host-fixture-retention.sh scripts/ci/check-host-formatting.sh; do
     name="${input##*/}"
-    fixture_probe_exits "$root/$input" "$fixture" "$root" "$name" || exit 1
+    directory_variable=fixture
+    [[ "$input" != scripts/publish/test-workspace.sh ]] || directory_variable=FIXTURE_ROOT
+    FIXTURE_PROBE_ROOT_VARIABLE=root FIXTURE_PROBE_DIRECTORY_VARIABLE="$directory_variable" \
+        fixture_probe_exits "$root/$input" "$fixture" "$root" "$name" || exit 1
 done
 # Each real fixture must survive changing directories with a relative aliased
 # temporary parent. These use substitutes for release/publication effects.

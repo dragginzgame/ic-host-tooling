@@ -45,6 +45,7 @@ case "$4" in
                 ;;
             clean|sha256) ;;
             bad-status) printf '?? unterminated' ;;
+            long-status) printf '?? %050d\000' 0 ;;
             *) printf '?? space \377path\000' ;;
         esac
         ;;
