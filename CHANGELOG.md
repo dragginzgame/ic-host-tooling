@@ -2,6 +2,9 @@
 
 ## [0.22.2]
 
+- Add descriptor-based create-new file and tree copying in Host FS, returning
+  per-file identities while consumers retain digest framing and publication.
+  [Detailed notes](docs/changelog/0.22.md).
 - Add caller-selected inherited command custody and exact existing-sidecar
   quiescence in Host Process; journal schemas and effect recovery stay local.
   [Detailed notes](docs/changelog/0.22.md).

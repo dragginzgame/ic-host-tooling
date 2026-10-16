@@ -2,6 +2,20 @@
 
 ## Source and pending release
 
+The same 0.22.2 draft adds create-new descriptor copying in Host FS's Unix
+`copy` module. Source file/tree mechanics are extracted from Backup with exact
+source provenance and MIT notices; Backup retains checksum framing and recovery.
+Three focused cases pass on Linux with current Rust and actual Rust 1.88,
+covering held-directory replacement, exact bytes/offsets/identities, permissions,
+occupied destinations, links, FIFO/non-UTF-8 refusals and retained partial output.
+Strict all-target/all-feature FS Clippy, warning-denied rustdoc, formatting,
+Cargo inheritance and documentation links pass. The isolated Backup adapter
+passes ten artifact cases. Native macOS and adoption from a published package
+remain separate; no normal sibling checkout or release metadata changed.
+The combined isolated Backup/Testkit adapter also passes the complete Core
+allocation/upload/load/start and Agent capture/transfer/upload/restore journeys
+against managed PocketIC 16.1.0 with local loopback access.
+
 The same 0.22.2 draft adds Unix inherited command custody to Host Process.
 Backup retains journal/operation binding, persisted custody records, spending
 and reference-release policy. The new primitive passes all seven native custody
