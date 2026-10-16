@@ -2,6 +2,8 @@
 #[cfg(unix)]
 pub mod child;
 #[cfg(unix)]
+pub mod custody;
+#[cfg(unix)]
 pub mod provenance;
 pub mod sampling;
 #[cfg(all(test, unix))]

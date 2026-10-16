@@ -113,6 +113,17 @@ then reaps a successful leader without stopping the background group. See the
 [child cleanup contract](docs/changelog/0.5.md#explicit-child-and-process-group-cleanup)
 for exclusive ownership and descendant limitations.
 
+Unix `custody::CommandCustody` instead retains a caller-selected sidecar lock
+through one command's inherited descriptor and cooperating descendants. Persist
+its `FileIdentity` with original intent before `spawn`, selecting the descriptor
+environment name explicitly. `finish` closes owner custody and probes exact
+existing-sidecar quiescence using caller-selected grace and polling. A missing or
+replaced sidecar never proves quiescence. `QuiescenceGuard` cannot spawn and
+explicitly unlocks on drop. Callers own namespace stability, descendant descriptor
+preservation, output/reaping, records, remote effects and recovery; no sidecar is
+deleted and a failed spawn consumes the local allowance. Group cleanup and
+inherited custody are distinct contracts.
+
 `spawn_with_cleanup` selects `CleanupPolicy::TermThenKill` for caller-owned TERM
 grace and bounded reaping. Communication failures and Drop use that same policy;
 the default remains immediate KILL with synchronous reaping. Reap timeout retains

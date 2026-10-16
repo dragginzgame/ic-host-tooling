@@ -2,6 +2,19 @@
 
 ## Source and pending release
 
+The same 0.22.2 draft adds Unix inherited command custody to Host Process.
+Backup retains journal/operation binding, persisted custody records, spending
+and reference-release policy. The new primitive passes all seven native custody
+cases on Rust 1.99 and 1.88, all 118 all-feature Process tests and its doctest,
+strict all-target/all-feature Process Clippy and warning-denied rustdoc. Formatting,
+Cargo inheritance and documentation links pass. An isolated Backup adapter passes
+ten custody/model/reference-release cases and strict all-target Core Clippy.
+The first failed-spawn probe exposed a transient descriptor copy from concurrent
+forks; bounded contention-only waiting preserves the original custody contract.
+Native macOS acceptance and Backup adoption from a published package remain
+separate. Source and consumer rehearsal remain at `/tmp/ic-host-backup-custody`
+and `/tmp/backup-custody-consumer`; no sibling working checkout was changed.
+
 Latest tagged release: **0.22.1**, commit
 `b99beeae7c3115ee5323ea3b48fccad2fe325596`. Package versions are 0.22.1.
 The **0.22.2** draft adds existing lock-sidecar admission, one-shot locking
