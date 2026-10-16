@@ -9,6 +9,11 @@
 
 ### Added
 
+- Add pure single-line progress frames to Host Text. Controls are escaped and
+  redraw padding uses Unicode column widths; callers retain terminal detection,
+  clipping, output and cleanup policy.
+  [Detailed notes](docs/changelog/0.22.md).
+
 - Add exact-length streaming hash and bounded read operations to Host Artifacts.
   They reject premature EOF and probe one excess byte; callers still select
   byte limits and own stream custody.

@@ -16,7 +16,7 @@ pub fn fit_line(line: &str, columns: usize) -> String {
         return String::new();
     }
     let line = terminal_text(line);
-    let total: usize = line.chars().map(|ch| ch.width().unwrap_or(0)).sum();
+    let total = display_columns(&line);
     if total <= columns {
         return line.into_owned();
     }
@@ -32,6 +32,11 @@ pub fn fit_line(line: &str, columns: usize) -> String {
     }
     text.push('…');
     text
+}
+
+/// Count display columns in already escaped text using scalar widths.
+pub(crate) fn display_columns(text: &str) -> usize {
+    text.chars().map(|ch| ch.width().unwrap_or(0)).sum()
 }
 
 #[cfg(test)]

@@ -8,7 +8,7 @@ admitted process execution and IC-specific format handling.
 | ic-host-artifacts | Bounded streams and hashing writers, exact byte comparison, SHA-256, gzip encoding/decoding, verified tar members, generic Wasm facts and custom-section encoding |
 | ic-host-fs | Regular/no-follow reads, missing-suffix path resolution, streamed durable publication, private files and observed descriptor locks |
 | ic-host-process | Executable resolution, digest/version admission, bounded capture, explicit child/group cleanup and Git observations |
-| ic-host-text | Pure terminal-safe escaping and Unicode display-width tables with explicit formatting choices |
+| ic-host-text | Pure terminal-safe escaping, Unicode display-width tables and progress frames with explicit formatting choices |
 | ic-host-tools | Candid text/extraction, optional service and IC export facts, ICP response decoding and IC resource reports |
 
 These run locally outside canisters. The ic-host prefix identifies their ecosystem;
