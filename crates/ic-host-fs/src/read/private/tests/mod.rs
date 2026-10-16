@@ -57,6 +57,14 @@ fn unsafe_private_files_remain_errors_without_regeneration() {
         read_private_bytes::<4>(&fixture.root),
         Err(PrivateFileReadError::Read(ArtifactError::NotRegularFile))
     ));
+    // Model a special descriptor selected after the initial pathname check,
+    // without racing a namespace writer or adding a production test hook.
+    for path in [fixture.root.as_path(), Path::new("/dev/null")] {
+        assert!(matches!(
+            read_private_descriptor::<0>(File::open(path).unwrap()),
+            Err(PrivateFileReadError::Read(ArtifactError::NotRegularFile))
+        ));
+    }
 }
 
 #[test]

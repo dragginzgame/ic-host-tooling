@@ -525,6 +525,48 @@ helper; choose and record their own reviewed version and platform digests.
 Resolve existing exceptions under the
 [pinning policy](../rules/dependency-pinning.md) before claiming adoption.
 
+## Consumer qualification selection
+
+Shared Tooling CI qualifies the shared implementation. A consumer qualifies how
+its selected snapshot is wired into its own repository. Installing a snapshot
+does not require running every exported upstream test in routine consumer CI or
+adding the complete producer suite to its release gate.
+
+| Proof | Owner and selection |
+| --- | --- |
+| Snapshot bytes, modes and declared roots | Consumer: verify every maintained bundle. Integrity alone does not establish caller behavior. |
+| Shared parser, installer and helper implementation cases | Shared Tooling: keep the general regression matrix beside its owner. Select relevant cases during a changed-contract adoption or when they supply a missing consumer proof. |
+| Actual Make, hook, release adapter and CI wiring | Consumer: exercise its real callers, selected inputs, status propagation and applicable recovery/evidence boundaries. |
+| Installed tools and host behavior | Consumer: retain prepared-tool admission and applicable native platform qualification for its own selected catalogs and workflows. |
+| Product correctness and release acceptance | Consumer: retain its product tests and release obligations. A passing upstream job does not qualify them. |
+
+Before removing a test invocation, identify what it proves and where that proof
+will remain. For example, a generic maintenance-task or LOC parser matrix usually
+belongs upstream; a test that checks the consumer's actual Make target or input
+selection belongs with that consumer. A generic release-runner fixture may still
+be useful when it exercises a consumer-specific invocation contract not covered
+by its adapter tests. Classify behavior, not filenames or the number of tests.
+Keep justified upstream fixtures with a short explanation at their caller.
+
+For a roster reduction, check the affected consumer callers and failure paths,
+verify snapshot integrity, and retain the required native acceptance. Measure
+gate duration before and after on comparable source/tool/host inputs if claiming
+a speed-up. Syntax checks, snapshot hashes and upstream CI each provide different
+evidence; none alone replaces a consumer integration test. Do not remove product
+or recovery tests merely because their helpers are now shared.
+
+Revisit the selection when adopted helper bytes or contracts, caller wiring,
+tool catalogs or supported-host inputs change. Reuse evidence only for unchanged
+inputs under the [validation policy](../DRAGGINZGAME.md#validation-and-evidence).
+Keep evidence and consumer-specific exceptions with their existing owners; no
+new scheduler or parallel test inventory is required. This guidance does not
+itself rewrite existing CI/release targets or authorize broad local execution.
+
+Only retire an exported test entrypoint after checking all consumer callers.
+Use the canonical refresh preview to inspect its companion closure and proposed
+retirements; do not delete snapshot files or edit their manifest records by hand.
+Shared fixtures that remain dependencies of another selected root stay exported.
+
 ## Audit method adoption
 
 Include the complete `audits/` file set in the governance list when adopting this

@@ -2,7 +2,10 @@
 
 use std::{env, fmt, io, io::Write, num::ParseIntError, process::ExitCode};
 
-use ic_host_artifacts::{artifact::ArtifactError, wasm::InspectionError};
+use ic_host_artifacts::{
+    artifact::{ArtifactError, DigestParseError},
+    wasm::InspectionError,
+};
 
 mod args;
 mod report;
@@ -13,6 +16,8 @@ enum Error {
     MissingArgument(&'static str),
     ExtraArgument,
     NonUtf8Number(&'static str),
+    NonUtf8Digest,
+    InvalidDigest(DigestParseError),
     InvalidNumber {
         name: &'static str,
         source: ParseIntError,
@@ -32,6 +37,10 @@ impl fmt::Display for Error {
             Self::NonUtf8Number(name) => {
                 write!(formatter, "{name} must be a UTF-8 unsigned integer")
             }
+            Self::NonUtf8Digest => {
+                formatter.write_str("SHA256 must be UTF-8 lowercase hexadecimal")
+            }
+            Self::InvalidDigest(source) => write!(formatter, "invalid SHA256: {source}"),
             Self::InvalidNumber { name, source } => write!(formatter, "invalid {name}: {source}"),
             Self::Input(source) => write!(formatter, "input admission failed: {source}"),
             Self::Inspection(source) => write!(formatter, "Wasm inspection failed: {source}"),
@@ -44,10 +53,14 @@ impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::InvalidNumber { source, .. } => Some(source),
+            Self::InvalidDigest(source) => Some(source),
             Self::Input(source) => Some(source),
             Self::Inspection(source) => Some(source),
             Self::Output(source) => Some(source),
-            Self::MissingArgument(_) | Self::ExtraArgument | Self::NonUtf8Number(_) => None,
+            Self::MissingArgument(_)
+            | Self::ExtraArgument
+            | Self::NonUtf8Number(_)
+            | Self::NonUtf8Digest => None,
         }
     }
 }
@@ -57,10 +70,15 @@ fn main() -> ExitCode {
         args::Command::Help => {
             writeln!(io::stdout().lock(), "{}", args::USAGE).map_err(Error::Output)
         }
-        args::Command::Inspect { path, limits } => {
+        args::Command::Inspect {
+            path,
+            limits,
+            expected,
+            details,
+        } => {
             let bytes =
                 ic_host_fs::read::read_file(&path, limits.module_bytes).map_err(Error::Input)?;
-            report::write(&bytes, limits, &mut io::stdout().lock())
+            report::write(&bytes, limits, expected, details, &mut io::stdout().lock())
         }
     });
     match result {

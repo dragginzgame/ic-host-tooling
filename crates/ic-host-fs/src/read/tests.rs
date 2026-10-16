@@ -97,14 +97,7 @@ fn regular_opener_refuses_a_fifo_before_waiting_for_a_writer() {
     use std::{sync::mpsc, thread, time::Duration};
     let fixture = crate::test_support::Fixture::new();
     let fifo = fixture.root.join("fifo");
-    assert!(
-        std::process::Command::new("/usr/bin/mkfifo")
-            .args(["-m", "600"])
-            .arg(&fifo)
-            .status()
-            .unwrap()
-            .success()
-    );
+    crate::test_support::create_fifo(&fifo, Some(0o600)).unwrap();
     let path = fifo.clone();
     let (sender, receiver) = mpsc::channel();
     let reader = thread::spawn(move || {

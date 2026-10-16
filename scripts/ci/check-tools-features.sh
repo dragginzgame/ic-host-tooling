@@ -48,8 +48,10 @@ for feature in ic-interface ic-limits; do
     check_graph "$feature" ic-host-tools none "$feature" ic-host-artifacts \
         '^(ic-host-(fs|process)|candid_parser) '
 done
-check_graph service ic-host-tools none candid-service 'ic-host-artifacts candid_parser' \
-    '^ic-host-(fs|process) '
+check_graph service ic-host-tools none candid-service candid_parser \
+    '^(ic-host-(artifacts|fs|process)|wasmparser) '
+check_graph service-interface ic-host-tools none candid-service,ic-interface \
+    'ic-host-artifacts candid_parser wasmparser' '^ic-host-(fs|process) '
 check_graph inspection ic-host-wasm-inspect default '' 'ic-host-artifacts ic-host-fs' \
     '^(ic-host-process|candid_parser) '
 check_graph certificate ic-host-tools none certificate 'ciborium ic-certification' \

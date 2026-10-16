@@ -394,7 +394,7 @@ fn descriptor_publication_preserves_sync_state_and_foreign_stage_cleanup_evidenc
             OsStr::new("output"),
             REPLACE,
             |_, file| file.write_all(b"new"),
-            None::<(bool, fn(&Path, &()) -> io::Result<()>)>,
+            (WriterCustody::Writable, |_, ()| Ok(())),
             |current, _| {
                 if current == step {
                     Err(io::Error::from_raw_os_error(5))
@@ -427,7 +427,7 @@ fn descriptor_publication_preserves_sync_state_and_foreign_stage_cleanup_evidenc
             fs::write(fixture.root.join(stage), b"foreign").unwrap();
             Err("producer evidence")
         },
-        None::<(bool, fn(&Path, &()) -> Result<(), &'static str>)>,
+        (WriterCustody::Writable, |_, ()| Ok(())),
         |_, _| Ok(()),
     )
     .unwrap_err();
@@ -550,10 +550,13 @@ fn validated_publication_retains_sync_and_publication_failure_phases() {
             &output,
             REPLACE,
             |_, file| file.write_all(b"new"),
-            Some((true, |_: &Path, (): &()| -> io::Result<()> {
-                admitted = true;
-                Ok(())
-            })),
+            (
+                WriterCustody::ReadOnly,
+                |_: &Path, (): &()| -> io::Result<()> {
+                    admitted = true;
+                    Ok(())
+                },
+            ),
             |current, _| {
                 if current == step {
                     Err(io::Error::from_raw_os_error(5))
@@ -638,7 +641,9 @@ fn pathname_writers_reject_nul_before_creating_parents() {
                 4 => write_with(&path, CREATE, |_| -> io::Result<()> {
                     panic!("producer ran")
                 }),
-                5 => write_named_with(&path, |_| -> io::Result<()> { panic!("producer ran") }),
+                5 => write_named_with(&path, REPLACE, |_| -> io::Result<()> {
+                    panic!("producer ran")
+                }),
                 _ => write_validated_with(
                     &path,
                     REPLACE,
@@ -691,7 +696,7 @@ fn pathname_writers_reject_directory_suffixes_before_any_effect() {
                         4 => write_with(&path, CREATE, |_| -> io::Result<()> {
                             panic!("producer ran")
                         }),
-                        5 => write_named_with(&path, |_| -> io::Result<()> {
+                        5 => write_named_with(&path, REPLACE, |_| -> io::Result<()> {
                             panic!("producer ran")
                         }),
                         _ => write_validated_with(

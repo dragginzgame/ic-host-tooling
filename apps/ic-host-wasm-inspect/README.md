@@ -12,6 +12,15 @@ including SHA-256 only after admission. Invalid arguments/files/budgets return n
 report; output failures retain their I/O cause. It estimates no cycles or
 instructions. Paths use native OS strings, including non-UTF-8 input names.
 
+Append `--expect-sha256 SHA256` to verify an exact 64-digit lowercase digest
+before any report is written. A mismatch fails with no report. Append `--details`
+to include export names/kinds/indices and custom-section names/payload sizes after
+the TSV summary. These options can be used separately or together, in either
+order, after the four limits. Repeated or unknown options are rejected.
+Names in detail records use quoted Rust debug escaping; custom payload bytes are
+never printed. Input and collection limits still apply. The default two-line,
+twelve-column TSV report is unchanged.
+
 Consumers can select the published package/version/binary through the
 standard Shared Tooling Cargo installer. Checks remain offline and never install
 it. Consumers own budgets, interpretation and performance evidence.

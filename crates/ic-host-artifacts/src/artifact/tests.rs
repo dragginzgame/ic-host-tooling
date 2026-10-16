@@ -1,3 +1,4 @@
+use super::test_support::{DeniedReader, InvalidReader};
 use super::*;
 use std::io::Cursor;
 
@@ -9,11 +10,22 @@ fn io_projection_preserves_native_codes_and_typed_artifact_causes() {
     for error in [
         ArtifactError::NotRegularFile,
         ArtifactError::LimitExceeded { limit: 42 },
+        ArtifactError::LengthMismatch {
+            expected: 42,
+            actual: 41,
+        },
     ] {
         let projected = io::Error::from(error);
         assert!(matches!(
             projected.get_ref().unwrap().downcast_ref::<ArtifactError>(),
-            Some(ArtifactError::NotRegularFile | ArtifactError::LimitExceeded { limit: 42 })
+            Some(
+                ArtifactError::NotRegularFile
+                    | ArtifactError::LimitExceeded { limit: 42 }
+                    | ArtifactError::LengthMismatch {
+                        expected: 42,
+                        actual: 41
+                    }
+            )
         ));
     }
 }
@@ -99,6 +111,40 @@ fn byte_limits_are_inclusive_and_consume_only_one_overflow_byte() {
 }
 
 #[test]
+fn exact_hash_and_read_reject_short_and_overlong_streams() {
+    let exact = b"abc";
+    assert_eq!(
+        hash_exact_reader(exact.as_slice(), 3).unwrap().sha256,
+        Sha256Digest::compute(exact)
+    );
+    assert_eq!(read_exact_reader(exact.as_slice(), 3).unwrap(), exact);
+    for (expected, actual) in [(1_usize, 0_usize), (4, 3)] {
+        assert!(matches!(
+            hash_exact_reader(&exact[..actual], expected as u64),
+            Err(ArtifactError::LengthMismatch { expected: e, actual: a })
+                if e == expected as u64 && a == actual as u64
+        ));
+        assert!(matches!(
+            read_exact_reader(&exact[..actual], expected),
+            Err(ArtifactError::LengthMismatch { expected: e, actual: a })
+                if e == expected as u64 && a == actual as u64
+        ));
+    }
+    let mut hash_input = Cursor::new(exact);
+    assert!(matches!(
+        hash_exact_reader(&mut hash_input, 2),
+        Err(ArtifactError::LimitExceeded { limit: 2 })
+    ));
+    assert_eq!(hash_input.position(), 3);
+    let mut read_input = Cursor::new(exact);
+    assert!(matches!(
+        read_exact_reader(&mut read_input, 2),
+        Err(ArtifactError::LimitExceeded { limit: 2 })
+    ));
+    assert_eq!(read_input.position(), 3);
+}
+
+#[test]
 fn interrupted_reads_resume_and_other_io_errors_stay_typed() {
     struct Interrupted(bool);
     impl Read for Interrupted {
@@ -110,19 +156,13 @@ fn interrupted_reads_resume_and_other_io_errors_stay_typed() {
             b"abc".as_slice().read(buffer)
         }
     }
-    struct Broken;
-    impl Read for Broken {
-        fn read(&mut self, _: &mut [u8]) -> io::Result<usize> {
-            Err(io::ErrorKind::PermissionDenied.into())
-        }
-    }
     // Take bounds this synthetic reader, which emits the same bytes on every read.
     assert_eq!(
         hash_reader(Interrupted(false).take(3), 3).unwrap().sha256,
         Sha256Digest::compute(b"abc")
     );
     assert!(
-        matches!(hash_reader(Broken, 10), Err(ArtifactError::Io(source)) if source.kind() == io::ErrorKind::PermissionDenied)
+        matches!(hash_reader(DeniedReader, 10), Err(ArtifactError::Io(source)) if source.kind() == io::ErrorKind::PermissionDenied)
     );
 }
 
@@ -133,12 +173,6 @@ fn owned_stream_reads_are_bounded_and_preserve_io_failure_types() {
         fn read(&mut self, buffer: &mut [u8]) -> io::Result<usize> {
             let count = buffer.len().min(1);
             self.0.read(&mut buffer[..count])
-        }
-    }
-    struct Broken;
-    impl Read for Broken {
-        fn read(&mut self, _: &mut [u8]) -> io::Result<usize> {
-            Err(io::ErrorKind::PermissionDenied.into())
         }
     }
     for length in [0, 1, 3, 37, 257] {
@@ -156,19 +190,13 @@ fn owned_stream_reads_are_bounded_and_preserve_io_failure_types() {
     assert_eq!(read_reader(b"abc".as_slice(), 3).unwrap(), b"abc");
     assert_eq!(read_reader(b"".as_slice(), 0).unwrap(), b"");
     assert!(
-        matches!(read_reader(Broken, 10), Err(ArtifactError::Io(source))
+        matches!(read_reader(DeniedReader, 10), Err(ArtifactError::Io(source))
         if source.kind() == io::ErrorKind::PermissionDenied)
     );
 }
 
 #[test]
 fn impossible_reader_counts_fail_before_hashing_or_storage() {
-    struct InvalidReader;
-    impl Read for InvalidReader {
-        fn read(&mut self, buffer: &mut [u8]) -> io::Result<usize> {
-            Ok(buffer.len() + 1)
-        }
-    }
     for limit in [0, 3, 40_000, u64::MAX] {
         assert!(matches!(hash_reader(InvalidReader, limit),
             Err(ArtifactError::Io(source)) if source.kind() == io::ErrorKind::InvalidData));

@@ -1,4 +1,5 @@
 use super::*;
+use crate::artifact::test_support::InvalidReader;
 use std::io::{self, Cursor};
 
 struct Fragmented {
@@ -99,12 +100,6 @@ fn byte_and_chunk_budgets_reject_without_partial_identities() {
 
 #[test]
 fn source_errors_after_complete_chunks_remain_typed() {
-    struct InvalidReader;
-    impl Read for InvalidReader {
-        fn read(&mut self, buffer: &mut [u8]) -> io::Result<usize> {
-            Ok(buffer.len() + 1)
-        }
-    }
     struct FailingReader(bool);
     impl Read for FailingReader {
         fn read(&mut self, buffer: &mut [u8]) -> io::Result<usize> {

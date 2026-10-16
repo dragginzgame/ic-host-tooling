@@ -19,6 +19,8 @@ mod gzip;
 mod hashing;
 mod matching;
 #[cfg(test)]
+mod test_support;
+#[cfg(test)]
 mod tests;
 mod writer;
 
@@ -150,6 +152,13 @@ pub enum ArtifactError {
         /// Maximum permitted bytes.
         limit: u64,
     },
+    /// A bounded stream ended before the caller's exact byte count.
+    LengthMismatch {
+        /// Required bytes.
+        expected: u64,
+        /// Successfully read bytes.
+        actual: u64,
+    },
     /// The complete bounded stream does not match the admitted digest.
     DigestMismatch {
         /// Caller-selected authority.
@@ -167,6 +176,9 @@ impl fmt::Display for ArtifactError {
             Self::Io(source) => write!(f, "artifact read failed: {source}"),
             Self::NotRegularFile => f.write_str("artifact path is not a regular file"),
             Self::LimitExceeded { limit } => write!(f, "artifact exceeds {limit} bytes"),
+            Self::LengthMismatch { expected, actual } => {
+                write!(f, "artifact has {actual} bytes, expected {expected}")
+            }
             Self::DigestMismatch { expected, actual } => write!(
                 f,
                 "artifact SHA-256 is {}, expected {expected}",
@@ -225,6 +237,27 @@ pub fn hash_reader(
     })
 }
 
+/// Hash a stream whose complete length must equal `expected_bytes`.
+///
+/// Reads at most one byte beyond the selected length to distinguish overflow.
+/// The caller owns the reader's origin, deadline and byte-budget selection.
+///
+/// # Errors
+/// Returns a typed short-length or limit error, or the underlying read error.
+pub fn hash_exact_reader(
+    reader: impl Read,
+    expected_bytes: u64,
+) -> Result<ArtifactIdentity, ArtifactError> {
+    let identity = hash_reader(reader, expected_bytes)?;
+    if identity.bytes != expected_bytes {
+        return Err(ArtifactError::LengthMismatch {
+            expected: expected_bytes,
+            actual: identity.bytes,
+        });
+    }
+    Ok(identity)
+}
+
 /// Verify a complete bounded stream before the caller extracts or uses its bytes.
 ///
 /// # Errors
@@ -252,6 +285,27 @@ pub fn read_reader(mut reader: impl Read, max_bytes: usize) -> Result<Vec<u8>, A
         bytes.extend_from_slice(chunk);
         Ok(())
     })?;
+    Ok(bytes)
+}
+
+/// Read a complete stream into bounded storage at an exact selected length.
+///
+/// The caller owns the reader's origin, deadline and byte-budget selection.
+/// Reads at most one byte beyond the selected length to distinguish overflow.
+///
+/// # Errors
+/// Returns a typed short-length or limit error, allocation failure, or read error.
+pub fn read_exact_reader(
+    reader: impl Read,
+    expected_bytes: usize,
+) -> Result<Vec<u8>, ArtifactError> {
+    let bytes = read_reader(reader, expected_bytes)?;
+    if bytes.len() != expected_bytes {
+        return Err(ArtifactError::LengthMismatch {
+            expected: expected_bytes as u64,
+            actual: bytes.len() as u64,
+        });
+    }
     Ok(bytes)
 }
 

@@ -4,7 +4,6 @@
 mod tests;
 
 use super::{ArtifactError, ArtifactIdentity, check_metadata, hash_reader, read_opened_file};
-use rustix::fs::{Mode, OFlags, open};
 use std::{
     fs::{self, File},
     io,
@@ -70,31 +69,22 @@ pub fn read_optional_file_no_follow(
     path: &Path,
     max_bytes: usize,
 ) -> Result<Option<Vec<u8>>, ArtifactError> {
-    open_optional_regular_file(path)?
+    open_optional_no_follow(path)?
         .map(|file| read_opened_file(file, max_bytes))
         .transpose()
 }
 
-pub(super) fn open_optional_regular_file(path: &Path) -> Result<Option<File>, ArtifactError> {
+// The consuming reader must admit the selected descriptor before reading.
+pub(super) fn open_optional_no_follow(path: &Path) -> Result<Option<File>, ArtifactError> {
     match fs::symlink_metadata(path) {
         Ok(metadata) if !metadata.is_file() => return Err(ArtifactError::NotRegularFile),
         Ok(_) => {}
         Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(None),
         Err(error) => return Err(ArtifactError::Io(error)),
     }
-    let file = open_no_follow(path)?;
-    if !file.metadata()?.is_file() {
-        return Err(ArtifactError::NotRegularFile);
-    }
-    Ok(Some(file))
+    open_no_follow(path).map(Some)
 }
 
 fn open_no_follow(path: &Path) -> Result<File, ArtifactError> {
-    let fd = open(
-        path,
-        OFlags::RDONLY | OFlags::NOFOLLOW | OFlags::NONBLOCK | OFlags::CLOEXEC,
-        Mode::empty(),
-    )
-    .map_err(|error| ArtifactError::Io(io::Error::from_raw_os_error(error.raw_os_error())))?;
-    Ok(File::from(fd))
+    super::open_read_only(path, true)
 }
