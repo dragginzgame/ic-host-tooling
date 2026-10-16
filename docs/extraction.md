@@ -89,6 +89,9 @@ heap, stack or CPU quota for the parser. `interface::exported_methods` borrows
 function export facts without reparsing Wasm. It preserves internal methods,
 empty names and mode differences for caller admission. Oneway remains distinct
 in Candid and maps explicitly to the update export namespace through `as_export`.
+`candid-service` selects only the Candid parser; shared method identities remain
+in `interface` without requiring Wasm support. Select `ic-interface` explicitly
+for export projection, including when combining it with Candid service inspection.
 Expected interfaces, CDK allowlists, type compatibility, payload annotations and
 Canic endpoint presentation remain consumer policy. IC Build owns build/cache
 orchestration separately; these libraries do not install tools or build canisters.

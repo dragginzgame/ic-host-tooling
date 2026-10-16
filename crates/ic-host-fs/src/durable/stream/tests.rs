@@ -394,7 +394,7 @@ fn descriptor_publication_preserves_sync_state_and_foreign_stage_cleanup_evidenc
             OsStr::new("output"),
             REPLACE,
             |_, file| file.write_all(b"new"),
-            None::<(bool, fn(&Path, &()) -> io::Result<()>)>,
+            (WriterCustody::Writable, |_, ()| Ok(())),
             |current, _| {
                 if current == step {
                     Err(io::Error::from_raw_os_error(5))
@@ -427,7 +427,7 @@ fn descriptor_publication_preserves_sync_state_and_foreign_stage_cleanup_evidenc
             fs::write(fixture.root.join(stage), b"foreign").unwrap();
             Err("producer evidence")
         },
-        None::<(bool, fn(&Path, &()) -> Result<(), &'static str>)>,
+        (WriterCustody::Writable, |_, ()| Ok(())),
         |_, _| Ok(()),
     )
     .unwrap_err();
@@ -550,10 +550,13 @@ fn validated_publication_retains_sync_and_publication_failure_phases() {
             &output,
             REPLACE,
             |_, file| file.write_all(b"new"),
-            Some((true, |_: &Path, (): &()| -> io::Result<()> {
-                admitted = true;
-                Ok(())
-            })),
+            (
+                WriterCustody::ReadOnly,
+                |_: &Path, (): &()| -> io::Result<()> {
+                    admitted = true;
+                    Ok(())
+                },
+            ),
             |current, _| {
                 if current == step {
                     Err(io::Error::from_raw_os_error(5))

@@ -35,9 +35,12 @@ dependencies or the Candid parser. Enable `candid-extraction` explicitly for
 the Unix `candid::extraction` API.
 The optional `ic-interface` feature adds `interface::exported_methods` over
 generic Wasm facts without the Candid parser. Enable `candid-service` for
-parser-backed `candid::service::inspect`; it also enables `ic-interface`.
+parser-backed `candid::service::inspect` and shared method identities, without
+the artifact crate or Wasm parser. Select both features to compare Candid services
+with Wasm exports; `candid-service` no longer enables `ic-interface` implicitly.
 Neither feature introduces Host filesystem/process dependencies on its own.
 The parser remains absent from the extraction graph. See the
+[0.21 feature migration](docs/changelog/0.21.md),
 [0.17 feature migration](docs/changelog/0.17.md),
 [0.16 extraction migration](docs/changelog/0.16.md) and
 [0.15 API usage](docs/changelog/0.15.md).
