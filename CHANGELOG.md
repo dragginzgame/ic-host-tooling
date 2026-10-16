@@ -12,6 +12,22 @@
   [Migration guidance](README.md),
   [#168 — Explicit durable result admission](https://github.com/dragginzgame/ic-host-tooling/issues/168).
 
+### Added
+
+- Share verified durable copying, descriptor tree copying and retained writes;
+  callers retain bounds, publication and recovery policy
+  ([PR #104](https://github.com/dragginzgame/ic-host-tooling/pull/104),
+  [PR #165](https://github.com/dragginzgame/ic-host-tooling/pull/165),
+  [PR #132](https://github.com/dragginzgame/ic-host-tooling/pull/132)).
+- Add bounded newline framing and explicit shell-style status projection,
+  keeping schemas, EOF acceptance and process lifecycle caller-owned
+  ([PR #128](https://github.com/dragginzgame/ic-host-tooling/pull/128),
+  [PR #133](https://github.com/dragginzgame/ic-host-tooling/pull/133)).
+- Document direct managed inspector setup, offline checking and execution
+  ([PR #156](https://github.com/dragginzgame/ic-host-tooling/pull/156)).
+
+[Detailed notes](docs/changelog/0.24.md).
+
 ## [0.23.1] - 2026-10-16
 
 - Add caller-selected inherited command custody and exact existing-sidecar

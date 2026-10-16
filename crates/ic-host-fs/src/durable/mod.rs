@@ -18,9 +18,13 @@ pub use lock_wait::{
 #[cfg(unix)]
 mod retained;
 #[cfg(unix)]
-pub use retained::{create_retained_at, publish_retained_at};
+pub use retained::{
+    RetainedWriteError, create_retained_at, publish_retained_at, write_retained_at_with,
+};
 mod named;
 pub use named::{NamedWriteError, write_named_with};
+mod verified_copy;
+pub use verified_copy::copy_verified;
 mod stream;
 #[cfg(unix)]
 pub use stream::write_at_validated_with;

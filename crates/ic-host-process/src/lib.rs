@@ -3,9 +3,11 @@
 pub mod child;
 #[cfg(unix)]
 pub mod custody;
+pub mod framing;
 #[cfg(unix)]
 pub mod provenance;
 pub mod sampling;
+pub mod status;
 #[cfg(all(test, unix))]
 mod test_support;
 #[cfg(unix)]

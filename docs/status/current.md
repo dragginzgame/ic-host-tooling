@@ -15,6 +15,13 @@ File synchronization precedes admission; held-directory custody, cleanup and
 before/after-publication evidence remain intact. Closed-writer pathname admission
 retains its separate executable-probe obligations.
 
+The same source incorporates descriptor tree copying, verified durable copying,
+retained writes, bounded newline framing, shell-style status projection and
+direct managed inspector guidance from PRs #165, #104, #132, #128, #133 and #156.
+Their contracts and consumer actions are recorded in
+[the 0.24 notes](../changelog/0.24.md). Package versions, dependency selection,
+consumer pins and publication authority remain unchanged.
+
 Tagged 0.23.0 moved bounded line normalization from Tools' Candid module into
 `ic_host_text::normalize::normalize_lines` without an alias. Callers update imports
 and direct dependencies; the operation retains
@@ -134,10 +141,12 @@ have one private owner, and release projection uses Shared's saved-source render
 
 ## Qualification evidence
 
-The explicit durable-result admission cut passes all 112 Host FS tests and its
-integration test on Rust 1.88/Linux, strict all-target/all-feature Clippy on Rust
-1.99, warning-denied Rustdoc on Rust 1.88, formatting and documentation links.
-Native macOS and published consumer adoption remain separate qualifications.
+The combined source passes 120 Host FS tests and its integration test, plus six
+framing and two status tests, on Rust 1.88/Linux. Strict affected-package
+all-target/all-feature Clippy on Rust 1.99, warning-denied Rustdoc on Rust 1.88,
+formatting and documentation links pass. The six input contributions have green
+native/MSRV checks independently; combined native macOS and published consumer
+adoption remain separate qualifications.
 
 These are scoped Linux records for the inputs identified by each task, not a
 combined release receipt. Before-images and command logs remain at their owners:
