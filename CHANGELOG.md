@@ -2,8 +2,21 @@
 
 ## [0.22.0]
 
+### Breaking
+
+- Add `ArtifactError::LengthMismatch` for an exact stream that ends early.
+  Consumers exhaustively matching artifact errors must handle the new variant.
+
 ### Added
 
+- Add exact-length streaming hash and bounded read operations to Host Artifacts.
+  They reject premature EOF and probe one excess byte; callers still select
+  byte limits and own stream custody.
+- Open regular files or directories through a retained Unix root descriptor,
+  refusing traversal, symlinks and special entries without pathname reopening.
+  Callers retain root and byte custody
+  ([#80 — Capability-rooted filesystem confinement](https://github.com/dragginzgame/ic-host-tooling/issues/80)).
+  [Detailed notes](docs/changelog/0.22.md).
 - Share bounded synthetic HTTP request capture through Process's opt-in
   `test-support` module, retaining partial bytes and typed failures. Consumers
   own responses and evidence publication

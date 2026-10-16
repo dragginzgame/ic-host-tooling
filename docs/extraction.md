@@ -113,6 +113,9 @@ and descriptor admission with the artifact owner's constant-memory hash traversa
 metadata and streamed bytes have independent bounds. It rejects final symlinks,
 while existing `hash_file` continues to follow them. Ancestor confinement,
 concurrent-writer custody and exact expected-length checks remain caller-owned.
+`open_entry_beneath` selects a regular file or directory through held root and
+parent descriptors, refusing traversal, observed symlinks and special entries.
+It does not guarantee immutable bytes or continuing pathname containment.
 Durable publication and locks do not own a second
 reader hierarchy. Lock errors retain typed admission and original I/O causes;
 durable creation errors retain `NamedWriteError` in `RegularFileLockError::Publication`.

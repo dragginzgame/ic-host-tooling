@@ -157,6 +157,14 @@ no-follow reads and typed private-file admission. Durable publication and locks
 remain under `durable`. Upgrading from 0.3 requires the
 [0.4 consumer changes](docs/changelog/0.4.md).
 
+On Unix, `read::open_directory_no_follow` opens an explicit root capability;
+`read::open_regular_file_beneath` selects a regular file relative to that borrowed
+descriptor without following symlink components. `read::open_entry_beneath`
+also admits a directory descriptor for a caller-owned tree walk. Use
+`read_opened_file` to read a selected regular inode under an explicit byte
+allowance. Root custody, content validation, deadlines and concurrent writers
+remain caller-owned.
+
 On Unix, `read::hash_file_no_follow(path, max_bytes)` hashes regular files with
 constant working memory, rejecting final symlinks and opened special files.
 It shares the bounded stream hasher and preserves typed errors. Callers retain
