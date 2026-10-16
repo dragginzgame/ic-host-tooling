@@ -40,6 +40,11 @@
 - Add exact-length streaming hash and bounded read operations to Host Artifacts.
   They reject premature EOF and probe one excess byte; callers still select
   byte limits and own stream custody.
+- Open regular files or directories through a retained Unix root descriptor,
+  refusing traversal, symlinks and special entries without pathname reopening.
+  Callers retain root and byte custody
+  ([#80 — Capability-rooted filesystem confinement](https://github.com/dragginzgame/ic-host-tooling/issues/80)).
+  [Detailed notes](docs/changelog/0.22.md).
 
 ## [0.21.0] - 2026-10-15
 
