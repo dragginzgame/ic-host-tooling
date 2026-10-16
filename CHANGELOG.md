@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.21.1]
+
+- Publish beneath an existing parent through the shared descriptor engine; preserve caller-selected modes, permissions and admission.
+  ([#148 — Share durable publication beneath an existing parent pathname](https://github.com/dragginzgame/ic-host-tooling/issues/148)).
+  [Detailed notes](docs/changelog/0.21.md).
+
 ## [0.21.0] - 2026-10-15
 
 ### Breaking

@@ -2,17 +2,20 @@
 
 ## Source and pending release
 
-Released base: **0.20.1**, commit
-`6952903377eb36f9d35c92770e334b30721f1d20`. Package versions remain 0.20.1;
-local, uncommitted work is collected in the **0.21.0** draft. The authoritative
-scope and consumer actions are in [the release notes](../changelog/0.21.md).
+Released base: **0.21.0**, commit
+`69da6d4b02344a38506738184197491a7813c296`. Package versions remain 0.21.0.
+This isolated contribution selects the compatible **0.21.1** draft:
+Publish beneath an existing parent through the shared descriptor engine; preserve
+caller-selected modes, permissions and admission.
+See [the release notes](../changelog/0.21.md) and
+[#148 — Share durable publication beneath an existing parent pathname](https://github.com/dragginzgame/ic-host-tooling/issues/148).
 
-Pending work derives Git's dirty observation from retained status bytes and
-admits optional-file descriptor metadata once at its reader. It also decouples
-Candid service inspection from Wasm parsing: callers needing both select
-`candid-service` and `ic-interface` explicitly. This feature-contract change
-requires the pending minor release; package versions remain untouched. Durable
-publication uses explicit writer custody through the same admission/cleanup engine.
+Released 0.21.0 delivers the Git observation, reader admission, independent
+Candid/Wasm feature selection and explicit durable writer custody changes.
+This contribution adds no compatibility fallback or package-version change;
+normal consumer adoption awaits publication. Focused Linux stable/Rust 1.88
+checks pass; full release and native macOS qualification remain separate.
+
 Released 0.20.1 includes the column-clipping source from
 [PR #144](https://github.com/dragginzgame/ic-host-tooling/pull/144), adapted to
 `Cow<str>` escaping. Consumer adoption retains its own qualification.

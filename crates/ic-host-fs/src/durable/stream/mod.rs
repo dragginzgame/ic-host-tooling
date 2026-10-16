@@ -75,6 +75,74 @@ pub fn write_with<T, E>(
     }
 }
 
+/// Publish through an existing parent directory without creating missing parents.
+///
+/// Admits the target spelling, opens its selected parent once, then delegates to
+/// [`write_at_with`]. Parent symlinks are followed; the final entry uses the
+/// caller's publication mode and is never followed. The caller owns parent
+/// hierarchy custody and all producer obligations described by [`write_at_with`].
+/// This is pathname convenience, not root confinement or private-parent admission.
+///
+/// # Errors
+/// Missing parents, invalid target spellings and unsupported hosts fail before
+/// staging or producer invocation. Producer, cleanup and before/after-publication
+/// errors retain the same typed evidence as [`write_at_with`].
+pub fn write_existing_parent_with<T, E>(
+    path: &Path,
+    options: WriteOptions,
+    produce: impl FnOnce(&mut fs::File) -> Result<T, E>,
+) -> Result<T, NamedWriteError<E>> {
+    #[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
+    {
+        use std::os::fd::AsFd as _;
+        let (parent, name) =
+            super::supported::split_target(path).map_err(NamedWriteError::before)?;
+        let parent = fs::File::open(parent).map_err(NamedWriteError::before)?;
+        write_at_with(parent.as_fd(), name, options, produce)
+    }
+    #[cfg(not(any(target_os = "linux", target_os = "android", target_vendor = "apple")))]
+    {
+        let _ = (path, options, produce);
+        Err(NamedWriteError::before(std::io::Error::new(
+            std::io::ErrorKind::Unsupported,
+            "durable atomic file publication is unsupported",
+        )))
+    }
+}
+
+/// Publish through an existing parent, admitting the result before publication.
+///
+/// Uses [`write_existing_parent_with`]'s pathname and parent selection and
+/// [`write_at_validated_with`]'s producer-result admission. The parent is never
+/// created. Callers retain cancellation, validation and retry policy.
+///
+/// # Errors
+/// Retains typed producer/admission rejection and separate cleanup failures.
+/// Path and filesystem failures preserve their before/after-publication state.
+pub fn write_existing_parent_validated_with<T, E>(
+    path: &Path,
+    options: WriteOptions,
+    produce: impl FnOnce(&mut fs::File) -> Result<T, E>,
+    admit: impl FnOnce(&T) -> Result<(), E>,
+) -> Result<T, NamedWriteError<E>> {
+    #[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
+    {
+        use std::os::fd::AsFd as _;
+        let (parent, name) =
+            super::supported::split_target(path).map_err(NamedWriteError::before)?;
+        let parent = fs::File::open(parent).map_err(NamedWriteError::before)?;
+        write_at_validated_with(parent.as_fd(), name, options, produce, admit)
+    }
+    #[cfg(not(any(target_os = "linux", target_os = "android", target_vendor = "apple")))]
+    {
+        let _ = (path, options, produce, admit);
+        Err(NamedWriteError::before(std::io::Error::new(
+            std::io::ErrorKind::Unsupported,
+            "durable atomic file publication is unsupported",
+        )))
+    }
+}
+
 /// Publish beneath an already-admitted directory descriptor without reopening its path.
 ///
 /// `name` must be one nonempty filename component, excluding `.`, `..`, slash and
