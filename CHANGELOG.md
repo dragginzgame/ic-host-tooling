@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.23.1]
+
+- Add caller-selected inherited command custody and exact existing-sidecar
+  quiescence in Host Process; journal schemas and effect recovery stay local.
+  [Detailed notes](docs/changelog/0.23.md).
+- Admit existing regular lock sidecars and publish caller-verified directory
+  trees without replacing an occupied name. [Detailed notes](docs/changelog/0.23.md).
+
 ## [0.23.0] - 2026-10-16
 
 ### Breaking

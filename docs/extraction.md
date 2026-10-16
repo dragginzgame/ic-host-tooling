@@ -30,6 +30,10 @@ response-only graph; IC reference values and comparison remain in the tools owne
 - ic-host-process owns executable resolution/admission, explicit execution context,
   output limits, deadlines, direct-child/explicit group cleanup evidence, native
   process-table/RSS observations and separate Git queries.
+  Its Unix `custody` module also owns inherited regular-sidecar descriptors and
+  exact existing-sidecar quiescence. Callers retain paths, environment names,
+  durable identity records, wait settings, command/effect admission and recovery;
+  custody neither kills processes nor implies a remote effect outcome.
 - ic-host-text owns bounded UTF-8 line normalization, pure terminal-safe escaping,
   explicit column clipping, Unicode display-width tables and pure single-line
   progress frames.
@@ -110,8 +114,8 @@ orchestration separately; these libraries do not install tools or build canister
 
 Within `ic-host-fs`, `read` is the sole owner of required/optional/private reads.
 Its Unix `tree` module exposes a no-follow descriptor traversal for caller-owned
-entry handling, but does not own Backup's tree checksum framing, multi-file
-publication or retained byte custody. Callers admit and hold the root, select
+entry handling, but does not own Backup's tree checksum framing, complete
+artifact publication policy or retained byte custody. Callers admit and hold the root, select
 depth/byte limits, and prevent concurrent namespace or content changes where
 stable evidence is required.
 Observed directories always use directory-only opens and descriptor type checks;
@@ -131,6 +135,12 @@ It does not guarantee immutable bytes or continuing pathname containment.
 Durable publication and locks do not own a second
 reader hierarchy. Lock errors retain typed admission and original I/O causes;
 durable creation errors retain `NamedWriteError` in `RegularFileLockError::Publication`.
+The durable directory owner sequences a caller-verified existing tree through
+no-replace sibling publication and parent synchronization. It does not create,
+clean, hash or traverse that tree. The verification callback owns complete
+child/root synchronization and exact retained-byte comparison before the rename;
+the consumer owns namespace exclusion, recovery meaning and retry authority.
+Post-rename failures are explicitly distinct from before-publication failures.
 `try_lock_exclusive` makes one nonblocking attempt on a caller-owned regular
 descriptor; contention retains native `WouldBlock`. Blocking callers use
 `lock_exclusive` on that descriptor. Observed waits compose the opener with

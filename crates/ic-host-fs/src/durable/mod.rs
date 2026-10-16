@@ -8,7 +8,10 @@
 
 mod directory;
 mod lock_wait;
-pub use directory::{DirectoryCreationError, admit_directory, create_private_directory};
+pub use directory::{
+    DirectoryCommitError, DirectoryCommitOutcome, DirectoryCommitStep, DirectoryCreationError,
+    admit_directory, commit_existing_directory_with, create_private_directory,
+};
 pub use lock_wait::{
     lock_exclusive, lock_exclusive_with_wait, lock_shared, try_lock_exclusive, unlock,
 };
@@ -216,6 +219,31 @@ pub fn open_private_regular_lock_file(path: &Path) -> Result<fs::File, RegularFi
             Err(source) => return Err(RegularFileLockError::Io(source)),
         }
         open_regular_lock_descriptor(path, Some(rustix::fs::Mode::RUSR | rustix::fs::Mode::WUSR))
+    }
+    #[cfg(windows)]
+    {
+        let _ = path;
+        Err(RegularFileLockError::UnsupportedPlatform)
+    }
+}
+
+/// Open an existing regular no-follow sidecar without creating it or its parents.
+///
+/// The returned read/write descriptor is close-on-exec and unlocked. Existing
+/// bytes, permissions and inode are preserved. A missing entry returns the
+/// native not-found error; a known special entry returns `NotRegular`.
+/// The caller owns trusted parents, stable namespace and lock acquisition.
+///
+/// # Errors
+/// Returns typed entry admission, native open/metadata or unsupported-host errors.
+pub fn open_existing_regular_lock_file(path: &Path) -> Result<fs::File, RegularFileLockError> {
+    #[cfg(not(windows))]
+    {
+        let metadata = fs::symlink_metadata(path).map_err(RegularFileLockError::Io)?;
+        if !metadata.file_type().is_file() {
+            return Err(RegularFileLockError::NotRegular);
+        }
+        open_regular_lock_descriptor(path, None)
     }
     #[cfg(windows)]
     {

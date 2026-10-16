@@ -2,18 +2,22 @@
 
 ## Source and pending release
 
-Released base: **0.22.1**, commit
-`b99beeae7c3115ee5323ea3b48fccad2fe325596`. Package versions remain 0.22.1.
-The checkout was clean with no pending merge when the draft began as 0.22.2.
-The pending candidate is now **0.23.0**, because bounded line normalization moves
-from Tools' Candid module into `ic_host_text::normalize::normalize_lines` without
-an alias. Callers update imports and direct dependencies; the operation retains
+Latest tagged release: **0.23.0**, commit
+`52794c85c417aebb9dd8e2c80e8d2bcead91059c`. Package versions remain 0.23.0.
+The pending candidate is **0.23.1**, combining incoming inherited command custody,
+existing-sidecar admission and caller-verified directory publication with that
+released contract. Consumer records, effect recovery and publication acceptance
+remain local; retired 0.23 entrypoints are not restored.
+
+Tagged 0.23.0 moved bounded line normalization from Tools' Candid module into
+`ic_host_text::normalize::normalize_lines` without an alias. Callers update imports
+and direct dependencies; the operation retains
 its whitespace, UTF-8 and byte-admission behavior. Tools selects Text only for
 its extraction tests/example. Package versions remain under the user's release flow.
-The batch also shares private filesystem entry operations and retains admitted
+Tagged 0.23.0 also shares private filesystem entry operations and retains admitted
 HTTP framing length while reading bodies. Existing caller error/traversal policy,
 deadlines and partial-byte evidence remain at their owners.
-The same draft now requires an explicit missing-target depth in the single
+That release requires an explicit missing-target depth in the single
 `canonicalize_allow_missing(path, base, depth)` API, admits durable permissions
 once into a native mode and removes duplicate cleanup rendering from explicit
 process diagnostics. Existing permission preflight, filesystem identity checks,
@@ -33,7 +37,7 @@ IcyDB retains report semantics, artifact comparisons, callback collection and
 feature/tool admission; registry adoption remains in
 [#307 — Adopt split Host owners](https://github.com/dragginzgame/icydb/issues/307).
 Release scope and consumer actions are in [the release notes](../changelog/0.23.md).
-The same draft adds pure terminal-safe progress frames for
+It adds pure terminal-safe progress frames for
 [#157 — Progress-line redraw frames](https://github.com/dragginzgame/ic-host-tooling/issues/157),
 adapting [PR #158 — Pure terminal progress frames](https://github.com/dragginzgame/ic-host-tooling/pull/158).
 It preserves the streaming clipper, measures escaped progress text with scalar
@@ -42,8 +46,8 @@ consumer adoption remains in
 [#70 — Adopt Host progress frames](https://github.com/dragginzgame/ic-query/issues/70).
 It also adopts Shared 0.16.0. Its adoption and the new statistics/progress APIs
 are compatible; the normalization/resolver API cuts and diagnostic format change
-make the combined draft breaking.
-The same draft retires both combined pathname open-and-lock helpers. Durable
+made that release breaking.
+That release retires both combined pathname open-and-lock helpers. Durable
 lock-file preparation is followed by descriptor `lock_exclusive` or the new
 immediate `try_lock_exclusive`; preparation, contention and descriptor lifetime
 remain explicit. Build, Testkit and IC Crates own the published adoption.
@@ -126,6 +130,31 @@ have one private owner, and release projection uses Shared's saved-source render
 
 These are scoped Linux records for the inputs identified by each task, not a
 combined release receipt. Before-images and command logs remain at their owners:
+
+The merge of tagged 0.23.0 (`52794c85`) with incoming Backup primitives
+(`2307c39f`) passes 77 durable-filesystem, seven custody and 18 child-ownership
+cases on Rust 1.99 and actual Rust 1.88. Both incoming features and the 0.23 API
+cuts remain, with immediate descriptor locking using its existing dispatcher.
+Strict affected-package all-target/all-feature Clippy/rustdoc, actual Rust 1.88
+compilation and formatting pass. Source and index before-images, original conflict
+stages and logs remain at `/tmp/host-merge-repair.VcsWR8/`.
+The unpublished incoming 0.22.2 notes move to the 0.23.1 draft; the tagged 0.23.0
+entry and package/lock selections are preserved. No full workspace, consumer or
+native macOS qualification is claimed for this combined tree. The merge commit
+and subsequent delivery remain user-owned.
+
+Incoming custody-source qualification (before this merge):
+Backup retains journal/operation binding, persisted custody records, spending
+and reference-release policy. Its original source passed all seven native custody
+cases on Rust 1.99 and 1.88, all 118 all-feature Process tests and its doctest,
+strict all-target/all-feature Process Clippy and warning-denied rustdoc. Formatting,
+Cargo inheritance and documentation links pass. An isolated Backup adapter passes
+ten custody/model/reference-release cases and strict all-target Core Clippy.
+The first failed-spawn probe exposed a transient descriptor copy from concurrent
+forks; bounded contention-only waiting preserves the original custody contract.
+Native macOS acceptance and Backup adoption from a published package remain
+separate. Source and consumer rehearsal remain at `/tmp/ic-host-backup-custody`
+and `/tmp/backup-custody-consumer`; no sibling working checkout was changed.
 
 The Shared 0.16.0 adoption verifies all 108 selected payloads. Repeat canonical
 previews on current Bash and genuine Bash 3.2.57 show 108 retained payloads and
