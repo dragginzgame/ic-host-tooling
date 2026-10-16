@@ -14,6 +14,9 @@
 
 ### Added
 
+- Stream bounded gzip payloads into caller-owned sinks while returning decoded
+  byte identity; authentication, staging and publication stay caller-owned
+  ([PR #171](https://github.com/dragginzgame/ic-host-tooling/pull/171)).
 - Share verified durable copying, descriptor tree copying and retained writes;
   callers retain bounds, publication and recovery policy
   ([PR #104](https://github.com/dragginzgame/ic-host-tooling/pull/104),

@@ -18,6 +18,7 @@ retains its separate executable-probe obligations.
 The same source incorporates descriptor tree copying, verified durable copying,
 retained writes, bounded newline framing, shell-style status projection and
 direct managed inspector guidance from PRs #165, #104, #132, #128, #133 and #156.
+PR #171 adds bounded gzip-to-sink copying through the existing framing/copy owners.
 Their contracts and consumer actions are recorded in
 [the 0.24 notes](../changelog/0.24.md). Package versions, dependency selection,
 consumer pins and publication authority remain unchanged.
@@ -147,6 +148,10 @@ all-target/all-feature Clippy on Rust 1.99, warning-denied Rustdoc on Rust 1.88,
 formatting and documentation links pass. The six input contributions have green
 native/MSRV checks independently; combined native macOS and published consumer
 adoption remain separate qualifications.
+
+The gzip streaming addition passes all 16 gzip tests on Rust 1.88/Linux, with
+strict Artifacts Clippy, actual MSRV checking and warning-denied Rustdoc. It
+retains independent input/decoded budgets and partial-sink failure evidence.
 
 These are scoped Linux records for the inputs identified by each task, not a
 combined release receipt. Before-images and command logs remain at their owners:
