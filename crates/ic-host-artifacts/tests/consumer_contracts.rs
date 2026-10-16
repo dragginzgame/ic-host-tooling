@@ -1,7 +1,7 @@
 //! Public consumer projections: policy remains with the artifact owner.
 
 use ic_host_artifacts::{
-    artifact::{ArtifactError, BoundedWriter, Sha256Digest, copy_reader, verify_reader},
+    artifact::{ArtifactError, BoundedWriter, Sha256Digest, copy_reader, hash_reader},
     wasm::{ExportKind, InspectionError, InspectionLimits, ParseError, WasmFacts, inspect},
 };
 use std::{collections::BTreeMap, io};
@@ -202,7 +202,10 @@ fn transform_contract_preserves_export_kinds_and_selected_metadata_after_reindex
 fn report_facts_support_consumer_budgets_after_exact_digest_verification() {
     let bytes = artifact(0, b"service : {}\n");
     let expected = Sha256Digest::compute(&bytes);
-    let identity = verify_reader(bytes.as_slice(), LIMITS.module_bytes as u64, expected).unwrap();
+    let identity = hash_reader(bytes.as_slice(), LIMITS.module_bytes as u64)
+        .unwrap()
+        .verify(expected)
+        .unwrap();
     let report = inspect(&bytes, LIMITS).unwrap();
     assert_eq!(identity.bytes, report.raw_bytes as u64);
     assert_eq!(
@@ -223,11 +226,9 @@ fn report_facts_support_consumer_budgets_after_exact_digest_verification() {
         .collect();
     assert_eq!(application_functions, ["canister_query status"]);
     assert!(matches!(
-        verify_reader(
-            bytes.as_slice(),
-            LIMITS.module_bytes as u64,
-            Sha256Digest::compute(b"wrong")
-        ),
+        hash_reader(bytes.as_slice(), LIMITS.module_bytes as u64)
+            .unwrap()
+            .verify(Sha256Digest::compute(b"wrong")),
         Err(ArtifactError::DigestMismatch { .. })
     ));
 }

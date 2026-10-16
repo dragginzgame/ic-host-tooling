@@ -71,8 +71,8 @@ fn extractor_failure_and_output_overflow_keep_evidence_without_decoding() {
     assert_eq!(candid.evidence.stdout, [0xff]);
     assert!(candid.evidence.status.success());
     assert!(matches!(
-        crate::candid::text::normalize(&candid.evidence.stdout, 1),
-        Err(crate::candid::text::NormalizationError::Utf8(_))
+        ic_host_text::normalize::normalize_lines(&candid.evidence.stdout, 1),
+        Err(ic_host_text::normalize::NormalizationError::Utf8(_))
     ));
     assert_eq!(candid.evidence.stdout, [0xff]);
     let error = extract(
@@ -114,12 +114,18 @@ fn exact_raw_output_bound_accepts_unterminated_bytes_before_optional_normalizati
     assert_eq!(candid.evidence.stdout, b"service : {}");
     assert!(candid.evidence.status.success());
     assert!(matches!(
-        crate::candid::text::normalize(&candid.evidence.stdout, candid.evidence.stdout.len()),
-        Err(crate::candid::text::NormalizationError::OutputLimit { .. })
+        ic_host_text::normalize::normalize_lines(
+            &candid.evidence.stdout,
+            candid.evidence.stdout.len()
+        ),
+        Err(ic_host_text::normalize::NormalizationError::OutputLimit { .. })
     ));
     assert_eq!(
-        crate::candid::text::normalize(&candid.evidence.stdout, candid.evidence.stdout.len() + 1)
-            .unwrap(),
+        ic_host_text::normalize::normalize_lines(
+            &candid.evidence.stdout,
+            candid.evidence.stdout.len() + 1
+        )
+        .unwrap(),
         "service : {}\n"
     );
     assert_eq!(candid.evidence.stdout, b"service : {}");

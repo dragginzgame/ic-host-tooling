@@ -135,42 +135,6 @@ pub fn prepare_private_parents(parent: &Path) -> io::Result<()> {
     }
 }
 
-/// Open and exclusively lock one durable regular no-follow file.
-///
-/// The lock file and missing parent hierarchy are durably created first. The
-/// returned descriptor owns the kernel lock and is close-on-exec.
-///
-/// # Errors
-/// Returns typed file admission, creation, sync or lock acquisition failures.
-pub fn lock_regular_file_with_parents(path: &Path) -> Result<fs::File, RegularFileLockError> {
-    let file = open_regular_lock_file_with_parents(path)?;
-    #[cfg(not(windows))]
-    rustix::fs::flock(&file, rustix::fs::FlockOperation::LockExclusive)
-        .map_err(errno_to_lock_error)?;
-    Ok(file)
-}
-
-/// Open a durable regular no-follow lock file and attempt exclusive acquisition once.
-///
-/// Uses the same parent creation and file admission as
-/// [`lock_regular_file_with_parents`], preserving existing file contents.
-/// Contention returns [`RegularFileLockError::Io`] with [`io::ErrorKind::WouldBlock`]
-/// immediately; there is no polling, retry or progress callback. The returned
-/// close-on-exec descriptor holds the lock until unlocked or closed.
-///
-/// Callers own trusted parents, namespace stability and contention policy.
-/// Nonblocking acquisition does not bound filesystem open, creation or sync latency.
-///
-/// # Errors
-/// Returns typed admission, creation, sync or native lock errors, including contention.
-pub fn try_lock_regular_file_with_parents(path: &Path) -> Result<fs::File, RegularFileLockError> {
-    let file = open_regular_lock_file_with_parents(path)?;
-    #[cfg(not(windows))]
-    rustix::fs::flock(&file, rustix::fs::FlockOperation::NonBlockingLockExclusive)
-        .map_err(errno_to_lock_error)?;
-    Ok(file)
-}
-
 /// Open an unlocked regular no-follow lock file, durably creating missing parents
 /// and the file first. Existing file bytes are preserved.
 ///
@@ -376,7 +340,10 @@ mod supported {
         admission: (WriterCustody, impl FnOnce(&Path, &T) -> Result<(), E>),
         mut before: impl FnMut(FileCommitStep, &Path) -> io::Result<()>,
     ) -> Result<T, NamedWriteError<E>> {
-        validate_permissions(options.permissions).map_err(NamedWriteError::before)?;
+        let options = (
+            options.mode,
+            native_permissions(options.permissions).map_err(NamedWriteError::before)?,
+        );
         let (parent, file_name) = split_target(path).map_err(NamedWriteError::before)?;
         create_parent_hierarchy(parent, &mut before, false).map_err(NamedWriteError::before)?;
         let parent_fd = open_directory(parent).map_err(NamedWriteError::before)?;
@@ -395,12 +362,11 @@ mod supported {
         parent_fd: BorrowedFd<'_>,
         parent_path: Option<&Path>,
         file_name: &OsStr,
-        options: WriteOptions,
+        (mode, permissions): (PublicationMode, Mode),
         produce: impl FnOnce(&Path, &mut fs::File) -> Result<T, E>,
         admission: (WriterCustody, impl FnOnce(&Path, &T) -> Result<(), E>),
         mut before: impl FnMut(FileCommitStep, &Path) -> io::Result<()>,
     ) -> Result<T, NamedWriteError<E>> {
-        validate_permissions(options.permissions).map_err(NamedWriteError::before)?;
         validate_file_name(file_name).map_err(NamedWriteError::before)?;
         let metadata = unix_fs::fstat(parent_fd)
             .map_err(|error| NamedWriteError::before(errno_to_io(error)))?;
@@ -413,8 +379,6 @@ mod supported {
         // All filesystem operations below use the held directory descriptor.
         let parent = parent_path.unwrap_or_else(|| Path::new(""));
         let path = parent.join(file_name);
-        let permissions =
-            native_permissions(options.permissions).map_err(NamedWriteError::before)?;
         let (temp_name, temp_path, mut temp_file) =
             create_sibling_temp(&parent_fd, parent, file_name, permissions, &mut before)
                 .map_err(NamedWriteError::before)?;
@@ -458,7 +422,7 @@ mod supported {
             // be recycled after a producer unlinks or replaces the pathname.
             verify_staging(&parent_fd, parent_path, &temp_name, &temp_file)
                 .map_err(NamedWriteError::before)?;
-            match options.mode {
+            match mode {
                 PublicationMode::Replace => {
                     unix_fs::renameat(parent_fd, &temp_name, parent_fd, file_name)
                         .map_err(|error| NamedWriteError::before(errno_to_io(error)))

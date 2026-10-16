@@ -7,32 +7,32 @@ use std::{fs::File, io, time::Duration};
 
 #[test]
 fn shared_holders_and_explicit_unlock_preserve_descriptor_custody() {
-    use crate::durable::{RegularFileLockError, try_lock_regular_file_with_parents};
-
     let fixture = Fixture::new();
     let path = fixture.root.join("shared-lock");
     std::fs::write(&path, b"caller-owned bytes").unwrap();
     let first = File::open(&path).unwrap();
     let duplicate = first.try_clone().unwrap();
     let second = File::open(&path).unwrap();
+    let exclusive = File::open(&path).unwrap();
+    let acquired = File::open(&path).unwrap();
     lock_shared(&first).unwrap();
     lock_shared(&second).unwrap();
     let contended = || {
         assert!(matches!(
-            try_lock_regular_file_with_parents(&path),
-            Err(RegularFileLockError::Io(error)) if error.kind() == io::ErrorKind::WouldBlock
+            try_lock_exclusive(&exclusive),
+            Err(error) if error.kind() == io::ErrorKind::WouldBlock
         ));
     };
     contended();
     unlock(&first).unwrap();
     contended();
     unlock(&second).unwrap();
-    let exclusive = try_lock_regular_file_with_parents(&path).unwrap();
+    try_lock_exclusive(&exclusive).unwrap();
     unlock(&exclusive).unwrap();
     lock_exclusive(&first).unwrap();
     contended();
     unlock(&first).unwrap();
-    let acquired = try_lock_regular_file_with_parents(&path).unwrap();
+    try_lock_exclusive(&acquired).unwrap();
     unlock(&acquired).unwrap();
     assert_eq!(std::fs::read(&path).unwrap(), b"caller-owned bytes");
     // Every descriptor, including the duplicate, remains open after unlock.

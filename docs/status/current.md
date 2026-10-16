@@ -2,39 +2,71 @@
 
 ## Source and pending release
 
-The same 0.22.2 draft adds create-new descriptor copying in Host FS's Unix
-`copy` module. Source file/tree mechanics are extracted from Backup with exact
-source provenance and MIT notices; Backup retains checksum framing and recovery.
-Three focused cases pass on Linux with current Rust and actual Rust 1.88,
-covering held-directory replacement, exact bytes/offsets/identities, permissions,
-occupied destinations, links, FIFO/non-UTF-8 refusals and retained partial output.
-Strict all-target/all-feature FS Clippy, warning-denied rustdoc, formatting,
-Cargo inheritance and documentation links pass. The isolated Backup adapter
-passes ten artifact cases. Native macOS and adoption from a published package
-remain separate; no normal sibling checkout or release metadata changed.
-The combined isolated Backup/Testkit adapter also passes the complete Core
-allocation/upload/load/start and Agent capture/transfer/upload/restore journeys
-against managed PocketIC 16.1.0 with local loopback access.
+Latest tagged release: **0.23.1**, commit
+`bcd4f9c` (package versions 0.23.1). The pending **0.23.2** draft adds Host FS
+create-new descriptor file/tree copying from Backup, retaining source provenance,
+private destinations, exact stream identities and caller-owned publication/recovery.
+PR #165 is refreshed onto this release without changing package versions or locks.
+Its macOS fixture repair retains portable rejection cases on every native host and
+qualifies actual invalid UTF-8 entries on Linux; exact error-path projection remains
+portable. All 116 FS cases, the integration case and four copy cases on actual
+Rust 1.88 pass on Linux, along with strict affected Clippy, rustdoc, formatting,
+Cargo inheritance, snapshot and documentation-link checks. Native CI must qualify
+the refreshed head before acceptance.
 
-The same 0.22.2 draft adds Unix inherited command custody to Host Process.
-Backup retains journal/operation binding, persisted custody records, spending
-and reference-release policy. The new primitive passes all seven native custody
-cases on Rust 1.99 and 1.88, all 118 all-feature Process tests and its doctest,
-strict all-target/all-feature Process Clippy and warning-denied rustdoc. Formatting,
-Cargo inheritance and documentation links pass. An isolated Backup adapter passes
-ten custody/model/reference-release cases and strict all-target Core Clippy.
-The first failed-spawn probe exposed a transient descriptor copy from concurrent
-forks; bounded contention-only waiting preserves the original custody contract.
-Native macOS acceptance and Backup adoption from a published package remain
-separate. Source and consumer rehearsal remain at `/tmp/ic-host-backup-custody`
-and `/tmp/backup-custody-consumer`; no sibling working checkout was changed.
-
-Latest tagged release: **0.22.1**, commit
-`b99beeae7c3115ee5323ea3b48fccad2fe325596`. Package versions are 0.22.1.
-The **0.22.2** draft adds existing lock-sidecar admission, one-shot locking
-and caller-verified directory commit primitives. Backup adoption requires a
-published Host package and separate consumer qualification. Release scope and
-consumer actions are in [the release notes](../changelog/0.22.md).
+Tagged 0.23.0 moved bounded line normalization from Tools' Candid module into
+`ic_host_text::normalize::normalize_lines` without an alias. Callers update imports
+and direct dependencies; the operation retains
+its whitespace, UTF-8 and byte-admission behavior. Tools selects Text only for
+its extraction tests/example. Package versions remain under the user's release flow.
+Tagged 0.23.0 also shares private filesystem entry operations and retains admitted
+HTTP framing length while reading bodies. Existing caller error/traversal policy,
+deadlines and partial-byte evidence remain at their owners.
+That release requires an explicit missing-target depth in the single
+`canonicalize_allow_missing(path, base, depth)` API, admits durable permissions
+once into a native mode and removes duplicate cleanup rendering from explicit
+process diagnostics. Existing permission preflight, filesystem identity checks,
+resolver traversal semantics and typed cleanup evidence remain intact.
+Build and Canic retain unlimited resolution explicitly; Query retains its export
+depth of 64 and selects unlimited expansion explicitly in Governance smoke.
+Canic's import, direct dependency and error-downcast migration is recorded in
+[#458 — Adopt published IC Host Tooling](https://github.com/dragginzgame/canic/issues/458#issuecomment-6214600612).
+Its active checkout and selected registry graph remain unchanged by this session.
+It adds bounded encoded Wasm code/data statistics for
+[#145 — Encoded Wasm statistics](https://github.com/dragginzgame/ic-host-tooling/issues/145),
+adapting [PR #146 — Code and data statistics](https://github.com/dragginzgame/ic-host-tooling/pull/146).
+`wasm::code_statistics` includes tail indirect calls and excludes data framing;
+operand/data bytes are not counted as instructions. It reuses the selected
+parser and existing errors, without changing `inspect`, dependencies or features.
+IcyDB retains report semantics, artifact comparisons, callback collection and
+feature/tool admission; registry adoption remains in
+[#307 — Adopt split Host owners](https://github.com/dragginzgame/icydb/issues/307).
+Release scope and consumer actions are in [the release notes](../changelog/0.23.md).
+It adds pure terminal-safe progress frames for
+[#157 — Progress-line redraw frames](https://github.com/dragginzgame/ic-host-tooling/issues/157),
+adapting [PR #158 — Pure terminal progress frames](https://github.com/dragginzgame/ic-host-tooling/pull/158).
+It preserves the streaming clipper, measures escaped progress text with scalar
+column widths and leaves terminal/output/lifecycle policy with Query. Published
+consumer adoption remains in
+[#70 — Adopt Host progress frames](https://github.com/dragginzgame/ic-query/issues/70).
+It also adopts Shared 0.16.0. Its adoption and the new statistics/progress APIs
+are compatible; the normalization/resolver API cuts and diagnostic format change
+made that release breaking.
+That release retires both combined pathname open-and-lock helpers. Durable
+lock-file preparation is followed by descriptor `lock_exclusive` or the new
+immediate `try_lock_exclusive`; preparation, contention and descriptor lifetime
+remain explicit. Build, Testkit and IC Crates own the published adoption.
+Group spawning also requires the cleanup policy explicitly through the single
+`OwnedChild::spawn(command, cleanup)` entry point. The default wrapper and
+`spawn_with_cleanup` name are retired; former default callers select
+`CleanupPolicy::KillAndWait`, while bounded callers retain their selected policy.
+There is no new execution deadline. Direct ownership, natural waiting, retained
+admission, handoff and the existing group-capture cleanup behavior are preserved.
+Build, Testkit and Query own the published source adoption.
+Artifact stream admission also uses `hash_reader(reader, limit)?.verify(expected)`
+directly; the combined `verify_reader` wrapper is retired without an alias.
+Hash/limit errors still precede digest comparison, with the complete observed
+identity retained on mismatch. Testkit owns its published archive-reader update.
 
 Released 0.22.0 consolidates byte publication into `write_bytes(path, options,
 bytes)`, makes Candid normalization an explicit caller operation and retires the
@@ -64,10 +96,13 @@ Released 0.20.1 includes the column-clipping source from
 [PR #144](https://github.com/dragginzgame/ic-host-tooling/pull/144), adapted to
 `Cow<str>` escaping. Consumer adoption retains its own qualification.
 
-Shared Tooling selects **0.15.7**, committed revision
-`05548771d95c4f27f23f29e28a6db8f4c0cac44d`, with 88 entrypoints and 108 exact
-payloads. Fixture exit probes now check physical scratch roots and require fresh
-child receipts on repeated calls, preserving earlier failure evidence.
+Shared Tooling selects **0.16.0**, committed revision
+`989752490b392f7f4c542c7652dcb84e75ecf363`, with 88 entrypoints and 108 exact
+payloads. CI binary installs and assertion-retention probes require explicit
+destinations and selections. Host has no caller needing those migrations and
+already selects the retained Make target-admission helper. Fleet LOC commands now
+remain in Shared's own Makefile; Host retains local LOC. Standard fixture exit
+probes retain all eight cases, including cleanup refusal and scratch-root checks.
 The Make/CI adoption remains applied: Shared owns common
 fixture copying, per-target unsafe-mode probes and CI tool preparation with
 logs and PATH publication.
@@ -100,6 +135,164 @@ have one private owner, and release projection uses Shared's saved-source render
 
 These are scoped Linux records for the inputs identified by each task, not a
 combined release receipt. Before-images and command logs remain at their owners:
+
+The merge of tagged 0.23.0 (`52794c85`) with incoming Backup primitives
+(`2307c39f`) passes 77 durable-filesystem, seven custody and 18 child-ownership
+cases on Rust 1.99 and actual Rust 1.88. Both incoming features and the 0.23 API
+cuts remain, with immediate descriptor locking using its existing dispatcher.
+Strict affected-package all-target/all-feature Clippy/rustdoc, actual Rust 1.88
+compilation and formatting pass. Source and index before-images, original conflict
+stages and logs remain at `/tmp/host-merge-repair.VcsWR8/`.
+The unpublished incoming 0.22.2 notes move to the 0.23.1 draft; the tagged 0.23.0
+entry and package/lock selections are preserved. No full workspace, consumer or
+native macOS qualification is claimed for this combined tree. The merge commit
+and subsequent delivery remain user-owned.
+
+Incoming custody-source qualification (before this merge):
+Backup retains journal/operation binding, persisted custody records, spending
+and reference-release policy. Its original source passed all seven native custody
+cases on Rust 1.99 and 1.88, all 118 all-feature Process tests and its doctest,
+strict all-target/all-feature Process Clippy and warning-denied rustdoc. Formatting,
+Cargo inheritance and documentation links pass. An isolated Backup adapter passes
+ten custody/model/reference-release cases and strict all-target Core Clippy.
+The first failed-spawn probe exposed a transient descriptor copy from concurrent
+forks; bounded contention-only waiting preserves the original custody contract.
+Native macOS acceptance and Backup adoption from a published package remain
+separate. Source and consumer rehearsal remain at `/tmp/ic-host-backup-custody`
+and `/tmp/backup-custody-consumer`; no sibling working checkout was changed.
+
+The Shared 0.16.0 adoption verifies all 108 selected payloads. Repeat canonical
+previews on current Bash and genuine Bash 3.2.57 show 108 retained payloads and
+no changes. Host's actual Make routing, target admission, local LOC and pipe
+jobserver checks pass with substituted effects on both interpreters. All eight
+exit cases pass against each of its five fixture entrypoints on both interpreters,
+using prefix-only probes that run no effectful fixture bodies. Affected
+ShellCheck passes. Before-images, reviewed previews and command logs remain at
+`/tmp/host-shared0160.kcVtqy/`. Host's GitHub description still matches its scope.
+Pending Rust work, Cargo metadata/lock, common pins, license, index and refs are
+preserved. No Rust build, tool installation, release or native macOS qualification
+was performed for this tooling adoption.
+
+The stream-verification cut passes nine stream/identity and six consumer-composition
+cases on Rust 1.99 and actual Rust 1.88, including byte admission, original I/O
+causes and complete mismatch identity. Strict Artifacts all-target/all-feature
+Clippy/rustdoc, Rust 1.88 compilation and formatting pass. Before-images, logs
+and the reviewed Testkit patch remain at `/tmp/host023-verify-cut.Knw8Ql/`.
+[Testkit #107 — Adopt Host byte options and retire archive](https://github.com/dragginzgame/ic-testkit/issues/107#issuecomment-6215753208)
+carries its authenticated-reader migration. Its source/graph and the existing
+Host pending work, versions, selections, index and refs remain unchanged by this
+cut. Consumer execution, full release and native macOS acceptance remain separate.
+
+The explicit group-spawn cut passes 18 child-ownership, 68 tool/communication and
+two executable-fixture cases on Rust 1.99 and actual Rust 1.88. This includes
+cancellation, unwinding, bounded reaping, retained-success handoff and no-deadline
+communication. The updated spawn doctest compiles on both toolchains. Strict
+Process all-target/all-feature Clippy/rustdoc and actual Rust 1.88 compilation
+pass. Before-images, command logs and reviewed consumer patches remain at
+`/tmp/host023-spawn-cut.rCGKvg/`.
+Existing adoption owners carry the additional source changes:
+[Build #9 — Qualify the exposed Host boundary](https://github.com/dragginzgame/ic-build/issues/9#issuecomment-6215625069),
+[Testkit #107 — Adopt Host byte options and retire archive](https://github.com/dragginzgame/ic-testkit/issues/107#issuecomment-6215625453)
+and [Query #68 — Adopt Host byte options in Governance smoke](https://github.com/dragginzgame/ic-query/issues/68#issuecomment-6215625748).
+Their working source and registry graphs remain untouched. No consumer run,
+full workspace gate or native macOS acceptance is claimed for this source cut;
+publication and adoption remain separate. Existing pending work, versions, lock
+selections, shared payloads, index and refs are preserved.
+
+The pathname-lock cut passes six descriptor-lock and 29 durable/lock cases on
+Rust 1.99 and actual Rust 1.88. The cross-process contention case also passes
+after replacing its remaining native lock calls with the new descriptor API.
+Strict affected-package all-target/all-feature Clippy/rustdoc, actual Rust 1.88
+compilation and formatting pass. An initial strict-lint run found the enlarged
+contention test over its line limit; using the descriptor operations shortened
+that fixture while preserving immediate contention, release and byte checks.
+Before-images, command logs and reviewed consumer patches remain at
+`/tmp/host023-lock-cut.Y30NeI/`.
+The existing consumer owners carry the source migrations:
+[Build #9 — Qualify the exposed Host boundary](https://github.com/dragginzgame/ic-build/issues/9#issuecomment-6215503542),
+[Testkit #107 — Adopt Host byte options and retire archive](https://github.com/dragginzgame/ic-testkit/issues/107#issuecomment-6215504024)
+and [IC Crates #6 — Adopt Host private publication](https://github.com/dragginzgame/ic-crates/issues/6#issuecomment-6215504360).
+Their working files and selected graphs remain untouched. Producer source is
+uncommitted; registry adoption, full release checks and native macOS acceptance
+remain separate. Existing pending work, versions, lock selections, index/refs
+and shared payloads are preserved.
+
+The latest 0.23 simplification passes seven resolver, 22 streamed publication,
+11 named publication, three retained publication, 29 durable/lock and three
+diagnostic cases on Rust 1.99 and actual Rust 1.88. The executable-admission
+fixture's nested driver passes on each toolchain as well. Invalid permission
+preflight still precedes parent creation/opening and producer dispatch; all four
+cleanup-error fields render once while capture bytes remain retained.
+Strict affected-package all-target/all-feature Clippy/rustdoc and actual Rust
+1.88 compilation pass. Before-images, command logs and reviewed consumer patches
+remain at `/tmp/host-next-three.hr8MYx/`.
+Build, Query and Canic resolver migrations are recorded in their existing
+[#9 — Qualify the exposed Host boundary](https://github.com/dragginzgame/ic-build/issues/9#issuecomment-6215235440),
+[#68 — Adopt Host byte options in Governance smoke](https://github.com/dragginzgame/ic-query/issues/68#issuecomment-6215235833)
+and [#458 — Adopt published Host Tooling](https://github.com/dragginzgame/canic/issues/458#issuecomment-6215236499).
+IcyDB's existing
+[#307 — Adopt split Host owners](https://github.com/dragginzgame/icydb/issues/307#issuecomment-6215236176)
+records the shorter diagnostic. Sibling sources and selected registry graphs
+remain untouched; no consumer rehearsal, full workspace gate or native macOS
+qualification was performed for this batch. Package versions, lock selections,
+shared payloads and the incoming source remain preserved.
+
+The 0.23 cleanup passes 25 filesystem read, nine HTTP, 15 Text and eight Candid
+extraction cases on Rust 1.99 and actual Rust 1.88. The extraction example builds
+on both toolchains. Strict affected-package all-target/all-feature Clippy,
+rustdoc with denied warnings, Rust 1.88 all-target/all-feature compilation,
+production feature-graph exclusions, Cargo sorting and ShellCheck pass.
+The release-adapter fixture passes with setup, qualification and Git effects
+substituted; this includes projection of the added workspace Text dependency.
+No full workspace gate, release, publication or native macOS run was performed.
+Before-images and logs remain at `/tmp/host-three-cleanup.QVuTIR/`.
+The first metadata attempt exposed the missing root Text declaration; the first
+locked check then refused its new development edge. Offline lock preparation adds
+only that edge, preserving all selected package versions/checksums. The socket
+tests initially failed at sandbox-denied loopback binds and pass with that access.
+Strict lint initially identified value-passing and assertion diagnostics; these
+were corrected before the passing run. Existing Wasm/progress source is retained.
+Native acceptance and published consumer adoption remain separate obligations.
+
+The Shared 0.15.8 adoption verifies all 108 payloads and repeats its canonical
+preview without changes on current Bash and genuine Bash 3.2.57. All eight exit
+cases, including cleanup refusal, pass against Host's five actual fixture
+entrypoints on both interpreters, without running their effectful bodies.
+Affected ShellCheck passes with sourced companions enabled; the first invocation
+omitted that option and reported companion/EXIT-variable warnings.
+The progress batch passes all 13 Text tests on Rust 1.99 and actual Rust 1.88,
+strict package all-target/all-feature Clippy, rustdoc with denied warnings and
+formatting. An initial Clippy doc-paragraph warning was fixed before passing.
+Source before-images, reviewed Shared/PR source and focused logs remain at
+`/tmp/host-shared-issues.MzPTir/`. Query's earlier isolated rehearsal belongs to
+its existing issue; it was not rerun as current registry adoption here.
+Native macOS qualification remains outstanding for the pending local batch;
+original PR checks and released 0.22.1 checks do not qualify these adapted bytes.
+
+The 0.22.2 statistics batch passes all 16 Wasm cases on current Rust and actual
+Rust 1.88, including malformed operators/data, input bounds, both indirect-call
+forms, active/passive data and opcode-looking operands/payloads. Strict affected
+package all-target/all-feature Clippy/rustdoc, actual Rust 1.88 compilation and
+minimal-feature compilation pass. A native Binaryen 133 control produces a Wasm
+whose two indirect calls and five payload bytes match the compiled Host API.
+This controlled comparison is not IcyDB artifact/report qualification.
+Before-images, reviewed PR source, control inputs and logs remain at
+`/tmp/host-0222-wasm.vpKL8h/`. An initial standalone control-harness compile used
+the wrong dependency directory; correcting that harness input passes without
+changing Host source. Versions, lock selection, pins, index and refs are retained.
+Native macOS and full release qualification remain separate for this dirty tree.
+
+The delivered 0.22.1 CI observation is
+[run 38887331178](https://github.com/dragginzgame/ic-host-tooling/actions/runs/38887331178)
+at `b99beeae7c3115ee5323ea3b48fccad2fe325596` is now completed successfully:
+Linux, MSRV, macOS 15 Intel and Apple Silicon all pass. Delivered producer issues
+[#130 — Native RSS capture](https://github.com/dragginzgame/ic-host-tooling/issues/130),
+[#131 — Retire the local dependency projector](https://github.com/dragginzgame/ic-host-tooling/issues/131),
+[#134 — Shared Cargo ordering fixture](https://github.com/dragginzgame/ic-host-tooling/issues/134),
+[#148 — Existing-parent publication](https://github.com/dragginzgame/ic-host-tooling/issues/148)
+and [#149 — Explicit failure diagnostics](https://github.com/dragginzgame/ic-host-tooling/issues/149)
+are closed against that source and gate. Consumer adoption remains separate.
+That run does not qualify the new uncommitted statistics/progress source.
 
 The Shared 0.15.7 adoption verifies all 108 selected payloads from the published
 revision. All seven exit cases pass against each of Host's five actual fixture

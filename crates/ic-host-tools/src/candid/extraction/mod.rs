@@ -84,8 +84,8 @@ impl fmt::Debug for ExtractedCandid {
 /// Input regular-file hashing is bounded by `source_bytes`; process output uses
 /// the selected retention limits and must be complete. No UTF-8 conversion,
 /// normalization or grammar validation occurs. Callers can explicitly apply
-/// [`super::text::normalize`] to retained stdout with their own normalized-byte
-/// allowance. The source is inspected again on successful completion; observed changes reject
+/// `ic_host_text::normalize::normalize_lines` to retained stdout with their own
+/// normalized-byte allowance. The source is inspected again on successful completion; observed changes reject
 /// publication. Callers must exclude concurrent writers to source/tool paths:
 /// before/after digests cannot prove that transient changes did not occur.
 ///

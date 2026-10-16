@@ -5,9 +5,11 @@ use std::os::unix::ffi::OsStrExt;
 use std::path::{Path, PathBuf};
 
 use rustix::{
-    fd::{AsFd, OwnedFd},
-    fs::{self, AtFlags, Dir, FileType, Mode, OFlags},
+    fd::OwnedFd,
+    fs::{Dir, FileType},
 };
+
+use super::entry::{entry_type, open_child, opened_type};
 
 /// Caller-selected actions around a no-follow descriptor walk.
 ///
@@ -101,24 +103,6 @@ pub fn walk_tree<V: TreeVisitor>(
         display_root.join(relative_directory)
     };
     visitor.leave_directory(directory_fd, relative_directory, &display_path)
-}
-
-fn entry_type(parent: &impl AsFd, name: &std::ffi::CStr) -> io::Result<FileType> {
-    let metadata = fs::statat(parent, name, AtFlags::SYMLINK_NOFOLLOW).map_err(io::Error::from)?;
-    Ok(FileType::from_raw_mode(metadata.st_mode))
-}
-
-fn open_child(parent: &impl AsFd, name: &std::ffi::CStr, directory: bool) -> io::Result<OwnedFd> {
-    let mut flags = OFlags::RDONLY | OFlags::NOFOLLOW | OFlags::NONBLOCK | OFlags::CLOEXEC;
-    if directory {
-        flags |= OFlags::DIRECTORY;
-    }
-    fs::openat(parent, name, flags, Mode::empty()).map_err(io::Error::from)
-}
-
-fn opened_type(fd: &impl AsFd) -> io::Result<FileType> {
-    let metadata = fs::fstat(fd).map_err(io::Error::from)?;
-    Ok(FileType::from_raw_mode(metadata.st_mode))
 }
 
 #[cfg(test)]

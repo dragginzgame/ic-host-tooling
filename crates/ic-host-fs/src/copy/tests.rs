@@ -100,7 +100,12 @@ fn held_tree_copy_retains_empty_directories_and_exact_relative_file_identities()
 
 #[test]
 fn rejected_entries_and_byte_limits_retain_output_without_following_or_cleanup() {
-    for entry in ["link", "fifo", "non-utf8", "oversized"] {
+    // macOS runner filesystems reject invalid UTF-8 before traversal can run.
+    // Keep actual arbitrary-byte entries on Linux and error projection portable.
+    for entry in ["link", "fifo", "oversized"]
+        .into_iter()
+        .chain(cfg!(target_os = "linux").then_some("non-utf8"))
+    {
         let fixture = Fixture::new();
         let source = fixture.root.join("source");
         fs::create_dir(&source).unwrap();
@@ -138,4 +143,20 @@ fn rejected_entries_and_byte_limits_retain_output_without_following_or_cleanup()
         assert!(output.is_dir());
         assert_eq!(fs::read(&target).unwrap(), b"must remain");
     }
+}
+
+#[test]
+fn non_utf8_projection_preserves_exact_display_path() {
+    let fixture = Fixture::new();
+    let path = fixture.root.join(OsStr::from_bytes(b"\xff"));
+    let visitor = CopyVisitor {
+        destination: &fixture.root,
+        max_file_bytes: 1,
+        files: Vec::new(),
+    };
+    assert!(matches!(
+        visitor.non_utf8(&path),
+        TreeCopyError::NonUtf8Path { path: actual } if actual == path
+    ));
+    assert!(!path.exists());
 }

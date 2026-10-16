@@ -1,7 +1,7 @@
 use super::*;
 mod existing_parent;
 use crate::{
-    durable::supported::{FileCommitStep, commit_at_with_hook},
+    durable::supported::{FileCommitStep, commit_at_with_hook, native_permissions},
     test_support::Fixture,
 };
 use std::{
@@ -269,6 +269,13 @@ fn filename_and_descriptor_admission_precedes_any_producer_or_stage() {
         assert!(
             matches!(error, NamedWriteError::BeforePublication { source, cleanup_error: None } if source.kind() == io::ErrorKind::InvalidInput)
         );
+        let error = write_existing_parent_with(&path, options, |_| -> io::Result<()> {
+            panic!("invalid existing-parent mode dispatched")
+        })
+        .unwrap_err();
+        assert!(
+            matches!(error, NamedWriteError::BeforePublication { source, cleanup_error: None } if source.kind() == io::ErrorKind::InvalidInput)
+        );
         let error = write_at_with(
             directory.as_fd(),
             OsStr::new("output"),
@@ -397,7 +404,10 @@ fn descriptor_publication_preserves_sync_state_and_foreign_stage_cleanup_evidenc
             directory.as_fd(),
             None,
             OsStr::new("output"),
-            REPLACE,
+            (
+                REPLACE.mode,
+                native_permissions(REPLACE.permissions).unwrap(),
+            ),
             |_, file| file.write_all(b"new"),
             (WriterCustody::Writable, |_, ()| Ok(())),
             |current, _| {
@@ -426,7 +436,10 @@ fn descriptor_publication_preserves_sync_state_and_foreign_stage_cleanup_evidenc
         directory.as_fd(),
         None,
         OsStr::new("output"),
-        REPLACE,
+        (
+            REPLACE.mode,
+            native_permissions(REPLACE.permissions).unwrap(),
+        ),
         |stage, _| -> Result<(), &'static str> {
             fs::remove_file(fixture.root.join(stage)).unwrap();
             fs::write(fixture.root.join(stage), b"foreign").unwrap();

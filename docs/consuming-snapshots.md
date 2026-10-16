@@ -803,13 +803,16 @@ recipes only after testing their actual callers and hook, following the
 Rust toolchain. Shared Tooling itself selects `CLOC_REPORT` and `CLOC_ROOT` before
 the include to summarize sibling workspaces; consumers normally use the defaults.
 Installing the raw cloc executable alone does not add these Make commands.
-The optional `make cloc-tooling` scans sibling CI and tooling, including non-Rust repositories;
-`CLOC_PARENT` selects its parent directory. It needs Git, cloc and core Perl
-modules, with no Cargo dependency or consumer command execution. Run it from
-Shared Tooling by default. A consumer that intentionally needs its own command
-can explicitly select `scripts/dev/cloc-tooling.pl`; existing selections continue
-to work. Without that file the target explains where to run or adopt the report,
-and never invokes another checkout implicitly.
+In Shared Tooling, `make cloc-tooling` scans sibling CI and tooling, including
+non-Rust repositories; `CLOC_PARENT` selects its parent directory. It needs Git,
+cloc and core Perl modules, with no Cargo dependency or consumer command execution.
+As of 0.16.0, the common consumer include no longer exports this fleet command or
+its `CLOC_PARENT` input. Move Make/CI/help callers to the central command before
+refreshing, and refresh `test-tool-commands.sh` too if it is selected. Consumers
+that deliberately select `scripts/dev/cloc-tooling.pl` can
+invoke `perl scripts/dev/cloc-tooling.pl PARENT` directly from their reviewed
+snapshot. The reporter and its snapshot contract remain available; no command
+implicitly invokes another checkout.
 
 The report includes each recorded `version@revision` and complete declared-file
 integrity, with separate identities for multiple bundles. Missing versions remain
@@ -908,6 +911,10 @@ Replace `install-actionlint.sh`, `install-gitleaks.sh`, `install-shellcheck.sh`,
 TOOL is respectively `actionlint`, `gitleaks`, `shellcheck`, `sccache` or `yq`.
 Keep existing `--version`, `--sha256` and `--install-dir` arguments and local pins.
 There are no forwarding aliases in 0.11.
+
+As of 0.16.0, every invocation must include `--install-dir`; an environment-only
+destination or the former home-directory default is no longer accepted. Update
+callers before refreshing the command and its selected installer fixture.
 
 Before refresh, replace each recorded wrapper entrypoint with
 `scripts/ci/install-ci-tool.sh` in the reviewed selection. Pass the complete new

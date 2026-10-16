@@ -6,6 +6,8 @@ use std::{fs::File, path::Path};
 #[cfg(unix)]
 mod beneath;
 #[cfg(unix)]
+mod entry;
+#[cfg(unix)]
 pub use beneath::{
     OpenEntryError, OpenedEntry, open_directory_no_follow, open_entry_beneath,
     open_regular_file_beneath,

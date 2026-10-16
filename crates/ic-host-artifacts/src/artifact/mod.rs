@@ -218,6 +218,7 @@ impl From<ArtifactError> for io::Error {
 /// Reads at most `max_bytes + 1` bytes, using the extra byte to detect overflow.
 /// Retries interrupted reads only; no subprocess or network retry is performed.
 /// A blocking reader's timeouts remain the caller's responsibility.
+/// Admit the returned identity against a selected digest with [`ArtifactIdentity::verify`].
 ///
 /// # Errors
 /// Returns [`ArtifactError::LimitExceeded`] or the underlying read error.
@@ -256,18 +257,6 @@ pub fn hash_exact_reader(
         });
     }
     Ok(identity)
-}
-
-/// Verify a complete bounded stream before the caller extracts or uses its bytes.
-///
-/// # Errors
-/// Returns read/limit failures or a typed mismatch with the observed identity.
-pub fn verify_reader(
-    reader: impl Read,
-    max_bytes: u64,
-    expected: Sha256Digest,
-) -> Result<ArtifactIdentity, ArtifactError> {
-    hash_reader(reader, max_bytes)?.verify(expected)
 }
 
 /// Read one stream into bounded, fallibly allocated storage.

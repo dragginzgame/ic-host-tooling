@@ -49,6 +49,28 @@ pub struct HttpCapture {
     pub failure: Option<HttpCaptureFailure>,
 }
 
+// Admission is shared by the socket entrypoints and the deterministic reader.
+// Carry the checked total into the read loop without repeating its arithmetic.
+#[derive(Clone, Copy)]
+struct CaptureBounds {
+    header: usize,
+    body: usize,
+    capacity: usize,
+}
+
+impl CaptureBounds {
+    fn new(header: usize, body: usize, initial: usize) -> Option<Self> {
+        if header < 4 || initial > header {
+            return None;
+        }
+        Some(Self {
+            header,
+            body,
+            capacity: header.checked_add(body)?,
+        })
+    }
+}
+
 impl HttpCapture {
     /// Return a complete request as bytes, discarding partial-byte evidence on failure.
     ///
@@ -79,20 +101,13 @@ pub fn capture_http_request(
     max_body_bytes: usize,
     content_length: HttpContentLength,
 ) -> HttpCapture {
-    if max_header_bytes < 4 || max_header_bytes.checked_add(max_body_bytes).is_none() {
+    let Some(bounds) = CaptureBounds::new(max_header_bytes, max_body_bytes, 0) else {
         return failed(Vec::new(), HttpCaptureFailure::InvalidBounds);
-    }
+    };
     let Some(deadline) = Instant::now().checked_add(timeout) else {
         return failed(Vec::new(), HttpCaptureFailure::InvalidDeadline);
     };
-    capture_http_request_until(
-        stream,
-        Vec::new(),
-        deadline,
-        max_header_bytes,
-        max_body_bytes,
-        content_length,
-    )
+    capture_socket(stream, Vec::new(), deadline, bounds, content_length)
 }
 
 pub(super) fn capture_http_request_until(
@@ -103,12 +118,19 @@ pub(super) fn capture_http_request_until(
     max_body_bytes: usize,
     content_length: HttpContentLength,
 ) -> HttpCapture {
-    if max_header_bytes < 4
-        || max_header_bytes.checked_add(max_body_bytes).is_none()
-        || initial.len() > max_header_bytes
-    {
+    let Some(bounds) = CaptureBounds::new(max_header_bytes, max_body_bytes, initial.len()) else {
         return failed(initial, HttpCaptureFailure::InvalidBounds);
-    }
+    };
+    capture_socket(stream, initial, deadline, bounds, content_length)
+}
+
+fn capture_socket(
+    stream: &mut TcpStream,
+    initial: Vec<u8>,
+    deadline: Instant,
+    bounds: CaptureBounds,
+    content_length: HttpContentLength,
+) -> HttpCapture {
     if let Err(error) = stream.set_nonblocking(false) {
         return failed(initial, HttpCaptureFailure::Io(error));
     }
@@ -119,8 +141,7 @@ pub(super) fn capture_http_request_until(
         },
         initial,
         deadline,
-        max_header_bytes,
-        max_body_bytes,
+        bounds,
         content_length,
     )
 }
@@ -143,31 +164,26 @@ fn capture_with(
     let Some(deadline) = Instant::now().checked_add(budget) else {
         return failed(Vec::new(), HttpCaptureFailure::InvalidDeadline);
     };
-    capture_with_deadline(
-        read,
-        Vec::new(),
-        deadline,
-        max_header_bytes,
-        max_body_bytes,
-        content_length,
-    )
+    let Some(bounds) = CaptureBounds::new(max_header_bytes, max_body_bytes, 0) else {
+        return failed(Vec::new(), HttpCaptureFailure::InvalidBounds);
+    };
+    capture_with_deadline(read, Vec::new(), deadline, bounds, content_length)
 }
 
 fn capture_with_deadline(
     mut read: impl FnMut(&mut [u8], Duration) -> io::Result<usize>,
     mut bytes: Vec<u8>,
     deadline: Instant,
-    max_header_bytes: usize,
-    max_body_bytes: usize,
+    bounds: CaptureBounds,
     content_length: HttpContentLength,
 ) -> HttpCapture {
-    let Some(capacity) = max_header_bytes.checked_add(max_body_bytes) else {
-        return failed(bytes, HttpCaptureFailure::InvalidBounds);
-    };
-    if max_header_bytes < 4 || bytes.len() > max_header_bytes {
-        return failed(bytes, HttpCaptureFailure::InvalidBounds);
-    }
+    let CaptureBounds {
+        header,
+        body,
+        capacity,
+    } = bounds;
     let mut chunk = [0; 4096];
+    let mut expected_length = None;
     let failure = loop {
         let Some(remaining) = deadline
             .checked_duration_since(Instant::now())
@@ -186,16 +202,23 @@ fn capture_with_deadline(
             Err(error) if error.kind() == io::ErrorKind::Interrupted => continue,
             Err(error) => break HttpCaptureFailure::Io(error),
         }
-        match frame_length(&bytes, max_header_bytes, max_body_bytes, content_length) {
-            Ok(Some(length)) if bytes.len() == length => {
+        // Once admitted, headers cannot change as the retained bytes only grow.
+        // Body fragments need only the original framing length, not another parse.
+        if expected_length.is_none() {
+            match frame_length(&bytes, header, body, content_length) {
+                Ok(length) => expected_length = length,
+                Err(failure) => break failure,
+            }
+        }
+        match expected_length {
+            Some(length) if bytes.len() == length => {
                 return HttpCapture {
                     bytes,
                     failure: None,
                 };
             }
-            Ok(Some(length)) if bytes.len() > length => break HttpCaptureFailure::TrailingBytes,
-            Ok(_) => {}
-            Err(failure) => break failure,
+            Some(length) if bytes.len() > length => break HttpCaptureFailure::TrailingBytes,
+            _ => {}
         }
     };
     failed(bytes, failure)
