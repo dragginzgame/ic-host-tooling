@@ -12,8 +12,8 @@ fn extraction_retains_source_tool_and_original_output_evidence() {
     let tool = fixture.tool();
     let candid = extract(&tool, &source, &fixture.context(&[]), 8, LIMITS).unwrap();
     assert_eq!(
-        candid.text,
-        "//\nservice : {\n  query : () -> () query;\n}\n"
+        candid.evidence.stdout,
+        b"//  \r\nservice : {  \r\n  query : () -> () query;\t\r\n}"
     );
     assert_eq!(candid.source_identity, hash_file(&source, 8).unwrap());
     assert_eq!(candid.tool_identity, tool.identity());
@@ -51,7 +51,7 @@ fn extraction_rejects_missing_relative_and_oversized_sources_before_invocation()
 }
 
 #[test]
-fn extractor_failure_invalid_utf8_and_output_overflow_keep_bounded_evidence() {
+fn extractor_failure_and_output_overflow_keep_evidence_without_decoding() {
     let fixture = Fixture::new();
     let source = fixture.source();
     let tool = fixture.tool();
@@ -67,10 +67,14 @@ fn extractor_failure_invalid_utf8_and_output_overflow_keep_bounded_evidence() {
         OsString::from("FIXTURE_CANDID_MODE"),
         OsString::from("invalid-utf8"),
     )];
-    let error = extract(&tool, &source, &fixture.context(&environment), 8, LIMITS);
-    assert!(
-        matches!(error, Err(ExtractionError::Normalize { source: NormalizationError::Utf8(_), evidence }) if evidence.stdout == [0xff])
-    );
+    let candid = extract(&tool, &source, &fixture.context(&environment), 8, LIMITS).unwrap();
+    assert_eq!(candid.evidence.stdout, [0xff]);
+    assert!(candid.evidence.status.success());
+    assert!(matches!(
+        crate::candid::text::normalize(&candid.evidence.stdout, 1),
+        Err(crate::candid::text::NormalizationError::Utf8(_))
+    ));
+    assert_eq!(candid.evidence.stdout, [0xff]);
     let error = extract(
         &tool,
         &source,
@@ -88,7 +92,7 @@ fn extractor_failure_invalid_utf8_and_output_overflow_keep_bounded_evidence() {
 }
 
 #[test]
-fn normalized_output_overflow_retains_successful_raw_extractor_bytes() {
+fn exact_raw_output_bound_accepts_unterminated_bytes_before_optional_normalization() {
     let fixture = Fixture::new();
     let source = fixture.source();
     let tool = fixture.tool();
@@ -96,7 +100,7 @@ fn normalized_output_overflow_retains_successful_raw_extractor_bytes() {
         OsString::from("FIXTURE_CANDID_MODE"),
         OsString::from("unterminated"),
     )];
-    let error = extract(
+    let candid = extract(
         &tool,
         &source,
         &fixture.context(&environment),
@@ -105,10 +109,20 @@ fn normalized_output_overflow_retains_successful_raw_extractor_bytes() {
             stdout: ic_host_process::tool::OutputLimit::Terminate(b"service : {}".len()),
             ..LIMITS
         },
+    )
+    .unwrap();
+    assert_eq!(candid.evidence.stdout, b"service : {}");
+    assert!(candid.evidence.status.success());
+    assert!(matches!(
+        crate::candid::text::normalize(&candid.evidence.stdout, candid.evidence.stdout.len()),
+        Err(crate::candid::text::NormalizationError::OutputLimit { .. })
+    ));
+    assert_eq!(
+        crate::candid::text::normalize(&candid.evidence.stdout, candid.evidence.stdout.len() + 1)
+            .unwrap(),
+        "service : {}\n"
     );
-    assert!(
-        matches!(error, Err(ExtractionError::Normalize { source: NormalizationError::OutputLimit { .. }, evidence }) if evidence.stdout == b"service : {}" && evidence.status.success())
-    );
+    assert_eq!(candid.evidence.stdout, b"service : {}");
 }
 
 #[test]
@@ -160,7 +174,7 @@ fn grammar_and_expected_service_policy_remain_with_the_consumer() {
         LIMITS,
     )
     .unwrap();
-    assert_eq!(candid.text, "");
+    assert_eq!(candid.evidence.stdout, [] as [u8; 0]);
 }
 
 #[test]

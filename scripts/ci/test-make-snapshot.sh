@@ -195,8 +195,8 @@ done
 for helper in scripts/ci/check-dependency-pins.sh \
     scripts/release/test-adapter.sh scripts/publish/test-workspace.sh \
     scripts/ci/test-cargo-publication-attempt.sh \
-    scripts/ci/test-host-fixture-retention.sh scripts/ci/test-make-snapshot.sh scripts/ci/test-make-consumer.sh \
-    scripts/ci/test-tool-commands.sh scripts/ci/check-release-commands.sh; do
+    scripts/ci/test-host-fixture-retention.sh scripts/ci/test-make-snapshot.sh \
+    scripts/ci/check-release-commands.sh; do
     mkdir -p "$fixture/local/${helper%/*}"
     printf '#!/usr/bin/env bash\nexec cargo fixture "$@"\n' > "$fixture/local/$helper"
 done

@@ -15,14 +15,14 @@ normalization while excluding all three generic extraction dependencies and the
 optional Candid parser from its normal graph. The 0.15 hard cut moves extraction
 to `candid::extraction` and normalization to `candid::text`, without reexports.
 The optional `ic-interface` feature adds generic Wasm facts without the Candid
-parser. `candid-service` adds parser-backed service inspection and implies
-`ic-interface`. Neither adds filesystem/process dependencies unless extraction
-is also selected.
+parser. `candid-service` adds parser-backed service inspection independently;
+select `ic-interface` as well when both APIs are needed. Neither adds
+filesystem/process dependencies unless extraction is also selected.
 The optional `ic-limits` profile adds only generic artifact inspection to the
 response-only graph; IC reference values and comparison remain in the tools owner.
 
 - ic-host-artifacts owns stream identities, bounded read/write/copy mechanics,
-  optional gzip encoding/decoding, verified tar member bytes, optional Wasm
+  optional gzip encoding/decoding, optional Wasm
   structural facts and bounded custom-section framing.
 - ic-host-fs owns pathname/descriptor reads and the durable module's replace,
   create-new, private-file, parent synchronization and descriptor-lock operations.
@@ -39,8 +39,16 @@ response-only graph; IC reference values and comparison remain in the tools owne
   boundary was explicitly selected by the maintainer under
   [#110 — Host text ownership](https://github.com/dragginzgame/ic-host-tooling/issues/110).
 - ic-host-tools owns Candid text/extractor and service-method interpretation,
-  IC method export projection over generic Wasm facts, ICP response formats
+  IC method export projection over generic Wasm facts, JSON/plain-hex ICP responses
   and explicit revision-bound IC resource comparisons.
+  CLI labels, preambles and any Unicode whitespace normalization remain with
+  consumers rather than a second presentation adapter in the codec.
+
+Candid extraction retains complete bounded raw stdout/stderr and source/tool
+identities. It does not require UTF-8 or normalization. Consumers needing text
+call `candid::text::normalize` explicitly with an output allowance; UTF-8,
+normalization, grammar and expected-service admission remain separate decisions.
+No duplicate normalized string is stored beside the process evidence.
 
 `sampling::snapshot(record_bytes, command_limits)` keeps native RSS observation
 in the Process owner. Linux selects the per-record procfs allowance; macOS uses
@@ -137,9 +145,16 @@ adding this opener does not transfer command lifecycle or recovery to Host.
 The [0.4 notes](changelog/0.4.md) describe the required consumer changes.
 
 `durable::write_with(path, options, producer)` is the single generic pathname
-writer. Byte helpers use it and return `NamedWriteError<io::Error>` rather than
-discarding publication state or cleanup evidence. Consumers retain error projection
+writer. `write_bytes(path, options, bytes)` uses it with explicit publication mode
+and permissions, returning `NamedWriteError<io::Error>` rather than discarding
+publication state or cleanup evidence. Consumers retain error projection
 and recovery decisions; an after-publication failure requires reconciliation.
+`write_existing_parent_with` and `write_existing_parent_validated_with` reuse
+descriptor publication after directory-only opening of an existing selected
+parent. They refuse missing/special-file parents without creating them, retain
+parent-alias following and select the directory once across renames. The validated
+form admits the producer's result after file sync and before publication. This
+pathname convenience supplies no root confinement or independent lifecycle policy.
 The [0.10 migration](changelog/0.10.md) replaces the old two-argument writer and
 removes the `write_typed_with` name without a compatibility alias.
 

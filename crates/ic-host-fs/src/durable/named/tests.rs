@@ -1,8 +1,8 @@
 use super::*;
 use crate::{
     durable::{
-        REPLACE_OPTIONS,
         supported::{FileCommitStep, WriterCustody, commit_path_with_options},
+        tests::REPLACE_OPTIONS,
     },
     test_support::Fixture,
 };

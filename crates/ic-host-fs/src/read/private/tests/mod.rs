@@ -1,4 +1,5 @@
 use super::*;
+use crate::durable::{PublicationMode, WriteOptions, write_bytes};
 use crate::test_support::Fixture;
 use std::{
     error::Error as _,
@@ -13,7 +14,15 @@ fn missing_exact_and_empty_private_reads_do_not_mutate_sources() {
     let path = fixture.root.join("key");
     assert!(read_private_bytes::<4>(&path).unwrap().is_none());
     assert!(!path.exists());
-    crate::durable::create_private_bytes_with_parents(&path, b"key!").unwrap();
+    write_bytes(
+        &path,
+        WriteOptions {
+            mode: PublicationMode::CreateNew,
+            permissions: 0o600,
+        },
+        b"key!",
+    )
+    .unwrap();
     assert_eq!(read_private_bytes::<4>(&path).unwrap(), Some(*b"key!"));
     assert_eq!(fs::read(&path).unwrap(), b"key!");
     fs::write(&path, []).unwrap();
@@ -24,7 +33,15 @@ fn missing_exact_and_empty_private_reads_do_not_mutate_sources() {
 fn unsafe_private_files_remain_errors_without_regeneration() {
     let fixture = Fixture::new();
     let path = fixture.root.join("key");
-    crate::durable::create_private_bytes_with_parents(&path, b"key!").unwrap();
+    write_bytes(
+        &path,
+        WriteOptions {
+            mode: PublicationMode::CreateNew,
+            permissions: 0o600,
+        },
+        b"key!",
+    )
+    .unwrap();
     fs::set_permissions(&path, fs::Permissions::from_mode(0o640)).unwrap();
     assert!(matches!(
         read_private_bytes::<4>(&path),

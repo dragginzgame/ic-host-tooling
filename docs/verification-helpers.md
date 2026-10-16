@@ -897,6 +897,21 @@ after admission, then physically anchored so relative paths, aliases and spaces
 retain the same scenario identity. Refused inputs create no evidence directories.
 The focused owner fixture is `scripts/ci/test-hosted-failure.sh`.
 
+The producer fixture `scripts/ci/test-checker-retention.sh` qualifies retained
+release/formatting inputs, logs and Git index after child or assertion failures.
+Consumers retain their own status/diagnostic checks without inspecting these
+shared checkers' internal directory layout.
+
+`collect-native-evidence.sh EVIDENCE OUTPUT` inventories available top-level files
+and packages the caller-owned tree verbatim, including hidden Git recovery state,
+with an archive checksum. Keep the same relative evidence-root spelling for
+inventory replay. The caller selects trusted inputs and artifact upload policy;
+this helper does not sanitize a tree for public distribution. Output must be
+outside the evidence tree; existing outputs refuse. Failures preserve inputs and
+partial output with their command status. Publish separately selected readable
+diagnostics before calling it. `test-native-evidence-archive.sh` owns packaging,
+checksum, containment, refusal and partial-failure qualification.
+
 ## Controlled hosted-scenario verification
 
 `failure_evidence.py` also exports
@@ -909,3 +924,12 @@ from their receipts. Consumers retain source/job/run identity, collection policy
 native tool pins and compact-tool qualification. Negative owner cases exercise
 both stages and malformed/missing/ambiguous evidence; consumer collector tests
 still qualify the complete upload/download boundary.
+
+## Read-only changelog preflight
+
+`check-release-changelog.sh VERSION PREVIOUS DATE CHANGELOG` admits a regular
+changelog with the canonical candidate selector before any setup or mutation.
+It writes no temporary/output file, preserves failed reader/selector status and
+keeps empty notes advisory. Coordinated metadata preparation remains the writer;
+consumer source, tag, impact and release authority stay local. Focused coverage
+is `scripts/ci/test-release-changelog.sh`.

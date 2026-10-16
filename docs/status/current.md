@@ -2,25 +2,46 @@
 
 ## Source and pending release
 
-Released base: **0.20.1**, commit
-`6952903377eb36f9d35c92770e334b30721f1d20`. Package versions remain 0.20.1;
-local, uncommitted work is collected in the **0.21.0** draft. The authoritative
-scope and consumer actions are in [the release notes](../changelog/0.21.md).
+Released base: **0.21.0**, commit
+`69da6d4b02344a38506738184197491a7813c296`. Package versions remain 0.21.0;
+local, uncommitted work is collected in the **0.22.0** draft. The authoritative
+scope and consumer actions are in [the release notes](../changelog/0.22.md).
 
-Pending work derives Git's dirty observation from retained status bytes and
-admits optional-file descriptor metadata once at its reader. It also decouples
-Candid service inspection from Wasm parsing: callers needing both select
-`candid-service` and `ic-interface` explicitly. This feature-contract change
-requires the pending minor release; package versions remain untouched. Durable
-publication uses explicit writer custody through the same admission/cleanup engine.
+Pending work consolidates byte publication into `write_bytes(path, options,
+bytes)`, makes Candid normalization an explicit caller operation and retires the
+unused tar-member API/feature and example. Callers must preserve their previous
+publication mode/permissions; Testkit selects `gzip` instead of `archive`.
+The lockfile drops only `tar` and its unused `filetime` dependency.
+The same draft removes the unused strict labeled-hex codec and example format;
+callers select JSON/plain hex and own CLI presentation handling. Host no longer
+replays generic formatter/hook, Make-consumer or tool-command matrices; actual
+formatting and Make adoption, prepared tools and failure/preservation checks remain
+local. Snapshot selection retires only those unused fixture payloads and companions.
+Terminal clipping shares the escape iterator
+and stops at proven overflow while preserving the current output contract.
+The draft also adds existing-parent pathname publication through the held
+descriptor engine and opt-in process failure-evidence rendering for issues
+[#148 — Existing-parent publication](https://github.com/dragginzgame/ic-host-tooling/issues/148)
+and [#149 — Explicit failure diagnostics](https://github.com/dragginzgame/ic-host-tooling/issues/149).
+The existing-parent adapter uses directory-only opens to reject FIFO parents
+without waiting, while retaining parent aliases and rename custody.
+Descriptor streaming with and without result admission now shares one adapter;
+public entrypoints and publication/cleanup contracts are unchanged.
+Released 0.21.0 derives Git's dirty observation from retained status bytes,
+admits optional-file descriptor metadata once, decouples Candid service inspection
+from Wasm parsing and uses explicit durable writer custody. Consumers needing
+both inspection APIs select `candid-service` and `ic-interface` explicitly.
 Released 0.20.1 includes the column-clipping source from
 [PR #144](https://github.com/dragginzgame/ic-host-tooling/pull/144), adapted to
 `Cow<str>` escaping. Consumer adoption retains its own qualification.
 
-Shared Tooling selects **0.15.2**, committed revision
-`f5080b812489654eaa04d368a09f460aea07d4ce`, with 89 entrypoints and 110 exact
-payloads. Common tool pins are unchanged. Preserve pending source, index/refs,
-Cargo versions/lock and existing artifacts; sibling working checkouts remain
+Shared Tooling selects **0.15.4**, committed revision
+`879eb2b021522252a67e908dbc217a0f4efb2a6f`, with 85 entrypoints and 105 exact
+payloads. The new required maintenance-selection catalog preserves the existing
+optional runtime selection without activating it. Uncommitted upstream
+work is excluded. Common tool pins and Host's MIT license are unchanged.
+Preserve pending source, index/refs,
+Cargo versions and existing artifacts; sibling working checkouts remain
 read-only.
 
 Released 0.20.0 unifies pinned admission around `VersionSpec` plus a
@@ -43,6 +64,75 @@ have one private owner, and release projection uses Shared's saved-source render
 
 These are scoped Linux records for the inputs identified by each task, not a
 combined release receipt. Before-images and command logs remain at their owners:
+
+The descriptor-adapter cleanup passes all 22 stream-publication cases on current
+Rust and actual Rust 1.88, strict Filesystem Clippy/rustdoc and source formatting.
+Before-images and logs remain at `/tmp/host-022-converge.HlZlTL/`.
+Prepared Make/CI adoption patches are retained there separately from live source.
+The proposed Make caller passes on current Bash and genuine Bash 3.2.57, including
+its failure-retention and relative-temporary-path checks. The proposed CI caller
+passes actionlint and install/check failure, log and PATH-publication checks with
+substituted effects on both interpreters. These use saved, hashed uncommitted
+Shared helper bytes for rehearsal only, not a committed snapshot or hosted proof.
+The maintainer requested leaving adoption pending while Shared prepares delivery;
+Host's snapshot and live Make/CI callers remain unchanged. Native macOS and full
+release qualification remain separate.
+
+The existing-parent/diagnostics batch passes 74 durable and 68 Process tool cases,
+strict affected-package Clippy/rustdoc and actual Rust 1.88 all-target/all-feature
+checks. Five new pathname cases and three explicit diagnostic cases also pass on
+Rust 1.88. A retained negative control reproduces the FIFO wait with an ordinary
+parent-file open and is killed/reaped by the bounded test; directory-only opening
+passes without a writer. Formatting, 179 local links and 105 snapshot payloads
+pass. PRs #150/#151 supplied reviewed additive source; their native checks cover
+their original branches, not this adapted dirty tree. Source before-images and
+logs remain at `/tmp/host-022-issues.FQmAIZ/`. Siblings, versions, lock selection,
+index and refs remain unchanged. Main delivery, combined release and native
+macOS qualification remain separate; the owning issues stay open for that evidence.
+
+The Shared 0.15.4 adoption verifies all 105 payloads, 179 local documentation
+links and exporter ShellCheck. Canonical refresh passes with the pending dirty
+source preserved; repeat previews on current Bash and genuine Bash 3.2.57 show
+only retained inputs. Common catalogs, Rust source, Cargo metadata/lock, MIT
+notices, index and refs remain unchanged by this adoption. The 0.15.5 upstream
+working changes are excluded. Before-images, reviewed preview and focused logs
+remain at `/tmp/host-shared0154.fjeXrY/`. No Rust build, tool installation,
+release or native macOS qualification was run for this tooling/documentation
+update.
+
+The clipping/Make-suite batch passes all nine Text cases on current Rust and
+actual Rust 1.88, strict package Clippy/rustdoc and 9,601,538 clipping comparisons
+against the saved implementation. Escaping also matches for every Unicode scalar.
+Actual Host retention, Make routing, release-command admission and formatter/hook
+adoption checks pass with substituted effects; routing also passes on genuine
+Bash 3.2.57 on Linux. Canonical snapshot refresh retires only the two unused
+generic suites and their generic jobserver-probe companion, leaving 104 payloads
+at the same Shared revision. Before-images and focused logs remain at
+`/tmp/host-022-clipping.OqQLI3/`. Native macOS and full release acceptance remain
+separate.
+
+The byte/extraction/tar batch passes all 99 Filesystem cases, 20 extraction-profile
+Tools cases, 60 full-feature and 34 minimal Artifacts cases, and six remaining
+consumer compositions. Strict affected-package Clippy/rustdoc and Rust 1.88
+all-target/all-feature checks pass, as do Process/inspector dependent checks.
+Actual Rust 1.88 additionally passes 69 durable and eight extraction cases.
+Formatting, feature dependency graphs, 179 local links and 107 snapshot payloads
+pass. Task before-images (including incoming dirty work) and logs remain at
+`/tmp/host-022-hardcut.JcLjzf/`. Consumer migrations are recorded in owning
+GitHub issues linked from the release notes; no sibling source was changed or
+consumer acceptance inferred. Full release and native macOS qualification remain
+separate.
+
+The 0.22 response/formatter batch passes all 12 minimal Tools cases and the saved
+response example's JSON/hex smoke; all ten response cases pass on actual Rust
+1.88. Strict package Clippy/rustdoc and Rust 1.88 all-target/all-feature checks
+pass. Actual Make formatting/hook adoption and routing fixtures pass, as does the
+unchanged publication-boundary fixture with substituted Git/upload effects.
+Formatting, 179 local links and 107 snapshot payloads pass; the canonical refresh
+retires only the three previewed fixture payloads at the same source revision.
+Before-images, preview/refresh output and focused logs remain at
+`/tmp/host-022-response-format.hQj2cb/`. Full release and native macOS acceptance
+remain separate.
 
 The earlier Git/read batch passes five Git provenance and 20 read cases on Linux, strict
 affected-package Clippy/rustdoc and actual Rust 1.88. Regressions first reproduced
@@ -116,6 +206,17 @@ workspace paths; no new receipt format or old workspace reconstruction is needed
 Host's Cargo ordering fixture already uses the canonical pair preparer from
 Shared 0.15.1 ([#134](https://github.com/dragginzgame/ic-host-tooling/issues/134));
 native and consumer acceptance remain distinct from source adoption.
+
+## Publication attempt ownership
+
+The publication review retains Host's preparation lock/admission evidence and
+Shared's immutable dispatch attempt. Their windows and interruption obligations
+differ; a generic callback layer would not remove those requirements. The
+source-bound review is recorded on
+[Shared #163 — Converge Cargo publication attempts](https://github.com/dragginzgame/shared-tooling/issues/163#issuecomment-6199544254).
+The focused Host fixture preserves source-drift refusal, original Cargo/logger
+failures and uncertain-dispatch locks. Publisher sources and behavior are
+unchanged; no upload, retry or sibling edit was performed.
 
 ## Certificate decoding ownership
 
