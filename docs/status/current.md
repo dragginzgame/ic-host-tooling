@@ -5,7 +5,10 @@
 Latest tagged release: **0.22.1**, commit
 `b99beeae7c3115ee5323ea3b48fccad2fe325596`. Package versions are 0.22.1.
 The **0.22.2** draft adds existing lock-sidecar admission, one-shot locking
-and caller-verified directory commit primitives. Backup adoption requires a
+and caller-verified directory commit primitives, plus the opt-in effective ICP
+project projection from [PR #119](https://github.com/dragginzgame/ic-host-tooling/pull/119).
+ICP retains resolution; consumers retain command, capture and funding policy.
+Backup adoption requires a
 published Host package and separate consumer qualification. Release scope and
 consumer actions are in [the release notes](../changelog/0.22.md).
 

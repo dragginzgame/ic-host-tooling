@@ -2,6 +2,11 @@
 
 ## [0.22.2]
 
+- Add opt-in bounded effective ICP project projection; callers retain discovery,
+  capture limits, funding and lifecycle policy
+  ([#115 — Effective ICP environment facts](https://github.com/dragginzgame/ic-host-tooling/issues/115)).
+  [Detailed notes](docs/changelog/0.22.md).
+
 - Admit existing regular lock sidecars, try one nonblocking exclusive lock, and
   publish caller-verified directory trees without replacing an occupied name.
   [Detailed notes](docs/changelog/0.22.md).

@@ -58,4 +58,7 @@ check_graph certificate ic-host-tools none certificate 'ciborium ic-certificatio
     '^(ic-host-(artifacts|fs|process|text)|candid_parser|ic-agent|reqwest) '
 check_graph text ic-host-text default '' unicode-width \
     '^(ic-host-(artifacts|fs|process|tools)|candid_parser|ic-agent|ic-certification|ciborium) '
+check_graph project ic-host-tools none icp-project serde_yaml_ng \
+    '^(ic-host-(artifacts|fs|process|text)|candid_parser|ic-certification) '
+check_graph response-without-project ic-host-tools default '' '' '^serde_yaml_ng '
 echo 'tools/text feature dependency graphs passed'

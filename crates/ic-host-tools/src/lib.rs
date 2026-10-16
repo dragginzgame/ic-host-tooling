@@ -9,3 +9,7 @@ pub mod interface;
 pub mod response;
 #[cfg(all(test, unix, feature = "candid-extraction"))]
 mod test_support;
+
+/// Bounded effective ICP project environment facts; resolution remains ICP-owned.
+#[cfg(feature = "icp-project")]
+pub mod icp_project;
