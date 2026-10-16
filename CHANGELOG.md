@@ -17,6 +17,11 @@
   Callers retain root and byte custody
   ([#80 — Capability-rooted filesystem confinement](https://github.com/dragginzgame/ic-host-tooling/issues/80)).
   [Detailed notes](docs/changelog/0.22.md).
+- Share bounded synthetic HTTP request capture through Process's opt-in
+  `test-support` module, retaining partial bytes and typed failures. Consumers
+  own responses and evidence publication
+  ([#123 — Own bounded synthetic HTTP request fixtures](https://github.com/dragginzgame/ic-host-tooling/issues/123)).
+  [Detailed notes](docs/changelog/0.22.md).
 
 ## [0.21.0] - 2026-10-15
 
