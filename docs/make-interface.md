@@ -34,6 +34,11 @@ consumer adoption uses `consumer.mk` instead of including the same modules twice
 Shared Tooling itself selects the non-Rust profile. Its source checkout has no
 consumer snapshot to verify; `shared-tooling-check` is for adopted copies.
 
+Since 0.16.0, `cloc-tooling` and its `CLOC_PARENT` input belong to Shared Tooling's
+own Makefile. They are not exported by the consumer include. Use the central
+command or the explicitly selected reporter described in the
+[fleet report adoption guidance](consuming-snapshots.md#local-ic-tool-adoption).
+
 ## Keep product policy local
 
 Keep build, test, publication, deployment, cleanup, validation gates and release
@@ -163,8 +168,8 @@ Consumers can use `make_probe_target_admission` from
 `scripts/ci/make-adapter-probes.sh` to exercise each actual target with the four
 unsafe behaviors (`-i`, `-n`, `-t`, `-q`), requiring status 2 and no recorded
 effects. Keep local target rosters, effect stubs, parallel descriptor checks,
-diagnostic selection and recovery-state custody at the consumer. The existing
-`make_probe_execution_modes` retains the full matrix for producer qualification.
+diagnostic selection and recovery-state custody at the consumer. The full
+execution-mode matrix lives in the producer fixture; it is not exported.
 The common-tool action fixture executes the actual shared Make aggregates with
 only installer leaves substituted; it admits phase order, failure stopping,
 stdout/stderr retention and PATH publication. No tools are installed by it.
@@ -187,7 +192,10 @@ and fixture retention; this is a test skeleton, not a complete consumer export.
 
 `scripts/ci/fixture-retention-probes.sh` owns the common failure injections,
 status comparisons and retained-evidence checks. Consumers keep source rosters,
-working directories and domain-specific diagnostic assertions. Existing
+working directories and domain-specific diagnostic assertions.
+`fixture_probe_exits` includes cleanup refusal alongside command, early-exit,
+completion and incomplete-run cases; callers need not append `cleanup-failure`.
+Existing
 `FIXTURE_PROBE_ROOT_VARIABLE` / `FIXTURE_PROBE_DIRECTORY_VARIABLE` selections may
 be paired with `FIXTURE_PROBE_COMPLETION_VARIABLE` (default `fixture_complete`)
 and `FIXTURE_PROBE_TEMPORARY_ROOT` (default the probe root). Variable names are

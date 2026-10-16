@@ -9,7 +9,8 @@ fn observer_failure_preserves_sink_cause_and_cleans_descendants() {
     ] {
         for policy in [OutputLimit::Truncate(0), OutputLimit::Terminate(2)] {
             let _fixture = Fixture::new();
-            let mut child = OwnedChild::spawn(&mut command(script)).unwrap();
+            let mut child =
+                OwnedChild::spawn(&mut command(script), CleanupPolicy::KillAndWait).unwrap();
             // Keep the other pipe to prove descendants release their writers.
             let mut other: Box<dyn Read> = match stream {
                 OutputStream::Stdout => {
@@ -97,7 +98,7 @@ fn output_is_observed_before_child_exit_and_descendant_pipe_cleanup() {
             "printf '\\377'; while ! test -f \"$GO\"; do sleep 0.01; done; sleep 30 & exit 0",
         );
         command.env("GO", &go);
-        let mut child = OwnedChild::spawn(&mut command).unwrap();
+        let mut child = OwnedChild::spawn(&mut command, CleanupPolicy::KillAndWait).unwrap();
         let mut observed = Vec::new();
         let started = Instant::now();
         let evidence = communicate_child_with_observer(
@@ -131,7 +132,8 @@ fn observer_receives_only_retained_prefix_on_each_stream_overflow() {
             ("printf 12345 >&2; sleep 30", OutputStream::Stderr),
         ] {
             for maximum in [0, 4] {
-                let mut child = OwnedChild::spawn(&mut command(script)).unwrap();
+                let mut child =
+                    OwnedChild::spawn(&mut command(script), CleanupPolicy::KillAndWait).unwrap();
                 let mut observed = Vec::new();
                 let error = communicate_child_with_observer(
                     &mut child,
@@ -173,7 +175,8 @@ fn silent_child_allows_caller_progress_and_cancellation_without_output() {
     for timeout in [LIMITS.timeout, None] {
         let limits = OutputLimits { timeout, ..LIMITS };
         let _fixture = Fixture::new();
-        let mut child = OwnedChild::spawn(&mut command("sleep 30")).unwrap();
+        let mut child =
+            OwnedChild::spawn(&mut command("sleep 30"), CleanupPolicy::KillAndWait).unwrap();
         let mut polls = 0;
         let error = communicate_child_with_observer(
             &mut child,
@@ -206,8 +209,11 @@ fn callback_unwind_cleans_group_even_when_borrowed_owner_survives_catch() {
         let limits = OutputLimits { timeout, ..LIMITS };
         let _fixture = Fixture::new();
         for panic_in_output in [false, true] {
-            let mut child =
-                OwnedChild::spawn(&mut command("sleep 30 & printf ready; wait")).unwrap();
+            let mut child = OwnedChild::spawn(
+                &mut command("sleep 30 & printf ready; wait"),
+                CleanupPolicy::KillAndWait,
+            )
+            .unwrap();
             // Retain a separate pipe as evidence that descendants release writers.
             let mut stderr = child.take_stderr().unwrap();
             let flags = rustix::fs::fcntl_getfl(&stderr).unwrap();
@@ -255,7 +261,11 @@ fn truncation_forwards_all_bytes_with_bounded_or_zero_storage() {
     let _fixture = Fixture::new();
     let input = vec![b'x'; 1024 * 1024];
     for retained in [0, 17] {
-        let mut child = OwnedChild::spawn(&mut command("cat; printf diagnostic >&2")).unwrap();
+        let mut child = OwnedChild::spawn(
+            &mut command("cat; printf diagnostic >&2"),
+            CleanupPolicy::KillAndWait,
+        )
+        .unwrap();
         let mut counts = [0, 0];
         let evidence = communicate_child_with_observer(
             &mut child,
@@ -293,11 +303,14 @@ fn truncation_forwards_all_bytes_with_bounded_or_zero_storage() {
 fn truncated_output_preserves_failure_and_cancellation() {
     let _fixture = Fixture::new();
     for cancel in [false, true] {
-        let mut child = OwnedChild::spawn(&mut command(if cancel {
-            "printf ready; sleep 30"
-        } else {
-            "printf ready; exit 7"
-        }))
+        let mut child = OwnedChild::spawn(
+            &mut command(if cancel {
+                "printf ready; sleep 30"
+            } else {
+                "printf ready; exit 7"
+            }),
+            CleanupPolicy::KillAndWait,
+        )
         .unwrap();
         let observed = std::cell::Cell::new(0);
         let error = communicate_child_with_observer(

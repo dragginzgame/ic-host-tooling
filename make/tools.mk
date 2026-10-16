@@ -15,10 +15,9 @@ LOCAL_TOOL_CHECK_TARGETS ?=
 CLOC_REPORT ?= $(SHARED_TOOLING_ROOT)/scripts/dev/cloc.sh
 CLOC_ROOT ?= $(CURDIR)
 CLOC_MANIFEST ?=
-CLOC_PARENT ?= $(CURDIR)/..
 export PATH := $(CURDIR)/.tools/host/bin:$(CURDIR)/.tools/ic/bin:$(CURDIR)/.tools/rust/common/bin:$(PATH)
 
-.PHONY: install-tools tools-check install-host-tools host-tools-check install-ic-tools ic-tools-check cloc cloc-tooling
+.PHONY: install-tools tools-check install-host-tools host-tools-check install-ic-tools ic-tools-check cloc
 .PHONY: install-rust-tools rust-tools-check
 
 install-tools:
@@ -59,11 +58,5 @@ cloc:
 	+@if [ -n "$(CLOC_MANIFEST)" ]; then \
 		bash "$(SHARED_TOOLING_ROOT)/scripts/dev/cloc.sh" --manifest "$(CLOC_MANIFEST)" "$(CURDIR)"; \
 	else bash "$(CLOC_REPORT)" "$(CLOC_ROOT)"; fi
-
-cloc-tooling:
-	@test -f "$(SHARED_TOOLING_ROOT)/scripts/dev/cloc-tooling.pl" || { \
-		printf '%s\n' 'Fleet tooling reports are optional: run make cloc-tooling in Shared Tooling, or explicitly adopt scripts/dev/cloc-tooling.pl in this snapshot.' >&2; \
-		exit 2; }
-	@perl "$(SHARED_TOOLING_ROOT)/scripts/dev/cloc-tooling.pl" "$(CLOC_PARENT)"
 
 .DEFAULT_GOAL := $(_shared_tooling_default_goal)

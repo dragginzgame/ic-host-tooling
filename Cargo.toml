@@ -27,6 +27,7 @@ ic-certification = { version = "3.2.0", default-features = false, features = ["s
 ic-host-artifacts = { path = "crates/ic-host-artifacts", version = "0.22", default-features = false }
 ic-host-fs = { path = "crates/ic-host-fs", version = "0.22", default-features = false }
 ic-host-process = { path = "crates/ic-host-process", version = "0.22", default-features = false }
+ic-host-text = { path = "crates/ic-host-text", version = "0.22", default-features = false }
 ic-host-tools = { path = "crates/ic-host-tools", version = "0.22", default-features = false }
 leb128 = "0.2.5"
 libc = "0.2.190"

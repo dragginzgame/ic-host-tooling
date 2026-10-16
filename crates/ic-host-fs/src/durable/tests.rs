@@ -223,10 +223,12 @@ fn durable_lock_reports_wait_for_another_process_and_retains_exclusion() {
         }
     }
     let path = root.join("complete-build-reuse.lock");
+    let contender = open_regular_lock_file_with_parents(&path).unwrap();
     assert!(matches!(
-        try_lock_regular_file_with_parents(&path),
-        Err(RegularFileLockError::Io(error)) if error.kind() == io::ErrorKind::WouldBlock
+        try_lock_exclusive(&contender),
+        Err(error) if error.kind() == io::ErrorKind::WouldBlock
     ));
+    drop(contender);
     // The owner is still waiting for our release message: acquisition did not
     // wait for it to exit, and the failed attempt did not truncate its file.
     assert!(child.try_wait().unwrap().is_none());
@@ -260,20 +262,14 @@ fn durable_lock_reports_wait_for_another_process_and_retains_exclusion() {
     assert!(started.elapsed() >= progress.unwrap());
     let contender = fs::File::open(&path).unwrap();
     assert_eq!(
-        rustix::fs::flock(
-            &contender,
-            rustix::fs::FlockOperation::NonBlockingLockExclusive
-        ),
-        Err(rustix::io::Errno::WOULDBLOCK)
+        try_lock_exclusive(&contender).unwrap_err().kind(),
+        io::ErrorKind::WouldBlock
     );
     drop(lock);
-    rustix::fs::flock(
-        &contender,
-        rustix::fs::FlockOperation::NonBlockingLockExclusive,
-    )
-    .unwrap();
+    try_lock_exclusive(&contender).unwrap();
     drop(contender);
-    let acquired = try_lock_regular_file_with_parents(&path).unwrap();
+    let acquired = open_regular_lock_file_with_parents(&path).unwrap();
+    try_lock_exclusive(&acquired).unwrap();
     assert_eq!(fs::read(&path).unwrap(), b"existing lock contents");
     drop(acquired);
 }
@@ -281,7 +277,8 @@ fn durable_lock_reports_wait_for_another_process_and_retains_exclusion() {
 #[cfg(unix)]
 fn hold_regular_lock_until_release(path: &Path) {
     use std::io::Write as _;
-    let lock = try_lock_regular_file_with_parents(path).unwrap();
+    let lock = open_regular_lock_file_with_parents(path).unwrap();
+    try_lock_exclusive(&lock).unwrap();
     assert!(
         rustix::io::fcntl_getfd(&lock)
             .unwrap()
@@ -477,17 +474,10 @@ fn lock_errors_preserve_admission_and_original_io_causes() {
             matches!(result, Err(RegularFileLockError::NotRegular)),
             "{path:?}: {result:?}"
         );
-        assert!(matches!(
-            try_lock_regular_file_with_parents(path),
-            Err(RegularFileLockError::NotRegular)
-        ));
-        assert!(matches!(
-            lock_regular_file_with_parents(path),
-            Err(RegularFileLockError::NotRegular)
-        ));
     }
     assert_eq!(fs::read(&target).unwrap(), b"unchanged");
-    let error = lock_regular_file_with_parents(&fixture.root.join("invalid\0path")).unwrap_err();
+    let error =
+        open_regular_lock_file_with_parents(&fixture.root.join("invalid\0path")).unwrap_err();
     let RegularFileLockError::Io(original) = &error else {
         panic!("expected original I/O cause");
     };

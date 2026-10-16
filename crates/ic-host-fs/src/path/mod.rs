@@ -26,14 +26,6 @@ enum ResolutionStep {
 /// not root confinement or immutable selection; ancestors and concurrent writers
 /// remain caller-owned. No files are created or removed.
 ///
-/// # Errors
-/// Returns invalid relative bases or filesystem resolution failures.
-pub fn canonicalize_allow_missing(path: &Path, base: &Path) -> io::Result<PathBuf> {
-    canonicalize_allow_missing_with_symlink_limit(path, base, usize::MAX)
-}
-
-/// Resolve the same paths with a caller-selected missing-target symlink depth bound.
-///
 /// `max_symlink_depth` bounds simultaneously active dangling-target expansions,
 /// including targets reached after missing-suffix normalization. Completed
 /// expansions do not charge later independent links. Zero rejects any such
@@ -41,13 +33,13 @@ pub fn canonicalize_allow_missing(path: &Path, base: &Path) -> io::Result<PathBu
 /// retains the native filesystem's symlink limits and errors. This does not
 /// bound path length, filesystem latency or all filesystem operations.
 ///
-/// Opening, confinement and identity guarantees are the same as
-/// [`canonicalize_allow_missing`]; the caller owns the chosen depth allowance.
+/// Select `usize::MAX` explicitly when no additional missing-target depth bound
+/// is needed. Opening, confinement and the chosen depth allowance remain caller-owned.
 ///
 /// # Errors
 /// Returns path/base errors or [`io::ErrorKind::InvalidInput`] on a missing-target
 /// cycle or exhausted depth allowance. No path is returned on failure.
-pub fn canonicalize_allow_missing_with_symlink_limit(
+pub fn canonicalize_allow_missing(
     path: &Path,
     base: &Path,
     max_symlink_depth: usize,

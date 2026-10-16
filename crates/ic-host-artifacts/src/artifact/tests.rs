@@ -72,11 +72,16 @@ fn sha256_matches_known_vectors_and_round_trips_authority() {
 fn streaming_hashes_multiple_buffers_and_preserves_mismatch_identity() {
     let bytes = vec![42; 40_001];
     let expected = Sha256Digest::compute(&bytes);
-    let actual = verify_reader(bytes.as_slice(), 40_001, expected).unwrap();
+    let actual = hash_reader(bytes.as_slice(), 40_001)
+        .unwrap()
+        .verify(expected)
+        .unwrap();
     assert_eq!(actual.bytes, 40_001);
     let wrong = Sha256Digest::compute(b"wrong");
-    assert!(matches!(verify_reader(bytes.as_slice(), 40_001, wrong),
-        Err(ArtifactError::DigestMismatch { expected, actual: observed }) if expected == wrong && observed == actual));
+    assert!(
+        matches!(hash_reader(bytes.as_slice(), 40_001).unwrap().verify(wrong),
+        Err(ArtifactError::DigestMismatch { expected, actual: observed }) if expected == wrong && observed == actual)
+    );
 }
 
 #[test]

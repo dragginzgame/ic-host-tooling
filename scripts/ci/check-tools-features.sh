@@ -43,15 +43,15 @@ check_graph() {
 check_graph response ic-host-tools default '' '' \
     '^(ic-host-(artifacts|fs|process|text)|candid_parser|ciborium|ic-certification) '
 check_graph extraction ic-host-tools default candid-extraction \
-    'ic-host-artifacts ic-host-fs ic-host-process' '^candid_parser '
+    'ic-host-artifacts ic-host-fs ic-host-process' '^(candid_parser|ic-host-text) '
 for feature in ic-interface ic-limits; do
     check_graph "$feature" ic-host-tools none "$feature" ic-host-artifacts \
-        '^(ic-host-(fs|process)|candid_parser) '
+        '^(ic-host-(fs|process|text)|candid_parser) '
 done
 check_graph service ic-host-tools none candid-service candid_parser \
-    '^(ic-host-(artifacts|fs|process)|wasmparser) '
+    '^(ic-host-(artifacts|fs|process|text)|wasmparser) '
 check_graph service-interface ic-host-tools none candid-service,ic-interface \
-    'ic-host-artifacts candid_parser wasmparser' '^ic-host-(fs|process) '
+    'ic-host-artifacts candid_parser wasmparser' '^ic-host-(fs|process|text) '
 check_graph inspection ic-host-wasm-inspect default '' 'ic-host-artifacts ic-host-fs' \
     '^(ic-host-process|candid_parser) '
 check_graph certificate ic-host-tools none certificate 'ciborium ic-certification' \

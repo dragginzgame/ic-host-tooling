@@ -243,8 +243,11 @@ of working versus committed sources and their release/preparation transactions.
 ## CI binary installers
 
 Use `scripts/ci/install-ci-tool.sh TOOL` for actionlint, shellcheck, gitleaks,
-sccache and yq. Their existing version, SHA-256 and installation
-directory arguments are unchanged. The implementation shares host selection,
+sccache and yq. Supply exact `--version`, `--sha256` and `--install-dir` arguments.
+Since 0.16.0, installation requires an explicit destination; add the flag before
+refreshing callers that used `TOOL_INSTALL_DIR` or the home-directory default.
+Missing or empty destinations refuse before host probes, downloads or filesystem
+setup. The implementation shares host selection,
 HTTPS download, checksum admission, extraction, exact version admission and
 publication. Asset names and version-output formats remain explicit per tool.
 Staging lives on the destination filesystem; failures retain the candidate and
@@ -850,11 +853,18 @@ coverage is `scripts/ci/test-workflow-step.sh`.
 ## Consumer flow qualification
 
 Source `scripts/ci/make-adapter-probes.sh` for
-`make_probe_execution_modes MAKE MAKEFILE DIRECTORY EVENTS TARGET...` and
+`make_probe_target_admission MAKE MAKEFILE DIRECTORY EVENTS TARGET...` and
 `make_probe_parallel_dispatch` with the same arguments. Callers prepare reviewed
-Makefiles and substituted effects. The first checks unsafe direct/inherited
-execution modes and hidden flag assignments; the second requires observable
-dispatch under a real pipe jobserver. Both fail when required assertions disagree.
+Makefiles and substituted effects. The first checks each unsafe behavior once;
+the second requires observable dispatch under a real pipe jobserver. Exhaustive
+flag aliases and hidden assignments stay in `test-consumer-flow-probes.sh`.
+The producer-only `make_probe_execution_modes` is no longer exported; consumer
+admission checks use `make_probe_target_admission` instead.
+
+When adopting 0.16.0, update any calls to the removed helper before refreshing
+the reviewed snapshot. Keep the consumer's target roster, effect assertions and
+parallel jobserver checks. Existing snapshots stay bound to their recorded
+source; refresh through the exporter rather than editing vendored helpers.
 
 `fixture_probe_effect SCRIPT RUN PREFIX STATUS BASH MARKER` runs a fixture with
 caller-prepared PATH/environment, captures `result.log` and `status.txt`, and
@@ -880,21 +890,20 @@ for an unreviewed Makefile, script or selected payload.
 ## Assertion retention probes
 
 Source `scripts/ci/fixture-retention-probes.sh` for
-`fixture_probe_assertion OWNER PROBE_ROOT SOURCE_ROOT NAME [ARGUMENTS...]`.
-The default probe contradicts the first status assertion in a lower-case
-`root`/`fixture` owner and runs its existing setup. Consumers retain the fixture
-roster and arguments.
+`fixture_probe_assertion OWNER PROBE_ROOT SOURCE_ROOT NAME
+--selected ASSERTION_SOURCE LITERAL_PREFIX BINDINGS`.
+Since 0.16.0, assertion selection is mandatory. Replace inferred-assertion calls
+with the existing explicit form before refreshing the helper. Consumers retain
+the fixture roster, exact assertion selection and contradictory bindings.
 
-For an assertion in a workflow or another script, pass
-`--selected ASSERTION_SOURCE LITERAL_PREFIX BINDINGS` after `NAME` instead.
 Exactly one source line must match the literal prefix after leading whitespace.
 The child runs only the owner's initialization through its EXIT trap, followed
 by caller bindings and the selected assertion. Bindings are trusted shell source
 maintained by the caller; never pass user input. Bodies that build, install or
-mutate Git are excluded in this mode. Keep contradictory values and product
+mutate Git are excluded from execution. Keep contradictory values and product
 assertion selection in the consumer.
 
-Both modes require the supported root anchor and EXIT boundary, evidence
+The probe requires the supported root anchor and EXIT boundary, evidence
 retention, status 1, and a receipt proving the intended assertion was reached.
 Ignored assertions and earlier setup failures are rejected. The focused owner
 suite is `scripts/ci/test-fixture-assertion-probe.sh`.

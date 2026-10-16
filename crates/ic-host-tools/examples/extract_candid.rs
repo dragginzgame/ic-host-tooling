@@ -60,7 +60,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     )?;
     let candid = extract(&tool, &source, &context, source_bytes, limits)?;
     // This example explicitly selects normalization and its output allowance.
-    let text = ic_host_tools::candid::text::normalize(
+    let text = ic_host_text::normalize::normalize_lines(
         &candid.evidence.stdout,
         limits.stdout.retained_bytes(),
     )?;

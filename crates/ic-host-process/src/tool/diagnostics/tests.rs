@@ -26,7 +26,7 @@ fn failure_projection_retains_each_cleanup_error_and_original_evidence() {
             kill_error: None,
             wait_error: None,
         };
-        let cause = io::Error::from(io::ErrorKind::PermissionDenied);
+        let cause = io::Error::new(io::ErrorKind::PermissionDenied, "distinct cleanup cause");
         match field {
             0 => cleanup.term_error = Some(cause),
             1 => cleanup.group_error = Some(cause),
@@ -37,15 +37,16 @@ fn failure_projection_retains_each_cleanup_error_and_original_evidence() {
         // Check the diagnostic projection, deriving error display from its
         // typed owner rather than freezing platform-dependent error prose.
         let expected = format!(
-            "fixture: {failure}\nstatus: {:?}\nstdout:\nretained stdout\nstderr:\nretained stderr\ncleanup: {}",
+            "fixture: {failure}\nstatus: {:?}\nstdout:\nretained stdout\nstderr:\nretained stderr",
             failure.evidence.status,
-            failure.cleanup.as_ref().unwrap(),
         );
         let error = ToolError::Execution(Box::new(failure));
         let ordinary = error.to_string();
         assert!(!ordinary.contains("retained stdout"));
         assert!(!ordinary.contains("retained stderr"));
-        assert_eq!(format_failure_evidence("fixture", &error), expected);
+        let rendered = format_failure_evidence("fixture", &error);
+        assert_eq!(rendered, expected);
+        assert_eq!(rendered.matches("distinct cleanup cause").count(), 1);
         assert_eq!(error.evidence().unwrap().stdout, b"retained stdout\n");
         assert_eq!(error.evidence().unwrap().stderr, b"retained stderr\n");
     }

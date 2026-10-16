@@ -1,5 +1,48 @@
 # Changelog
 
+## [0.23.0]
+
+### Breaking
+
+- Move bounded line normalization to Host Text as `normalize::normalize_lines`;
+  remove `ic_host_tools::candid::text`. Callers update imports and direct
+  dependencies. [Detailed notes](docs/changelog/0.23.md).
+- Require an explicit missing-target symlink depth in
+  `canonicalize_allow_missing(path, base, depth)` and remove the alternate
+  resolver name. Select `usize::MAX` explicitly to preserve unbounded expansion.
+- Render process cleanup failures once in explicit failure diagnostics;
+  consumers asserting the duplicated diagnostic must update their expected text.
+- Remove the combined pathname open-and-lock helpers. Prepare the lock file with
+  `open_regular_lock_file_with_parents`, then acquire on its descriptor with
+  `lock_exclusive` or the new immediate `try_lock_exclusive` operation.
+- Require cleanup policy in `OwnedChild::spawn(command, cleanup)` and remove
+  `spawn_with_cleanup`. Select `KillAndWait` to preserve the former default;
+  existing bounded policies retain their grace and reap allowances.
+- Remove `artifact::verify_reader`; use `hash_reader(reader, limit)?.verify(expected)`
+  to hash once and admit the returned identity against the selected digest.
+
+### Added
+
+- Report encoded Wasm indirect-call counts and data payload bytes without a
+  subprocess, preserving the existing structural inspector contract
+  ([#145 — Bounded encoded Wasm statistics](https://github.com/dragginzgame/ic-host-tooling/issues/145)).
+  [Detailed notes](docs/changelog/0.23.md).
+- Add pure terminal-safe progress redraw frames with Unicode column padding;
+  callers retain terminal detection, output and cleanup policy
+  ([#157 — Pure progress-line redraw frames](https://github.com/dragginzgame/ic-host-tooling/issues/157)).
+
+### Changed
+
+- Share no-follow filesystem entry operations across root-relative reads and
+  tree walking, preserving traversal and error contracts.
+- Admit and convert durable-write permissions once at entry, preserving early
+  refusal and the existing staging/publication checks.
+- Admit synthetic HTTP capture bounds once and reuse the parsed header length
+  while reading body fragments, preserving deadlines and partial-byte evidence.
+- Adopt Shared Tooling 0.16.0 with explicit CI installation destinations and
+  narrower consumer probes. Fleet LOC commands now remain at Shared's owner;
+  Host keeps local LOC and its actual target checks. [Detailed notes](docs/changelog/0.23.md).
+
 ## [0.22.1] - 2026-10-16
 
 - Adopt Shared Tooling 0.15.7, strengthening fixture failure-retention checks

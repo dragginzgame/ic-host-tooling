@@ -118,7 +118,7 @@ pub fn write_existing_parent_validated_with<T, E>(
     {
         use rustix::fs::{Mode, OFlags, open};
         use std::os::fd::AsFd as _;
-        super::supported::validate_permissions(options.permissions)
+        let permissions = super::supported::native_permissions(options.permissions)
             .map_err(NamedWriteError::before)?;
         let (parent, name) =
             super::supported::split_target(path).map_err(NamedWriteError::before)?;
@@ -128,7 +128,15 @@ pub fn write_existing_parent_validated_with<T, E>(
             Mode::empty(),
         )
         .map_err(|source| NamedWriteError::before(source.into()))?;
-        write_at_validated_with(parent.as_fd(), name, options, produce, admit)
+        super::supported::commit_at_with_hook(
+            parent.as_fd(),
+            None,
+            name,
+            (options.mode, permissions),
+            |_, file| produce(file),
+            (WriterCustody::Writable, |_, value| admit(value)),
+            |_, _| Ok(()),
+        )
     }
     #[cfg(not(any(target_os = "linux", target_os = "android", target_vendor = "apple")))]
     {
@@ -198,11 +206,13 @@ pub fn write_at_validated_with<T, E>(
 ) -> Result<T, NamedWriteError<E>> {
     #[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
     {
+        let permissions = super::supported::native_permissions(options.permissions)
+            .map_err(NamedWriteError::before)?;
         super::supported::commit_at_with_hook(
             parent,
             None,
             name,
-            options,
+            (options.mode, permissions),
             |_, file| produce(file),
             (WriterCustody::Writable, |_, value| admit(value)),
             |_, _| Ok(()),

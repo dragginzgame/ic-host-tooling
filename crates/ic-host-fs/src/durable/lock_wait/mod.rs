@@ -32,6 +32,19 @@ pub fn lock_exclusive(file: &File) -> io::Result<()> {
     apply_lock(file, DescriptorOperation::Exclusive)
 }
 
+/// Attempt one exclusive lock acquisition on a caller-owned regular descriptor.
+///
+/// Contention returns [`io::ErrorKind::WouldBlock`] without waiting or retrying.
+/// Success leaves the lock held by the descriptor, with the same clone, unlock
+/// and final-close obligations as [`lock_exclusive`]. Opening, durability,
+/// namespace custody and contention/retry policy remain caller-owned.
+///
+/// # Errors
+/// Returns metadata, non-regular descriptor, native lock or unsupported-host errors.
+pub fn try_lock_exclusive(file: &File) -> io::Result<()> {
+    apply_lock(file, DescriptorOperation::TryExclusive)
+}
+
 /// Release a caller-owned regular descriptor's lock without closing it.
 ///
 /// Unlocking releases the shared kernel ownership of its duplicated or inherited
@@ -48,6 +61,7 @@ pub fn unlock(file: &File) -> io::Result<()> {
 enum DescriptorOperation {
     Shared,
     Exclusive,
+    TryExclusive,
     Unlock,
 }
 
@@ -59,6 +73,7 @@ fn apply_lock(file: &File, operation: DescriptorOperation) -> io::Result<()> {
         let operation = match operation {
             DescriptorOperation::Shared => FlockOperation::LockShared,
             DescriptorOperation::Exclusive => FlockOperation::LockExclusive,
+            DescriptorOperation::TryExclusive => FlockOperation::NonBlockingLockExclusive,
             DescriptorOperation::Unlock => FlockOperation::Unlock,
         };
         rustix::fs::flock(file, operation).map_err(io::Error::from)

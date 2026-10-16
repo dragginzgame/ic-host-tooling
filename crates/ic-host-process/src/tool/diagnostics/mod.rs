@@ -24,11 +24,5 @@ pub fn format_failure_evidence(context: &str, error: &ToolError) -> String {
             String::from_utf8_lossy(&evidence.stderr).trim_end(),
         );
     }
-    if let Some(cleanup) = error
-        .execution_error()
-        .and_then(|failure| failure.cleanup.as_ref())
-    {
-        let _ = write!(message, "\ncleanup: {cleanup}");
-    }
     message
 }

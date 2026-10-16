@@ -11,8 +11,8 @@ tool="${1:-}"
 case "$tool" in actionlint|gitleaks|shellcheck|sccache|yq) shift ;; *) echo 'unknown CI tool' >&2; exit 2 ;; esac
 version=""
 checksum=""
-install_dir="${TOOL_INSTALL_DIR:-$HOME/.local/bin}"
-usage() { echo "usage: install-ci-tool.sh $tool --version <version> --sha256 <digest> [--install-dir <directory>]" >&2; }
+install_dir=""
+usage() { echo "usage: install-ci-tool.sh $tool --version <version> --sha256 <digest> --install-dir <directory>" >&2; }
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --version|--sha256|--install-dir)
@@ -27,6 +27,7 @@ while [[ $# -gt 0 ]]; do
         *) usage; exit 2 ;;
     esac
 done
+[[ -n "$install_dir" ]] || { usage; exit 2; }
 [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z][0-9A-Za-z.-]*)?$ ]] || { usage; exit 2; }
 if [[ "$tool" == yq ]]; then
     [[ "$version" =~ ^4\.[0-9]+\.[0-9]+$ ]] || { usage; exit 2; }
