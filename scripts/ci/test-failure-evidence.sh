@@ -4,19 +4,11 @@ root="$0"
 [[ "$root" == /* ]] || root="$PWD/$root"
 root="$(cd -P "${root%/*}/../.." && printf '%s/.' "$PWD")"
 root="${root%/.}"
-fixture="$(mktemp -d "${TMPDIR:-/tmp}/ic-testkit-evidence-test.XXXXXX")"
+# shellcheck source=scripts/ci/fixture-lifecycle.sh
+source "$root/scripts/ci/fixture-lifecycle.sh"
+fixture="$(fixture_create "${TMPDIR:-/tmp}/ic-testkit-evidence-test.XXXXXX")"
 fixture_complete=false
-cleanup() {
-    local status=$?
-    [[ "$fixture_complete" == true || "$status" != 0 ]] || status=1
-    if [[ "$status" == 0 ]]; then rm -rf "$fixture"
-    else echo "Evidence fixture retained: $fixture" >&2; fi
-    exit "$status"
-}
-trap cleanup EXIT
-[[ "$fixture" == /* ]] || fixture="$PWD/$fixture"
-fixture="$(cd -P "$fixture" && printf '%s/.' "$PWD")"
-fixture="${fixture%/.}"
+trap 'fixture_finish "$?" "$fixture" "Evidence fixture retained"' EXIT
 
 # The consumer's own upload/download boundary must retain the exact identity and
 # verify the uploaded digest and exact-ID readback. Common retry behavior is qualified

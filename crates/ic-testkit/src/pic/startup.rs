@@ -198,7 +198,9 @@ pub enum PocketIcStartupFailure {
     /// Spawning the bounded builder worker failed.
     BuilderThreadSpawn { source: io::Error },
     /// Upstream PocketIC construction panicked before returning an instance.
-    BuilderPanicked { message: String },
+    BuilderPanicked {
+        source: super::PocketIcOperationError,
+    },
     /// The bounded builder worker ended without returning a result.
     BuilderDisconnected,
     /// The command completed, but the owned server could not be cleaned up.
@@ -236,13 +238,7 @@ impl PocketIcStartupConfig {
                 })?;
             let config = Self::connect(&server_url, timeout);
             config.validate()?;
-            let parsed = server_url.parse().map_err(|error| {
-                PocketIcStartupError::new(PocketIcStartupFailure::InvalidServerUrl {
-                    server_url: server_url.clone(),
-                    message: format!("{error}"),
-                })
-            })?;
-            let _ = PocketIcBuilder::new().with_server_url(parsed);
+            let _ = configured_builder(PocketIcBuilder::new(), &server_url)?;
             return Ok(config);
         }
         let value = variable("POCKET_IC_BIN")
@@ -749,8 +745,7 @@ fn build_bounded(
     if let Err(source) = thread::Builder::new()
         .name("ic-testkit-pocket-ic-startup".to_owned())
         .spawn(move || {
-            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| builder.build()))
-                .map_err(|payload| transport::panic_payload_to_string(payload.as_ref()));
+            let result = transport::capture_operation(|| builder.build());
             let _ = sender.send(result);
         })
     {
@@ -764,7 +759,7 @@ fn build_bounded(
 }
 
 fn await_builder(
-    receiver: mpsc::Receiver<Result<PocketIc, String>>,
+    receiver: mpsc::Receiver<Result<PocketIc, super::PocketIcOperationError>>,
     server_url: &str,
     deadline: Instant,
     timeout: Duration,
@@ -798,9 +793,9 @@ fn await_builder(
                     }),
                 });
             }
-            Ok(Err(message)) => {
+            Ok(Err(source)) => {
                 return Err(finalize_failure(
-                    PocketIcStartupError::new(PocketIcStartupFailure::BuilderPanicked { message }),
+                    PocketIcStartupError::new(PocketIcStartupFailure::BuilderPanicked { source }),
                     None,
                     server.take(),
                 ));
@@ -859,14 +854,10 @@ async fn build_async_bounded(
         .map_err(|error| finalize_failure(error, None, server.take()))?;
     let mut construction = std::pin::pin!(builder.build_async());
     let mut construction = std::pin::pin!(std::future::poll_fn(|context| {
-        match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            construction.as_mut().poll(context)
-        })) {
+        match transport::capture_operation(|| construction.as_mut().poll(context)) {
             Ok(poll) => poll.map(Ok),
-            Err(payload) => std::task::Poll::Ready(Err(PocketIcStartupError::new(
-                PocketIcStartupFailure::BuilderPanicked {
-                    message: transport::panic_payload_to_string(payload.as_ref()),
-                },
+            Err(source) => std::task::Poll::Ready(Err(PocketIcStartupError::new(
+                PocketIcStartupFailure::BuilderPanicked { source },
             ))),
         }
     }));
@@ -1257,8 +1248,8 @@ impl std::fmt::Display for PocketIcStartupFailure {
                     "failed to spawn PocketIC builder worker: {source}"
                 )
             }
-            Self::BuilderPanicked { message } => {
-                write!(formatter, "PocketIC startup panicked: {message}")
+            Self::BuilderPanicked { source } => {
+                write!(formatter, "PocketIC startup panicked: {source}")
             }
             Self::ServerCleanup { command_status } => write!(formatter, "PocketIC server cleanup failed after command exited with {command_status}"),
             Self::BuilderDisconnected => {
@@ -1272,6 +1263,7 @@ impl std::error::Error for PocketIcStartupFailure {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::ServerVersionProbe { source } => Some(source),
+            Self::BuilderPanicked { source } => Some(source),
             Self::Io { source, .. }
             | Self::CommandRun { source, .. }
             | Self::ServerSpawn { source, .. }
@@ -1349,7 +1341,7 @@ mod tests {
                 value: "invalid".into(),
             },
             PocketIcStartupFailure::BuilderPanicked {
-                message: "original-panic".into(),
+                source: super::super::PocketIcOperationError::new("original-panic"),
             },
             PocketIcStartupFailure::BuilderDisconnected,
             PocketIcStartupFailure::BuilderThreadSpawn {
@@ -1406,6 +1398,15 @@ mod tests {
                     Some(9)
                 );
             }
+            if let PocketIcStartupFailure::BuilderPanicked { source } = error.failure() {
+                assert_eq!(
+                    error
+                        .source()
+                        .unwrap()
+                        .downcast_ref::<super::super::PocketIcOperationError>(),
+                    Some(source)
+                );
+            }
             let displayed = error.to_string();
             assert!(displayed.starts_with(&primary_text));
             for marker in [
@@ -1439,7 +1440,9 @@ mod tests {
             let (sender, receiver) = mpsc::channel();
             if !disconnected {
                 sender
-                    .send(Err("original-builder-panic".to_owned()))
+                    .send(Err(super::super::PocketIcOperationError::new(
+                        "original-builder-panic",
+                    )))
                     .unwrap();
             }
             drop(sender);
@@ -1647,10 +1650,16 @@ mod tests {
             .build_instance(PocketIcBuilder::new())
             .err()
             .unwrap();
-        let PocketIcStartupFailure::BuilderPanicked { message } = error.failure() else {
+        let PocketIcStartupFailure::BuilderPanicked { source } = error.failure() else {
             panic!("expected builder failure, got {error:?}");
         };
-        assert_ne!(message, "");
+        assert_ne!(source.message(), "");
+        assert_eq!(
+            std::error::Error::source(&error)
+                .unwrap()
+                .downcast_ref::<super::super::PocketIcOperationError>(),
+            Some(source)
+        );
         assert_eq!(error.output().stdout(), "builder stdout");
         assert_eq!(error.output().stderr(), "builder stderr");
         assert!(error.server_cleanup().is_none());

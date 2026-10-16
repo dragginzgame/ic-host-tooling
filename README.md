@@ -648,7 +648,9 @@ fn read_pooled_counter() -> Result<u64, Box<dyn std::error::Error>> {
 }
 ```
 
-`acquire` returns `BaselinePoolOutcome` and records queue wait, build/capture,
+`acquire` returns `BaselinePoolOutcome` with common `slot` and `timings` fields;
+match its `disposition` for `Built`, `Restored` or `Rebuilt(reason)`. It records
+queue wait, build/capture,
 restore, reset/readiness/validation, stale teardown and total time. Failures
 retain completed timings and typed recipe causes; dead-transport recovery retains
 both restore and replacement failure. A non-transport restore failure drops the
@@ -689,7 +691,7 @@ lifetime:
 ```rust,no_run
 use std::num::NonZeroUsize;
 use ic_testkit::pic::{
-    BaselinePoolOutcome, CachedPocketIcBaselinePool, PocketIcBaselineRecipe,
+    CachedPocketIcBaselinePool, PocketIcBaselineRecipe,
 };
 
 fn use_recipe<R: PocketIcBaselineRecipe>(recipe: R)
@@ -701,12 +703,7 @@ fn use_recipe<R: PocketIcBaselineRecipe>(recipe: R)
     );
 
     let (baseline, outcome) = pool.acquire()?;
-    assert!(matches!(
-        outcome,
-        BaselinePoolOutcome::Built { .. }
-            | BaselinePoolOutcome::Restored { .. }
-            | BaselinePoolOutcome::Rebuilt { .. }
-    ));
+    println!("{outcome}");
 
     // Drive this recipe's topology through baseline.pocket_ic() and metadata().
     drop(baseline);
@@ -925,25 +922,22 @@ let parsed = parse_benchmark_events_from_source(
 let spans = pair_benchmark_spans(&parsed.events);
 let aggregates = aggregate_benchmark_spans(&spans.spans).expect("aggregate benchmark spans");
 
-assert_eq!(aggregates.rows[0].span_label, "storage/write");
+assert_eq!(aggregates[0].span_label, "storage/write");
 ```
 
 `comparison.csv` includes a `scope` column: `suite` identifies a named suite,
 and `all` identifies the cross-suite aggregate. A suite named `ALL` remains
-distinct from the global aggregate. Run indices have a minimum width of four
-digits, continue beyond `9999`, and fail explicitly if the numeric range is
-exhausted; previous-run discovery orders the indices numerically.
+distinct from the global aggregate. Applications select run identities,
+previous measurements and output paths.
 
-`aggregate_benchmark_spans` returns `Result<BenchmarkAggregateReport,
+`aggregate_benchmark_spans` returns `Result<Vec<BenchmarkAggregateRow>,
 BenchmarkAggregateError>`. Counter totals and run counts use checked arithmetic;
 overflow rejects the complete aggregation rather than returning partial or
 wrapped totals. The error identifies the typed scope, span label and counter.
 
 The report writer emits raw events, spans, aggregates, comparisons, malformed
-and unpaired markers, `bench-summary.md`, and `metadata.json`. Run-directory
-helpers discover compatible previous runs but do not reserve paths. Concurrent
-writers must use unique destinations or synchronize only the shared output
-path.
+and unpaired markers, `bench-summary.md`, and `metadata.json`. Concurrent writers
+must use unique destinations or synchronize the caller-owned output path.
 
 Aggregate and comparison rows, and aggregate errors, expose their identity as
 `scope: BenchmarkScope`. Match `BenchmarkScope::Suite(name)` or

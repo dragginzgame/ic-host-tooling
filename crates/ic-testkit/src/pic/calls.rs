@@ -6,7 +6,7 @@ use pocket_ic::{PocketIc, RejectResponse};
 use serde::de::DeserializeOwned;
 use std::panic::{AssertUnwindSafe, catch_unwind, resume_unwind};
 
-use super::{CandidCallContext, CandidCallError, transport};
+use super::{CandidCallContext, CandidCallError, PocketIcOperationError, transport};
 
 #[derive(Clone, Copy)]
 struct CallContext<'a> {
@@ -226,13 +226,18 @@ where
             context: Box::new(context.to_error_context()),
             response: Box::new(response),
         }),
-        Err(payload) if transport::panic_is_dead_instance_transport(payload.as_ref()) => {
-            Err(CandidCallError::Transport {
-                context: Box::new(context.to_error_context()),
-                message: transport::panic_payload_to_string(payload.as_ref()),
-            })
+        Err(payload) => {
+            let source =
+                PocketIcOperationError::new(transport::panic_payload_to_string(payload.as_ref()));
+            if source.is_transport() {
+                Err(CandidCallError::Transport {
+                    context: Box::new(context.to_error_context()),
+                    source,
+                })
+            } else {
+                resume_unwind(payload)
+            }
         }
-        Err(payload) => resume_unwind(payload),
     }
 }
 
@@ -352,7 +357,18 @@ mod tests {
         })
         .unwrap_err();
 
-        assert!(matches!(error, CandidCallError::Transport { .. }));
+        let source = std::error::Error::source(&error)
+            .unwrap()
+            .downcast_ref::<super::PocketIcOperationError>()
+            .unwrap();
+        assert!(source.is_transport());
+        assert!(source.message().starts_with("HTTP failure: "));
+        assert!(error.to_string().contains("operation=query_call"));
+        assert!(super::super::is_dead_pocket_ic_transport_error(&error));
+        let CandidCallError::Transport { source: owned, .. } = error else {
+            panic!("expected transport failure");
+        };
+        assert!(owned.is_transport());
     }
 
     #[test]
@@ -381,5 +397,22 @@ mod tests {
             assert_eq!(resumed.as_str(), message);
             assert_eq!(resumed.as_ptr() as usize, original_allocation);
         }
+        let payload = Box::new(7_u8);
+        let original = std::ptr::from_ref(payload.as_ref());
+        let result = std::panic::catch_unwind(|| {
+            run_raw_call(
+                CallContext {
+                    operation: "query_call",
+                    canister_id: Principal::anonymous(),
+                    caller: Principal::anonymous(),
+                    method: "get",
+                },
+                || -> Result<Vec<u8>, pocket_ic::RejectResponse> {
+                    std::panic::panic_any(payload);
+                },
+            )
+        });
+        let resumed = result.unwrap_err().downcast::<Box<u8>>().unwrap();
+        assert_eq!(std::ptr::from_ref(resumed.as_ref().as_ref()), original);
     }
 }

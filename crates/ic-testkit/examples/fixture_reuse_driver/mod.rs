@@ -36,13 +36,15 @@ use ic_host_fs::{
     read::{hash_file, read_opened_file},
 };
 use ic_host_process::{
+    child::OwnedChild,
     provenance::{
         GitError, GitObservations, IgnoreSubmodules, StatusOptions, UntrackedFiles, capture_git,
     },
     sampling,
     tool::{
         AdmittedTool, CompletedExecution, ExecutionContext, OutputLimit, OutputLimits,
-        ResolutionError, ToolError, VersionSpec, capture_command, resolve_executable,
+        ResolutionError, SuccessfulExit, ToolError, VersionSpec, capture_command,
+        communicate_child, resolve_executable,
     },
 };
 use ic_host_text::table::{self, Alignment};
@@ -301,36 +303,33 @@ fn measure(
     Ok(CapturedRun { report, rss })
 }
 
+fn execute_command(command: &mut Command) -> Result<CompletedExecution, Error> {
+    check_interrupted()?;
+    let mut child = OwnedChild::spawn(command.stdin(Stdio::null()).stderr(Stdio::inherit()))?;
+    communicate_child(
+        &mut child,
+        None,
+        OutputLimits {
+            stdout: OutputLimit::Terminate(64 * 1024),
+            stderr: OutputLimit::Terminate(0),
+            timeout: None,
+        },
+        SuccessfulExit::Cleanup,
+        || INTERRUPTED.load(Ordering::Relaxed),
+    )
+    .and_then(CompletedExecution::require_success)
+    .map_err(|error| Error::Tool(Box::new(error)))
+}
+
 fn text_command(command: &mut Command) -> Result<String, Error> {
-    check_interrupted()?;
-    let output = command
-        .stdin(Stdio::null())
-        .stderr(Stdio::inherit())
-        .output()?;
-    check_interrupted()?;
-    if !output.status.success() {
-        return Err(Error::CommandFailed {
-            program: command.get_program().into(),
-            status: output.status,
-        });
-    }
+    let output = execute_command(command.stdout(Stdio::piped()))?;
     String::from_utf8(output.stdout)
         .map(|text| text.trim().to_owned())
         .map_err(|_| Error::InvalidData("tool output is not UTF-8"))
 }
 
 fn build_command(command: &mut Command) -> Result<(), Error> {
-    check_interrupted()?;
-    let status = command.stdin(Stdio::null()).status()?;
-    check_interrupted()?;
-    if status.success() {
-        Ok(())
-    } else {
-        Err(Error::CommandFailed {
-            program: command.get_program().into(),
-            status,
-        })
-    }
+    execute_command(command.stdout(Stdio::inherit())).map(|_| ())
 }
 
 fn print_summary(summaries: &BTreeMap<String, Summary>, labels: &[String]) -> Result<(), Error> {
@@ -488,7 +487,6 @@ fn prepare(options: &Options) -> Result<Inputs, Error> {
         &root,
         &target.join("ic-testkit-fixture-benchmark-wasm"),
         &["ic_testkit_perf_probe"],
-        "debug",
     )
     .with_cargo_program(cargo)
     .with_cargo_profile_args(["--locked", "--offline"])
@@ -697,7 +695,11 @@ pub fn run() -> Result<(), Error> {
 #[cfg(test)]
 mod tests {
     use super::arguments::parse_arguments;
-    use super::{Error, Permissions, REPORT_LIMIT, measure, prepare, publish_report};
+    use super::{
+        Error, Permissions, REPORT_LIMIT, build_command, measure, prepare, publish_report,
+        text_command,
+    };
+    use ic_host_process::tool::{ExecutionFailure, OutputStream, ToolError};
 
     #[cfg(unix)]
     use super::InterruptHandler;
@@ -1273,6 +1275,50 @@ esac
 
     #[test]
     #[cfg(unix)]
+    fn preparation_commands_preserve_text_status_and_capture_failures() {
+        assert_eq!(
+            text_command(Command::new("/bin/sh").args(["-c", "printf '  ready\\n' "])).unwrap(),
+            "ready"
+        );
+        assert!(matches!(
+            text_command(Command::new("/bin/sh").args(["-c", "printf '\\377'"])),
+            Err(Error::InvalidData("tool output is not UTF-8"))
+        ));
+        let Err(Error::Tool(error)) =
+            text_command(Command::new("/bin/sh").args(["-c", "printf '%065537d' 0"]))
+        else {
+            panic!("expected bounded-output failure")
+        };
+        let ToolError::Execution(execution) = error.as_ref() else {
+            panic!("expected execution failure")
+        };
+        assert!(matches!(
+            execution.failure,
+            ExecutionFailure::OutputLimit {
+                stream: OutputStream::Stdout
+            }
+        ));
+        assert_eq!(execution.evidence.stdout.len(), 64 * 1024);
+        assert!(execution.evidence.stdout_truncated);
+        assert!(execution.cleanup.is_none());
+        build_command(Command::new("/bin/sh").args(["-c", "sleep 0.05"])).unwrap();
+        let Err(Error::Tool(error)) =
+            build_command(Command::new("/bin/sh").args(["-c", "exit 23"]))
+        else {
+            panic!("expected exit failure")
+        };
+        assert!(
+            matches!(error.as_ref(), ToolError::Execution(execution) if matches!(execution.failure, ExecutionFailure::ExitStatus))
+        );
+        assert_eq!(error.evidence().unwrap().status.unwrap().code(), Some(23));
+        assert!(matches!(
+            text_command(&mut Command::new("/missing/testkit-command")),
+            Err(Error::Io(error)) if error.kind() == io::ErrorKind::NotFound
+        ));
+    }
+
+    #[test]
+    #[cfg(unix)]
     fn interruption_waits_for_worker_completion() {
         const CHILD_ENV: &str = "IC_TESTKIT_FIXTURE_BENCHMARK_INTERRUPT_CHILD";
         if std::env::var_os(CHILD_ENV).is_none() {
@@ -1310,6 +1356,41 @@ esac
         );
         assert!(matches!(result, Err(Error::Interrupted)));
         assert_eq!(fs::read(finished).unwrap(), b"done");
+
+        for capture_text in [true, false] {
+            let _command_handler = InterruptHandler::install().unwrap();
+            let pid_path = scratch.path().join("preparation.pid");
+            let mut command = Command::new("/bin/sh");
+            command
+                .args([
+                    "-c",
+                    "echo $$ > \"$2\"; kill -INT \"$1\"; sleep 30",
+                    "interrupted-preparation",
+                ])
+                .arg(std::process::id().to_string())
+                .arg(&pid_path);
+            let result = if capture_text {
+                text_command(&mut command).map(|_| ())
+            } else {
+                build_command(&mut command)
+            };
+            let Err(Error::Tool(error)) = result else {
+                panic!("expected command cancellation")
+            };
+            let ToolError::Execution(execution) = error.as_ref() else {
+                panic!("expected execution failure")
+            };
+            assert!(matches!(execution.failure, ExecutionFailure::Cancelled));
+            assert!(execution.cleanup.is_none());
+            let pid: libc::pid_t = fs::read_to_string(&pid_path)
+                .unwrap()
+                .trim()
+                .parse()
+                .unwrap();
+            // SAFETY: signal zero only probes whether this reaped child exists.
+            assert_eq!(unsafe { libc::kill(pid, 0) }, -1);
+            assert_eq!(io::Error::last_os_error().raw_os_error(), Some(libc::ESRCH));
+        }
 
         let _publication_handler = InterruptHandler::install().unwrap();
         let report = scratch.path().join("report.json");

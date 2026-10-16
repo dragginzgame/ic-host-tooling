@@ -3,10 +3,9 @@
 
 use candid::Principal;
 use ic_testkit::pic::{
-    CandidCallError, CandidCallExt, CanisterDiagnosticFailure, CanisterDiagnosticsRequest,
-    CanisterInstallError, InstallSpec, PocketIc, PocketIcBuilder, PocketIcDiagnosticsExt,
-    PocketIcInstance, PocketIcStartupConfig, StandaloneCanisterFixture,
-    is_dead_pocket_ic_transport_error,
+    CandidCallError, CandidCallExt, CanisterDiagnosticsRequest, CanisterInstallError, InstallSpec,
+    PocketIc, PocketIcBuilder, PocketIcCallFailure, PocketIcDiagnosticsExt, PocketIcInstance,
+    PocketIcStartupConfig, StandaloneCanisterFixture, is_dead_pocket_ic_transport_error,
 };
 use ic_testkit::pocket_ic::common::rest::{CreateInstanceResponse, RawCanisterId, Topology};
 #[cfg(unix)]
@@ -202,7 +201,7 @@ fn refused_instance_request_probe() {
     ] {
         assert!(matches!(
             &error,
-            CanisterDiagnosticFailure::Operation(source) if source.is_transport()
+            PocketIcCallFailure::Operation(source) if source.is_transport()
         ));
         assert!(is_dead_pocket_ic_transport_error(&error));
         let error = std::io::Error::other(error);

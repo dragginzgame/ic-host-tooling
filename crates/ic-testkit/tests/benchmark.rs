@@ -2,9 +2,9 @@ mod support;
 
 use ic_testkit::benchmark::report::{read_benchmark_run_metadata, write_benchmark_report_dir};
 use ic_testkit::benchmark::{
-    BenchmarkAggregateReport, BenchmarkCounter, BenchmarkCounters, BenchmarkEventKind,
-    BenchmarkEventSource, BenchmarkParseReport, BenchmarkParserConfig, BenchmarkRunMetadata,
-    BenchmarkRunReport, BenchmarkScope, BenchmarkSpanReport, DEFAULT_PREFIX, SuiteDerivation,
+    BenchmarkCounter, BenchmarkCounters, BenchmarkEventKind, BenchmarkEventSource,
+    BenchmarkParseReport, BenchmarkParserConfig, BenchmarkRunMetadata, BenchmarkRunReport,
+    BenchmarkScope, BenchmarkSpanReport, DEFAULT_PREFIX, SuiteDerivation,
     aggregate_benchmark_spans, compare_benchmark_aggregates, format_marker, pair_benchmark_spans,
     parse_benchmark_events, parse_benchmark_events_from_captured_output,
     parse_benchmark_events_from_source,
@@ -252,10 +252,8 @@ ICTK|app/c:end|40|60|60|60
     assert_eq!(spans.spans, [] as [ic_testkit::benchmark::BenchmarkSpan; 0]);
     assert_eq!(spans.unpaired_markers.len(), 2);
     assert_eq!(spans.invalid_spans.len(), 1);
-    assert_eq!(
-        spans.invalid_spans[0].reason,
-        "end counter is lower than start counter"
-    );
+    assert_eq!(spans.invalid_spans[0].start.counters.instructions, 50);
+    assert_eq!(spans.invalid_spans[0].end.counters.instructions, 40);
 }
 
 #[test]
@@ -318,7 +316,6 @@ ICTK|app/a:end|300|60|90|120
     let aggregates = aggregate_benchmark_spans(&spans.spans).expect("aggregate benchmark spans");
 
     let app = aggregates
-        .rows
         .iter()
         .find(|row| {
             matches!(&row.scope, BenchmarkScope::Suite(suite) if suite == "app")
@@ -326,7 +323,6 @@ ICTK|app/a:end|300|60|90|120
         })
         .expect("app aggregate");
     let all = aggregates
-        .rows
         .iter()
         .find(|row| matches!(row.scope, BenchmarkScope::All) && row.span_label == "app/a")
         .expect("ALL aggregate");
@@ -347,15 +343,14 @@ fn updated_aggregate_totals_and_runs_drive_averages_and_comparisons() {
     );
     let previous = aggregate_benchmark_spans(&pair_benchmark_spans(&parse.events).spans).unwrap();
     let mut current = previous.clone();
-    for row in &mut current.rows {
+    for row in &mut current {
         row.total.instructions = 300;
         row.runs = 2;
         assert_eq!(row.average(1).unwrap().instructions, 150);
     }
-    let comparison = compare_benchmark_aggregates(&current.rows, &previous.rows, 1).unwrap();
+    let comparison = compare_benchmark_aggregates(&current, &previous, 1).unwrap();
     assert!(
         comparison
-            .rows
             .iter()
             .all(|row| row.current.unwrap().average.instructions == 150
                 && row.previous.unwrap().average.instructions == 100)
@@ -372,10 +367,7 @@ fn wide_means_preserve_integer_differences_and_explicit_projection_errors() {
             let spans = boundary_spans(counter, values);
             let previous = aggregate_benchmark_spans(&spans[..1]).unwrap();
             let current = aggregate_benchmark_spans(&spans[1..]).unwrap();
-            for row in compare_benchmark_aggregates(&current.rows, &previous.rows, 1)
-                .unwrap()
-                .rows
-            {
+            for row in compare_benchmark_aggregates(&current, &previous, 1).unwrap() {
                 let before = row.previous.unwrap().average;
                 let after = row.current.unwrap().average;
                 let fields = |m: ic_testkit::benchmark::BenchmarkAverages| {
@@ -393,7 +385,7 @@ fn wide_means_preserve_integer_differences_and_explicit_projection_errors() {
     }
     let spans = boundary_spans(0, [3, 4]);
     let mut aggregate = aggregate_benchmark_spans(&spans).unwrap();
-    let row = &mut aggregate.rows[0];
+    let row = &mut aggregate[0];
     assert_eq!(row.average(10).unwrap().instructions, 35);
     assert_eq!(row.average(1).unwrap().instructions, 3);
     row.runs = 0;
@@ -401,8 +393,8 @@ fn wide_means_preserve_integer_differences_and_explicit_projection_errors() {
         row.average(1),
         Err(ic_metrics::MeasurementRatioError::ZeroDenominator)
     );
-    assert!(compare_benchmark_aggregates(&aggregate.rows, &[], 1).is_err());
-    let row = &mut aggregate.rows[0];
+    assert!(compare_benchmark_aggregates(&aggregate, &[], 1).is_err());
+    let row = &mut aggregate[0];
     row.runs = 1;
     row.total.instructions = u128::MAX;
     assert_eq!(
@@ -481,8 +473,8 @@ fn aggregate_totals_at_the_numeric_boundary_remain_exact() {
     for index in 0..4 {
         let spans = boundary_spans(index, [u128::MAX - 1, 1]);
         let report = aggregate_benchmark_spans(&spans).expect("MAX total fits");
-        assert_eq!(report.rows.len(), 2);
-        for row in report.rows {
+        assert_eq!(report.len(), 2);
+        for row in report {
             assert_eq!(row.runs, 2);
             let totals = [
                 row.total.instructions,
@@ -500,7 +492,7 @@ fn aggregate_totals_at_the_numeric_boundary_remain_exact() {
         }
     }
     assert_eq!(
-        aggregate_benchmark_spans(&[]).unwrap().rows,
+        aggregate_benchmark_spans(&[]).unwrap(),
         [] as [ic_testkit::benchmark::BenchmarkAggregateRow; 0]
     );
 }
@@ -548,14 +540,12 @@ ICTK|benchmark:end|100|20|30|40
     let aggregates = aggregate_benchmark_spans(&pair_benchmark_spans(&parse.events).spans)
         .expect("aggregate benchmark spans");
 
-    assert_eq!(aggregates.rows.len(), 2);
+    assert_eq!(aggregates.len(), 2);
     let authored = aggregates
-        .rows
         .iter()
         .find(|row| matches!(row.scope, BenchmarkScope::Suite(_)))
         .expect("authored ALL suite");
     let all = aggregates
-        .rows
         .iter()
         .find(|row| matches!(row.scope, BenchmarkScope::All))
         .expect("cross-suite ALL aggregate");
@@ -576,7 +566,7 @@ fn comparison_csv_distinguishes_named_all_suite_from_all_suites() {
     );
     let spans = pair_benchmark_spans(&parse.events);
     let aggregates = aggregate_benchmark_spans(&spans.spans).expect("aggregate benchmark spans");
-    let comparison = compare_benchmark_aggregates(&aggregates.rows, &aggregates.rows, 1).unwrap();
+    let comparison = compare_benchmark_aggregates(&aggregates, &aggregates, 1).unwrap();
     let root_directory = unique_temp_dir("comparison-all-scope");
     let root = root_directory.path();
     write_metadata(
@@ -630,9 +620,8 @@ ICTK|app/a:end|150|50|100|100
     )
     .expect("aggregate benchmark spans");
 
-    let comparison = compare_benchmark_aggregates(&current.rows, &previous.rows, 1).unwrap();
+    let comparison = compare_benchmark_aggregates(&current, &previous, 1).unwrap();
     let app = comparison
-        .rows
         .iter()
         .find(|row| {
             matches!(&row.scope, BenchmarkScope::Suite(suite) if suite == "app")
@@ -666,20 +655,18 @@ fn comparisons_preserve_order_missing_rows_and_last_duplicate() {
         "ICTK|common:start|0|0|0|0\nICTK|common:end|150|0|0|0\n\
          ICTK|current:start|0|0|0|0\nICTK|current:end|75|0|0|0\n",
     );
-    current.rows.reverse();
+    current.reverse();
     let mut duplicate = current
-        .rows
         .iter()
         .find(|row| matches!(row.scope, BenchmarkScope::Suite(_)) && row.span_label == "common")
         .unwrap()
         .clone();
     duplicate.total.instructions = 300;
-    current.rows.push(duplicate);
-    let comparison = compare_benchmark_aggregates(&current.rows, &previous.rows, 1).unwrap();
+    current.push(duplicate);
+    let comparison = compare_benchmark_aggregates(&current, &previous, 1).unwrap();
 
     assert_eq!(
         comparison
-            .rows
             .iter()
             .map(|row| (row.scope.clone(), row.span_label.as_str()))
             .collect::<Vec<_>>(),
@@ -692,15 +679,9 @@ fn comparisons_preserve_order_missing_rows_and_last_duplicate() {
             (BenchmarkScope::All, "previous"),
         ],
     );
-    assert_eq!(
-        comparison.rows[0].current.unwrap().average.instructions,
-        300
-    );
-    assert_eq!(
-        comparison.rows[3].current.unwrap().average.instructions,
-        150
-    );
-    for row in &comparison.rows {
+    assert_eq!(comparison[0].current.unwrap().average.instructions, 300);
+    assert_eq!(comparison[3].current.unwrap().average.instructions, 150);
+    for row in &comparison {
         assert_eq!(row.current.or(row.previous).unwrap().average.heap_bytes, 0);
         match row.span_label.as_str() {
             "current" => {
@@ -715,7 +696,7 @@ fn comparisons_preserve_order_missing_rows_and_last_duplicate() {
         }
     }
 
-    let mut duplicated_previous = previous.rows;
+    let mut duplicated_previous = previous;
     let mut duplicate = duplicated_previous
         .iter()
         .find(|row| matches!(row.scope, BenchmarkScope::Suite(_)) && row.span_label == "common")
@@ -724,18 +705,12 @@ fn comparisons_preserve_order_missing_rows_and_last_duplicate() {
     duplicate.total.instructions = 600;
     duplicate.runs = 2;
     duplicated_previous.push(duplicate);
-    let comparison = compare_benchmark_aggregates(&current.rows, &duplicated_previous, 1).unwrap();
-    assert_eq!(comparison.rows[0].previous.unwrap().runs, 2);
+    let comparison = compare_benchmark_aggregates(&current, &duplicated_previous, 1).unwrap();
+    assert_eq!(comparison[0].previous.unwrap().runs, 2);
+    assert_eq!(comparison[0].previous.unwrap().average.instructions, 300);
+    assert_eq!(comparison[3].current.unwrap().average.instructions, 150);
     assert_eq!(
-        comparison.rows[0].previous.unwrap().average.instructions,
-        300
-    );
-    assert_eq!(
-        comparison.rows[3].current.unwrap().average.instructions,
-        150
-    );
-    assert_eq!(
-        compare_benchmark_aggregates(&[], &[], 1).unwrap().rows,
+        compare_benchmark_aggregates(&[], &[], 1).unwrap(),
         [] as [ic_testkit::benchmark::BenchmarkComparisonRow; 0],
     );
 }
@@ -752,6 +727,8 @@ ICTK|app/current-only:start|0|0|0|0
 ICTK|app/current-only:end|0|0|0|0
 ICTK|app/quoted,\"thing:start|0|0|0|0
 ICTK|app/quoted,\"thing:end|1|2|3|4
+ICTK|app/decreasing:start|10|0|0|0
+ICTK|app/decreasing:end|9|0|0|0
 "
         .replace('_', "")
         .as_str(),
@@ -771,8 +748,7 @@ ICTK|app/previous-only:end|0|0|0|0
     let previous_spans = pair_benchmark_spans(&previous_parse.events);
     let previous_aggregates =
         aggregate_benchmark_spans(&previous_spans.spans).expect("aggregate benchmark spans");
-    let comparison =
-        compare_benchmark_aggregates(&aggregates.rows, &previous_aggregates.rows, 1).unwrap();
+    let comparison = compare_benchmark_aggregates(&aggregates, &previous_aggregates, 1).unwrap();
     let report = BenchmarkRunReport {
         parse,
         spans,
@@ -796,13 +772,9 @@ ICTK|app/previous-only:end|0|0|0|0
 
     write_benchmark_report_dir(&report, root).expect("write report");
 
-    assert!(root.join("raw-events.csv").exists());
     assert!(root.join("spans.csv").exists());
     assert!(root.join("suite-aggregates.csv").exists());
     assert!(root.join("all-aggregates.csv").exists());
-    assert!(root.join("comparison.csv").exists());
-    assert!(root.join("bench-summary.md").exists());
-    assert!(root.join("metadata.json").exists());
 
     let raw_csv = fs::read_to_string(root.join("raw-events.csv")).unwrap();
     assert!(raw_csv.lines().any(|line| line == "7,unknown,ICTK,app,\"app/quoted,\"\"thing:start\",\"app/quoted,\"\"thing\",start,0,0,0,0"));
@@ -810,6 +782,10 @@ ICTK|app/previous-only:end|0|0|0|0
     assert_eq!(
         fs::read_to_string(root.join("unpaired-markers.csv")).unwrap(),
         "source_line,source,kind,suite,span_label,label\n3,unknown,end,app,app/missing,app/missing:end\n4,unknown,start,app,app/open,app/open:start\n"
+    );
+    assert_eq!(
+        fs::read_to_string(root.join("invalid-spans.csv")).unwrap(),
+        "start_line,end_line,suite,span_label,reason\n9,10,app,app/decreasing,end counter is lower than start counter\n"
     );
     let comparison_csv = fs::read_to_string(root.join("comparison.csv")).expect("read comparison");
     assert!(comparison_csv.contains("app/myfunc/something"));
@@ -974,7 +950,7 @@ fn write_metadata(
     let report = BenchmarkRunReport {
         parse: BenchmarkParseReport::default(),
         spans: BenchmarkSpanReport::default(),
-        aggregates: BenchmarkAggregateReport::default(),
+        aggregates: Vec::new(),
         comparison: None,
         metadata,
     };

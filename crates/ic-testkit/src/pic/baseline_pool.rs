@@ -288,33 +288,27 @@ pub struct BaselinePoolTimings {
     total: Duration,
 }
 
+/// One successful acquisition's slot, timings and preparation disposition.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct BaselinePoolOutcome {
+    /// Diagnostic slot index.
+    pub slot: usize,
+    /// Acquisition phase timings.
+    pub timings: BaselinePoolTimings,
+    /// Whether this acquisition built, restored or rebuilt the baseline.
+    pub disposition: BaselinePoolDisposition,
+}
+
 /// Whether a baseline-pool lease was built, restored, or rebuilt.
 #[non_exhaustive]
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum BaselinePoolOutcome {
+pub enum BaselinePoolDisposition {
     /// An empty slot was constructed and validated.
-    Built {
-        /// Diagnostic slot index.
-        slot: usize,
-        /// Acquisition phase timings.
-        timings: BaselinePoolTimings,
-    },
+    Built,
     /// An existing slot was restored, reset, and validated.
-    Restored {
-        /// Diagnostic slot index.
-        slot: usize,
-        /// Acquisition phase timings.
-        timings: BaselinePoolTimings,
-    },
+    Restored,
     /// An invalid or failed slot was reconstructed and validated.
-    Rebuilt {
-        /// Diagnostic slot index.
-        slot: usize,
-        /// Reason the previous slot could not be reused.
-        reason: RebuildReason,
-        /// Acquisition phase timings.
-        timings: BaselinePoolTimings,
-    },
+    Rebuilt(RebuildReason),
 }
 
 /// One failed recipe or contract stage while preparing a baseline slot.
@@ -727,28 +721,6 @@ impl BaselinePoolTimings {
     }
 }
 
-impl BaselinePoolOutcome {
-    /// Diagnostic slot index used by this acquisition.
-    #[must_use]
-    pub const fn slot(&self) -> usize {
-        match self {
-            Self::Built { slot, .. } | Self::Restored { slot, .. } | Self::Rebuilt { slot, .. } => {
-                *slot
-            }
-        }
-    }
-
-    /// Acquisition phase timings.
-    #[must_use]
-    pub const fn timings(&self) -> BaselinePoolTimings {
-        match self {
-            Self::Built { timings, .. }
-            | Self::Restored { timings, .. }
-            | Self::Rebuilt { timings, .. } => *timings,
-        }
-    }
-}
-
 impl std::fmt::Display for BaselinePoolTimings {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
@@ -768,17 +740,19 @@ impl std::fmt::Display for BaselinePoolTimings {
 
 impl std::fmt::Display for BaselinePoolOutcome {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Built { slot, timings } => write!(formatter, "built slot={slot} {timings}"),
-            Self::Restored { slot, timings } => {
-                write!(formatter, "restored slot={slot} {timings}")
+        match &self.disposition {
+            BaselinePoolDisposition::Built => formatter.write_str("built")?,
+            BaselinePoolDisposition::Restored => formatter.write_str("restored")?,
+            BaselinePoolDisposition::Rebuilt(reason) => {
+                write!(
+                    formatter,
+                    "rebuilt slot={} reason={reason:?} {}",
+                    self.slot, self.timings
+                )?;
+                return Ok(());
             }
-            Self::Rebuilt {
-                slot,
-                reason,
-                timings,
-            } => write!(formatter, "rebuilt slot={slot} reason={reason:?} {timings}"),
         }
+        write!(formatter, " slot={} {}", self.slot, self.timings)
     }
 }
 
@@ -851,9 +825,10 @@ where
                     timings.total = total_started.elapsed();
                     return Ok((
                         CachedPocketIcBaselinePoolGuard { slot },
-                        BaselinePoolOutcome::Restored {
+                        BaselinePoolOutcome {
                             slot: slot_index,
                             timings,
+                            disposition: BaselinePoolDisposition::Restored,
                         },
                     ));
                 }
@@ -899,17 +874,14 @@ where
             });
         }
 
-        let outcome = rebuild_reason.map_or_else(
-            || BaselinePoolOutcome::Built {
-                slot: slot_index,
-                timings,
-            },
-            |reason| BaselinePoolOutcome::Rebuilt {
-                slot: slot_index,
-                reason,
-                timings,
-            },
-        );
+        let outcome = BaselinePoolOutcome {
+            slot: slot_index,
+            timings,
+            disposition: rebuild_reason.map_or(
+                BaselinePoolDisposition::Built,
+                BaselinePoolDisposition::Rebuilt,
+            ),
+        };
         Ok((CachedPocketIcBaselinePoolGuard { slot }, outcome))
     }
 

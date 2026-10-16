@@ -36,8 +36,8 @@ pub enum CandidCallError {
     Transport {
         /// Target, caller, method and raw PocketIC operation.
         context: Box<CandidCallContext>,
-        /// Original upstream failure text.
-        message: String,
+        /// Original upstream operation failure and transport classification.
+        source: PocketIcOperationError,
     },
 }
 
@@ -133,8 +133,8 @@ impl std::fmt::Display for CandidCallError {
                 )?;
                 context
             }
-            Self::Transport { context, message } => {
-                write!(f, "pocket_ic {} failed: {message}", context.operation)?;
+            Self::Transport { context, source } => {
+                write!(f, "pocket_ic {} failed: {source}", context.operation)?;
                 context
             }
         };
@@ -146,7 +146,14 @@ impl std::fmt::Display for CandidCallError {
     }
 }
 
-impl std::error::Error for CandidCallError {}
+impl std::error::Error for CandidCallError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Transport { source, .. } => Some(source),
+            _ => None,
+        }
+    }
+}
 
 impl std::fmt::Display for CanisterInstallError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

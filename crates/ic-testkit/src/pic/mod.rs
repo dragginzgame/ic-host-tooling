@@ -38,7 +38,7 @@ mod transport;
 
 pub use baseline::CachedPocketIcBaseline;
 pub use baseline_pool::{
-    BaselinePoolContractError, BaselinePoolError, BaselinePoolOutcome,
+    BaselinePoolContractError, BaselinePoolDisposition, BaselinePoolError, BaselinePoolOutcome,
     BaselinePoolPreparationError, BaselinePoolTimings, BaselinePreparationStage,
     CachedPocketIcBaselinePool, CachedPocketIcBaselinePoolGuard, CanisterRestoreReceipt,
     CycleResetPolicy, ExtraCanisterPolicy, FailureDisposition, FixtureRecipeId,
@@ -48,11 +48,10 @@ pub use baseline_pool::{
 };
 pub use calls::{CandidCallExt, query_candid_args, update_candid_args};
 pub use diagnostics::{
-    CanisterDiagnosticFailure, CanisterDiagnosticLogRecord, CanisterDiagnosticLogs,
-    CanisterDiagnosticsBatchContractError, CanisterDiagnosticsBatchEntry,
-    CanisterDiagnosticsBatchReport, CanisterDiagnosticsReport, CanisterDiagnosticsRequest,
-    CanisterLogRenderLimits, DEFAULT_CANISTER_LOG_BYTE_LIMIT, DEFAULT_CANISTER_LOG_RECORD_LIMIT,
-    LabeledCanisterDiagnosticsRequest, PocketIcDiagnosticsExt,
+    CanisterDiagnosticLogRecord, CanisterDiagnosticLogs, CanisterDiagnosticsBatchContractError,
+    CanisterDiagnosticsBatchEntry, CanisterDiagnosticsBatchReport, CanisterDiagnosticsReport,
+    CanisterDiagnosticsRequest, CanisterLogRenderLimits, DEFAULT_CANISTER_LOG_BYTE_LIMIT,
+    DEFAULT_CANISTER_LOG_RECORD_LIMIT, LabeledCanisterDiagnosticsRequest, PocketIcDiagnosticsExt,
 };
 pub use errors::{
     CandidCallContext, CandidCallError, CanisterInstallError, StandaloneCanisterInstallError,
@@ -69,7 +68,9 @@ pub use startup::{
     PocketIcStartupError, PocketIcStartupFailure,
 };
 pub use time::{TickUntilError, advance_and_tick, tick_until};
-pub use transport::{PocketIcOperationError, is_dead_pocket_ic_transport_error};
+pub use transport::{
+    PocketIcCallFailure, PocketIcOperationError, is_dead_pocket_ic_transport_error,
+};
 
 /// All PocketIC extension traits, and no data types.
 ///

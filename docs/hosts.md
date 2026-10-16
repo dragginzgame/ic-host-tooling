@@ -1,5 +1,134 @@
 # Host support and qualification
 
+## Pending 0.49.0: shared hook qualification and benchmark rows
+
+Testkit's hook adapter supplies its actual workspace manifest and Rust sources
+plus reviewed Make inputs to Shared Tooling's canonical formatting checker.
+The snapshot adds that checker and its Rust-source selector from the already
+reviewed 0.15.0 revision; no shared payload is edited locally. Missing/wrong
+formatter and checkout-local discovery fixtures remain at their canonical owner
+in Shared Tooling's `test-git-hooks.sh`. Consumer qualification covers real
+Rust/manifest formatting, partial staging, unrelated files and lock preservation,
+formatter rejection, repeatability and hook installation/refusal.
+
+Linux qualification passes the consumer adapter under Bash 5 and actual Bash
+3.2.57 with inherited CDPATH, snapshot verification, formatting and ShellCheck.
+The benchmark API returns row vectors directly, preserving checked arithmetic,
+comparison ordering and emitted file layouts. All 23 benchmark integration cases,
+the aggregate run-count overflow case and environment URL-selection case pass.
+Focused strict Clippy, actual Rust 1.91 native/Wasm checks and warning-denied
+Rustdoc pass on the selected normal registry graph. Shared Tooling's pinned hook
+fixture suite also passes. Evidence is retained at `/tmp/testkit-049-simplifications-j8neo_lp/`; native macOS and full
+release validation remain maintainer-run qualifications.
+
+The next cleanup delegates driver preparation commands to Host 0.21, retaining
+inherited Cargo output and no elapsed-time deadline. Short version/platform
+stdout capture is bounded to 64 KiB. The built driver exits 130 after SIGINT
+and its owned preparation child is reaped; worker interruption still waits for
+workload cleanup. Candid transport errors retain the typed operation source,
+including through nested IO errors, while unrelated panic payloads resume intact.
+Invalid spans retain their two original events; exact CSV evidence preserves the
+counter-decrease explanation without an owned per-span reason string.
+
+Five Candid cases, ten transport cases, 23 benchmark cases, 21 driver cases and
+two actual-client refused/reset transport cases pass. Focused strict Clippy,
+actual Rust 1.91 native/Wasm checks, warning-denied Rustdoc and formatting pass.
+The incoming Build 0.9 selection is preserved, with its two benchmark constructor
+callers adjusted and checked. This batch's before-images and logs are retained
+at `/tmp/testkit-049-next-three-tqi_jl0q/`. It supplies Linux evidence; native
+macOS and the full release gate remain separate maintainer qualifications.
+
+Pool outcomes now carry slot and timings once, with Built/Restored/Rebuilt
+represented by `BaselinePoolDisposition`. Callers read the common fields directly.
+Seven slot-coordinator and six reset/receipt unit cases pass, along with live
+PocketIC checks for multi-canister build/restore/rebuild, failed recovery and
+standalone slot reuse. Strict affected-target Clippy, actual Rust 1.91 native
+checks and warning-denied Rustdoc pass.
+
+Four release/evidence fixtures now source the already reviewed lifecycle helper.
+Their actual release-metadata, publication and evidence rejection/preservation
+matrices pass under Bash 5 and genuine Bash 3.2.57 with inherited CDPATH;
+ShellCheck follows the shared helper. No shared snapshot payload changes here.
+
+[Host PR #155 — Bounded regular-file prefix reads](https://github.com/dragginzgame/ic-host-tooling/pull/155)
+contains the producer helper, qualified by five read cases on current Rust and
+Rust 1.88, strict Clippy, Rustdoc and formatting. Testkit's prepared consumer patch
+passes its sparse-output and FIFO tests plus strict Clippy against the isolated
+producer source. Normal Testkit adoption still awaits Host publication; the live
+checkout retains its published-dependency implementation until then.
+[IcyDB draft PR #367 — SQL pool outcome callers](https://github.com/dragginzgame/icydb/pull/367)
+updates the directly affected assertions and compiles against the prepared Testkit
+source; merging requires published Testkit 0.49 adoption and lock selection.
+Source before-images, the consumer patch and logs remain under
+`/tmp/testkit-049-pool-fixtures-prefix-m9_a7q4m/`. These are focused Linux and
+source-override receipts, not native macOS, normal dependency adoption or a full
+release receipt. The normal sibling checkouts remain unchanged.
+
+Diagnostics and snapshot capture, cleanup and restore now share management-call
+rejection/panic translation. Diagnostics expose `PocketIcCallFailure`; snapshot
+outer errors retain their context and original operation causes. Focused Linux
+qualification passes six diagnostics, two snapshot, ten transport and five Candid
+unit cases, plus six live diagnostics/snapshot cases and two actual-client
+refused/reset cases. All 23 benchmark parser cases pass after removing the
+temporary formatted-string copy. Affected-target strict Clippy, actual Rust 1.91
+native checks, warning-denied Rustdoc and formatting pass.
+
+[Host PR #133 — Share shell-style child termination projection](https://github.com/dragginzgame/ic-host-tooling/pull/133)
+is refreshed onto Host main `833d278e25649affd00f797647aa0fc0570961e3`, with
+topic head `ee36356f2d1d1f4c7c186538261e11c3973d3141`. Its producer passes two
+status cases on current Rust and Rust 1.88, strict Clippy, Rustdoc and formatting.
+The isolated Testkit consumer patch passes the CLI status/cleanup case, strict
+server Clippy and Rust 1.91, retaining fallback 129 and range-conversion fallback
+1. Only source paths replace the four selected Host packages in that qualification
+copy; normal manifests and lock selections remain unchanged. Publication and
+normal registry adoption remain pending under
+[#102 — Adopt Host shell-status projection in the server CLI](https://github.com/dragginzgame/ic-testkit/issues/102).
+Before-images, the adoption patch and logs are retained under
+`/tmp/testkit-049-management-parser-status-7bri_hg8/`; failed intermediate Clippy
+attempts are separate from final passing logs. Native macOS and full CI remain
+maintainer qualifications. Own package metadata and retained layouts are unchanged.
+
+Startup construction now shares operation panic capture and retains the typed
+`PocketIcOperationError` in `BuilderPanicked::source`. On the normal registry
+graph, 27 focused startup cases pass, including async timeout/cancellation and
+owned-server failure cleanup. Affected strict Clippy, actual Rust 1.91 native
+checks, warning-denied Rustdoc and formatting pass.
+
+[Host PR #99 — Share controlled group capture with Testkit and Build](https://github.com/dragginzgame/ic-host-tooling/pull/99)
+is refreshed to `70b56d9` on published Host 0.22.1 `b99beea`. It preserves
+configured IO through `run_group_command`; capture pipes, cleanup, cancellation
+and optional deadlines remain explicit. Seventy focused tool/engine cases pass;
+eight group cases also pass on Rust 1.88, with strict Clippy, Rustdoc and formatting.
+The earlier `f4ea565` evidence remains bound to its own 0.21 source graph.
+
+Host 0.22.1 published during qualification and includes the HTTP producer. Its
+Process archive checksum matches the registry and its VCS source is
+`b99beeae7c3115ee5323ea3b48fccad2fe325596`. Published Build 0.9 still exposes Host
+0.21 types, so normal Testkit adoption needs the aligned Build family rather than
+consumer-side conversions.
+[Build PR #48 — Align exposed Host types with published 0.22.1](https://github.com/dragginzgame/ic-build/pull/48)
+prepares that 0.10 hard cut without changing own versions. All 168 artifact and
+six Cargo-observation cases pass against registry Host 0.22.1, with strict Clippy,
+actual Rust 1.91, Rustdoc and formatting. Byte publication retains Replace and
+umask-filtered 0o666 choices; no retained-cache reset is introduced.
+
+The isolated HTTP deletion passes seven provisioning, 27 startup, seven time
+and two actual-client transport cases against published Host 0.22.1 and the
+Build compatibility source, with affected Clippy and Rust 1.91. The combined
+command candidate also passes seven provisioning and 18 affected driver cases,
+four live startup cases and a prepared PocketIC fresh/pooled smoke with two tasks
+per mode, plus affected Clippy and Rust 1.91. The Build probe deletion is qualified
+separately. These are source-override consumer receipts, not normal registry
+adoption or performance comparisons. Build publication blocks normal HTTP
+retirement; PR #99 publication also blocks command retirement. Normal manifests
+and implementations remain intact until supplying releases can be adopted.
+
+Evidence, before-images and consumer patches are retained under
+`/tmp/testkit-049-http-command-startup-hmcq9x34/`. Query and Blob HTTP caller
+patches pass formatting and apply-check only; compiler/native acceptance and
+supplying dependency minima remain pending. No normal sibling is edited. Failed
+attempts remain separate. Native macOS and full CI remain maintainer checks.
+
 ## Pending 0.47.0: benchmark report ownership
 
 The driver retains one complete `WorkerReport` for validation, summaries and

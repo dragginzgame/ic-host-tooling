@@ -3,6 +3,8 @@ use std::{
     panic::{AssertUnwindSafe, catch_unwind},
 };
 
+use pocket_ic::RejectResponse;
+
 /// Captured PocketIC operation failure, retaining transport classification.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PocketIcOperationError {
@@ -49,6 +51,47 @@ impl std::fmt::Display for PocketIcOperationError {
 
 impl std::error::Error for PocketIcOperationError {}
 
+/// A rejected management call or a captured PocketIC operation panic.
+#[non_exhaustive]
+#[derive(Debug)]
+pub enum PocketIcCallFailure {
+    /// PocketIC returned a structured management-canister rejection.
+    Rejected(RejectResponse),
+    /// Captured PocketIC panic, retaining its original transport classification.
+    Operation(PocketIcOperationError),
+}
+
+impl std::fmt::Display for PocketIcCallFailure {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Rejected(response) => write!(formatter, "rejected: {response:?}"),
+            Self::Operation(source) if source.is_transport() => {
+                write!(formatter, "PocketIC instance unavailable: {source}")
+            }
+            Self::Operation(source) => write!(formatter, "panicked: {source}"),
+        }
+    }
+}
+
+impl std::error::Error for PocketIcCallFailure {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Rejected(_) => None,
+            Self::Operation(source) => Some(source),
+        }
+    }
+}
+
+pub(super) fn capture_call<T>(
+    call: impl FnOnce() -> Result<T, RejectResponse>,
+) -> Result<T, PocketIcCallFailure> {
+    match capture_operation(call) {
+        Ok(Ok(value)) => Ok(value),
+        Ok(Err(response)) => Err(PocketIcCallFailure::Rejected(response)),
+        Err(source) => Err(PocketIcCallFailure::Operation(source)),
+    }
+}
+
 // Extract a stable string message from one panic payload.
 pub(super) fn panic_payload_to_string(payload: &(dyn Any + Send)) -> String {
     if let Some(message) = payload.downcast_ref::<String>() {
@@ -61,22 +104,12 @@ pub(super) fn panic_payload_to_string(payload: &(dyn Any + Send)) -> String {
     "non-string panic payload".to_string()
 }
 
-// Check whether one panic payload belongs to the dead-instance transport class
-// without consuming it, so callers can still resume the original panic.
-pub(super) fn panic_is_dead_instance_transport(payload: &(dyn Any + Send)) -> bool {
-    payload
-        .downcast_ref::<String>()
-        .map(String::as_str)
-        .or_else(|| payload.downcast_ref::<&'static str>().copied())
-        .is_some_and(is_dead_instance_transport_error)
-}
-
 /// Recognize PocketIC transport failures in typed causes and request-error text.
 ///
 /// The complete error source chain is inspected so a recipe can classify its
 /// own wrapper error as [`super::RebuildReason::DeadPocketIcTransport`]. This
 /// preserves the classification already captured by testkit's structured errors.
-/// Testkit [`super::CandidCallError`], [`super::CanisterDiagnosticFailure`], and
+/// Testkit [`super::CandidCallError`], [`super::PocketIcCallFailure`], and
 /// [`PocketIcOperationError`] causes retain their transport classification through
 /// contextual display wrappers, including nested [`std::io::Error`] values.
 /// Snapshot and installation failures expose their operation cause through
@@ -99,12 +132,6 @@ pub fn is_dead_pocket_ic_transport_error(error: &(dyn std::error::Error + 'stati
         if candidate
             .downcast_ref::<PocketIcOperationError>()
             .is_some_and(PocketIcOperationError::is_transport)
-        {
-            return true;
-        }
-        if candidate
-            .downcast_ref::<super::CandidCallError>()
-            .is_some_and(|error| matches!(error, super::CandidCallError::Transport { .. }))
         {
             return true;
         }
@@ -190,7 +217,7 @@ mod tests {
     use super::super::{CanisterInstallError, ControllerSnapshotError};
     use super::{
         PocketIcOperationError, capture_operation, is_dead_instance_transport_error,
-        is_dead_pocket_ic_transport_error, panic_is_dead_instance_transport,
+        is_dead_pocket_ic_transport_error,
     };
 
     #[derive(Debug)]
@@ -232,9 +259,7 @@ mod tests {
     fn dead_instance_transport_error_detects_native_connection_reset() {
         for message in [RESET.to_owned(), RESET.replace("code: 54", "code: 104")] {
             assert!(is_dead_instance_transport_error(&message));
-            assert!(panic_is_dead_instance_transport(&format!(
-                "HTTP failure: {message}"
-            )));
+            assert!(PocketIcOperationError::new(format!("HTTP failure: {message}")).is_transport());
             assert!(is_dead_instance_transport_error(&format!(
                 "called `Result::unwrap()` on an `Err` value: {message}"
             )));
@@ -248,7 +273,6 @@ mod tests {
 
         assert_eq!(classified.message(), INCOMPLETE);
         assert!(classified.is_transport());
-        assert!(panic_is_dead_instance_transport(&INCOMPLETE));
         let non_string = capture_operation::<()>(|| std::panic::panic_any(7_u8))
             .expect_err("non-string panic must be captured");
         assert_eq!(non_string.message(), "non-string panic payload");
@@ -335,7 +359,6 @@ mod tests {
             let error = WrapperError(std::io::Error::other(message.to_owned()));
             assert!(!is_dead_pocket_ic_transport_error(&error), "{message}");
             assert!(!PocketIcOperationError::new(message).is_transport());
-            assert!(!panic_is_dead_instance_transport(&message.to_owned()));
         }
         let refused = std::io::Error::from(std::io::ErrorKind::ConnectionRefused);
         assert!(!is_dead_pocket_ic_transport_error(&refused));
@@ -361,7 +384,7 @@ mod tests {
         );
         let error = super::super::CandidCallError::Transport {
             context: Box::new(context.clone()),
-            message: REFUSED.into(),
+            source: PocketIcOperationError::new(REFUSED),
         };
         assert!(is_dead_pocket_ic_transport_error(&error));
         let error = super::super::CandidCallError::Decode {
@@ -384,7 +407,7 @@ mod tests {
             (
                 super::super::CandidCallError::Transport {
                     context: Box::new(context.clone()),
-                    message: REFUSED.into(),
+                    source: PocketIcOperationError::new(REFUSED),
                 },
                 true,
             ),

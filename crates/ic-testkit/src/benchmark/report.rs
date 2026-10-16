@@ -8,7 +8,7 @@ use std::{fmt::Write as _, fs, io, path::Path};
 use serde_json::Value;
 
 use super::{
-    BenchmarkAggregateRow, BenchmarkAverages, BenchmarkComparisonReport, BenchmarkEventKind,
+    BenchmarkAggregateRow, BenchmarkAverages, BenchmarkComparisonRow, BenchmarkEventKind,
     BenchmarkRunMetadata, BenchmarkRunReport, BenchmarkScope, BenchmarkSpan, InvalidBenchmarkSpan,
     MalformedBenchmarkMarker, RawBenchmarkEvent,
 };
@@ -49,14 +49,12 @@ pub fn write_benchmark_report_dir(
     let suite_aggregates = aggregates_csv(
         report
             .aggregates
-            .rows
             .iter()
             .filter(|row| matches!(row.scope, BenchmarkScope::Suite(_))),
     )?;
     let all_aggregates = aggregates_csv(
         report
             .aggregates
-            .rows
             .iter()
             .filter(|row| matches!(row.scope, BenchmarkScope::All)),
     )?;
@@ -84,7 +82,7 @@ pub fn write_benchmark_report_dir(
     fs::write(path.join("all-aggregates.csv"), all_aggregates)?;
     fs::write(
         path.join("comparison.csv"),
-        comparison_csv(report.comparison.as_ref()),
+        comparison_csv(report.comparison.as_deref()),
     )?;
     fs::write(path.join("bench-summary.md"), summary)?;
     fs::write(path.join("metadata.json"), metadata_json(&report.metadata))?;
@@ -175,12 +173,11 @@ fn invalid_spans_csv(spans: &[InvalidBenchmarkSpan]) -> String {
     for span in spans {
         let _ = writeln!(
             out,
-            "{},{},{},{},{}",
+            "{},{},{},{},end counter is lower than start counter",
             span.start.source_line,
             span.end.source_line,
             csv_cell(&span.start.suite),
-            csv_cell(&span.start.span_label),
-            csv_cell(&span.reason)
+            csv_cell(&span.start.span_label)
         );
     }
     out
@@ -211,12 +208,12 @@ fn aggregates_csv<'a>(rows: impl Iterator<Item = &'a BenchmarkAggregateRow>) -> 
     Ok(out)
 }
 
-fn comparison_csv(comparison: Option<&BenchmarkComparisonReport>) -> String {
+fn comparison_csv(comparison: Option<&[BenchmarkComparisonRow]>) -> String {
     let mut out = String::from(
         "scope,suite,span_label,current_runs,previous_runs,current_mean_scale,previous_mean_scale,current_instructions_mean,previous_instructions_mean,current_heap_bytes_mean,previous_heap_bytes_mean,current_memory_bytes_mean,previous_memory_bytes_mean,current_total_allocation_mean,previous_total_allocation_mean\n",
     );
     if let Some(comparison) = comparison {
-        for row in &comparison.rows {
+        for row in comparison {
             let current = row.current.map(|measurement| measurement.average);
             let previous = row.previous.map(|measurement| measurement.average);
             let value = |mean: Option<BenchmarkAverages>, field: fn(BenchmarkAverages) -> u128| {
@@ -256,7 +253,6 @@ fn benchmark_summary_markdown(report: &BenchmarkRunReport) -> io::Result<String>
     );
     for row in report
         .aggregates
-        .rows
         .iter()
         .filter(|row| matches!(row.scope, BenchmarkScope::Suite(_)))
     {

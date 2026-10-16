@@ -191,7 +191,6 @@ pub struct BenchmarkSpan {
 pub struct InvalidBenchmarkSpan {
     pub start: RawBenchmarkEvent,
     pub end: RawBenchmarkEvent,
-    pub reason: String,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
@@ -224,11 +223,6 @@ pub struct BenchmarkAverages {
     pub heap_bytes: u128,
     pub memory_bytes: u128,
     pub total_allocation: u128,
-}
-
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
-pub struct BenchmarkAggregateReport {
-    pub rows: Vec<BenchmarkAggregateRow>,
 }
 
 /// Counter whose aggregate cannot be represented.
@@ -293,11 +287,6 @@ impl BenchmarkAggregateRow {
     }
 }
 
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
-pub struct BenchmarkComparisonReport {
-    pub rows: Vec<BenchmarkComparisonRow>,
-}
-
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct BenchmarkRunMetadata {
     pub timestamp: String,
@@ -316,8 +305,8 @@ pub struct BenchmarkRunMetadata {
 pub struct BenchmarkRunReport {
     pub parse: BenchmarkParseReport,
     pub spans: BenchmarkSpanReport,
-    pub aggregates: BenchmarkAggregateReport,
-    pub comparison: Option<BenchmarkComparisonReport>,
+    pub aggregates: Vec<BenchmarkAggregateRow>,
+    pub comparison: Option<Vec<BenchmarkComparisonRow>>,
     pub metadata: BenchmarkRunMetadata,
 }
 
@@ -436,7 +425,7 @@ pub fn pair_benchmark_spans(events: &[RawBenchmarkEvent]) -> BenchmarkSpanReport
 /// report is returned, and totals are never wrapped or saturated.
 pub fn aggregate_benchmark_spans(
     spans: &[BenchmarkSpan],
-) -> Result<BenchmarkAggregateReport, BenchmarkAggregateError> {
+) -> Result<Vec<BenchmarkAggregateRow>, BenchmarkAggregateError> {
     let mut rows: BTreeMap<(BenchmarkScope, &str), AggregateBuilder> = BTreeMap::new();
 
     for span in spans {
@@ -444,12 +433,10 @@ pub fn aggregate_benchmark_spans(
         add_span_to_aggregate(&mut rows, BenchmarkScope::All, span)?;
     }
 
-    Ok(BenchmarkAggregateReport {
-        rows: rows
-            .into_iter()
-            .map(|((scope, span_label), builder)| builder.finish(scope, span_label.to_owned()))
-            .collect(),
-    })
+    Ok(rows
+        .into_iter()
+        .map(|((scope, span_label), builder)| builder.finish(scope, span_label.to_owned()))
+        .collect())
 }
 
 /// Pair current and previous means at the same caller-selected scale.
@@ -458,7 +445,7 @@ pub fn compare_benchmark_aggregates(
     current: &[BenchmarkAggregateRow],
     previous: &[BenchmarkAggregateRow],
     scale: u64,
-) -> Result<BenchmarkComparisonReport, MeasurementRatioError> {
+) -> Result<Vec<BenchmarkComparisonRow>, MeasurementRatioError> {
     let mut rows = BTreeMap::new();
     for row in current {
         rows.insert((&row.scope, row.span_label.as_str()), (Some(row), None));
@@ -475,19 +462,16 @@ pub fn compare_benchmark_aggregates(
         })
     };
 
-    Ok(BenchmarkComparisonReport {
-        rows: rows
-            .into_iter()
-            .map(|((scope, span_label), (current_row, previous_row))| {
-                Ok(BenchmarkComparisonRow {
-                    span_label: span_label.to_owned(),
-                    current: current_row.map(measurement).transpose()?,
-                    previous: previous_row.map(measurement).transpose()?,
-                    scope: scope.clone(),
-                })
+    rows.into_iter()
+        .map(|((scope, span_label), (current_row, previous_row))| {
+            Ok(BenchmarkComparisonRow {
+                span_label: span_label.to_owned(),
+                current: current_row.map(measurement).transpose()?,
+                previous: previous_row.map(measurement).transpose()?,
+                scope: scope.clone(),
             })
-            .collect::<Result<_, MeasurementRatioError>>()?,
-    })
+        })
+        .collect()
 }
 
 fn parse_marker_line(
@@ -577,7 +561,7 @@ fn parse_counter(
             source_line,
             source,
             line,
-            &format!("{name} counter is empty"),
+            format!("{name} counter is empty"),
         ));
     }
 
@@ -586,7 +570,7 @@ fn parse_counter(
             source_line,
             source,
             line,
-            &format!("{name} counter is not an unsigned integer"),
+            format!("{name} counter is not an unsigned integer"),
         )
     })
 }
@@ -617,13 +601,13 @@ fn malformed(
     source_line: usize,
     source: BenchmarkEventSource,
     line: &str,
-    reason: &str,
+    reason: impl Into<String>,
 ) -> MalformedBenchmarkMarker {
     MalformedBenchmarkMarker {
         source_line,
         source,
         line: line.to_string(),
-        reason: reason.to_string(),
+        reason: reason.into(),
     }
 }
 
@@ -645,7 +629,6 @@ fn push_paired_span(
         report.invalid_spans.push(InvalidBenchmarkSpan {
             start: start.clone(),
             end: end.clone(),
-            reason: "end counter is lower than start counter".to_string(),
         });
     }
 }

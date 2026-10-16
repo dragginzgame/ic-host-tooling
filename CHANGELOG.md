@@ -6,6 +6,52 @@ documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.49.0]
+
+### Breaking
+
+- Startup builder panic failures carry `source: PocketIcOperationError` instead
+  of a message string, preserving the typed cause through `Error::source()`.
+  Synchronous and asynchronous construction share operation panic capture;
+  startup deadlines, cancellation and owned-server cleanup remain unchanged.
+
+- Diagnostics expose `PocketIcCallFailure::{Rejected, Operation}` in place of
+  `CanisterDiagnosticFailure`. Diagnostics and snapshot capture share rejection
+  and panic translation; snapshot context, rollback and original causes remain
+  available through their existing outer reports and errors.
+
+- Pool acquisitions return common `slot` and `timings` fields with a
+  `disposition: BaselinePoolDisposition`. Match `Built`, `Restored` or
+  `Rebuilt(reason)` through that field; read timings and slot directly instead
+  of calling their former accessors.
+
+- `CandidCallError::Transport` carries `source: PocketIcOperationError` instead
+  of a message string. Inspect the typed source directly or through
+  `Error::source()`; unrelated application panics still resume unchanged.
+- Invalid benchmark spans retain both original events without an owned `reason`
+  field. The report writer emits the existing counter-decrease explanation.
+
+- Benchmark aggregation and comparison return row vectors directly. Read and
+  populate `BenchmarkRunReport::aggregates` and `::comparison` without `.rows`;
+  replace the removed report wrapper types with `Vec<BenchmarkAggregateRow>`
+  and `Vec<BenchmarkComparisonRow>`. Report files and arithmetic stay unchanged.
+
+### Changed
+
+- Release and evidence fixtures reuse Shared Tooling's physical-directory
+  allocation, completion admission and failure-preserving cleanup.
+
+- The benchmark driver delegates preparation commands to Host for cancellation,
+  child cleanup and typed execution failures. Cargo builds keep inherited output
+  and no elapsed-time deadline; version/platform stdout capture is limited to
+  64 KiB. Interrupted preparation still exits with status 130, while worker
+  interruption continues to wait for the workload's server cleanup.
+
+- Hook qualification uses the reviewed Shared Tooling checker with Testkit's
+  actual workspace inputs, including manifest sorting and preservation checks.
+- Environment-selected PocketIC URLs use the same parser and typed errors as
+  explicit startup configuration, preserving validation before server effects.
+
 ## [0.48.0] - 2026-10-16
 
 ### Breaking

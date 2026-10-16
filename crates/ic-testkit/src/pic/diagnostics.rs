@@ -5,9 +5,12 @@ use std::{
 };
 
 use candid::Principal;
-use pocket_ic::{CanisterLogRecord, CanisterStatusResult, PocketIc, RejectResponse};
+use pocket_ic::{CanisterLogRecord, CanisterStatusResult, PocketIc};
 
-use super::{PocketIcOperationError, transport};
+use super::{
+    PocketIcCallFailure,
+    transport::{self, capture_call},
+};
 
 /// Default maximum number of canister-log records retained in diagnostics.
 pub const DEFAULT_CANISTER_LOG_RECORD_LIMIT: usize = 32;
@@ -168,37 +171,6 @@ impl LabeledCanisterDiagnosticsRequest {
     }
 }
 
-/// A failed best-effort PocketIC diagnostic call.
-#[non_exhaustive]
-#[derive(Debug)]
-pub enum CanisterDiagnosticFailure {
-    /// PocketIC returned a structured management-canister rejection.
-    Rejected(RejectResponse),
-    /// Captured PocketIC panic, retaining its original transport classification.
-    Operation(PocketIcOperationError),
-}
-
-impl fmt::Display for CanisterDiagnosticFailure {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Rejected(response) => write!(formatter, "rejected: {response:?}"),
-            Self::Operation(source) if source.is_transport() => {
-                write!(formatter, "PocketIC instance unavailable: {source}")
-            }
-            Self::Operation(source) => write!(formatter, "panicked: {source}"),
-        }
-    }
-}
-
-impl std::error::Error for CanisterDiagnosticFailure {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Self::Rejected(_) => None,
-            Self::Operation(source) => Some(source),
-        }
-    }
-}
-
 /// One canister-log record retained as bounded lossy UTF-8 text.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CanisterDiagnosticLogRecord {
@@ -337,8 +309,8 @@ impl fmt::Display for CanisterDiagnosticLogs {
 #[derive(Debug)]
 pub struct CanisterDiagnosticsReport {
     request: CanisterDiagnosticsRequest,
-    status: Result<CanisterStatusResult, CanisterDiagnosticFailure>,
-    logs: Result<CanisterDiagnosticLogs, CanisterDiagnosticFailure>,
+    status: Result<CanisterStatusResult, PocketIcCallFailure>,
+    logs: Result<CanisterDiagnosticLogs, PocketIcCallFailure>,
 }
 
 impl CanisterDiagnosticsReport {
@@ -349,12 +321,12 @@ impl CanisterDiagnosticsReport {
     }
 
     /// Status result, independent of log retrieval.
-    pub const fn status(&self) -> Result<&CanisterStatusResult, &CanisterDiagnosticFailure> {
+    pub const fn status(&self) -> Result<&CanisterStatusResult, &PocketIcCallFailure> {
         self.status.as_ref()
     }
 
     /// Log result, independent of status retrieval.
-    pub const fn logs(&self) -> Result<&CanisterDiagnosticLogs, &CanisterDiagnosticFailure> {
+    pub const fn logs(&self) -> Result<&CanisterDiagnosticLogs, &PocketIcCallFailure> {
         self.logs.as_ref()
     }
 
@@ -369,8 +341,8 @@ impl CanisterDiagnosticsReport {
         self,
     ) -> (
         CanisterDiagnosticsRequest,
-        Result<CanisterStatusResult, CanisterDiagnosticFailure>,
-        Result<CanisterDiagnosticLogs, CanisterDiagnosticFailure>,
+        Result<CanisterStatusResult, PocketIcCallFailure>,
+        Result<CanisterDiagnosticLogs, PocketIcCallFailure>,
     ) {
         (self.request, self.status, self.logs)
     }
@@ -535,8 +507,8 @@ pub trait PocketIcDiagnosticsExt {
                     transport::capture_operation(|| self.collect_canister_diagnostics(request))
                         .unwrap_or_else(|source| CanisterDiagnosticsReport {
                             request,
-                            status: Err(CanisterDiagnosticFailure::Operation(source.clone())),
-                            logs: Err(CanisterDiagnosticFailure::Operation(source)),
+                            status: Err(PocketIcCallFailure::Operation(source.clone())),
+                            logs: Err(PocketIcCallFailure::Operation(source)),
                         });
                 CanisterDiagnosticsBatchEntry {
                     label: labeled.label.clone(),
@@ -600,29 +572,17 @@ impl PocketIcDiagnosticsExt for PocketIc {
         &self,
         request: CanisterDiagnosticsRequest,
     ) -> CanisterDiagnosticsReport {
-        let status = capture_diagnostic_call(|| {
-            self.canister_status(request.canister_id, Some(request.status_sender))
-        });
-        let logs = capture_diagnostic_call(|| {
-            self.fetch_canister_logs(request.canister_id, request.log_sender)
-        })
-        .map(|records| render_log_records(records, request.log_limits));
+        let status =
+            capture_call(|| self.canister_status(request.canister_id, Some(request.status_sender)));
+        let logs =
+            capture_call(|| self.fetch_canister_logs(request.canister_id, request.log_sender))
+                .map(|records| render_log_records(records, request.log_limits));
 
         CanisterDiagnosticsReport {
             request,
             status,
             logs,
         }
-    }
-}
-
-fn capture_diagnostic_call<T>(
-    call: impl FnOnce() -> Result<T, RejectResponse>,
-) -> Result<T, CanisterDiagnosticFailure> {
-    match transport::capture_operation(call) {
-        Ok(Ok(value)) => Ok(value),
-        Ok(Err(response)) => Err(CanisterDiagnosticFailure::Rejected(response)),
-        Err(source) => Err(CanisterDiagnosticFailure::Operation(source)),
     }
 }
 
@@ -674,10 +634,9 @@ mod tests {
     use pocket_ic::CanisterLogRecord;
 
     use super::{
-        CanisterDiagnosticFailure, CanisterDiagnosticsBatchContractError,
-        CanisterDiagnosticsReport, CanisterDiagnosticsRequest, CanisterLogRenderLimits,
-        LabeledCanisterDiagnosticsRequest, PocketIcDiagnosticsExt, capture_diagnostic_call,
-        render_log_records,
+        CanisterDiagnosticsBatchContractError, CanisterDiagnosticsReport,
+        CanisterDiagnosticsRequest, CanisterLogRenderLimits, LabeledCanisterDiagnosticsRequest,
+        PocketIcCallFailure, PocketIcDiagnosticsExt, capture_call, render_log_records,
     };
 
     #[test]
@@ -685,16 +644,16 @@ mod tests {
         const REFUSED: &str = "HTTP failure: reqwest::Error { kind: Request, url: \"http://127.0.0.1:1234/instances/0/read/get_time\", source: ConnectError(\"tcp connect error\", Os { code: 111, kind: ConnectionRefused, message: \"Connection refused\" }) }";
         const RESET: &str = "HTTP failure: reqwest::Error { kind: Request, url: \"http://127.0.0.1:49238/instances/0/read/get_time\", source: hyper_util::client::legacy::Error(SendRequest, hyper::Error(Io, Os { code: 54, kind: ConnectionReset, message: \"Connection reset by peer\" })) }";
         for message in [REFUSED, RESET, "application worker channel closed"] {
-            let error = capture_diagnostic_call::<()>(|| panic!("{message}"))
+            let error = capture_call::<()>(|| panic!("{message}"))
                 .expect_err("diagnostic operation should capture the panic");
             let expected = message != "application worker channel closed";
-            let CanisterDiagnosticFailure::Operation(source) = &error else {
+            let PocketIcCallFailure::Operation(source) = &error else {
                 panic!("expected the original operation error");
             };
             assert_eq!(source.message(), message);
             assert_eq!(source.is_transport(), expected);
             let chained = std::error::Error::source(&error)
-                .and_then(|cause| cause.downcast_ref::<super::PocketIcOperationError>())
+                .and_then(|cause| cause.downcast_ref::<super::super::PocketIcOperationError>())
                 .expect("diagnostic error exposes its original typed cause");
             assert_eq!(chained, source);
             assert_eq!(
@@ -723,11 +682,11 @@ mod tests {
             assert_ne!(call, 0, "synthetic first-entry diagnostic panic");
             CanisterDiagnosticsReport {
                 request,
-                status: Err(CanisterDiagnosticFailure::Operation(
-                    super::PocketIcOperationError::new("synthetic status failure"),
+                status: Err(PocketIcCallFailure::Operation(
+                    super::super::PocketIcOperationError::new("synthetic status failure"),
                 )),
-                logs: Err(CanisterDiagnosticFailure::Operation(
-                    super::PocketIcOperationError::new("synthetic log failure"),
+                logs: Err(PocketIcCallFailure::Operation(
+                    super::super::PocketIcOperationError::new("synthetic log failure"),
                 )),
             }
         }

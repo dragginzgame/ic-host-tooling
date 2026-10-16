@@ -10,7 +10,7 @@ use std::{error::Error, fmt, num::NonZeroUsize, time::Duration};
 
 use candid::Principal;
 use ic_testkit::pic::{
-    BaselinePoolContractError, BaselinePoolOutcome, BaselinePreparationStage,
+    BaselinePoolContractError, BaselinePoolDisposition, BaselinePreparationStage,
     CachedPocketIcBaseline, CachedPocketIcBaselinePool, CanisterRestoreReceipt,
     CanisterSnapshotTarget, ControllerSnapshotError, CycleResetPolicy, FailureDisposition,
     FixtureRecipeId, PocketIcBaselineRecipe, PocketIcBuilder, PocketIcStartupConfig,
@@ -186,12 +186,15 @@ fn main() -> Result<(), Box<dyn Error>> {
     );
 
     let (baseline, first) = pool.acquire()?;
-    assert!(matches!(first, BaselinePoolOutcome::Built { .. }));
+    assert!(matches!(first.disposition, BaselinePoolDisposition::Built));
     println!("first acquisition: {first:?}");
     drop(baseline);
 
     let (baseline, second) = pool.acquire()?;
-    assert!(matches!(second, BaselinePoolOutcome::Restored { .. }));
+    assert!(matches!(
+        second.disposition,
+        BaselinePoolDisposition::Restored
+    ));
     println!("second acquisition: {second:?}");
     drop(baseline);
 

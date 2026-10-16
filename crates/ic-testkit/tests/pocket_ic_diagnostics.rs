@@ -2,7 +2,7 @@ mod support;
 
 use candid::Principal;
 use ic_testkit::pic::{
-    CanisterDiagnosticFailure, CanisterDiagnosticsRequest, LabeledCanisterDiagnosticsRequest,
+    CanisterDiagnosticsRequest, LabeledCanisterDiagnosticsRequest, PocketIcCallFailure,
     PocketIcDiagnosticsExt, is_dead_pocket_ic_transport_error,
 };
 use pocket_ic::CanisterSettings;
@@ -53,11 +53,11 @@ fn diagnostics_use_independent_exact_senders_and_preserve_both_outcomes() {
     let denied = batch.entries()[0].report();
     assert!(matches!(
         denied.status(),
-        Err(CanisterDiagnosticFailure::Rejected(_))
+        Err(PocketIcCallFailure::Rejected(_))
     ));
     assert!(matches!(
         denied.logs(),
-        Err(CanisterDiagnosticFailure::Rejected(_))
+        Err(PocketIcCallFailure::Rejected(_))
     ));
     for error in [denied.status().unwrap_err(), denied.logs().unwrap_err()] {
         assert!(

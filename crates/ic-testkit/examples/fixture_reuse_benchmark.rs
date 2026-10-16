@@ -16,7 +16,7 @@ use std::{
 use candid::Principal;
 use fixture_reuse_report::{Phases, Sample, WorkerReport};
 use ic_testkit::pic::{
-    BaselinePoolOutcome, BaselinePoolTimings, BaselinePreparationStage, CachedPocketIcBaseline,
+    BaselinePoolDisposition, BaselinePoolTimings, BaselinePreparationStage, CachedPocketIcBaseline,
     CachedPocketIcBaselinePool, CandidCallExt, CanisterRestoreReceipt, CanisterSnapshotTarget,
     CycleResetPolicy, FailureDisposition, FixtureRecipeId, PocketIc, PocketIcBaselineRecipe,
     PocketIcBuilder, PocketIcInstance, PocketIcStartupConfig, PreparedBaseline, ReadinessReceipt,
@@ -228,10 +228,10 @@ fn pooled_sample(
 ) -> Result<Sample> {
     let started = Instant::now();
     let (fixture, outcome) = pool.acquire()?;
-    if !matches!(outcome, BaselinePoolOutcome::Restored { .. }) {
+    if !matches!(outcome.disposition, BaselinePoolDisposition::Restored) {
         return Err(io::Error::other("measured pooled acquisition was not a warm restore").into());
     }
-    let phases = outcome.timings().into();
+    let phases = outcome.timings.into();
     let body = Instant::now();
     recipe.exercise(fixture.pocket_ic(), fixture.metadata())?;
     let body_ms = ms(body.elapsed());
@@ -317,10 +317,10 @@ fn main() -> Result<()> {
         let mut held = Vec::new();
         for _ in 0..capacity.get() {
             let (fixture, outcome) = pool.acquire()?;
-            if !matches!(outcome, BaselinePoolOutcome::Built { .. }) {
+            if !matches!(outcome.disposition, BaselinePoolDisposition::Built) {
                 return Err(io::Error::other("initial slot was not built").into());
             }
-            cold.push(Phases::from(outcome.timings()));
+            cold.push(Phases::from(outcome.timings));
             // The first timed restore must prove it undoes a real mutation too.
             recipe.exercise(fixture.pocket_ic(), fixture.metadata())?;
             held.push(fixture);

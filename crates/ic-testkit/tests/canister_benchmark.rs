@@ -39,7 +39,7 @@ fn perf_probe_canister_emits_parseable_benchmark_markers() {
     let target_dir_directory = unique_temp_dir("ic-testkit-perf-probe-target");
     let target_dir = target_dir_directory.path();
 
-    let spec = WasmBuildSpec::new(&workspace, target_dir, &[PERF_PROBE_PACKAGE], "debug")
+    let spec = WasmBuildSpec::new(&workspace, target_dir, &[PERF_PROBE_PACKAGE])
         .with_cargo_profile_args(["--locked"]);
     let outcome = build_wasm_canisters_cached(&spec).expect("build perf probe Wasm");
     let wasm_path = outcome

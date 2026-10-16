@@ -6,21 +6,11 @@ repo_root="${BASH_SOURCE[0]}"
 repo_root="$(cd -P "${repo_root%/*}/../.." && printf '%s/.' "$PWD")"
 repo_root="${repo_root%/.}"
 make_bin="$(command -v make)"
-work_dir="$(mktemp -d)"
+# shellcheck source=scripts/ci/fixture-lifecycle.sh
+source "$repo_root/scripts/ci/fixture-lifecycle.sh"
+work_dir="$(fixture_create "${TMPDIR:-/tmp}/ic-testkit-release-guards.XXXXXX")"
 fixture_complete=false
-cleanup() {
-  local status=$?
-  [[ "$fixture_complete" == true || "$status" != 0 ]] || status=1
-  if [[ "$status" == 0 ]]; then rm -rf "$work_dir"
-  else echo "Failed release guard qualification retained at $work_dir" >&2; fi
-  exit "$status"
-}
-trap cleanup EXIT
-
-# Child helpers change directory; keep scratch paths and TMPDIR physical.
-[[ "$work_dir" == /* ]] || work_dir="$PWD/$work_dir"
-work_dir="$(cd -P "$work_dir" && printf '%s/.' "$PWD")"
-work_dir="${work_dir%/.}"
+trap 'fixture_finish "$?" "$work_dir" "Failed release guard qualification retained"' EXIT
 export TMPDIR="${work_dir%/*}"
 
 fail() {

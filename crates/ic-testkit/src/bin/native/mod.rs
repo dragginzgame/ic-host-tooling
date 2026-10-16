@@ -303,13 +303,23 @@ fn failure_exit_code(failure: &ic_testkit::pic::PocketIcStartupFailure) -> ExitC
 
 #[cfg(test)]
 mod tests {
-    use super::{ExitCode, failure_exit_code};
+    use super::{ExitCode, command_exit_code, failure_exit_code};
     use ic_testkit::pic::PocketIcStartupFailure;
     use std::os::unix::process::ExitStatusExt as _;
 
     #[test]
     fn secondary_server_cleanup_preserves_failed_command_status() {
-        for (raw_status, expected) in [(0, 1), (23 << 8, 23), (15, 143)] {
+        for (raw_status, expected) in [
+            (0, 1),
+            (23 << 8, 23),
+            (255 << 8, 255),
+            (15, 143),
+            ((19 << 8) | 0x7f, 129),
+        ] {
+            assert_eq!(
+                command_exit_code(std::process::ExitStatus::from_raw(raw_status)),
+                ExitCode::from(if raw_status == 0 { 0 } else { expected })
+            );
             let failure = PocketIcStartupFailure::ServerCleanup {
                 command_status: std::process::ExitStatus::from_raw(raw_status),
             };

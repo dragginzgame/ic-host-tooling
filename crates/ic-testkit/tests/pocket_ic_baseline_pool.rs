@@ -14,7 +14,7 @@ use std::{
 
 use candid::Principal;
 use ic_testkit::pic::{
-    BaselinePoolContractError, BaselinePoolError, BaselinePoolOutcome,
+    BaselinePoolContractError, BaselinePoolDisposition, BaselinePoolError, BaselinePoolOutcome,
     BaselinePoolPreparationError, BaselinePreparationStage, CachedPocketIcBaseline,
     CachedPocketIcBaselinePool, CanisterRestoreReceipt, CanisterSnapshotTarget,
     ControllerSnapshotError, CycleResetPolicy, ExtraCanisterPolicy, FailureDisposition,
@@ -402,11 +402,14 @@ fn multi_canister_pool_restores_and_explicitly_rebuilds_one_slot() {
     assert_eq!(pool.capacity().get(), 1);
 
     let (baseline, outcome) = pool.acquire().expect("first baseline should build");
-    let timings = outcome.timings();
+    let timings = outcome.timings;
     assert!(timings.build().is_some());
     assert!(timings.restore().is_none());
     assert!(timings.validation().is_some());
-    assert!(matches!(outcome, BaselinePoolOutcome::Built { .. }));
+    assert!(matches!(
+        outcome.disposition,
+        BaselinePoolDisposition::Built
+    ));
     let policy = CycleResetPolicy::TopUpTo(123);
     let receipt = baseline
         .restore(SnapshotRestoreFunding::TopUpTo {
@@ -426,13 +429,16 @@ fn multi_canister_pool_restores_and_explicitly_rebuilds_one_slot() {
     drop(baseline);
 
     let (mut baseline, outcome) = pool.acquire().expect("baseline should restore");
-    let timings = outcome.timings();
+    let timings = outcome.timings;
     assert!(timings.build().is_none());
     assert!(timings.restore().is_some());
     assert!(timings.reset().is_some());
     assert!(timings.readiness().is_some());
     assert!(timings.validation().is_some());
-    assert!(matches!(&outcome, BaselinePoolOutcome::Restored { .. }));
+    assert!(matches!(
+        &outcome.disposition,
+        BaselinePoolDisposition::Restored
+    ));
     assert_eq!(controls.built_validations.load(Ordering::SeqCst), 1);
     assert_eq!(controls.restored_validations.load(Ordering::SeqCst), 1);
     assert_eq!(baseline.pocket_ic().instance_id(), first_instance);
@@ -455,11 +461,8 @@ fn multi_canister_pool_restores_and_explicitly_rebuilds_one_slot() {
 
     let (baseline, outcome) = pool.acquire().expect("invalid slot should rebuild once");
     assert!(matches!(
-        outcome,
-        BaselinePoolOutcome::Rebuilt {
-            reason: RebuildReason::RecipeClassified { code },
-            ..
-        } if code == "caller-selected"
+        outcome.disposition,
+        BaselinePoolDisposition::Rebuilt(RebuildReason::RecipeClassified { code }) if code == "caller-selected"
     ));
     assert_eq!(controls.builds.load(Ordering::SeqCst), 2);
     assert_eq!(controls.built_validations.load(Ordering::SeqCst), 2);
@@ -486,11 +489,8 @@ fn reused_slot_failure_rebuilds_once_and_preserves_a_failed_recovery() {
     controls.fail_next_restore.store(true, Ordering::SeqCst);
     let (baseline, outcome) = pool.acquire().expect("restore failure should rebuild");
     assert!(matches!(
-        outcome,
-        BaselinePoolOutcome::Rebuilt {
-            reason: RebuildReason::SnapshotRestoreFailure,
-            ..
-        }
+        outcome.disposition,
+        BaselinePoolDisposition::Rebuilt(RebuildReason::SnapshotRestoreFailure)
     ));
     drop(baseline);
 
@@ -574,8 +574,8 @@ fn reset_readiness_and_validation_failures_have_distinct_rebuild_reasons() {
             .acquire()
             .expect("classified preparation failure should rebuild once");
         assert!(matches!(
-            outcome,
-            BaselinePoolOutcome::Rebuilt { reason, .. } if reason == expected
+            outcome.disposition,
+            BaselinePoolDisposition::Rebuilt(reason) if reason == expected
         ));
         drop(baseline);
     }
@@ -616,11 +616,8 @@ fn killed_dedicated_server_rebuilds_on_a_fresh_server() {
         .acquire()
         .expect("dead dedicated transport should rebuild on the default server");
     assert!(matches!(
-        outcome,
-        BaselinePoolOutcome::Rebuilt {
-            reason: RebuildReason::DeadPocketIcTransport,
-            ..
-        }
+        outcome.disposition,
+        BaselinePoolDisposition::Rebuilt(RebuildReason::DeadPocketIcTransport)
     ));
     assert_eq!(controls.builds.load(Ordering::SeqCst), 2);
     drop(baseline);
@@ -704,11 +701,8 @@ fn restore_receipt_mismatches_force_a_fresh_baseline() {
             .acquire()
             .expect("mismatched restore evidence should rebuild safely");
         assert!(matches!(
-            outcome,
-            BaselinePoolOutcome::Rebuilt {
-                reason: RebuildReason::ResetCoverageMismatch,
-                ..
-            }
+            outcome.disposition,
+            BaselinePoolDisposition::Rebuilt(RebuildReason::ResetCoverageMismatch)
         ));
         assert_eq!(controls.builds.load(Ordering::SeqCst), 2);
         assert_eq!(controls.restored_validations.load(Ordering::SeqCst), 0);
@@ -753,7 +747,10 @@ fn validation_recipe_mismatch_is_fatal_and_not_retried_as_a_rebuild() {
     let (baseline, outcome) = pool
         .acquire()
         .expect("the discarded fatal slot should build on a later acquisition");
-    assert!(matches!(outcome, BaselinePoolOutcome::Built { .. }));
+    assert!(matches!(
+        outcome.disposition,
+        BaselinePoolDisposition::Built
+    ));
     assert_eq!(controls.builds.load(Ordering::SeqCst), 2);
     drop(baseline);
 }
@@ -779,11 +776,8 @@ fn panic_while_leased_invalidates_without_hiding_the_panic() {
         .acquire()
         .expect("slot invalidated by unwind should rebuild");
     assert!(matches!(
-        outcome,
-        BaselinePoolOutcome::Rebuilt {
-            reason: RebuildReason::UnwindWhileLeased,
-            ..
-        }
+        outcome.disposition,
+        BaselinePoolDisposition::Rebuilt(RebuildReason::UnwindWhileLeased)
     ));
     assert_eq!(controls.builds.load(Ordering::SeqCst), 2);
     drop(baseline);
@@ -813,11 +807,8 @@ fn recipe_hook_panic_invalidates_without_becoming_a_cache_miss() {
         .acquire()
         .expect("slot invalidated by recipe panic should rebuild later");
     assert!(matches!(
-        outcome,
-        BaselinePoolOutcome::Rebuilt {
-            reason: RebuildReason::UnwindWhileLeased,
-            ..
-        }
+        outcome.disposition,
+        BaselinePoolDisposition::Rebuilt(RebuildReason::UnwindWhileLeased)
     ));
     assert_eq!(controls.builds.load(Ordering::SeqCst), 2);
     drop(baseline);
@@ -830,7 +821,10 @@ fn runtime_capacity_allows_two_independent_baseline_leases() {
         TwoCanisterRecipe::new(RecipeControls::default()),
     ));
     let (first, first_outcome) = pool.acquire().expect("first slot should build");
-    assert!(matches!(first_outcome, BaselinePoolOutcome::Built { .. }));
+    assert!(matches!(
+        first_outcome.disposition,
+        BaselinePoolDisposition::Built
+    ));
 
     let worker_pool = Arc::clone(&pool);
     let (acquired_tx, acquired_rx) = mpsc::channel();
@@ -850,7 +844,10 @@ fn runtime_capacity_allows_two_independent_baseline_leases() {
     let (second_instance, second_outcome) = acquired_rx
         .recv_timeout(OPERATION_TIMEOUT)
         .expect("capacity two should not wait for the first lease");
-    assert!(matches!(second_outcome, BaselinePoolOutcome::Built { .. }));
+    assert!(matches!(
+        second_outcome.disposition,
+        BaselinePoolDisposition::Built
+    ));
     assert_ne!(
         (
             first.pocket_ic().get_server_url(),
@@ -899,9 +896,12 @@ fn capacity_one_reports_time_waiting_for_the_held_slot() {
         .recv_timeout(OPERATION_TIMEOUT)
         .expect("waiting acquisition should complete after release");
     assert_eq!(second_instance, first_instance);
-    assert!(matches!(&outcome, BaselinePoolOutcome::Restored { .. }));
+    assert!(matches!(
+        &outcome.disposition,
+        BaselinePoolDisposition::Restored
+    ));
     assert!(
-        outcome.timings().wait() >= Duration::from_millis(50),
+        outcome.timings.wait() >= Duration::from_millis(50),
         "reported queue wait should include the observed capacity block",
     );
     worker
@@ -922,7 +922,10 @@ fn one_slot_survives_one_hundred_consecutive_restores() {
         let (baseline, outcome) = pool
             .acquire()
             .unwrap_or_else(|error| panic!("stress restore {iteration} should succeed: {error}"));
-        assert!(matches!(outcome, BaselinePoolOutcome::Restored { .. }));
+        assert!(matches!(
+            outcome.disposition,
+            BaselinePoolDisposition::Restored
+        ));
 
         let canister_id = baseline.metadata().canister_ids[iteration % 2];
         baseline
@@ -942,11 +945,8 @@ fn one_slot_survives_one_hundred_consecutive_restores() {
 fn assert_rebuilt_for_domain(outcome: &BaselinePoolOutcome, expected: &str) {
     assert!(
         matches!(
-            outcome,
-            BaselinePoolOutcome::Rebuilt {
-                reason: RebuildReason::RecipeClassified { code },
-                ..
-            } if code == expected
+            &outcome.disposition,
+            BaselinePoolDisposition::Rebuilt(RebuildReason::RecipeClassified { code }) if code == expected
         ),
         "expected rebuild for {expected}, got {outcome:?}"
     );
