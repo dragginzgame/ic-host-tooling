@@ -2,6 +2,9 @@
 
 ## [0.19.1]
 
+- Add positive whole-second duration parsing and rounded largest-unit display
+  for Query. Preserve the separate compact two-unit display policy.
+
 - Add pure compact duration labels for host reports and CLIs. Consumers retain
   their units, columns and output policy.
   [Detailed notes](docs/changelog/0.19.md).

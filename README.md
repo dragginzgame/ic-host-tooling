@@ -48,6 +48,11 @@ nothing: callers retain Agent verification, trust roots, combined evidence
 budgets, witness commitments and application leaf meanings. The feature adds no
 Agent transport, filesystem/process execution or Candid parser.
 
+`ic-host-text::duration` offers explicit duration text policies: Canic's truncated
+`compact_duration`, Query's half-up `display_duration_seconds`, and strict
+positive whole-second `parse_duration_seconds`. Callers own timeouts, freshness
+and persisted units; rounded display is not a lossless input format.
+
 `ic-host-text::escape::terminal_text` makes control and bidirectional formatting
 characters visible without choosing output or colour. `table::render` accepts
 headers, fixed-column rows, alignments and explicit `Options { column_gap,

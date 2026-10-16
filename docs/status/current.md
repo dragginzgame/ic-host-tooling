@@ -1,5 +1,15 @@
 # Current handoff
 
+## Query duration contribution (stacked on PR #120)
+
+Query extends the existing duration owner with positive whole-second parsing,
+raw invalid-input errors and rounded single-unit display. Canic's distinct
+compact two-unit policy and tests remain intact. This contribution targets
+`canic/compact-duration` to avoid a competing module/PR against main. Integration
+must reconcile the parent branch with current main and select current release
+notes before publication. Query's real checkout retains its duration owner until
+a published Host version supplies the API; isolated adoption evidence is separate.
+
 ## Compact duration contribution refresh
 
 PR #120 incorporates released Host 0.19.0 through a normal topic merge.
