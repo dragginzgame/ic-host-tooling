@@ -1,5 +1,17 @@
 # Current handoff
 
+## Build directory custody — pending 0.22.2
+
+An isolated contribution from pushed main `798fd42` extracts Build’s generic
+directory guard and final-entry removal into `ic-host-fs::owned_directory` under
+[#159](https://github.com/dragginzgame/ic-host-tooling/issues/159). Four focused
+Linux cases pass on actual Rust 1.88 with strict affected all-target Clippy.
+Caller-controlled disarming, cleanup retry and final-symlink behavior retain their
+existing semantics. Construction grants no ownership or namespace confinement.
+Build retains cache lifecycle, locks and error composition; its normal source
+keeps the published implementation until reviewed Host publication. Native macOS
+qualification and release remain separate. Versions and selected graph stay fixed.
+
 ## Source and pending release
 
 Latest tagged release: **0.22.1**, commit

@@ -2,6 +2,10 @@
 
 ## [0.22.2]
 
+- Share explicit invocation-owned directory cleanup with Build, preserving
+  Drop retry, custody transfer and final-symlink removal
+  ([#159 — Invocation directory custody](https://github.com/dragginzgame/ic-host-tooling/issues/159)).
+
 - Admit existing regular lock sidecars, try one nonblocking exclusive lock, and
   publish caller-verified directory trees without replacing an occupied name.
   [Detailed notes](docs/changelog/0.22.md).
