@@ -569,6 +569,10 @@ fn failed_download_retains_partial_archive_and_original_process_failure() {
                     assert!(attempt.join("download.stderr").is_dir());
                     let record_error = ic_host_fs::durable::write_bytes(
                         &attempt.join("download.stderr"),
+                        ic_host_fs::durable::WriteOptions {
+                            mode: ic_host_fs::durable::PublicationMode::Replace,
+                            permissions: 0o666,
+                        },
                         b"download diagnostic",
                     )
                     .unwrap_err();
@@ -615,9 +619,15 @@ fn successful_download_stops_when_stderr_cannot_be_recorded() {
     assert_eq!(attempts.len(), 1);
     let attempt = &attempts[0];
     assert_eq!(fs::read(attempt.join("archive.gz")).unwrap(), b"partial");
-    let expected =
-        ic_host_fs::durable::write_bytes(&attempt.join("download.stderr"), b"download diagnostic")
-            .unwrap_err();
+    let expected = ic_host_fs::durable::write_bytes(
+        &attempt.join("download.stderr"),
+        ic_host_fs::durable::WriteOptions {
+            mode: ic_host_fs::durable::PublicationMode::Replace,
+            permissions: 0o666,
+        },
+        b"download diagnostic",
+    )
+    .unwrap_err();
     assert_eq!(
         fs::read_to_string(attempt.join("failure.txt")).unwrap(),
         expected.to_string()

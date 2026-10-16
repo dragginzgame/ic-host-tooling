@@ -54,6 +54,12 @@ repository checkout. The complete historical changelog remains at
 - Environment-selected PocketIC URLs use the same parser and typed errors as
   explicit startup configuration, preserving validation before server effects.
 
+### Fixed
+
+- Keep PocketIC setup and failure-evidence recording compatible with Host 0.22's
+  explicit byte-write options, preserving replacement and permission choices.
+  Enable the separate gzip feature used to authenticate and decode server bundles.
+
 ## [0.48.0] - 2026-10-16
 
 ### Breaking

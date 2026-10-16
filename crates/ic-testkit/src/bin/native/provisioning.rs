@@ -224,6 +224,10 @@ pub(super) fn setup(directory: &Path) -> Result<PathBuf> {
                     .parent()
                     .ok_or("missing archive parent")?
                     .join("download.stderr"),
+                durable::WriteOptions {
+                    mode: durable::PublicationMode::Replace,
+                    permissions: 0o666,
+                },
                 stderr,
             )
         {
@@ -262,9 +266,14 @@ fn setup_with(
     eprintln!("PocketIC setup evidence: {}", attempt.display());
     let result = install(&attempt, asset, download);
     if let Err(error) = result {
-        if let Err(record_error) =
-            durable::write_bytes(&attempt.join("failure.txt"), error.to_string().as_bytes())
-        {
+        if let Err(record_error) = durable::write_bytes(
+            &attempt.join("failure.txt"),
+            durable::WriteOptions {
+                mode: durable::PublicationMode::Replace,
+                permissions: 0o666,
+            },
+            error.to_string().as_bytes(),
+        ) {
             eprintln!("could not record setup failure: {record_error}");
         }
         return Err(error);
@@ -310,7 +319,14 @@ fn install(
                 ("version.stdout", &evidence.stdout),
                 ("version.stderr", &evidence.stderr),
             ] {
-                if let Err(record_error) = durable::write_bytes(&attempt.join(name), bytes) {
+                if let Err(record_error) = durable::write_bytes(
+                    &attempt.join(name),
+                    durable::WriteOptions {
+                        mode: durable::PublicationMode::Replace,
+                        permissions: 0o666,
+                    },
+                    bytes,
+                ) {
                     eprintln!("could not record version evidence: {record_error}");
                 }
             }

@@ -23,7 +23,7 @@ readme = "README.md"
 candid = { version = "0.10", default-features = false }
 ic-build = { version = "0.9" }
 ic-cdk = "0.20.2"
-ic-host-artifacts = { version = "0.22", features = ["wasm"] }
+ic-host-artifacts = { version = "0.22", features = ["gzip", "wasm"] }
 ic-host-fs = "0.22"
 ic-host-process = "0.22"
 ic-host-text = { version = "0.22", default-features = false }
