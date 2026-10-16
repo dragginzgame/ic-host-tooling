@@ -53,15 +53,19 @@ fn physical_directory_validation_preserves_native_names_and_relative_selection()
             validate_physical_directory_allow_missing(&native).unwrap();
             validate_physical_directory_allow_missing(&native.join("missing")).unwrap();
         }
-        Err(creation_error) => {
-            // Some native filesystems reject non-UTF-8 names. Preserve their
-            // metadata error rather than assuming every Unix host accepts bytes.
-            let expected = fs::symlink_metadata(&native).unwrap_err();
-            assert_eq!(creation_error.raw_os_error(), expected.raw_os_error());
+        Err(_) => {
+            // Creation and metadata lookup can report different native errors.
+            // Missing-path admission follows lookup, not creatability.
             for path in [&native, &native.join("missing")] {
-                let observed = validate_physical_directory_allow_missing(path).unwrap_err();
-                assert_eq!(observed.kind(), expected.kind());
-                assert_eq!(observed.raw_os_error(), expected.raw_os_error());
+                let expected = fs::symlink_metadata(path).unwrap_err();
+                let observed = validate_physical_directory_allow_missing(path);
+                if expected.kind() == io::ErrorKind::NotFound {
+                    observed.unwrap();
+                } else {
+                    let observed = observed.unwrap_err();
+                    assert_eq!(observed.kind(), expected.kind());
+                    assert_eq!(observed.raw_os_error(), expected.raw_os_error());
+                }
             }
         }
     }

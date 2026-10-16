@@ -9,10 +9,12 @@ read-only physical-directory validation. See [the release notes](../changelog/0.
 
 [PR #147](https://github.com/dragginzgame/ic-host-tooling/pull/147)'s original
 macOS jobs reached the native path fixture but failed while creating an invalid
-UTF-8 directory name. The corrected fixture checks native filesystem errors and
-keeps positive Unicode/relative/missing-path coverage. Production admission is
-unchanged. Both native macOS architectures require qualification on the new head;
-Linux evidence does not qualify those hosts.
+UTF-8 directory name. A first repair incorrectly equated creation and lookup
+errors; both native runners reported creation error 92 and lookup error 2.
+The fixture now follows metadata lookup: NotFound permits a missing path, while
+other errors remain intact. Positive Unicode/relative/missing-path coverage and
+production admission are unchanged. Both native macOS architectures require
+qualification on the new head; Linux evidence does not qualify those hosts.
 
 Released 0.21.0 delivers the Git observation, reader admission, independent
 Candid/Wasm feature selection and explicit durable writer custody changes.
