@@ -379,3 +379,8 @@ Optional expected-digest verification and export/custom-section details are also
 owned by this CLI; the duplicate filesystem `inspect_artifact` example is retired.
 Default TSV output remains stable, and the filesystem development profile no
 longer selects the Wasm parser for that example.
+
+The opt-in `ic-host-process::testing::http` module owns bounded synthetic request
+reading, including phased request-line admission and remaining-deadline socket
+reads. It does not own response generation, application policy or evidence files.
+HTTP fixtures are portable; executable fixtures and crash barriers remain Unix-only.

@@ -2,26 +2,27 @@
 
 ## Source and pending release
 
-Released base: **0.21.0**, commit
-`69da6d4b02344a38506738184197491a7813c296`. Package versions remain 0.21.0;
-prepared work is collected in the **0.22.0** draft. Source at `69432cd` includes
-the prior preparation; this adoption adds local tooling/documentation changes.
-The authoritative scope and consumer actions are in
-[the release notes](../changelog/0.22.md).
+Latest tagged release: **0.22.0**, commit
+`984d4f34be230d735f629babe312a07df883fca6`. Package versions remain 0.22.0.
+The compatible contributor-tooling adoption is collected in the **0.22.1** draft.
+At its start, HEAD was `5b9be6f` and the HTTP-fixture merge of `a8f11e0` was still
+in progress. Preserve its staged source and corrected working-tree changelog;
+this adoption does not stage files or conclude that merge. Release scope and
+consumer actions are in [the release notes](../changelog/0.22.md).
 
-Pending work consolidates byte publication into `write_bytes(path, options,
+Released 0.22.0 consolidates byte publication into `write_bytes(path, options,
 bytes)`, makes Candid normalization an explicit caller operation and retires the
 unused tar-member API/feature and example. Callers must preserve their previous
 publication mode/permissions; Testkit selects `gzip` instead of `archive`.
 The lockfile drops only `tar` and its unused `filetime` dependency.
-The same draft removes the unused strict labeled-hex codec and example format;
+The same release removes the unused strict labeled-hex codec and example format;
 callers select JSON/plain hex and own CLI presentation handling. Host no longer
 replays generic formatter/hook, Make-consumer or tool-command matrices; actual
 formatting and Make adoption, prepared tools and failure/preservation checks remain
 local. Snapshot selection retires only those unused fixture payloads and companions.
 Terminal clipping shares the escape iterator
 and stops at proven overflow while preserving the current output contract.
-The draft also adds existing-parent pathname publication through the held
+The release also adds existing-parent pathname publication through the held
 descriptor engine and opt-in process failure-evidence rendering for issues
 [#148 — Existing-parent publication](https://github.com/dragginzgame/ic-host-tooling/issues/148)
 and [#149 — Explicit failure diagnostics](https://github.com/dragginzgame/ic-host-tooling/issues/149).
@@ -37,9 +38,11 @@ Released 0.20.1 includes the column-clipping source from
 [PR #144](https://github.com/dragginzgame/ic-host-tooling/pull/144), adapted to
 `Cow<str>` escaping. Consumer adoption retains its own qualification.
 
-Shared Tooling selects **0.15.6**, committed revision
-`5910c9fe95429aa5741589f7e6d0cec9b6c84384`, with 88 entrypoints and 108 exact
-payloads. The prepared Make/CI adoption is now applied: Shared owns common
+Shared Tooling selects **0.15.7**, committed revision
+`05548771d95c4f27f23f29e28a6db8f4c0cac44d`, with 88 entrypoints and 108 exact
+payloads. Fixture exit probes now check physical scratch roots and require fresh
+child receipts on repeated calls, preserving earlier failure evidence.
+The Make/CI adoption remains applied: Shared owns common
 fixture copying, per-target unsafe-mode probes and CI tool preparation with
 logs and PATH publication.
 Host retains its actual target roster, routing, ordered aggregate/preflight,
@@ -71,6 +74,15 @@ have one private owner, and release projection uses Shared's saved-source render
 
 These are scoped Linux records for the inputs identified by each task, not a
 combined release receipt. Before-images and command logs remain at their owners:
+
+The Shared 0.15.7 adoption verifies all 108 selected payloads from the published
+revision. All seven exit cases pass against each of Host's five actual fixture
+entrypoints on current Bash and genuine Bash 3.2.57, using prefix-only probes
+that run no fixture bodies, tools, release adapters or uploads. Affected
+ShellCheck passes. Before-images, preview and logs remain at
+`/tmp/host-shared-next.KO2HEr/`. Existing staged source, merge/index state,
+Cargo metadata/lock, common tool pins, MIT license and Git refs are preserved.
+No Rust build, installation, release or native macOS qualification is claimed.
 
 The Shared 0.15.6 adoption verifies all 108 payloads from a clean checkout of the
 published revision. The three new helper/action payloads match the saved rehearsal

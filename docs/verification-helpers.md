@@ -820,7 +820,9 @@ The helper owns no version/source admission, index, release or publication effec
 Focused coverage is `scripts/ci/test-cargo-release-preflight.sh`, including
 simulated cold/warm caches, offline policy, fetch failure, missing executables,
 setup/check failure and selected-pin drift. These use substituted Cargo/Make
-effects. Consumers retain actual Cargo offline-policy checks, preparation
+effects. A frozen one-dependency workspace additionally uses real Cargo with an
+empty cache to verify environment/configuration offline refusal before tool
+dispatch, preserving its manifest and lock. Consumers retain preparation
 authority, catalog overrides, runner ordering and Git-state custody.
 
 ## Current Rust formatting inputs

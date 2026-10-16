@@ -9,5 +9,5 @@ mod test_support;
 #[cfg(unix)]
 pub mod tool;
 
-#[cfg(all(unix, any(test, feature = "test-support")))]
+#[cfg(any(test, feature = "test-support"))]
 pub mod testing;

@@ -182,3 +182,20 @@ preserves modes and unrelated files, rejects missing inputs or symlink outputs
 before copying, and preserves copy failures. It invokes no Make, Git, installer
 or release command. Callers keep the Makefile, catalogs, leaf stubs, assertions
 and fixture retention; this is a test skeleton, not a complete consumer export.
+
+## Reusing fixture exit qualification
+
+`scripts/ci/fixture-retention-probes.sh` owns the common failure injections,
+status comparisons and retained-evidence checks. Consumers keep source rosters,
+working directories and domain-specific diagnostic assertions. Existing
+`FIXTURE_PROBE_ROOT_VARIABLE` / `FIXTURE_PROBE_DIRECTORY_VARIABLE` selections may
+be paired with `FIXTURE_PROBE_COMPLETION_VARIABLE` (default `fixture_complete`)
+and `FIXTURE_PROBE_TEMPORARY_ROOT` (default the probe root). Variable names are
+admitted as shell identifiers before child execution. Relative and aliased scratch
+roots are checked against their physical directory; a caller using RUNNER_TEMP
+selects that environment explicitly too. On success `fixture_probe_retained`
+contains the checked physical path for any caller-owned diagnostic comparison.
+Selected assertion probes preserve a function context for return-based guards.
+Repeated exit probes require a fresh receipt from each child; earlier retained
+directories remain available when a later child fails during initialization.
+No consumer fixture body is run by these prefix-only probes.
