@@ -2,6 +2,13 @@
 
 ## Pending 0.49.0: shared hook qualification and benchmark rows
 
+The teardown integration fixture reads bounded requests through Host's HTTP
+capture API with optional Content-Length, retaining its timeout and byte bounds.
+All six parent cases pass on Linux, including subprocess teardown ordering and
+refused/reset transport handling; the three child probes run through those parents.
+Focused strict Clippy, actual Rust 1.91 and formatting pass. Evidence is retained
+at `/tmp/testkit-teardown-http.IyKSMc/`; native macOS and full CI remain separate.
+
 The normal registry graph now selects Build 0.10.0 and one Host 0.22.1 family,
 resolving the driver's output-limit type mismatch at workspace discovery and
 metadata observation. The fake Cargo fixture emits a compiler-artifact message

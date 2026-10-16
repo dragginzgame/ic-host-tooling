@@ -54,6 +54,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Fixed
 
+- Teardown integration tests use Host's bounded HTTP capture directly, removing
+  their dependency on Testkit's synthetic-request helper export.
+
 - Align benchmark tooling on Build 0.10 and Host 0.22 so workspace discovery
   and metadata observation accept the same output-limit types. The fake Cargo
   fixture emits artifact messages required by Build's current Wasm discovery.
