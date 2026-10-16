@@ -333,7 +333,7 @@ fn owned_async_instance_and_borrowed_connections_preserve_lifetimes() {
 #[ignore = "requires POCKET_IC_BIN=<caller-provided PocketIC server binary>"]
 fn install_errors_fixtures_and_baselines_retain_the_owned_server() {
     use crate::pic::{
-        CachedPocketIcBaseline, CanisterInstallPhase, InstallSpec, StandaloneCanisterFixture,
+        CachedPocketIcBaseline, CanisterInstallError, InstallSpec, StandaloneCanisterFixture,
     };
     use candid::Principal;
 
@@ -349,20 +349,19 @@ fn install_errors_fixtures_and_baselines_retain_the_owned_server() {
     )
     .err()
     .expect("invalid Wasm must fail installation");
-    assert_eq!(
-        error.install_error().phase(),
-        CanisterInstallPhase::InstallCode
-    );
-    assert_eq!(error.install_error().label(), Some("invalid-owned-wasm"));
-    assert!(
-        error
-            .install_error()
-            .message()
-            .contains("CanisterInvalidWasm")
-    );
+    let CanisterInstallError::InstallCode {
+        canister_id,
+        label,
+        source,
+    } = error.install_error()
+    else {
+        panic!("invalid Wasm must fail at installation: {error}");
+    };
+    assert_eq!(label.as_deref(), Some("invalid-owned-wasm"));
+    assert!(source.message().contains("CanisterInvalidWasm"));
     error
         .pocket_ic()
-        .canister_status(error.install_error().canister_id().unwrap(), None)
+        .canister_status(*canister_id, None)
         .expect("retained server must permit inspecting the failed canister");
     let (owned, _) = error.into_parts();
     assert_eq!(owned.instance.instance_id(), instance_id);

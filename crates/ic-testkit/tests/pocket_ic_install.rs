@@ -1,24 +1,43 @@
 mod support;
 
-use ic_testkit::pic::{CanisterInstallExt, InstallSpec, StandaloneCanisterFixture};
+use candid::Principal;
+use ic_testkit::pic::{
+    CanisterDiagnosticsRequest, CanisterInstallError, CanisterInstallExt, InstallSpec,
+    PocketIcDiagnosticsExt, StandaloneCanisterFixture,
+};
 
 #[test]
-fn fallible_install_preserves_the_original_failure_after_diagnostics() {
+fn fallible_install_preserves_the_original_failure_for_caller_diagnostics() {
     let owned = support::pocket_ic();
     let pocket_ic = &owned.instance;
     let error = pocket_ic
         .try_create_and_install(InstallSpec::new(vec![0xde, 0xad], vec![], 0).label("invalid-wasm"))
         .expect_err("invalid Wasm should fail installation");
 
-    assert_eq!(error.label(), Some("invalid-wasm"));
+    let CanisterInstallError::InstallCode {
+        canister_id,
+        label,
+        source,
+    } = &error
+    else {
+        panic!("invalid Wasm must fail at installation: {error}");
+    };
+    assert_eq!(label.as_deref(), Some("invalid-wasm"));
     assert!(
-        error.message().contains("CanisterInvalidWasm"),
+        source.message().contains("CanisterInvalidWasm"),
         "original PocketIC rejection should be preserved: {}",
-        error.message()
+        source.message()
     );
-    pocket_ic
-        .canister_status(error.canister_id().expect("creation succeeded"), None)
-        .expect("the failed install's canister should remain inspectable");
+    let report = pocket_ic.collect_canister_diagnostics(CanisterDiagnosticsRequest::new(
+        *canister_id,
+        Principal::anonymous(),
+        Principal::anonymous(),
+    ));
+    assert!(
+        report.status().is_ok(),
+        "the failed install's canister remains inspectable"
+    );
+    assert!(source.message().contains("CanisterInvalidWasm"));
 }
 
 #[test]
@@ -30,16 +49,15 @@ fn failed_standalone_install_returns_the_caller_instance() {
         panic!("invalid Wasm should fail standalone installation");
     };
 
-    let canister_id = error
-        .install_error()
-        .canister_id()
-        .expect("creation succeeded");
-    assert_eq!(
-        error.install_error().label(),
-        Some("invalid-standalone-wasm")
-    );
+    let CanisterInstallError::InstallCode {
+        canister_id, label, ..
+    } = error.install_error()
+    else {
+        panic!("invalid Wasm must fail at installation: {error}");
+    };
+    assert_eq!(label.as_deref(), Some("invalid-standalone-wasm"));
     error
         .pocket_ic()
-        .canister_status(canister_id, None)
+        .canister_status(*canister_id, None)
         .expect("caller-created instance should remain inspectable after install failure");
 }

@@ -421,12 +421,7 @@ where
     R: PocketIcBaselineRecipe,
 {
     recipe: R,
-    slots: BoundedSlotPool<BaselineSlot<R::Metadata>>,
-}
-
-struct BaselineSlot<M> {
-    baseline: CachedPocketIcBaseline<M>,
-    invalidation_reason: Option<RebuildReason>,
+    slots: BoundedSlotPool<CachedPocketIcBaseline<R::Metadata>, RebuildReason>,
 }
 
 /// Exclusive lease of one validated pooled PocketIC baseline.
@@ -434,7 +429,7 @@ pub struct CachedPocketIcBaselinePoolGuard<'a, R>
 where
     R: PocketIcBaselineRecipe,
 {
-    slot: BoundedSlotLease<'a, BaselineSlot<R::Metadata>>,
+    slot: BoundedSlotLease<'a, CachedPocketIcBaseline<R::Metadata>, RebuildReason>,
 }
 
 impl FixtureRecipeId {
@@ -880,12 +875,7 @@ where
             let reason = if slot.invalidated_by_unwind() {
                 Some(RebuildReason::UnwindWhileLeased)
             } else {
-                slot.get()
-                    .and_then(|slot| slot.invalidation_reason.clone())
-                    .or_else(|| {
-                        slot.is_populated()
-                            .then_some(RebuildReason::ExplicitLeaseInvalidation)
-                    })
+                slot.invalidation_reason().cloned()
             };
             (reason, None)
         };
@@ -925,13 +915,12 @@ where
 
     fn prepare_reused(
         &self,
-        slot: &BoundedSlotLease<'_, BaselineSlot<R::Metadata>>,
+        slot: &BoundedSlotLease<'_, CachedPocketIcBaseline<R::Metadata>, RebuildReason>,
         timings: &mut BaselinePoolTimings,
     ) -> Result<(), BaselinePoolPreparationError<R::Error>> {
-        let baseline = &slot
+        let baseline = slot
             .get()
-            .expect("reusable baseline slot must be populated")
-            .baseline;
+            .expect("reusable baseline slot must be populated");
 
         let started = Instant::now();
         let restore = self.recipe.restore_canisters(baseline);
@@ -989,7 +978,7 @@ where
 
     fn build_slot(
         &self,
-        slot: &mut BoundedSlotLease<'_, BaselineSlot<R::Metadata>>,
+        slot: &mut BoundedSlotLease<'_, CachedPocketIcBaseline<R::Metadata>, RebuildReason>,
         timings: &mut BaselinePoolTimings,
     ) -> Result<(), BaselinePoolPreparationError<R::Error>> {
         let started = Instant::now();
@@ -1009,10 +998,7 @@ where
             drop_baseline_safely(baseline);
             return Err(error);
         }
-        let replaced = slot.replace(BaselineSlot {
-            baseline,
-            invalidation_reason: None,
-        });
+        let replaced = slot.replace(baseline);
         debug_assert!(replaced.is_none());
         Ok(())
     }
@@ -1058,12 +1044,12 @@ where
     }
 
     fn discard_stale_slot(
-        slot: &mut BoundedSlotLease<'_, BaselineSlot<R::Metadata>>,
+        slot: &mut BoundedSlotLease<'_, CachedPocketIcBaseline<R::Metadata>, RebuildReason>,
         timings: &mut BaselinePoolTimings,
     ) {
         let started = Instant::now();
         if let Some(stale) = slot.take() {
-            drop_baseline_safely(stale.baseline);
+            drop_baseline_safely(stale);
         }
         timings.stale_teardown = Some(started.elapsed());
     }
@@ -1081,10 +1067,7 @@ where
 
     /// Mark this slot non-reusable with a structured rebuild reason.
     pub fn invalidate(&mut self, reason: RebuildReason) {
-        if let Some(slot) = self.slot.get_mut() {
-            slot.invalidation_reason = Some(reason);
-        }
-        self.slot.invalidate();
+        self.slot.invalidate(reason);
     }
 }
 
@@ -1095,11 +1078,9 @@ where
     type Target = CachedPocketIcBaseline<R::Metadata>;
 
     fn deref(&self) -> &Self::Target {
-        &self
-            .slot
+        self.slot
             .get()
             .expect("leased baseline pool slot must be populated")
-            .baseline
     }
 }
 

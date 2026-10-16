@@ -448,15 +448,18 @@ fn multi_canister_pool_restores_and_explicitly_rebuilds_one_slot() {
         );
     }
     baseline.invalidate(RebuildReason::ExplicitLeaseInvalidation);
+    baseline.invalidate(RebuildReason::RecipeClassified {
+        code: "caller-selected".into(),
+    });
     drop(baseline);
 
     let (baseline, outcome) = pool.acquire().expect("invalid slot should rebuild once");
     assert!(matches!(
         outcome,
         BaselinePoolOutcome::Rebuilt {
-            reason: RebuildReason::ExplicitLeaseInvalidation,
+            reason: RebuildReason::RecipeClassified { code },
             ..
-        }
+        } if code == "caller-selected"
     ));
     assert_eq!(controls.builds.load(Ordering::SeqCst), 2);
     assert_eq!(controls.built_validations.load(Ordering::SeqCst), 2);

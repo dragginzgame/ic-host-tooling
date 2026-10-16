@@ -23,12 +23,27 @@ pub struct CanisterSnapshotTarget {
 }
 
 /// Failure to remove a snapshot while rolling back a partial capture.
+#[non_exhaustive]
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct SnapshotCleanupFailure {
-    canister_id: Principal,
-    sender: Option<Principal>,
-    response: Option<Box<RejectResponse>>,
-    panic_message: Option<String>,
+pub enum SnapshotCleanupFailure {
+    /// PocketIC rejected snapshot deletion with the exact captured sender.
+    Rejected {
+        /// Canister whose snapshot could not be removed.
+        canister_id: Principal,
+        /// Exact sender selected for cleanup.
+        sender: Option<Principal>,
+        /// Complete upstream rejection.
+        response: Box<RejectResponse>,
+    },
+    /// PocketIC panicked while deleting a captured snapshot.
+    Panicked {
+        /// Canister whose snapshot could not be removed.
+        canister_id: Principal,
+        /// Exact sender selected for cleanup.
+        sender: Option<Principal>,
+        /// Original operation failure, retaining transport classification.
+        source: PocketIcOperationError,
+    },
 }
 
 /// Caller-selected cycle funding applied immediately before snapshot restore.
@@ -199,7 +214,10 @@ where
             }
             Err(failure) => failure,
         };
-        let cleanup_failures = cleanup_captured_snapshots(pocket_ic, snapshots);
+        let cleanup_failures =
+            cleanup_captured_snapshots(snapshots, |canister_id, sender, snapshot_id| {
+                pocket_ic.delete_canister_snapshot(canister_id, sender, snapshot_id)
+            });
         return Err(match failure {
             SnapshotCaptureFailure::Rejected(response) => ControllerSnapshotError::CaptureFailed {
                 canister_id,
@@ -243,32 +261,6 @@ impl ControllerSnapshots {
                 snapshot.sender,
             )
         })
-    }
-}
-
-impl SnapshotCleanupFailure {
-    /// Read the canister whose captured snapshot could not be removed.
-    #[must_use]
-    pub const fn canister_id(&self) -> Principal {
-        self.canister_id
-    }
-
-    /// Read the sender used for the rejected cleanup.
-    #[must_use]
-    pub const fn sender(&self) -> Option<Principal> {
-        self.sender
-    }
-
-    /// Read PocketIC's structured rejection.
-    #[must_use]
-    pub fn response(&self) -> Option<&RejectResponse> {
-        self.response.as_deref()
-    }
-
-    /// Read a captured PocketIC panic message, when cleanup did not return a rejection.
-    #[must_use]
-    pub fn panic_message(&self) -> Option<&str> {
-        self.panic_message.as_deref()
     }
 }
 
@@ -344,27 +336,25 @@ fn try_take_snapshot(
 }
 
 fn cleanup_captured_snapshots(
-    pocket_ic: &PocketIc,
     snapshots: BTreeMap<Principal, ControllerSnapshot>,
+    mut remove: impl FnMut(Principal, Option<Principal>, Vec<u8>) -> Result<(), RejectResponse>,
 ) -> Vec<SnapshotCleanupFailure> {
     let mut failures = Vec::new();
     for (canister_id, snapshot) in snapshots {
         let cleanup = transport::capture_operation(|| {
-            pocket_ic.delete_canister_snapshot(canister_id, snapshot.sender, snapshot.snapshot_id)
+            remove(canister_id, snapshot.sender, snapshot.snapshot_id)
         });
         match cleanup {
             Ok(Ok(())) => {}
-            Ok(Err(response)) => failures.push(SnapshotCleanupFailure {
+            Ok(Err(response)) => failures.push(SnapshotCleanupFailure::Rejected {
                 canister_id,
                 sender: snapshot.sender,
-                response: Some(Box::new(response)),
-                panic_message: None,
+                response: Box::new(response),
             }),
-            Err(source) => failures.push(SnapshotCleanupFailure {
+            Err(source) => failures.push(SnapshotCleanupFailure::Panicked {
                 canister_id,
                 sender: snapshot.sender,
-                response: None,
-                panic_message: Some(source.to_string()),
+                source,
             }),
         }
     }
@@ -421,6 +411,70 @@ const fn snapshot_restore_top_up(balance: u128, funding: SnapshotRestoreFunding)
 #[cfg(test)]
 mod tests {
     use super::{SnapshotRestoreFunding, snapshot_restore_top_up};
+
+    #[test]
+    fn cleanup_preserves_causes_and_senders_and_continues_after_each_failure() {
+        use super::{ControllerSnapshot, SnapshotCleanupFailure, cleanup_captured_snapshots};
+        use candid::Principal;
+        use pocket_ic::{ErrorCode, RejectCode, RejectResponse};
+
+        let ids = [1, 2, 3, 4].map(|byte| Principal::from_slice(&[byte]));
+        let sender = Some(Principal::anonymous());
+        let snapshots = ids
+            .map(|id| {
+                (
+                    id,
+                    ControllerSnapshot {
+                        snapshot_id: vec![7],
+                        sender,
+                    },
+                )
+            })
+            .into_iter()
+            .collect();
+        let rejection = RejectResponse {
+            reject_code: RejectCode::CanisterReject,
+            reject_message: "cleanup rejected".into(),
+            error_code: ErrorCode::CanisterCalledTrap,
+            certified: false,
+        };
+        let transport = "reqwest::Error { kind: Request, url: \"http://127.0.0.1:1234/instances/0/update/delete_canister_snapshot\", source: hyper::Error(IncompleteMessage) }";
+        let mut calls = Vec::new();
+        let failures = cleanup_captured_snapshots(snapshots, |id, selected_sender, snapshot_id| {
+            assert_eq!(snapshot_id, [7]);
+            calls.push((id, selected_sender));
+            if id == ids[1] {
+                return Err(rejection.clone());
+            }
+            if id == ids[2] {
+                std::panic::panic_any(transport.to_owned());
+            }
+            Ok(())
+        });
+        assert_eq!(calls, ids.map(|id| (id, sender)));
+        let [
+            SnapshotCleanupFailure::Rejected {
+                canister_id: rejected_id,
+                sender: rejected_sender,
+                response,
+            },
+            SnapshotCleanupFailure::Panicked {
+                canister_id: panicked_id,
+                sender: panicked_sender,
+                source,
+            },
+        ] = failures.as_slice()
+        else {
+            panic!("expected both cleanup failures: {failures:?}");
+        };
+        assert_eq!(*rejected_id, ids[1]);
+        assert_eq!(*rejected_sender, sender);
+        assert_eq!(response.as_ref(), &rejection);
+        assert_eq!(*panicked_id, ids[2]);
+        assert_eq!(*panicked_sender, sender);
+        assert!(source.is_transport());
+        assert_eq!(source.message(), transport);
+    }
 
     #[test]
     fn snapshot_restore_funding_is_explicit() {

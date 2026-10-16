@@ -6,6 +6,47 @@ documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.48.0]
+
+### Breaking
+
+- Diagnostic operation failures retain `PocketIcOperationError` directly in
+  `CanisterDiagnosticFailure::Operation`; inspect its cause and transport flag.
+- Remove `BenchmarkSpan::start`, retaining end counters, checked deltas and
+  source lines. Invalid spans still retain both original events.
+
+- Match installation error variants for their original cause and label; funding
+  and installation failures carry a required canister ID. Remove the separate
+  phase enum and optional-field accessors.
+- Benchmark events retain `span_label` and `kind` without a duplicate `label`
+  string. CSV output reconstructs the existing label and retains its columns.
+
+- Match `SnapshotCleanupFailure::Rejected` or `::Panicked` for exact sender and
+  cause details. Panic cleanup failures retain the original operation error and
+  transport classification; remove the optional-field accessors.
+- Read unpaired benchmark events directly from
+  `BenchmarkSpanReport::unpaired_markers`. Remove the duplicate marker wrapper
+  and kind enum; event order and report CSV columns remain unchanged.
+- Installation helpers return structured failures without fetching diagnostics
+  or printing to stderr. Fixture callers choose diagnostic requests and output,
+  retaining the original installation error if diagnostic collection fails.
+- Read comparison sides through `current` and `previous`, each containing its
+  run count and average together. Missing measurements remain distinct from zero.
+- Format diagnostic reports with `Display` or `to_string()` instead of
+  `render_compact()`; bounded output and retained labels are unchanged.
+
+### Changed
+
+- Summarize benchmark samples directly from their owning runs, removing the
+  intermediate reference vector while preserving report fields and statistics.
+- Use Build 0.8 for contributor fixtures and benchmarks, aligning their Host
+  types with the selected Host 0.21 dependencies.
+
+- Keep baseline-pool invalidation and its caller-selected reason in one slot
+  state, preserving unwind recovery and replacement of invalid baselines.
+
+[Migration details](crates/ic-testkit/CHANGELOG.md#0480)
+
 ## [0.47.0] - 2026-10-15
 
 ### Breaking

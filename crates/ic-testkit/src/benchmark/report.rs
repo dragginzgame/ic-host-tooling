@@ -10,8 +10,7 @@ use serde_json::Value;
 use super::{
     BenchmarkAggregateRow, BenchmarkAverages, BenchmarkComparisonReport, BenchmarkEventKind,
     BenchmarkRunMetadata, BenchmarkRunReport, BenchmarkScope, BenchmarkSpan, InvalidBenchmarkSpan,
-    MalformedBenchmarkMarker, RawBenchmarkEvent, UnpairedBenchmarkMarker,
-    UnpairedBenchmarkMarkerKind,
+    MalformedBenchmarkMarker, RawBenchmarkEvent,
 };
 
 const ALL_SUITES_LABEL: &str = "ALL";
@@ -105,7 +104,7 @@ fn raw_events_csv(events: &[RawBenchmarkEvent]) -> String {
             event.source.as_str(),
             csv_cell(&event.prefix),
             csv_cell(&event.suite),
-            csv_cell(&event.label),
+            csv_cell(&format!("{}:{}", event.span_label, kind_str(event.kind))),
             csv_cell(&event.span_label),
             kind_str(event.kind),
             event.counters.instructions,
@@ -153,22 +152,19 @@ fn spans_csv(spans: &[BenchmarkSpan]) -> String {
     out
 }
 
-fn unpaired_markers_csv(markers: &[UnpairedBenchmarkMarker]) -> String {
+fn unpaired_markers_csv(markers: &[RawBenchmarkEvent]) -> String {
     let mut out = String::from("source_line,source,kind,suite,span_label,label\n");
     for marker in markers {
-        let kind = match marker.kind {
-            UnpairedBenchmarkMarkerKind::Start => "start",
-            UnpairedBenchmarkMarkerKind::End => "end",
-        };
+        let kind = kind_str(marker.kind);
         let _ = writeln!(
             out,
             "{},{},{},{},{},{}",
-            marker.event.source_line,
-            marker.event.source.as_str(),
+            marker.source_line,
+            marker.source.as_str(),
             kind,
-            csv_cell(&marker.event.suite),
-            csv_cell(&marker.event.span_label),
-            csv_cell(&marker.event.label)
+            csv_cell(&marker.suite),
+            csv_cell(&marker.span_label),
+            csv_cell(&format!("{}:{kind}", marker.span_label))
         );
     }
     out
@@ -221,8 +217,8 @@ fn comparison_csv(comparison: Option<&BenchmarkComparisonReport>) -> String {
     );
     if let Some(comparison) = comparison {
         for row in &comparison.rows {
-            let current = row.current_average;
-            let previous = row.previous_average;
+            let current = row.current.map(|measurement| measurement.average);
+            let previous = row.previous.map(|measurement| measurement.average);
             let value = |mean: Option<BenchmarkAverages>, field: fn(BenchmarkAverages) -> u128| {
                 mean.map_or_else(String::new, |mean| field(mean).to_string())
             };
@@ -236,8 +232,8 @@ fn comparison_csv(comparison: Option<&BenchmarkComparisonReport>) -> String {
                 },
                 csv_cell(row.scope.label()),
                 csv_cell(&row.span_label),
-                optional_u64_cell(row.current_runs),
-                optional_u64_cell(row.previous_runs),
+                optional_u64_cell(row.current.map(|measurement| measurement.runs)),
+                optional_u64_cell(row.previous.map(|measurement| measurement.runs)),
                 current.map_or_else(String::new, |mean| mean.scale.to_string()),
                 previous.map_or_else(String::new, |mean| mean.scale.to_string()),
                 value(current, |m| m.instructions),

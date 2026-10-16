@@ -140,14 +140,10 @@ pub(super) struct Summary {
 
 #[allow(clippy::cast_precision_loss)]
 pub(super) fn summarize(runs: &[MeasuredRun]) -> Result<Summary, Error> {
-    let samples = runs
-        .iter()
-        .flat_map(|run| &run.metrics.samples)
-        .collect::<Vec<_>>();
+    let samples = || runs.iter().flat_map(|run| &run.metrics.samples);
     let phase = |select: fn(&Phases) -> Option<f64>| {
         distribution(
-            samples
-                .iter()
+            samples()
                 .filter_map(|sample| select(&sample.phases))
                 .collect(),
         )
@@ -166,9 +162,9 @@ pub(super) fn summarize(runs: &[MeasuredRun]) -> Result<Summary, Error> {
     .collect();
     Ok(Summary {
         phases_ms,
-        body_ms: distribution(samples.iter().map(|sample| sample.body_ms).collect())?,
-        release_ms: distribution(samples.iter().map(|sample| sample.release_ms).collect())?,
-        iteration_ms: distribution(samples.iter().map(|sample| sample.total_ms).collect())?,
+        body_ms: distribution(samples().map(|sample| sample.body_ms).collect())?,
+        release_ms: distribution(samples().map(|sample| sample.release_ms).collect())?,
+        iteration_ms: distribution(samples().map(|sample| sample.total_ms).collect())?,
         work_wall_ms: distribution(runs.iter().map(|run| run.metrics.wall_ms).collect())?,
         fixture_wall_ms: distribution(
             runs.iter().map(|run| run.metrics.fixture_wall_ms).collect(),
@@ -233,9 +229,33 @@ mod tests {
         let encoded = serde_json::to_value(&run).unwrap();
         assert_eq!(encoded["server_startup_ms"], 6.0);
         assert_eq!(encoded["sampled_peak_tree_rss_bytes"], 1024);
-        let summary = summarize(&[run]).unwrap();
+        let mut second = serde_json::from_value::<crate::fixture_reuse_report::WorkerReport>(
+            Value::Object(worker_report()),
+        )
+        .unwrap();
+        second.samples[0].body_ms = 3.0;
+        second.samples[0].total_ms = 6.0;
+        second.wall_ms = 6.0;
+        second.fixture_wall_ms = 7.0;
+        let second = MeasuredRun::from_worker(
+            second,
+            &options,
+            &options.benchmark_cases()[0],
+            (2048, 2, 3),
+        )
+        .unwrap();
+        let summary = summarize(&[run, second]).unwrap();
         assert!(summary.phases_ms["restore_ms"].is_none());
-        assert_eq!(summary.phases_ms["build_ms"].as_ref().unwrap().count, 1);
+        assert_eq!(summary.phases_ms["build_ms"].as_ref().unwrap().count, 2);
+        assert_eq!(summary.body_ms.as_ref().unwrap().count, 2);
+        assert_eq!(summary.body_ms.as_ref().unwrap().mean, 2.0);
+        assert_eq!(summary.iteration_ms.as_ref().unwrap().mean, 5.0);
+        assert_eq!(summary.work_wall_ms.as_ref().unwrap().mean, 5.0);
+        assert_eq!(summary.fixture_wall_ms.as_ref().unwrap().mean, 6.0);
+        assert_eq!(
+            summary.sampled_peak_tree_rss_bytes.as_ref().unwrap().mean,
+            1536.0
+        );
         let stats = distribution(vec![4.0, 1.0, 3.0, 2.0]).unwrap().unwrap();
         assert_eq!(stats.mean, 2.5);
         assert_eq!(stats.p50, 2.5);

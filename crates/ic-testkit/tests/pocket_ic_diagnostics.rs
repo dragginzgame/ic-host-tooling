@@ -28,7 +28,7 @@ fn diagnostics_use_independent_exact_senders_and_preserve_both_outcomes() {
     assert_eq!(report.request(), request);
     assert!(report.status().is_ok(), "{report}");
     assert!(report.logs().is_ok(), "{report}");
-    let compact = report.render_compact();
+    let compact = report.to_string();
     assert!(compact.contains("status=ok(state="));
     assert!(compact.contains("logs=<empty>"));
 

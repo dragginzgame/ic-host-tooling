@@ -154,7 +154,6 @@ impl BenchmarkCounters {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct RawBenchmarkEvent {
     pub prefix: String,
-    pub label: String,
     pub suite: String,
     pub span_label: String,
     pub kind: BenchmarkEventKind,
@@ -184,21 +183,8 @@ pub struct BenchmarkSpan {
     pub span_label: String,
     pub start_line: usize,
     pub end_line: usize,
-    pub start: BenchmarkCounters,
     pub end: BenchmarkCounters,
     pub delta: BenchmarkCounters,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum UnpairedBenchmarkMarkerKind {
-    Start,
-    End,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct UnpairedBenchmarkMarker {
-    pub event: RawBenchmarkEvent,
-    pub kind: UnpairedBenchmarkMarkerKind,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -211,7 +197,7 @@ pub struct InvalidBenchmarkSpan {
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct BenchmarkSpanReport {
     pub spans: Vec<BenchmarkSpan>,
-    pub unpaired_markers: Vec<UnpairedBenchmarkMarker>,
+    pub unpaired_markers: Vec<RawBenchmarkEvent>,
     pub invalid_spans: Vec<InvalidBenchmarkSpan>,
 }
 
@@ -276,14 +262,19 @@ impl std::fmt::Display for BenchmarkAggregateError {
 
 impl std::error::Error for BenchmarkAggregateError {}
 
-/// Current and previous scaled means, preserving missing rows and measured zero.
+/// Run count and scaled means for one present comparison side.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct BenchmarkMeasurement {
+    pub runs: u64,
+    pub average: BenchmarkAverages,
+}
+
+/// Current and previous measurements, preserving missing rows and measured zero.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct BenchmarkComparisonRow {
     pub span_label: String,
-    pub current_runs: Option<u64>,
-    pub previous_runs: Option<u64>,
-    pub current_average: Option<BenchmarkAverages>,
-    pub previous_average: Option<BenchmarkAverages>,
+    pub current: Option<BenchmarkMeasurement>,
+    pub previous: Option<BenchmarkMeasurement>,
     /// Suite identity or the cross-suite aggregate.
     pub scope: BenchmarkScope,
 }
@@ -425,20 +416,14 @@ pub fn pair_benchmark_spans(events: &[RawBenchmarkEvent]) -> BenchmarkSpanReport
                     }
                     push_paired_span(&mut report, start, event);
                 }
-                Entry::Vacant(_) => report.unpaired_markers.push(UnpairedBenchmarkMarker {
-                    event: event.clone(),
-                    kind: UnpairedBenchmarkMarkerKind::End,
-                }),
+                Entry::Vacant(_) => report.unpaired_markers.push(event.clone()),
             },
         }
     }
 
     for starts in open_starts.into_values() {
         for event in starts {
-            report.unpaired_markers.push(UnpairedBenchmarkMarker {
-                event: event.clone(),
-                kind: UnpairedBenchmarkMarkerKind::Start,
-            });
+            report.unpaired_markers.push(event.clone());
         }
     }
 
@@ -483,6 +468,12 @@ pub fn compare_benchmark_aggregates(
             .or_insert((None, None))
             .1 = Some(row);
     }
+    let measurement = |row: &BenchmarkAggregateRow| -> Result<_, MeasurementRatioError> {
+        Ok(BenchmarkMeasurement {
+            runs: row.runs,
+            average: row.average(scale)?,
+        })
+    };
 
     Ok(BenchmarkComparisonReport {
         rows: rows
@@ -490,10 +481,8 @@ pub fn compare_benchmark_aggregates(
             .map(|((scope, span_label), (current_row, previous_row))| {
                 Ok(BenchmarkComparisonRow {
                     span_label: span_label.to_owned(),
-                    current_runs: current_row.map(|row| row.runs),
-                    previous_runs: previous_row.map(|row| row.runs),
-                    current_average: current_row.map(|row| row.average(scale)).transpose()?,
-                    previous_average: previous_row.map(|row| row.average(scale)).transpose()?,
+                    current: current_row.map(measurement).transpose()?,
+                    previous: previous_row.map(measurement).transpose()?,
                     scope: scope.clone(),
                 })
             })
@@ -567,7 +556,6 @@ fn parse_marker_line(
 
     Ok(RawBenchmarkEvent {
         prefix: prefix.to_string(),
-        label: label.to_string(),
         suite,
         span_label: span_label.to_string(),
         kind,
@@ -650,7 +638,6 @@ fn push_paired_span(
             span_label: start.span_label.clone(),
             start_line: start.source_line,
             end_line: end.source_line,
-            start: start.counters,
             end: end.counters,
             delta,
         });
@@ -739,7 +726,6 @@ mod tests {
             span_label: "probe/run".into(),
             start_line: 1,
             end_line: 2,
-            start: BenchmarkCounters::default(),
             end: BenchmarkCounters::default(),
             delta: BenchmarkCounters::default(),
         };

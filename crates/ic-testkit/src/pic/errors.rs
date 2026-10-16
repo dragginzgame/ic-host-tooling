@@ -55,36 +55,35 @@ pub struct CandidCallContext {
     pub method: String,
 }
 
-/// Stage at which a canister creation and installation failed.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum CanisterInstallPhase {
-    /// PocketIC could not create the canister.
-    CreateCanister,
-    /// PocketIC could not add the requested cycles.
-    AddCycles,
-    /// PocketIC could not install the Wasm module.
-    InstallCode,
-}
-
-impl CanisterInstallPhase {
-    /// Upstream operation attempted at this stage.
-    #[must_use]
-    pub const fn operation(self) -> &'static str {
-        match self {
-            Self::CreateCanister => "create_canister",
-            Self::AddCycles => "add_cycles",
-            Self::InstallCode => "install_canister",
-        }
-    }
-}
-
 /// Failed creation, funding, or installation with its original operation error.
+#[non_exhaustive]
 #[derive(Debug, Eq, PartialEq)]
-pub struct CanisterInstallError {
-    phase: CanisterInstallPhase,
-    canister_id: Option<Principal>,
-    label: Option<String>,
-    source: PocketIcOperationError,
+pub enum CanisterInstallError {
+    /// Canister creation failed before an id was returned.
+    CreateCanister {
+        /// Optional caller-provided install label.
+        label: Option<String>,
+        /// Original upstream operation failure.
+        source: PocketIcOperationError,
+    },
+    /// Cycle funding failed for the created canister.
+    AddCycles {
+        /// Created canister, retained for caller inspection.
+        canister_id: Principal,
+        /// Optional caller-provided install label.
+        label: Option<String>,
+        /// Original upstream operation failure.
+        source: PocketIcOperationError,
+    },
+    /// Wasm installation failed for the created canister.
+    InstallCode {
+        /// Created canister, retained for caller inspection.
+        canister_id: Principal,
+        /// Optional caller-provided install label.
+        label: Option<String>,
+        /// Original upstream operation failure.
+        source: PocketIcOperationError,
+    },
 }
 
 /// Failed standalone install retaining the caller-created instance and optional server.
@@ -149,70 +148,38 @@ impl std::fmt::Display for CandidCallError {
 
 impl std::error::Error for CandidCallError {}
 
-impl CanisterInstallError {
-    /// Capture an operation failure and all context available at that stage.
-    #[must_use]
-    pub const fn new(
-        phase: CanisterInstallPhase,
-        canister_id: Option<Principal>,
-        label: Option<String>,
-        source: PocketIcOperationError,
-    ) -> Self {
-        Self {
-            phase,
-            canister_id,
-            label,
-            source,
-        }
-    }
-
-    /// Read the failed stage.
-    #[must_use]
-    pub const fn phase(&self) -> CanisterInstallPhase {
-        self.phase
-    }
-
-    /// Read the created canister id, absent when creation failed.
-    #[must_use]
-    pub const fn canister_id(&self) -> Option<Principal> {
-        self.canister_id
-    }
-
-    /// Read the original upstream panic message.
-    #[must_use]
-    pub fn message(&self) -> &str {
-        self.source.message()
-    }
-
-    /// Inspect the original operation failure and its transport classification.
-    #[must_use]
-    pub const fn operation_error(&self) -> &PocketIcOperationError {
-        &self.source
-    }
-
-    /// Read the optional caller-provided install label.
-    #[must_use]
-    pub fn label(&self) -> Option<&str> {
-        self.label.as_deref()
-    }
-}
-
 impl std::fmt::Display for CanisterInstallError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{} failed", self.phase.operation())?;
-        if let Some(canister_id) = self.canister_id {
+        let (operation, canister_id, label, source) = match self {
+            Self::CreateCanister { label, source } => ("create_canister", None, label, source),
+            Self::AddCycles {
+                canister_id,
+                label,
+                source,
+            } => ("add_cycles", Some(canister_id), label, source),
+            Self::InstallCode {
+                canister_id,
+                label,
+                source,
+            } => ("install_canister", Some(canister_id), label, source),
+        };
+        write!(f, "{operation} failed")?;
+        if let Some(canister_id) = canister_id {
             write!(f, " for canister {canister_id}")?;
         }
-        if let Some(label) = &self.label {
+        if let Some(label) = label {
             write!(f, " ({label})")?;
         }
-        write!(f, ": {}", self.source)
+        write!(f, ": {source}")
     }
 }
 
 impl std::error::Error for CanisterInstallError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        Some(&self.source)
+        let (Self::CreateCanister { source, .. }
+        | Self::AddCycles { source, .. }
+        | Self::InstallCode { source, .. }) = self;
+        Some(source)
     }
 }
 
@@ -273,14 +240,11 @@ mod tests {
 
     #[test]
     fn labeled_install_error_display_includes_label() {
-        let err = CanisterInstallError::new(
-            super::CanisterInstallPhase::InstallCode,
-            Some(Principal::anonymous()),
-            Some("authority".into()),
-            super::PocketIcOperationError::new("trap"),
-        );
-
-        assert_eq!(err.label(), Some("authority"));
+        let err = CanisterInstallError::InstallCode {
+            canister_id: Principal::anonymous(),
+            label: Some("authority".into()),
+            source: super::PocketIcOperationError::new("trap"),
+        };
         assert!(err.to_string().contains("(authority): trap"));
     }
 }

@@ -55,8 +55,7 @@ pub use diagnostics::{
     LabeledCanisterDiagnosticsRequest, PocketIcDiagnosticsExt,
 };
 pub use errors::{
-    CandidCallContext, CandidCallError, CanisterInstallError, CanisterInstallPhase,
-    StandaloneCanisterInstallError,
+    CandidCallContext, CandidCallError, CanisterInstallError, StandaloneCanisterInstallError,
 };
 pub use lifecycle::{CanisterInstallExt, InstallSpec, RetryPolicy};
 pub use snapshot::{

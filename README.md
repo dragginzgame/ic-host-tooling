@@ -179,7 +179,7 @@ restored or validated.
 | PocketIC runtime | `pocket_ic`; `pic::{PocketIc, PocketIcBuilder}` | Complete upstream crate escape hatch plus focused convenience re-exports; no wrapper |
 | Startup | `PocketIcStartupConfig`, `PocketIcManagedServer` | Explicit bounded spawn/connect policy, owned shared-server lifecycle, and structured failures |
 | Calls | `CandidCallExt` | Candid encoding/decoding, contextual errors, preserved rejections |
-| Installation | `CanisterInstallExt`, `InstallSpec` | Generic install policy, diagnostics, structured rate-limit retry |
+| Installation | `CanisterInstallExt`, `InstallSpec` | Generic install policy, structured failures and rate-limit retry |
 | Standalone fixtures | `StandaloneCanisterFixture` | Owns one caller-built instance and one installed canister id |
 | Snapshots | `PocketIcSnapshotExt`, `CachedPocketIcBaseline` | Ordered transactional capture, explicit restore funding, scoped caching |
 | Fixture pools | `CachedPocketIcBaselinePool`, `StandaloneCanisterRecipe` | One bounded lifecycle for single- and multi-canister recipes |
@@ -500,7 +500,7 @@ the active endpoint.
 
 ## Canister installation and fixtures
 
-`InstallSpec` keeps generic install inputs and diagnostics together:
+`InstallSpec` carries Wasm, initialization bytes, funding and an optional error label:
 
 ```rust,no_run
 use candid::Principal;
@@ -531,10 +531,15 @@ returns the ownership record and ID. Failed `try_install` returns a
 `StandaloneCanisterInstallError` containing the same instance/server record and
 the `CanisterInstallError`. A caller-built instance on an externally owned server
 can be passed explicitly as `PocketIcInstance { instance, server: None }`.
-Creation, cycle funding, and installation panics are captured as structured failures. `phase()` identifies the failed operation;
-`canister_id()` returns `None` if creation failed and `Some(id)` afterward.
+Creation, cycle funding, and installation panics are captured as
+`CanisterInstallError::CreateCanister`, `::AddCycles` or `::InstallCode`.
+Funding and installation variants require the created canister ID; match the
+variant to inspect its ID, optional label and original operation error.
 The original operation error remains available through the error source chain,
-including its transport classification.
+including its transport classification. Installation helpers do not fetch or
+print diagnostics. A fixture can use the retained canister ID and instance with
+`collect_canister_diagnostics`, selecting its exact status/log senders and
+output policy. Keep any diagnostic failure subordinate to the install error.
 
 For installation into an existing instance, import `CanisterInstallExt` and
 use `try_create_and_install` or `try_create_and_install_many`. Batch installs
@@ -785,7 +790,7 @@ use ic_testkit::pic::{CanisterDiagnosticsRequest, PocketIc, PocketIcDiagnosticsE
 fn diagnose(pocket_ic: &PocketIc, request: CanisterDiagnosticsRequest) {
     let report = pocket_ic.collect_canister_diagnostics(request);
     if report.status().is_err() || report.logs().is_err() {
-        eprintln!("{}", report.render_compact());
+        eprintln!("{report}");
     }
 }
 ```
@@ -808,7 +813,7 @@ fn diagnose_pair(
     ];
     let batch = pocket_ic.collect_canister_diagnostics_batch(&requests)?;
     if !batch.is_success() {
-        eprintln!("{}", batch.render_compact());
+        eprintln!("{batch}");
     }
     Ok(())
 }
@@ -824,9 +829,9 @@ anonymously. Empty or duplicate labels return
 Fetched log content is retained as bounded lossy UTF-8 rather than raw byte
 arrays. `CanisterLogRenderLimits` controls the record and aggregate byte bounds;
 the structured log result records omitted records and bytes. PocketIC transport
-panics are captured per operation, and install-failure diagnostics remain
-wrapped so a dead instance or failed renderer cannot replace the original
-install error.
+panics are captured per operation. Fixture-owned install-failure handlers choose
+whether to collect and render diagnostics; protect the original install error
+from secondary diagnostic or output failures.
 
 Read nanoseconds since the Unix epoch directly from PocketIC:
 

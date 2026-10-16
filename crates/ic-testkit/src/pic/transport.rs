@@ -108,12 +108,6 @@ pub fn is_dead_pocket_ic_transport_error(error: &(dyn std::error::Error + 'stati
         {
             return true;
         }
-        if matches!(
-            candidate.downcast_ref::<super::CanisterDiagnosticFailure>(),
-            Some(super::CanisterDiagnosticFailure::InstanceUnavailable { .. })
-        ) {
-            return true;
-        }
         if is_dead_instance_transport_error(&candidate.to_string()) {
             return true;
         }
@@ -193,7 +187,7 @@ pub(super) fn is_dead_instance_transport_error(message: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::super::{CanisterInstallError, CanisterInstallPhase, ControllerSnapshotError};
+    use super::super::{CanisterInstallError, ControllerSnapshotError};
     use super::{
         PocketIcOperationError, capture_operation, is_dead_instance_transport_error,
         is_dead_pocket_ic_transport_error, panic_is_dead_instance_transport,
@@ -289,17 +283,22 @@ mod tests {
                 let wrapper = WrapperError(std::io::Error::other(snapshot));
                 assert_eq!(is_dead_pocket_ic_transport_error(&wrapper), expected);
             }
-            for phase in [
-                CanisterInstallPhase::CreateCanister,
-                CanisterInstallPhase::AddCycles,
-                CanisterInstallPhase::InstallCode,
+            for install in [
+                CanisterInstallError::CreateCanister {
+                    label: Some("fixture".into()),
+                    source: PocketIcOperationError::new(message),
+                },
+                CanisterInstallError::AddCycles {
+                    canister_id,
+                    label: Some("fixture".into()),
+                    source: PocketIcOperationError::new(message),
+                },
+                CanisterInstallError::InstallCode {
+                    canister_id,
+                    label: Some("fixture".into()),
+                    source: PocketIcOperationError::new(message),
+                },
             ] {
-                let install = CanisterInstallError::new(
-                    phase,
-                    None,
-                    Some("fixture".into()),
-                    PocketIcOperationError::new(message),
-                );
                 assert_eq!(is_dead_pocket_ic_transport_error(&install), expected);
                 let wrapper = WrapperError(std::io::Error::other(install));
                 assert_eq!(is_dead_pocket_ic_transport_error(&wrapper), expected);

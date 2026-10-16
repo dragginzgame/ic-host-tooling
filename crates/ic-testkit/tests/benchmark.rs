@@ -5,9 +5,9 @@ use ic_testkit::benchmark::{
     BenchmarkAggregateReport, BenchmarkCounter, BenchmarkCounters, BenchmarkEventKind,
     BenchmarkEventSource, BenchmarkParseReport, BenchmarkParserConfig, BenchmarkRunMetadata,
     BenchmarkRunReport, BenchmarkScope, BenchmarkSpanReport, DEFAULT_PREFIX, SuiteDerivation,
-    UnpairedBenchmarkMarkerKind, aggregate_benchmark_spans, compare_benchmark_aggregates,
-    format_marker, pair_benchmark_spans, parse_benchmark_events,
-    parse_benchmark_events_from_captured_output, parse_benchmark_events_from_source,
+    aggregate_benchmark_spans, compare_benchmark_aggregates, format_marker, pair_benchmark_spans,
+    parse_benchmark_events, parse_benchmark_events_from_captured_output,
+    parse_benchmark_events_from_source,
 };
 use serde_json::{Value, json};
 use std::{fmt::Write as _, fs};
@@ -225,7 +225,7 @@ ICTK|app/a:end|50|50|50|50
     assert_eq!(spans.spans.len(), 2);
     assert_eq!(
         spans.unpaired_markers,
-        [] as [ic_testkit::benchmark::UnpairedBenchmarkMarker; 0]
+        [] as [ic_testkit::benchmark::RawBenchmarkEvent; 0]
     );
     assert_eq!(spans.spans[0].start_line, 2);
     assert_eq!(spans.spans[0].end_line, 3);
@@ -293,16 +293,12 @@ fn pairing_preserves_suite_boundaries_and_owned_diagnostics() {
         report
             .unpaired_markers
             .iter()
-            .map(|marker| (
-                marker.event.suite.as_str(),
-                marker.event.source_line,
-                marker.kind.clone()
-            ))
+            .map(|marker| (marker.suite.as_str(), marker.source_line, marker.kind))
             .collect::<Vec<_>>(),
         [
-            ("a", 2, UnpairedBenchmarkMarkerKind::End),
-            ("a", 7, UnpairedBenchmarkMarkerKind::Start),
-            ("b", 6, UnpairedBenchmarkMarkerKind::Start),
+            ("a", 2, BenchmarkEventKind::End),
+            ("a", 7, BenchmarkEventKind::Start),
+            ("b", 6, BenchmarkEventKind::Start),
         ],
     );
 }
@@ -361,8 +357,8 @@ fn updated_aggregate_totals_and_runs_drive_averages_and_comparisons() {
         comparison
             .rows
             .iter()
-            .all(|row| row.current_average.unwrap().instructions == 150
-                && row.previous_average.unwrap().instructions == 100)
+            .all(|row| row.current.unwrap().average.instructions == 150
+                && row.previous.unwrap().average.instructions == 100)
     );
 }
 
@@ -380,8 +376,8 @@ fn wide_means_preserve_integer_differences_and_explicit_projection_errors() {
                 .unwrap()
                 .rows
             {
-                let before = row.previous_average.unwrap();
-                let after = row.current_average.unwrap();
+                let before = row.previous.unwrap().average;
+                let after = row.current.unwrap().average;
                 let fields = |m: ic_testkit::benchmark::BenchmarkAverages| {
                     [
                         m.instructions,
@@ -442,7 +438,7 @@ fn boundary_spans(
     );
     assert_eq!(
         paired.unpaired_markers,
-        [] as [ic_testkit::benchmark::UnpairedBenchmarkMarker; 0]
+        [] as [ic_testkit::benchmark::RawBenchmarkEvent; 0]
     );
     assert_eq!(paired.spans.len(), 2);
     paired.spans
@@ -531,7 +527,7 @@ fn span_subtraction_underflow_is_rejected_for_every_counter() {
         assert_eq!(paired.invalid_spans.len(), 1);
         assert_eq!(
             paired.unpaired_markers,
-            [] as [ic_testkit::benchmark::UnpairedBenchmarkMarker; 0]
+            [] as [ic_testkit::benchmark::RawBenchmarkEvent; 0]
         );
     }
 }
@@ -644,10 +640,10 @@ ICTK|app/a:end|150|50|100|100
         })
         .expect("comparison row");
 
-    assert_eq!(app.current_average.unwrap().instructions, 150);
-    assert_eq!(app.previous_average.unwrap().instructions, 100);
-    assert_eq!(app.current_average.unwrap().heap_bytes, 50);
-    assert_eq!(app.previous_average.unwrap().heap_bytes, 100);
+    assert_eq!(app.current.unwrap().average.instructions, 150);
+    assert_eq!(app.previous.unwrap().average.instructions, 100);
+    assert_eq!(app.current.unwrap().average.heap_bytes, 50);
+    assert_eq!(app.previous.unwrap().average.heap_bytes, 100);
 }
 
 #[test]
@@ -697,31 +693,23 @@ fn comparisons_preserve_order_missing_rows_and_last_duplicate() {
         ],
     );
     assert_eq!(
-        comparison.rows[0].current_average.unwrap().instructions,
+        comparison.rows[0].current.unwrap().average.instructions,
         300
     );
     assert_eq!(
-        comparison.rows[3].current_average.unwrap().instructions,
+        comparison.rows[3].current.unwrap().average.instructions,
         150
     );
     for row in &comparison.rows {
-        assert_eq!(
-            row.current_average
-                .or(row.previous_average)
-                .unwrap()
-                .heap_bytes,
-            0
-        );
+        assert_eq!(row.current.or(row.previous).unwrap().average.heap_bytes, 0);
         match row.span_label.as_str() {
             "current" => {
-                assert_eq!(row.current_runs, Some(1));
-                assert_eq!(row.previous_runs, None);
-                assert_eq!(row.previous_average, None);
+                assert_eq!(row.current.unwrap().runs, 1);
+                assert_eq!(row.previous, None);
             }
             "previous" => {
-                assert_eq!(row.current_runs, None);
-                assert_eq!(row.previous_runs, Some(1));
-                assert_eq!(row.current_average, None);
+                assert_eq!(row.previous.unwrap().runs, 1);
+                assert_eq!(row.current, None);
             }
             _ => {}
         }
@@ -737,13 +725,13 @@ fn comparisons_preserve_order_missing_rows_and_last_duplicate() {
     duplicate.runs = 2;
     duplicated_previous.push(duplicate);
     let comparison = compare_benchmark_aggregates(&current.rows, &duplicated_previous, 1).unwrap();
-    assert_eq!(comparison.rows[0].previous_runs, Some(2));
+    assert_eq!(comparison.rows[0].previous.unwrap().runs, 2);
     assert_eq!(
-        comparison.rows[0].previous_average.unwrap().instructions,
+        comparison.rows[0].previous.unwrap().average.instructions,
         300
     );
     assert_eq!(
-        comparison.rows[3].current_average.unwrap().instructions,
+        comparison.rows[3].current.unwrap().average.instructions,
         150
     );
     assert_eq!(
@@ -758,6 +746,12 @@ fn writes_csv_markdown_and_metadata_report_files() {
         "\
 ICTK|app/myfunc/something:start|0|0|0|0
 ICTK|app/myfunc/something:end|234_200_000|1|4_194_304|2
+ICTK|app/missing:end|0|0|0|0
+ICTK|app/open:start|0|0|0|0
+ICTK|app/current-only:start|0|0|0|0
+ICTK|app/current-only:end|0|0|0|0
+ICTK|app/quoted,\"thing:start|0|0|0|0
+ICTK|app/quoted,\"thing:end|1|2|3|4
 "
         .replace('_', "")
         .as_str(),
@@ -769,6 +763,8 @@ ICTK|app/myfunc/something:end|234_200_000|1|4_194_304|2
         "\
 ICTK|app/myfunc/something:start|0|0|0|0
 ICTK|app/myfunc/something:end|174776119|1|5447148|2
+ICTK|app/previous-only:start|0|0|0|0
+ICTK|app/previous-only:end|0|0|0|0
 ",
         &BenchmarkParserConfig::default(),
     );
@@ -808,9 +804,37 @@ ICTK|app/myfunc/something:end|174776119|1|5447148|2
     assert!(root.join("bench-summary.md").exists());
     assert!(root.join("metadata.json").exists());
 
+    let raw_csv = fs::read_to_string(root.join("raw-events.csv")).unwrap();
+    assert!(raw_csv.lines().any(|line| line == "7,unknown,ICTK,app,\"app/quoted,\"\"thing:start\",\"app/quoted,\"\"thing\",start,0,0,0,0"));
+
+    assert_eq!(
+        fs::read_to_string(root.join("unpaired-markers.csv")).unwrap(),
+        "source_line,source,kind,suite,span_label,label\n3,unknown,end,app,app/missing,app/missing:end\n4,unknown,start,app,app/open,app/open:start\n"
+    );
     let comparison_csv = fs::read_to_string(root.join("comparison.csv")).expect("read comparison");
     assert!(comparison_csv.contains("app/myfunc/something"));
     assert!(comparison_csv.contains("234200000,174776119"));
+    for (label, expected) in [
+        (
+            "app/current-only",
+            ["1", "", "1", "", "0", "", "0", "", "0", "", "0", ""],
+        ),
+        (
+            "app/previous-only",
+            ["", "1", "", "1", "", "0", "", "0", "", "0", "", "0"],
+        ),
+    ] {
+        let rows = comparison_csv
+            .lines()
+            .skip(1)
+            .map(|line| line.split(',').collect::<Vec<_>>())
+            .filter(|columns| columns[2] == label)
+            .collect::<Vec<_>>();
+        assert_eq!(rows.len(), 2, "suite and all-suites rows for {label}");
+        for columns in rows {
+            assert_eq!(columns[3..], expected);
+        }
+    }
 
     let summary = fs::read_to_string(root.join("bench-summary.md")).expect("read summary");
     assert!(summary.contains("| app/myfunc/something | 1 | 234200000 | 1 | 4194304 | 2 |"));

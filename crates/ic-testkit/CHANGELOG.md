@@ -8,6 +8,102 @@ This file ships in the crate archive so upgrades can be completed without the
 repository checkout. The complete historical changelog remains at
 <https://github.com/dragginzgame/ic-testkit/blob/main/CHANGELOG.md>.
 
+## [0.48.0]
+
+### Breaking
+
+- Diagnostic operation failures retain `PocketIcOperationError` directly in
+  `CanisterDiagnosticFailure::Operation`; inspect its cause and transport flag.
+- Remove `BenchmarkSpan::start`, retaining end counters, checked deltas and
+  source lines. Invalid spans still retain both original events.
+
+- Match installation error variants for their original cause and label; funding
+  and installation failures carry a required canister ID. Remove the separate
+  phase enum and optional-field accessors.
+- Benchmark events retain `span_label` and `kind` without a duplicate `label`
+  string. CSV output reconstructs the existing label and retains its columns.
+
+- Match `SnapshotCleanupFailure::Rejected` or `::Panicked` for exact sender and
+  cause details. Panic cleanup failures retain the original operation error and
+  transport classification; remove the optional-field accessors.
+- Read unpaired benchmark events directly from
+  `BenchmarkSpanReport::unpaired_markers`. Remove the duplicate marker wrapper
+  and kind enum; event order and report CSV columns remain unchanged.
+- Installation helpers return structured failures without fetching diagnostics
+  or printing to stderr. Fixture callers choose diagnostic requests and output,
+  retaining the original installation error if diagnostic collection fails.
+- Read comparison sides through `current` and `previous`, each containing its
+  run count and average together. Missing measurements remain distinct from zero.
+- Format diagnostic reports with `Display` or `to_string()` instead of
+  `render_compact()`; bounded output and retained labels are unchanged.
+
+### Migration
+
+Replace diagnostic `InstanceUnavailable`/`Panicked` message matches with
+`CanisterDiagnosticFailure::Operation(source)`. Read `source.message()` and
+`source.is_transport()`; the same typed cause is exposed through the standard
+error source chain. Rejections remain distinct, status/log outcomes remain
+independent, and the bounded diagnostic display is unchanged.
+
+Valid benchmark spans retain `end` and `delta` instead of a third starting-counter
+copy. Use the original parsed event identified by `start_line` when raw starting
+counters are needed. Pairing still rejects subtraction underflow before creating
+a span; invalid spans retain both raw events. CSV layouts are unchanged and no
+retained report reset is needed.
+
+Match `CanisterInstallError::CreateCanister { label, source }`,
+`::AddCycles { canister_id, label, source }` or
+`::InstallCode { canister_id, label, source }` instead of reading `phase()` and
+unwrapping an optional ID. The latter two variants always retain the created
+ID. Inspect `source.message()` or `source.is_transport()` directly; the standard
+error source chain and standalone instance ownership remain intact.
+
+Raw benchmark event labels are formed as `span_label` plus `:start` or `:end`
+according to `kind`. Native report output reconstructs and escapes those labels
+without changing raw-event or unpaired-marker CSV layouts. Retained reports
+need no reset.
+
+`BenchmarkComparisonRow::current` and `::previous` are each an
+`Option<BenchmarkMeasurement>`. Read `side.runs` and `side.average` after matching
+the side once, replacing the independent optional run-count and average fields.
+The comparison CSV retains its existing columns, ordering and blank cells for
+missing measurements; zero measurements still render as zero. Retained reports
+need no reset.
+
+Use `format!("{report}")`, `report.to_string()` or direct formatting of a single
+or batch diagnostics report. Both use the existing bounded `Display` output.
+
+### Changed
+
+- Benchmark summaries traverse the samples retained in each run directly, without
+  staging a second vector of references. Sample ordering, missing-phase handling,
+  numeric checks and published summary fields remain unchanged.
+- Contributor fixtures and benchmarks use published Build 0.8 so its exposed
+  Host types match the selected Host 0.21 family. This is a development dependency
+  alignment; the library's consumer compiler floor and package version are unchanged.
+
+- Baseline-pool invalidation records the caller-selected reason in the invalid
+  slot itself. Repeated invalidation retains the latest reason; unwinding still
+  takes precedence and invalidated instances remain owned until safe teardown.
+
+### Other migration details
+
+Replace cleanup accessor calls with variant matches. A `Panicked` variant
+carries `source: PocketIcOperationError`, so callers can inspect the original
+message and transport classification without reparsing formatted text.
+
+Unpaired entries are now `RawBenchmarkEvent` values: use `entry.kind` and
+`entry.source_line` directly rather than `entry.event`. CSV layouts stay v1
+with their existing columns and start/end values; no retained report reset is
+required.
+
+After installation fails, callers can match the error variant for its ID and
+use the retained instance to collect `CanisterDiagnosticsRequest` with their selected
+status/log senders. Standalone failures retain the same instance/server record.
+Keep diagnostic failures subordinate to the original install error, including
+when diagnostic output fails. No new diagnostic mode or installation retry is
+introduced.
+
 ## [0.47.0] - 2026-10-15
 
 ### Breaking

@@ -4,7 +4,7 @@
 use candid::Principal;
 use ic_testkit::pic::{
     CandidCallError, CandidCallExt, CanisterDiagnosticFailure, CanisterDiagnosticsRequest,
-    CanisterInstallPhase, InstallSpec, PocketIc, PocketIcBuilder, PocketIcDiagnosticsExt,
+    CanisterInstallError, InstallSpec, PocketIc, PocketIcBuilder, PocketIcDiagnosticsExt,
     PocketIcInstance, PocketIcStartupConfig, StandaloneCanisterFixture,
     is_dead_pocket_ic_transport_error,
 };
@@ -201,8 +201,8 @@ fn refused_instance_request_probe() {
         logs.expect_err("log peer is gone"),
     ] {
         assert!(matches!(
-            error,
-            CanisterDiagnosticFailure::InstanceUnavailable { .. }
+            &error,
+            CanisterDiagnosticFailure::Operation(source) if source.is_transport()
         ));
         assert!(is_dead_pocket_ic_transport_error(&error));
         let error = std::io::Error::other(error);
@@ -225,16 +225,15 @@ fn refused_creation_probe() {
     )
     .err()
     .expect("creation should return an error");
-    assert_eq!(
-        error.install_error().phase(),
-        CanisterInstallPhase::CreateCanister
+    assert!(
+        matches!(error.install_error(), CanisterInstallError::CreateCanister { label: Some(label), .. } if label == "unreachable-fixture")
     );
-    assert_eq!(error.install_error().canister_id(), None);
-    assert_eq!(error.install_error().label(), Some("unreachable-fixture"));
     assert!(is_dead_pocket_ic_transport_error(&error));
     let (pic, install_error) = error.into_parts();
     assert_eq!(pic.instance.instance_id(), instance_id);
-    assert!(install_error.operation_error().is_transport());
+    assert!(
+        matches!(install_error, CanisterInstallError::CreateCanister { source, .. } if source.is_transport())
+    );
     drop(pic);
 }
 
