@@ -2,8 +2,16 @@
 
 ## [0.22.0]
 
+### Breaking
+
+- Add `ArtifactError::LengthMismatch` for an exact stream that ends early.
+  Consumers exhaustively matching artifact errors must handle the new variant.
+
 ### Added
 
+- Add exact-length streaming hash and bounded read operations to Host Artifacts.
+  They reject premature EOF and probe one excess byte; callers still select
+  byte limits and own stream custody.
 - Open regular files or directories through a retained Unix root descriptor,
   refusing traversal, symlinks and special entries without pathname reopening.
   Callers retain root and byte custody
