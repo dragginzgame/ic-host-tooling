@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.26.2]
+
+- Artifacts shares exact nonempty/unique batch-label admission and typed
+  occurrence indices. Build and Testkit retain their batch operations, labels,
+  ordering and failure policy; admission itself performs no batch work.
+
 ## [0.26.1] - 2026-10-17
 
 ### Added
