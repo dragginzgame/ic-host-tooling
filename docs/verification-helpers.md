@@ -1014,3 +1014,17 @@ compact-tool receipt and hosted-scenario rejection cases. The standard-library
 suite runs in Linux CI; it adds no Python prerequisite to native shell consumers.
 Consumers retain actual collector integration, source/run identity, caller pin
 selection and representative rejection checks through their own verifier.
+
+## Script fixture preparation
+
+`bash scripts/ci/prepare-script-fixture.sh SOURCE EXISTING-FIXTURE ROOT...`
+copies explicit reviewed roots and their transitive line-two `Shared companions`
+declarations, preserving file modes. It shares the declaration reader with the
+snapshot exporter; inspected payloads are never executed. Cycles are deduplicated.
+The complete closure and destination parents are admitted before any copying;
+unsafe paths, symlink traversal, missing inputs and overlapping roots refuse.
+Existing regular fixture files may be replaced. Callers own an idle disposable
+destination and stable reviewed source; copying does not protect against
+concurrent mutation. The helper neither creates a snapshot nor proves supplier
+custody. Consumers retain product adapters, substitutions and assertions.
+Focused coverage is `bash scripts/ci/test-script-fixture.sh`.

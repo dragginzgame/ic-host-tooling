@@ -3,6 +3,57 @@ use crate::test_support::fixture;
 use std::os::unix::fs::PermissionsExt as _;
 
 #[test]
+fn commit_errors_preserve_display_only_preparation_and_original_causes() {
+    use std::error::Error as _;
+    // Preparation need only implement Display to format the outer error.
+    assert_eq!(
+        DirectoryCommitError::Prepare("verification refused").to_string(),
+        "directory preparation failed: verification refused"
+    );
+    for (error, message) in [
+        (
+            DirectoryCommitError::<io::Error>::InvalidPaths,
+            "directory commit requires distinct sibling paths",
+        ),
+        (
+            DirectoryCommitError::Conflict,
+            "directory commit has two occupied paths",
+        ),
+        (
+            DirectoryCommitError::Missing,
+            "directory commit has no existing path",
+        ),
+    ] {
+        assert_eq!(error.to_string(), message);
+        assert!(error.source().is_none());
+    }
+    for (error, prefix) in [
+        (
+            DirectoryCommitError::Prepare(io::Error::from_raw_os_error(13)),
+            "directory preparation failed",
+        ),
+        (
+            DirectoryCommitError::BeforePublication(io::Error::from_raw_os_error(5)),
+            "directory publication failed",
+        ),
+        (
+            DirectoryCommitError::AfterPublication(io::Error::from_raw_os_error(28)),
+            "directory publication may be visible",
+        ),
+    ] {
+        let (DirectoryCommitError::Prepare(original)
+        | DirectoryCommitError::BeforePublication(original)
+        | DirectoryCommitError::AfterPublication(original)) = &error
+        else {
+            unreachable!()
+        };
+        assert_eq!(error.to_string(), format!("{prefix}: {original}"));
+        let retained = error.source().unwrap().downcast_ref::<io::Error>().unwrap();
+        assert!(std::ptr::eq(original, retained));
+    }
+}
+
+#[test]
 fn creation_errors_redact_details_and_preserve_native_causes() {
     use std::error::Error as _;
     for (error, message) in [

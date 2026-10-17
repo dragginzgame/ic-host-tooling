@@ -25,16 +25,8 @@ export ADAPTER_EVENTS="$fixture/events"
 export RELEASE_SOURCE=0000000000000000000000000000000000000000
 export RELEASE_DATE=2026-10-06 RELEASE_KIND=minor
 adapter_root="$fixture/adapter"
-for input in scripts/release/adapter.sh ci/release-delivery.txt \
-    scripts/ci/check-release-delivery.sh \
-    scripts/ci/read-cargo-workspace-version.sh scripts/ci/check-release-source.sh \
-    scripts/ci/next-release-version.sh scripts/ci/finalize-release-changelog.awk \
-    scripts/ci/validate-release-inputs.pl scripts/ci/StableVersion.pm \
-    scripts/ci/rewrite-local-lock-versions.pl scripts/ci/render-cargo-workspace-version.pl \
-    scripts/ci/read-cargo-source-context.sh; do
-    mkdir -p "$adapter_root/${input%/*}"
-    cp "$root/$input" "$adapter_root/$input"
-done
+mkdir "$adapter_root"
+bash "$root/scripts/ci/prepare-script-fixture.sh" "$root" "$adapter_root" scripts/release/adapter.sh
 adapter="$adapter_root/scripts/release/adapter.sh"
 if RELEASE_DELIVERY='pr' bash "$adapter" version > "$fixture/unsupported-delivery.log" 2>&1; then exit 1; fi
 [[ ! -e "$ADAPTER_EVENTS" ]] || exit 1

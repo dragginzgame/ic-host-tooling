@@ -1,9 +1,27 @@
 # Changelog
 
-## [0.26.1]
+## [0.27.0]
+
+### Breaking
+
+- Use the same Unicode scalar-column accounting for tables, clipping and
+  progress erasure. Table padding for emoji sequences and ligatures can change.
+- Move native file identity to `ic_host_fs::identity::FileIdentity`. Import it
+  from FS when using Process custody; no compatibility reexport remains.
+  [Migration notes](docs/changelog/0.27.md).
 
 ### Changed
 
+- Prepare Make fixtures through Shared's declared companion closure, retiring
+  Host's selection of the separate Make-fixture copier.
+- Include every minor-line migration document in link validation automatically.
+- Share native device/inode observations across FS publication and Process
+  custody, retaining file-kind admission and namespace policy with their callers.
+- Derive directory-publication error traits while preserving generic formatting,
+  original causes and failures before or after publication.
+- Prepare release fixtures from declared script dependencies using Shared's
+  canonical fixture copier, retaining the source-evidence helpers on Shared
+  Tooling 0.22.1.
 - Use the hashed executable descriptor's metadata for permission admission,
   preserving size/digest refusal before permission policy. Private-file errors
   retain their messages and original causes through derived error traits.
@@ -20,6 +38,10 @@
 
 ### Added
 
+- Render dynamic ASCII-bordered tables through `ic_host_text::table::render_bordered`,
+  sharing escaping and width accounting with plain tables. Ragged rows receive
+  empty cells or unnamed columns; values, budgets and output stay caller-owned
+  ([PR #129 — Dynamic bordered tables](https://github.com/dragginzgame/ic-host-tooling/pull/129)).
 - Retain descriptor metadata alongside bounded file hashes through following
   and final-component no-follow reads. Metadata is an observation rather than
   immutable content, pathname custody or atomic execution authority.

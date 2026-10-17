@@ -91,13 +91,12 @@ pub fn create_private_directory(path: &Path) -> Result<File, DirectoryCreationEr
 pub fn admit_directory(path: &Path, directory: &File) -> io::Result<()> {
     #[cfg(unix)]
     {
-        use std::os::unix::fs::MetadataExt as _;
+        use crate::identity::FileIdentity;
         let current = std::fs::symlink_metadata(path)?;
         let held = directory.metadata()?;
         if !current.is_dir()
             || !held.is_dir()
-            || current.dev() != held.dev()
-            || current.ino() != held.ino()
+            || FileIdentity::from_metadata(&current) != FileIdentity::from_metadata(&held)
         {
             return Err(io::ErrorKind::InvalidInput.into());
         }

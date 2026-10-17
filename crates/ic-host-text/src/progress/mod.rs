@@ -1,8 +1,6 @@
 //! Pure single-line progress frames; callers own terminal admission and output.
 
-use unicode_width::UnicodeWidthChar;
-
-use crate::escape::terminal_text;
+use crate::{escape::terminal_text, width::display_width};
 
 /// Tracks the last rendered width and constructs carriage-return progress frames.
 ///
@@ -52,7 +50,7 @@ impl ProgressLine {
 
     fn render(&mut self, text: &str, newline: bool) -> String {
         let text = terminal_text(text);
-        let width: usize = text.chars().map(|ch| ch.width().unwrap_or(0)).sum();
+        let width = display_width(&text);
         let mut frame = String::from("\r");
         frame.push_str(&text);
         frame.extend(std::iter::repeat_n(

@@ -3,6 +3,15 @@ use unicode_width::UnicodeWidthChar;
 
 use crate::escape::escaped_chars;
 
+// One scalar-column policy for clipping, tables and progress erasure.
+pub(crate) fn scalar_width(character: char) -> usize {
+    character.width().unwrap_or(0)
+}
+
+pub(crate) fn display_width(text: &str) -> usize {
+    text.chars().map(scalar_width).sum()
+}
+
 /// Escape controls and fit one line within `columns`, adding `…` when clipped.
 ///
 /// Zero columns return an empty string. Width is the sum of Unicode scalar
@@ -20,7 +29,7 @@ pub fn fit_line(line: &str, columns: usize) -> String {
     let mut text = String::new();
     let mut clip_at = None;
     for ch in escaped_chars(line) {
-        let next = ch.width().unwrap_or(0);
+        let next = scalar_width(ch);
         let remaining = columns - width;
         if next > remaining {
             text.truncate(clip_at.unwrap_or(text.len()));

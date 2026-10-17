@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Shared companions: ci/release-delivery.txt scripts/ci/check-release-delivery.sh scripts/ci/read-cargo-workspace-version.sh scripts/ci/check-release-source.sh scripts/ci/next-release-version.sh scripts/ci/finalize-release-changelog.awk scripts/ci/rewrite-local-lock-versions.pl scripts/ci/render-cargo-workspace-version.pl scripts/ci/read-cargo-source-context.sh
 set -euo pipefail
 
 # Consumer-owned Cargo adapter. Requires Bash 3.2, Git, Make, awk, the selected

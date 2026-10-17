@@ -1,7 +1,6 @@
 //! Unicode display-width alignment over escaped caller-selected cells.
-use crate::escape::terminal_text;
+use crate::{escape::terminal_text, width::display_width};
 use std::borrow::Cow;
-use unicode_width::UnicodeWidthStr;
 
 /// Caller-selected alignment of one complete column.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -23,7 +22,9 @@ pub struct Options {
 
 /// Render headers and rows after escaping every cell, including headers.
 ///
-/// Widths use Unicode terminal display columns, not byte or character counts.
+/// Widths sum Unicode scalar columns, like [`crate::width::fit_line`] and
+/// [`crate::progress::ProgressLine`]. Joined emoji count their scalar widths
+/// separately; sequence-specific ligatures do not alter column accounting.
 /// Rows have the same column count by type. Header/data lines omit trailing
 /// whitespace; the result has no final newline. Zero columns return empty text.
 /// Caller owns input/output size, row construction, headers, column choices,
@@ -44,12 +45,11 @@ pub fn render<const N: usize>(
         .iter()
         .map(|row| row.each_ref().map(|cell| terminal_text(cell.as_ref())))
         .collect::<Vec<_>>();
-    let widths = std::array::from_fn(|index| {
-        rows.iter().fold(
-            UnicodeWidthStr::width(headers[index].as_ref()),
-            |width, row| width.max(UnicodeWidthStr::width(row[index].as_ref())),
-        )
-    });
+    let mut widths = [0; N];
+    measure_row(&mut widths, &headers);
+    for row in &rows {
+        measure_row(&mut widths, row);
+    }
     let gap = " ".repeat(options.column_gap);
     let mut output = String::new();
     render_row(&headers, &widths, alignments, &gap, &mut output);
@@ -69,19 +69,94 @@ pub fn render<const N: usize>(
     output
 }
 
-fn render_row<const N: usize>(
-    row: &[Cow<'_, str>; N],
-    widths: &[usize; N],
-    alignments: &[Alignment; N],
+/// Render a dynamic-column table with ASCII borders and left-aligned cells.
+///
+/// All cells are terminal-escaped before measuring the same Unicode scalar
+/// columns as [`render`]. Missing cells are empty; extra cells create unnamed
+/// columns. No columns returns empty text. Header-only output retains its
+/// separator. The result has no final newline and preserves cell whitespace.
+/// Callers own value semantics, row construction, input/output budgets and all
+/// terminal/output policy. Allocation follows ordinary String/Vec semantics.
+#[must_use]
+pub fn render_bordered(headers: &[impl AsRef<str>], rows: &[Vec<impl AsRef<str>>]) -> String {
+    let headers = headers
+        .iter()
+        .map(|cell| terminal_text(cell.as_ref()))
+        .collect::<Vec<_>>();
+    let rows = rows
+        .iter()
+        .map(|row| {
+            row.iter()
+                .map(|cell| terminal_text(cell.as_ref()))
+                .collect::<Vec<_>>()
+        })
+        .collect::<Vec<_>>();
+    let mut widths = vec![0; headers.len()];
+    measure_row(&mut widths, &headers);
+    for row in &rows {
+        widths.resize(widths.len().max(row.len()), 0);
+        measure_row(&mut widths, row);
+    }
+    if widths.is_empty() {
+        return String::new();
+    }
+    let mut separator = String::from("+");
+    for width in &widths {
+        separator.extend(std::iter::repeat_n('-', width.saturating_add(2)));
+        separator.push('+');
+    }
+    let alignments = vec![Alignment::Left; widths.len()];
+    let mut output = separator.clone();
+    // Header and data rows share one border/padding path. The separator belongs
+    // after the header even when there are no data rows.
+    for (index, row) in std::iter::once(&headers).chain(&rows).enumerate() {
+        output.push_str("\n| ");
+        append_cells(row, &widths, &alignments, " | ", &mut output);
+        output.push_str(" |");
+        if index == 0 {
+            output.push('\n');
+            output.push_str(&separator);
+        }
+    }
+    if !rows.is_empty() {
+        output.push('\n');
+        output.push_str(&separator);
+    }
+    output
+}
+
+fn measure_row(widths: &mut [usize], row: &[Cow<'_, str>]) {
+    for (width, value) in widths.iter_mut().zip(row) {
+        *width = (*width).max(display_width(value));
+    }
+}
+
+fn render_row(
+    row: &[Cow<'_, str>],
+    widths: &[usize],
+    alignments: &[Alignment],
     gap: &str,
     output: &mut String,
 ) {
     let start = output.len();
-    for (index, ((value, width), alignment)) in row.iter().zip(widths).zip(alignments).enumerate() {
+    append_cells(row, widths, alignments, gap, output);
+    // Trim only this row so empty cells cannot erase earlier line separators.
+    output.truncate(start + output[start..].trim_end().len());
+}
+
+fn append_cells(
+    row: &[Cow<'_, str>],
+    widths: &[usize],
+    alignments: &[Alignment],
+    gap: &str,
+    output: &mut String,
+) {
+    for (index, (width, alignment)) in widths.iter().zip(alignments).enumerate() {
         if index != 0 {
             output.push_str(gap);
         }
-        let padding = width.saturating_sub(UnicodeWidthStr::width(value.as_ref()));
+        let value = row.get(index).map_or("", |cell| cell.as_ref());
+        let padding = width.saturating_sub(display_width(value));
         if *alignment == Alignment::Right {
             output.extend(std::iter::repeat_n(' ', padding));
         }
@@ -90,8 +165,6 @@ fn render_row<const N: usize>(
             output.extend(std::iter::repeat_n(' ', padding));
         }
     }
-    // Trim only this row so empty cells cannot erase earlier line separators.
-    output.truncate(start + output[start..].trim_end().len());
 }
 
 #[cfg(test)]
@@ -101,6 +174,25 @@ mod tests {
         column_gap: 2,
         header_separator: true,
     };
+
+    #[test]
+    fn joined_sequences_share_clipping_and_progress_columns() {
+        let emoji = "👩‍💻";
+        let clipped = crate::width::fit_line(emoji, 4);
+        assert_eq!(clipped, emoji);
+        let mut progress = crate::progress::ProgressLine::new();
+        assert_eq!(progress.update(&clipped), "\r👩‍💻");
+        assert_eq!(progress.finish("x"), "\rx   \n");
+        assert_eq!(
+            render(
+                &["X", "N"],
+                &[[clipped.as_str(), "1"], ["abcd", "2"]],
+                &[Alignment::Left, Alignment::Right],
+                OPTIONS,
+            ),
+            "X     N\n----  -\n👩‍💻  1\nabcd  2"
+        );
+    }
 
     #[test]
     fn wide_and_combining_cells_align_in_display_columns() {
@@ -171,6 +263,63 @@ mod tests {
         assert_eq!(
             render(&[] as &[&str; 0], &[] as &[[&str; 0]], &[], OPTIONS),
             ""
+        );
+    }
+
+    #[test]
+    fn bordered_dynamic_columns_preserve_layout_and_ragged_cells() {
+        // Match CLI-owned String headers and dynamic String rows.
+        assert_eq!(
+            render_bordered(&[String::from("A")], &[vec![String::from("x")]]),
+            "+---+\n| A |\n+---+\n| x |\n+---+"
+        );
+        assert_eq!(
+            render_bordered(&["A", "B"], &[vec!["x", "123"], vec!["long"]]),
+            "+------+-----+\n| A    | B   |\n+------+-----+\n| x    | 123 |\n| long |     |\n+------+-----+"
+        );
+        assert_eq!(
+            render_bordered(&["A"], &[vec!["x", "y"]]),
+            "+---+---+\n| A |   |\n+---+---+\n| x | y |\n+---+---+"
+        );
+        assert_eq!(
+            render_bordered(&["A"], &[] as &[Vec<&str>]),
+            "+---+\n| A |\n+---+"
+        );
+        assert_eq!(render_bordered(&[] as &[&str], &[] as &[Vec<&str>]), "");
+        assert_eq!(render_bordered(&[] as &[&str], &[vec![] as Vec<&str>]), "");
+        assert_eq!(
+            render_bordered(&[] as &[&str], &[vec!["x"]]),
+            "+---+\n|   |\n+---+\n| x |\n+---+"
+        );
+        assert_eq!(
+            render_bordered(&["A", "B"], &[vec![] as Vec<&str>, vec!["  ", "x "]]),
+            "+----+----+\n| A  | B  |\n+----+----+\n|    |    |\n|    | x  |\n+----+----+"
+        );
+    }
+
+    #[test]
+    fn bordered_tables_escape_before_shared_unicode_alignment() {
+        let result = render_bordered(
+            &["界", "h\n"],
+            &[
+                vec!["e\u{301}", "\x1b]52;c;x\x07"],
+                vec!["x\ny", "\u{202e}\u{0085}\u{2028}"],
+            ],
+        );
+        let lines = result.lines().collect::<Vec<_>>();
+        assert_eq!(lines.len(), 6);
+        assert!(!result.contains('\x1b'));
+        assert!(!result.contains('\u{202e}'));
+        assert!(result.contains("e\u{301}"));
+        assert!(result.contains("x\\ny"));
+        assert!(result.contains("h\\n"));
+        let width = display_width(lines[0]);
+        for line in lines {
+            assert_eq!(display_width(line), width);
+        }
+        assert_eq!(
+            render_bordered(&["X"], &[vec!["👩‍💻"]]),
+            "+------+\n| X    |\n+------+\n| 👩‍💻 |\n+------+"
         );
     }
 }

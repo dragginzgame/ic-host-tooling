@@ -8,8 +8,10 @@ Do not copy those version facts into this handoff. The selected Shared baseline
 and exact payload identities are in [AGENTS.md](../../AGENTS.md) and
 [the snapshot](../../.shared-tooling.snapshot).
 
-The [0.26 migration](../changelog/0.26.md) documents consuming cleanup's single
-attempt and consumer-owned recovery. The [0.25 migration](../changelog/0.25.md)
+The [0.27 migration](../changelog/0.27.md) moves native inode identity to FS;
+Process retains custody policy. The [0.26 migration](../changelog/0.26.md) documents
+consuming cleanup's single attempt and consumer-owned recovery.
+The [0.25 migration](../changelog/0.25.md)
 preserves the preceding tool-probe, replica-policy, Candid and durable-admission cuts.
 The numbered changelog draft owns the candidate version; manifest/version changes
 and release execution remain user-owned. Existing sibling checkouts stay read-only.
@@ -38,7 +40,7 @@ The current work's qualification and migration patch are reported at handoff.
 Publication interruption recovery stays split between Host preparation custody
 and Shared provenance/dispatch receipts. The selected source refreshes
 [Shared PR #269 — Share Cargo source evidence](https://github.com/dragginzgame/shared-tooling/pull/269)
-onto released Shared 0.22.0 (`a41dee9e92e2461126083ddb1c85289d3fef076c`).
+onto released Shared 0.22.1 (`a3d4f619bd1999a0d4c084b429bb417b13839807`).
 The canonical helpers remain an open contribution rather than part of upstream
 main; Host pins its clean committed revision. Strict certificate wire admission
 remains local
@@ -48,6 +50,60 @@ Operational directory CR/LF admission remains in Host pending consumer-owned
 migration; see [Canic #575 — Own Backup operational path admission](https://github.com/dragginzgame/canic/issues/575).
 
 ## Qualification receipt
+
+Shared adoption preparation evidence is retained at
+`/tmp/host-shared023-prep.zC9TdF/`, relative to its captured incoming dirty tree.
+Host's actual Make fixture now selects `make/consumer.mk` through the declared
+script closure, and canonical export retires the separate Make-fixture copier.
+The reduced snapshot verifies 113 payloads; Make routing/admission, affected
+ShellCheck, formatting, links and pin checks pass on Linux. Rust inputs, own
+versions, lock selection, index, refs and normal sibling checkouts are preserved.
+At observation, Shared main still names `a3d4f61`; the sibling's 0.23.0 changes
+remain uncommitted and are excluded. Host retains its recorded reviewed baseline
+until a committed published source can be adopted. Native macOS remains separate.
+
+Bordered-table implementation evidence is retained at `/tmp/host-pr129.n0bIr3/`,
+relative to its captured incoming dirty tree. Host now implements the API from
+[PR #129 — Share dynamic bordered tables](https://github.com/dragginzgame/ic-host-tooling/pull/129)
+with the pending scalar-width contract and array-backed plain rows. All 18 Text
+cases pass on current Rust and actual Rust 1.88, including ragged/extra columns,
+empty/header-only reports, preserved bordered whitespace, control escaping and
+joined emoji. A String-based case matches IcyDB's existing CLI call shape;
+the full consumer is not qualified. Affected all-target MSRV, strict Clippy,
+Rustdoc, formatting and links pass. Existing PR native results apply to its old
+head, not these working-tree inputs; native macOS remains separate. PR merge,
+publication, own versions, selected dependencies, index and refs remain user-owned.
+
+Text/Make simplification evidence is retained at
+`/tmp/host027-text-release.xhC2G1/`, relative to its captured incoming dirty tree.
+All 16 Text cases pass on current Rust and actual Rust 1.88; the new joined-emoji
+regression first reproduced inconsistent table padding. Affected all-target MSRV,
+strict Clippy/Rustdoc, formatting and document links pass. A disposable actual
+Make invocation selects future migration files through a substituted checker;
+Host's Make routing and execution-admission fixture also passes. Native macOS
+qualification remains separate. Prior pending work, own versions, lock selection,
+index and refs remain preserved.
+
+The Cargo editor is still in open
+[Build PR #56 — Own Cargo release candidate editing](https://github.com/dragginzgame/ic-build/pull/56).
+[Shared #273 — Retire the Perl renderers](https://github.com/dragginzgame/shared-tooling/issues/273)
+owns reviewed-publication adoption. The receipt's deferred Host adoption patch
+passes syntax, ShellCheck and apply admission against the proposed source
+interface. It is not active or runtime-qualified and installs no unpublished tool.
+
+Identity/fixture simplification evidence is retained at
+`/tmp/host027-simplify.jKVpD4/`, relative to clean Host `fc6a854`. All 134 FS
+units and seven Process custody cases pass on current Rust and actual Rust 1.88;
+the generic error regression also passes against the handwritten implementation.
+Affected all-target/all-feature MSRV compilation, strict Clippy/Rustdoc,
+formatting, pins, links and snapshot checks pass. The actual release-adapter
+fixture passes with setup, qualification and Git effects substituted, and failed
+fixture retention remains qualified. Shared's companion-copy, saved-context and
+archive-provenance fixtures pass on the isolated refreshed source. The selected
+commit is published on Shared PR #269's branch; independent retrieval into a
+fresh Git store passes. Backup's import-only patch
+passes apply admission; consumer execution and native macOS qualification remain
+separate. Own versions, lock selection, index and Host refs are preserved.
 
 Descriptor/fixture cleanup evidence is retained at `/tmp/host0261-descriptors.0zuih3/`,
 relative to clean Host `27d1c91`. Hash/metadata observations share one descriptor;

@@ -1,5 +1,7 @@
 //! Local host filesystem reads, durable publication and descriptor locks.
 pub mod durable;
+#[cfg(unix)]
+pub mod identity;
 pub mod path;
 pub mod read;
 pub mod scratch;

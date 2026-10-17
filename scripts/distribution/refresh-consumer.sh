@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
+# Shared companions: scripts/ci/shared-companions.sh
 set -euo pipefail
 
 SCRIPT_ROOT="${BASH_SOURCE[0]}"
 [[ "$SCRIPT_ROOT" == /* ]] || SCRIPT_ROOT="$PWD/$SCRIPT_ROOT"
 SCRIPT_ROOT="$(cd -P "${SCRIPT_ROOT%/*}/../.." && printf '%s/.' "$PWD")"
 SCRIPT_ROOT="${SCRIPT_ROOT%/.}"
+# shellcheck source=scripts/ci/shared-companions.sh
+source "$SCRIPT_ROOT/scripts/ci/shared-companions.sh"
 SOURCE_ROOT="$SCRIPT_ROOT"
 CONSUMER_ROOT=""
 MANIFEST_PATH=".shared-tooling.snapshot"
@@ -427,23 +430,8 @@ while [[ "$cursor" -lt "${#proposed[@]}" ]]; do
     if [[ "$path" == */* ]]; then staged_parent+="/${path%/*}"; fi
     [[ -d "$staged_parent" ]] || mkdir -p "$staged_parent"
     git -C "$SOURCE_ROOT" cat-file blob "$source_revision:$path" > "$staged_files/$path" || fail "cannot inspect companions: $path"
-    # Only line two declares companions. Read it without launching a parser for
-    # every payload; an unterminated second line is still a complete declaration.
-    {
-        IFS= read -r declaration || :
-        IFS= read -r declaration || :
-    } < "$staged_files/$path"
-    if [[ "$declaration" == '# Shared companions: '* ]]; then
-        declaration="${declaration#'# Shared companions: '}"
-    elif [[ "$path" == *.md && "$declaration" == '<!-- Shared companions: '*' -->' ]]; then
-        declaration="${declaration#'<!-- Shared companions: '}"
-        declaration="${declaration%' -->'}"
-    else
-        declaration=''
-    fi
-    companions=()
-    read -r -a companions <<< "$declaration"
-    for companion in ${companions[@]+"${companions[@]}"}; do
+    read_shared_companions "$staged_files/$path" "$path"
+    for companion in ${shared_companions[@]+"${shared_companions[@]}"}; do
         validate_relative_path "$companion"
         selected=false
         for existing in "${proposed[@]}"; do

@@ -368,6 +368,10 @@ it does not reconstruct a missing measurement completion receipt.
 
 From a Shared Tooling checkout, the same comparison can run locally through
 `bash scripts/distribution/measure-snapshot-refresh.sh BEFORE AFTER PAYLOAD NEW-DIRECTORY`.
+The payload supplies both runners' integrity helpers and, when present, their
+shared companion reader; its blob is recorded with the other frozen helpers.
+Select a payload containing that reader when measuring exporters that require
+it. Historical payloads remain suitable for their self-contained exporters.
 Use an absent evidence directory beneath an existing parent, with no CR/LF in
 either path. Evidence is retained on success and failure. The bounded export
 workload does not establish a whole-suite speedup; compare repeated samples

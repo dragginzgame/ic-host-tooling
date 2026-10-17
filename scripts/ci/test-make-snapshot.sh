@@ -18,7 +18,7 @@ fixture_complete=false
 trap 'fixture_finish "$?" "$fixture" "Host Make evidence retained"' EXIT
 export TMPDIR="${fixture%/*}"
 mkdir -p "$fixture/local"
-bash "$root/scripts/ci/prepare-make-fixture.sh" "$root" "$fixture/local"
+bash "$root/scripts/ci/prepare-script-fixture.sh" "$root" "$fixture/local" make/consumer.mk
 for input in Makefile ci/tool-versions.env ci/release-delivery.txt scripts/ci/check-format-tools.sh; do
     parent=.
     [[ "$input" != */* ]] || parent="${input%/*}"

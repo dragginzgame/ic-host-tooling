@@ -292,6 +292,7 @@ fn errno_to_lock_error(source: rustix::io::Errno) -> RegularFileLockError {
 #[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
 mod supported {
     use super::{NamedWriteError, PublicationMode, WriteOptions};
+    use crate::identity::FileIdentity;
 
     use std::{
         ffi::{OsStr, OsString},
@@ -499,8 +500,7 @@ mod supported {
     }
 
     fn same_identity(left: &unix_fs::Stat, right: &unix_fs::Stat) -> bool {
-        left.st_dev == right.st_dev
-            && left.st_ino == right.st_ino
+        FileIdentity::from_stat(left) == FileIdentity::from_stat(right)
             && unix_fs::FileType::from_raw_mode(left.st_mode)
                 == unix_fs::FileType::from_raw_mode(right.st_mode)
     }

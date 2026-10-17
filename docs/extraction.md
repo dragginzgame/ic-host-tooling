@@ -386,6 +386,11 @@ Additional reusable mechanics are extracted from committed sibling source:
   lock namespace, descriptor clones and final-owner unlock remain consumer-owned.
   The [0.13 migration](changelog/0.13.md) removes the fixed-cadence pathname wrapper.
 
+Unix native device/inode observations belong to `ic_host_fs::identity`, shared
+by filesystem publication and Process custody. File-kind admission, locks,
+namespace stability, retention formats and lifetime authority stay with callers;
+the identity neither freezes content nor prevents inode reuse after close.
+
 The exact source revisions, file digests and selected mechanics are recorded in
 [source provenance](../ci/extraction-sources.json). These APIs add no JSON schema,
 cache policy, root confinement, tool pin or process-tree ownership. Backup's private
