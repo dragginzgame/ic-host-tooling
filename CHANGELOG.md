@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.27.1]
+
+### Added
+
+- Include canonical directory checksums, no-follow tree hashing and ordered
+  tree synchronization from the 0.26 release line.
+
 ## [0.27.0] - 2026-10-17
 
 ### Breaking
@@ -53,6 +60,23 @@
   output permissions. Failed reads preserve prior output and cleanup evidence;
   source admission, budgets and reuse remain caller-owned
   ([#92 — Share durable stream copying](https://github.com/dragginzgame/ic-host-tooling/issues/92)).
+## [0.26.2] - 2026-10-17
+
+### Added
+
+- Synchronize and hash an existing caller-held directory with ordered pre-sync
+  hooks through FS `durable::tree::sync_checksum_directory_at`. Files sync before
+  hashing; directories sync after children. Callers retain total-tree budgets,
+  expected-checksum admission, publication and recovery policy.
+
+## [0.26.1] - 2026-10-17
+
+### Added
+
+- Compose exact directory identities from canonical relative paths and SHA-256
+  digests in Artifacts, and hash no-follow directory trees in FS with explicit
+  per-file byte limits. Preserve Backup's component ordering and path/NUL/hex/newline
+  framing; callers retain tree budgets, custody, synchronization and publication.
 
 ## [0.26.0] - 2026-10-17
 

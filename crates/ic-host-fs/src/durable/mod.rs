@@ -6,6 +6,9 @@
 //! Boundary: writes own sibling staging, publication, cleanup and filesystem syncs
 //! behind replace and create-new modes. Reads belong to [`crate::read`].
 
+#[cfg(unix)]
+pub mod tree;
+
 mod directory;
 mod lock_wait;
 pub use directory::{

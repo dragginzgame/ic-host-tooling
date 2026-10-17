@@ -23,10 +23,13 @@ Replica revision selection, install thresholds and resource-report policy belong
 to the consuming application. Host Artifacts retains generic Wasm facts; Tools
 no longer owns an `ic-limits` profile or a reference-policy CLI example.
 
-- ic-host-artifacts owns stream identities, bounded read/write/copy mechanics,
+- ic-host-artifacts owns pure declared-file directory checksums, stream identities,
+  bounded read/write/copy mechanics,
   optional gzip encoding/decoding, optional Wasm
   structural facts, encoded code/data statistics and bounded custom-section framing.
-- ic-host-fs owns pathname/descriptor reads, explicit invocation-directory
+- ic-host-fs owns no-follow directory hashing and ordered sync/checksum traversal
+  over caller-held descriptors,
+  pathname/descriptor reads, explicit invocation-directory
   cleanup custody and the durable module's replace,
   create-new, private-file, parent synchronization and descriptor-lock operations.
   Its `scratch::create_private_bytes` shares private, non-durable invocation-file
