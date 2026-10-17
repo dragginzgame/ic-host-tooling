@@ -9,6 +9,11 @@ Select one changed crate with `PACKAGE=<crate>` for `make check`, `make clippy`,
 and Wasm features; production filesystem dependencies select none of them.
 Check target-directory ownership before compilation. Preserve failure logs and artifacts.
 
+Focused Process qualification can select `cargo test -p ic-host-process --lib
+framing::` or `status::`; add `--locked --offline` for the prepared graph. Host FS
+tests cover verified copying, retained writes and descriptor tree copying alongside
+the existing durable publication contracts.
+
 `make test-artifacts-minimal` checks the artifact library without optional
 features. `make test-tools-response` checks the response/text library,
 `make test-tools-interface` checks Wasm export interpretation,

@@ -28,6 +28,8 @@ response-only graph; IC reference values and comparison remain in the tools owne
 - ic-host-fs owns pathname/descriptor reads, explicit invocation-directory
   cleanup custody and the durable module's replace,
   create-new, private-file, parent synchronization and descriptor-lock operations.
+  Its Unix `copy` module also owns create-new descriptor file/tree copying with
+  per-file stream identities; consumer digest framing and publication stay local.
 - ic-host-process owns executable resolution/admission, installed-version
   observation, explicit execution context,
   output limits, deadlines, direct-child/explicit group cleanup evidence, native

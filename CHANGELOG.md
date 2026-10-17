@@ -1,5 +1,36 @@
 # Changelog
 
+## [0.25.0]
+
+### Breaking
+
+- Require explicit result admission for existing-parent and descriptor-relative
+  durable publication. Replace `write_existing_parent_with` and `write_at_with`
+  with `write_existing_parent_validated_with` and `write_at_validated_with`,
+  supplying `|_| Ok(())` when successful production already admits the result.
+  Publication ordering, directory custody and typed recovery evidence are unchanged.
+  [Migration guidance](README.md),
+  [#168 — Explicit durable result admission](https://github.com/dragginzgame/ic-host-tooling/issues/168).
+
+### Added
+
+- Stream bounded gzip payloads into caller-owned sinks while returning decoded
+  byte identity; authentication, staging and publication stay caller-owned
+  ([PR #171](https://github.com/dragginzgame/ic-host-tooling/pull/171)).
+- Share verified durable copying, descriptor tree copying and retained writes;
+  callers retain bounds, publication and recovery policy
+  ([PR #104](https://github.com/dragginzgame/ic-host-tooling/pull/104),
+  [PR #165](https://github.com/dragginzgame/ic-host-tooling/pull/165),
+  [PR #132](https://github.com/dragginzgame/ic-host-tooling/pull/132)).
+- Add bounded newline framing and explicit shell-style status projection,
+  keeping schemas, EOF acceptance and process lifecycle caller-owned
+  ([PR #128](https://github.com/dragginzgame/ic-host-tooling/pull/128),
+  [PR #133](https://github.com/dragginzgame/ic-host-tooling/pull/133)).
+- Document direct managed inspector setup, offline checking and execution
+  ([PR #156](https://github.com/dragginzgame/ic-host-tooling/pull/156)).
+
+[Detailed notes](docs/changelog/0.25.md).
+
 ## [0.24.0] - 2026-10-16
 
 ### Breaking

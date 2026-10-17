@@ -2,40 +2,32 @@
 
 ## Source and pending release
 
-Latest tagged release: **0.23.1**, commit
-`bcd4f9c32b4c3c8f1ea219632fc813fe846039e3`. Package versions remain 0.23.1.
-The pending candidate is **0.24.0**, removing native Candid extraction from
-Host Tools in favor of IC Build's `artifacts::candid`. The Build producer move
-and release must precede Host publication; consumers retain tool admission,
-normalization, budgets and artifact policy. Producer work belongs to
-[Build #51 — Own native Candid extraction](https://github.com/dragginzgame/ic-build/issues/51).
-Host retains five crate boundaries and generic execution/hashing. The same draft
-shares bounded allocation across artifact reads/chunks and process capture,
-and keeps generic publication failure combinations at Shared's test owner.
-The same draft adds single-probe installed-version observation for
-[#166 — Observe installed tool version with one probe](https://github.com/dragginzgame/ic-host-tooling/issues/166)
-and explicit invocation-directory cleanup custody for
-[#159 — Own invocation directory custody for Build](https://github.com/dragginzgame/ic-host-tooling/issues/159).
-It removes the unused mixed raw/gzip hashing wrapper without an alias; callers
-select raw or strict gzip handling and retain both byte allowances. Testkit's
-existing strict streaming gzip hashing is preserved.
-Package versions and own release operations remain user-owned.
+Latest tagged release: **0.24.0**, commit
+`2f3976db22f1930a7df8dec990943d75f2416317`. Package versions remain 0.24.0.
+The pending candidate is **0.25.0**. Existing-parent and descriptor-relative
+durable publication require explicit result admission through the retained
+`write_existing_parent_validated_with` and `write_at_validated_with` APIs.
+The wrappers that accept every result are removed without aliases; callers may
+explicitly supply `|_| Ok(())` when production already admits their result.
+Query's confined cache, Blob CLI and IcyDB diagnostic artifact writers need this
+source update when adopting the release. No consumer pin changes are included.
+File synchronization precedes admission; held-directory custody, cleanup and
+before/after-publication evidence remain intact. Closed-writer pathname admission
+retains its separate executable-probe obligations.
 
-The draft also adds fixed-buffer SHA-256
-hexadecimal output for [#161 — Fixed-buffer SHA-256 output](https://github.com/dragginzgame/ic-host-tooling/issues/161).
-Display shares that encoder; raw identities, parsing and formatting remain stable.
-Build owns inventory framing and adoption after reviewed publication.
-The same draft adds bounded regular-file prefix reads with the
-descriptor length retained from admission. Testkit owns its startup diagnostic
-limits, decoding, omitted-byte messages and published adoption. Existing full
-reads retain their size rejection; no new filesystem deadline is introduced.
-The same candidate adopts Shared 0.16.1, preserving compiler policy, tool pins
-and the existing snapshot selection.
+The same source incorporates descriptor tree copying, verified durable copying,
+retained writes, bounded newline framing, shell-style status projection and
+direct managed inspector guidance from PRs #165, #104, #132, #128, #133 and #156.
+PR #171 adds bounded gzip-to-sink copying through the existing framing/copy owners.
+Their contracts and consumer actions are recorded in
+[the 0.25 notes](../changelog/0.25.md). Package versions, dependency selection,
+consumer pins and publication authority remain unchanged.
 
-Tagged 0.23.1 combines inherited command custody, existing-sidecar admission and
-caller-verified directory publication with the 0.23 contract. Consumer records,
-effect recovery and publication acceptance remain local; retired entrypoints are
-not restored.
+Released 0.24.0 moved native Candid extraction to IC Build and removed the mixed
+raw/gzip hash wrapper. It also delivered single-probe version observation,
+invocation-directory custody, fixed-buffer hexadecimal output and bounded
+file-prefix reads. The [0.24 notes](../changelog/0.24.md) retain those contracts
+and consumer actions; this candidate preserves that released source.
 
 Tagged 0.23.0 moved bounded line normalization from Tools' Candid module into
 `ic_host_text::normalize::normalize_lines` without an alias. Callers update imports
@@ -159,6 +151,34 @@ Descriptor locking now shares native dispatch, identical denied-reader fixtures
 have one private owner, and release projection uses Shared's saved-source renderer.
 
 ## Qualification evidence
+
+### Refresh against released 0.24.0
+
+The 0.25 integration retains released source `2f3976db` and its package versions,
+lockfile and Shared snapshot. On actual Rust 1.88/Linux, Artifact and FS tests
+pass; 127 Process tests pass in the sandbox and the four HTTP tests pass when
+retried with loopback socket access. The sandbox's initial PermissionDenied
+results remain distinct from the successful retry. Affected all-target/all-feature
+MSRV checking, strict Rust 1.99 Clippy, warning-denied Rust 1.88 Rustdoc, formatting
+and local links pass. Logs are retained in Shared's
+`target/issue-pr-pass-20261017/`. Fresh hosted qualification remains required.
+
+### Earlier integration source
+
+The next two receipts belong to the original PR #172 source `85ef8b5`, before
+the 0.24 merge; they are not relabelled as checks of the refreshed source.
+Subsequent records retain their own stated source identities.
+
+The combined source passes 120 Host FS tests and its integration test, plus six
+framing and two status tests, on Rust 1.88/Linux. Strict affected-package
+all-target/all-feature Clippy on Rust 1.99, warning-denied Rustdoc on Rust 1.88,
+formatting and documentation links pass. The six input contributions have green
+native/MSRV checks independently; combined native macOS and published consumer
+adoption remain separate qualifications.
+
+The gzip streaming addition passes all 16 gzip tests on Rust 1.88/Linux, with
+strict Artifacts Clippy, actual MSRV checking and warning-denied Rustdoc. It
+retains independent input/decoded budgets and partial-sink failure evidence.
 
 The additional 0.24 batch adapts PR #167 at `15187737` and PR #160 at
 `6eb96bd5` over the incoming working tree captured in

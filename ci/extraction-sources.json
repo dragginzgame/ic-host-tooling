@@ -2,6 +2,17 @@
   "format": 1,
   "sources": [
     {
+      "repository": "https://github.com/dragginzgame/ic-backup",
+      "revision": "53d840bddb3de8680c4ab35a3c008c57ed61a244",
+      "files": [
+        {
+          "path": "crates/ic-backup/src/ops/artifacts/secure/unix/mod.rs",
+          "sha256": "f5c044e68625180e77ff26e3b8d4e25c158c170d9b917eefdc0ca4d28f3dd104",
+          "selection": "Create-new private file/tree copy mechanics, adapted to the existing Host descriptor walker and bounded artifact copier with per-file identities. Backup keeps directory digest framing, record schemas, publication and recovery. Fresh Host regression cases exercise the extracted implementation; MIT source notices retained."
+        }
+      ]
+    },
+    {
       "repository": "https://github.com/dragginzgame/ic-testkit",
       "revision": "2db7b4f6b616b484408695656e26207628d74c5f",
       "files": [
