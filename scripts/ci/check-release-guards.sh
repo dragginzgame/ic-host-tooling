@@ -300,6 +300,7 @@ bash "${repo_root}/scripts/ci/check-release-commands.sh" "${repo_root}" \
 # Cargo and owner CLI. Parallel Make must retain ordering and checks stay offline.
 (
   unset MAKEFLAGS MFLAGS MAKEOVERRIDES GNUMAKEFLAGS MAKEFILES
+  unset POCKET_IC_BIN IC_TESTKIT_POCKET_IC_URL
   export TOOL_ROOT="${work_dir}/tools" TOOL_TRACE="${work_dir}/tools/trace"
   mkdir -p "$TOOL_ROOT/make" "$TOOL_ROOT/scripts/dev" "$TOOL_ROOT/scripts/ci" "$TOOL_ROOT/bin" "$TOOL_ROOT/ci"
   cp "$repo_root/Makefile" "$TOOL_ROOT/"
@@ -333,6 +334,9 @@ set -euo pipefail
 [[ "$1" != --version ]] || exit 0
 [[ "$*" == *--locked* ]] || exit 97
 operation="$1"
+if [[ "$operation" == package ]]; then
+  [[ "${POCKET_IC_BIN:-}" == /prepared/server ]] || exit 97
+fi
 if [[ "$operation" == test ]]; then
   case " $* " in
     *' -p ic-testkit-candid '*) operation=test:ic-testkit-candid ;;
@@ -422,6 +426,22 @@ STUB
       cargo:test:ic-testkit-dev) printf '%s\n' cargo:test:ic-testkit cargo:test:ic-testkit-dev >> "$TOOL_ROOT/expected" ;;
     esac
     cmp "$TOOL_TRACE" "$TOOL_ROOT/expected" || fail 'failed test dispatched later Cargo work'
+  done
+  for stage in success cargo:build server:check cargo:package; do
+    : > "$TOOL_TRACE"
+    status=0
+    TOOL_FAIL="$stage" "$make_bin" --no-print-directory -j4 -C "$TOOL_ROOT" package \
+      > "$TOOL_ROOT/package-${stage//:/-}.log" 2>&1 || status=$?
+    expected_status=2
+    [[ "$stage" != success ]] || expected_status=0
+    [[ "$status" == "$expected_status" ]] || fail 'package admission or Cargo failure status lost'
+    case "$stage" in
+      cargo:build) printf '%s\n' cargo:build > "$TOOL_ROOT/expected" ;;
+      server:check) printf '%s\n' cargo:build server:check > "$TOOL_ROOT/expected" ;;
+      *) printf '%s\n' cargo:build server:check cargo:package > "$TOOL_ROOT/expected" ;;
+    esac
+    cmp "$TOOL_TRACE" "$TOOL_ROOT/expected" || fail 'package bypassed admission or continued after failure'
+    cmp "$TOOL_ROOT/server-bytes" "$TOOL_ROOT/retained-server" || fail 'package changed the prepared server'
   done
   : > "$TOOL_TRACE"
   status=0

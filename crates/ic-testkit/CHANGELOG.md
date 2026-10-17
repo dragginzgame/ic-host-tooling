@@ -46,6 +46,9 @@ repository checkout. The complete historical changelog remains at
 
 ### Fixed
 
+- Package qualification passes the offline-verified PocketIC binary to archived
+  tests, so `make package` works without a manually exported `POCKET_IC_BIN`.
+
 - Complete the synthetic host catalog used by CI evidence qualification so
   archive retention checks reach their normal and rejected-selection cases
   ([#122](https://github.com/dragginzgame/ic-testkit/issues/122)).

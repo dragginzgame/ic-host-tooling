@@ -1,5 +1,29 @@
 # Host support and qualification
 
+## Pending 0.53.0: package tests receive prepared PocketIC
+
+The failed archive attempt at `target/package-qualification-GTmwz7/` reaches
+live pool tests without `POCKET_IC_BIN` or an explicit server URL. The earlier
+package receipt below supplied the environment manually and did not qualify
+the actual Make target's configuration. The test target's command-scoped
+selection does not persist into a later package target.
+
+`make package` now builds the owner CLI, checks the existing prepared bundle
+offline and passes its admitted binary to the package command and archived
+tests. The existing consumer guard checks this actual recipe with no inherited
+PocketIC configuration, preserved parallel Make jobserver access and retained
+server bytes. CLI build, server admission and package failures stop later work
+and propagate their status. The previous Makefile fails that same caller check;
+the fixed caller passes under modern Bash and genuine Bash 3.2.57 on Linux.
+
+The exact `make package` command passes with both PocketIC environment variables
+explicitly unset, including archive tests, doctests and source/lock custody.
+Its successful attempt is `target/package-qualification-YOKOxN/`. ShellCheck,
+formatting and the isolated release-guard/metadata checks also pass. No dependency
+or package-version changes are required. Native macOS and a complete release-gate
+rerun remain separate. Source before-images, command evidence and the negative
+control are under `target/package-server-env-053-evidence/`.
+
 ## Pending 0.53.0: Host 0.27 and Shared Tooling 0.23 adoption
 
 The normal registry graph selects Host 0.27.1 and Build 0.16.0, with one Host

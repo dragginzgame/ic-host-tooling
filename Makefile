@@ -141,8 +141,9 @@ release-guards-check:
 	perl scripts/ci/test-local-lock-versions.pl
 	bash scripts/ci/check-release-guards.sh
 
-package:
-	+bash scripts/ci/check-packages.sh package
+package: build-server-cli
+	+@server="$$("$(SERVER_CLI)" check)" || exit $$?; \
+		POCKET_IC_BIN="$$server" bash scripts/ci/check-packages.sh package
 
 publish-dry-run:
 	+bash scripts/ci/check-packages.sh publish-dry-run
