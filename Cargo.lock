@@ -761,14 +761,14 @@ dependencies = [
 
 [[package]]
 name = "ic-build"
-version = "0.13.0"
+version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2f3e88f4805bc349ae0aa50973d016b79599dbbe273ec5a062196f96d4c2baca"
+checksum = "957e87919fc46aed675896ee99cd01d0e18baca91c459b52ee2211d38d670f09"
 dependencies = [
  "cargo_metadata",
- "ic-host-artifacts",
- "ic-host-fs",
- "ic-host-process",
+ "ic-host-artifacts 0.25.1",
+ "ic-host-fs 0.25.1",
+ "ic-host-process 0.25.1",
  "libc",
  "rustix",
  "serde",
@@ -842,9 +842,20 @@ dependencies = [
 
 [[package]]
 name = "ic-host-artifacts"
-version = "0.25.0"
+version = "0.25.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e2687f42bd58b52f5f227e41b1adebd91699355fac2e19c5cddc3e91503327aa"
+checksum = "1e73f38c222f0af0d43bd3cd2d7d6f02780de9a9aa8dcb9816c88015c0cbbcd5"
+dependencies = [
+ "leb128",
+ "sha2",
+ "wasmparser",
+]
+
+[[package]]
+name = "ic-host-artifacts"
+version = "0.26.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3a94fb60f019548012a2a07887aba72fb49534f15a8e1df7855f534f139c6429"
 dependencies = [
  "flate2",
  "leb128",
@@ -854,32 +865,56 @@ dependencies = [
 
 [[package]]
 name = "ic-host-fs"
-version = "0.25.0"
+version = "0.25.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "86763e75034fddc85fa75ee6d7f4c5f5451414f7ec52a8e5663d6f9df2c74cdb"
+checksum = "83baf7fd8d3aefbdd364d1ed52ea302f64eb421e58041e13876078c82a8ccb7e"
 dependencies = [
- "ic-host-artifacts",
+ "ic-host-artifacts 0.25.1",
+ "rustix",
+]
+
+[[package]]
+name = "ic-host-fs"
+version = "0.26.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "52900a21c26d592a2be924abdb24ec657d7a472da48acbd4b773a7e37639d683"
+dependencies = [
+ "ic-host-artifacts 0.26.0",
+ "rustix",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "ic-host-process"
+version = "0.25.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8fed8de8998dea5db718fe45db29a4cf1ad1b4159e362503a3d0617518f564ca"
+dependencies = [
+ "command-fds",
+ "ic-host-artifacts 0.25.1",
+ "ic-host-fs 0.25.1",
+ "libc",
  "rustix",
 ]
 
 [[package]]
 name = "ic-host-process"
-version = "0.25.0"
+version = "0.26.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "08612b0f66eddba70e62e9ffcda33135ec87a683b60eb7ab9fb20b0c9a7aff6f"
+checksum = "ec23536325ed5a2a3b5770f2d297aea15ed6e5d76747486054bdc0a7f5ad6c9e"
 dependencies = [
  "command-fds",
- "ic-host-artifacts",
- "ic-host-fs",
+ "ic-host-artifacts 0.26.0",
+ "ic-host-fs 0.26.0",
  "libc",
  "rustix",
 ]
 
 [[package]]
 name = "ic-host-text"
-version = "0.25.0"
+version = "0.26.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f0c2d09e44eff87ee06fb067416ae7330b45f59d68f4cf0160657f24ce1a9d25"
+checksum = "7c869731e7caadf16cc0b66d2debcad058e24b7c37aa5dc6e2af1a271555ebc2"
 dependencies = [
  "unicode-width",
 ]
@@ -897,21 +932,19 @@ dependencies = [
 
 [[package]]
 name = "ic-metrics"
-version = "0.12.0"
+version = "0.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c30a384477a9783da95cd991e576f6f6a76c5d3691299fffe294f95affae3fd7"
+checksum = "078fddb70578cd0e42b600ad2ad8652a47bef26d2c82275e8631b6f9e9bbe18e"
 
 [[package]]
 name = "ic-testkit"
 version = "0.51.0"
 dependencies = [
  "candid",
- "ic-build",
  "ic-cdk",
- "ic-host-artifacts",
- "ic-host-fs",
- "ic-host-process",
- "ic-host-text",
+ "ic-host-artifacts 0.26.0",
+ "ic-host-fs 0.26.0",
+ "ic-host-process 0.26.0",
  "ic-metrics",
  "ic-testkit-candid",
  "libc",
@@ -919,7 +952,27 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
+ "thiserror 2.0.18",
  "tokio",
+]
+
+[[package]]
+name = "ic-testkit-bench"
+version = "0.51.0"
+dependencies = [
+ "candid",
+ "ic-build",
+ "ic-host-artifacts 0.26.0",
+ "ic-host-fs 0.26.0",
+ "ic-host-process 0.26.0",
+ "ic-host-text",
+ "ic-metrics",
+ "ic-testkit",
+ "ic-testkit-candid",
+ "libc",
+ "serde",
+ "serde_json",
+ "tempfile",
 ]
 
 [[package]]

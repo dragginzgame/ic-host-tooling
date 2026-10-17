@@ -6,6 +6,68 @@ documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.52.0]
+
+### Breaking
+
+- Native tool failures use Host 0.26 types. Align directly used Host dependencies
+  before constructing or downcasting the exposed tool errors.
+
+- Diagnostic report, batch-entry and batch-report outputs expose public fields.
+  Replace forwarding getters and tuple-unpacking methods with field access or
+  record destructuring; bounded log internals and collect-all behavior remain.
+
+- Remove pool recipe identifiers; each pool already owns one recipe. Remove
+  `FixtureRecipeId`, recipe `id()` implementations and pool `recipe_id()` calls.
+  `StandaloneCanisterRecipe::new` now takes only funding and its builder.
+- Remove `try_create_and_install_many`. Map an ordered iterator through
+  `try_create_and_install` and collect its results to preserve stop-on-error
+  behavior and ownership of already created canisters.
+
+- Configure startup with `PocketIcStartupConfig::Spawn { ... }` or
+  `Connect { ... }`. TTL and output-file settings belong only to `Spawn`;
+  construct variants directly instead of using configuration builders/accessors.
+  Process ownership, startup deadlines and retained output remain unchanged.
+  [Migration details](crates/ic-testkit/CHANGELOG.md#0520).
+
+- Baseline pools restore their own captured snapshots using funding selected in
+  reset requirements. Recipes may check preconditions but no longer implement
+  snapshot restoration. Update classifiers for typed restore causes and keep real
+  non-snapshot reset guarantees. Successful manual restoration returns unit;
+  inspect captured IDs on the baseline and funding in recipe requirements.
+  [Migration details](crates/ic-testkit/CHANGELOG.md#0520).
+
+### Changed
+
+- Fixture benchmark programs and their live marker test belong to the private
+  `ic-testkit-bench` workspace package. Run the driver with
+  `cargo run -p ic-testkit-bench --bin fixture_reuse_benchmark_driver -- ...`;
+  shared protocol/report code is compiled once, while workers remain separate
+  processes. Existing Make/CI checks include the new package; locked archive
+  verification excludes its development-only dependency graph.
+- Benchmark reports retain typed fresh/pooled modes through JSON admission.
+  Existing valid report bytes remain compatible; wrong requested modes and
+  unknown serialized modes are rejected independently.
+- Startup, snapshot and polling errors derive formatting and source chains,
+  retaining their public variants, original causes and cleanup diagnostics.
+
+- Benchmark report publication delegates existing-parent path admission to
+  Host, preserving private staging, cancellation, complete replacement and
+  before/after-publication error handling.
+
+- Adopt Shared Tooling 0.20.0. Common setup prepares host/Cargo tools and
+  PocketIC; generic IC executables remain an explicit optional installation.
+
+- PocketIC asset setup delegates directory publication to Host's no-replace
+  commit engine. Preserve failed staging and occupied destinations; retries
+  re-admit the installed bundle and confirm parent-directory durability.
+  Explicit Host write permissions and gzip-only archive selection remain intact
+  ([#107 — Adopt Host explicit byte options and replace retired archive feature](https://github.com/dragginzgame/ic-testkit/issues/107)).
+- Benchmark native builds use IC Build's Cargo-reported executable and target
+  directory, removing local profile-path guesses while preserving caller-owned
+  cancellation and unlimited build duration
+  ([#94 — Adopt native Cargo executable selection](https://github.com/dragginzgame/ic-testkit/issues/94)).
+
 ## [0.51.0] - 2026-10-17
 
 ### Breaking

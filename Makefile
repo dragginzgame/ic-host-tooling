@@ -38,13 +38,13 @@ CI_TARGETS := shared-tooling-check tools-check format-tools-check dependency-pin
 
 RELEASE_CHECK_TARGETS := $(CI_TARGETS) msrv
 VALIDATION_INPUTS := Makefile Cargo.toml Cargo.lock rust-toolchain.toml \
-	crates/ic-testkit/Cargo.toml crates/ic-testkit-candid/Cargo.toml crates/ic_testkit_perf_probe/Cargo.toml \
+	crates/ic-testkit/Cargo.toml crates/ic-testkit-candid/Cargo.toml crates/ic-testkit-bench/Cargo.toml crates/ic_testkit_perf_probe/Cargo.toml \
 	ci/tool-versions.env ci/ic-tools.tsv .shared-tooling.snapshot
 
 help:
 	@echo "Available commands:"
 	@echo ""
-	@echo "  install-tools   Prepare common host, IC and Cargo tools, then PocketIC"
+	@echo "  install-tools   Prepare common host and Cargo tools, then PocketIC"
 	@echo "  install-server  Build the owner CLI and explicitly prepare PocketIC"
 	@echo "  server-check    Verify the prepared owner CLI and PocketIC bundle offline"
 	@echo "  tools-check     Verify common and product tools offline"
@@ -60,7 +60,7 @@ help:
 	@echo "  docs-check      Build public API documentation with warnings denied"
 	@echo "  installation-check Check current README dependency requirements"
 	@echo "  shared-tooling-check Verify the reviewed shared snapshot offline"
-	@echo "  test            Run the published packages' test suites"
+	@echo "  test            Run library and benchmark-package test suites"
 	@echo "  test-canisters  Run the PocketIC canister integration test"
 	@echo "  msrv            Check the workspace with the declared MSRV"
 	@echo "  package         Build and verify the publishable crates"
@@ -91,6 +91,7 @@ test: build-server-cli
 	+cargo test -p ic-testkit-candid --locked
 	+@server="$$("$(SERVER_CLI)" check)" || exit $$?; \
 		POCKET_IC_BIN="$$server" cargo test -p ic-testkit --locked && \
+		POCKET_IC_BIN="$$server" cargo test -p ic-testkit-bench --locked && \
 		POCKET_IC_BIN="$$server" cargo test -p ic-testkit --locked --test server_runner real_server_runs_a_separate_process_using_environment_startup -- --ignored --exact
 
 build-test-canisters:
@@ -98,7 +99,7 @@ build-test-canisters:
 
 test-canisters: build-server-cli
 	+@server="$$("$(SERVER_CLI)" check)" || exit $$?; \
-		POCKET_IC_BIN="$$server" cargo test -p ic-testkit --locked --test canister_benchmark -- --nocapture
+		POCKET_IC_BIN="$$server" cargo test -p ic-testkit-bench --locked --test canister_benchmark -- --nocapture
 
 dependency-pins-check:
 	bash scripts/ci/check-dependency-pins.sh --cargo-inheritance
@@ -109,16 +110,16 @@ git-hooks-check: format-tools-check
 	bash scripts/ci/check-git-hooks.sh
 
 check:
-	+cargo check -p ic-testkit -p ic-testkit-candid --locked
+	+cargo check -p ic-testkit -p ic-testkit-candid -p ic-testkit-bench --locked
 
 check-wasm:
 	+cargo check -p ic-testkit -p ic-testkit-candid --locked --target wasm32-unknown-unknown
 
 clippy:
-	+cargo clippy -p ic-testkit -p ic-testkit-candid --all-targets --locked -- -D warnings
+	+cargo clippy -p ic-testkit -p ic-testkit-candid -p ic-testkit-bench --all-targets --locked -- -D warnings
 
 docs-check:
-	+RUSTDOCFLAGS="-D warnings" cargo doc -p ic-testkit -p ic-testkit-candid --locked --no-deps
+	+RUSTDOCFLAGS="-D warnings" cargo doc -p ic-testkit -p ic-testkit-candid -p ic-testkit-bench --locked --no-deps
 
 msrv:
 	rustc +$(MSRV) --version
@@ -126,6 +127,7 @@ msrv:
 	+cargo +$(MSRV) check -p ic-testkit-candid --all-targets --locked
 	+cargo +$(MSRV) check -p ic-testkit-candid --all-targets --locked --target wasm32-unknown-unknown
 	+cargo +$(MSRV) check -p ic-testkit --locked
+	+cargo +$(MSRV) check -p ic-testkit-bench --all-targets --locked
 	+cargo +$(MSRV) check -p ic-testkit --lib --target wasm32-unknown-unknown --locked
 	+cargo +$(MSRV) check -p ic_testkit_perf_probe --lib --target wasm32-unknown-unknown --locked
 

@@ -11,17 +11,15 @@ use std::{error::Error, fmt, num::NonZeroUsize, time::Duration};
 use candid::Principal;
 use ic_testkit::pic::{
     BaselinePoolContractError, BaselinePoolDisposition, BaselinePreparationStage,
-    CachedPocketIcBaseline, CachedPocketIcBaselinePool, CanisterRestoreReceipt,
-    CanisterSnapshotTarget, ControllerSnapshotError, CycleResetPolicy, FailureDisposition,
-    FixtureRecipeId, PocketIcBaselineRecipe, PocketIcBuilder, PocketIcStartupConfig,
-    PocketIcStartupError, PreparedBaseline, RebuildReason, ResetReceipt, ResetRequirements,
-    SnapshotRestoreFunding, is_dead_pocket_ic_transport_error,
+    CachedPocketIcBaseline, CachedPocketIcBaselinePool, CanisterSnapshotTarget,
+    ControllerSnapshotError, FailureDisposition, PocketIcBaselineRecipe, PocketIcBuilder,
+    PocketIcStartupConfig, PocketIcStartupError, PreparedBaseline, RebuildReason, ResetReceipt,
+    ResetRequirements, SnapshotRestoreFunding, is_dead_pocket_ic_transport_error,
 };
 
 const EMPTY_WASM: &[u8] = b"\0asm\x01\0\0\0";
 
 struct TwoCanisterRecipe {
-    id: FixtureRecipeId,
     requirements: ResetRequirements,
 }
 
@@ -40,8 +38,7 @@ enum RecipeError {
 impl TwoCanisterRecipe {
     fn new() -> Result<Self, BaselinePoolContractError> {
         Ok(Self {
-            id: FixtureRecipeId::try_new("example/two-empty-canisters/v1")?,
-            requirements: ResetRequirements::try_new(CycleResetPolicy::PreserveCurrent, [])?,
+            requirements: ResetRequirements::try_new(SnapshotRestoreFunding::Preserve, [])?,
         })
     }
 }
@@ -49,10 +46,6 @@ impl TwoCanisterRecipe {
 impl PocketIcBaselineRecipe for TwoCanisterRecipe {
     type Metadata = TopologyMetadata;
     type Error = RecipeError;
-
-    fn id(&self) -> &FixtureRecipeId {
-        &self.id
-    }
 
     fn reset_requirements(&self) -> &ResetRequirements {
         &self.requirements
@@ -80,15 +73,6 @@ impl PocketIcBaselineRecipe for TwoCanisterRecipe {
             TopologyMetadata { canister_ids },
         )
         .map_err(Into::into)
-    }
-
-    fn restore_canisters(
-        &self,
-        baseline: &CachedPocketIcBaseline<Self::Metadata>,
-    ) -> Result<CanisterRestoreReceipt, Self::Error> {
-        baseline
-            .restore(SnapshotRestoreFunding::Preserve)
-            .map_err(Into::into)
     }
 
     fn reset_non_snapshot_state(
@@ -130,7 +114,7 @@ impl PocketIcBaselineRecipe for TwoCanisterRecipe {
     fn classify_failure(
         &self,
         stage: BaselinePreparationStage,
-        error: &Self::Error,
+        error: &(dyn std::error::Error + 'static),
     ) -> FailureDisposition {
         if is_dead_pocket_ic_transport_error(error) {
             FailureDisposition::Rebuild(RebuildReason::DeadPocketIcTransport)

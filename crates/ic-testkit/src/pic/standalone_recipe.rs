@@ -3,10 +3,9 @@ use std::io;
 use candid::Principal;
 
 use super::{
-    CachedPocketIcBaseline, CanisterRestoreReceipt, CanisterSnapshotTarget, FailureDisposition,
-    FixtureRecipeId, PocketIcBaselineRecipe, PreparedBaseline, RebuildReason, ResetReceipt,
-    ResetRequirements, SnapshotRestoreFunding, StandaloneCanisterFixture,
-    is_dead_pocket_ic_transport_error,
+    CachedPocketIcBaseline, CanisterSnapshotTarget, FailureDisposition, PocketIcBaselineRecipe,
+    PreparedBaseline, RebuildReason, ResetReceipt, ResetRequirements, SnapshotRestoreFunding,
+    StandaloneCanisterFixture, is_dead_pocket_ic_transport_error,
 };
 
 /// Snapshot-only recipe for one caller-built, installed canister.
@@ -24,9 +23,7 @@ use super::{
 /// Non-transport restore failures are fatal: the pool discards the affected
 /// baseline before returning the error. Dead transport permits one recovery build.
 pub struct StandaloneCanisterRecipe<B> {
-    id: FixtureRecipeId,
     requirements: ResetRequirements,
-    funding: SnapshotRestoreFunding,
     build: B,
 }
 
@@ -35,12 +32,10 @@ impl<B> StandaloneCanisterRecipe<B> {
     ///
     /// Static suites can initialize the recipe and pool with [`std::sync::LazyLock`].
     #[must_use]
-    pub fn new(id: FixtureRecipeId, funding: SnapshotRestoreFunding, build: B) -> Self {
+    pub fn new(funding: SnapshotRestoreFunding, build: B) -> Self {
         Self {
-            id,
-            requirements: ResetRequirements::try_new(funding.into(), [])
+            requirements: ResetRequirements::try_new(funding, [])
                 .expect("empty non-snapshot requirements are valid"),
-            funding,
             build,
         }
     }
@@ -53,10 +48,6 @@ where
     type Metadata = Principal;
     // Retain the typed snapshot/contract cause without another error vocabulary.
     type Error = io::Error;
-
-    fn id(&self) -> &FixtureRecipeId {
-        &self.id
-    }
 
     fn reset_requirements(&self) -> &ResetRequirements {
         &self.requirements
@@ -73,13 +64,6 @@ where
             canister_id,
         )
         .map_err(io::Error::other)
-    }
-
-    fn restore_canisters(
-        &self,
-        baseline: &CachedPocketIcBaseline<Principal>,
-    ) -> Result<CanisterRestoreReceipt, io::Error> {
-        baseline.restore(self.funding).map_err(io::Error::other)
     }
 
     fn reset_non_snapshot_state(
@@ -107,7 +91,7 @@ where
     fn classify_failure(
         &self,
         _stage: super::BaselinePreparationStage,
-        error: &io::Error,
+        error: &(dyn std::error::Error + 'static),
     ) -> FailureDisposition {
         if is_dead_pocket_ic_transport_error(error) {
             FailureDisposition::Rebuild(RebuildReason::DeadPocketIcTransport)
@@ -132,7 +116,6 @@ mod tests {
     fn runtime_capacity_preserves_lazy_fixture_construction() {
         for capacity in [1, 2, 4, 8].map(|value| NonZeroUsize::new(value).unwrap()) {
             let recipe = StandaloneCanisterRecipe::new(
-                FixtureRecipeId::try_new("lazy-single-canister").unwrap(),
                 SnapshotRestoreFunding::TopUpTo { minimum_cycles: 1 },
                 build_fixture,
             );
@@ -143,16 +126,12 @@ mod tests {
 
     #[test]
     fn builder_errors_preserve_the_cause_and_release_the_slot_for_another_attempt() {
-        let recipe = StandaloneCanisterRecipe::new(
-            FixtureRecipeId::try_new("failed-single-canister").unwrap(),
-            SnapshotRestoreFunding::Preserve,
-            || {
-                Err(io::Error::new(
-                    io::ErrorKind::PermissionDenied,
-                    std::fmt::Error,
-                ))
-            },
-        );
+        let recipe = StandaloneCanisterRecipe::new(SnapshotRestoreFunding::Preserve, || {
+            Err(io::Error::new(
+                io::ErrorKind::PermissionDenied,
+                std::fmt::Error,
+            ))
+        });
         let pool = CachedPocketIcBaselinePool::new(NonZeroUsize::new(1).unwrap(), recipe);
         for _ in 0..2 {
             let Err(super::super::BaselinePoolError::Preparation {

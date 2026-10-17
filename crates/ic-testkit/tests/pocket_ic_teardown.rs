@@ -205,10 +205,10 @@ fn refused_instance_request_probe() {
         log_sender: Principal::anonymous(),
         log_limits: CanisterLogRenderLimits::default(),
     };
-    let (_, status, logs) = pic.collect_canister_diagnostics(request).into_parts();
+    let report = pic.collect_canister_diagnostics(request);
     for error in [
-        status.expect_err("status peer is gone"),
-        logs.expect_err("log peer is gone"),
+        report.status.expect_err("status peer is gone"),
+        report.logs.expect_err("log peer is gone"),
     ] {
         assert!(matches!(
             &error,
@@ -255,13 +255,16 @@ fn refused_creation_probe() {
 
 fn synthetic_instance() -> PocketIcInstance<PocketIc> {
     let url = std::env::var(PROBE_URL_ENV).expect("parent supplies synthetic peer URL");
-    PocketIcStartupConfig::connect(url, DEADLOCK_ESCAPE)
-        .build_instance(
-            PocketIcBuilder::new()
-                .with_application_subnet()
-                .with_max_request_time_ms(Some(1)),
-        )
-        .expect("construct synthetic instance through bounded startup")
+    PocketIcStartupConfig::Connect {
+        server_url: url,
+        timeout: DEADLOCK_ESCAPE,
+    }
+    .build_instance(
+        PocketIcBuilder::new()
+            .with_application_subnet()
+            .with_max_request_time_ms(Some(1)),
+    )
+    .expect("construct synthetic instance through bounded startup")
 }
 
 fn spawn_probe(listener: &TcpListener, name: &str) -> Probe {

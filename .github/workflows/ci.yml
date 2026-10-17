@@ -92,7 +92,7 @@ jobs:
         run: |
           make install-tools 2>&1 | tee "$RUNNER_TEMP/ic-testkit-tools-install.log"
           make rust-tools-check
-          printf '%s\n' "$GITHUB_WORKSPACE/.tools/host/bin" "$GITHUB_WORKSPACE/.tools/ic/bin" "$GITHUB_WORKSPACE/.tools/rust/common/bin" >> "$GITHUB_PATH"
+          printf '%s\n' "$GITHUB_WORKSPACE/.tools/host/bin" "$GITHUB_WORKSPACE/.tools/rust/common/bin" >> "$GITHUB_PATH"
           server="$(target/debug/ic-testkit-server check)"
           echo "POCKET_IC_BIN=$server" >> "$GITHUB_ENV"
       - name: Save verified Cargo tool builds
@@ -179,7 +179,7 @@ jobs:
         run: |
           make install-tools 2>&1 | tee "$RUNNER_TEMP/ic-testkit-tools-install.log"
           make rust-tools-check
-          printf '%s\n' "$GITHUB_WORKSPACE/.tools/host/bin" "$GITHUB_WORKSPACE/.tools/ic/bin" "$GITHUB_WORKSPACE/.tools/rust/common/bin" >> "$GITHUB_PATH"
+          printf '%s\n' "$GITHUB_WORKSPACE/.tools/host/bin" "$GITHUB_WORKSPACE/.tools/rust/common/bin" >> "$GITHUB_PATH"
           server="$(target/debug/ic-testkit-server check)"
           echo "POCKET_IC_BIN=$server" >> "$GITHUB_ENV"
       - name: Save verified Cargo tool builds
@@ -243,7 +243,7 @@ jobs:
       - name: Check standalone Candid reply decoding
         run: cargo test -p ic-testkit-candid --locked --offline
       - name: Check native fixture benchmark driver and sampler
-        run: cargo test -p ic-testkit --locked --offline --example fixture_reuse_benchmark_driver
+        run: cargo test -p ic-testkit-bench --locked --offline --lib
       - name: Archive failed portable and installer evidence
         if: failure()
         id: portable-evidence

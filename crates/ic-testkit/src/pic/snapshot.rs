@@ -51,16 +51,19 @@ pub enum SnapshotRestoreFunding {
 
 /// Structured controller-snapshot failure.
 #[non_exhaustive]
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum ControllerSnapshotError {
     /// A cached baseline requires at least one canister.
+    #[error("a cached baseline requires at least one canister")]
     EmptyCanisterSet,
     /// Input contained the same canister more than once.
+    #[error("duplicate canister id in snapshot set: {canister_id}")]
     DuplicateCanisterId {
         /// Repeated canister id.
         canister_id: Principal,
     },
     /// Snapshot capture failed with the exact selected sender.
+    #[error("failed to capture snapshot for {canister_id} with sender {sender:?}: {source}; {} partial snapshots could not be cleaned up", .cleanup_failures.len())]
     CaptureFailed {
         /// Canister whose capture failed.
         canister_id: Principal,
@@ -72,6 +75,7 @@ pub enum ControllerSnapshotError {
         cleanup_failures: Vec<SnapshotCleanupFailure>,
     },
     /// Snapshot restore failed with the retained capture sender.
+    #[error("failed to restore snapshot for {canister_id} with sender {sender:?}: {source}")]
     RestoreFailed {
         /// Canister whose restore failed.
         canister_id: Principal,
@@ -200,48 +204,6 @@ impl ControllerSnapshots {
                 snapshot.sender,
             )
         })
-    }
-}
-
-impl std::fmt::Display for ControllerSnapshotError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::EmptyCanisterSet => {
-                f.write_str("a cached baseline requires at least one canister")
-            }
-            Self::DuplicateCanisterId { canister_id } => {
-                write!(f, "duplicate canister id in snapshot set: {canister_id}")
-            }
-            Self::CaptureFailed {
-                canister_id,
-                sender,
-                source,
-                cleanup_failures,
-            } => write!(
-                f,
-                "failed to capture snapshot for {canister_id} with sender {sender:?}: {source}; {} partial snapshots could not be cleaned up",
-                cleanup_failures.len()
-            ),
-            Self::RestoreFailed {
-                canister_id,
-                sender,
-                source,
-            } => write!(
-                f,
-                "failed to restore snapshot for {canister_id} with sender {sender:?}: {source}",
-            ),
-        }
-    }
-}
-
-impl std::error::Error for ControllerSnapshotError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Self::CaptureFailed { source, .. } | Self::RestoreFailed { source, .. } => {
-                Some(source.as_ref())
-            }
-            _ => None,
-        }
     }
 }
 

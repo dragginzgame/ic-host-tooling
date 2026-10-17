@@ -1,6 +1,6 @@
 use super::{
-    CanisterRestoreReceipt, CanisterSnapshotTarget, ControllerSnapshotError, ControllerSnapshots,
-    PocketIcInstance, PocketIcSnapshotExt, SnapshotRestoreFunding,
+    CanisterSnapshotTarget, ControllerSnapshotError, ControllerSnapshots, PocketIcInstance,
+    PocketIcSnapshotExt, SnapshotRestoreFunding,
 };
 use candid::Principal;
 use pocket_ic::PocketIc;
@@ -41,18 +41,11 @@ impl<T> CachedPocketIcBaseline<T> {
     }
 
     /// Restore with exactly the captured senders and selected cycle funding.
-    /// The receipt describes the complete successful restore and selected funding.
-    pub fn restore(
-        &self,
-        funding: SnapshotRestoreFunding,
-    ) -> Result<CanisterRestoreReceipt, ControllerSnapshotError> {
+    /// Success means the complete captured set was restored.
+    pub fn restore(&self, funding: SnapshotRestoreFunding) -> Result<(), ControllerSnapshotError> {
         self.instance
             .instance
-            .restore_snapshots(&self.snapshots, funding)?;
-        Ok(CanisterRestoreReceipt::from_restore(
-            &self.snapshots,
-            funding,
-        ))
+            .restore_snapshots(&self.snapshots, funding)
     }
 
     /// Borrow the owned PocketIC instance behind this cached baseline.

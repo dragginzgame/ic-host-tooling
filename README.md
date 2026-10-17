@@ -284,12 +284,18 @@ use ic_testkit::pic::{
 use std::{path::Path, time::Duration};
 
 fn build_test_ic(server_binary: &Path) -> Result<PocketIcInstance<PocketIc>, ic_testkit::pic::PocketIcStartupError> {
-    PocketIcStartupConfig::spawn(server_binary, Duration::from_secs(30))
+    PocketIcStartupConfig::Spawn {
+        server_binary: server_binary.into(),
+        timeout: Duration::from_secs(30),
+        server_hard_ttl: None,
+        server_idle_ttl: None,
+        server_output_files: None,
+    }
         .build_instance(PocketIcBuilder::new().with_application_subnet().with_ii_subnet())
 }
 ```
 
-`PocketIcStartupConfig::spawn` launches one exact, caller-resolved executable,
+`PocketIcStartupConfig::Spawn` launches one exact, caller-resolved executable,
 monitors it while waiting for its port file and while PocketIC creates the
 instance, and terminates it if the complete deadline expires. A child exit,
 readiness timeout, invalid port, spawn failure, builder panic, and instance
@@ -304,7 +310,7 @@ matches on `error.failure()`. The CLI preserves a failed command's status when
 server teardown also fails and reports failure if a successful command's server
 cannot be cleaned up. No absolute hard TTL is applied
 by default; PocketIC's activity-based soft TTL still bounds orphaned servers.
-Call `with_server_hard_ttl` to opt into an absolute lifetime.
+Set `Spawn.server_hard_ttl` to opt into an absolute lifetime.
 
 For a fresh server whose lifetime ends with the fixture, use
 `config.build_instance(builder)`. It returns `PocketIcInstance<PocketIc>` with
@@ -331,7 +337,13 @@ The async instance requires explicit deletion while its server is retained:
 # async fn example(binary: &std::path::Path) -> Result<(), ic_testkit::pic::PocketIcStartupError> {
 use ic_testkit::pic::{PocketIcBuilder, PocketIcStartupConfig};
 use std::time::Duration;
-let owned = PocketIcStartupConfig::spawn(binary, Duration::from_secs(60))
+let owned = PocketIcStartupConfig::Spawn {
+        server_binary: binary.into(),
+        timeout: Duration::from_secs(60),
+        server_hard_ttl: None,
+        server_idle_ttl: None,
+        server_output_files: None,
+    }
     .build_instance_async(PocketIcBuilder::new().with_application_subnet()).await?;
 let canister = owned.instance.create_canister().await;
 assert!(owned.instance.canister_exists(canister).await);
@@ -344,7 +356,7 @@ drop(owned.server);
 Neither construction method adds an instance-operation or deletion deadline.
 The synchronous upstream drop limitation below still applies.
 
-Use `PocketIcStartupConfig::connect(url, timeout)` for a caller-owned existing
+Use `PocketIcStartupConfig::Connect { server_url: url.into(), timeout }` for a caller-owned existing
 server. Both modes set the server URL on the builder, preventing its implicit,
 unbounded child-startup path. There is no implicit binary fallback or hidden retry.
 
@@ -364,12 +376,18 @@ use ic_testkit::pic::{
 use std::{path::Path, time::Duration};
 
 fn run_serial_suite(server_binary: &Path) -> Result<(), ic_testkit::pic::PocketIcStartupError> {
-    let server = PocketIcStartupConfig::spawn(server_binary, Duration::from_secs(30))
+    let server = PocketIcStartupConfig::Spawn {
+        server_binary: server_binary.into(),
+        timeout: Duration::from_secs(30),
+        server_hard_ttl: None,
+        server_idle_ttl: None,
+        server_output_files: None,
+    }
         .start_managed_server()?;
     eprintln!("managed server PID: {}", server.process_id());
-    let first = PocketIcStartupConfig::connect(server.url(), Duration::from_secs(30))
+    let first = PocketIcStartupConfig::Connect { server_url: (server.url()).into(), timeout: Duration::from_secs(30) }
         .build_instance(PocketIcBuilder::new().with_application_subnet())?;
-    let second = PocketIcStartupConfig::connect(server.url(), Duration::from_secs(30))
+    let second = PocketIcStartupConfig::Connect { server_url: (server.url()).into(), timeout: Duration::from_secs(30) }
         .build_instance(PocketIcBuilder::new().with_application_subnet())?;
     eprintln!("managed server stdout: {}", server.output().stdout());
     drop((first, second));
@@ -433,7 +451,7 @@ Provisioning requires `curl`; offline checking does not.
 
 Rust fixtures use `ic_testkit::pic::server_assets::check(&directory)` for the same
 offline authenticated admission, returning an absolute executable path for
-`PocketIcStartupConfig::spawn`. It does not invoke Cargo, Make or the CLI.
+`PocketIcStartupConfig::Spawn`. It does not invoke Cargo, Make or the CLI.
 Explicit provisioning is also available through `server_assets::setup`, with
 a caller-supplied cancellation predicate; the library installs no signal handlers.
 The caller still owns the physical root and prevents replacement before launch.
@@ -483,11 +501,10 @@ request. Without this option, PocketIC keeps its own idle default (60 seconds
 in the prepared 16.1.0 server). For example, `run --idle-ttl 10800 -- COMMAND`
 allows up to three idle hours without imposing a hard lifetime. Both TTL options
 require positive whole seconds and owned-server mode. Library callers use
-`with_server_idle_ttl`; `--ttl` continues to select the independent hard lifetime.
+`Spawn.server_idle_ttl`; `--ttl` continues to select the independent hard lifetime.
 
 For complete raw diagnostics after startup failure, command failure or interruption,
-select two new files with `PocketIcStartupConfig::with_server_output_files(stdout,
-stderr)`, or use the paired CLI flags:
+select two new files with `Spawn { server_output_files: Some((stdout, stderr)), ... }`, or use the paired CLI flags:
 
 ```bash
 attempt="$(mktemp -d "${TMPDIR:-/tmp}/pocket-ic-attempt.XXXXXX")"
@@ -553,8 +570,8 @@ print diagnostics. A fixture can use the retained canister ID and instance with
 output policy. Keep any diagnostic failure subordinate to the install error.
 
 For installation into an existing instance, import `CanisterInstallExt` and
-use `try_create_and_install` or `try_create_and_install_many`. Batch installs
-run in iterator order. If one fails, earlier installs remain, the failed
+use `try_create_and_install`. For a batch, map the ordered iterator through
+that method and collect into `Result<Vec<_>, _>`. If one fails, earlier installs remain, the failed
 canister may already exist, and later installs are not attempted.
 
 ### Install-code rate limiting
@@ -629,13 +646,13 @@ outcome rather than a cache-hit boolean. See the [complete recipe example](crate
 
 Single-canister suites use the same pool with `StandaloneCanisterRecipe`. Each
 slot owns an independent instance and captured snapshot. The recipe requires an
-explicit identity and restore-funding policy, and the lease's metadata carries
+explicit restore-funding policy, and the lease's metadata carries
 its installed canister ID:
 
 ```rust,no_run
 use std::{num::NonZeroUsize, sync::LazyLock};
 use ic_testkit::pic::{
-    CachedPocketIcBaselinePool, CandidCallExt, FixtureRecipeId, SnapshotRestoreFunding,
+    CachedPocketIcBaselinePool, CandidCallExt, SnapshotRestoreFunding,
     StandaloneCanisterFixture, StandaloneCanisterRecipe,
 };
 
@@ -645,7 +662,7 @@ static POOL: LazyLock<
     CachedPocketIcBaselinePool::new(
         NonZeroUsize::new(8).unwrap(),
         StandaloneCanisterRecipe::new(
-            FixtureRecipeId::try_new("suite/counter").unwrap(),
+
             SnapshotRestoreFunding::Preserve,
             build_fixture as fn() -> _,
         ),
@@ -724,25 +741,24 @@ fn use_recipe<R: PocketIcBaselineRecipe>(recipe: R)
 
 A complete, compile-checked
 [`PocketIcBaselineRecipe`](crates/ic-testkit/examples/multi_canister_baseline_pool.rs)
-shows a two-canister build, exact restore receipt, readiness boundary, invariant
+shows a two-canister build, canonical restoration, readiness boundary, invariant
 validation, dead-transport classification, and cold/warm acquisition.
 
-The recipe declares typed reset requirements and implements the exact reuse
-sequence: restore every captured canister, reset non-snapshot state, drive the
-topology to readiness, then validate final invariants. Construct requirements
-with `ResetRequirements::try_new(cycle_policy, non_snapshot_requirements)`.
-The pool checks the complete captured set and cycle policy directly against
-`CanisterRestoreReceipt`; `ResetReceipt` reports only non-snapshot guarantees.
-`drive_to_readiness` and `validate` return `Result<(), E>`: successful calls
-admit progress, while recipe errors retain their lifecycle stage. They do not
-construct string receipts or repeat the pool-owned recipe identity.
-Every required policy must have an exact matching achievement before a warm
-lease is returned. Built and restored slots
-run the same validation hook. `baseline.restore(funding)` returns the receipt
-for its captured set and selected funding; return it directly from ordinary
-recipe restore hooks. Cached baseline capture rejects empty canister sets before
-capture. Custom recipes that establish additional cycle guarantees can use
-`CanisterRestoreReceipt::try_new` to report their complete achieved contract.
+The recipe declares funding and non-snapshot reset requirements through
+`ResetRequirements::try_new(funding, non_snapshot_requirements)`. The pool owns
+canonical restoration of its captured canister set. Recipes that need a pre-restore guard can implement `prepare_restore`;
+ordinary forwarding restore hooks are unnecessary. The pool then runs the recipe's
+non-snapshot reset, readiness and final invariant checks in order. Every required
+non-snapshot policy must match its achievement before a warm lease is returned.
+Built and restored slots run the same final validation hook.
+
+`drive_to_readiness` and `validate` return `Result<(), E>`, with lifecycle stages
+retained on failure. `baseline.restore(funding)` still supports explicit manual
+restoration and returns `Result<(), ControllerSnapshotError>`. Inspect captured
+IDs through `baseline.snapshot_canister_ids()` and funding through the recipe
+requirements; `PreparedBaseline::Restored { reset }` retains non-snapshot evidence. Cached baseline
+capture rejects empty canister sets before effects. `classify_failure` receives
+the original recipe or canonical snapshot cause through the error trait object.
 
 A recoverable preparation failure discards the slot and rebuilds once; if that
 also fails, `BaselinePoolError::RecoveryFailed` retains both errors. Recipe or
@@ -808,7 +824,7 @@ fn diagnose(pocket_ic: &PocketIc, canister_id: Principal, sender: Principal) {
         log_sender: sender,
         log_limits: CanisterLogRenderLimits::default(),
     });
-    if report.status().is_err() || report.logs().is_err() {
+    if report.status.is_err() || report.logs.is_err() {
         eprintln!("{report}");
     }
 }
@@ -1075,15 +1091,16 @@ The reviewed Shared Tooling snapshot owns the default versions and digests in
 `ci/tool-versions.env` and `ci/ic-tools.tsv`, also used by CI. Host, Rust and IC
 exceptions are independent; see [catalog selection](docs/local-setup.md#catalog-selection).
 `make install-tools` prepares pinned jq/yq, ripgrep with
-PCRE2, cloc, common IC executables and the Cargo toolset in order under
-`.tools/host/bin`, `.tools/ic/bin` and `.tools/rust/common/bin`, then builds the owning
+PCRE2, cloc and the Cargo toolset in order under
+`.tools/host/bin` and `.tools/rust/common/bin`, then builds the owning
 CLI and prepares PocketIC. The Cargo set includes `cargo-sort`,
-`cargo-sort-derives` and `candid-extractor`. `make tools-check` verifies all
+`cargo-sort-derives` and `candid-extractor`. `make tools-check` verifies these
 selections and the prepared server offline, without compiling or installing
 the owner CLI. Prepare the declared Rust toolchain before explicit setup.
-Host and IC paths select verified bundles in Shared Tooling's per-user store.
-After adopting that storage layout, rerun `make install-host-tools`, then
-`make install-ic-tools`, followed by their offline checks. See
+Host paths select verified bundles in Shared Tooling's per-user store.
+Generic IC executables are optional: explicitly run `make install-ic-tools`
+and `make ic-tools-check` if your application needs them. Testkit does not
+require them for its common setup or checks. See
 [store configuration and retention](docs/local-setup.md#shared-executable-storage).
 After adopting Shared Tooling 0.6.0's shared Cargo storage, rerun
 `make install-rust-tools`, then `make rust-tools-check`. Exact compiler, native
@@ -1094,7 +1111,7 @@ Make and the formatting hook select these local tool directories; direct Cargo
 commands should export them explicitly:
 
 ```bash
-export PATH="$PWD/.tools/host/bin:$PWD/.tools/ic/bin:$PWD/.tools/rust/common/bin:$PATH"
+export PATH="$PWD/.tools/host/bin:$PWD/.tools/rust/common/bin:$PATH"
 server="$(target/debug/ic-testkit-server check)" || exit
 export POCKET_IC_BIN="$server"
 ```

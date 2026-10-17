@@ -302,10 +302,56 @@ mv secondary/Cargo.toml secondary/current-manifest.retained
 RELEASE_COMMIT="$commit" bash "$helper" check primary
 [[ "$(git rev-parse HEAD)" == "$commit" && "$(git write-tree)" == "$index_before" ]]
 [[ "$(cat Cargo.toml)" == 'broken current metadata' && ! -e secondary/Cargo.toml ]]
-for failure in type export; do
+# Selected-source admission and retention belong to this helper, not every
+# consumer adapter. Keep each attempt separate so an old receipt cannot pass.
+blob="$(git rev-parse "$commit:Cargo.toml")"
+for failure in type export missing-version missing-date wrong-version wrong-date short-commit absent-commit blob; do
+    attempts="$fixture/selected-$failure"
+    mkdir "$attempts"
+    events="$attempts/cargo-events"
     status=0
-    GIT_FAILURE="$failure" RELEASE_COMMIT="$commit" bash "$helper" check primary > "$fixture/git-$failure.log" 2>&1 || status=$?
-    [[ "$status" == 43 ]] || { echo 'failed Git output was accepted or its status lost' >&2; exit 1; }
+    (
+        export RELEASE_COMMIT="$commit" RELEASE_VERSION=1.2.4 RELEASE_DATE=2026-10-13
+        export TMPDIR="$attempts" ORDER_EVENTS="$events"
+        unset GIT_FAILURE
+        case "$failure" in
+            type|export) export GIT_FAILURE="$failure" ;;
+            missing-version) unset RELEASE_VERSION ;;
+            missing-date) unset RELEASE_DATE ;;
+            wrong-version) export RELEASE_VERSION=9.8.7 ;;
+            wrong-date) export RELEASE_DATE=1999-01-01 ;;
+            short-commit) export RELEASE_COMMIT=abcdef0 ;;
+            absent-commit) export RELEASE_COMMIT=0000000000000000000000000000000000000000 ;;
+            blob) export RELEASE_COMMIT="$blob" ;;
+        esac
+        bash "$helper" check primary --manifest-order
+    ) > "$attempts/result.log" 2>&1 || status=$?
+    expected=1
+    case "$failure" in type|export) expected=43 ;; absent-commit) expected=128 ;; esac
+    [[ "$status" == "$expected" ]] || exit 1
+    case "$failure" in
+        type|short-commit|absent-commit|blob)
+            [[ ! -e "$events" ]] || exit 1
+            for remaining in "$attempts"/cargo-release-check.*; do [[ ! -e "$remaining" ]] || exit 1; done ;;
+        *)
+            retained=("$attempts"/cargo-release-check.*)
+            [[ "${#retained[@]}" == 1 && -d "${retained[0]}/source" ]] || exit 1
+            grep -F "failed Cargo metadata check retained: ${retained[0]}" "$attempts/result.log" > /dev/null
+            for path in Cargo.toml Cargo.lock CHANGELOG.md primary/Cargo.toml secondary/Cargo.toml; do
+                git show "$commit:$path" > "$attempts/expected-input"
+                cmp "$attempts/expected-input" "${retained[0]}/source/$path"
+            done
+            if [[ "$failure" == export ]]; then
+                [[ ! -e "$events" ]] || exit 1
+            else
+                printf 'sort --workspace --check\n' > "$attempts/expected-events"
+                printf 'locate-project --workspace --message-format plain --manifest-path %s/source/Cargo.toml\n' \
+                    "${retained[0]}" >> "$attempts/expected-events"
+                cmp "$attempts/expected-events" "$events"
+            fi ;;
+    esac
+    [[ "$(git rev-parse HEAD)" == "$commit" && "$(git write-tree)" == "$index_before" ]] || exit 1
+    [[ "$(cat Cargo.toml)" == 'broken current metadata' && ! -e secondary/Cargo.toml ]] || exit 1
 done
 # Manifest ordering is opt-in and belongs to the same selected source as graph
 # admission. A poisoned working tree must never be used for the committed check.

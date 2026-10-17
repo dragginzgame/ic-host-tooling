@@ -1,9 +1,7 @@
-//! Workload for the fixture_reuse_benchmark_driver example; not an ordinary test.
+//! Workload for the fixture-reuse driver; not an ordinary test.
 //! See docs/fixture-reuse-benchmark.md for the workload and measurement boundaries.
 
-mod fixture_reuse_protocol;
-mod fixture_reuse_report;
-use fixture_reuse_protocol::{Mode, WorkerArguments};
+use crate::fixture_reuse_protocol::{Mode, WorkerArguments};
 use std::{
     error::Error,
     fmt, fs, io,
@@ -13,14 +11,13 @@ use std::{
     time::{Duration, Instant},
 };
 
+use crate::fixture_reuse_report::{Phases, Sample, WorkerReport};
 use candid::Principal;
-use fixture_reuse_report::{Phases, Sample, WorkerReport};
 use ic_testkit::pic::{
     BaselinePoolDisposition, BaselinePoolTimings, BaselinePreparationStage, CachedPocketIcBaseline,
-    CachedPocketIcBaselinePool, CandidCallExt, CanisterRestoreReceipt, CanisterSnapshotTarget,
-    CycleResetPolicy, FailureDisposition, FixtureRecipeId, PocketIc, PocketIcBaselineRecipe,
-    PocketIcBuilder, PocketIcInstance, PocketIcStartupConfig, PreparedBaseline, ResetReceipt,
-    ResetRequirements, SnapshotRestoreFunding,
+    CachedPocketIcBaselinePool, CandidCallExt, CanisterSnapshotTarget, FailureDisposition,
+    PocketIc, PocketIcBaselineRecipe, PocketIcBuilder, PocketIcInstance, PocketIcStartupConfig,
+    PreparedBaseline, ResetReceipt, ResetRequirements, SnapshotRestoreFunding,
 };
 
 type Result<T> = std::result::Result<T, Box<dyn Error + Send + Sync>>;
@@ -36,7 +33,6 @@ const REPLY_LIMITS: ic_testkit_candid::DecodeLimits = ic_testkit_candid::DecodeL
 
 #[derive(Clone)]
 struct Recipe {
-    id: FixtureRecipeId,
     requirements: ResetRequirements,
     server_url: String,
     wasm: Arc<[u8]>,
@@ -67,13 +63,16 @@ impl Recipe {
     fn create(
         &self,
     ) -> std::result::Result<(PocketIcInstance<PocketIc>, [Principal; 2]), RecipeError> {
-        let pic = PocketIcStartupConfig::connect(&self.server_url, TIMEOUT)
-            .build_instance(
-                PocketIcBuilder::new()
-                    .with_application_subnet()
-                    .with_max_request_time_ms(Some(30_000)),
-            )
-            .map_err(recipe_error)?;
+        let pic = PocketIcStartupConfig::Connect {
+            server_url: (&self.server_url).into(),
+            timeout: TIMEOUT,
+        }
+        .build_instance(
+            PocketIcBuilder::new()
+                .with_application_subnet()
+                .with_max_request_time_ms(Some(30_000)),
+        )
+        .map_err(recipe_error)?;
         let ids = [
             pic.instance.create_canister(),
             pic.instance.create_canister(),
@@ -141,10 +140,6 @@ impl PocketIcBaselineRecipe for Recipe {
     type Metadata = [Principal; 2];
     type Error = RecipeError;
 
-    fn id(&self) -> &FixtureRecipeId {
-        &self.id
-    }
-
     fn reset_requirements(&self) -> &ResetRequirements {
         &self.requirements
     }
@@ -160,15 +155,6 @@ impl PocketIcBaselineRecipe for Recipe {
             ids,
         )
         .map_err(recipe_error)
-    }
-
-    fn restore_canisters(
-        &self,
-        baseline: &CachedPocketIcBaseline<Self::Metadata>,
-    ) -> std::result::Result<CanisterRestoreReceipt, Self::Error> {
-        baseline
-            .restore(SnapshotRestoreFunding::Preserve)
-            .map_err(recipe_error)
     }
 
     fn reset_non_snapshot_state(
@@ -199,7 +185,7 @@ impl PocketIcBaselineRecipe for Recipe {
     fn classify_failure(
         &self,
         _stage: BaselinePreparationStage,
-        _error: &Self::Error,
+        _error: &(dyn std::error::Error + 'static),
     ) -> FailureDisposition {
         // Recovery would conceal a failed measurement. Stop this benchmark.
         FailureDisposition::Fatal
@@ -316,7 +302,7 @@ fn run_tasks(
     })
 }
 
-fn main() -> Result<()> {
+pub fn worker_main() -> Result<()> {
     let WorkerArguments {
         mode,
         capacity,
@@ -327,11 +313,17 @@ fn main() -> Result<()> {
         server,
     } = WorkerArguments::try_from(std::env::args_os().skip(1).collect::<Vec<_>>())?;
     let startup = Instant::now();
-    let server = PocketIcStartupConfig::spawn(&server, TIMEOUT).start_managed_server()?;
+    let server = PocketIcStartupConfig::Spawn {
+        server_binary: (&server).into(),
+        timeout: TIMEOUT,
+        server_hard_ttl: None,
+        server_idle_ttl: None,
+        server_output_files: None,
+    }
+    .start_managed_server()?;
     let server_startup_ms = ms(startup.elapsed());
     let recipe = Recipe {
-        id: FixtureRecipeId::try_new("benchmark/two-stateful-canisters/v1")?,
-        requirements: ResetRequirements::try_new(CycleResetPolicy::PreserveCurrent, [])?,
+        requirements: ResetRequirements::try_new(SnapshotRestoreFunding::Preserve, [])?,
         server_url: server.url().to_owned(),
         wasm: fs::read(&wasm)?.into(),
         state_bytes,
@@ -367,7 +359,7 @@ fn main() -> Result<()> {
     drop(server);
     let server_teardown_ms = ms(teardown.elapsed());
     let report = WorkerReport {
-        mode: mode.as_str().into(),
+        mode,
         capacity: if mode == Mode::Fresh {
             workers.get()
         } else {

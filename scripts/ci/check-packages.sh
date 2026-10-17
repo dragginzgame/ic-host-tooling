@@ -35,6 +35,17 @@ members = ["ic-testkit-candid-$version", "ic-testkit-$version"]
 [patch.crates-io]
 ic-testkit-candid = { path = "ic-testkit-candid-$version" }
 EOF
-cp Cargo.lock "$work_dir/Cargo.lock"
+# Cargo's archive lock contains the published dependency closure, excluding
+# private workspace programs. Project only the coordinated Candid package onto
+# the extracted archive; retain every external version from that selected lock.
+perl -0e '
+  my ($version, $path) = @ARGV;
+  open my $input, "<", $path or die "read $path: $!\n";
+  my $lock = <$input>;
+  my $count = 0;
+  $lock =~ s{(^\[\[package\]\]\nname = "ic-testkit-candid"\nversion = "\Q$version\E"\n)source = "registry\+https://github.com/rust-lang/crates.io-index"\nchecksum = "[a-f0-9]{64}"\n}{++$count; $1}gme;
+  die "expected one selected registry Candid package in $path\n" unless $count == 1;
+  print $lock;
+' "$version" "$work_dir/ic-testkit-$version/Cargo.lock" > "$work_dir/Cargo.lock"
 cargo build --manifest-path "$work_dir/Cargo.toml" --locked --target-dir "$repo_root/target"
 fixture_complete=true

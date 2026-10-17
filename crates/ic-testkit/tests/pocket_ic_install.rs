@@ -41,7 +41,7 @@ fn fallible_install_preserves_the_original_failure_for_caller_diagnostics() {
         log_limits: CanisterLogRenderLimits::default(),
     });
     assert!(
-        report.status().is_ok(),
+        report.status.is_ok(),
         "the failed install's canister remains inspectable"
     );
     assert!(source.message().contains("CanisterInvalidWasm"));

@@ -43,10 +43,9 @@ pub use baseline::CachedPocketIcBaseline;
 pub use baseline_pool::{
     BaselinePoolContractError, BaselinePoolDisposition, BaselinePoolError, BaselinePoolOutcome,
     BaselinePoolPreparationError, BaselinePoolTimings, BaselinePreparationStage,
-    CachedPocketIcBaselinePool, CachedPocketIcBaselinePoolGuard, CanisterRestoreReceipt,
-    CycleResetPolicy, ExtraCanisterPolicy, FailureDisposition, FixtureRecipeId,
-    PocketIcBaselineRecipe, PreparedBaseline, RebuildReason, ResetDomainKind, ResetDomainPolicy,
-    ResetReceipt, ResetRequirements, StateResetPolicy, TimeResetPolicy,
+    CachedPocketIcBaselinePool, CachedPocketIcBaselinePoolGuard, ExtraCanisterPolicy,
+    FailureDisposition, PocketIcBaselineRecipe, PreparedBaseline, RebuildReason, ResetDomainKind,
+    ResetDomainPolicy, ResetReceipt, ResetRequirements, StateResetPolicy, TimeResetPolicy,
 };
 pub use calls::{CandidCallExt, query_candid_args, update_candid_args};
 pub use diagnostics::{

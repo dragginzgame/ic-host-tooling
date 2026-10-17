@@ -278,39 +278,52 @@ fn setup_with(
     let lock = durable::open_regular_lock_file_with_parents(&root.join(".setup-v1.lock"))?;
     durable::lock_exclusive(&lock)?;
     let bundle = bundle_path(&root, asset);
-    match fs::symlink_metadata(&bundle) {
-        Ok(_) => return check_bundle(&bundle, asset),
-        Err(error) if error.kind() == io::ErrorKind::NotFound => {}
-        Err(error) => return Err(error.into()),
-    }
     let attempt = root.join(format!(
         ".setup-v1-{}-{}",
         std::process::id(),
         SEQUENCE.fetch_add(1, Ordering::Relaxed)
     ));
-    let staging_directory = durable::create_private_directory(&attempt)?;
-    eprintln!("PocketIC setup evidence: {}", attempt.display());
-    let result = install(&attempt, asset, download);
-    if let Err(error) = result {
-        if let Err(record_error) = durable::write_bytes(
-            &attempt.join("failure.txt"),
-            durable::WriteOptions {
-                mode: durable::PublicationMode::Replace,
-                permissions: 0o666,
-            },
-            error.to_string().as_bytes(),
-        ) {
-            eprintln!("could not record setup failure: {record_error}");
+    let staging_directory = match fs::symlink_metadata(&bundle) {
+        Ok(_) => {
+            check_bundle(&bundle, asset)?;
+            None
         }
-        return Err(error);
-    }
-    // A complete immutable bundle is visible only after all admission succeeds.
-    // No previous version, failed attempt or installed selection is removed.
-    durable::admit_directory(&attempt, &staging_directory)?;
-    staging_directory.sync_all()?;
-    fs::rename(&attempt, &bundle)?;
+        Err(error) if error.kind() == io::ErrorKind::NotFound => {
+            let held = durable::create_private_directory(&attempt)?;
+            eprintln!("PocketIC setup evidence: {}", attempt.display());
+            if let Err(error) = install(&attempt, asset, download) {
+                if let Err(record_error) = durable::write_bytes(
+                    &attempt.join("failure.txt"),
+                    durable::WriteOptions {
+                        mode: durable::PublicationMode::Replace,
+                        permissions: 0o666,
+                    },
+                    error.to_string().as_bytes(),
+                ) {
+                    eprintln!("could not record setup failure: {record_error}");
+                }
+                return Err(error);
+            }
+            Some(held)
+        }
+        Err(error) => return Err(error.into()),
+    };
+    // Host owns no-replace publication and phase-aware durability failures.
+    // Fresh staging must retain its original directory identity. Recovery admits
+    // the installed bundle again before Host synchronizes its parent.
+    durable::commit_existing_directory_with(
+        &attempt,
+        &bundle,
+        |selected, path| -> io::Result<()> {
+            if let Some(held) = &staging_directory {
+                durable::admit_directory(path, held)?;
+            }
+            selected.sync_all()?;
+            Ok(())
+        },
+        |_, _| Ok(()),
+    )?;
     eprintln!("PocketIC setup evidence retained: {}", bundle.display());
-    File::open(&root)?.sync_all()?;
     Ok(bundle.join("pocket-ic"))
 }
 
@@ -658,15 +671,43 @@ mod tests {
             Ok(())
         })
         .expect_err("replacement must not inherit the held directory claim");
-        assert_eq!(
-            error
-                .downcast_ref::<io::Error>()
-                .unwrap_or_else(|| panic!("expected directory identity refusal, got {error:?}"))
-                .kind(),
-            io::ErrorKind::InvalidInput,
-        );
+        assert!(matches!(
+            error.downcast_ref::<durable::DirectoryCommitError<io::Error>>(),
+            Some(durable::DirectoryCommitError::Prepare(source))
+                if source.kind() == io::ErrorKind::InvalidInput
+        ));
         assert!(!bundle_path(root.root.path(), &asset).exists());
         assert_eq!(fs::read(retained.join("archive.gz")).unwrap(), bytes);
+    }
+
+    #[test]
+    fn occupied_destination_preserves_both_bundle_and_verified_staging() {
+        if run_in_subprocess() {
+            return;
+        }
+        let root = Fixture::new();
+        let (asset, bytes) = archive(POCKET_IC_SERVER_VERSION);
+        let bundle = bundle_path(root.root.path(), &asset);
+        let mut attempt = None;
+        let error = setup_with(root.root.path(), &asset, |archive| {
+            fs::write(archive, &bytes)?;
+            attempt = archive.parent().map(Path::to_owned);
+            fs::create_dir(&bundle)?;
+            fs::write(bundle.join("unrelated"), b"retained destination")?;
+            Ok(())
+        })
+        .unwrap_err();
+        assert!(matches!(
+            error.downcast_ref::<durable::DirectoryCommitError<io::Error>>(),
+            Some(durable::DirectoryCommitError::Conflict)
+        ));
+        assert_eq!(
+            fs::read(bundle.join("unrelated")).unwrap(),
+            b"retained destination"
+        );
+        let attempt = attempt.unwrap();
+        assert_eq!(fs::read(attempt.join("archive.gz")).unwrap(), bytes);
+        assert!(attempt.join("pocket-ic").is_file());
     }
 
     #[test]

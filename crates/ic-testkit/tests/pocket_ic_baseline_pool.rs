@@ -16,11 +16,11 @@ use candid::Principal;
 use ic_testkit::pic::{
     BaselinePoolContractError, BaselinePoolDisposition, BaselinePoolError, BaselinePoolOutcome,
     BaselinePoolPreparationError, BaselinePreparationStage, CachedPocketIcBaseline,
-    CachedPocketIcBaselinePool, CanisterRestoreReceipt, CanisterSnapshotTarget,
-    ControllerSnapshotError, CycleResetPolicy, ExtraCanisterPolicy, FailureDisposition,
-    FixtureRecipeId, PocketIcBaselineRecipe, PocketIcBuilder, PocketIcStartupConfig,
-    PocketIcStartupError, PreparedBaseline, RebuildReason, ResetDomainPolicy, ResetReceipt,
-    ResetRequirements, SnapshotRestoreFunding, TimeResetPolicy, is_dead_pocket_ic_transport_error,
+    CachedPocketIcBaselinePool, CanisterSnapshotTarget, ControllerSnapshotError,
+    ExtraCanisterPolicy, FailureDisposition, PocketIcBaselineRecipe, PocketIcBuilder,
+    PocketIcStartupConfig, PocketIcStartupError, PreparedBaseline, RebuildReason,
+    ResetDomainPolicy, ResetReceipt, ResetRequirements, SnapshotRestoreFunding, TimeResetPolicy,
+    is_dead_pocket_ic_transport_error,
 };
 
 const EMPTY_WASM: &[u8] = b"\0asm\x01\0\0\0";
@@ -37,14 +37,11 @@ struct RecipeControls {
     fail_next_readiness: Arc<AtomicBool>,
     fail_next_validation: Arc<AtomicBool>,
     panic_next_restore: Arc<AtomicBool>,
-    report_incomplete_restore: Arc<AtomicBool>,
-    report_wrong_cycle_policy: Arc<AtomicBool>,
     tracked_extra_canister: Arc<Mutex<Option<Principal>>>,
     first_server_url: Arc<Mutex<Option<String>>>,
 }
 
 struct TwoCanisterRecipe {
-    id: FixtureRecipeId,
     requirements: ResetRequirements,
     controls: RecipeControls,
     guarded_domain: Option<GuardedDomain>,
@@ -75,39 +72,30 @@ enum TestRecipeError {
 impl TwoCanisterRecipe {
     fn new(controls: RecipeControls) -> Self {
         Self {
-            id: FixtureRecipeId::try_new("ic-testkit/two-empty-canisters/v1").unwrap(),
-            requirements: ResetRequirements::try_new(CycleResetPolicy::PreserveCurrent, [])
-                .unwrap(),
+            requirements: ResetRequirements::try_new(SnapshotRestoreFunding::Preserve, []).unwrap(),
             controls,
             guarded_domain: None,
         }
     }
 
     fn guarding_domain(controls: RecipeControls, domain: GuardedDomain) -> Self {
-        let (identity, cycle_policy, requirements) = match domain {
+        let (funding, requirements) = match domain {
             GuardedDomain::Time => (
-                "ic-testkit/two-empty-canisters-time-guarded/v1",
-                CycleResetPolicy::PreserveCurrent,
+                SnapshotRestoreFunding::Preserve,
                 vec![ResetDomainPolicy::PocketIcTime(
                     TimeResetPolicy::RebuildOnMutation,
                 )],
             ),
-            GuardedDomain::Cycles => (
-                "ic-testkit/two-empty-canisters-cycle-guarded/v1",
-                CycleResetPolicy::RebuildOnMutation,
-                vec![],
-            ),
+            GuardedDomain::Cycles => (SnapshotRestoreFunding::Preserve, vec![]),
             GuardedDomain::ExtraCanisters => (
-                "ic-testkit/two-empty-canisters-extra-guarded/v1",
-                CycleResetPolicy::PreserveCurrent,
+                SnapshotRestoreFunding::Preserve,
                 vec![ResetDomainPolicy::ExtraCanisters(
                     ExtraCanisterPolicy::RebuildOnChange,
                 )],
             ),
         };
         Self {
-            id: FixtureRecipeId::try_new(identity).unwrap(),
-            requirements: ResetRequirements::try_new(cycle_policy, requirements).unwrap(),
+            requirements: ResetRequirements::try_new(funding, requirements).unwrap(),
             controls,
             guarded_domain: Some(domain),
         }
@@ -117,10 +105,6 @@ impl TwoCanisterRecipe {
 impl PocketIcBaselineRecipe for TwoCanisterRecipe {
     type Error = TestRecipeError;
     type Metadata = TwoCanisterMetadata;
-
-    fn id(&self) -> &FixtureRecipeId {
-        &self.id
-    }
 
     fn reset_requirements(&self) -> &ResetRequirements {
         &self.requirements
@@ -144,9 +128,12 @@ impl PocketIcBaselineRecipe for TwoCanisterRecipe {
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .take();
         let pocket_ic = if let Some(server_url) = first_server_url {
-            PocketIcStartupConfig::connect(server_url, OPERATION_TIMEOUT)
-                .build_instance(PocketIcBuilder::new().with_application_subnet())
-                .map_err(TestRecipeError::Startup)?
+            PocketIcStartupConfig::Connect {
+                server_url,
+                timeout: OPERATION_TIMEOUT,
+            }
+            .build_instance(PocketIcBuilder::new().with_application_subnet())
+            .map_err(TestRecipeError::Startup)?
         } else {
             support::pocket_ic()
         };
@@ -181,10 +168,10 @@ impl PocketIcBaselineRecipe for TwoCanisterRecipe {
         Ok(baseline)
     }
 
-    fn restore_canisters(
+    fn prepare_restore(
         &self,
         baseline: &CachedPocketIcBaseline<Self::Metadata>,
-    ) -> Result<CanisterRestoreReceipt, Self::Error> {
+    ) -> Result<(), Self::Error> {
         assert!(
             !self
                 .controls
@@ -209,31 +196,7 @@ impl PocketIcBaselineRecipe for TwoCanisterRecipe {
             return Err(TestRecipeError::Synthetic("requested restore failure"));
         }
 
-        let restored = baseline.restore(SnapshotRestoreFunding::Preserve)?;
-        if self
-            .controls
-            .report_incomplete_restore
-            .swap(false, Ordering::SeqCst)
-        {
-            return CanisterRestoreReceipt::try_new(
-                baseline.metadata().canister_ids[..1].iter().copied(),
-                CycleResetPolicy::PreserveCurrent,
-            )
-            .map_err(Into::into);
-        }
-        let cycle_policy = if self
-            .controls
-            .report_wrong_cycle_policy
-            .swap(false, Ordering::SeqCst)
-        {
-            CycleResetPolicy::RestoreExactBaseline
-        } else if self.guarded_domain == Some(GuardedDomain::Cycles) {
-            CycleResetPolicy::RebuildOnMutation
-        } else {
-            CycleResetPolicy::PreserveCurrent
-        };
-        CanisterRestoreReceipt::try_new(restored.canister_ids().iter().copied(), cycle_policy)
-            .map_err(Into::into)
+        Ok(())
     }
 
     fn reset_non_snapshot_state(
@@ -335,11 +298,13 @@ impl PocketIcBaselineRecipe for TwoCanisterRecipe {
     fn classify_failure(
         &self,
         stage: BaselinePreparationStage,
-        error: &Self::Error,
+        error: &(dyn std::error::Error + 'static),
     ) -> FailureDisposition {
         if is_dead_pocket_ic_transport_error(error) {
             FailureDisposition::Rebuild(RebuildReason::DeadPocketIcTransport)
-        } else if let TestRecipeError::DomainMutation(code) = error {
+        } else if let Some(TestRecipeError::DomainMutation(code)) =
+            error.downcast_ref::<TestRecipeError>()
+        {
             FailureDisposition::Rebuild(RebuildReason::RecipeClassified {
                 code: (*code).to_string(),
             })
@@ -402,16 +367,6 @@ fn multi_canister_pool_restores_and_explicitly_rebuilds_one_slot() {
         outcome.disposition,
         BaselinePoolDisposition::Built
     ));
-    let policy = CycleResetPolicy::TopUpTo(123);
-    let receipt = baseline
-        .restore(SnapshotRestoreFunding::TopUpTo {
-            minimum_cycles: 123,
-        })
-        .expect("restore returns its checked receipt");
-    let expected =
-        CanisterRestoreReceipt::try_new(baseline.metadata().canister_ids.into_iter().rev(), policy)
-            .unwrap();
-    assert_eq!(receipt, expected);
     let first_instance = baseline.pocket_ic().instance_id();
     let canister_ids = baseline.metadata().canister_ids;
     baseline
@@ -513,6 +468,45 @@ fn reused_slot_failure_rebuilds_once_and_preserves_a_failed_recovery() {
 }
 
 #[test]
+fn canonical_restore_failure_preserves_the_snapshot_cause_and_failed_rebuild() {
+    let controls = RecipeControls::default();
+    let pool = CachedPocketIcBaselinePool::new(
+        NonZeroUsize::new(1).unwrap(),
+        TwoCanisterRecipe::new(controls.clone()),
+    );
+    let (baseline, _) = pool.acquire().unwrap();
+    let canister = baseline.metadata().canister_ids[0];
+    baseline.pocket_ic().stop_canister(canister, None).unwrap();
+    baseline
+        .pocket_ic()
+        .delete_canister(canister, None)
+        .unwrap();
+    drop(baseline);
+    controls.fail_next_build.store(true, Ordering::SeqCst);
+    let Err(BaselinePoolError::RecoveryFailed {
+        original,
+        rebuild,
+        timings,
+    }) = pool.acquire()
+    else {
+        panic!("failed canonical restore and failed recovery must both be retained");
+    };
+    assert!(matches!(*original, BaselinePoolPreparationError::Restore(
+        ControllerSnapshotError::RestoreFailed { canister_id, .. }
+    ) if canister_id == canister));
+    assert!(matches!(
+        *rebuild,
+        BaselinePoolPreparationError::Recipe {
+            stage: BaselinePreparationStage::Build,
+            source: TestRecipeError::Synthetic(_),
+        }
+    ));
+    assert!(timings.restore().is_some());
+    assert!(timings.stale_teardown().is_some());
+    assert!(timings.build().is_some());
+}
+
+#[test]
 fn failed_initial_build_reports_partial_timings() {
     let controls = RecipeControls::default();
     controls.fail_next_build.store(true, Ordering::SeqCst);
@@ -578,12 +572,15 @@ fn reset_readiness_and_validation_failures_have_distinct_rebuild_reasons() {
 #[test]
 #[ignore = "launches and kills a dedicated PocketIC server; run explicitly in isolation"]
 fn killed_dedicated_server_rebuilds_on_a_fresh_server() {
-    let server = PocketIcStartupConfig::spawn(
-        std::env::var_os("POCKET_IC_BIN")
-            .expect("prepare POCKET_IC_BIN for the dedicated server probe"),
-        OPERATION_TIMEOUT,
-    )
-    .with_server_hard_ttl(Duration::from_secs(60))
+    let server = PocketIcStartupConfig::Spawn {
+        server_binary: (std::env::var_os("POCKET_IC_BIN")
+            .expect("prepare POCKET_IC_BIN for the dedicated server probe"))
+        .into(),
+        timeout: OPERATION_TIMEOUT,
+        server_hard_ttl: Some(Duration::from_secs(60)),
+        server_idle_ttl: None,
+        server_output_files: None,
+    }
     .start_managed_server()
     .expect("dedicated server should start");
 
@@ -666,38 +663,6 @@ fn guarded_recipe_rebuilds_after_time_cycle_and_extra_canister_mutations() {
             .expect("extra canister should rebuild the guarded slot");
         assert_rebuilt_for_domain(&outcome, "extra-canister");
         assert_eq!(controls.builds.load(Ordering::SeqCst), 2);
-        drop(baseline);
-    }
-}
-
-#[test]
-fn restore_receipt_mismatches_force_a_fresh_baseline() {
-    for incomplete_canister_set in [true, false] {
-        let controls = RecipeControls::default();
-        let pool = CachedPocketIcBaselinePool::new(
-            NonZeroUsize::new(1).unwrap(),
-            TwoCanisterRecipe::new(controls.clone()),
-        );
-        drop(pool.acquire().expect("first baseline should build").0);
-
-        if incomplete_canister_set {
-            controls
-                .report_incomplete_restore
-                .store(true, Ordering::SeqCst);
-        } else {
-            controls
-                .report_wrong_cycle_policy
-                .store(true, Ordering::SeqCst);
-        }
-        let (baseline, outcome) = pool
-            .acquire()
-            .expect("mismatched restore evidence should rebuild safely");
-        assert!(matches!(
-            outcome.disposition,
-            BaselinePoolDisposition::Rebuilt(RebuildReason::ResetCoverageMismatch)
-        ));
-        assert_eq!(controls.builds.load(Ordering::SeqCst), 2);
-        assert_eq!(controls.restored_validations.load(Ordering::SeqCst), 0);
         drop(baseline);
     }
 }

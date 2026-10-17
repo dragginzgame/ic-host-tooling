@@ -1,36 +1,15 @@
 use pocket_ic::PocketIc;
-use std::{fmt, task::Poll, time::Duration};
+use std::{task::Poll, time::Duration};
 
 /// A caller-owned readiness check failed or exhausted its simulated round budget.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
 pub enum TickUntilError<E> {
     /// The predicate was still pending after this many advance/tick rounds.
+    #[error("readiness remained pending after {rounds} rounds")]
     ProgressLimit { rounds: u32 },
     /// The predicate returned its own failure.
-    Failed(E),
-}
-
-impl<E: fmt::Display> fmt::Display for TickUntilError<E> {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::ProgressLimit { rounds } => {
-                write!(
-                    formatter,
-                    "readiness remained pending after {rounds} rounds"
-                )
-            }
-            Self::Failed(error) => write!(formatter, "readiness check failed: {error}"),
-        }
-    }
-}
-
-impl<E: std::error::Error + 'static> std::error::Error for TickUntilError<E> {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Self::ProgressLimit { .. } => None,
-            Self::Failed(error) => Some(error),
-        }
-    }
+    #[error("readiness check failed: {0}")]
+    Failed(#[source] E),
 }
 
 /// Advance simulated time once, then deliver exactly the caller-selected ticks.

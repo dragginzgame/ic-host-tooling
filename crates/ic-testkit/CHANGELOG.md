@@ -8,6 +8,137 @@ This file ships in the crate archive so upgrades can be completed without the
 repository checkout. The complete historical changelog remains at
 <https://github.com/dragginzgame/ic-testkit/blob/main/CHANGELOG.md>.
 
+## [0.52.0]
+
+### Breaking
+
+- Native tool failures use Host 0.26 types. Align directly used Host dependencies
+  before constructing or downcasting the exposed tool errors.
+
+- Diagnostic report, batch-entry and batch-report outputs expose public fields.
+  Replace forwarding getters and tuple-unpacking methods with field access or
+  record destructuring; bounded log internals and collect-all behavior remain.
+
+- Remove pool recipe identifiers; each pool already owns one recipe. Remove
+  `FixtureRecipeId`, recipe `id()` implementations and pool `recipe_id()` calls.
+  `StandaloneCanisterRecipe::new` now takes only funding and its builder.
+- Remove `try_create_and_install_many`. Map an ordered iterator through
+  `try_create_and_install` and collect its results to preserve stop-on-error
+  behavior and ownership of already created canisters.
+
+- Startup uses explicit `PocketIcStartupConfig::Spawn` and `Connect` variants.
+  The spawn variant owns binary, hard/idle TTLs and output paths; connect owns
+  only the borrowed URL and timeout. Spawn-only options cannot accompany a URL.
+
+- Baseline pools own canonical snapshot restoration. Successful restoration
+  returns unit; funding is selected once in reset requirements. Caller reset,
+  readiness and final invariant checks retain their ordering and errors.
+
+### Migration
+
+Replace startup constructors and fluent configuration with variant literals:
+
+```rust
+use ic_testkit::pic::PocketIcStartupConfig;
+use std::time::Duration;
+
+let config = PocketIcStartupConfig::Spawn {
+    server_binary: "/prepared/pocket-ic".into(),
+    timeout: Duration::from_secs(30),
+    server_hard_ttl: None,
+    server_idle_ttl: Some(Duration::from_secs(120)),
+    server_output_files: None,
+};
+let borrowed = PocketIcStartupConfig::Connect {
+    server_url: "http://127.0.0.1:8080/".into(),
+    timeout: Duration::from_secs(30),
+};
+```
+
+Match variants to read configuration fields. `from_env(timeout)` still selects
+an explicit URL before a binary, refuses invalid selected values and qualifies
+binary versions. `timeout()` projects the deadline for either variant. Hard TTL
+`None` remains opt-in; idle TTL `None` uses PocketIC's own default. Selected TTLs
+must contain at least one whole second. Output files are new, private files in
+caller-controlled existing parent directories; created files survive errors and
+teardown. Instance/server drop order, bounded excerpts and exact cleanup remain.
+
+Recipe migration: pass `SnapshotRestoreFunding::Preserve` or `TopUpTo { ... }`
+to `ResetRequirements::try_new(funding, domains)` instead of `CycleResetPolicy`.
+Remove forwarding `restore_canisters` implementations. If a recipe must check
+state before restoration (for example, cycle balances before restore charges),
+implement `prepare_restore(&self, baseline) -> Result<(), Self::Error>`; its default
+is successful admission. It cannot skip or substitute the captured snapshot set.
+Use real guards or select fresh construction for guarantees beyond preservation
+or minimum top-up; do not replace prior exact-cycle guarantees with a fabricated
+receipt. Non-snapshot reset coverage is still checked after readiness.
+
+`classify_failure` now accepts `&(dyn std::error::Error + 'static)` so it can
+classify both recipe and canonical snapshot failures. Downcast to your recipe
+error when needed. `BaselinePoolPreparationError::Restore` retains the original
+`ControllerSnapshotError`, exact sender and rejection/transport cause. Recovery
+still rebuilds at most once and retains both errors when rebuilding also fails.
+`CachedPocketIcBaseline::restore` returns `Result<(), ControllerSnapshotError>`.
+Remove `CanisterRestoreReceipt` imports and destructuring of its old payload.
+Inspect captured IDs through `baseline.snapshot_canister_ids()` and funding
+through `reset_requirements().funding()`. `PreparedBaseline::Restored { reset }`
+retains the verified non-snapshot receipt.
+Pool instances are process-local; this API change resets or converts no retained
+installation, snapshot store or external resource.
+
+Diagnostic outputs use `report.request`, `report.status`, `report.logs`,
+`entry.label`, `entry.report`, `entry.entry_elapsed`, `batch.entries` and
+`batch.total`. Use `report.status.as_ref()` / `report.logs.as_ref()` to borrow
+errors and destructure records to move their outcomes. `is_success()` and
+`failures()` retain their semantic projections. Log records and raw-byte totals
+remain privately constructed so their bounding/truncation invariants hold.
+
+### Changed
+
+- Fixture benchmark programs and their live marker test belong to the private
+  `ic-testkit-bench` workspace package. Run the driver with
+  `cargo run -p ic-testkit-bench --bin fixture_reuse_benchmark_driver -- ...`;
+  shared protocol/report code is compiled once, while workers remain separate
+  processes. Existing Make/CI checks include the new package; locked archive
+  verification excludes its development-only dependency graph.
+- Benchmark reports retain typed fresh/pooled modes through JSON admission.
+  Existing valid report bytes remain compatible; wrong requested modes and
+  unknown serialized modes are rejected independently.
+- Startup, snapshot and polling errors derive formatting and source chains,
+  retaining their public variants, original causes and cleanup diagnostics.
+
+
+- Benchmark report publication delegates existing-parent path admission to
+  Host, preserving private staging, cancellation, complete replacement and
+  before/after-publication error handling. Directory-required output paths
+  ending in `/` or `/.` now return Host's `InvalidInput` error before staging.
+
+- Contributor setup adopts Shared Tooling 0.20.0. Common checks cover host/Cargo
+  tools and PocketIC; generic IC executables are an explicit optional install.
+
+- Asset setup uses Host's existing directory commit engine instead of a local
+  rename/sync sequence. Fresh publication requires the originally held staging
+  directory; an occupied destination preserves both trees. Reuse authenticates
+  the installed bundle before confirming parent durability. Publication failures
+  retain Host's typed phase distinction. No retained installation is reset,
+  converted or removed; archive digests, version checks and v1 names are unchanged.
+  Explicit Host write options preserve diagnostic permissions and publication
+  modes; archive features select gzip and Wasm
+  ([#107 — Adopt Host explicit byte options and replace retired archive feature](https://github.com/dragginzgame/ic-testkit/issues/107)).
+
+- The fixture benchmark's native worker build delegates to Build 0.14 and uses
+  Cargo's reported executable/target root. Metadata and JSON messages have a
+  finite per-document allowance; build duration and total diagnostic output have
+  no default ceiling. The selected Cargo/RUSTC, offline lock, process-group
+  cleanup and live cancellation remain caller-owned
+  ([#94 — Adopt native Cargo executable selection](https://github.com/dragginzgame/ic-testkit/issues/94)).
+
+Follow-up: wide numeric accumulation is prepared against
+[Metrics PR #92 — Checked wide measurement accumulation](https://github.com/dragginzgame/ic-metrics/pull/92)
+and awaits a supplying published release. Marker parsing, attribution, report
+layouts and the current published benchmark arithmetic remain in Testkit until
+normal adoption; no path override ships in this batch.
+
 ## [0.51.0] - 2026-10-17
 
 ### Breaking

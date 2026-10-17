@@ -1,8 +1,7 @@
-mod support;
 use candid::Principal;
 use ic_build::{
     artifacts::{WasmBuildSpec, build_wasm_canisters_cached},
-    cargo::observation::workspace_root_for,
+    cargo::{observation::workspace_root_for, selection::CargoSelection},
 };
 use ic_host_fs::read::read_file;
 use ic_host_process::tool::{OutputLimit, OutputLimits};
@@ -14,8 +13,15 @@ use ic_testkit::{
     pic::{CandidCallExt, InstallSpec, StandaloneCanisterFixture},
 };
 use std::process::Command;
-use support::unique_temp_directory as unique_temp_dir;
 const PERF_PROBE_PACKAGE: &str = "ic_testkit_perf_probe";
+
+const REPLY_LIMITS: ic_testkit_candid::DecodeLimits = ic_testkit_candid::DecodeLimits {
+    reply_bytes: 65_536,
+    decoding_quota: 1_000_000,
+    skipping_quota: 100_000,
+    type_entries: 1024,
+    header_bytes: 8192,
+};
 
 #[test]
 fn perf_probe_canister_emits_parseable_benchmark_markers() {
@@ -29,18 +35,24 @@ fn perf_probe_canister_emits_parseable_benchmark_markers() {
         Command::new(std::env::var_os("CARGO").unwrap_or_else(|| env!("CARGO").into())),
     )
     .expect("resolve Cargo workspace");
-    if !workspace
-        .join("crates/ic_testkit_perf_probe/Cargo.toml")
-        .is_file()
-    {
-        eprintln!("skipping perf probe canister test: fixture canister is not packaged");
-        return;
-    }
-    let target_dir_directory = unique_temp_dir("ic-testkit-perf-probe-target");
+    assert!(
+        workspace
+            .join("crates/ic_testkit_perf_probe/Cargo.toml")
+            .is_file(),
+        "benchmark qualification requires the workspace perf probe"
+    );
+    let target_dir_directory = tempfile::Builder::new()
+        .prefix("ic-testkit-perf-probe-target")
+        .tempdir_in(workspace.join("target"))
+        .expect("create private test directory");
     let target_dir = target_dir_directory.path();
 
     let spec = WasmBuildSpec::new(&workspace, target_dir, &[PERF_PROBE_PACKAGE])
-        .with_cargo_profile_args(["--locked"]);
+        .with_cargo_selection(CargoSelection {
+            locked: true,
+            ..CargoSelection::default()
+        })
+        .with_shared_incremental_target(workspace.join("target/pic-wasm"));
     let outcome = build_wasm_canisters_cached(&spec).expect("build perf probe Wasm");
     let wasm_path = outcome
         .record()
@@ -49,7 +61,10 @@ fn perf_probe_canister_emits_parseable_benchmark_markers() {
         .expect("perf probe build returns its retained Wasm");
     let wasm = read_file(wasm_path, 128 * 1024 * 1024).expect("read retained bounded Wasm");
     let fixture = StandaloneCanisterFixture::try_install(
-        support::pocket_ic(),
+        ic_testkit::pic::PocketIcStartupConfig::from_env(std::time::Duration::from_secs(30))
+            .expect("configure prepared PocketIC")
+            .build_instance(ic_testkit::pic::PocketIcBuilder::new().with_application_subnet())
+            .expect("construct explicitly configured test instance"),
         InstallSpec {
             wasm,
             init_bytes: vec![],
@@ -66,7 +81,7 @@ fn perf_probe_canister_emits_parseable_benchmark_markers() {
             candid::Principal::anonymous(),
             "benchmark_once",
             (),
-            support::REPLY_LIMITS,
+            REPLY_LIMITS,
         )
         .expect("benchmark_once update call");
 

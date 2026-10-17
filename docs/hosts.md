@@ -1,5 +1,176 @@
 # Host support and qualification
 
+## Pending 0.52.0: private benchmarks, typed modes and derived errors
+
+Fixture benchmark programs, their shared modules and live marker qualification
+now belong to private `ic-testkit-bench`. Make/CI, selected compiler-floor checks
+and isolated release fixtures include the package; publishable archives exclude
+it. Coordinated archive verification seeds its lock from the packaged Testkit
+closure and projects only Candid onto its extracted sibling archive. External
+versions stay selected and the verification build still uses `--locked`.
+
+The incoming dependency updates select Build 0.14.0, Metrics 0.13.2 and direct
+Host 0.26.0. They are preserved. Build 0.14 exposes Host 0.25 types, so normal
+benchmark compilation awaits the aligned release from
+[Build PR #57](https://github.com/dragginzgame/ic-build/pull/57). No conversion
+shim or normal-checkout source override is installed. Pending 0.52 remains a
+minor hard cut, including the exposed Host error family.
+
+On the normal Host 0.26 graph, 26 selected startup cases, seven tick/polling cases
+and five live snapshot cases pass, preserving original causes and cleanup
+diagnostics after deriving error implementations. Coordinated packaging and its
+locked archive build pass; the Testkit archive contains no benchmark programs.
+The isolated consumer release guards pass on the settled dependency graph.
+
+An isolated Testkit clone using only the aligned Build source override passes
+21 benchmark library cases, strict all-target Clippy, actual Rust 1.91 all-target
+compilation and warning-denied documentation. The moved live marker test passes.
+Fresh and capacity-one pooled smoke runs also pass with two tasks each, one
+worker, 64 state bytes and the prepared PocketIC 16.1 binary. The complete
+report is `target/errors-bench-mode-052-evidence/consumer-smoke.json`; it proves
+integration correctness, without establishing a performance improvement.
+Typed modes preserve valid JSON spelling and independently reject mismatched or
+unknown modes. These source-candidate results do not qualify normal registry
+adoption. Evidence and before-images are under
+`target/errors-bench-mode-052-evidence/`; failed attempts remain there too.
+The signal adapter patch is refreshed for the private benchmark path and passes
+apply-check; its earlier compilation evidence retains its original source graph.
+Full CI and native macOS qualification remain separate.
+
+## Pending 0.52.0: report publication, restore results and diagnostic fields
+
+Report publication uses Host 0.25's existing-parent writer with private replace
+options and the same cancellation/phase projection. All 21 driver cases pass,
+including retained prior output after producer/publication failures, complete
+replacement for existing readers, final-entry symlink preservation, parent alias
+resolution and directory-suffix refusal before producing bytes. The first run
+failed an old suffix-error assertion: Host returns `InvalidInput` rather than
+`NotADirectory`. The current assertion and package migration notes describe that
+selected contract; no duplicate pathname check or error adapter remains.
+
+Successful cached-baseline restoration returns unit, without allocating a
+copied canister-ID receipt. `PreparedBaseline::Restored { reset }` still carries
+the independently checked non-snapshot evidence. Diagnostic output records expose
+fields; log bounds, raw-byte/truncation invariants, exact senders, collect-all
+ordering and secondary failures retain their existing owners.
+
+Focused Linux qualification passes six diagnostic and three reset/timing units,
+13 live pool cases including explicit dedicated-server recovery, one live
+diagnostic case, two install-failure cases, five snapshot cases and six controlled
+transport/teardown cases (whose three ignored child probes are selected by their
+parents). Strict all-target Clippy, actual Rust 1.91 all-target compilation,
+three package doctests, warning-denied Rustdoc and formatting pass. Full CI and
+native macOS qualification remain separate; no speed-up is measured or claimed.
+
+Caller review finds no additional source changes in Canic's prepared recipes:
+they ignore the restored payload and manual restoration already discards its
+success value. The previously qualified signal adapter is refreshed for current
+imports and passes apply-check; its compilation evidence stays bound to the
+original private graph and adoption still awaits Host publication. Current
+before-images, the refreshed adapter and driver log are under
+`target/report-receipt-diagnostics-052-evidence/`. Incoming manifest/lock selections
+and the real index are preserved; no release or sibling checkout was changed.
+
+## Pending 0.52.0: recipe identity removal and Shared Tooling 0.20
+
+Pools own one recipe, so recipe IDs and identity-only validation are removed.
+Standalone recipes take funding and the builder; batch installation uses the
+ordered single-install operation with `collect::<Result<Vec<_>, _>>()`.
+No retained snapshot layout changes. Canic's existing caller PR also removes
+root/Fleet/profile identity strings and the standalone payload fixture ID;
+its four touched Rust files pass formatting, with native adoption still pending.
+
+Focused Linux checks pass three reset/timing units, two standalone recipe units,
+12 live multi-canister pool cases, four live standalone pool cases and the exact
+ignored dedicated-server recovery case. Strict all-target Clippy, actual Rust
+1.91 all-target checking and three package doctests pass. These results cover
+this pending tree; native macOS and full release validation remain separate.
+
+Shared Tooling 0.20.0 is adopted from committed revision
+`3f87ddc1a0c1616775b2114c42a4adee7376c9b1`, leaving the sibling's dirty 0.20.1
+work untouched. Snapshot integrity (118 files), prepared host/Cargo/PocketIC
+checks, dependency pins and consumer formatting hooks pass. The consumer release
+fixtures pass after aligning common setup with optional generic IC tools;
+failures still stop before product setup. No release runner or real release
+adapter was invoked against this checkout. Tool installation remains explicit.
+Raw evidence and task before-images are under
+`target/identity-shared-052-evidence/`.
+
+## Pending 0.52.0: pool-owned restore and native Cargo selection
+
+Funding is selected once in reset requirements. The pool admits optional recipe
+preconditions before performing the complete captured snapshot restore.
+Successful restoration returns unit; baseline IDs and selected funding remain
+available from their canonical owners. Reset-domain coverage, readiness and invariant checks
+retain their ordering. Caller-authored restore constructors and cycle-policy
+mirrors are removed. Canonical failures retain the original snapshot cause and
+classifiers accept the error trait object; a failed recovery retains both errors.
+
+Three reset/timing units, 12 focused live multi-canister cases, the explicitly
+selected dedicated server-death case and four standalone pool cases pass on
+Linux. The live cases include pre-restore cycle/time/extra-canister guards,
+real canonical snapshot failure plus failed recovery, caller/recipe unwinds,
+capacity bounds and 100 consecutive restores. The first dedicated selection was
+ignored by libtest; the retained explicit `--ignored --exact` run actually passes.
+Strict all-target lint, actual Rust 1.91 all-target compilation, warning-denied
+Rustdoc and canonical formatting pass. Package doctests are qualified separately.
+
+The benchmark driver now uses published Build 0.13's exact native executable and
+target-directory result. All 21 driver cases pass, including a reported path that
+cannot be reconstructed from the profile, prepared tool context, retained Wasm
+identity, bounded text failures, cancellation and report publication. Build time
+and total streamed diagnostics retain no default ceiling.
+
+[Host PR #108](https://github.com/dragginzgame/ic-host-tooling/pull/108) is refreshed
+through a normal merge onto published Host 0.25.1; its signal implementation is
+unchanged. Producer signal cases pass on current Rust and actual Rust 1.88, with
+strict Process lint and floor Rustdoc. A private Testkit adapter deletes both
+local guards, retaining each executable's async-signal-safe callback, signal set,
+flags and cleanup policy. It passes 21 driver and 13 CLI cases, strict all-target
+lint, actual Rust 1.91 compilation and a real two-task fresh/pooled smoke. Four
+explicit Host-family source overrides stay isolated. Normal adoption awaits
+Host publication; the apply-checked consumer patch and raw logs remain under
+`target/pool-build-signal-052-evidence/`. No full CI, native macOS acceptance or
+performance improvement is claimed.
+
+[Canic PR #592](https://github.com/dragginzgame/canic/pull/592) removes both pool
+restore forwarders and updates funding/classifier inputs. This is prepared source
+against an older pinned Testkit graph, with focused formatting/diff checks only;
+publication and the earlier bounded-reply alignment precede normal adoption.
+Normal sibling checkouts, Testkit's own versions, manifest, incoming lock, index
+and refs are preserved.
+
+## Pending 0.52.0: explicit startup variants and Host publication
+
+Startup uses field-bearing `Spawn` and `Connect` variants; TTL/output options
+exist only on `Spawn`. All repository callers, the CLI, examples and current
+usage guides use the new contract. The caller trace also identifies startup
+construction in Canic, Storage, Blob Storage, Wire and Backup; those consumers
+must change their variant construction when selecting Testkit 0.52. Their
+current pins and normal checkouts were not changed by this batch.
+
+On Linux, eight asset cases, 26 selected startup cases, 13 server-runner cases
+and four explicit live synchronous/asynchronous instance ownership cases pass.
+The asset cases preserve substituted staging and occupied destinations, original
+archive/version failures, failed attempts and existing bundles. Host owns
+no-replace directory publication and phase-aware errors; reuse authenticates the
+installed bundle before confirming parent durability. Live cases first failed
+inside the sandbox because PocketIC could not bind localhost; the same four pass
+with host networking permitted. Strict all-target lint, actual Rust 1.91 native
+all-target compilation, warning-denied Rustdoc, package doctests and canonical
+formatting pass. Full CI and native macOS remain release qualification.
+
+[Metrics PR #92](https://github.com/dragginzgame/ic-metrics/pull/92) supplies
+checked allocation-free wide accumulation. The prepared Testkit adapter passes
+19 benchmark cases, a transactional multi-counter case, both example report
+cases, strict affected lint and actual Rust 1.91 Wasm compilation through an
+isolated source override. Normal adoption awaits publication; current benchmark
+arithmetic remains in place. No override, package-version change or dependency
+resolution is applied to the normal checkout. The reviewed patch and raw consumer
+logs remain in `target/three-cuts-052-evidence/`. The incoming Host 0.25.1 lock
+selection is preserved byte-for-byte. This is functional qualification, with no
+measured speed, IC instruction, cycle or Wasm size claim.
+
 ## Pending 0.51.0: explicit callers, fixture records and example reporting
 
 Installation/retry/snapshot-target inputs are field records; retry counts retain

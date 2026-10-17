@@ -43,7 +43,7 @@ This is the PocketIC package in the `ic-testkit` workspace. It provides:
 instances. `pic::server_assets` owns explicit server provisioning and offline
 verification for Rust callers and the published CLI; tests never install implicitly.
 Rust fixtures call `server_assets::check(&directory)` and pass the returned
-absolute executable path to `PocketIcStartupConfig::spawn`, without invoking the CLI.
+absolute executable path to `PocketIcStartupConfig::Spawn`, without invoking the CLI.
 Explicit `server_assets::setup` takes a caller-owned cancellation predicate.
 Tests normally retain one
 `PocketIcInstance<PocketIc>` and use `owned.instance` for simulator operations;
@@ -72,7 +72,7 @@ Run uses that prepared selection when neither `POCKET_IC_BIN` nor
 URL to the command. Explicit binary overrides admit stable 16.x servers,
 independently of the Rust client's latest download constant. URL mode borrows an
 existing server. For long pre-client work, select `run --idle-ttl SECONDS -- COMMAND`
-or `PocketIcStartupConfig::with_server_idle_ttl`. This selects operation-idle
+or the `Spawn` variant's `server_idle_ttl` field. This selects operation-idle
 lifetime independently of `--ttl`'s hard limit; omitted idle selection retains
 PocketIC's default. Both options require owned-server mode and positive seconds.
 
@@ -131,9 +131,9 @@ original counter units; comparison CSV includes both scales. Exact totals remain
 available, and zero runs/scaled overflow return typed errors. Write the changed
 columns to new report directories; retained reports are not reinterpreted.
 Baseline recipes construct reset requirements with
-`ResetRequirements::try_new(cycle_policy, non_snapshot_requirements)`. The pool
-verifies snapshots and cycle policy through `CanisterRestoreReceipt`, while
-`ResetReceipt` covers non-snapshot guarantees. These are source API hard cuts.
+`ResetRequirements::try_new(funding, non_snapshot_requirements)`. The pool
+restores the captured snapshots with the selected funding; successful manual
+restoration returns unit. `ResetReceipt` covers non-snapshot guarantees. These are source API hard cuts.
 
 Generic Cargo/Wasm builds, retained artifact caches and freshness APIs belong to
 [IC Build](https://github.com/dragginzgame/ic-build). Depend on it directly and use

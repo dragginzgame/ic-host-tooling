@@ -1,6 +1,5 @@
-use candid::Principal;
 use std::{
-    collections::{BTreeMap, BTreeSet},
+    collections::BTreeMap,
     num::NonZeroUsize,
     ops::Deref,
     panic::{AssertUnwindSafe, catch_unwind},
@@ -8,22 +7,9 @@ use std::{
 };
 
 use super::{
-    CachedPocketIcBaseline, ControllerSnapshots, SnapshotRestoreFunding,
+    CachedPocketIcBaseline, ControllerSnapshotError, SnapshotRestoreFunding,
     bounded_pool::{BoundedSlotLease, BoundedSlotPool},
 };
-
-/// Caller-owned stable identity for one pooled fixture recipe.
-#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct FixtureRecipeId(String);
-
-impl From<SnapshotRestoreFunding> for CycleResetPolicy {
-    fn from(funding: SnapshotRestoreFunding) -> Self {
-        match funding {
-            SnapshotRestoreFunding::Preserve => Self::PreserveCurrent,
-            SnapshotRestoreFunding::TopUpTo { minimum_cycles } => Self::TopUpTo(minimum_cycles),
-        }
-    }
-}
 
 /// Reset domain whose handling is declared by a pooled baseline recipe.
 #[non_exhaustive]
@@ -39,23 +25,6 @@ pub enum ResetDomainKind {
     SubnetState,
     /// Files, processes, services, or other caller-owned resources.
     ExternalResources,
-}
-
-/// Cycle handling required or achieved by one reset.
-#[non_exhaustive]
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum CycleResetPolicy {
-    /// Do not proactively add or remove cycles before snapshot restoration.
-    ///
-    /// PocketIC may still charge cycles while performing the restore.
-    PreserveCurrent,
-    /// Add cycles as needed to reach this minimum immediately before restore,
-    /// without removing excess.
-    TopUpTo(u128),
-    /// Restore the exact balance recorded by the recipe baseline.
-    RestoreExactBaseline,
-    /// Treat any relevant cycle mutation as requiring slot reconstruction.
-    RebuildOnMutation,
 }
 
 /// PocketIC time handling required or achieved by one reset.
@@ -104,12 +73,12 @@ pub enum StateResetPolicy {
 ///
 /// ```
 /// use ic_testkit::pic::{
-///     CycleResetPolicy, ResetDomainKind, ResetDomainPolicy, ResetReceipt,
+///     SnapshotRestoreFunding, ResetDomainKind, ResetDomainPolicy, ResetReceipt,
 ///     ResetRequirements, TimeResetPolicy,
 /// };
 ///
 /// let requirements = ResetRequirements::try_new(
-///     CycleResetPolicy::PreserveCurrent,
+///     SnapshotRestoreFunding::Preserve,
 ///     [ResetDomainPolicy::PocketIcTime(TimeResetPolicy::PreserveCurrent)],
 /// )?;
 /// // The reset operation deliberately preserves simulated time.
@@ -140,7 +109,7 @@ pub enum ResetDomainPolicy {
 /// Typed reset guarantees required by one fixture recipe.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ResetRequirements {
-    cycle_policy: CycleResetPolicy,
+    funding: SnapshotRestoreFunding,
     domains: BTreeMap<ResetDomainKind, ResetDomainPolicy>,
 }
 
@@ -148,35 +117,12 @@ pub struct ResetRequirements {
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct ResetReceipt(BTreeMap<ResetDomainKind, ResetDomainPolicy>);
 
-/// Receipt for restoring the recipe's captured canister set.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct CanisterRestoreReceipt {
-    canister_ids: Vec<Principal>,
-    cycle_policy: CycleResetPolicy,
-}
-
 /// Contract failure while constructing or verifying recipe reset evidence.
 #[non_exhaustive]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum BaselinePoolContractError {
-    /// Recipe identity was empty or whitespace-only.
-    EmptyRecipeIdentity,
     /// A reset domain was declared more than once.
     DuplicateResetDomain { domain: ResetDomainKind },
-    /// A restored canister appeared more than once.
-    DuplicateCanisterId { canister_id: Principal },
-    /// A restore receipt contained no canisters.
-    EmptyCanisterSet,
-    /// The restore receipt did not satisfy the required cycle policy.
-    CyclePolicyMismatch {
-        required: CycleResetPolicy,
-        achieved: CycleResetPolicy,
-    },
-    /// The restored canister receipt did not identify the complete snapshot set.
-    RestoreCanisterSetMismatch {
-        expected: Vec<Principal>,
-        actual: Vec<Principal>,
-    },
     /// A required reset domain had no matching achievement.
     MissingResetDomain { domain: ResetDomainKind },
     /// A reset achievement did not satisfy the required policy.
@@ -192,10 +138,8 @@ pub enum BaselinePoolContractError {
 pub enum PreparedBaseline {
     /// The recipe just built this baseline.
     Built,
-    /// The recipe restored and reset an existing baseline.
+    /// The pool restored an existing baseline and the recipe reset its other state.
     Restored {
-        /// Captured canisters restored by the recipe.
-        canisters: CanisterRestoreReceipt,
         /// Typed non-snapshot reset receipt.
         reset: ResetReceipt,
     },
@@ -300,7 +244,9 @@ pub enum BaselinePoolPreparationError<E> {
         /// Caller-owned structured source error.
         source: E,
     },
-    /// Typed reset or recipe evidence violated the pool contract.
+    /// Canonical restoration of the captured snapshot set failed.
+    Restore(ControllerSnapshotError),
+    /// Typed non-snapshot reset evidence violated the pool contract.
     Contract(BaselinePoolContractError),
 }
 
@@ -326,15 +272,12 @@ pub enum BaselinePoolError<E> {
     },
 }
 
-/// Complete caller-owned lifecycle recipe for one pooled PocketIC baseline.
+/// Caller-owned build, preflight and non-snapshot reset policy for one pooled baseline.
 pub trait PocketIcBaselineRecipe: Send + Sync + 'static {
     /// Metadata retained beside every baseline owned by this recipe.
     type Metadata: Send + 'static;
     /// Structured caller error shared by recipe lifecycle stages.
     type Error: std::error::Error + Send + Sync + 'static;
-
-    /// Stable caller-owned recipe identity.
-    fn id(&self) -> &FixtureRecipeId;
 
     /// Reset guarantees required before an existing slot may be reused.
     fn reset_requirements(&self) -> &ResetRequirements;
@@ -342,11 +285,17 @@ pub trait PocketIcBaselineRecipe: Send + Sync + 'static {
     /// Construct and capture one complete baseline.
     fn build(&self) -> Result<CachedPocketIcBaseline<Self::Metadata>, Self::Error>;
 
-    /// Restore every captured canister and report the cycle policy applied.
-    fn restore_canisters(
+    /// Admit recipe-specific preconditions before the pool restores snapshots.
+    ///
+    /// Most recipes need no preflight. Checks such as exact current cycle-balance
+    /// guards run here, before restoration can charge cycles. This cannot replace
+    /// the pool's canonical restore or manufacture its completion evidence.
+    fn prepare_restore(
         &self,
-        baseline: &CachedPocketIcBaseline<Self::Metadata>,
-    ) -> Result<CanisterRestoreReceipt, Self::Error>;
+        _baseline: &CachedPocketIcBaseline<Self::Metadata>,
+    ) -> Result<(), Self::Error> {
+        Ok(())
+    }
 
     /// Reset state not covered by canister snapshots.
     fn reset_non_snapshot_state(
@@ -373,7 +322,7 @@ pub trait PocketIcBaselineRecipe: Send + Sync + 'static {
     fn classify_failure(
         &self,
         stage: BaselinePreparationStage,
-        _error: &Self::Error,
+        _error: &(dyn std::error::Error + 'static),
     ) -> FailureDisposition {
         FailureDisposition::Rebuild(stage.default_rebuild_reason())
     }
@@ -406,23 +355,6 @@ where
     slot: BoundedSlotLease<'a, CachedPocketIcBaseline<R::Metadata>, RebuildReason>,
 }
 
-impl FixtureRecipeId {
-    /// Construct a nonempty caller-owned stable recipe identity.
-    pub fn try_new(identity: impl Into<String>) -> Result<Self, BaselinePoolContractError> {
-        let identity = identity.into();
-        if identity.trim().is_empty() {
-            return Err(BaselinePoolContractError::EmptyRecipeIdentity);
-        }
-        Ok(Self(identity))
-    }
-
-    /// Borrow the recipe identity.
-    #[must_use]
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
-}
-
 impl ResetDomainPolicy {
     /// Domain governed by this policy.
     #[must_use]
@@ -453,25 +385,25 @@ fn collect_reset_domains(
 impl ResetRequirements {
     /// Construct a duplicate-checked reset requirement set.
     ///
-    /// Every recipe restores its complete snapshot set. The required cycle
-    /// policy is explicit; `requirements` describe only non-snapshot domains.
+    /// The pool restores the complete captured set using `funding`.
+    /// `requirements` describe only non-snapshot domains.
     pub fn try_new<I>(
-        cycle_policy: CycleResetPolicy,
+        funding: SnapshotRestoreFunding,
         requirements: I,
     ) -> Result<Self, BaselinePoolContractError>
     where
         I: IntoIterator<Item = ResetDomainPolicy>,
     {
         Ok(Self {
-            cycle_policy,
+            funding,
             domains: collect_reset_domains(requirements)?,
         })
     }
 
-    /// Cycle policy required of the canister restore receipt.
+    /// Funding selected once for the pool's canonical snapshot restore.
     #[must_use]
-    pub const fn cycle_policy(&self) -> CycleResetPolicy {
-        self.cycle_policy
+    pub const fn funding(&self) -> SnapshotRestoreFunding {
+        self.funding
     }
 
     /// Read the requirement for one domain.
@@ -485,17 +417,7 @@ impl ResetRequirements {
         self.domains.values()
     }
 
-    fn verify(
-        &self,
-        restore: &CanisterRestoreReceipt,
-        receipt: &ResetReceipt,
-    ) -> Result<(), BaselinePoolContractError> {
-        if restore.cycle_policy != self.cycle_policy {
-            return Err(BaselinePoolContractError::CyclePolicyMismatch {
-                required: self.cycle_policy,
-                achieved: restore.cycle_policy,
-            });
-        }
+    fn verify(&self, receipt: &ResetReceipt) -> Result<(), BaselinePoolContractError> {
         for (domain, requirement) in &self.domains {
             let Some(achievement) = receipt.0.get(domain) else {
                 return Err(BaselinePoolContractError::MissingResetDomain { domain: *domain });
@@ -514,8 +436,7 @@ impl ResetRequirements {
 impl ResetReceipt {
     /// Construct a duplicate-checked non-snapshot reset achievement set.
     ///
-    /// Snapshot restoration and cycle policy are verified separately through
-    /// [`CanisterRestoreReceipt`].
+    /// Snapshot restoration is performed and recorded by the pool itself.
     pub fn try_new<I>(achievements: I) -> Result<Self, BaselinePoolContractError>
     where
         I: IntoIterator<Item = ResetDomainPolicy>,
@@ -538,55 +459,6 @@ impl ResetReceipt {
     /// Iterate over achievements in deterministic domain order.
     pub fn iter(&self) -> impl Iterator<Item = &ResetDomainPolicy> {
         self.0.values()
-    }
-}
-
-impl CanisterRestoreReceipt {
-    /// Construct a deterministic, duplicate-checked canister restore receipt.
-    pub fn try_new<I>(
-        canister_ids: I,
-        cycle_policy: CycleResetPolicy,
-    ) -> Result<Self, BaselinePoolContractError>
-    where
-        I: IntoIterator<Item = Principal>,
-    {
-        let mut unique = BTreeSet::new();
-        for canister_id in canister_ids {
-            if !unique.insert(canister_id) {
-                return Err(BaselinePoolContractError::DuplicateCanisterId { canister_id });
-            }
-        }
-        if unique.is_empty() {
-            return Err(BaselinePoolContractError::EmptyCanisterSet);
-        }
-        Ok(Self {
-            canister_ids: unique.into_iter().collect(),
-            cycle_policy,
-        })
-    }
-
-    // Only a completed baseline restore produces this receipt. Capture already
-    // admitted the nonempty set, duplicate validation and deterministic order.
-    pub(super) fn from_restore(
-        snapshots: &ControllerSnapshots,
-        funding: SnapshotRestoreFunding,
-    ) -> Self {
-        Self {
-            canister_ids: snapshots.canister_ids().collect(),
-            cycle_policy: funding.into(),
-        }
-    }
-
-    /// Restored canister ids in deterministic order.
-    #[must_use]
-    pub fn canister_ids(&self) -> &[Principal] {
-        &self.canister_ids
-    }
-
-    /// Cycle policy applied while restoring canisters.
-    #[must_use]
-    pub const fn cycle_policy(&self) -> CycleResetPolicy {
-        self.cycle_policy
     }
 }
 
@@ -722,12 +594,6 @@ where
         }
     }
 
-    /// Borrow the caller-owned identity of this pool's only recipe.
-    #[must_use]
-    pub fn recipe_id(&self) -> &FixtureRecipeId {
-        self.recipe.id()
-    }
-
     /// Maximum number of simultaneously leased PocketIC baselines.
     #[must_use]
     pub const fn capacity(&self) -> NonZeroUsize {
@@ -835,23 +701,20 @@ where
             .expect("reusable baseline slot must be populated");
 
         let started = Instant::now();
-        let restore = self.recipe.restore_canisters(baseline);
+        let restore = self
+            .recipe
+            .prepare_restore(baseline)
+            .map_err(|source| BaselinePoolPreparationError::Recipe {
+                stage: BaselinePreparationStage::RestoreCanisters,
+                source,
+            })
+            .and_then(|()| {
+                baseline
+                    .restore(self.recipe.reset_requirements().funding())
+                    .map_err(BaselinePoolPreparationError::Restore)
+            });
         add_timing(&mut timings.restore, started.elapsed());
-        let canisters = restore.map_err(|source| BaselinePoolPreparationError::Recipe {
-            stage: BaselinePreparationStage::RestoreCanisters,
-            source,
-        })?;
-        if !baseline
-            .snapshot_canister_ids()
-            .eq(canisters.canister_ids().iter().copied())
-        {
-            return Err(BaselinePoolPreparationError::Contract(
-                BaselinePoolContractError::RestoreCanisterSetMismatch {
-                    expected: baseline.snapshot_canister_ids().collect(),
-                    actual: canisters.canister_ids().to_vec(),
-                },
-            ));
-        }
+        restore?;
 
         let started = Instant::now();
         let reset_result = self.recipe.reset_non_snapshot_state(baseline);
@@ -870,10 +733,10 @@ where
         })?;
         self.recipe
             .reset_requirements()
-            .verify(&canisters, &reset)
+            .verify(&reset)
             .map_err(BaselinePoolPreparationError::Contract)?;
 
-        let preparation = PreparedBaseline::Restored { canisters, reset };
+        let preparation = PreparedBaseline::Restored { reset };
         self.validate_baseline(
             baseline,
             &preparation,
@@ -931,17 +794,11 @@ where
             BaselinePoolPreparationError::Recipe { stage, source } => {
                 self.recipe.classify_failure(*stage, source)
             }
-            BaselinePoolPreparationError::Contract(error) => {
-                FailureDisposition::Rebuild(match error {
-                    BaselinePoolContractError::MissingResetDomain { .. }
-                    | BaselinePoolContractError::ResetPolicyMismatch { .. }
-                    | BaselinePoolContractError::CyclePolicyMismatch { .. }
-                    | BaselinePoolContractError::DuplicateResetDomain { .. }
-                    | BaselinePoolContractError::RestoreCanisterSetMismatch { .. } => {
-                        RebuildReason::ResetCoverageMismatch
-                    }
-                    _ => RebuildReason::InvariantValidationFailure,
-                })
+            BaselinePoolPreparationError::Restore(source) => self
+                .recipe
+                .classify_failure(BaselinePreparationStage::RestoreCanisters, source),
+            BaselinePoolPreparationError::Contract(_) => {
+                FailureDisposition::Rebuild(RebuildReason::ResetCoverageMismatch)
             }
         }
     }
@@ -998,12 +855,6 @@ fn drop_baseline_safely<M>(baseline: CachedPocketIcBaseline<M>) {
     let _ = catch_unwind(AssertUnwindSafe(|| drop(baseline)));
 }
 
-impl std::fmt::Display for FixtureRecipeId {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.write_str(&self.0)
-    }
-}
-
 impl std::fmt::Display for BaselinePreparationStage {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter.write_str(match self {
@@ -1020,25 +871,12 @@ impl std::fmt::Display for BaselinePreparationStage {
 impl std::fmt::Display for BaselinePoolContractError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::EmptyRecipeIdentity => formatter.write_str("fixture recipe identity is empty"),
             Self::DuplicateResetDomain { domain } => {
                 write!(
                     formatter,
                     "reset domain {domain:?} was reported more than once"
                 )
             }
-            Self::DuplicateCanisterId { canister_id } => {
-                write!(formatter, "restore receipt repeats canister {canister_id}")
-            }
-            Self::EmptyCanisterSet => formatter.write_str("restore receipt contains no canisters"),
-            Self::CyclePolicyMismatch { required, achieved } => write!(
-                formatter,
-                "restore cycle policy {achieved:?} does not satisfy {required:?}",
-            ),
-            Self::RestoreCanisterSetMismatch { expected, actual } => write!(
-                formatter,
-                "restore receipt identified canisters {actual:?}, expected captured set {expected:?}",
-            ),
             Self::MissingResetDomain { domain } => {
                 write!(
                     formatter,
@@ -1067,6 +905,9 @@ where
             Self::Recipe { stage, source } => {
                 write!(formatter, "baseline {stage} failed: {source}")
             }
+            Self::Restore(source) => {
+                write!(formatter, "baseline canister restore failed: {source}")
+            }
             Self::Contract(error) => write!(formatter, "baseline pool contract failed: {error}"),
         }
     }
@@ -1079,6 +920,7 @@ where
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Recipe { source, .. } => Some(source),
+            Self::Restore(source) => Some(source),
             Self::Contract(error) => Some(error),
         }
     }
@@ -1116,11 +958,10 @@ where
 #[cfg(test)]
 mod tests {
     use super::{
-        BaselinePoolContractError, BaselinePoolTimings, CanisterRestoreReceipt, CycleResetPolicy,
-        ExtraCanisterPolicy, FixtureRecipeId, ResetDomainKind, ResetDomainPolicy, ResetReceipt,
-        ResetRequirements, StateResetPolicy, TimeResetPolicy, add_timing,
+        BaselinePoolContractError, BaselinePoolTimings, ExtraCanisterPolicy, ResetDomainKind,
+        ResetDomainPolicy, ResetReceipt, ResetRequirements, SnapshotRestoreFunding,
+        StateResetPolicy, TimeResetPolicy, add_timing,
     };
-    use candid::Principal;
     use std::time::Duration;
 
     #[test]
@@ -1137,34 +978,6 @@ mod tests {
     }
 
     #[test]
-    fn recipe_identity_must_be_nonempty() {
-        assert!(matches!(
-            FixtureRecipeId::try_new("  "),
-            Err(BaselinePoolContractError::EmptyRecipeIdentity)
-        ));
-    }
-
-    #[test]
-    fn caller_restore_receipts_validate_and_order_canister_ids() {
-        let first = Principal::from_slice(&[1]);
-        let second = Principal::from_slice(&[2]);
-        let policy = CycleResetPolicy::TopUpTo(123);
-        let receipt = CanisterRestoreReceipt::try_new([second, first], policy).unwrap();
-        assert_eq!(receipt.canister_ids(), [first, second]);
-        assert_eq!(receipt.cycle_policy(), policy);
-        assert_eq!(
-            CanisterRestoreReceipt::try_new([], policy),
-            Err(BaselinePoolContractError::EmptyCanisterSet),
-        );
-        assert_eq!(
-            CanisterRestoreReceipt::try_new([second, first, second], policy),
-            Err(BaselinePoolContractError::DuplicateCanisterId {
-                canister_id: second,
-            }),
-        );
-    }
-
-    #[test]
     fn reset_declarations_and_receipts_reject_duplicate_domains() {
         let policies = [
             ResetDomainPolicy::PocketIcTime(TimeResetPolicy::PreserveCurrent),
@@ -1174,7 +987,7 @@ mod tests {
             domain: ResetDomainKind::PocketIcTime,
         };
         assert_eq!(
-            ResetRequirements::try_new(CycleResetPolicy::PreserveCurrent, policies.clone()),
+            ResetRequirements::try_new(SnapshotRestoreFunding::Preserve, policies.clone()),
             Err(error.clone()),
         );
         assert_eq!(ResetReceipt::try_new(policies), Err(error));
@@ -1182,11 +995,6 @@ mod tests {
 
     #[test]
     fn required_policy_must_match_achieved_policy() {
-        let restore = CanisterRestoreReceipt::try_new(
-            [Principal::anonymous()],
-            CycleResetPolicy::PreserveCurrent,
-        )
-        .unwrap();
         for (requirement, achievement) in [
             (
                 ResetDomainPolicy::PocketIcTime(TimeResetPolicy::PreserveCurrent),
@@ -1209,45 +1017,25 @@ mod tests {
                 ResetDomainPolicy::ExternalResources(StateResetPolicy::ResetByRecipe),
             ),
         ] {
-            let requirements = ResetRequirements::try_new(
-                CycleResetPolicy::PreserveCurrent,
-                [requirement.clone()],
-            )
-            .unwrap();
+            let requirements =
+                ResetRequirements::try_new(SnapshotRestoreFunding::Preserve, [requirement.clone()])
+                    .unwrap();
             let receipt = ResetReceipt::try_new([requirement.clone()]).unwrap();
-            assert_eq!(requirements.verify(&restore, &receipt), Ok(()));
+            assert_eq!(requirements.verify(&receipt), Ok(()));
             assert_eq!(
-                requirements.verify(&restore, &ResetReceipt::empty()),
+                requirements.verify(&ResetReceipt::empty()),
                 Err(BaselinePoolContractError::MissingResetDomain {
                     domain: requirement.domain(),
                 }),
             );
             let receipt = ResetReceipt::try_new([achievement.clone()]).unwrap();
             assert_eq!(
-                requirements.verify(&restore, &receipt),
+                requirements.verify(&receipt),
                 Err(BaselinePoolContractError::ResetPolicyMismatch {
                     requirement,
                     achievement,
                 }),
             );
         }
-    }
-
-    #[test]
-    fn restore_cycle_policy_must_match_required_policy() {
-        let requirements =
-            ResetRequirements::try_new(CycleResetPolicy::RestoreExactBaseline, []).unwrap();
-        let restore = CanisterRestoreReceipt::try_new(
-            [Principal::anonymous()],
-            CycleResetPolicy::PreserveCurrent,
-        )
-        .unwrap();
-        assert!(matches!(
-            requirements.verify(&restore, &ResetReceipt::empty()),
-            Err(BaselinePoolContractError::CyclePolicyMismatch {
-                required: CycleResetPolicy::RestoreExactBaseline,
-                achieved: CycleResetPolicy::PreserveCurrent,
-            })
-        ));
     }
 }

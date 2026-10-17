@@ -36,7 +36,7 @@ impl MeasuredRun {
         case: &Case,
         rss: (u64, usize, usize),
     ) -> Result<Self, Error> {
-        if metrics.mode != case.mode.as_str()
+        if metrics.mode != case.mode
             || metrics.capacity != case.capacity.get()
             || metrics.iterations != options.iterations.get()
             || metrics.workers != options.workers.get()
@@ -338,6 +338,14 @@ mod tests {
             let metrics = serde_json::from_value(Value::Object(raw))?;
             MeasuredRun::from_worker(metrics, &options, &case, (1, 1, 1))
         };
+        let mut raw = worker_report();
+        raw.insert("mode".into(), json!("pooled"));
+        assert!(matches!(admit(raw), Err(Error::InvalidData(_))));
+        for mode in [json!("unknown"), json!("Fresh"), json!(null), json!(1)] {
+            let mut raw = worker_report();
+            raw.insert("mode".into(), mode);
+            assert!(matches!(admit(raw), Err(Error::Json(_))));
+        }
         for field in [
             "workers",
             "capacity",

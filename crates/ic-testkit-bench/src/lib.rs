@@ -1,15 +1,20 @@
-//! Opt-in fixture benchmark driver for native Linux and macOS hosts.
+//! Private fixture benchmark programs for native Linux and macOS hosts.
 //! Builds and measures the existing workload; library APIs own no benchmark policy.
 
 mod fixture_reuse_driver;
 mod fixture_reuse_protocol;
 mod fixture_reuse_report;
+mod workload;
+
+pub use workload::worker_main;
 
 use std::process::ExitCode;
 
 use fixture_reuse_driver::Error;
 
-fn main() -> ExitCode {
+/// Run the operator-facing benchmark driver and project its exit status.
+#[must_use]
+pub fn driver_main() -> ExitCode {
     match fixture_reuse_driver::run() {
         Ok(()) => ExitCode::SUCCESS,
         Err(error) => {

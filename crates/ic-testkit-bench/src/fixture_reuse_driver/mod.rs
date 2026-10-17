@@ -19,20 +19,21 @@ use std::{
 };
 
 #[cfg(unix)]
-use std::os::fd::AsFd as _;
-
-#[cfg(unix)]
 use std::os::unix::{fs::PermissionsExt as _, process::CommandExt as _};
 
 use ic_build::{
     artifacts::{WasmBuildError, WasmBuildOutcome, WasmBuildSpec, build_wasm_canisters_cached},
-    cargo::observation::{
-        CargoFeatureSelection, CargoMetadataSpec, observe_metadata, workspace_root_for,
+    cargo::{
+        native::{NativeExecutableSpec, build_native_executable},
+        observation::workspace_root_for,
+        selection::CargoSelection,
     },
 };
 use ic_host_artifacts::artifact::ArtifactError;
 use ic_host_fs::{
-    durable::{NamedWriteError, PublicationMode, WriteOptions, write_at_validated_with},
+    durable::{
+        NamedWriteError, PublicationMode, WriteOptions, write_existing_parent_validated_with,
+    },
     read::{hash_file, read_opened_file},
 };
 use ic_host_process::{
@@ -195,24 +196,8 @@ fn publish_report(
     write: impl FnOnce(&mut File) -> Result<(), Error>,
 ) -> Result<(), Error> {
     check_interrupted()?;
-    let raw = output.as_os_str().as_encoded_bytes();
-    if raw.ends_with(b"/") || raw.ends_with(b"/.") {
-        return Err(io::Error::from(io::ErrorKind::NotADirectory).into());
-    }
-    let name = output.file_name().ok_or_else(|| {
-        io::Error::new(
-            io::ErrorKind::InvalidInput,
-            "report path requires a file name",
-        )
-    })?;
-    let parent = output
-        .parent()
-        .filter(|parent| !parent.as_os_str().is_empty())
-        .unwrap_or_else(|| Path::new("."));
-    let parent = File::open(parent)?;
-    match write_at_validated_with(
-        parent.as_fd(),
-        name,
+    match write_existing_parent_validated_with(
+        output,
         WriteOptions {
             mode: PublicationMode::Replace,
             permissions: 0o600,
@@ -331,10 +316,6 @@ fn text_command(command: &mut Command) -> Result<String, Error> {
         .map_err(|_| Error::InvalidData("tool output is not UTF-8"))
 }
 
-fn build_command(command: &mut Command) -> Result<(), Error> {
-    execute_command(command.stdout(Stdio::inherit())).map(|_| ())
-}
-
 fn print_summary(summaries: &BTreeMap<String, Summary>, labels: &[String]) -> Result<(), Error> {
     let mut rows = Vec::with_capacity(labels.len());
     for label in labels {
@@ -451,48 +432,44 @@ fn prepare(options: &Options) -> Result<Inputs, Error> {
         return Err(Error::InvalidData("expected pocket-ic-server 16.x.y"));
     }
     check_interrupted()?;
-    let metadata = observe_metadata(
-        &CargoMetadataSpec {
-            manifest_path: &root.join("Cargo.toml"),
-            include_dependencies: false,
-            filter_platform: None,
-            locked: true,
-            offline: true,
-            features: &CargoFeatureSelection::default(),
+    let native = build_native_executable(
+        &NativeExecutableSpec {
+            package: "ic-testkit-bench",
+            target_name: "fixture_reuse_benchmark",
+            target_kind: "bin",
+            selection: CargoSelection {
+                profile: Some(options.profile.clone()),
+                locked: true,
+                offline: true,
+                ..CargoSelection::default()
+            },
+            max_message_bytes: 16 * 1024 * 1024,
         },
-        OutputLimits {
-            stdout: OutputLimit::Terminate(16 * 1024 * 1024),
-            stderr: OutputLimit::Terminate(64 * 1024),
-            timeout: None,
+        || cargo_command(&cargo, &root, rustc.as_deref()),
+        io::stderr().lock(),
+        || {
+            if INTERRUPTED.load(Ordering::Relaxed) {
+                Err(io::Error::from(io::ErrorKind::Interrupted))
+            } else {
+                Ok(())
+            }
         },
-        cargo_command(&cargo, &root, rustc.as_deref()),
+        |command| OwnedChild::spawn(command, ic_host_process::child::CleanupPolicy::KillAndWait),
+        || INTERRUPTED.load(Ordering::Relaxed),
     )
-    .map_err(Error::CargoObservation)?;
-    check_interrupted()?;
-    let target = metadata.target_directory.as_std_path();
-    if !target.is_absolute() {
-        return Err(Error::InvalidData(
-            "Cargo metadata lacks absolute target directory",
-        ));
-    }
-    build_command(cargo_command(&cargo, &root, rustc.as_deref()).args([
-        "build",
-        "--locked",
-        "--offline",
-        "-p",
-        "ic-testkit",
-        "--profile",
-        &options.profile,
-        "--example",
-        "fixture_reuse_benchmark",
-    ]))?;
+    .map_err(|error| Error::CargoObservation(error))?;
+    let target = &native.target_directory;
     let mut spec = WasmBuildSpec::new(
         &root,
         &target.join("ic-testkit-fixture-benchmark-wasm"),
         &["ic_testkit_perf_probe"],
     )
     .with_cargo_program(cargo)
-    .with_cargo_profile_args(["--locked", "--offline"])
+    .with_cargo_selection(CargoSelection {
+        locked: true,
+        offline: true,
+        ..CargoSelection::default()
+    })
     .with_shared_incremental_target(target.join("ic-testkit-incremental"));
     if let Some(rustc) = &rustc {
         spec = spec.with_extra_env([("RUSTC", rustc.as_os_str())]);
@@ -501,13 +478,7 @@ fn prepare(options: &Options) -> Result<Inputs, Error> {
     let wasm = build_wasm_canisters_cached(&spec);
     check_interrupted()?;
     let wasm = wasm.map_err(|error| Error::Build(Box::new(error)))?;
-    let worker = target
-        .join(if options.profile == "dev" {
-            "debug"
-        } else {
-            "release"
-        })
-        .join("examples/fixture_reuse_benchmark");
+    let worker = native.executable;
     let provenance = provenance(
         &root,
         options,
@@ -684,7 +655,7 @@ pub fn run() -> Result<(), Error> {
 mod tests {
     use super::arguments::parse_arguments;
     use super::{
-        Error, Permissions, REPORT_LIMIT, build_command, measure, prepare, publish_report,
+        Error, Permissions, REPORT_LIMIT, execute_command, measure, prepare, publish_report,
         text_command,
     };
     use ic_host_process::tool::{ExecutionFailure, OutputStream, ToolError};
@@ -759,8 +730,7 @@ mod tests {
         // macOS filesystems reject arbitrary invalid UTF-8 names before Git runs.
         // Every host still checks raw control/quote bytes; Linux also exercises
         // an actual invalid UTF-8 directory entry.
-        for name in [b"untracked-\n\t\"".as_slice()]
-            .into_iter()
+        for name in std::iter::once(b"untracked-\n\t\"".as_slice())
             .chain(cfg!(target_os = "linux").then_some(b"untracked-\xff".as_slice()))
         {
             let path = root.join(OsString::from_vec(name.to_vec()));
@@ -835,6 +805,10 @@ mod tests {
         } else {
             let inputs = prepare(&options).unwrap();
             assert_eq!(inputs.provenance["rustc"], "fixture rustc");
+            assert_eq!(
+                inputs.worker,
+                root.join("target/cargo-reported directory/worker fixture")
+            );
             let trace = fs::read_to_string(root.join("trace")).unwrap();
             let calls = trace.lines().collect::<Vec<_>>();
             assert_ne!(calls.len(), 0);
@@ -894,27 +868,8 @@ mod tests {
         }
     }
 
-    #[test]
     #[cfg(unix)]
-    fn standalone_tools_and_retained_wasm_preserve_context_and_bytes() {
-        const ROOT_ENV: &str = "IC_TESTKIT_BENCHMARK_TOOL_TEST_ROOT";
-        const MISSING_ENV: &str = "IC_TESTKIT_BENCHMARK_TOOL_EXPECT_MISSING";
-        if let Some(root) = std::env::var_os(ROOT_ENV) {
-            assert_prepared_tool_context(
-                &PathBuf::from(root),
-                std::env::var_os(MISSING_ENV).is_some(),
-            );
-            return;
-        }
-
-        let scratch = fixture_directory();
-        let root = scratch.path().canonicalize().unwrap();
-        let bin = root.join("bin");
-        fs::create_dir(&bin).unwrap();
-        let target = root.join("target");
-        let wasm = target.join("wasm32-unknown-unknown/debug/ic_testkit_perf_probe.wasm");
-        fs::create_dir_all(wasm.parent().unwrap()).unwrap();
-        fs::write(wasm, b"\0asm\x01\0\0\0").unwrap();
+    fn prepare_cargo_fixture(root: &Path, target: &Path) {
         let metadata = Command::new(env!("CARGO"))
             .current_dir(env!("CARGO_MANIFEST_DIR"))
             .args(["metadata", "--locked", "--offline", "--format-version", "1"])
@@ -946,6 +901,30 @@ mod tests {
             "executable": null,
             "fresh": false
         });
+        let package = catalog["packages"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|package| package["name"] == "ic-testkit-bench")
+            .unwrap();
+        let native_target = package["targets"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|target| target["name"] == "fixture_reuse_benchmark")
+            .unwrap();
+        let mut native_artifact = artifact.clone();
+        native_artifact["package_id"] = package["id"].clone();
+        native_artifact["manifest_path"] = package["manifest_path"].clone();
+        native_artifact["target"] = native_target.clone();
+        let native_executable = target.join("cargo-reported directory/worker fixture");
+        native_artifact["filenames"] = json!([native_executable]);
+        native_artifact["executable"] = json!(native_executable);
+        fs::write(
+            root.join("native-artifact-message.json"),
+            format!("{native_artifact}\n"),
+        )
+        .unwrap();
         fs::write(root.join("artifact-message.json"), format!("{artifact}\n")).unwrap();
         fs::write(root.join("full-metadata.json"), &metadata.stdout).unwrap();
         catalog["target_directory"] = json!(target);
@@ -969,6 +948,30 @@ mod tests {
             .unwrap(),
         )
         .unwrap();
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn standalone_tools_and_retained_wasm_preserve_context_and_bytes() {
+        const ROOT_ENV: &str = "IC_TESTKIT_BENCHMARK_TOOL_TEST_ROOT";
+        const MISSING_ENV: &str = "IC_TESTKIT_BENCHMARK_TOOL_EXPECT_MISSING";
+        if let Some(root) = std::env::var_os(ROOT_ENV) {
+            assert_prepared_tool_context(
+                &PathBuf::from(root),
+                std::env::var_os(MISSING_ENV).is_some(),
+            );
+            return;
+        }
+
+        let scratch = fixture_directory();
+        let root = scratch.path().canonicalize().unwrap();
+        let bin = root.join("bin");
+        fs::create_dir(&bin).unwrap();
+        let target = root.join("target");
+        let wasm = target.join("wasm32-unknown-unknown/debug/ic_testkit_perf_probe.wasm");
+        fs::create_dir_all(wasm.parent().unwrap()).unwrap();
+        fs::write(wasm, b"\0asm\x01\0\0\0").unwrap();
+        prepare_cargo_fixture(&root, &target);
         let proxy = root.join("multicall-proxy");
         fs::write(
             &proxy,
@@ -1004,6 +1007,8 @@ case "${0##*/}" in
           mkdir -p "${output%/*}"
           cp "$IC_TESTKIT_BENCHMARK_TOOL_TEST_ROOT/probe.wasm" "$output"
           cat "$IC_TESTKIT_BENCHMARK_TOOL_TEST_ROOT/artifact-message.json"
+        else
+          cat "$IC_TESTKIT_BENCHMARK_TOOL_TEST_ROOT/native-artifact-message.json"
         fi ;;
       *) exit 96 ;;
     esac ;;
@@ -1130,7 +1135,7 @@ esac
                 publish_report(&scratch.path().join(suffix), |_| {
                     panic!("a directory-required target must not be normalized")
                 }),
-                Err(Error::Io(error)) if error.kind() == io::ErrorKind::NotADirectory
+                Err(Error::Io(error)) if error.kind() == io::ErrorKind::InvalidInput
             ));
             assert_eq!(fs::read(&ordinary).unwrap(), b"previous");
         }
@@ -1185,6 +1190,17 @@ esac
         );
         assert_eq!(fs::read(report).unwrap(), b"complete replacement");
         assert_eq!(fs::read(target).unwrap(), b"caller-owned target");
+
+        let parent_alias = scratch.path().join("parent-alias");
+        symlink(scratch.path(), &parent_alias).unwrap();
+        publish_report(&parent_alias.join("linked.json"), |file| {
+            Ok(file.write_all(b"replacement through parent alias")?)
+        })
+        .unwrap();
+        assert_eq!(
+            fs::read(scratch.path().join("linked.json")).unwrap(),
+            b"replacement through parent alias"
+        );
     }
 
     #[test]
@@ -1336,9 +1352,9 @@ esac
                 .and_then(std::os::unix::process::ExitStatusExt::signal),
             Some(9)
         );
-        build_command(Command::new("/bin/sh").args(["-c", "sleep 0.05"])).unwrap();
+        execute_command(Command::new("/bin/sh").args(["-c", "sleep 0.05"])).unwrap();
         let Err(Error::Tool(error)) =
-            build_command(Command::new("/bin/sh").args(["-c", "exit 23"]))
+            execute_command(Command::new("/bin/sh").args(["-c", "exit 23"]))
         else {
             panic!("expected exit failure")
         };
@@ -1407,7 +1423,7 @@ esac
             let result = if capture_text {
                 text_command(&mut command).map(|_| ())
             } else {
-                build_command(&mut command)
+                execute_command(&mut command).map(|_| ())
             };
             let Err(Error::Tool(error)) = result else {
                 panic!("expected command cancellation")

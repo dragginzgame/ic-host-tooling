@@ -30,9 +30,9 @@ fn diagnostics_use_independent_exact_senders_and_preserve_both_outcomes() {
     };
     let report = pocket_ic.collect_canister_diagnostics(request);
 
-    assert_eq!(report.request(), request);
-    assert!(report.status().is_ok(), "{report}");
-    assert!(report.logs().is_ok(), "{report}");
+    assert_eq!(report.request, request);
+    assert!(report.status.is_ok(), "{report}");
+    assert!(report.logs.is_ok(), "{report}");
     let compact = report.to_string();
     assert!(compact.contains("status=ok(state="));
     assert!(compact.contains("logs=<empty>"));
@@ -54,30 +54,33 @@ fn diagnostics_use_independent_exact_senders_and_preserve_both_outcomes() {
             },
         ])
         .expect("valid labeled diagnostics batch");
-    assert_eq!(batch.entries().len(), 2);
-    assert_eq!(batch.entries()[0].label(), "denied");
-    assert_eq!(batch.entries()[1].label(), "controller");
+    assert_eq!(batch.entries.len(), 2);
+    assert_eq!(batch.entries[0].label, "denied");
+    assert_eq!(batch.entries[1].label, "controller");
     assert!(
         batch
-            .entries()
+            .entries
             .iter()
-            .all(|entry| entry.entry_elapsed() <= batch.total())
+            .all(|entry| entry.entry_elapsed <= batch.total)
     );
-    let denied = batch.entries()[0].report();
+    let denied = &batch.entries[0].report;
     assert!(matches!(
-        denied.status(),
+        denied.status.as_ref(),
         Err(PocketIcCallFailure::Rejected(_))
     ));
     assert!(matches!(
-        denied.logs(),
+        denied.logs.as_ref(),
         Err(PocketIcCallFailure::Rejected(_))
     ));
-    for error in [denied.status().unwrap_err(), denied.logs().unwrap_err()] {
+    for error in [
+        denied.status.as_ref().unwrap_err(),
+        denied.logs.as_ref().unwrap_err(),
+    ] {
         assert!(
             !is_dead_pocket_ic_transport_error(error),
             "controller rejection must not be interpreted as a dead transport",
         );
     }
-    assert!(batch.entries()[1].is_success());
+    assert!(batch.entries[1].is_success());
     assert_eq!(batch.failures().count(), 1);
 }

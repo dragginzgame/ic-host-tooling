@@ -236,24 +236,24 @@ awk '{ rows[NR]=$0 } END { for (i=NR; i>0; i--) print rows[i] }' "$cache_pins" >
 sed 's/$/ # comment/' "$fixture/versions" > "$cache_pins"
 [[ "$(bash "$cache_owner" "$cache_pins")" == "$cache_before" ]] || exit 1
 sed 's/$/#suffix/' "$fixture/versions" > "$cache_pins"
-[[ "$(bash "$cache_owner" "$cache_pins")" != "$cache_before" ]] || exit 1
+refuse bash "$cache_owner" "$cache_pins"
+[[ ! -s "$fixture/refused.log" || "$(head -n 1 "$fixture/refused.log")" != key=* ]] || exit 1
 # CR in a shell assignment is part of its value, not harmless whitespace.
 awk '{ printf "%s\r\n", $0 }' "$fixture/versions" > "$cache_pins"
-[[ "$(bash "$cache_owner" "$cache_pins")" != "$cache_before" ]] || exit 1
+refuse bash "$cache_owner" "$cache_pins"
 for pin in CARGO_SORT CARGO_SORT_DERIVES CANDID_EXTRACTOR; do
     sed "s/SHARED_TOOLING_${pin}_VERSION=.*/SHARED_TOOLING_${pin}_VERSION=98.0.0/" "$fixture/versions" > "$cache_pins"
     [[ "$(bash "$cache_owner" "$cache_pins")" != "$cache_before" ]] || exit 1
 done
-# Executable configuration is opaque: retain all bytes without running it.
+# Refuse executable or ambiguous data before cache output or setup.
 # shellcheck disable=SC2016 # Literal shell text must never be evaluated by the cache reader.
 for opaque in 'touch "$CACHE_KEY_SIDE_EFFECT"' 'export RUSTUP_TOOLCHAIN=nightly' \
     'export SHARED_TOOLING_CARGO_SORT_VERSION=99.1.0'; do
     cp "$fixture/versions" "$cache_pins"
     printf '%s\n' "$opaque" >> "$cache_pins"
-    opaque_key="$(CACHE_KEY_SIDE_EFFECT="$fixture/unexpected-cache-effect" bash "$cache_owner" "$cache_pins")"
-    [[ "$opaque_key" != "$cache_before" && ! -e "$fixture/unexpected-cache-effect" ]] || exit 1
-    printf '# Opaque catalog changed\n' >> "$cache_pins"
-    [[ "$(bash "$cache_owner" "$cache_pins")" != "$opaque_key" ]] || exit 1
+    CACHE_KEY_SIDE_EFFECT="$fixture/unexpected-cache-effect" refuse bash "$cache_owner" "$cache_pins"
+    refuse common --versions "$cache_pins" --preflight
+    [[ ! -e "$fixture/unexpected-cache-effect" ]] || exit 1
 done
 cp "$fixture/versions" "$cache_pins"
 for file in scripts/dev/cargo-tool-build.sh scripts/dev/install-rust-tools.sh; do
@@ -339,6 +339,7 @@ cp "$ROOT/.githooks/pre-commit" "$consumer/.githooks/"
 for file in check-make-execution verify-file-checksum; do
     cp "$ROOT/scripts/ci/$file.sh" "$consumer/scripts/ci/"
 done
+cp "$ROOT/scripts/ci/tool-catalog-records.pl" "$consumer/scripts/ci/"
 for file in install-rust-tools cargo-tool-build tool-store; do
     cp "$ROOT/scripts/dev/$file.sh" "$consumer/scripts/dev/"
 done
@@ -485,8 +486,7 @@ rm "$fixture/no-info"
 physical="$(perl -MCwd=abs_path -e 'print abs_path(shift)' "$path")"; bundle="${physical%/bin/*}"
 # Missing source must preserve Cargo's status through both installer call shapes,
 # without a build, retry, activation or loss of previously retained evidence.
-cp "$fixture/versions" "$fixture/missing-source-versions"
-printf 'SHARED_TOOLING_CARGO_SORT_VERSION=99.9.9\n' >> "$fixture/missing-source-versions"
+sed 's/SHARED_TOOLING_CARGO_SORT_VERSION=.*/SHARED_TOOLING_CARGO_SORT_VERSION=99.9.9/' "$fixture/versions" > "$fixture/missing-source-versions"
 cp -R "$SHARED_TOOLING_STORE" "$fixture/before-source-store"
 cp -R "$consumer/.tools" "$fixture/before-source-tools"
 source_common="$(readlink "$consumer/.tools/rust/common")"
@@ -545,7 +545,8 @@ grep -F "tool store installation locked: $slot/install.lock" "$fixture/refused.l
 rmdir "$slot/install.lock"
 # A failed build keeps the previously selected common set and shared evidence.
 source_package cargo-sort 99.1.1
-printf 'SHARED_TOOLING_CARGO_SORT_VERSION=99.1.1\n' >> "$fixture/versions"
+sed 's/SHARED_TOOLING_CARGO_SORT_VERSION=.*/SHARED_TOOLING_CARGO_SORT_VERSION=99.1.1/' "$fixture/versions" > "$fixture/new-versions"
+cp "$fixture/new-versions" "$fixture/versions"
 before="$(readlink "$consumer/.tools/rust/common")"
 touch "$fixture/fail-cargo-sort"
 refuse common
@@ -613,11 +614,12 @@ SHARED_TOOLING_STORE="$fixture/store-link" refuse common --check
 # Mutate only disposable sources; the real admission, retention and activation run.
 mkdir -p "$fixture/tool-source/scripts/dev" "$fixture/tool-source/scripts/ci"
 cp "$ROOT/scripts/dev/"{install-rust-tools,cargo-tool-build,tool-store}.sh "$fixture/tool-source/scripts/dev/"
-cp "$ROOT/scripts/ci/verify-file-checksum.sh" "$fixture/tool-source/scripts/ci/"
+cp "$ROOT/scripts/ci/"{verify-file-checksum.sh,tool-catalog-records.pl} "$fixture/tool-source/scripts/ci/"
 cp "$fixture/compiler-version" "$fixture/original-compiler"
 before="$(readlink "$consumer/.tools/rust/common")"
 source_package cargo-sort 99.1.2
-printf 'SHARED_TOOLING_CARGO_SORT_VERSION=99.1.2\n' >> "$fixture/versions"
+sed 's/SHARED_TOOLING_CARGO_SORT_VERSION=.*/SHARED_TOOLING_CARGO_SORT_VERSION=99.1.2/' "$fixture/versions" > "$fixture/new-versions"
+cp "$fixture/new-versions" "$fixture/versions"
 for change in compiler native policy; do
     printf '%s\n' "$change" > "$fixture/change-build"
     status=0
