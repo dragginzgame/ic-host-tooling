@@ -1,5 +1,15 @@
 # Current handoff
 
+## Single-attempt owned-directory cleanup
+
+The owned-directory guard now exposes explicit cleanup that disarms before the
+filesystem operation. The caller receives the original failure and owns recovery;
+Drop cannot silently retry it. This supports removing Build's staging wrapper
+alongside the existing allocation contribution in PR #135. The normal sibling
+checkout is excluded. Actual Rust 1.88 owned-directory cases and strict affected
+package Clippy pass on Linux; native macOS and consumer registry adoption remain
+separate. Evidence: `/tmp/ic-build-nextcuts-20261017/host-*.log`.
+
 ## Authoritative state
 
 Read the workspace version in [Cargo.toml](../../Cargo.toml), released notes in

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.25.2]
+
+- Allow invocation-owned directory cleanup to transfer recovery to the caller
+  after one attempt, preserving the original error without a Drop retry.
+  [Detailed notes](docs/changelog/0.25.md).
+
 ## [0.25.1] - 2026-10-17
 
 ### Added

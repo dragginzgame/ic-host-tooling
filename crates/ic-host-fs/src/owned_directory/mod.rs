@@ -55,6 +55,18 @@ impl OwnedDirectory {
         Ok(())
     }
 
+    /// Attempt cleanup once, transferring recovery to the caller before removal.
+    ///
+    /// Success and failure both leave Drop disarmed. On failure, the caller owns
+    /// the remaining path and decides whether and when another attempt is safe.
+    ///
+    /// # Errors
+    /// Returns the original metadata/removal I/O failure without a Drop retry.
+    pub fn cleanup_once(&mut self) -> io::Result<()> {
+        self.disarm();
+        remove_path_if_present(&self.path)
+    }
+
     /// Consume the guard, attempting cleanup; failure retries best-effort on Drop.
     ///
     /// # Errors

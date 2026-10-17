@@ -78,3 +78,41 @@ fn cleanup_failure_stays_armed_for_drop_retry() {
     drop(guard);
     assert!(!path.exists());
 }
+
+#[test]
+fn single_attempt_cleanup_removes_only_the_owned_child_and_disarms() {
+    let fixture = Fixture::new();
+    let path = fixture.root.join("owned");
+    let sibling = fixture.root.join("retained");
+    fs::create_dir(&path).unwrap();
+    fs::write(path.join("bytes"), b"owned").unwrap();
+    fs::write(&sibling, b"retained").unwrap();
+    let mut guard = OwnedDirectory::new(path.clone());
+    guard.cleanup_once().unwrap();
+    assert!(!guard.is_armed());
+    fs::create_dir(&path).unwrap();
+    drop(guard);
+    assert!(path.is_dir());
+    assert_eq!(fs::read(sibling).unwrap(), b"retained");
+}
+
+#[cfg(unix)]
+#[test]
+fn single_attempt_failure_transfers_recovery_without_drop_retry() {
+    use std::os::unix::fs::{MetadataExt as _, PermissionsExt as _};
+    let fixture = Fixture::new();
+    if fs::metadata(&fixture.root).unwrap().uid() == 0 {
+        return;
+    }
+    let path = fixture.root.join("owned");
+    fs::create_dir(&path).unwrap();
+    let permissions = fs::metadata(&fixture.root).unwrap().permissions();
+    let mut guard = OwnedDirectory::new(path.clone());
+    fs::set_permissions(&fixture.root, fs::Permissions::from_mode(0o500)).unwrap();
+    let error = guard.cleanup_once().unwrap_err();
+    fs::set_permissions(&fixture.root, permissions).unwrap();
+    assert_eq!(error.kind(), std::io::ErrorKind::PermissionDenied);
+    assert!(!guard.is_armed());
+    drop(guard);
+    assert!(path.is_dir());
+}
