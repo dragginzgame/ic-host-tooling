@@ -20,9 +20,10 @@
 
 ### Changed
 
-- Adopt Shared Tooling 0.19.0 with literal tool catalogs, shared stable-version
-  admission and Rust LOC counts that include identical files at distinct paths.
-  Existing tool pins are unchanged; YQ setup uses the common host bundle.
+- Adopt Shared Tooling 0.20.0. Common setup and CI prepare host/Cargo tools;
+  IC executables require explicit setup. Preserve tool pins, literal catalogs,
+  shared version admission and per-path Rust LOC counts. One delivery-policy
+  file now supplies Host's direct-only release admission to Make and its adapter.
 - Share test-directory cleanup through an opt-in fixture guard that retains
   failed-test evidence during panic; production directory custody is unchanged.
 - Derive response and certificate error formatting/source chains through

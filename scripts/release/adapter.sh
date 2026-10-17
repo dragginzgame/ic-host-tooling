@@ -13,6 +13,8 @@ tooling_root="${BASH_SOURCE[0]}"
 [[ "$tooling_root" == /* ]] || tooling_root="$PWD/$tooling_root"
 tooling_root="$(cd -P "${tooling_root%/*}/../.." && printf '%s/.' "$PWD")"
 tooling_root="${tooling_root%/.}"
+bash "$tooling_root/scripts/ci/check-release-delivery.sh" \
+    "$tooling_root/ci/release-delivery.txt" "${RELEASE_DELIVERY-direct}"
 fail() { echo "release metadata refused: $1" >&2; exit 1; }
 version() {
     local observed

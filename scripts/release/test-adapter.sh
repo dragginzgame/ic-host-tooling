@@ -25,7 +25,8 @@ export ADAPTER_EVENTS="$fixture/events"
 export RELEASE_SOURCE=0000000000000000000000000000000000000000
 export RELEASE_DATE=2026-10-06 RELEASE_KIND=minor
 adapter_root="$fixture/adapter"
-for input in scripts/release/adapter.sh \
+for input in scripts/release/adapter.sh ci/release-delivery.txt \
+    scripts/ci/check-release-delivery.sh \
     scripts/ci/read-cargo-workspace-version.sh scripts/ci/check-release-source.sh \
     scripts/ci/next-release-version.sh scripts/ci/finalize-release-changelog.awk \
     scripts/ci/validate-release-inputs.pl scripts/ci/StableVersion.pm \
@@ -34,6 +35,8 @@ for input in scripts/release/adapter.sh \
     cp "$root/$input" "$adapter_root/$input"
 done
 adapter="$adapter_root/scripts/release/adapter.sh"
+if RELEASE_DELIVERY=pr bash "$adapter" version > "$fixture/unsupported-delivery.log" 2>&1; then exit 1; fi
+[[ ! -e "$ADAPTER_EVENTS" ]] || exit 1
 RELEASE_PREVIOUS="$(cd "$root" && bash scripts/release/adapter.sh version)"
 export RELEASE_PREVIOUS
 RELEASE_VERSION="$(bash "$root/scripts/ci/next-release-version.sh" "$RELEASE_PREVIOUS" "$RELEASE_KIND")"
@@ -59,9 +62,11 @@ jq -r '. as $m | .packages[] |
 # Observe the real workspace through relative and absolute adapter entrypoints
 # in a physical newline-bearing tooling root, with a competing CDPATH lookup.
 tooling="$fixture/tooling"$'\n'
-mkdir -p "$tooling/scripts/release" "$tooling/scripts/ci" "$fixture/decoy/scripts/release"
+mkdir -p "$tooling/scripts/release" "$tooling/scripts/ci" "$tooling/ci" "$fixture/decoy/scripts/release"
 cp "$adapter" "$tooling/scripts/release/"
 cp "$root/scripts/ci/read-cargo-workspace-version.sh" "$tooling/scripts/ci/"
+cp "$root/scripts/ci/check-release-delivery.sh" "$tooling/scripts/ci/"
+cp "$root/ci/release-delivery.txt" "$tooling/ci/"
 (
     cd "$fixture"
     export CDPATH="$fixture/decoy:$fixture"

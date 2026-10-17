@@ -14,6 +14,23 @@ sets `SHARED_TOOLING_RUST := 0` before the include; it still prepares the comple
 common toolset, but does not expose Rust formatting or hook installation.
 The include preserves the consumer's default goal, even when declared later.
 Parsing it never installs tools, activates hooks or starts a release.
+
+To restrict release delivery, set `RELEASE_DELIVERY_POLICY` before the include
+to a consumer-owned regular data file containing `direct`, `pr`, or both, one
+per line. The common include refuses unsupported selections when a standard
+release command or metadata hook is requested as a Make goal. Unset selection defaults to direct; an explicit
+empty selection refuses. Unrelated goals do not read the policy. Without a policy
+file, the existing direct/PR contract is unchanged. `SHARED_RELEASE_TARGETS`
+provides the canonical command/hook roster for consumer declarations.
+
+Standalone metadata entrypoints call
+`bash scripts/ci/check-release-delivery.sh "$policy_file" "${RELEASE_DELIVERY-direct}"`
+before effects, using that same file; never source it as shell code. An empty
+file-path argument admits the standard direct/PR set. File selection and delivery
+choice remain consumer-owned; this helper grants no release or merge authority.
+Make admission resolves the helper beside the selected include, independently of
+runtime `SHARED_TOOLING_ROOT` overrides. Keep its snapshot companion selected.
+
 Selecting `make/consumer.mk` as a snapshot entrypoint includes the common
 installers, common pin catalogs and default LOC helper through their declared
 dependencies. Product pin exceptions remain consumer-owned; optional fleet
@@ -55,7 +72,7 @@ Add prerequisites and target-specific environment to common targets when the
 consumer needs stronger admission; do not define a second recipe. For example:
 
 ```make
-release-patch release-minor release-major release-resume: release-delivery-check
+release-patch release-minor release-major release-resume: local-release-preflight
 release-patch release-minor release-major release-resume: export LOCAL_RELEASE_PREPARE := 1
 format-tools-check: local-formatter-check
 ```
@@ -176,8 +193,9 @@ stdout/stderr retention and PATH publication. No tools are installed by it.
 
 The optional `.github/actions/prepare-common-tools` action runs `make install-tools`
 then `make tools-check`, retaining complete `tools-install.log` and `tools-check.log`
-under `RUNNER_TEMP`. It appends common host/IC/Cargo executable directories to
-`GITHUB_PATH` only after both commands succeed. Consumers own compiler setup,
+under `RUNNER_TEMP`. It appends common host/Cargo executable directories to
+`GITHUB_PATH` only after both commands succeed. Selected IC consumers publish
+their admitted `.tools/ic/bin` separately. Consumers own compiler setup,
 Make's ordered local extensions, caches and product gates. The action requires
 an existing checkout, `RUNNER_TEMP` and `GITHUB_PATH`; it does not select a compiler.
 

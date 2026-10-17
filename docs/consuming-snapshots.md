@@ -739,7 +739,7 @@ The current contract has no parser-only host mode or optional ripgrep/cloc flags
 Remove `--with-ripgrep`/`--with-cloc` from direct callers, including custom CI and
 evidence checks. Retain historical documents as historical evidence.
 
-Every aggregate now includes the three Cargo tools after host and IC setup,
+Every aggregate includes the three Cargo tools after host setup,
 including in non-Rust repositories. Remove redundant Rust aggregate prerequisites.
 Move additional product setup/check prerequisites into `LOCAL_TOOL_INSTALL_TARGETS`
 and `LOCAL_TOOL_CHECK_TARGETS` in matching order, as shown in
@@ -838,15 +838,15 @@ and tested in Shared Tooling.
 Review pins against existing qualified versions before activation. A local
 exception uses its own explicitly selected matrix outside the snapshot; remove
 superseded pin ownership rather than maintaining two independent selections.
-Update local setup/CI callers to use `.tools/host/bin` and `.tools/ic/bin`, plus
-`.tools/rust/common/bin` when adopting the Cargo-installed set; CI
+Update local setup/CI callers to use `.tools/host/bin` and
+`.tools/rust/common/bin`, plus `.tools/ic/bin` for explicitly selected IC tools; CI
 must invoke the same Make installation/check targets and put these paths on its
 own PATH after explicit setup. Document the shell export for direct interactive commands;
 installation and Make exports do not change the user's terminal PATH. Remove
 separate package-manager jq/yq/ripgrep/cloc selections and preserve one owner
 for each tool pin.
-The existing single-yq installer remains available to consumers that need only
-that standalone parser; it accepts caller-owned pins rather than defining them.
+YQ belongs to the common host bundle; the standalone CI installer no longer
+accepts `yq`.
 Document the [system bootstrap prerequisites](local-setup.md#bootstrap-prerequisites)
 and retain product-specific
 alignment checks. Retire duplicated installer bodies once callers have moved;
@@ -926,3 +926,27 @@ snapshot-owned wrappers; preserve modified or consumer-owned files for review.
 Refresh `test-installers.sh` too if selected, then qualify the same installer
 failure cases and each declared native host. No storage layout or tool upgrade
 is part of this command change.
+
+
+## Cargo dependency boundaries
+
+Adopt `scripts/ci/check-cargo-dependency-boundaries.sh` as a snapshot entrypoint
+and run it with `--consumer /absolute/repository/path`. The checker uses locked,
+offline Cargo metadata; prepare the selected toolchain and lockfile first. It
+requires Perl with JSON::PP. Policy lives in `ci/cargo-dependency-boundaries.json`:
+
+```json
+[
+  {"dependency": "ic-stable-structures", "allowed_packages": ["ic-storage"]}
+]
+```
+
+Each rule restricts a canonical dependency package name to the listed workspace
+packages. An empty allowed list bans that dependency everywhere in the workspace.
+Renames do not bypass the rule. Normal, build, development and target-specific
+direct dependencies are included. Transitive dependencies are not restricted.
+Malformed rules, repeated dependency rules or allowed packages, and unknown
+fields fail closed before Cargo runs. The selected consumer must be the workspace
+root with a regular `Cargo.toml`; failed or incomplete Cargo output and mismatched
+workspace identity refuse before any success report. This opt-in policy is
+separate from version pinning; consumers choose their own ownership rules.

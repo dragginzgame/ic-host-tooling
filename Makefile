@@ -2,9 +2,7 @@
 PACKAGE ?= ic-host-artifacts
 MSRV ?= 1.88.0
 RELEASE_DELIVERY ?= direct
-ifneq ($(RELEASE_DELIVERY),direct)
-$(error This repository currently qualifies RELEASE_DELIVERY=direct only)
-endif
+override RELEASE_DELIVERY_POLICY := $(CURDIR)/ci/release-delivery.txt
 # Host commands use this checkout's reviewed snapshot, including parse-time probes.
 override SHARED_TOOLING_ROOT := $(CURDIR)
 export SHARED_TOOLING_ROOT
@@ -19,7 +17,7 @@ help:
 	@echo 'Tools profiles: test-tools-default, test-tools-interface, test-tools-certificate and tools-features-check'
 	@echo 'Formatting and metadata: fmt, fmt-check, shared-tooling-check, dependency-pins-check, check-doc-links, release-adapter-check'
 	@echo 'Hook qualification: formatting-hook-check (disposable Git fixtures; prepared formatters required)'
-	@echo 'Complete setup: install-tools (host, IC and Cargo); install-hooks is separate'
+	@echo 'Common setup: install-tools (host and Cargo); install-hooks is separate'
 	@echo 'Offline setup checks: tools-check (complete set), host-tools-check, ic-tools-check, rust-tools-check'
 	@echo 'Individual setup: install-host-tools, install-ic-tools, install-rust-tools'
 	@echo 'Source reports: cloc (this workspace); fleet reports run in Shared Tooling'
@@ -66,7 +64,7 @@ release-adapter-check:
 tooling-command-check:
 	+bash scripts/ci/test-host-fixture-retention.sh
 	+bash scripts/ci/test-make-snapshot.sh
-	+bash scripts/ci/check-release-commands.sh "$(CURDIR)" ci/tool-versions.env make/consumer.mk make/tools.mk make/rust-format.mk make/release.mk make/execution.mk scripts/ci/check-make-execution.sh scripts/ci/run-formatting.sh
+	+bash scripts/ci/check-release-commands.sh "$(CURDIR)" ci/tool-versions.env ci/release-delivery.txt make/consumer.mk make/tools.mk make/rust-format.mk make/release.mk make/execution.mk scripts/ci/check-make-execution.sh scripts/ci/check-release-delivery.sh scripts/ci/run-formatting.sh
 publish:
 	+bash scripts/publish/workspace.sh publish
 publish-check:

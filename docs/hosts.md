@@ -37,8 +37,10 @@ remain producer checks. Native CI's shared common-tool action retains setup/chec
 logs and publishes PATH only after both succeed. Snapshot checks retain all
 selected bytes and modes;
 the CI cache-key helper is an explicit snapshot root for its workflow caller.
-The release gate uses the same complete host, IC and Cargo toolsets, even though
-the libraries do not invoke every tool. Explicit setup runs `make install-tools`;
+The release gate uses the common host and Cargo toolsets. Host has no product
+IC executable caller, so its aggregate setup and CI do not select the IC bundle.
+The individual IC setup/check commands remain available for explicit use.
+Explicit setup runs `make install-tools`;
 `make tools-check` verifies the set offline. Selected release preflight prepares
 it; standalone verification never installs tools. Existing bundles and failed
 evidence are retained. Rust toolchain bootstrap remains explicit.
