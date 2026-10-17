@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.26.2]
+
+### Added
+
+- Synchronize and hash an existing caller-held directory with ordered pre-sync
+  hooks through FS `durable::tree::sync_checksum_directory_at`. Files sync before
+  hashing; directories sync after children. Callers retain total-tree budgets,
+  expected-checksum admission, publication and recovery policy.
+
 ## [0.26.1] - 2026-10-17
 
 ### Added
