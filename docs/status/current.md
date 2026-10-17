@@ -47,6 +47,40 @@ until an upstream replacement preserves its tests; see
 Operational directory CR/LF admission remains in Host pending consumer-owned
 migration; see [Canic #575 — Own Backup operational path admission](https://github.com/dragginzgame/canic/issues/575).
 
+## Backup directory-checksum extraction
+
+Artifacts now composes declared file identities through `artifact::tree`, preserving
+Backup's exact path-component ordering and path/NUL/lowercase-digest/newline bytes.
+FS's `read::tree::checksum` selects normal-component paths or an already-held root,
+uses the existing no-follow descriptor walker, and bounds every file stream.
+The helpers perform no sync, publication, journal transition or recovery. Callers
+retain complete-tree budgets, stable namespace/content custody and product records.
+Source and fixture hashes are recorded in `ci/extraction-sources.json`.
+
+The isolated contribution reruns the original golden and malformed-path cases
+against the extracted implementation, plus filesystem framing, unsafe-entry,
+file-limit, exact raw-name and retained-root regressions. After incorporating the
+released 0.26 base, all 59 Artifact and 134 FS units pass on current Rust and actual
+Rust 1.88. Strict all-target/all-feature Clippy, warning-denied Rustdoc and actual
+MSRV checks pass. FS reuses its available error derive while retaining exact
+messages and wrapped source identities; no second hand-authored formatting owner
+is introduced.
+
+An earlier 0.25-base isolated Backup rehearsal selects these production owners through direct
+workspace dependency paths in its own checkout and target directory, without
+Cargo patches or changes to normal consumer manifests. All 538 Backup units, two
+declaration/publication cases, public local recovery/artifact cases, 34 Core and
+12 Agent managed PocketIC journeys pass. Strict all-target/all-feature Clippy,
+actual Rust 1.91 checks and warning-denied Rustdoc pass. Evidence is retained at
+`/tmp/backup-29-flow-tree-oh9bcfcd/`; the normal Backup graph still selects published
+packages. Native macOS, integration and registry adoption remain separate.
+
+Backup's future public helper cut also affects Canic's artifact compositor adapter;
+that caller must use the new Artifacts compositor and map its result into its
+owned record when adopting the Backup cut. No normal sibling checkout was edited. The updated 0.26-base consumer also passes
+all 538 Core units, five public cases and strict all-target/all-feature Clippy;
+registry/native adoption retains its own checks.
+
 ## Qualification receipt
 
 The latest Shared adoption receipts are at `/tmp/host-shared021.UNdFnp/`.

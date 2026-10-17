@@ -1,5 +1,7 @@
 //! No-follow traversal of a caller-held Unix directory descriptor.
 
+pub mod checksum;
+
 use std::io;
 use std::os::unix::ffi::OsStrExt;
 use std::path::{Path, PathBuf};
