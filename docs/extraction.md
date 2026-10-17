@@ -29,6 +29,8 @@ no longer owns an `ic-limits` profile or a reference-policy CLI example.
 - ic-host-fs owns pathname/descriptor reads, explicit invocation-directory
   cleanup custody and the durable module's replace,
   create-new, private-file, parent synchronization and descriptor-lock operations.
+  Its `scratch::create_private_bytes` shares private, non-durable invocation-file
+  creation; consumers retain byte budgets, successful cleanup and effect recovery.
 - ic-host-process owns executable resolution/admission, installed-version
   observation, explicit execution context,
   output limits, deadlines, direct-child/explicit group cleanup evidence, native

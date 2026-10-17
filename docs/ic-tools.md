@@ -27,11 +27,15 @@ Each row specifies executable, exact
 version, native host and archive SHA-256. The digests were read from the official
 GitHub release asset metadata on 2026-10-06; the Binaryen 133 archive digests
 were checked against downloaded bytes for all three host mappings on 2026-10-10.
+ICP CLI 1.7.0 digests were reviewed against official release-asset metadata on
+2026-10-17; all other selections are unchanged. Native installer/check results
+remain source-bound qualification, separate from asset availability
+([#268 — Adopt ICP CLI 1.7.0](https://github.com/dragginzgame/shared-tooling/issues/268)).
 
 | Executable | Default version | Official release |
 | --- | --- | --- |
 | `quill` | 0.5.4 | [Quill](https://github.com/dfinity/quill/releases/tag/v0.5.4) |
-| `icp` | 1.6.0 | [ICP CLI](https://github.com/dfinity/icp-cli/releases/tag/v1.6.0) |
+| `icp` | 1.7.0 | [ICP CLI](https://github.com/dfinity/icp-cli/releases/tag/v1.7.0) |
 | `didc` | 0.6.2 | [Candid tools](https://github.com/dfinity/candid/releases/tag/didc-v0.6.2) |
 | `ic-wasm` | 0.11.1 | [ic-wasm](https://github.com/dfinity/ic-wasm/releases/tag/0.11.1) |
 | `wasm-opt` | 133 | [Binaryen](https://github.com/WebAssembly/binaryen/releases/tag/version_133) |

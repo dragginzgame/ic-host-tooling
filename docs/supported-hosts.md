@@ -336,3 +336,39 @@ pass is not hosted upload evidence: qualification requires the matching run's
 successful download/verification on Linux and both macOS hosts.
 The full IC set currently excludes Linux ARM64 because its Quill release has
 no matching ARM64 asset. No translation or source build is substituted silently.
+
+## Snapshot export measurements
+
+Shared Tooling's manual [Snapshot refresh comparison workflow](https://github.com/dragginzgame/shared-tooling/blob/main/.github/workflows/snapshot-performance.yml)
+supplies comparable repeated native observations for
+[#219 — Reduce repeated snapshot work](https://github.com/dragginzgame/shared-tooling/issues/219).
+Select full lowercase commit SHAs for the before exporter, after exporter and
+one payload shared by both. Both exporter revisions must support the three fixed
+entrypoints: snapshot refresh, Rust-tool installation and release runner. The
+workflow needs those commits in the fetched repository history; it installs no
+tools and runs no release or full portable gate.
+The two runner-local integrity helpers are frozen with the common payload, so
+only the exporter blob varies. Both exporters must support those helper inputs.
+
+On each host, one warmup pair precedes six measurement pairs with alternating
+execution order. Each export starts with a fresh consumer and the same selected
+Bash/Git/checksum tools. Monotonic timings exclude checkout, consumer setup and
+verification. Every consumer passes snapshot verification, and paired receipts
+and payloads must match. `identities.txt` records commit/blob and host/tool
+identities; `samples.tsv` keeps raw ordered observations. Failed attempts retain
+logs and inputs and cannot produce `complete.txt`.
+
+The workflow packages selected observations, runner files and consumer trees
+through the canonical archiver before upload. Hidden snapshot receipts survive
+the archive round trip; source clones and Git stores are excluded. Successful
+packaging retains the archive, SHA-256 and packaging/command logs for both
+complete and incomplete measurement attempts.
+A packaging failure remains a job failure and retains any partial archive;
+it does not reconstruct a missing measurement completion receipt.
+
+From a Shared Tooling checkout, the same comparison can run locally through
+`bash scripts/distribution/measure-snapshot-refresh.sh BEFORE AFTER PAYLOAD NEW-DIRECTORY`.
+Use an absent evidence directory beneath an existing parent, with no CR/LF in
+either path. Evidence is retained on success and failure. The bounded export
+workload does not establish a whole-suite speedup; compare repeated samples
+within each host and retain the distinct Linux/macOS observations.

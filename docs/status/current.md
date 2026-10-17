@@ -8,10 +8,9 @@ Do not copy those version facts into this handoff. The selected Shared baseline
 and exact payload identities are in [AGENTS.md](../../AGENTS.md) and
 [the snapshot](../../.shared-tooling.snapshot).
 
-The [0.25 migration](../changelog/0.25.md) documents the pending breaking API
-changes: one tool-probe configuration, consumer-owned replica install policy and
-unconditional Candid service inspection in Host Tools. Durable descriptor and
-existing-parent writes now require explicit result-admission callbacks.
+The [0.26 migration](../changelog/0.26.md) documents consuming cleanup's single
+attempt and consumer-owned recovery. The [0.25 migration](../changelog/0.25.md)
+preserves the preceding tool-probe, replica-policy, Candid and durable-admission cuts.
 The numbered changelog draft owns the candidate version; manifest/version changes
 and release execution remain user-owned. Existing sibling checkouts stay read-only.
 
@@ -37,13 +36,66 @@ and [IcyDB #307 — Adopt split Host owners](https://github.com/dragginzgame/icy
 The current work's qualification and migration patch are reported at handoff.
 
 Publication interruption recovery stays split between Host preparation custody
-and Shared dispatch receipts. Strict certificate wire admission remains local
+and Shared provenance/dispatch receipts. The selected source refreshes
+[Shared PR #269 — Share prepared Cargo package provenance checks](https://github.com/dragginzgame/shared-tooling/pull/269)
+onto released Shared 0.21.0 (`4b0615c43eac50bcc32c089cd06d1e62092771e3`).
+The canonical helper remains an open contribution rather than part of upstream
+main; Host pins its clean committed revision. Strict certificate wire admission
+remains local
 until an upstream replacement preserves its tests; see
 [DFINITY #503 — Strict CBOR decoding without byte/array coercions](https://github.com/dfinity/response-verification/issues/503).
 Operational directory CR/LF admission remains in Host pending consumer-owned
 migration; see [Canic #575 — Own Backup operational path admission](https://github.com/dragginzgame/canic/issues/575).
 
 ## Qualification receipt
+
+The latest Shared adoption receipts are at `/tmp/host-shared021.UNdFnp/`.
+Canonical export retains all 89 selected roots and 111 payloads. Offline host/Cargo
+tool checks, snapshot, pins, formatting and links pass on Linux. Host's actual
+Make routing, retention, release and publication fixtures pass with documented
+substitutes. Shared's provenance, publication-attempt and script-path fixtures,
+affected ShellCheck and links pass on the refreshed source. Exact remote retrieval
+of the selected commit succeeds. Pending Rust source, Host package versions,
+lock selection and index are unchanged. No executable tools were downloaded;
+the new ICP catalog requires explicit IC-tool setup for callers that use it.
+Native qualification of the refreshed source remains separate.
+
+The current issue-pass evidence is retained at `/tmp/host-issue-triage.Kn8e2Q/`,
+relative to its captured incoming tree at Host `4086a17`. Prepared gzip streaming
+and verified durable copying pass 71 Artifact units, six consumer contracts and
+128 FS units on current Rust and actual Rust 1.88. Affected all-target MSRV,
+strict Clippy/Rustdoc, formatting, pins, links and snapshot checks pass. Published
+Host 0.25.1 compiles alongside PocketIC 16.1.0 in both the minimal Tools graph
+and the five-library/Testkit 0.50 graph, selecting actual `thiserror 2.0.18`
+without overrides. Its released native matrix is green; the new local copy APIs
+still need delivery and native qualification. Source/fixture digests and commands
+remain with the receipts; package versions, normal consumer graphs and Host's
+index/refs are preserved.
+
+Cleanup, error-derive and publication-provenance qualification is retained at
+`/tmp/host026-simplify.Mkj1sY/`, compared with its captured incoming working tree
+at Host commit `4086a1728e8bd1faf9a01b723115b379c17b607a`. All 126 FS library cases
+pass on current Rust and actual Rust 1.88; diagnostic/source regressions also pass
+against the original handwritten implementations. Affected all-target MSRV,
+strict Clippy/Rustdoc, formatting, pins, snapshot and local-link checks pass.
+Host release/publication adapters, fixture retention and Make routing pass with
+their documented substitute effects. Shared's focused provenance fixture uses
+real local Git and archives, including refusal and retained-evidence cases;
+existing publication-attempt and script-path fixtures and affected ShellCheck
+pass. That slice used Shared `8880883152070b2f4c870592eff8195b47ede8b2`, published in
+[Shared PR #269 — Share prepared Cargo package provenance checks](https://github.com/dragginzgame/shared-tooling/pull/269).
+Retrieval of that exact commit into a fresh Git store succeeds. These results
+remain bound to that source. Native macOS, consumer
+adoption and real registry publication are not qualified. Package versions,
+selected dependency versions and Host's index/refs remain preserved.
+
+Private invocation-file qualification is retained at
+`/tmp/host-scratch-pass.dchmGQ/`. All 124 FS library cases pass on current Rust
+and actual Rust 1.88, including five scratch cases for complete private files,
+collisions, invalid/open failures, partial writes and failed cleanup. Affected
+all-target MSRV checks, strict current Clippy/Rustdoc, formatting, pins, links
+and snapshot checks pass. Native macOS and Canic adoption remain separate;
+normal sibling checkouts, package versions and lock selection are unchanged.
 
 Hashing-writer inspection and HTTP fixture receipts are retained at
 `/tmp/host-issue-pass.EqLEcl/`. All 68 Artifact unit and six consumer-contract

@@ -131,6 +131,17 @@
           "selection": "Inherited descriptor custody, one-spawn consumption, exact existing-sidecar quiescence and native owner/descendant failure requirements; adapted to Host FS locks, caller-selected paths/environment/waits, passive native identity and Rust subprocess fixtures. Backup retains journal schemas, operation binding, paid spending and reference-release policy. MIT source notices retained."
         }
       ]
+    },
+    {
+      "repository": "https://github.com/dragginzgame/canic",
+      "revision": "bc238ac363ea1dd51440057c625186e112c657c6",
+      "files": [
+        {
+          "path": "crates/canic-host/src/icp/candid.rs",
+          "sha256": "9d2cea25ef4c033b219b69aafa601b9a0e7a8278ab268b085647ed2e5282dcaa",
+          "selection": "write_candid_argument_file private create-new invocation-file mechanics, adapted as scratch::create_private_bytes with explicit parent/prefix/attempts and retained write/cleanup causes; Candid, byte budgets, successful cleanup and effect recovery remain consumer-owned"
+        }
+      ]
     }
   ]
 }

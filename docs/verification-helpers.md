@@ -352,27 +352,20 @@ call to this helper, and keep the shared runner's own fixtures upstream.
 Shared Tooling exercises its own Makefile in the portable suite; the focused
 `make check-release-commands` target offers the same adoption check.
 
-## Read-only Cargo publication admission
+## Consumer-owned Cargo publication admission
 
-Run `bash scripts/ci/check-publication.sh PACKAGE REMOTE` at the consumer checkout
-root. It requires clean source, a stable workspace version, an annotated release
-tag at HEAD, exactly one push destination and the same tag object at that
-destination. It then requires confirmed absence of that package/version on
-crates.io and rechecks local HEAD, tag and source after the network observations.
-Unknown registry state, failed observations with plausible output, identity
-changes and CR/LF directory paths (including physical aliases) stop admission.
+Consumers compose the shared source, workspace-version, release-tag, registry
+and Make-execution observers in their own publication policy. Keep package
+selection, required remote-tag publication, registry choice, features, credentials
+and interruption reconciliation at that owner. Retain local source and identity
+rechecks after network observations; unknown registry state never admits upload.
 
-The command does not upload, retry, install tools, stage changes or write Git refs.
-It uses the selected snapshot's version, source, tag, registry and Make-execution
-helpers; selecting it through the exporter includes those companions. Select
-`scripts/ci/test-publication.sh` only when the consumer wants its optional fixture.
-
-Consumers still admit the package's workspace membership, features, credentials,
-verification policy and registry selection, and own exclusive execution and the
-separately authorized upload. This check only supports crates.io and coordinated
-stable workspace versions. It is a point-in-time observation, not a lock or an
-upload receipt. Existing versions require consumer reconciliation; workspace
-ordering, partial uploads and recovery do not move into this helper.
+IC Jobs owns its complete preflight under `scripts/release/`
+([PR #67 — Own publication admission locally](https://github.com/dragginzgame/ic-jobs/pull/67)).
+Integrate that caller before adopting the command removal, and retire its former
+snapshot entry through a reviewed export with the complete new entrypoint set.
+The shared publication-attempt runner separately retains dispatch and recovery
+evidence; a preflight observation is not a lock or an upload receipt.
 
 ## Exact crates.io version observation
 

@@ -1,9 +1,34 @@
 use super::{OwnedDirectory, remove_path_if_present};
 use crate::test_support::Fixture;
 use std::{
-    fs,
+    fs, io,
     panic::{AssertUnwindSafe, catch_unwind},
 };
+
+#[test]
+fn consuming_cleanup_failure_leaves_recovery_to_the_caller() {
+    let fixture = Fixture::new();
+    let path = fixture.root.join("owned");
+    fs::create_dir(&path).unwrap();
+    fs::write(path.join("removed"), b"partial cleanup").unwrap();
+    fs::write(path.join("retained"), b"recovery evidence").unwrap();
+    let error = OwnedDirectory::new(path.clone())
+        .cleanup_with(|selected| {
+            assert_eq!(selected, path);
+            fs::remove_file(selected.join("removed"))?;
+            Err(io::Error::from_raw_os_error(13))
+        })
+        .unwrap_err();
+    assert_eq!(error.raw_os_error(), Some(13));
+    assert!(!path.join("removed").exists());
+    assert_eq!(
+        fs::read(path.join("retained")).unwrap(),
+        b"recovery evidence"
+    );
+    // A second best-effort Drop removal would have erased the recovery evidence.
+    remove_path_if_present(&path).unwrap();
+    assert!(!path.exists());
+}
 
 #[test]
 fn unwind_removes_only_owned_child_and_preserve_transfers_custody() {
@@ -60,7 +85,7 @@ fn final_symlinks_are_unlinked_without_touching_their_targets() {
 
 #[cfg(unix)]
 #[test]
-fn cleanup_failure_stays_armed_for_drop_retry() {
+fn cleanup_failure_preserves_the_selected_drop_policy() {
     use std::os::unix::fs::{MetadataExt as _, PermissionsExt as _};
     let fixture = Fixture::new();
     if fs::metadata(&fixture.root).unwrap().uid() == 0 {
@@ -77,4 +102,17 @@ fn cleanup_failure_stays_armed_for_drop_retry() {
     assert!(guard.is_armed());
     drop(guard);
     assert!(!path.exists());
+
+    fs::create_dir(&path).unwrap();
+    let mut guard = OwnedDirectory::new(path.clone());
+    // Borrowed cleanup needs no extra entrypoint: transfer recovery explicitly.
+    guard.disarm();
+    let permissions = fs::metadata(&fixture.root).unwrap().permissions();
+    fs::set_permissions(&fixture.root, fs::Permissions::from_mode(0o500)).unwrap();
+    let error = guard.try_cleanup().unwrap_err();
+    fs::set_permissions(&fixture.root, permissions).unwrap();
+    assert_eq!(error.kind(), io::ErrorKind::PermissionDenied);
+    assert!(!guard.is_armed());
+    drop(guard);
+    assert!(path.is_dir());
 }

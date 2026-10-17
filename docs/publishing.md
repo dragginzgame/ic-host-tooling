@@ -71,12 +71,14 @@ metadata admission and before package preparation or upload. The explicit packag
 allowlist remains separate from workspace membership. All package metadata must
 declare `https://github.com/dragginzgame/ic-host-tooling` as the repository.
 
-The wrapper then fetches that exact commit from the declared HTTPS repository
+The [Shared provenance helper](cargo-publication.md#prepared-package-provenance)
+checks the prepared archives and fetches that exact commit from the declared HTTPS repository
 into a fresh bare object store beneath the publication attempt. Failed fetches,
 mismatched commit identities, missing/dirty package provenance and source changes
 stop before upload. Git prompts are disabled; ordinary trusted Git transport
 configuration still applies. The source request, archive provenance, fetch log
-and retrieved objects are retained. This guard is a remote-read effect of the
+and retrieved objects are retained in the admission attempt's `provenance/`
+directory. This guard is a remote-read effect of the
 explicit upload command; it never pushes a ref or creates a commit.
 
 `publish-check` retains its dirty-worktree dry-run contract and does not claim
