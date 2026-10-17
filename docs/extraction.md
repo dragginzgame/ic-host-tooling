@@ -5,29 +5,32 @@ be7d73908225e73ab5babf8fbb9fe959f40d439b. Pending sibling tooling edits
 were excluded. Canic's clean durable module and its tests are bound to their
 observed committed bytes in [source provenance](../ci/extraction-sources.json).
 
-With the explicit `candid-extraction` feature, dependencies point down from
-ic-host-tools to ic-host-process and ic-host-fs,
-from ic-host-process to ic-host-fs, and from each to ic-host-artifacts.
-No generic crate depends on ic-host-tools, Canic, IcyDB or an IC runtime.
-Test/example artifact features do not become production filesystem dependencies.
-The empty tools defaults retain response decoding while excluding all three
-generic extraction dependencies, Host Text and the optional Candid parser from
-its normal graph. The 0.15 hard cut moves extraction
-to `candid::extraction`, without reexports. The 0.23 hard cut moves generic
-line normalization out of Tools into `ic_host_text::normalize`.
-The optional `ic-interface` feature adds generic Wasm facts without the Candid
-parser. `candid-service` adds parser-backed service inspection independently;
-select `ic-interface` as well when both APIs are needed. Neither adds
-filesystem/process dependencies unless extraction is also selected.
-The optional `ic-limits` profile adds only generic artifact inspection to the
-response-only graph; IC reference values and comparison remain in the tools owner.
+Dependencies point down from ic-host-process to ic-host-fs and from each to
+ic-host-artifacts. Tools selects Artifacts only for explicit Wasm profiles;
+its production graph has no filesystem or process dependency. No generic crate
+depends on Tools, Canic, IcyDB or an IC runtime. Test/example artifact features
+do not become production filesystem dependencies. Tools always includes
+Candid service inspection and response decoding, without generic Host dependencies.
+Native extraction moves to IC Build's `artifacts::candid` for the 0.24 hard cut;
+the five Host crates retain their generic mechanics and IC interpretation roles.
+The 0.23 hard cut moved generic line normalization into
+`ic_host_text::normalize`.
+Candid service inspection and shared method identities are always available in
+Tools. Its Candid parser is a normal dependency. The optional `ic-interface`
+feature adds generic Wasm facts and export projection without filesystem/process
+dependencies. There is no separate `candid-service` feature.
+Replica revision selection, install thresholds and resource-report policy belong
+to the consuming application. Host Artifacts retains generic Wasm facts; Tools
+no longer owns an `ic-limits` profile or a reference-policy CLI example.
 
 - ic-host-artifacts owns stream identities, bounded read/write/copy mechanics,
   optional gzip encoding/decoding, optional Wasm
   structural facts, encoded code/data statistics and bounded custom-section framing.
-- ic-host-fs owns pathname/descriptor reads and the durable module's replace,
+- ic-host-fs owns pathname/descriptor reads, explicit invocation-directory
+  cleanup custody and the durable module's replace,
   create-new, private-file, parent synchronization and descriptor-lock operations.
-- ic-host-process owns executable resolution/admission, explicit execution context,
+- ic-host-process owns executable resolution/admission, installed-version
+  observation, explicit execution context,
   output limits, deadlines, direct-child/explicit group cleanup evidence, native
   process-table/RSS observations and separate Git queries.
   Its Unix `custody` module also owns inherited regular-sidecar descriptors and
@@ -46,17 +49,18 @@ response-only graph; IC reference values and comparison remain in the tools owne
   colour and progress lifecycle. It depends on no other Host or IC owner. This fifth generic
   boundary was explicitly selected by the maintainer under
   [#110 — Host text ownership](https://github.com/dragginzgame/ic-host-tooling/issues/110).
-- ic-host-tools owns Candid extraction and service-method interpretation,
+- ic-host-tools owns Candid service-method interpretation,
   IC method export projection over generic Wasm facts, JSON/plain-hex ICP responses
-  and explicit revision-bound IC resource comparisons.
+  and bounded certificate decoding.
   CLI labels, preambles and any Unicode whitespace normalization remain with
   consumers rather than a second presentation adapter in the codec.
 
-Candid extraction retains complete bounded raw stdout/stderr and source/tool
-identities. It does not require UTF-8 or normalization. Consumers needing text
+IC Build owns native Candid extraction orchestration over Host's hashing and
+execution primitives. It retains complete bounded raw evidence and source/tool
+identities without normalization or publication policy. Consumers needing text
 call `ic_host_text::normalize::normalize_lines` explicitly with an output allowance;
 UTF-8, normalization, grammar and expected-service admission remain separate decisions.
-No duplicate normalized string is stored beside the process evidence.
+The [0.24 migration](changelog/0.24.md) records producer delivery and consumer actions.
 
 `sampling::snapshot(record_bytes, command_limits)` keeps native RSS observation
 in the Process owner. Linux selects the per-record procfs allowance; macOS uses
@@ -105,9 +109,8 @@ heap, stack or CPU quota for the parser. `interface::exported_methods` borrows
 function export facts without reparsing Wasm. It preserves internal methods,
 empty names and mode differences for caller admission. Oneway remains distinct
 in Candid and maps explicitly to the update export namespace through `as_export`.
-`candid-service` selects only the Candid parser; shared method identities remain
-in `interface` without requiring Wasm support. Select `ic-interface` explicitly
-for export projection, including when combining it with Candid service inspection.
+Candid parsing and shared method identities are always available without Wasm
+support. Select `ic-interface` explicitly for export projection.
 Expected interfaces, CDK allowlists, type compatibility, payload annotations and
 Canic endpoint presentation remain consumer policy. IC Build owns build/cache
 orchestration separately; these libraries do not install tools or build canisters.
@@ -122,8 +125,11 @@ Observed directories always use directory-only opens and descriptor type checks;
 callers do not choose kernel flags. Native open errors may precede type callbacks
 when an entry is replaced during traversal.
 Following paths, final-component no-follow admission and already-open descriptor
-reads remain distinct contracts. Optional reads reuse the same bounded stream
-engine and return `ArtifactError`; private reads add typed permission, link-count
+reads remain distinct contracts. `read_file_prefix` permits a larger regular
+file and retains length from the same admission observation, returning bounded
+raw bytes. Consumers retain decoding and omitted-byte presentation; concurrent
+writers can invalidate the observed length. Optional reads reuse the same bounded
+stream engine and return `ArtifactError`; private reads add typed permission, link-count
 and fixed-length rejection. `hash_file_no_follow` combines the same Unix opener
 and descriptor admission with the artifact owner's constant-memory hash traversal;
 metadata and streamed bytes have independent bounds. It rejects final symlinks,
@@ -166,12 +172,13 @@ writer. `write_bytes(path, options, bytes)` uses it with explicit publication mo
 and permissions, returning `NamedWriteError<io::Error>` rather than discarding
 publication state or cleanup evidence. Consumers retain error projection
 and recovery decisions; an after-publication failure requires reconciliation.
-`write_existing_parent_with` and `write_existing_parent_validated_with` reuse
-descriptor publication after directory-only opening of an existing selected
-parent. They refuse missing/special-file parents without creating them, retain
-parent-alias following and select the directory once across renames. The validated
-form admits the producer's result after file sync and before publication. This
-pathname convenience supplies no root confinement or independent lifecycle policy.
+`write_existing_parent_validated_with` reuses descriptor publication after
+directory-only opening of an existing selected parent. It refuses missing or
+special-file parents without creating them, follows parent aliases and selects
+the directory once across renames. `write_at_validated_with` accepts the held
+parent directly. Both require explicit result admission after file sync and
+before publication; no-op admission is caller-selected. The forwarding variants
+retire without aliases. Neither supplies root confinement or lifecycle policy.
 The [0.10 migration](changelog/0.10.md) replaces the old two-argument writer and
 removes the `write_typed_with` name without a compatibility alias.
 
@@ -304,12 +311,13 @@ All other process syscalls use safe rustix APIs; the existing selected libc
 version becomes a macOS-only direct dependency, without a bindgen toolchain.
 
 `AdmittedTool::admit_version` shares the exact admission engine for tools whose
-installation the caller already trusts. It takes a `VersionSpec`, records the
-bounded executable identity and admits exact version output; later runs enforce
-that observed digest. It removes consumer-side hash/admit composition without
+installation the caller already trusts. It takes a `VersionSpec` and a mandatory
+exact version identity, records the bounded executable identity and admits exact
+version output; later runs enforce that observed digest. It removes consumer-side
+hash/admit composition without
 claiming that observed bytes are a trusted published pin. Pinned admission takes
-the same `VersionSpec` plus a mandatory digest and compares it before executing
-the version probe.
+the same `VersionSpec` and exact version plus a mandatory digest, checked before
+executing the version probe.
 Installation provenance, per-host pins and selection of either contract remain
 consumer policy; no host catalog or version-range resolver is introduced.
 
@@ -319,9 +327,10 @@ Additional reusable mechanics are extracted from committed sibling source:
   `ArtifactIdentity::verify` admits that identity against caller-selected authority.
   The combined `verify_reader` wrapper is retired. Hash/limit failures precede
   digest comparison; a mismatch retains both authority and observed identity.
-- `artifact::hash_gzip` and `hash_gzip_or_raw` reuse bounded hashing over the
-  existing single-member gzip decoder. Raw payload slices are hashed directly
-  after both byte allowances. `gzip_matches` reuses `MatchingWriter`
+- `artifact::hash_gzip` reuses bounded hashing over the existing single-member
+  gzip decoder. Callers select representation and admit input/payload bounds;
+  the unused mixed raw/gzip auto-detection wrapper is retired.
+  `gzip_matches` reuses `MatchingWriter`
   to compare exact decoded bytes without retaining another payload copy. Input
   admission, CRC/length and trailing-data checks have one owner shared with
   `decode_gzip`. Complete compressed/raw input is still a caller-owned slice;

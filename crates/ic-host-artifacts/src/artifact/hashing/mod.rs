@@ -45,6 +45,28 @@ impl<W> HashingWriter<W> {
         self.writer.limit_exceeded()
     }
 
+    /// Borrow the original sink for caller-owned inspection without finalizing.
+    ///
+    /// Writes through shared references, duplicated handles or interior mutability
+    /// bypass this wrapper's accounting and must not be inferred from its identity.
+    #[must_use]
+    pub const fn get_ref(&self) -> &W {
+        self.writer.get_ref()
+    }
+
+    /// Snapshot the identity of accepted bytes while keeping the writer usable.
+    ///
+    /// This clones only the fixed-size hash state. It performs no sink IO, flush,
+    /// sync or publication, and cannot establish producer success or byte custody.
+    /// After an error it describes the observed prefix, not a complete artifact.
+    #[must_use]
+    pub fn identity(&self) -> ArtifactIdentity {
+        ArtifactIdentity {
+            bytes: self.writer.bytes_written(),
+            sha256: Sha256Digest::from_bytes(self.hasher.clone().finalize().into()),
+        }
+    }
+
     /// Recover the sink and identity of the observed accepted bytes.
     ///
     /// Does not flush, certify producer success or discard partial output.

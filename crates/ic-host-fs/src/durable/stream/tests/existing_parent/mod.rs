@@ -11,10 +11,15 @@ fn existing_parent_selection_rejects_missing_and_directory_targets_before_produc
         fixture.root.join(OsStr::from_bytes(b"nul\0name")),
     ] {
         let mut produced = false;
-        let result = write_existing_parent_with(&path, CREATE, |_| {
-            produced = true;
-            Ok::<_, io::Error>(())
-        });
+        let result = write_existing_parent_validated_with(
+            &path,
+            CREATE,
+            |_| {
+                produced = true;
+                Ok::<_, io::Error>(())
+            },
+            |()| Ok(()),
+        );
         assert!(matches!(
             result,
             Err(NamedWriteError::BeforePublication { .. })
@@ -28,7 +33,13 @@ fn existing_parent_selection_rejects_missing_and_directory_targets_before_produc
 fn existing_parent_modes_keep_permissions_symlinks_and_typed_admission() {
     let fixture = Fixture::new();
     let output = fixture.root.join("report");
-    write_existing_parent_with(&output, CREATE, |file| file.write_all(b"first")).unwrap();
+    write_existing_parent_validated_with(
+        &output,
+        CREATE,
+        |file| file.write_all(b"first"),
+        |()| Ok(()),
+    )
+    .unwrap();
     assert_eq!(
         fs::metadata(&output).unwrap().permissions().mode() & 0o777,
         0o600
@@ -54,7 +65,13 @@ fn existing_parent_modes_keep_permissions_symlinks_and_typed_admission() {
     ));
     assert_eq!(fs::read(&output).unwrap(), b"first");
     assert!(
-        write_existing_parent_with(&output, CREATE, |file| file.write_all(b"duplicate")).is_err()
+        write_existing_parent_validated_with(
+            &output,
+            CREATE,
+            |file| file.write_all(b"duplicate"),
+            |()| Ok(())
+        )
+        .is_err()
     );
     assert_eq!(fs::read(&output).unwrap(), b"first");
     let alias = fixture.root.join("parent alias");
@@ -76,7 +93,13 @@ fn existing_parent_modes_keep_permissions_symlinks_and_typed_admission() {
     let link = fixture.root.join("final-link");
     symlink(&output, &link).unwrap();
     assert!(
-        write_existing_parent_with(&link, CREATE, |file| file.write_all(b"duplicate")).is_err()
+        write_existing_parent_validated_with(
+            &link,
+            CREATE,
+            |file| file.write_all(b"duplicate"),
+            |()| Ok(())
+        )
+        .is_err()
     );
     assert!(
         fs::symlink_metadata(&link)
@@ -85,7 +108,13 @@ fn existing_parent_modes_keep_permissions_symlinks_and_typed_admission() {
             .is_symlink()
     );
     assert_eq!(fs::read(&output).unwrap(), b"accepted");
-    write_existing_parent_with(&link, REPLACE, |file| file.write_all(b"link replacement")).unwrap();
+    write_existing_parent_validated_with(
+        &link,
+        REPLACE,
+        |file| file.write_all(b"link replacement"),
+        |()| Ok(()),
+    )
+    .unwrap();
     assert!(fs::symlink_metadata(&link).unwrap().is_file());
     assert_eq!(fs::read(&link).unwrap(), b"link replacement");
     assert_eq!(fs::read(&output).unwrap(), b"accepted");
@@ -97,11 +126,16 @@ fn existing_parent_remains_selected_after_path_rename() {
     let original = fixture.root.join("parent");
     let renamed = fixture.root.join("renamed");
     fs::create_dir(&original).unwrap();
-    write_existing_parent_with(&original.join("report"), CREATE, |file| {
-        fs::rename(&original, &renamed)?;
-        fs::create_dir(&original)?;
-        file.write_all(b"retained directory")
-    })
+    write_existing_parent_validated_with(
+        &original.join("report"),
+        CREATE,
+        |file| {
+            fs::rename(&original, &renamed)?;
+            fs::create_dir(&original)?;
+            file.write_all(b"retained directory")
+        },
+        |()| Ok(()),
+    )
     .unwrap();
     assert_eq!(
         fs::read(renamed.join("report")).unwrap(),
@@ -140,21 +174,16 @@ fn existing_parent_refuses_non_directories_without_blocking() {
     const CHILD: &str = "IC_HOST_FS_EXISTING_PARENT_CHILD";
     if let Some(parent) = std::env::var_os(CHILD) {
         let path = std::path::PathBuf::from(parent).join("report");
-        let ordinary = write_existing_parent_with(&path, CREATE, |_| -> io::Result<()> {
-            panic!("non-directory parent ran producer")
-        });
         let validated = write_existing_parent_validated_with(
             &path,
             CREATE,
             |_| -> io::Result<()> { panic!("non-directory parent ran producer") },
             |()| panic!("non-directory parent ran admission"),
         );
-        for result in [ordinary, validated] {
-            assert!(
-                matches!(result, Err(NamedWriteError::BeforePublication { source, cleanup_error: None })
-                if source.kind() == io::ErrorKind::NotADirectory)
-            );
-        }
+        assert!(
+            matches!(validated, Err(NamedWriteError::BeforePublication { source, cleanup_error: None })
+            if source.kind() == io::ErrorKind::NotADirectory)
+        );
         return;
     }
     let fixture = Fixture::new();

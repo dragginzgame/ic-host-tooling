@@ -173,7 +173,7 @@ required to run setup. Make targets and CI select this same local tool set.
 | Nonempty Cargo test helper | Cargo with normal libtest summaries, `awk`, and `tee` |
 | Exact release-tag checker | Git and the caller's selected exact commit/version |
 | Exact crates.io observation | Bash/curl for presence; metadata mode additionally requires jq and curl 8.4.0+ for bounded downloads |
-| `scripts/ci/run-sccache.sh` | An executable `sccache` binary |
+| `scripts/ci/run-sccache.sh` | An absolute executable file selected through `SCCACHE_BIN` |
 | Snapshot verification | A SHA-256 implementation |
 | Snapshot refresh | Git, a clean Shared Tooling checkout, and a SHA-256 implementation |
 | Dependency pin checker | Git, jq, Mike Farah yq v4.47.2+; Cargo when Cargo manifests exist |

@@ -4,8 +4,9 @@
 
 The maintainer-operated `make release-patch`, `make release-minor` and
 `make release-major` commands use the [shared release contract](releases.md).
-Host selects `RELEASE_DELIVERY=direct`: preparation, commit, tag and atomic
-branch/tag push. Other delivery selections are rejected before execution;
+Host's [delivery policy](../ci/release-delivery.txt) selects `RELEASE_DELIVERY=direct`:
+preparation, commit, tag and atomic branch/tag push. Other delivery selections
+are rejected before execution;
 the shared runner's optional PR flow is not qualified by this adapter.
 These commands do not publish crates to a registry.
 

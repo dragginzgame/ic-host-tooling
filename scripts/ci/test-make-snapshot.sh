@@ -19,7 +19,7 @@ trap 'fixture_finish "$?" "$fixture" "Host Make evidence retained"' EXIT
 export TMPDIR="${fixture%/*}"
 mkdir -p "$fixture/local"
 bash "$root/scripts/ci/prepare-make-fixture.sh" "$root" "$fixture/local"
-for input in Makefile ci/tool-versions.env scripts/ci/check-format-tools.sh; do
+for input in Makefile ci/tool-versions.env ci/release-delivery.txt scripts/ci/check-format-tools.sh; do
     parent=.
     [[ "$input" != */* ]] || parent="${input%/*}"
     mkdir -p "$fixture/local/$parent"
@@ -114,6 +114,15 @@ for selection in ordinary environment command nested recursive; do
     done
 done
 unset SHARED_TOOLING_ROOT
+# Unsupported release delivery refuses before adapter effects; unrelated goals
+# remain available with the same environment selection.
+: > "$HOST_MAKE_EVENTS"
+status=0
+make --no-print-directory release-version RELEASE_DELIVERY=pr \
+    > "$fixture/unsupported-delivery.log" 2>&1 || status=$?
+[[ "$status" == 2 && ! -s "$HOST_MAKE_EVENTS" ]] || exit 1
+make --no-print-directory help RELEASE_DELIVERY=pr > "$fixture/unrelated-delivery.log" 2>&1
+[[ ! -s "$HOST_MAKE_EVENTS" ]] || exit 1
 # Exercise the actual Host aggregate under parallel Make. Each stage must run
 # once in shared order, and a failure must prevent every later stage.
 mkdir -p "$fixture/local/scripts/dev"
@@ -134,7 +143,7 @@ done
 for mode in install check; do
     target=install-tools
     [[ "$mode" != check ]] || target=tools-check
-    for failed in none host ic rust; do
+    for failed in none host rust; do
         : > "$HOST_MAKE_EVENTS"
         status=0
         HOST_MAKE_TOOL_FAIL="install-$failed-tools.sh" HOST_MAKE_TOOL_FAIL_MODE="$mode" make --no-print-directory -j4 "$target" \
@@ -143,9 +152,9 @@ for mode in install check; do
         else [[ "$status" == 2 ]] || exit 1; fi
         : > "$fixture/expected"
         if [[ "$mode" == install ]]; then
-            printf '%s\n' 'install-ic-tools.sh preflight' 'install-rust-tools.sh preflight' >> "$fixture/expected"
+            printf '%s\n' 'install-rust-tools.sh preflight' >> "$fixture/expected"
         fi
-        for tool in host ic rust; do
+        for tool in host rust; do
             printf 'install-%s-tools.sh %s\n' "$tool" "$mode" >> "$fixture/expected"
             [[ "$tool" != "$failed" ]] || break
         done
@@ -181,18 +190,15 @@ for selection in default manifest; do
         cmp "$fixture/expected" "$HOST_MAKE_EVENTS"
     done
 done
-# Admission must finish before any of the three installation stages may run.
-for failed in ic rust; do
-    : > "$HOST_MAKE_EVENTS"
-    status=0
-    HOST_MAKE_TOOL_FAIL="install-$failed-tools.sh" HOST_MAKE_TOOL_FAIL_MODE=preflight \
-        make --no-print-directory -j4 install-tools > "$fixture/preflight-$failed.log" 2>&1 || status=$?
-    [[ "$status" == 2 ]] || exit 1
-    printf '%s\n' 'install-ic-tools.sh preflight' > "$fixture/expected"
-    if [[ "$failed" == rust ]]; then printf '%s\n' 'install-rust-tools.sh preflight' >> "$fixture/expected"; fi
-    cmp "$fixture/expected" "$HOST_MAKE_EVENTS"
-    [[ ! -e "$HOST_MAKE_EXTERNAL" ]] || exit 1
-done
+# Rust preflight must finish before either common installation stage may run.
+: > "$HOST_MAKE_EVENTS"
+status=0
+HOST_MAKE_TOOL_FAIL=install-rust-tools.sh HOST_MAKE_TOOL_FAIL_MODE=preflight \
+    make --no-print-directory -j4 install-tools > "$fixture/preflight-rust.log" 2>&1 || status=$?
+[[ "$status" == 2 ]] || exit 1
+printf '%s\n' 'install-rust-tools.sh preflight' > "$fixture/expected"
+cmp "$fixture/expected" "$HOST_MAKE_EVENTS"
+[[ ! -e "$HOST_MAKE_EXTERNAL" ]] || exit 1
 # Real pipe-descriptor admission in substituted Cargo, without compiling.
 for helper in scripts/ci/check-dependency-pins.sh \
     scripts/release/test-adapter.sh scripts/publish/test-workspace.sh \
@@ -214,8 +220,8 @@ if make --help | grep -q -- --jobserver-style; then
     jobserver_options+=(--jobserver-style=pipe)
 fi
 cargo_targets=(check clippy docs-check test test-artifacts-minimal
-    test-tools-response test-tools-interface test-tools-service test-tools-extraction
-    test-tools-limits test-wasm-inspection msrv msrv-workspace)
+    test-tools-default test-tools-interface
+    test-wasm-inspection msrv msrv-workspace)
 helper_targets=(publish publish-check dependency-pins-check
     release-adapter-check tooling-command-check publish-command-check)
 for target in "${cargo_targets[@]}" "${helper_targets[@]}"; do

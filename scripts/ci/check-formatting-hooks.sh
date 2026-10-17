@@ -38,7 +38,7 @@ unset VALIDATION_REPOSITORY_ROOT VALIDATION_RUNNER_SNAPSHOT_PATH
 unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE
 export CARGO_NET_OFFLINE=true RUSTUP_AUTO_INSTALL=0
 # Disposable adoption checkouts reuse the consumer's explicitly prepared tools.
-export PATH="$root/.tools/host/bin:$root/.tools/ic/bin:$root/.tools/rust/common/bin:$PATH"
+export PATH="$root/.tools/host/bin:$root/.tools/rust/common/bin:$PATH"
 fixture="$(mktemp -d "${TMPDIR:-/tmp}/formatting-adoption.XXXXXX")"
 fixture="$(cd -P "$fixture" && printf '%s/.' "$PWD")"
 fixture="${fixture%/.}"
@@ -158,12 +158,12 @@ tree="$(git write-tree)"
 reject_hook
 cmp "$fixture/sorted-manifest" "$manifest"
 new_case installer
-bash scripts/dev/install-git-hooks.sh > .git/install.log 2>&1
+bash scripts/dev/install-git-hooks.sh --consumer "$PWD" > .git/install.log 2>&1
 [[ "$(git config --local --get core.hooksPath)" == .githooks ]] || exit 1
 ln -s "$PWD" "$fixture/alias"
-(cd "$fixture/alias"; bash scripts/dev/install-git-hooks.sh) >> .git/install.log 2>&1
+(cd "$fixture/alias"; bash scripts/dev/install-git-hooks.sh --consumer "$PWD") >> .git/install.log 2>&1
 git config --local core.hooksPath existing-hooks
-if bash scripts/dev/install-git-hooks.sh > .git/conflict.log 2>&1; then exit 1; fi
+if bash scripts/dev/install-git-hooks.sh --consumer "$PWD" > .git/conflict.log 2>&1; then exit 1; fi
 [[ "$(git config --local --get core.hooksPath)" == existing-hooks ]] || exit 1
 echo 'Consumer formatting, preservation and hook installation checks passed'
 if [[ "$perturb_manifest" == true ]]; then echo 'Dependency sorting perturbation passed'; fi

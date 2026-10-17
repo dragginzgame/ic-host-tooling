@@ -1,5 +1,7 @@
 use super::*;
 
+mod observation;
+
 #[test]
 fn no_follow_admission_rejects_aliases_and_nonfiles_before_execution() {
     use std::os::unix::fs::symlink;
@@ -28,11 +30,16 @@ fn no_follow_admission_rejects_aliases_and_nonfiles_before_execution() {
             executable: rejected,
             executable_bytes: 1024 * 1024,
             version_arguments: &[OsString::from("--version")],
-            version_identity: VERSION,
         };
         assert!(
-            AdmittedTool::admit_no_follow(&spec, digest, &fixture.context(&environment), LIMITS)
-                .is_err()
+            AdmittedTool::admit_no_follow(
+                &spec,
+                digest,
+                VERSION,
+                &fixture.context(&environment),
+                LIMITS
+            )
+            .is_err()
         );
         assert!(!marker.exists());
     }
@@ -40,21 +47,26 @@ fn no_follow_admission_rejects_aliases_and_nonfiles_before_execution() {
         executable: &candidate,
         executable_bytes: 1024 * 1024,
         version_arguments: &[OsString::from("--version")],
-        version_identity: VERSION,
     };
     assert!(matches!(
         AdmittedTool::admit_no_follow(
             &spec,
             Sha256Digest::compute(b"wrong"),
+            VERSION,
             &fixture.context(&environment),
             LIMITS
         ),
         Err(ToolError::Artifact(ArtifactError::DigestMismatch { .. }))
     ));
     assert!(!marker.exists());
-    let admitted =
-        AdmittedTool::admit_no_follow(&spec, digest, &fixture.context(&environment), LIMITS)
-            .unwrap();
+    let admitted = AdmittedTool::admit_no_follow(
+        &spec,
+        digest,
+        VERSION,
+        &fixture.context(&environment),
+        LIMITS,
+    )
+    .unwrap();
     assert_eq!(admitted.identity().sha256, digest);
     assert_eq!(fs::read(&marker).unwrap(), b"invoked\n");
     let replacement = fixture.root.join("replacement");
@@ -83,8 +95,8 @@ fn observed_identity_is_retained_and_drift_is_rejected_before_execution() {
             executable: &candidate,
             executable_bytes: 1024 * 1024,
             version_arguments: &[OsString::from("--version")],
-            version_identity: VERSION,
         },
+        VERSION,
         &fixture.context(&environment),
         LIMITS,
     )
@@ -126,16 +138,17 @@ fn version_admission_retains_exact_match_and_failure_evidence() {
         executable: &path,
         executable_bytes: 1024 * 1024,
         version_arguments: &[OsString::from("--version")],
-        version_identity: VERSION,
     };
     let environment = [(
         OsString::from("FIXTURE_VERSION"),
         OsString::from(format!("  {VERSION}\t")),
     )];
-    assert!(AdmittedTool::admit_version(&spec, &fixture.context(&environment), LIMITS).is_ok());
+    assert!(
+        AdmittedTool::admit_version(&spec, VERSION, &fixture.context(&environment), LIMITS).is_ok()
+    );
     let environment = [(OsString::from("FIXTURE_VERSION"), OsString::from("wrong"))];
     let Err(ToolError::VersionMismatch { evidence }) =
-        AdmittedTool::admit_version(&spec, &fixture.context(&environment), LIMITS)
+        AdmittedTool::admit_version(&spec, VERSION, &fixture.context(&environment), LIMITS)
     else {
         panic!("version must match exactly");
     };
@@ -146,7 +159,7 @@ fn version_admission_retains_exact_match_and_failure_evidence() {
         OsString::from("invalid-utf8"),
     )];
     assert!(matches!(
-        AdmittedTool::admit_version(&spec, &fixture.context(&environment), LIMITS),
+        AdmittedTool::admit_version(&spec, VERSION, &fixture.context(&environment), LIMITS),
         Err(ToolError::VersionUtf8 { evidence, .. }) if evidence.stdout == [0xff]
     ));
     let environment = [(
@@ -154,7 +167,7 @@ fn version_admission_retains_exact_match_and_failure_evidence() {
         OsString::from("fail"),
     )];
     let Err(ToolError::Execution(error)) =
-        AdmittedTool::admit_version(&spec, &fixture.context(&environment), LIMITS)
+        AdmittedTool::admit_version(&spec, VERSION, &fixture.context(&environment), LIMITS)
     else {
         panic!("version command must succeed");
     };
@@ -177,26 +190,23 @@ fn installed_file_and_spec_are_admitted_before_version_dispatch() {
         executable: &candidate,
         executable_bytes: 1,
         version_arguments: &[OsString::from("--version")],
-        version_identity: VERSION,
     };
     assert!(matches!(
-        AdmittedTool::admit_version(&spec, &fixture.context(&environment), LIMITS),
+        AdmittedTool::admit_version(&spec, VERSION, &fixture.context(&environment), LIMITS),
         Err(ToolError::Artifact(ArtifactError::LimitExceeded { .. }))
     ));
     spec.executable_bytes = 1024 * 1024;
     for invalid in ["", " leading", "trailing "] {
-        spec.version_identity = invalid;
         assert!(matches!(
-            AdmittedTool::admit_version(&spec, &fixture.context(&environment), LIMITS),
+            AdmittedTool::admit_version(&spec, invalid, &fixture.context(&environment), LIMITS),
             Err(ToolError::InvalidInvocation(
                 InvalidInvocation::VersionIdentity
             ))
         ));
     }
-    spec.version_identity = VERSION;
     spec.executable = Path::new("relative");
     assert!(matches!(
-        AdmittedTool::admit_version(&spec, &fixture.context(&environment), LIMITS),
+        AdmittedTool::admit_version(&spec, VERSION, &fixture.context(&environment), LIMITS),
         Err(ToolError::InvalidInvocation(
             InvalidInvocation::ExecutablePath
         ))
@@ -204,7 +214,7 @@ fn installed_file_and_spec_are_admitted_before_version_dispatch() {
     spec.executable = &candidate;
     fs::set_permissions(&candidate, fs::Permissions::from_mode(0o600)).unwrap();
     assert!(matches!(
-        AdmittedTool::admit_version(&spec, &fixture.context(&environment), LIMITS),
+        AdmittedTool::admit_version(&spec, VERSION, &fixture.context(&environment), LIMITS),
         Err(ToolError::NotExecutable)
     ));
     assert!(!marker.exists());
@@ -220,8 +230,8 @@ fn version_capture_keeps_output_and_deadline_limits() {
                 executable: &path,
                 executable_bytes: 1024 * 1024,
                 version_arguments: &[OsString::from(argument)],
-                version_identity: VERSION,
             },
+            VERSION,
             &fixture.context(&[]),
             OutputLimits {
                 stdout: crate::tool::OutputLimit::Terminate(17),
@@ -258,8 +268,8 @@ fn truncated_matching_version_prefix_cannot_admit_an_executable() {
             executable: &path,
             executable_bytes: 1024 * 1024,
             version_arguments: &["--version".into()],
-            version_identity: VERSION,
         },
+        VERSION,
         &fixture.context(&environment),
         OutputLimits {
             stdout: OutputLimit::Truncate(VERSION.len()),

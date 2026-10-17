@@ -3,7 +3,7 @@
 #[cfg(test)]
 mod tests;
 
-use super::{ArtifactError, ArtifactIdentity, Sha256Digest, reserve_bounded, visit_reader};
+use super::{ArtifactError, ArtifactIdentity, Sha256Digest, buffer::reserve_bounded, visit_reader};
 use sha2::{Digest, Sha256};
 use std::{collections::TryReserveError, fmt, io::Read, num::NonZeroUsize};
 

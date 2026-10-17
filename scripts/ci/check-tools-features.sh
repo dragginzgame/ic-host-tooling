@@ -40,22 +40,16 @@ check_graph() {
     fi
 }
 
-check_graph response ic-host-tools default '' '' \
-    '^(ic-host-(artifacts|fs|process|text)|candid_parser|ciborium|ic-certification) '
-check_graph extraction ic-host-tools default candid-extraction \
-    'ic-host-artifacts ic-host-fs ic-host-process' '^(candid_parser|ic-host-text) '
-for feature in ic-interface ic-limits; do
-    check_graph "$feature" ic-host-tools none "$feature" ic-host-artifacts \
-        '^(ic-host-(fs|process|text)|candid_parser) '
-done
-check_graph service ic-host-tools none candid-service candid_parser \
-    '^(ic-host-(artifacts|fs|process|text)|wasmparser) '
-check_graph service-interface ic-host-tools none candid-service,ic-interface \
+check_graph tools ic-host-tools default '' 'candid_parser candid' \
+    '^(ic-host-(artifacts|fs|process|text)|wasmparser|ciborium|ic-certification) '
+check_graph tools-no-defaults ic-host-tools none '' 'candid_parser candid' \
+    '^(ic-host-(artifacts|fs|process|text)|wasmparser|ciborium|ic-certification) '
+check_graph ic-interface ic-host-tools none ic-interface \
     'ic-host-artifacts candid_parser wasmparser' '^ic-host-(fs|process|text) '
 check_graph inspection ic-host-wasm-inspect default '' 'ic-host-artifacts ic-host-fs' \
     '^(ic-host-process|candid_parser) '
-check_graph certificate ic-host-tools none certificate 'ciborium ic-certification' \
-    '^(ic-host-(artifacts|fs|process|text)|candid_parser|ic-agent|reqwest) '
+check_graph certificate ic-host-tools none certificate 'candid_parser ciborium ic-certification' \
+    '^(ic-host-(artifacts|fs|process|text)|wasmparser|ic-agent|reqwest) '
 check_graph text ic-host-text default '' unicode-width \
     '^(ic-host-(artifacts|fs|process|tools)|candid_parser|ic-agent|ic-certification|ciborium) '
 echo 'tools/text feature dependency graphs passed'

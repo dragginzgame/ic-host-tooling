@@ -50,22 +50,6 @@ not a classification contract. Consumers own package/repository path policy,
 release authority and how they use the complete observation. This does not replace
 index/worktree admission or commit-to-commit CI selection.
 
-## Release-prose advisory
-
-```bash
-bash scripts/ci/warn-release-prose.sh 0.3.7 docs/status/current.md
-```
-
-This optional Bash 3.2/awk helper warns when the selected status file describes
-its target version as a candidate, or its `Next action` section contains release
-instructions likely to become stale. The caller supplies the version and file;
-the default file is `docs/status/current.md`, resolved from the caller's directory.
-It does not parse package identity or decide release readiness. Missing inputs
-and reader failures remain advisory, and the command always returns success.
-Run it before release metadata mutation; never turn interpreted prose into a
-post-mutation blocker. Consumers retain invocation timing and their own status
-layout. The owner fixture qualifies heuristics and failure behavior.
-
 ## Evidence archives
 
 ```bash
@@ -243,7 +227,9 @@ of working versus committed sources and their release/preparation transactions.
 ## CI binary installers
 
 Use `scripts/ci/install-ci-tool.sh TOOL` for actionlint, shellcheck, gitleaks,
-sccache and yq. Supply exact `--version`, `--sha256` and `--install-dir` arguments.
+sccache. Supply exact `--version`, `--sha256` and `--install-dir` arguments.
+Prepare YQ through `make install-host-tools` and admit it with
+`make host-tools-check`; standalone YQ installation is retired.
 Since 0.16.0, installation requires an explicit destination; add the flag before
 refreshing callers that used `TOOL_INSTALL_DIR` or the home-directory default.
 Missing or empty destinations refuse before host probes, downloads or filesystem
@@ -274,8 +260,11 @@ The installer prints the selected executable path; callers own `GITHUB_PATH`,
 
 `scripts/ci/run-sccache.sh` owns stable, repository-scoped temporary files and
 socket selection for a cache server that outlives one validation invocation.
-It forwards the exact arguments, diagnostics and exit status to `SCCACHE_BIN`;
-it does not select Cargo's compiler wrapper or retry compiler failures.
+It forwards the exact arguments, diagnostics and exit status to `SCCACHE_BIN`.
+Set that variable to an absolute executable file. Unset, empty, bare-name,
+relative, directory and unavailable selections fail before runtime creation;
+there is no PATH fallback. The selected file may be a caller-owned adapter.
+The launcher does not select Cargo's compiler wrapper or retry compiler failures.
 It refuses a symlinked repository `.tmp`, selected runtime root or `tmp` child
 before creating runtime directories. An explicit `SCCACHE_RUNTIME_DIR` owns its
 chosen location; its ancestors follow normal filesystem resolution (including
@@ -661,9 +650,10 @@ make this checker pass. See [#33](https://github.com/dragginzgame/shared-tooling
 
 Review the consumer's Makefile and formatting commands before execution. This
 helper executes those commands; it is not a sandbox for arbitrary Make code.
-Prerequisites must already be installed. The selected consumer's `.tools/host/bin`,
-`.tools/ic/bin` and `.tools/rust/common/bin` precede inherited PATH for executable lookup;
-formatter inputs and configuration still come from the disposable checkout.
+Prerequisites must already be installed. The selected consumer's `.tools/host/bin`
+and `.tools/rust/common/bin` precede inherited PATH for executable lookup;
+products requiring IC formatters explicitly publish their prepared IC PATH.
+Formatter inputs and configuration still come from the disposable checkout.
 Cargo is forced offline, rustup auto
 installation is disabled, and inherited Git/Make/logger checkout selections are
 cleared. The baseline must pass its real `fmt-check` before perturbation.
@@ -789,8 +779,12 @@ Callers pass the array to the evidence archiver and retain archive layout, sourc
 identity, Git custody and upload policy. This helper never removes logs.
 
 The exportable `test-release-source.sh` owns generic source-admission cases in
-a minimal disposable Git repository. Consumers retain tests of their actual
-allowlist, gate ordering and release adapter. Retention probes use
+a minimal disposable Git repository, including exact working-file and index
+preservation after literal metadata admission and rename-source refusal.
+It also qualifies refusal of plausible output from failed Git observations and
+invalid selections before Git dispatch, preserving files and removing scratch.
+Consumers retain tests of their actual allowlist, gate ordering and release
+adapter. Retention probes use
 `retained-completed` for fixtures that intentionally retain successful evidence;
 ordinary `completed` still requires successful scratch removal.
 
@@ -849,6 +843,19 @@ a script. It preserves jq failures and requires prepared jq on PATH. Callers
 own YAML-to-JSON selection, ordering/condition assertions and actual execution;
 extraction grants no authority to execute unreviewed workflow code. Focused
 coverage is `scripts/ci/test-workflow-step.sh`.
+
+## Producer and consumer fixture boundaries
+
+Shared's Cargo preflight fixture runs the real release runner against cold,
+offline, fetch-failed and tool-failed preparation, proving refusal before version
+preparation and retention of its isolated source/index. Consumers keep their
+preparation-authority routing, exact package/pin selections and recovery custody.
+The tool-version report fixture owns catalog/admission/probe mechanics, including
+partial stdout/stderr. Workflow fixtures can substitute that reporter boundary
+while checking their own log names, status and later-step refusal.
+The native archive fixture owns partial tar/hash failures and preservation of
+readable diagnostics plus their checksum. Consumers retain a real archive round
+trip for their selected payloads and workflow-level collector failure propagation.
 
 ## Consumer flow qualification
 
@@ -933,15 +940,14 @@ release/formatting inputs, logs and Git index after child or assertion failures.
 Consumers retain their own status/diagnostic checks without inspecting these
 shared checkers' internal directory layout.
 
-`collect-native-evidence.sh EVIDENCE OUTPUT` inventories available top-level files
-and packages the caller-owned tree verbatim, including hidden Git recovery state,
-with an archive checksum. Keep the same relative evidence-root spelling for
-inventory replay. The caller selects trusted inputs and artifact upload policy;
-this helper does not sanitize a tree for public distribution. Output must be
-outside the evidence tree; existing outputs refuse. Failures preserve inputs and
-partial output with their command status. Publish separately selected readable
-diagnostics before calling it. `test-native-evidence-archive.sh` owns packaging,
-checksum, containment, refusal and partial-failure qualification.
+IC Metrics' [recovery packaging contribution](https://github.com/dragginzgame/ic-metrics/pull/88)
+owns full native recovery packaging under
+`scripts/ci/package-native-recovery-evidence.sh` in its repository, including
+hidden Git state, inventory replay and archive checksums. Its workflow publishes
+separately selected readable diagnostics through the shared sanitized exporter.
+The former shared `collect-native-evidence.sh` and its fixture are retired;
+remove their snapshot entrypoints when adopting this cut. Full recovery archives
+must retain their original contents and failure-preservation contract.
 
 ## Controlled hosted-scenario verification
 

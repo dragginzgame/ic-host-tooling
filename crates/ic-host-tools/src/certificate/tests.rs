@@ -224,3 +224,22 @@ fn certificate_and_delegation_fields_are_strict_and_trailing_data_refuses() {
         Err(DecodeError::ByteLimit { .. })
     ));
 }
+
+#[test]
+fn parser_failure_retains_wrapped_source_and_sanitized_display() {
+    use std::error::Error as _;
+
+    let secret = "private-certificate-value";
+    let error = decode_certificate(&encode(&secret), LIMITS).unwrap_err();
+    let wrapped = error.source().unwrap();
+    assert!(wrapped.is::<ParseError>());
+    assert!(
+        wrapped
+            .source()
+            .unwrap()
+            .is::<ciborium::de::Error<io::Error>>()
+    );
+    assert!(!error.to_string().contains(secret));
+    assert!(!wrapped.to_string().contains(secret));
+    assert!(DecodeError::TrailingData.source().is_none());
+}

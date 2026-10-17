@@ -21,7 +21,7 @@ for directory in "$source_root" "$fixture_root"; do
 done
 [[ "$source_root" != "$fixture_root" ]] || exit 2
 payloads=(make/consumer.mk make/tools.mk make/release.mk make/rust-format.mk make/execution.mk
-    scripts/ci/check-make-execution.sh scripts/ci/run-formatting.sh)
+    scripts/ci/check-make-execution.sh scripts/ci/check-release-delivery.sh scripts/ci/run-formatting.sh)
 # Admit every input and output before creating directories or copying a file.
 for directory in make scripts scripts/ci; do
     [[ ! -L "$fixture_root/$directory" && ( ! -e "$fixture_root/$directory" || -d "$fixture_root/$directory" ) ]] || exit 2

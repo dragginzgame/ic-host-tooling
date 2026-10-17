@@ -194,12 +194,17 @@ because they erase that independent evidence. Safe `MAKEFLAGS` selections,
 parallel execution and ordinary release variables remain supported.
 Set `SHARED_TOOLING_ROOT` for runtime runner routing to a nested reviewed snapshot;
 consumer target-specific overrides still apply to recipes.
-Keep delivery admission and metadata adapters local. Attach existing admission
-prerequisites to the four entrypoints and export cache-preparation selections
+Keep supported delivery choices and metadata adapters local. A consumer that
+supports a subset of `direct`/`pr` sets `RELEASE_DELIVERY_POLICY` before the include
+to one regular data file, with one supported mode per line. Make admission and
+standalone adapters share `check-release-delivery.sh`; see the
+[policy contract](make-interface.md).
+The canonical hook roster includes PR delivery's `release-merged-preflight`.
+Attach additional product admission prerequisites to the four entrypoints and export cache-preparation selections
 with target-specific variables; do not replace the shared recipes. For example:
 
 ```makefile
-release-patch release-minor release-major release-resume: release-delivery-check
+release-patch release-minor release-major release-resume: local-release-preflight
 release-patch release-minor release-major release-resume: export MY_RELEASE_CACHE_PREPARE := 1
 ```
 
@@ -207,7 +212,8 @@ Preserve any consumer post-run reconciliation when adopting; a prerequisites-onl
 conversion does not reproduce an operation that previously followed the runner.
 The include does not select PR delivery, add validation or metadata adapters,
 publish packages, or clean artifacts. Keep those contracts explicit. Include
-`make/release.mk`, `make/execution.mk` and `scripts/ci/check-make-execution.sh`
+`make/release.mk`, `make/execution.mk`, `scripts/ci/check-make-execution.sh`
+and `scripts/ci/check-release-delivery.sh`
 in the extra inputs to `check-release-commands.sh` when testing
 an adopting Makefile with the runner at `scripts/ci/run-release.sh`. That smoke
 checker binds `SHARED_TOOLING_ROOT` to its disposable checkout, overriding parent
@@ -692,6 +698,10 @@ Undated numbered sections at or below that version remain history. One pending
 numbered section must agree with the target; competing candidates or a target
 already dated differently are conflicts. The selected numbered candidate must
 be the first release heading; `Draft` and misplaced candidates are rejected.
+The pending spelling is `## [X.Y.Z]`, without ` - Unreleased`. Unsupported
+suffixes are refused with the source line and expected selected heading before
+any candidate output is emitted; conflicting dates and duplicate or misplaced
+candidates remain separate diagnostic causes.
 With no candidate, the first release heading must identify the saved previous
 version; the helper then inserts the selected heading without inventing content.
 

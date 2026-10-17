@@ -250,12 +250,12 @@ fn selected_candidate_must_be_admitted_without_falling_back_after_digest_failure
         executable: &selected,
         executable_bytes: 1024 * 1024,
         version_arguments: &[OsString::from("--version")],
-        version_identity: VERSION,
     };
     assert!(matches!(
         AdmittedTool::admit(
             &spec,
             Sha256Digest::compute(b"wrong authority"),
+            VERSION,
             &fixture.context(&environment),
             LIMITS
         ),
