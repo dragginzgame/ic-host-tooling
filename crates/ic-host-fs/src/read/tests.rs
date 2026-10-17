@@ -43,6 +43,7 @@ fn following_reads_preserve_open_failure_before_size_admission() {
         for result in [
             read_file(&path, 0).map(|_| ()),
             hash_file(&path, 0).map(|_| ()),
+            read_file_prefix(&path, 0).map(|_| ()),
         ] {
             assert!(
                 matches!(result, Err(ArtifactError::Io(error)) if error.kind() == expected.kind())
@@ -75,6 +76,7 @@ fn regular_opener_follows_links_and_keeps_the_selected_inode() {
     std::fs::write(&path, b"replacement").unwrap();
     assert_eq!(read_opened_file(file, 8).unwrap(), b"original");
     assert_eq!(read_file(&link, 11).unwrap(), b"replacement");
+    assert_eq!(read_file_prefix(&link, 3).unwrap(), (b"rep".to_vec(), 11));
     assert!(matches!(
         open_regular_file(&fixture.root),
         Err(ArtifactError::NotRegularFile)
@@ -102,10 +104,13 @@ fn regular_opener_refuses_a_fifo_before_waiting_for_a_writer() {
     let (sender, receiver) = mpsc::channel();
     let reader = thread::spawn(move || {
         sender
-            .send(matches!(
-                open_regular_file(&path),
-                Err(ArtifactError::NotRegularFile)
-            ))
+            .send(
+                matches!(open_regular_file(&path), Err(ArtifactError::NotRegularFile))
+                    && matches!(
+                        read_file_prefix(&path, 0),
+                        Err(ArtifactError::NotRegularFile)
+                    ),
+            )
             .unwrap();
     });
     let result = receiver.recv_timeout(Duration::from_secs(2));
@@ -122,4 +127,31 @@ fn regular_opener_refuses_a_fifo_before_waiting_for_a_writer() {
     });
     reader.join().unwrap();
     assert!(result.unwrap());
+}
+
+#[test]
+fn file_prefix_preserves_source_and_reports_observed_length() {
+    let fixture = crate::test_support::Fixture::new();
+    let path = fixture.root.join("source");
+    std::fs::write(&path, b"original").unwrap();
+    for limit in [0, 3, 8, 32] {
+        let (bytes, length) = read_file_prefix(&path, limit).unwrap();
+        assert_eq!(bytes, b"original"[..limit.min(8)]);
+        assert_eq!(length, 8);
+    }
+    assert_eq!(std::fs::read(&path).unwrap(), b"original");
+    assert!(matches!(
+        read_file_prefix(&fixture.root, 0),
+        Err(ArtifactError::NotRegularFile)
+    ));
+    assert!(
+        matches!(read_file_prefix(&path.with_extension("missing"), 0), Err(ArtifactError::Io(error)) if error.kind() == io::ErrorKind::NotFound)
+    );
+    File::create(&path)
+        .unwrap()
+        .set_len(4 * 1024 * 1024 * 1024)
+        .unwrap();
+    let (bytes, length) = read_file_prefix(&path, 16).unwrap();
+    assert_eq!(bytes, [0; 16]);
+    assert_eq!(length, 4 * 1024 * 1024 * 1024);
 }

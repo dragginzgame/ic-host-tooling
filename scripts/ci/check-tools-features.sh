@@ -42,8 +42,6 @@ check_graph() {
 
 check_graph response ic-host-tools default '' '' \
     '^(ic-host-(artifacts|fs|process|text)|candid_parser|ciborium|ic-certification) '
-check_graph extraction ic-host-tools default candid-extraction \
-    'ic-host-artifacts ic-host-fs ic-host-process' '^(candid_parser|ic-host-text) '
 for feature in ic-interface ic-limits; do
     check_graph "$feature" ic-host-tools none "$feature" ic-host-artifacts \
         '^(ic-host-(fs|process|text)|candid_parser) '

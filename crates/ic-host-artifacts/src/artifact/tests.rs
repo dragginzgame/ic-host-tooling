@@ -1,6 +1,6 @@
 use super::test_support::{DeniedReader, InvalidReader};
 use super::*;
-use std::io::Cursor;
+use std::{fmt::Write as _, io::Cursor};
 
 #[test]
 fn io_projection_preserves_native_codes_and_typed_artifact_causes() {
@@ -45,6 +45,7 @@ fn sha256_matches_known_vectors_and_round_trips_authority() {
         let expected: Sha256Digest = hex.parse().unwrap();
         assert_eq!(Sha256Digest::compute(bytes), expected);
         assert_eq!(expected.to_string(), hex);
+        assert_eq!(expected.hex_bytes().as_slice(), hex.as_bytes());
         assert_eq!(Sha256Digest::from_bytes(*expected.as_bytes()), expected);
         assert_eq!(
             hash_reader(bytes, bytes.len() as u64).unwrap(),
@@ -66,6 +67,26 @@ fn sha256_matches_known_vectors_and_round_trips_authority() {
         "é".repeat(32).parse::<Sha256Digest>(),
         Err(DigestParseError::Digit { .. })
     ));
+}
+
+#[test]
+fn fixed_hex_covers_every_byte_leading_zeroes_and_display_flags() {
+    const ZERO: [u8; 64] = Sha256Digest::from_bytes([0; 32]).hex_bytes();
+    assert_eq!(ZERO, [b'0'; 64]);
+    for value in u8::MIN..=u8::MAX {
+        let bytes = std::array::from_fn(|index| value.wrapping_add(u8::try_from(index).unwrap()));
+        let digest = Sha256Digest::from_bytes(bytes);
+        // Independent formatting reproduces the prior per-byte implementation.
+        let mut expected = String::new();
+        for byte in bytes {
+            write!(expected, "{byte:02x}").unwrap();
+        }
+        let encoded = digest.hex_bytes();
+        assert_eq!(encoded.as_slice(), expected.as_bytes());
+        assert_eq!(digest.to_string(), expected);
+        assert_eq!(format!("{digest:>80.12}"), expected);
+        assert_eq!(expected.parse::<Sha256Digest>().unwrap(), digest);
+    }
 }
 
 #[test]

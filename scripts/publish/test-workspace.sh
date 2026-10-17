@@ -204,22 +204,17 @@ done
 [[ -f "$attempt/intent" && -f "$attempt/arguments" && -f "$attempt/cargo.log" && "$(cat "$attempt/status")" == 17 ]] || exit 1
 [[ -f target/package/fixture.crate && ! -e target/publish/lock ]] || exit 1
 
-# The adapter preserves both shared statuses, with Cargo failure taking priority.
-for pair in '0 23' '17 23'; do
-    read -r cargo_status log_status <<< "$pair"
-    : > calls
-    status=0
-    PUBLISH_CARGO_RESULT="$cargo_status" PUBLISH_LOG_RESULT="$log_status" \
-        invoke publish > logger-failure.log 2>&1 || status=$?
-    expected_status="$cargo_status"; [[ "$expected_status" != 0 ]] || expected_status="$log_status"
-    [[ "$status" == "$expected_status" ]] || exit 1
-    cmp expected-calls calls
-    core="$(sed -n 's/^Publication evidence: //p' logger-failure.log)"
-    [[ "$(cat "$core/cargo-status")" == "$cargo_status" &&
-       "$(cat "$core/log-status")" == "$log_status" &&
-       "$(cat "$core/status")" == "$expected_status" ]] || exit 1
-    [[ ! -e target/publish/lock && ! -e target/publish/.cargo-publication.lock ]] || exit 1
-done
+# Shared owns status precedence and the complete Cargo/logger failure matrix.
+# Host proves delegation preserves its status and releases the preparation lock.
+: > calls
+status=0
+PUBLISH_CARGO_RESULT=0 PUBLISH_LOG_RESULT=23 \
+    invoke publish > logger-failure.log 2>&1 || status=$?
+[[ "$status" == 23 ]] || exit 1
+cmp expected-calls calls
+core="$(sed -n 's/^Publication evidence: //p' logger-failure.log)"
+[[ "$(cat "$core/status")" == "$status" &&
+   ! -e target/publish/lock && ! -e target/publish/.cargo-publication.lock ]] || exit 1
 
 # Plausible stdout from a failed metadata query is never upload authority.
 : > calls

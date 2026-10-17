@@ -1,6 +1,4 @@
-//! Candid service interpretation with optional extractor execution.
+//! Candid service interpretation.
 
-#[cfg(all(unix, feature = "candid-extraction"))]
-pub mod extraction;
 #[cfg(feature = "candid-service")]
 pub mod service;

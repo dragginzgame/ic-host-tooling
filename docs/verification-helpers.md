@@ -789,8 +789,12 @@ Callers pass the array to the evidence archiver and retain archive layout, sourc
 identity, Git custody and upload policy. This helper never removes logs.
 
 The exportable `test-release-source.sh` owns generic source-admission cases in
-a minimal disposable Git repository. Consumers retain tests of their actual
-allowlist, gate ordering and release adapter. Retention probes use
+a minimal disposable Git repository, including exact working-file and index
+preservation after literal metadata admission and rename-source refusal.
+It also qualifies refusal of plausible output from failed Git observations and
+invalid selections before Git dispatch, preserving files and removing scratch.
+Consumers retain tests of their actual allowlist, gate ordering and release
+adapter. Retention probes use
 `retained-completed` for fixtures that intentionally retain successful evidence;
 ordinary `completed` still requires successful scratch removal.
 

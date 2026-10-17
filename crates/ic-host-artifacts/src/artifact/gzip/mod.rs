@@ -4,8 +4,8 @@
 mod tests;
 
 use super::{
-    ArtifactError, ArtifactIdentity, BoundedWriter, CopyError, MatchingWriter, Sha256Digest,
-    copy_reader, hash_reader, read_reader, visit_reader,
+    ArtifactError, ArtifactIdentity, BoundedWriter, CopyError, MatchingWriter, copy_reader,
+    hash_reader, read_reader, visit_reader,
 };
 use std::{
     fmt,
@@ -164,44 +164,6 @@ pub fn hash_gzip(
     with_decoder(bytes, max_compressed_bytes, |decoder| {
         hash_reader(decoder, max_decoded_bytes)
     })
-}
-
-/// Identify raw bytes or the decoded payload of a single gzip member.
-///
-/// Exactly the leading bytes `1f 8b` select gzip; malformed gzip never falls
-/// back to raw hashing. All other inputs, including empty or one-byte inputs,
-/// are raw. Both representations must fit `max_input_bytes`; the decoded or
-/// raw payload must independently fit `max_payload_bytes`. Returns the same
-/// identity for a raw payload and its valid gzip representation.
-///
-/// This is representation handling, not Wasm validation or IC install policy.
-/// A caller comparing a canister module hash must independently admit Wasm and
-/// select its limits. The complete supplied input is already resident; no
-/// decoded payload buffer is allocated. Multi-member gzip is rejected.
-///
-/// # Errors
-/// Returns the same errors as [`hash_gzip`]; raw payload-limit failures use
-/// [`GzipError::Decode`]. No partial identity is returned.
-pub fn hash_gzip_or_raw(
-    bytes: &[u8],
-    max_input_bytes: usize,
-    max_payload_bytes: u64,
-) -> Result<ArtifactIdentity, GzipError> {
-    if bytes.starts_with(&[0x1f, 0x8b]) {
-        hash_gzip(bytes, max_input_bytes, max_payload_bytes)
-    } else {
-        check_input_limit(bytes, max_input_bytes)?;
-        let length = bytes.len() as u64;
-        if length > max_payload_bytes {
-            return Err(GzipError::Decode(ArtifactError::LimitExceeded {
-                limit: max_payload_bytes,
-            }));
-        }
-        Ok(ArtifactIdentity {
-            bytes: length,
-            sha256: Sha256Digest::compute(bytes),
-        })
-    }
 }
 
 /// Compare one complete gzip payload with borrowed expected bytes, without a copy.

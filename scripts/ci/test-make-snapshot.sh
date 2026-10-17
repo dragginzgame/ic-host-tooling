@@ -214,7 +214,7 @@ if make --help | grep -q -- --jobserver-style; then
     jobserver_options+=(--jobserver-style=pipe)
 fi
 cargo_targets=(check clippy docs-check test test-artifacts-minimal
-    test-tools-response test-tools-interface test-tools-service test-tools-extraction
+    test-tools-response test-tools-interface test-tools-service
     test-tools-limits test-wasm-inspection msrv msrv-workspace)
 helper_targets=(publish publish-check dependency-pins-check
     release-adapter-check tooling-command-check publish-command-check)
