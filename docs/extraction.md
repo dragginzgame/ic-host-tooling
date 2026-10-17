@@ -121,6 +121,11 @@ Canic endpoint presentation remain consumer policy. IC Build owns build/cache
 orchestration separately; these libraries do not install tools or build canisters.
 
 Within `ic-host-fs`, `read` is the sole owner of required/optional/private reads.
+Its metadata-returning hash variants retain the initial metadata from the same
+descriptor used for bounded hashing. Identity-only hash calls project that result;
+Process consumes the paired observation for its executable permission policy,
+after byte/digest admission. Metadata can become stale under concurrent writers;
+neither paired observation nor hashing establishes atomic pathname execution.
 Its Unix `tree` module exposes a no-follow descriptor traversal for caller-owned
 entry handling, but does not own Backup's tree checksum framing, complete
 artifact publication policy or retained byte custody. Callers admit and hold the root, select

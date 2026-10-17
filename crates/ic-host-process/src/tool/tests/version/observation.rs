@@ -3,9 +3,9 @@ use super::*;
 #[test]
 fn one_observation_retains_version_and_refuses_byte_drift() {
     let fixture = Fixture::new();
-    let candidate = fixture.root.join("installed tool");
+    let candidate = fixture.path().join("installed tool");
     crate::testing::write_executable_script(&candidate, fs::read(tool_path()).unwrap()).unwrap();
-    let marker = fixture.root.join("invocations");
+    let marker = fixture.path().join("invocations");
     let environment = [
         ("FIXTURE_MARKER".into(), marker.as_os_str().to_owned()),
         (
@@ -95,7 +95,7 @@ fn observation_requires_complete_successful_nonempty_utf8() {
 fn observation_admits_inputs_and_file_before_version_dispatch() {
     let fixture = Fixture::new();
     let path = tool_path();
-    let marker = fixture.root.join("invocations");
+    let marker = fixture.path().join("invocations");
     let environment = [("FIXTURE_MARKER".into(), marker.as_os_str().to_owned())];
     let mut spec = VersionSpec {
         executable: &path,

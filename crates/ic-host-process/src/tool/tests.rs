@@ -1,5 +1,6 @@
 use super::*;
 use crate::test_support::{Fixture, LIMITS, VERSION, admit, tool_path};
+use ic_host_fs::read::hash_file;
 use std::os::unix::ffi::OsStringExt as _;
 
 mod capture;
@@ -12,7 +13,7 @@ mod version;
 #[test]
 fn digest_rejection_precedes_any_version_execution() {
     let fixture = Fixture::new();
-    let marker = fixture.root.join("invocations");
+    let marker = fixture.path().join("invocations");
     let environment = [(
         OsString::from("FIXTURE_MARKER"),
         marker.as_os_str().to_owned(),
@@ -65,7 +66,7 @@ fn digest_rejection_precedes_any_version_execution() {
 fn arguments_environment_directory_and_stdin_are_explicit() {
     let fixture = Fixture::new();
     let tool = fixture.tool();
-    let marker = fixture.root.join("must-not-be-created");
+    let marker = fixture.path().join("must-not-be-created");
     let suspicious = format!("$(touch {}) ; newline\nnon-ascii:é", marker.display());
     let output = tool
         .run(
@@ -108,7 +109,7 @@ fn arguments_environment_directory_and_stdin_are_explicit() {
         .unwrap();
     assert_eq!(
         std::str::from_utf8(&output.stdout).unwrap().trim_end(),
-        fixture.root.to_str().unwrap()
+        fixture.path().to_str().unwrap()
     );
     let output = tool
         .run(&[OsString::from("--stdin")], &fixture.context(&[]), LIMITS)
@@ -120,7 +121,7 @@ fn arguments_environment_directory_and_stdin_are_explicit() {
 fn nonzero_exit_retains_bytes_without_automatic_logging_or_retry() {
     let fixture = Fixture::new();
     let tool = fixture.tool();
-    let marker = fixture.root.join("invocations");
+    let marker = fixture.path().join("invocations");
     let secret = "private credential value";
     let environment = [
         (
@@ -248,7 +249,7 @@ fn deadlines_cover_running_children_closed_streams_and_descendant_pipe_copies() 
 #[test]
 fn changed_or_nonexecutable_candidates_are_rejected_before_execution() {
     let fixture = Fixture::new();
-    let candidate = fixture.root.join("tool");
+    let candidate = fixture.path().join("tool");
     crate::testing::write_executable_script(&candidate, fs::read(tool_path()).unwrap()).unwrap();
     let tool = admit(&candidate, &fixture.context(&[]), VERSION).unwrap();
     crate::testing::write_executable_script(&candidate, b"#!/bin/sh\nexit 0\n").unwrap();
@@ -330,7 +331,7 @@ fn invalid_invocations_are_typed_and_never_dispatched() {
 fn unavailable_working_directory_returns_spawn_evidence_without_retry() {
     let fixture = Fixture::new();
     let tool = fixture.tool();
-    let missing = fixture.root.join("missing");
+    let missing = fixture.path().join("missing");
     let context = ExecutionContext {
         current_dir: &missing,
         environment: &[],

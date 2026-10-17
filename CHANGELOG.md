@@ -4,6 +4,11 @@
 
 ### Changed
 
+- Use the hashed executable descriptor's metadata for permission admission,
+  preserving size/digest refusal before permission policy. Private-file errors
+  retain their messages and original causes through derived error traits.
+- Test fixtures borrow their cleanup guard's path instead of storing another
+  copy; successful cleanup and panic retention remain unchanged.
 - Adopt Shared Tooling 0.22.0 with validated CI-tool catalog records and shared
   formatting-fixture cleanup, retaining both Cargo source-evidence helpers.
 - Share saved Cargo member-source context with Shared Tooling while retaining
@@ -15,6 +20,9 @@
 
 ### Added
 
+- Retain descriptor metadata alongside bounded file hashes through following
+  and final-component no-follow reads. Metadata is an observation rather than
+  immutable content, pathname custody or atomic execution authority.
 - Share bounded newline framing for buffered readers and incremental process
   output, preserving queued messages, refused prefixes and original I/O causes.
   Schemas, deadlines, EOF-tail acceptance and recovery remain caller-owned

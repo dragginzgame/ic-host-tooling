@@ -104,19 +104,19 @@ mod tests {
 
     #[test]
     fn fixture_guard_removes_successful_test_output() {
-        let parent = crate::test_support::Fixture::new();
-        let fixture = FixtureDirectory::new(&parent.root, "successful").unwrap();
+        let parent = crate::test_support::fixture();
+        let fixture = FixtureDirectory::new(parent.path(), "successful").unwrap();
         let path = fixture.path().to_path_buf();
         fs::write(path.join("output"), b"completed output").unwrap();
         drop(fixture);
         assert!(!path.exists());
-        assert!(parent.root.is_dir());
+        assert!(parent.path().is_dir());
     }
 
     #[test]
     fn fixture_guard_retains_failed_test_evidence_during_unwind() {
-        let parent = crate::test_support::Fixture::new();
-        let fixture = FixtureDirectory::new(&parent.root, "failed").unwrap();
+        let parent = crate::test_support::fixture();
+        let fixture = FixtureDirectory::new(parent.path(), "failed").unwrap();
         let path = fixture.path().to_path_buf();
         fs::write(path.join("evidence"), b"failure evidence").unwrap();
         let panic = std::panic::catch_unwind(move || {
@@ -132,8 +132,8 @@ mod tests {
 
     #[test]
     fn parallel_allocation_preserves_existing_entries_and_caller_retention() {
-        let root = crate::test_support::Fixture::new();
-        let marker = root.root.join("retained");
+        let root = crate::test_support::fixture();
+        let marker = root.path().join("retained");
         fs::write(&marker, b"original evidence").unwrap();
         #[expect(
             clippy::needless_collect,
@@ -141,7 +141,7 @@ mod tests {
         )]
         let paths = std::thread::scope(|scope| {
             let workers = (0..32)
-                .map(|_| scope.spawn(|| create_fixture_directory(&root.root, "parallel").unwrap()))
+                .map(|_| scope.spawn(|| create_fixture_directory(root.path(), "parallel").unwrap()))
                 .collect::<Vec<_>>();
             workers
                 .into_iter()
@@ -152,7 +152,7 @@ mod tests {
         assert_eq!(fs::read(&marker).unwrap(), b"original evidence");
         for path in paths {
             assert!(path.is_dir());
-            assert_eq!(path.parent(), Some(root.root.as_path()));
+            assert_eq!(path.parent(), Some(root.path()));
             #[cfg(unix)]
             {
                 use std::os::unix::fs::PermissionsExt as _;
@@ -163,7 +163,7 @@ mod tests {
 
     #[test]
     fn invalid_prefix_and_missing_parent_preserve_the_namespace() {
-        let root = crate::test_support::Fixture::new();
+        let root = crate::test_support::fixture();
         for prefix in [
             "",
             ".",
@@ -177,28 +177,28 @@ mod tests {
             "carriage\rreturn",
         ] {
             assert_eq!(
-                create_fixture_directory(&root.root, prefix)
+                create_fixture_directory(root.path(), prefix)
                     .unwrap_err()
                     .kind(),
                 io::ErrorKind::InvalidInput
             );
         }
         assert_eq!(
-            create_fixture_directory(&root.root.join("absent"), "valid")
+            create_fixture_directory(&root.path().join("absent"), "valid")
                 .unwrap_err()
                 .kind(),
             io::ErrorKind::NotFound
         );
-        assert_eq!(fs::read_dir(&root.root).unwrap().count(), 0);
+        assert_eq!(fs::read_dir(root.path()).unwrap().count(), 0);
     }
 
     #[cfg(unix)]
     #[test]
     fn parent_alias_returns_a_physical_path() {
-        let root = crate::test_support::Fixture::new();
-        let parent = root.root.join("physical");
+        let root = crate::test_support::fixture();
+        let parent = root.path().join("physical");
         fs::create_dir(&parent).unwrap();
-        let alias = root.root.join("alias");
+        let alias = root.path().join("alias");
         std::os::unix::fs::symlink(&parent, &alias).unwrap();
         let path = create_fixture_directory(&alias, "fixture").unwrap();
         assert_eq!(path.parent(), Some(parent.as_path()));

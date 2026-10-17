@@ -14,7 +14,7 @@ pub use diagnostics::format_failure_evidence;
 pub use resolution::{ResolutionError, resolve_executable};
 
 use ic_host_artifacts::artifact::{ArtifactError, ArtifactIdentity, Sha256Digest};
-use ic_host_fs::read::{hash_file, hash_file_no_follow};
+use ic_host_fs::read::{hash_file_no_follow_with_metadata, hash_file_with_metadata};
 use std::{
     ffi::OsString,
     fmt, fs, io,
@@ -876,22 +876,16 @@ fn verify_executable(
     expected: Option<Sha256Digest>,
     no_follow: bool,
 ) -> Result<ArtifactIdentity, ToolError> {
-    let actual = if no_follow {
-        hash_file_no_follow(path, limit)
+    let (actual, metadata) = if no_follow {
+        hash_file_no_follow_with_metadata(path, limit)
     } else {
-        hash_file(path, limit)
+        hash_file_with_metadata(path, limit)
     }
     .map_err(ToolError::Artifact)?;
     if let Some(expected) = expected {
         actual.verify(expected).map_err(ToolError::Artifact)?;
     }
-    if fs::metadata(path)
-        .map_err(ToolError::Io)?
-        .permissions()
-        .mode()
-        & 0o111
-        == 0
-    {
+    if metadata.permissions().mode() & 0o111 == 0 {
         return Err(ToolError::NotExecutable);
     }
     Ok(actual)

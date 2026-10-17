@@ -433,7 +433,7 @@ mod tests {
         use std::{fs, io};
 
         let fixture = crate::test_support::Fixture::new();
-        fs::create_dir(fixture.root.join("123")).unwrap();
+        fs::create_dir(fixture.path().join("123")).unwrap();
         let fields = ["S", "42"]
             .into_iter()
             .chain(["0"; 19])
@@ -441,13 +441,13 @@ mod tests {
             .collect::<Vec<_>>()
             .join(" ");
         let record = format!("123 (name with ) parentheses) {fields}");
-        fs::write(fixture.root.join("123/stat"), &record).unwrap();
+        fs::write(fixture.path().join("123/stat"), &record).unwrap();
         let exact = u64::try_from(record.len()).unwrap();
 
         // Cutting within RSS must not turn 12345 pages into a valid 123-page
         // observation. Zero and one-byte-short bounds must also detect overflow.
         for allowance in [exact - 2, 0, exact - 1] {
-            let error = super::process_snapshot(&fixture.root, 4096, allowance)
+            let error = super::process_snapshot(fixture.path(), 4096, allowance)
                 .expect_err("oversized stat records cannot yield partial RSS");
             let SamplingError::Io(source) = error else {
                 panic!("record allowance refusal retains its typed stream cause");
@@ -459,18 +459,18 @@ mod tests {
             ));
         }
         for allowance in [exact, exact + 1] {
-            let observed = super::process_snapshot(&fixture.root, 4096, allowance).unwrap();
+            let observed = super::process_snapshot(fixture.path(), 4096, allowance).unwrap();
             assert_eq!(observed[&123].parent, 42);
             assert_eq!(observed[&123].resident_bytes, 12345 * 4096);
         }
 
-        fs::create_dir(fixture.root.join("124")).unwrap();
-        let observed = super::process_snapshot(&fixture.root, 4096, exact).unwrap();
+        fs::create_dir(fixture.path().join("124")).unwrap();
+        let observed = super::process_snapshot(fixture.path(), 4096, exact).unwrap();
         assert_eq!(observed.len(), 1); // A vanished stat entry still skips.
 
-        fs::write(fixture.root.join("124/stat"), [0xff]).unwrap();
+        fs::write(fixture.path().join("124/stat"), [0xff]).unwrap();
         assert!(matches!(
-            super::process_snapshot(&fixture.root, 4096, exact),
+            super::process_snapshot(fixture.path(), 4096, exact),
             Err(SamplingError::Io(source)) if source.kind() == io::ErrorKind::InvalidData
         ));
     }

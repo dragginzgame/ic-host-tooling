@@ -3,19 +3,54 @@ use super::*;
 mod observation;
 
 #[test]
+fn descriptor_admission_preserves_size_digest_then_permission_refusal() {
+    let fixture = Fixture::new();
+    let path = fixture.path().join("not-executable");
+    let bytes = b"caller-selected bytes";
+    fs::write(&path, bytes).unwrap();
+    fs::set_permissions(&path, fs::Permissions::from_mode(0o600)).unwrap();
+    for no_follow in [false, true] {
+        assert!(matches!(
+            verify_executable(&path, 0, Some(Sha256Digest::compute(b"wrong")), no_follow),
+            Err(ToolError::Artifact(ArtifactError::LimitExceeded {
+                limit: 0
+            }))
+        ));
+        assert!(matches!(
+            verify_executable(
+                &path,
+                bytes.len() as u64,
+                Some(Sha256Digest::compute(b"wrong")),
+                no_follow
+            ),
+            Err(ToolError::Artifact(ArtifactError::DigestMismatch { .. }))
+        ));
+        assert!(matches!(
+            verify_executable(
+                &path,
+                bytes.len() as u64,
+                Some(Sha256Digest::compute(bytes)),
+                no_follow
+            ),
+            Err(ToolError::NotExecutable)
+        ));
+    }
+}
+
+#[test]
 fn no_follow_admission_rejects_aliases_and_nonfiles_before_execution() {
     use std::os::unix::fs::symlink;
     let fixture = Fixture::new();
-    let candidate = fixture.root.join("installed-tool");
+    let candidate = fixture.path().join("installed-tool");
     crate::testing::write_executable_script(&candidate, fs::read(tool_path()).unwrap()).unwrap();
-    let marker = fixture.root.join("invocations");
+    let marker = fixture.path().join("invocations");
     let environment = [(
         OsString::from("FIXTURE_MARKER"),
         marker.as_os_str().to_owned(),
     )];
-    let alias = fixture.root.join("alias");
+    let alias = fixture.path().join("alias");
     symlink(&candidate, &alias).unwrap();
-    let fifo = fixture.root.join("fifo");
+    let fifo = fixture.path().join("fifo");
     assert!(
         std::process::Command::new("/usr/bin/mkfifo")
             .args(["-m", "400"])
@@ -25,7 +60,7 @@ fn no_follow_admission_rejects_aliases_and_nonfiles_before_execution() {
             .success()
     );
     let digest = hash_file(&candidate, 1024 * 1024).unwrap().sha256;
-    for rejected in [&alias, &fifo, &fixture.root] {
+    for rejected in [&alias, &fifo, fixture.path()] {
         let spec = VersionSpec {
             executable: rejected,
             executable_bytes: 1024 * 1024,
@@ -69,7 +104,7 @@ fn no_follow_admission_rejects_aliases_and_nonfiles_before_execution() {
     .unwrap();
     assert_eq!(admitted.identity().sha256, digest);
     assert_eq!(fs::read(&marker).unwrap(), b"invoked\n");
-    let replacement = fixture.root.join("replacement");
+    let replacement = fixture.path().join("replacement");
     fs::rename(&candidate, &replacement).unwrap();
     symlink(&replacement, &candidate).unwrap();
     assert!(
@@ -83,9 +118,9 @@ fn no_follow_admission_rejects_aliases_and_nonfiles_before_execution() {
 #[test]
 fn observed_identity_is_retained_and_drift_is_rejected_before_execution() {
     let fixture = Fixture::new();
-    let candidate = fixture.root.join("installed tool");
+    let candidate = fixture.path().join("installed tool");
     crate::testing::write_executable_script(&candidate, fs::read(tool_path()).unwrap()).unwrap();
-    let marker = fixture.root.join("invocations");
+    let marker = fixture.path().join("invocations");
     let environment = [(
         OsString::from("FIXTURE_MARKER"),
         marker.as_os_str().to_owned(),
@@ -179,9 +214,9 @@ fn version_admission_retains_exact_match_and_failure_evidence() {
 #[test]
 fn installed_file_and_spec_are_admitted_before_version_dispatch() {
     let fixture = Fixture::new();
-    let candidate = fixture.root.join("tool");
+    let candidate = fixture.path().join("tool");
     crate::testing::write_executable_script(&candidate, fs::read(tool_path()).unwrap()).unwrap();
-    let marker = fixture.root.join("invocations");
+    let marker = fixture.path().join("invocations");
     let environment = [(
         OsString::from("FIXTURE_MARKER"),
         marker.as_os_str().to_owned(),

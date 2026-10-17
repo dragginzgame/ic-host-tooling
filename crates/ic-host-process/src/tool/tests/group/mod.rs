@@ -11,9 +11,9 @@ fn group_capture_cleans_wrapper_descendants_on_exit_timeout_and_overflow() {
         ("stdout", "while :; do printf 0123456789abcdef; done"),
         ("stderr", "while :; do printf 0123456789abcdef >&2; done"),
     ] {
-        let ready = fixture.root.join(format!("{mode}-ready"));
-        let go = fixture.root.join(format!("{mode}-go"));
-        let late = fixture.root.join(format!("{mode}-late"));
+        let ready = fixture.path().join(format!("{mode}-ready"));
+        let go = fixture.path().join(format!("{mode}-go"));
+        let late = fixture.path().join(format!("{mode}-late"));
         let script = format!(
             "(printf ready > \"$READY\"; while ! test -f \"$GO\"; do sleep 0.01; done; printf late > \"$LATE\") & \
              while ! test -f \"$READY\"; do sleep 0.01; done; {ending}"
@@ -77,7 +77,7 @@ fn group_capture_cleans_wrapper_descendants_on_exit_timeout_and_overflow() {
 #[test]
 fn group_capture_retains_fair_streams_and_refuses_invalid_deadlines_before_spawn() {
     let fixture = Fixture::new();
-    let marker = fixture.root.join("calls");
+    let marker = fixture.path().join("calls");
     let mut command = Command::new(tool_path());
     command.arg("--both").env("FIXTURE_MARKER", &marker);
     let evidence = capture_group_command(&mut command, LIMITS).unwrap();
@@ -99,8 +99,8 @@ fn group_capture_retains_fair_streams_and_refuses_invalid_deadlines_before_spawn
         ));
     }
     assert_eq!(fs::read(&marker).unwrap(), b"invoked\n");
-    let error =
-        capture_group_command(&mut Command::new(fixture.root.join("missing")), LIMITS).unwrap_err();
+    let error = capture_group_command(&mut Command::new(fixture.path().join("missing")), LIMITS)
+        .unwrap_err();
     let execution = error.execution_error().unwrap();
     assert!(matches!(
         execution.failure,
@@ -116,7 +116,7 @@ fn group_capture_retains_fair_streams_and_refuses_invalid_deadlines_before_spawn
 #[test]
 fn direct_capture_still_leaves_descendant_lifetime_to_the_caller() {
     let fixture = Fixture::new();
-    let marker = fixture.root.join("direct-descendant");
+    let marker = fixture.path().join("direct-descendant");
     let mut command = Command::new("/bin/sh");
     command
         .args([

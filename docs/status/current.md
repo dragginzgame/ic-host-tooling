@@ -49,6 +49,16 @@ migration; see [Canic #575 — Own Backup operational path admission](https://gi
 
 ## Qualification receipt
 
+Descriptor/fixture cleanup evidence is retained at `/tmp/host0261-descriptors.0zuih3/`,
+relative to clean Host `27d1c91`. Hash/metadata observations share one descriptor;
+Process retains size/digest-before-permission policy. Private-read error messages
+and sources retain their contracts; fixtures borrow the cleanup guard's path.
+All 132 FS and 130 Process cases pass on current Rust and actual Rust 1.88.
+The four HTTP cases require loopback access and pass separately after sandbox
+socket refusal. Affected all-target MSRV, strict Clippy/Rustdoc, formatting,
+pins, snapshot and links pass. Native macOS qualification remains separate;
+package versions, dependency selection, index and Git refs are preserved.
+
 Shared refresh evidence is retained at `/tmp/host-shared022.vsM8HK/`. Canonical
 source `08e536c` combines released Shared `a41dee9` with the unchanged Cargo
 source-evidence helpers. All 90 roots and 112 payloads remain selected; executable

@@ -1,5 +1,5 @@
 use super::*;
-use crate::test_support::Fixture;
+use crate::test_support::fixture;
 use std::os::unix::fs::PermissionsExt as _;
 
 #[test]
@@ -26,8 +26,8 @@ fn creation_errors_redact_details_and_preserve_native_causes() {
 
 #[test]
 fn claim_is_private_exclusive_and_retained_after_drop() {
-    let fixture = Fixture::new();
-    let path = fixture.root.join("claim");
+    let fixture = fixture();
+    let path = fixture.path().join("claim");
     let directory = create_private_directory(&path).unwrap();
     assert_eq!(
         directory.metadata().unwrap().permissions().mode() & 0o777,
@@ -43,9 +43,9 @@ fn claim_is_private_exclusive_and_retained_after_drop() {
 
 #[test]
 fn replaced_removed_and_symlink_names_do_not_admit_original_descriptor() {
-    let fixture = Fixture::new();
-    let path = fixture.root.join("claim");
-    let moved = fixture.root.join("moved");
+    let fixture = fixture();
+    let path = fixture.path().join("claim");
+    let moved = fixture.path().join("moved");
     let directory = create_private_directory(&path).unwrap();
     std::fs::rename(&path, &moved).unwrap();
     assert!(admit_directory(&path, &directory).is_err());
@@ -56,16 +56,16 @@ fn replaced_removed_and_symlink_names_do_not_admit_original_descriptor() {
     assert!(admit_directory(&path, &directory).is_err());
     assert!(create_private_directory(&path).is_err());
     admit_directory(&moved, &directory).unwrap();
-    let file = File::create(fixture.root.join("regular")).unwrap();
+    let file = File::create(fixture.path().join("regular")).unwrap();
     assert!(admit_directory(&moved, &file).is_err());
 }
 
 #[test]
 fn missing_parent_and_forbidden_namespace_leave_no_claim() {
-    let fixture = Fixture::new();
+    let fixture = fixture();
     for path in [
-        fixture.root.join("missing/claim"),
-        fixture.root.join("bad\nclaim"),
+        fixture.path().join("missing/claim"),
+        fixture.path().join("bad\nclaim"),
     ] {
         assert!(matches!(
             create_private_directory(&path),
@@ -77,9 +77,9 @@ fn missing_parent_and_forbidden_namespace_leave_no_claim() {
 
 #[test]
 fn directory_commit_reconciles_a_lost_reply_without_replacing_evidence() {
-    let fixture = Fixture::new();
-    let staging = fixture.root.join("staging");
-    let canonical = fixture.root.join("artifact");
+    let fixture = fixture();
+    let staging = fixture.path().join("staging");
+    let canonical = fixture.path().join("artifact");
     std::fs::create_dir(&staging).unwrap();
     std::fs::write(staging.join("member"), b"original").unwrap();
     let mut prepared = 0;
@@ -133,9 +133,9 @@ fn directory_commit_reconciles_a_lost_reply_without_replacing_evidence() {
 
 #[test]
 fn directory_commit_rejects_changed_conflicting_and_unsafe_trees() {
-    let fixture = Fixture::new();
-    let staging = fixture.root.join("staging");
-    let canonical = fixture.root.join("artifact");
+    let fixture = fixture();
+    let staging = fixture.path().join("staging");
+    let canonical = fixture.path().join("artifact");
     assert!(matches!(
         commit_existing_directory_with(
             &staging,
@@ -179,7 +179,7 @@ fn directory_commit_rejects_changed_conflicting_and_unsafe_trees() {
     assert!(matches!(conflicted, Err(DirectoryCommitError::Conflict)));
     std::fs::remove_dir(&canonical).unwrap();
     std::fs::remove_dir_all(&staging).unwrap();
-    std::os::unix::fs::symlink(&fixture.root, &canonical).unwrap();
+    std::os::unix::fs::symlink(fixture.path(), &canonical).unwrap();
     let unsafe_name = commit_existing_directory_with(
         &staging,
         &canonical,

@@ -2,13 +2,13 @@ use super::{
     lock_exclusive, lock_exclusive_with_wait, lock_shared, try_lock_exclusive, unlock,
     wait_for_lock,
 };
-use crate::test_support::Fixture;
+use crate::test_support::fixture;
 use std::{fs::File, io, time::Duration};
 
 #[test]
 fn shared_holders_and_explicit_unlock_preserve_descriptor_custody() {
-    let fixture = Fixture::new();
-    let path = fixture.root.join("shared-lock");
+    let fixture = fixture();
+    let path = fixture.path().join("shared-lock");
     std::fs::write(&path, b"caller-owned bytes").unwrap();
     let first = File::open(&path).unwrap();
     let duplicate = first.try_clone().unwrap();
@@ -43,8 +43,8 @@ fn shared_holders_and_explicit_unlock_preserve_descriptor_custody() {
 
 #[test]
 fn direct_descriptor_operations_refuse_nonregular_files() {
-    let fixture = Fixture::new();
-    let directory = File::open(&fixture.root).unwrap();
+    let fixture = fixture();
+    let directory = File::open(fixture.path()).unwrap();
     let operations: [fn(&File) -> io::Result<()>; 4] =
         [lock_shared, lock_exclusive, try_lock_exclusive, unlock];
     for operation in operations {
@@ -77,8 +77,8 @@ fn descriptor_contention_reports_and_preserves_returned_ownership() {
         );
         return;
     }
-    let fixture = Fixture::new();
-    let path = fixture.root.join("lock");
+    let fixture = fixture();
+    let path = fixture.path().join("lock");
     std::fs::write(&path, b"").unwrap();
     let held = File::open(&path).unwrap();
     rustix::fs::flock(&held, rustix::fs::FlockOperation::LockExclusive).unwrap();
@@ -104,8 +104,8 @@ fn descriptor_contention_reports_and_preserves_returned_ownership() {
 
 #[test]
 fn callback_failure_and_invalid_intervals_do_not_acquire() {
-    let fixture = Fixture::new();
-    let path = fixture.root.join("lock");
+    let fixture = fixture();
+    let path = fixture.path().join("lock");
     std::fs::write(&path, b"").unwrap();
     let held = File::open(&path).unwrap();
     rustix::fs::flock(&held, rustix::fs::FlockOperation::LockExclusive).unwrap();
@@ -154,8 +154,8 @@ fn interrupted_acquisition_retries_without_false_contention() {
 
 #[test]
 fn nonregular_descriptors_are_rejected_before_observation() {
-    let fixture = Fixture::new();
-    let directory = File::open(&fixture.root).unwrap();
+    let fixture = fixture();
+    let directory = File::open(fixture.path()).unwrap();
     assert_eq!(
         lock_exclusive_with_wait(&directory, Duration::from_millis(1), |_| panic!(
             "nonregular descriptor"
