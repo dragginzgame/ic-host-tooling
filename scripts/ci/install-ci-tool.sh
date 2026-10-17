@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Shared companions: scripts/ci/verify-file-checksum.sh scripts/ci/tool-catalog-records.pl ci/tool-versions.env
+# Shared companions: scripts/ci/verify-file-checksum.sh scripts/ci/tool-catalog-records.pl scripts/dev/tool-store.sh scripts/dev/host-platform.sh ci/tool-versions.env
 set -euo pipefail
 
 # Public entry point for reviewed CI binary installation.
@@ -40,12 +40,12 @@ if [[ -n "$version" || -n "$checksum" ]]; then
 elif [[ "$tool" == sccache ]]; then
     echo 'sccache requires explicit version and SHA-256 pins' >&2; exit 2
 fi
-case "$(uname -s):$(uname -m)" in
-    Linux:x86_64|Linux:amd64) os=linux; arch=amd64 ;;
-    Linux:arm64|Linux:aarch64) os=linux; arch=arm64 ;;
-    Darwin:x86_64|Darwin:amd64) os=darwin; arch=amd64 ;;
-    Darwin:arm64|Darwin:aarch64) os=darwin; arch=arm64 ;;
-    *) echo "unsupported $tool host" >&2; exit 1 ;;
+platform="$(bash "$SCRIPT_DIR/../dev/host-platform.sh")"
+case "$platform" in
+    Linux:x86_64) os=linux; arch=amd64 ;;
+    Linux:arm64) os=linux; arch=arm64 ;;
+    Darwin:x86_64) os=darwin; arch=amd64 ;;
+    Darwin:arm64) os=darwin; arch=arm64 ;;
 esac
 if [[ "$explicit_pins" == false ]]; then
     case "$tool" in
@@ -98,9 +98,9 @@ finish() {
 trap finish EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
-curl --proto '=https' --proto-redir '=https' --tlsv1.2 -fsSL \
-    --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 15 --max-time 120 \
-    -o "$stage/$archive" "https://github.com/$repo/releases/download/v$version/$archive"
+# shellcheck source=scripts/dev/tool-store.sh
+source "$SCRIPT_DIR/../dev/tool-store.sh"
+tool_store_download "https://github.com/$repo/releases/download/v$version/$archive" "$stage/$archive"
 bash "$SCRIPT_DIR/verify-file-checksum.sh" sha256 "$checksum" "$stage/$archive"
 case "$format" in
     gzip) tar -xzf "$stage/$archive" -C "$stage" "$member" ;;

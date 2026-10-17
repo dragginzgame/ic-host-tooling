@@ -235,8 +235,10 @@ native execution qualifies that host.
 ## Cargo installation assessment
 
 The separate manually triggered `cargo-install-qualification.yml` workflow
-qualifies Cargo's registry binary/example mechanics on the same three native
-hosts. It records the prepared Cargo/Rust compiler identity and retains failed-build
+qualifies Cargo's common registry binary mechanics on the same three native
+hosts. Blob owns the frozen published-example case through
+[its native assessment](https://github.com/dragginzgame/ic-blob-storage/pull/80).
+It records the prepared Cargo/Rust compiler identity and retains failed-build
 evidence. The workflow leaves build duration to the GitHub Actions defaults.
 It does not extend the default portable gate or establish a new consumer installer
 contract. See the
@@ -260,13 +262,12 @@ The IC toolset additionally provisions and checks native executables on all
 three CI hosts above. Offline fixtures exercise digest/version refusals, retained
 failed and interrupted setup, and atomic activation using substituted payloads;
 only the separate native installation step qualifies actual upstream binaries.
-After preparing the pinned Node runtime, the native jobs also run
-`scripts/ci/qualify-wasm-opt.sh` against that installed IC set. Its retained
-Wasm inputs/outputs exercise `-O3`, `-Os` and `-Oz` through Node's WebAssembly
-engine, including integer branches and an IC-style reply import. Evidence lives
-under `portable-fixtures/wasm-opt` for ordinary failure collection. This small
-smoke does not qualify consumer canister builds or deployment; those remain
-with the product owner.
+Semantic optimizer qualification lives in
+[IC Build](https://github.com/dragginzgame/ic-build/pull/62), whose native matrix
+exercises `-O3`, `-Os` and `-Oz` through retained artifact transactions and the
+transferred Wasm execution oracle. Shared retains archive, executable and
+installation/reuse qualification. Product canister and deployment checks remain
+with their owners.
 Each native job also selects host/IC and common Cargo tools in a second disposable
 checkout with downloads disabled and verifies identical physical installations.
 The portable fixtures cover different selections, corrupt payloads,

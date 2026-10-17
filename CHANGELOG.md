@@ -20,15 +20,15 @@
 - Derive directory-publication error traits while preserving generic formatting,
   original causes and failures before or after publication.
 - Prepare release fixtures from declared script dependencies using Shared's
-  canonical fixture copier, retaining the source-evidence helpers on Shared
-  Tooling 0.22.1.
+  canonical fixture copier.
 - Use the hashed executable descriptor's metadata for permission admission,
   preserving size/digest refusal before permission policy. Private-file errors
   retain their messages and original causes through derived error traits.
 - Test fixtures borrow their cleanup guard's path instead of storing another
   copy; successful cleanup and panic retention remain unchanged.
-- Adopt Shared Tooling 0.22.0 with validated CI-tool catalog records and shared
-  formatting-fixture cleanup, retaining both Cargo source-evidence helpers.
+- Adopt Shared Tooling 0.23.0 with common host observation, validated Rust-tool
+  records and shared transient retries for CI binary installation. Retain both
+  Cargo source-evidence helpers through their refreshed Shared contribution.
 - Share saved Cargo member-source context with Shared Tooling while retaining
   local package selection and release recovery.
 - Consolidate durable writer dispatch while preserving admission ordering and

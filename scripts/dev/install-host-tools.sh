@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Shared companions: scripts/ci/verify-file-checksum.sh scripts/ci/tool-catalog-records.pl scripts/dev/tool-store.sh ci/tool-versions.env
+# Shared companions: scripts/ci/verify-file-checksum.sh scripts/ci/tool-catalog-records.pl scripts/dev/tool-store.sh scripts/dev/host-platform.sh ci/tool-versions.env
 set -euo pipefail
 
 # Explicit local provisioning of the complete common host-tool set.
@@ -29,12 +29,12 @@ consumer="${consumer%/.}"
 case "$consumer" in *$'\n'*|*$'\r'*) echo 'resolved consumer path contains CR/LF' >&2; exit 1 ;; esac
 versions="${versions:-$ROOT/ci/tool-versions.env}"
 records="$(perl "$ROOT/scripts/ci/tool-catalog-records.pl" host "$versions")"
-case "$(uname -s):$(uname -m)" in
-    Linux:x86_64|Linux:amd64) host=LINUX_AMD64; yq_platform=linux_amd64; jq_platform=linux-amd64 ;;
-    Linux:aarch64|Linux:arm64) host=LINUX_ARM64; yq_platform=linux_arm64; jq_platform=linux-arm64 ;;
-    Darwin:x86_64|Darwin:amd64) host=DARWIN_AMD64; yq_platform=darwin_amd64; jq_platform=macos-amd64 ;;
-    Darwin:arm64|Darwin:aarch64) host=DARWIN_ARM64; yq_platform=darwin_arm64; jq_platform=macos-arm64 ;;
-    *) echo 'unsupported host-tool platform' >&2; exit 1 ;;
+platform="$(bash "$ROOT/scripts/dev/host-platform.sh")"
+case "$platform" in
+    Linux:x86_64) host=LINUX_AMD64; yq_platform=linux_amd64; jq_platform=linux-amd64 ;;
+    Linux:arm64) host=LINUX_ARM64; yq_platform=linux_arm64; jq_platform=linux-arm64 ;;
+    Darwin:x86_64) host=DARWIN_AMD64; yq_platform=darwin_amd64; jq_platform=macos-amd64 ;;
+    Darwin:arm64) host=DARWIN_ARM64; yq_platform=darwin_arm64; jq_platform=macos-arm64 ;;
 esac
 while IFS=$'\t' read -r tool version selected_host digest; do
     [[ "$selected_host" == "$host" || "$selected_host" == all ]] || continue

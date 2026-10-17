@@ -78,8 +78,10 @@ macOS setup/check jobs passed on Host 0.12.9
 changes retain their own qualification obligation.
 Host has no production optimizer invocation or canister build.
 The upstream Node-based optimizer smoke is not added to this Rust library's
-validation surface. Native producer optimizer qualification remains owned by
-[Shared #102](https://github.com/dragginzgame/shared-tooling/issues/102).
+validation surface. Native producer optimizer qualification moves to IC Build in
+[Build PR #62](https://github.com/dragginzgame/ic-build/pull/62); integration and
+native acceptance of that contribution remain separate. Host selects neither
+the retired optimizer oracle nor the frozen Blob example-installation assessment.
 Pin changes use explicit IC setup, preserving old bundles, and need native
 acceptance independently of snapshot integrity.
 Shared 0.2.0 adoption removed its PocketIC rows while retaining the other tools.

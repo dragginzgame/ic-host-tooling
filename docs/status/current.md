@@ -40,7 +40,7 @@ The current work's qualification and migration patch are reported at handoff.
 Publication interruption recovery stays split between Host preparation custody
 and Shared provenance/dispatch receipts. The selected source refreshes
 [Shared PR #269 — Share Cargo source evidence](https://github.com/dragginzgame/shared-tooling/pull/269)
-onto released Shared 0.22.1 (`a3d4f619bd1999a0d4c084b429bb417b13839807`).
+onto released Shared 0.23.0 (`0b351cd2ba2bcd8927b783a5fec89afc8013f708`).
 The canonical helpers remain an open contribution rather than part of upstream
 main; Host pins its clean committed revision. Strict certificate wire admission
 remains local
@@ -50,6 +50,19 @@ Operational directory CR/LF admission remains in Host pending consumer-owned
 migration; see [Canic #575 — Own Backup operational path admission](https://github.com/dragginzgame/canic/issues/575).
 
 ## Qualification receipt
+
+Shared adoption evidence is retained at `/tmp/host-shared023.hvmoBh/`, relative to
+clean Host `3175934`. Canonical source `4eabe7f` combines published Shared
+`0b351cd` with the unchanged Cargo source-evidence helpers on PR #269. Export
+retains 90 roots and verifies 114 payloads, adding the shared host observer;
+executable pins are unchanged. Actual offline Host/Cargo tool admission,
+snapshot/pins, formatting, links, Make routing/admission, release-adapter and
+failed-fixture retention pass on Linux with their documented substituted effects.
+The refreshed source passes 74 catalog cases, substituted CI installer checks,
+saved member-context and archive-provenance fixtures, plus affected ShellCheck.
+Its exact commit is independently retrievable from GitHub. No executable tools
+were downloaded. Rust inputs, own versions, Cargo.lock, index and Host refs remain
+preserved; native macOS and upstream PR integration remain separate.
 
 Shared adoption preparation evidence is retained at
 `/tmp/host-shared023-prep.zC9TdF/`, relative to its captured incoming dirty tree.

@@ -270,6 +270,12 @@ This does not merge repository-local host/IC bundle activation
 or change any consumer's explicit pins. The command declares its checksum
 verifier, catalog reader and default catalog as snapshot companions.
 
+`host-platform.sh` in `scripts/dev/` observes `uname -s` and `uname -m` and emits
+one normalized `Linux|Darwin:x86_64|arm64` identity. It accepts no arguments and
+performs no setup. OS and architecture aliases share this owner; a failed
+observer propagates its status without publishing an identity. Each installer
+still owns its supported asset matrix, including IC's Linux ARM64 refusal.
+
 `tool-catalog-records.pl host|rust|ic|ci CATALOG [TOOL]` emits validated
 tab-separated tool, version, host and digest records. Rust records use `all` and
 `-` for host and digest. Optional tool selection filters only after the entire
@@ -291,6 +297,12 @@ reviewed pins and corresponding qualification, not guessed download names.
 The installer prints the selected executable path; callers own `GITHUB_PATH`,
 `RUSTC_WRAPPER`, cache configuration and any server startup. Include
 `install-ci-tool.sh` and `verify-file-checksum.sh` in the same snapshot.
+
+CI, host and IC asset downloads use `tool_store_download` from
+`scripts/dev/tool-store.sh`: HTTPS-only transport, TLS 1.2, a 15-second connection
+limit, a 300-second attempt limit and three transient retries within a 60-second
+retry window. An in-flight attempt retains its own limit. Each installer owns
+checksum admission, staging and publication; CI failures retain their candidates.
 
 ## Compiler-cache launcher adoption
 
@@ -634,6 +646,20 @@ Consumers retain workspace discovery, nested manifests, rustfmt configuration,
 frontend adapters and additional formatting steps. Probe every independently
 selected toolchain. This check establishes availability, not that formatting
 covers the right files; the adoption checker below supplies that separate proof.
+
+## Frontend formatting
+
+`scripts/dev/format-frontend.sh --write|--check RELATIVE-DIRECTORY` formats the
+selected index-export files during a hook write, or tracked files in the scope
+for explicit invocation. Set `PRETTIER_BIN` to a prepared absolute executable
+and `PRETTIER_VERSION` to its exact lockfile version. Setup stays explicit.
+
+The pinned Prettier owns language recognition through `--ignore-unknown`;
+Shared Tooling does not maintain an extension allowlist. Consumer configuration
+and `.prettierignore` own formatting exclusions. The adapter retains scope and
+symlink checks, NUL-delimited selection and exact-version admission. Upgrading
+to this contract can include previously skipped formats such as `.mjs` and
+`.vue`; review exclusions before adopting it. Unknown file types remain untouched.
 
 ## Consumer formatting-hook adoption
 
