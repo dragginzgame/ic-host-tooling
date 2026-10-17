@@ -10,9 +10,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Breaking
 
-- Adopt Host 0.24's public error types and align benchmark tooling with Build
-  0.12. Callers naming startup probe or cleanup errors directly must select
-  `ic-host-process` 0.24. Package compiler requirements remain unchanged.
+- Adopt Host 0.25's public error types. Callers naming startup probe or cleanup
+  errors directly must select
+  `ic-host-process` 0.25. Package compiler requirements remain unchanged.
+  Benchmark tooling awaits a Build release aligned with Host 0.25.
   [Migration details](crates/ic-testkit/CHANGELOG.md#0510).
 
 - Pool readiness and validation hooks return `Result<(), E>` without mandatory

@@ -12,8 +12,8 @@ repository checkout. The complete historical changelog remains at
 
 ### Breaking
 
-- Adopt Host 0.24's public error types and align benchmark tooling with Build
-  0.12. The library compiler floor remains Rust 1.91.
+- Adopt Host 0.25's public error types. The library compiler floor remains
+  Rust 1.91.
 
 - Pool readiness and validation hooks return `Result<(), E>`. Named receipts and
   the repeated validation recipe identity are removed; reset/canister coverage,
@@ -39,11 +39,13 @@ repository checkout. The complete historical changelog remains at
 
 ### Migration
 
-Select `ic-host-process` 0.24 when naming `ToolError` from
+Select `ic-host-process` 0.25 when naming `ToolError` from
 `PocketIcStartupFailure::ServerVersionProbe` or `CleanupError` returned by
 `PocketIcStartupError::command_cleanup` / `server_cleanup`. Their Rust type
 identities follow the adopted Host family; Testkit adds no compatibility aliases.
-Build 0.12 is contributor benchmark tooling and uses the same selected Host types.
+Build 0.12.1 is contributor benchmark tooling and still exposes Host 0.24 types.
+Benchmark examples and the canister benchmark test await an aligned Build release
+before their Host 0.25 output-limit inputs can compile.
 
 Construct `CanisterDiagnosticsRequest { canister_id, status_sender, log_sender,
 log_limits: CanisterLogRenderLimits::default() }` directly. Select custom limits

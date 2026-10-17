@@ -43,7 +43,7 @@ use ic_host_process::{
     sampling,
     tool::{
         AdmittedTool, CompletedExecution, ExecutionContext, OutputLimit, OutputLimits,
-        ResolutionError, SuccessfulExit, ToolError, VersionObservationSpec, communicate_child,
+        ResolutionError, SuccessfulExit, ToolError, VersionSpec, communicate_child,
         resolve_executable,
     },
 };
@@ -540,7 +540,7 @@ fn git_provenance(root: &Path, limits: OutputLimits) -> Result<GitObservations, 
         environment: &environment,
     };
     let git = AdmittedTool::observe_version(
-        &VersionObservationSpec {
+        &VersionSpec {
             executable: &executable,
             executable_bytes: 128 * 1024 * 1024,
             version_arguments: &["--version".into()],

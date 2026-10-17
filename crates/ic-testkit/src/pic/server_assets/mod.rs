@@ -123,9 +123,9 @@ fn admit(executable: &Path, digest: Sha256Digest) -> Result<()> {
             executable,
             executable_bytes: EXECUTABLE_LIMIT as u64,
             version_arguments: &[OsString::from("--version")],
-            version_identity: &format!("pocket-ic-server {POCKET_IC_SERVER_VERSION}"),
         },
         digest,
+        &format!("pocket-ic-server {POCKET_IC_SERVER_VERSION}"),
         &ExecutionContext {
             current_dir: directory,
             environment: &[],
