@@ -2,6 +2,8 @@
 #[cfg(unix)]
 pub mod child;
 #[cfg(unix)]
+pub mod custody;
+#[cfg(unix)]
 pub mod provenance;
 pub mod sampling;
 #[cfg(all(test, unix))]
@@ -9,5 +11,5 @@ mod test_support;
 #[cfg(unix)]
 pub mod tool;
 
-#[cfg(all(unix, any(test, feature = "test-support")))]
+#[cfg(any(test, feature = "test-support"))]
 pub mod testing;

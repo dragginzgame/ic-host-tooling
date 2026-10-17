@@ -4,11 +4,13 @@
 //! directories. Execution is not a sandbox or process-tree supervisor. Calls
 //! execute once, including on timeout or ambiguous completion; no retry occurs.
 
+mod diagnostics;
 mod process;
 mod resolution;
 #[cfg(test)]
 mod tests;
 
+pub use diagnostics::format_failure_evidence;
 pub use resolution::{ResolutionError, resolve_executable};
 
 use ic_host_artifacts::artifact::{ArtifactError, ArtifactIdentity, Sha256Digest};
@@ -74,25 +76,12 @@ pub struct ExecutionContext<'a> {
     pub environment: &'a [(OsString, OsString)],
 }
 
-/// Exact executable and version authority selected by a consumer.
-pub struct ToolSpec<'a> {
-    /// Absolute path in a caller-controlled filesystem; no PATH search occurs.
-    pub executable: &'a Path,
-    /// Admitted SHA-256 of the executable bytes.
-    pub sha256: Sha256Digest,
-    /// Maximum executable bytes read during every verification.
-    pub executable_bytes: u64,
-    /// Exact argument vector used to observe version identity.
-    pub version_arguments: &'a [OsString],
-    /// Required UTF-8 stdout after Unicode whitespace is trimmed at both ends.
-    pub version_identity: &'a str,
-}
-
-/// Exact version authority for a caller-trusted installed executable.
+/// Executable and exact version authority selected by a consumer.
 ///
-/// Unlike [`ToolSpec`], this supplies no trusted executable digest. Admission
-/// records the installed bytes for later drift checks; a matching version is
-/// not authentication of those bytes. Consumers own installation provenance.
+/// [`AdmittedTool::admit`] and [`AdmittedTool::admit_no_follow`] require a
+/// separate trusted digest. [`AdmittedTool::admit_version`] instead records
+/// caller-trusted installed bytes; a matching version does not authenticate
+/// those bytes. Consumers own installation provenance.
 pub struct VersionSpec<'a> {
     /// Absolute path in a caller-controlled filesystem; no PATH search occurs.
     pub executable: &'a Path,
@@ -102,6 +91,19 @@ pub struct VersionSpec<'a> {
     pub version_arguments: &'a [OsString],
     /// Required UTF-8 stdout after Unicode whitespace is trimmed at both ends.
     pub version_identity: &'a str,
+}
+
+/// Caller-trusted installation whose version is to be observed, not pinned.
+///
+/// Admission executes these installed bytes. An observed version is provenance,
+/// not installation authenticity or an independently selected version authority.
+pub struct VersionObservationSpec<'a> {
+    /// Absolute path in a caller-controlled filesystem; no PATH search occurs.
+    pub executable: &'a Path,
+    /// Maximum executable bytes read during admission and every later run.
+    pub executable_bytes: u64,
+    /// Exact argument vector used once to observe version identity.
+    pub version_arguments: &'a [OsString],
 }
 
 /// Invocation parameters rejected before dispatch or communication.
@@ -396,7 +398,8 @@ pub enum ToolError {
         /// Raw bounded version output.
         evidence: Box<ExecutionEvidence>,
     },
-    /// Successful trimmed version stdout did not match the selected identity.
+    /// Successful trimmed version stdout did not match the selected identity,
+    /// or observation produced an empty identity.
     VersionMismatch {
         /// Raw bounded version output; never formatted into the error.
         evidence: Box<ExecutionEvidence>,
@@ -660,10 +663,11 @@ impl std::error::Error for ToolError {
     }
 }
 
-/// An executable with a retained byte identity and an admitted exact version.
+/// An executable with retained byte and version identities.
 ///
 /// [`Self::admit`] requires a consumer-supplied digest. [`Self::admit_version`]
 /// records the installed identity without authenticating it against a pin.
+/// [`Self::observe_version`] records both identities without an expected version.
 /// Every execution rechecks digest/permission before spawning. Consumers must
 /// exclude concurrent writers to the executable and its parent directories:
 /// filesystem checks and `exec` are separate operations. This is not a file
@@ -683,22 +687,12 @@ impl AdmittedTool {
     /// Rejects invalid inputs, non-executable files, digest/size mismatch, process
     /// failures, non-UTF-8 stdout, and a different successful version identity.
     pub fn admit(
-        spec: &ToolSpec<'_>,
+        spec: &VersionSpec<'_>,
+        expected: Sha256Digest,
         context: &ExecutionContext<'_>,
         limits: OutputLimits,
     ) -> Result<Self, ToolError> {
-        Self::admit_with_digest(
-            &VersionSpec {
-                executable: spec.executable,
-                executable_bytes: spec.executable_bytes,
-                version_arguments: spec.version_arguments,
-                version_identity: spec.version_identity,
-            },
-            Some(spec.sha256),
-            context,
-            limits,
-            false,
-        )
+        Self::admit_with_digest(spec, Some(expected), context, limits, false)
     }
 
     /// Admit exact bytes without following the executable's final-component symlink.
@@ -711,22 +705,12 @@ impl AdmittedTool {
     /// Returns the same admission failures as [`Self::admit`], additionally
     /// refusing final-component symbolic links and special files before execution.
     pub fn admit_no_follow(
-        spec: &ToolSpec<'_>,
+        spec: &VersionSpec<'_>,
+        expected: Sha256Digest,
         context: &ExecutionContext<'_>,
         limits: OutputLimits,
     ) -> Result<Self, ToolError> {
-        Self::admit_with_digest(
-            &VersionSpec {
-                executable: spec.executable,
-                executable_bytes: spec.executable_bytes,
-                version_arguments: spec.version_arguments,
-                version_identity: spec.version_identity,
-            },
-            Some(spec.sha256),
-            context,
-            limits,
-            true,
-        )
+        Self::admit_with_digest(spec, Some(expected), context, limits, true)
     }
 
     /// Admit an exact version and record the caller-trusted installed bytes.
@@ -753,9 +737,53 @@ impl AdmittedTool {
         Self::admit_with_digest(spec, None, context, limits, false)
     }
 
+    /// Record installed bytes and their version with one version invocation.
+    ///
+    /// This is suitable for provenance of a caller-trusted installation when no
+    /// expected version is selected. Hashing precedes version dispatch; later
+    /// runs recheck that byte identity. The complete UTF-8 version stdout must
+    /// be nonempty after trimming. It does not authenticate the installation.
+    /// Consumers must exclude concurrent executable/directory writers and own
+    /// trust, output budgets, deadlines and environment, as for [`Self::admit_version`].
+    ///
+    /// # Errors
+    /// Rejects invalid inputs, non-executable or oversized files, process
+    /// failures, truncated output, non-UTF-8 stdout and an empty version.
+    /// An empty observation returns [`ToolError::VersionMismatch`] with the
+    /// original capture, just as an unmatched expected version does.
+    pub fn observe_version(
+        spec: &VersionObservationSpec<'_>,
+        context: &ExecutionContext<'_>,
+        limits: OutputLimits,
+    ) -> Result<Self, ToolError> {
+        Self::admit_observation(spec, None, None, context, limits, false)
+    }
+
     fn admit_with_digest(
         spec: &VersionSpec<'_>,
         expected: Option<Sha256Digest>,
+        context: &ExecutionContext<'_>,
+        limits: OutputLimits,
+        no_follow: bool,
+    ) -> Result<Self, ToolError> {
+        Self::admit_observation(
+            &VersionObservationSpec {
+                executable: spec.executable,
+                executable_bytes: spec.executable_bytes,
+                version_arguments: spec.version_arguments,
+            },
+            expected,
+            Some(spec.version_identity),
+            context,
+            limits,
+            no_follow,
+        )
+    }
+
+    fn admit_observation(
+        spec: &VersionObservationSpec<'_>,
+        expected: Option<Sha256Digest>,
+        expected_version: Option<&str>,
         context: &ExecutionContext<'_>,
         limits: OutputLimits,
         no_follow: bool,
@@ -765,8 +793,7 @@ impl AdmittedTool {
                 InvalidInvocation::ExecutablePath,
             ));
         }
-        if spec.version_identity.is_empty() || spec.version_identity.trim() != spec.version_identity
-        {
+        if expected_version.is_some_and(|version| version.is_empty() || version.trim() != version) {
             return Err(ToolError::InvalidInvocation(
                 InvalidInvocation::VersionIdentity,
             ));
@@ -792,7 +819,7 @@ impl AdmittedTool {
                 });
             }
         };
-        if version != spec.version_identity {
+        if version.is_empty() || expected_version.is_some_and(|expected| version != expected) {
             return Err(ToolError::VersionMismatch {
                 evidence: Box::new(evidence.into()),
             });
@@ -801,7 +828,7 @@ impl AdmittedTool {
             path,
             identity,
             executable_bytes: spec.executable_bytes,
-            version_identity: spec.version_identity.to_owned(),
+            version_identity: version.to_owned(),
             no_follow,
         })
     }
@@ -814,7 +841,7 @@ impl AdmittedTool {
 
     /// Retained raw executable identity.
     ///
-    /// With [`Self::admit_version`], this is an observed identity, not proof of
+    /// With [`Self::admit_version`] or [`Self::observe_version`], this is an observed identity, not proof of
     /// a published binary pin or trusted installation provenance.
     #[must_use]
     pub const fn identity(&self) -> ArtifactIdentity {

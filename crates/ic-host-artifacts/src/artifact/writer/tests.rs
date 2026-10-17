@@ -1,4 +1,5 @@
 use super::{BoundedWriter, WriterError};
+use crate::artifact::test_support::InvalidWriter;
 use std::io::{self, IoSlice, Write};
 
 #[test]
@@ -105,15 +106,6 @@ fn recovering_the_sink_does_not_flush_or_discard_it() {
 
 #[test]
 fn invalid_sink_write_counts_are_typed_failures_without_count_overflow() {
-    struct InvalidWriter;
-    impl Write for InvalidWriter {
-        fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
-            Ok(bytes.len() + 1)
-        }
-        fn flush(&mut self) -> io::Result<()> {
-            Ok(())
-        }
-    }
     let mut writer = BoundedWriter::new(InvalidWriter, 1);
     let error = writer.write(b"a").unwrap_err();
     assert_eq!(error.kind(), io::ErrorKind::InvalidData);

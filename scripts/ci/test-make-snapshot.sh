@@ -11,13 +11,15 @@ unset MAKEFLAGS MFLAGS MAKEOVERRIDES GNUMAKEFLAGS MAKEFILES
 unset SHARED_TOOLING_ROOT
 # shellcheck source=scripts/ci/fixture-lifecycle.sh
 source "$root/scripts/ci/fixture-lifecycle.sh"
+# shellcheck source=scripts/ci/make-adapter-probes.sh
+source "$root/scripts/ci/make-adapter-probes.sh"
 fixture="$(fixture_create "${TMPDIR:-/tmp}/host-make-snapshot.XXXXXX")"
 fixture_complete=false
 trap 'fixture_finish "$?" "$fixture" "Host Make evidence retained"' EXIT
 export TMPDIR="${fixture%/*}"
-for input in Makefile ci/tool-versions.env make/consumer.mk make/tools.mk make/rust-format.mk \
-    make/release.mk make/execution.mk scripts/ci/check-make-execution.sh \
-    scripts/ci/check-format-tools.sh scripts/ci/run-formatting.sh; do
+mkdir -p "$fixture/local"
+bash "$root/scripts/ci/prepare-make-fixture.sh" "$root" "$fixture/local"
+for input in Makefile ci/tool-versions.env scripts/ci/check-format-tools.sh; do
     parent=.
     [[ "$input" != */* ]] || parent="${input%/*}"
     mkdir -p "$fixture/local/$parent"
@@ -151,6 +153,34 @@ for mode in install check; do
         [[ ! -e "$HOST_MAKE_EXTERNAL" ]] || exit 1
     done
 done
+# Keep the actual Host LOC caller, argument selection and failure propagation
+# qualified without replaying Shared's synthetic workspace/parser matrix.
+cat > "$fixture/local/scripts/dev/cloc.sh" <<'STUB'
+#!/usr/bin/env bash
+set -euo pipefail
+printf 'cloc' >> "$HOST_MAKE_EVENTS"
+printf ' <%s>' "$@" >> "$HOST_MAKE_EVENTS"
+printf '\n' >> "$HOST_MAKE_EVENTS"
+exit "${HOST_MAKE_CLOC_STATUS:-0}"
+STUB
+for selection in default manifest; do
+    options=(--no-print-directory -j4 cloc)
+    [[ "$selection" != manifest ]] || options+=(CLOC_MANIFEST='apps/selected app/Cargo.toml')
+    for result in 0 23; do
+        : > "$HOST_MAKE_EVENTS"
+        status=0
+        HOST_MAKE_CLOC_STATUS="$result" make "${options[@]}" \
+            > "$fixture/cloc-$selection-$result.log" 2>&1 || status=$?
+        if [[ "$result" == 0 ]]; then [[ "$status" == 0 ]] || exit 1;
+        else [[ "$status" == 2 ]] || exit 1; fi
+        if [[ "$selection" == default ]]; then
+            printf 'cloc <%s>\n' "$PWD" > "$fixture/expected"
+        else
+            printf 'cloc <--manifest> <apps/selected app/Cargo.toml> <%s>\n' "$PWD" > "$fixture/expected"
+        fi
+        cmp "$fixture/expected" "$HOST_MAKE_EVENTS"
+    done
+done
 # Admission must finish before any of the three installation stages may run.
 for failed in ic rust; do
     : > "$HOST_MAKE_EVENTS"
@@ -167,9 +197,8 @@ done
 for helper in scripts/ci/check-dependency-pins.sh \
     scripts/release/test-adapter.sh scripts/publish/test-workspace.sh \
     scripts/ci/test-cargo-publication-attempt.sh \
-    scripts/ci/test-host-fixture-retention.sh scripts/ci/test-make-snapshot.sh scripts/ci/test-make-consumer.sh \
-    scripts/ci/test-tool-commands.sh scripts/ci/test-host-tools.sh scripts/ci/test-ic-tools.sh scripts/ci/test-rust-tools.sh \
-    scripts/ci/check-release-commands.sh scripts/ci/test-cloc.sh; do
+    scripts/ci/test-host-fixture-retention.sh scripts/ci/test-make-snapshot.sh \
+    scripts/ci/check-release-commands.sh; do
     mkdir -p "$fixture/local/${helper%/*}"
     printf '#!/usr/bin/env bash\nexec cargo fixture "$@"\n' > "$fixture/local/$helper"
 done
@@ -185,7 +214,7 @@ if make --help | grep -q -- --jobserver-style; then
     jobserver_options+=(--jobserver-style=pipe)
 fi
 cargo_targets=(check clippy docs-check test test-artifacts-minimal
-    test-tools-response test-tools-interface test-tools-service test-tools-extraction
+    test-tools-response test-tools-interface test-tools-service
     test-tools-limits test-wasm-inspection msrv msrv-workspace)
 helper_targets=(publish publish-check dependency-pins-check
     release-adapter-check tooling-command-check publish-command-check)
@@ -209,28 +238,10 @@ for target in fmt fmt-check; do
     cmp "$fixture/expected-log" "$detail"
     [[ "$(wc -l < "$HOST_MAKE_EVENTS")" -eq 1 ]] || exit 1
 done
-# Outer Make must reject unsafe modes before any substituted effect can run.
-for mode in -i --ignore-errors -n -t -q; do
-    for selection in direct inherited cleared replaced erased; do
-        for target in fmt fmt-check release-patch release-minor release-major release-resume \
-            "${cargo_targets[@]}" "${helper_targets[@]}"; do
-            : > "$HOST_MAKE_EVENTS"
-            args=(--no-print-directory "$target" "FORMAT_CARGO=$PWD/cargo" "SHARED_TOOLING_ROOT=$fixture/external" "MAKE=$recursive_make")
-            status=0
-            if [[ "$selection" == cleared ]]; then
-                make "$mode" "${args[@]}" MAKEFLAGS= > "$fixture/$selection-$mode-$target.log" 2>&1 || status=$?
-            elif [[ "$selection" == replaced ]]; then
-                make "$mode" "${args[@]}" MAKEFLAGS=-j2 > "$fixture/$selection-$mode-$target.log" 2>&1 || status=$?
-            elif [[ "$selection" == erased ]]; then
-                make "$mode" "${args[@]}" MAKEFLAGS= MFLAGS= > "$fixture/$selection-$mode-$target.log" 2>&1 || status=$?
-            elif [[ "$selection" == direct ]]; then
-                make "$mode" "${args[@]}" > "$fixture/$selection-$mode-$target.log" 2>&1 || status=$?
-            else
-                MAKEFLAGS="$mode" make "${args[@]}" > "$fixture/$selection-$mode-$target.log" 2>&1 || status=$?
-            fi
-            [[ "$status" == 2 && ! -s "$HOST_MAKE_EVENTS" && ! -e "$HOST_MAKE_EXTERNAL" ]] || exit 1
-        done
-    done
-done
+# Qualify every actual Host target; Shared owns flag aliases and combinations.
+make_probe_target_admission "$(command -v make)" "$PWD/Makefile" "$fixture/local" \
+    "$HOST_MAKE_EVENTS" fmt fmt-check release-patch release-minor release-major release-resume \
+    "${cargo_targets[@]}" "${helper_targets[@]}"
+[[ ! -e "$HOST_MAKE_EXTERNAL" ]] || exit 1
 echo 'Host Make snapshot routing and execution admission passed (substitute effects)'
 fixture_complete=true

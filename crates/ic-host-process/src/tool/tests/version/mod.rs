@@ -1,5 +1,7 @@
 use super::*;
 
+mod observation;
+
 #[test]
 fn no_follow_admission_rejects_aliases_and_nonfiles_before_execution() {
     use std::os::unix::fs::symlink;
@@ -24,33 +26,37 @@ fn no_follow_admission_rejects_aliases_and_nonfiles_before_execution() {
     );
     let digest = hash_file(&candidate, 1024 * 1024).unwrap().sha256;
     for rejected in [&alias, &fifo, &fixture.root] {
-        let spec = ToolSpec {
+        let spec = VersionSpec {
             executable: rejected,
-            sha256: digest,
             executable_bytes: 1024 * 1024,
             version_arguments: &[OsString::from("--version")],
             version_identity: VERSION,
         };
         assert!(
-            AdmittedTool::admit_no_follow(&spec, &fixture.context(&environment), LIMITS).is_err()
+            AdmittedTool::admit_no_follow(&spec, digest, &fixture.context(&environment), LIMITS)
+                .is_err()
         );
         assert!(!marker.exists());
     }
-    let mut spec = ToolSpec {
+    let spec = VersionSpec {
         executable: &candidate,
-        sha256: Sha256Digest::compute(b"wrong"),
         executable_bytes: 1024 * 1024,
         version_arguments: &[OsString::from("--version")],
         version_identity: VERSION,
     };
     assert!(matches!(
-        AdmittedTool::admit_no_follow(&spec, &fixture.context(&environment), LIMITS),
+        AdmittedTool::admit_no_follow(
+            &spec,
+            Sha256Digest::compute(b"wrong"),
+            &fixture.context(&environment),
+            LIMITS
+        ),
         Err(ToolError::Artifact(ArtifactError::DigestMismatch { .. }))
     ));
     assert!(!marker.exists());
-    spec.sha256 = digest;
     let admitted =
-        AdmittedTool::admit_no_follow(&spec, &fixture.context(&environment), LIMITS).unwrap();
+        AdmittedTool::admit_no_follow(&spec, digest, &fixture.context(&environment), LIMITS)
+            .unwrap();
     assert_eq!(admitted.identity().sha256, digest);
     assert_eq!(fs::read(&marker).unwrap(), b"invoked\n");
     let replacement = fixture.root.join("replacement");

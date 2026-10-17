@@ -17,10 +17,15 @@ tooling_root="${tooling_root%/.}"
 # Publication eligibility is explicit policy, distinct from workspace membership.
 packages=(ic-host-artifacts ic-host-fs ic-host-process ic-host-text ic-host-tools ic-host-wasm-inspect)
 package_path() {
-    case "$1" in
-        ic-host-wasm-inspect) printf 'apps/%s\n' "$1" ;;
-        *) printf 'crates/%s\n' "$1" ;;
-    esac
+    jq -er --arg package "$1" --arg prefix "$root/" '
+        .packages[] | select(.name == $package) | .manifest_path
+        | if type == "string" and startswith($prefix) and endswith("/Cargo.toml")
+          then ltrimstr($prefix) | rtrimstr("/Cargo.toml")
+          else error("package manifest is outside the workspace") end
+        | if length > 0 and (test("[\u0000\r\n]") | not)
+             and (split("/") | all(. != "" and . != "." and . != ".."))
+          then . else error("invalid package directory") end
+    ' "$attempt/metadata.json"
 }
 # Preserve path newlines, removing only Git's terminating record newline.
 root="$(git rev-parse --show-toplevel && printf '/.')"
@@ -34,11 +39,6 @@ source="$(git rev-parse --verify HEAD)" || exit $?
 dirty="$(git status --porcelain --untracked-files=all)" || exit $?
 [[ "$mode" != publish || -z "$dirty" ]] || fail 'commit workspace changes before publishing'
 [[ -f LICENSE && ! -L LICENSE ]] || fail 'expected a regular root license notice'
-for package in "${packages[@]}"; do
-    notice="$(package_path "$package")/LICENSE"
-    [[ -f "$notice" && ! -L "$notice" ]] || fail "expected a regular license notice for $package"
-    cmp -s LICENSE "$notice" || fail "license notice differs from the root notice for $package"
-done
 [[ ! -L target && ! -L target/publish && ! -L target/publish/admission ]] || fail 'symlinked publication evidence directory'
 umask 077
 mkdir -p target/publish/admission
@@ -66,6 +66,15 @@ jq -e '
       and ($packages | any(.name == "ic-host-wasm-inspect" and
           any(.targets[]; .name == "ic-host-wasm-inspect" and (.kind | index("bin")))))
 ' "$attempt/metadata.json" --args "${packages[@]}" > /dev/null || fail 'expected selected synchronized crates.io packages'
+for package in "${packages[@]}"; do
+    directory="$(package_path "$package")" || fail "invalid package directory for $package"
+    physical="$(cd -P -- "$root/$directory" && printf '%s/.' "$PWD")" || fail "missing package directory for $package"
+    [[ "${physical%/.}" == "$root/$directory" ]] || fail "aliased package directory for $package"
+    [[ -f "$directory/Cargo.toml" && ! -L "$directory/Cargo.toml" ]] || fail "expected a regular manifest for $package"
+    notice="$directory/LICENSE"
+    [[ -f "$notice" && ! -L "$notice" ]] || fail "expected a regular license notice for $package"
+    cmp -s LICENSE "$notice" || fail "license notice differs from the root notice for $package"
+done
 repository="$(jq -r '.packages[0].repository' "$attempt/metadata.json")"
 version="$(jq -r '.packages[0].version' "$attempt/metadata.json")"
 [[ "$version" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]] || fail 'expected a stable workspace version'

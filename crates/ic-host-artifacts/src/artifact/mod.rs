@@ -12,6 +12,7 @@ use std::{
     str::FromStr,
 };
 
+pub mod buffer;
 mod chunks;
 mod copy;
 #[cfg(feature = "gzip")]
@@ -19,16 +20,20 @@ mod gzip;
 mod hashing;
 mod matching;
 #[cfg(test)]
+mod test_support;
+#[cfg(test)]
 mod tests;
 mod writer;
 
 pub use chunks::{ChunkDigestError, chunk_digests};
 pub use copy::{CopyError, copy_reader};
 #[cfg(feature = "gzip")]
-pub use gzip::{GzipError, decode_gzip, encode_gzip, gzip_matches, hash_gzip, hash_gzip_or_raw};
+pub use gzip::{GzipError, decode_gzip, encode_gzip, gzip_matches, hash_gzip};
 pub use hashing::HashingWriter;
 pub use matching::MatchingWriter;
 pub use writer::{BoundedWriter, WriterError};
+
+use buffer::reserve_bounded;
 
 /// Raw SHA-256 identity, without a product-specific prefix or wire format.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -47,6 +52,24 @@ impl Sha256Digest {
         &self.0
     }
 
+    /// Encode the digest as exactly 64 lowercase ASCII hexadecimal bytes.
+    ///
+    /// Returns a fixed-size buffer without allocation or a product-specific
+    /// prefix. Leading zeroes are retained, matching this type's Display output.
+    #[must_use]
+    pub const fn hex_bytes(self) -> [u8; 64] {
+        const HEX: &[u8; 16] = b"0123456789abcdef";
+        let mut encoded = [0; 64];
+        let mut index = 0;
+        while index < self.0.len() {
+            let byte = self.0[index];
+            encoded[index * 2] = HEX[(byte >> 4) as usize];
+            encoded[index * 2 + 1] = HEX[(byte & 0x0f) as usize];
+            index += 1;
+        }
+        encoded
+    }
+
     /// Hash bytes already held by the caller.
     #[must_use]
     pub fn compute(bytes: &[u8]) -> Self {
@@ -56,10 +79,7 @@ impl Sha256Digest {
 
 impl fmt::Display for Sha256Digest {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        for byte in self.0 {
-            write!(f, "{byte:02x}")?;
-        }
-        Ok(())
+        f.write_str(std::str::from_utf8(&self.hex_bytes()).expect("hex encoding is ASCII"))
     }
 }
 
@@ -150,6 +170,13 @@ pub enum ArtifactError {
         /// Maximum permitted bytes.
         limit: u64,
     },
+    /// A bounded stream ended before the caller's exact byte count.
+    LengthMismatch {
+        /// Required bytes.
+        expected: u64,
+        /// Successfully read bytes.
+        actual: u64,
+    },
     /// The complete bounded stream does not match the admitted digest.
     DigestMismatch {
         /// Caller-selected authority.
@@ -167,6 +194,9 @@ impl fmt::Display for ArtifactError {
             Self::Io(source) => write!(f, "artifact read failed: {source}"),
             Self::NotRegularFile => f.write_str("artifact path is not a regular file"),
             Self::LimitExceeded { limit } => write!(f, "artifact exceeds {limit} bytes"),
+            Self::LengthMismatch { expected, actual } => {
+                write!(f, "artifact has {actual} bytes, expected {expected}")
+            }
             Self::DigestMismatch { expected, actual } => write!(
                 f,
                 "artifact SHA-256 is {}, expected {expected}",
@@ -206,6 +236,7 @@ impl From<ArtifactError> for io::Error {
 /// Reads at most `max_bytes + 1` bytes, using the extra byte to detect overflow.
 /// Retries interrupted reads only; no subprocess or network retry is performed.
 /// A blocking reader's timeouts remain the caller's responsibility.
+/// Admit the returned identity against a selected digest with [`ArtifactIdentity::verify`].
 ///
 /// # Errors
 /// Returns [`ArtifactError::LimitExceeded`] or the underlying read error.
@@ -225,16 +256,25 @@ pub fn hash_reader(
     })
 }
 
-/// Verify a complete bounded stream before the caller extracts or uses its bytes.
+/// Hash a stream whose complete length must equal `expected_bytes`.
+///
+/// Reads at most one byte beyond the selected length to distinguish overflow.
+/// The caller owns the reader's origin, deadline and byte-budget selection.
 ///
 /// # Errors
-/// Returns read/limit failures or a typed mismatch with the observed identity.
-pub fn verify_reader(
+/// Returns a typed short-length or limit error, or the underlying read error.
+pub fn hash_exact_reader(
     reader: impl Read,
-    max_bytes: u64,
-    expected: Sha256Digest,
+    expected_bytes: u64,
 ) -> Result<ArtifactIdentity, ArtifactError> {
-    hash_reader(reader, max_bytes)?.verify(expected)
+    let identity = hash_reader(reader, expected_bytes)?;
+    if identity.bytes != expected_bytes {
+        return Err(ArtifactError::LengthMismatch {
+            expected: expected_bytes,
+            actual: identity.bytes,
+        });
+    }
+    Ok(identity)
 }
 
 /// Read one stream into bounded, fallibly allocated storage.
@@ -255,19 +295,25 @@ pub fn read_reader(mut reader: impl Read, max_bytes: usize) -> Result<Vec<u8>, A
     Ok(bytes)
 }
 
-// Callers admit the additional elements against `limit` before reserving.
-// Grow geometrically without requesting capacity beyond that element budget.
-fn reserve_bounded<T>(
-    items: &mut Vec<T>,
-    additional: usize,
-    limit: usize,
-) -> Result<(), std::collections::TryReserveError> {
-    let required = items.len() + additional;
-    if required > items.capacity() {
-        let capacity = items.capacity().saturating_mul(2).max(required).min(limit);
-        items.try_reserve_exact(capacity - items.len())?;
+/// Read a complete stream into bounded storage at an exact selected length.
+///
+/// The caller owns the reader's origin, deadline and byte-budget selection.
+/// Reads at most one byte beyond the selected length to distinguish overflow.
+///
+/// # Errors
+/// Returns a typed short-length or limit error, allocation failure, or read error.
+pub fn read_exact_reader(
+    reader: impl Read,
+    expected_bytes: usize,
+) -> Result<Vec<u8>, ArtifactError> {
+    let bytes = read_reader(reader, expected_bytes)?;
+    if bytes.len() != expected_bytes {
+        return Err(ArtifactError::LengthMismatch {
+            expected: expected_bytes as u64,
+            actual: bytes.len() as u64,
+        });
     }
-    Ok(())
+    Ok(bytes)
 }
 
 fn visit_reader<E: From<ArtifactError>>(

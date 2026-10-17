@@ -18,16 +18,7 @@ mod tests;
 /// # Errors
 /// Returns metadata, non-regular descriptor, native lock or unsupported-host errors.
 pub fn lock_shared(file: &File) -> io::Result<()> {
-    require_regular_descriptor(file)?;
-    #[cfg(unix)]
-    {
-        rustix::fs::flock(file, rustix::fs::FlockOperation::LockShared)
-            .map_err(|error| io::Error::from_raw_os_error(error.raw_os_error()))
-    }
-    #[cfg(not(unix))]
-    {
-        Err(io::Error::from(io::ErrorKind::Unsupported))
-    }
+    apply_lock(file, DescriptorOperation::Shared)
 }
 
 /// Acquire a blocking exclusive lock on a caller-owned regular descriptor.
@@ -38,16 +29,20 @@ pub fn lock_shared(file: &File) -> io::Result<()> {
 /// # Errors
 /// Returns metadata, non-regular descriptor, native lock or unsupported-host errors.
 pub fn lock_exclusive(file: &File) -> io::Result<()> {
-    require_regular_descriptor(file)?;
-    #[cfg(unix)]
-    {
-        rustix::fs::flock(file, rustix::fs::FlockOperation::LockExclusive)
-            .map_err(|error| io::Error::from_raw_os_error(error.raw_os_error()))
-    }
-    #[cfg(not(unix))]
-    {
-        Err(io::Error::from(io::ErrorKind::Unsupported))
-    }
+    apply_lock(file, DescriptorOperation::Exclusive)
+}
+
+/// Attempt one exclusive lock acquisition on a caller-owned regular descriptor.
+///
+/// Contention returns [`io::ErrorKind::WouldBlock`] without waiting or retrying.
+/// Success leaves the lock held by the descriptor, with the same clone, unlock
+/// and final-close obligations as [`lock_exclusive`]. Opening, durability,
+/// namespace custody and contention/retry policy remain caller-owned.
+///
+/// # Errors
+/// Returns metadata, non-regular descriptor, native lock or unsupported-host errors.
+pub fn try_lock_exclusive(file: &File) -> io::Result<()> {
+    apply_lock(file, DescriptorOperation::TryExclusive)
 }
 
 /// Release a caller-owned regular descriptor's lock without closing it.
@@ -59,14 +54,33 @@ pub fn lock_exclusive(file: &File) -> io::Result<()> {
 /// # Errors
 /// Returns metadata, non-regular descriptor, native unlock or unsupported-host errors.
 pub fn unlock(file: &File) -> io::Result<()> {
+    apply_lock(file, DescriptorOperation::Unlock)
+}
+
+#[derive(Clone, Copy)]
+enum DescriptorOperation {
+    Shared,
+    Exclusive,
+    TryExclusive,
+    Unlock,
+}
+
+fn apply_lock(file: &File, operation: DescriptorOperation) -> io::Result<()> {
     require_regular_descriptor(file)?;
     #[cfg(unix)]
     {
-        rustix::fs::flock(file, rustix::fs::FlockOperation::Unlock)
-            .map_err(|error| io::Error::from_raw_os_error(error.raw_os_error()))
+        use rustix::fs::FlockOperation;
+        let operation = match operation {
+            DescriptorOperation::Shared => FlockOperation::LockShared,
+            DescriptorOperation::Exclusive => FlockOperation::LockExclusive,
+            DescriptorOperation::TryExclusive => FlockOperation::NonBlockingLockExclusive,
+            DescriptorOperation::Unlock => FlockOperation::Unlock,
+        };
+        rustix::fs::flock(file, operation).map_err(io::Error::from)
     }
     #[cfg(not(unix))]
     {
+        let _ = operation;
         Err(io::Error::from(io::ErrorKind::Unsupported))
     }
 }
