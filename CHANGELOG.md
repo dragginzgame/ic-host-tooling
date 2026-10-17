@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.27.2]
+
+### Added
+
+- Decode a single Candid reply with explicit byte, decoder-work, type-table and
+  header limits plus a caller-owned aggregate byte allowance. Admitted malformed
+  replies consume their allowance; domain interpretation stays with the caller.
+
 ## [0.27.1] - 2026-10-17
 
 ### Added
