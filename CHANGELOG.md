@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.24.1]
+
+- Add an owned shared-file lock guard that explicitly unlocks before closing,
+  preserving release despite duplicated descriptors. Paths, shared ownership
+  and cache retention stay with consumers. [Detailed notes](docs/changelog/0.24.md).
+
 ## [0.24.0] - 2026-10-16
 
 ### Breaking
