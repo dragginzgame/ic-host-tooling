@@ -79,6 +79,16 @@ nothing: callers retain Agent verification, trust roots, combined evidence
 budgets, witness commitments and application leaf meanings. The feature adds no
 Agent transport, filesystem/process execution or Candid parser.
 
+The opt-in native `agent` feature exposes `agent::{agent_builder, EndpointAgent}`
+using `ic-agent` types directly. Pass a parsed `url::Url` and response-byte ceiling
+to the builder, then customize SDK identity/verification settings as needed.
+`EndpointAgent::get(endpoint, ceiling)` lazily reuses an SDK-default agent bound
+to the exact endpoint text and ceiling; conflicting reuse is a typed error.
+Consumers must admit their endpoints before use: URL parsing alone does not
+enforce HTTP(S), credential, query or fragment policy. Root-key fetching,
+historical verification, deadlines and all network calls remain caller-owned.
+This native-only profile does not widen default or certificate dependencies.
+
 `ic-host-tools::response::decode` accepts explicitly selected JSON envelopes or
 plain hex. CLI presentation labels, preambles and any broader whitespace policy
 belong to callers; the codec does not infer or strip them. See the

@@ -14,7 +14,7 @@ export YQ := $(CURDIR)/.tools/host/bin/yq
 help:
 	@echo 'Selected package: check, clippy, docs-check, test, msrv (PACKAGE=<crate>)'
 	@echo 'Minimal artifact configuration: test-artifacts-minimal'
-	@echo 'Tools profiles: test-tools-default, test-tools-interface, test-tools-certificate and tools-features-check'
+	@echo 'Tools profiles: test-tools-default, test-tools-interface, test-tools-certificate, test-tools-agent and tools-features-check'
 	@echo 'Formatting and metadata: fmt, fmt-check, shared-tooling-check, dependency-pins-check, check-doc-links, release-adapter-check'
 	@echo 'Hook qualification: formatting-hook-check (disposable Git fixtures; prepared formatters required)'
 	@echo 'Common setup: install-tools (host and Cargo); install-hooks is separate'
@@ -46,6 +46,9 @@ test-tools-interface:
 .PHONY: test-tools-certificate test-wasm-inspection
 test-tools-certificate:
 	+cargo test -p ic-host-tools --no-default-features --features certificate --all-targets --locked --offline
+.PHONY: test-tools-agent
+test-tools-agent:
+	+cargo test -p ic-host-tools --no-default-features --features agent --all-targets --locked --offline
 test-wasm-inspection:
 	+cargo test -p ic-host-wasm-inspect --all-targets --locked --offline
 tools-features-check:
@@ -87,6 +90,7 @@ ci:
 	+$(MAKE) --no-print-directory test-tools-default
 	+$(MAKE) --no-print-directory test-tools-interface
 	+$(MAKE) --no-print-directory test-tools-certificate
+	+$(MAKE) --no-print-directory test-tools-agent
 	+$(MAKE) --no-print-directory test-wasm-inspection
 	+cargo clippy --workspace --all-targets --all-features --locked --offline -- -D warnings
 	+RUSTDOCFLAGS="-D warnings" cargo doc --workspace --all-features --locked --offline --no-deps
