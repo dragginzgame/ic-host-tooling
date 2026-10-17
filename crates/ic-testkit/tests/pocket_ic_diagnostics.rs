@@ -2,8 +2,8 @@ mod support;
 
 use candid::Principal;
 use ic_testkit::pic::{
-    CanisterDiagnosticsRequest, LabeledCanisterDiagnosticsRequest, PocketIcCallFailure,
-    PocketIcDiagnosticsExt, is_dead_pocket_ic_transport_error,
+    CanisterDiagnosticsRequest, CanisterLogRenderLimits, LabeledCanisterDiagnosticsRequest,
+    PocketIcCallFailure, PocketIcDiagnosticsExt, is_dead_pocket_ic_transport_error,
 };
 use pocket_ic::CanisterSettings;
 
@@ -22,7 +22,12 @@ fn diagnostics_use_independent_exact_senders_and_preserve_both_outcomes() {
         }),
     );
 
-    let request = CanisterDiagnosticsRequest::new(canister_id, status_sender, log_sender);
+    let request = CanisterDiagnosticsRequest {
+        canister_id,
+        status_sender,
+        log_sender,
+        log_limits: CanisterLogRenderLimits::default(),
+    };
     let report = pocket_ic.collect_canister_diagnostics(request);
 
     assert_eq!(report.request(), request);
@@ -34,11 +39,19 @@ fn diagnostics_use_independent_exact_senders_and_preserve_both_outcomes() {
 
     let batch = pocket_ic
         .collect_canister_diagnostics_batch(&[
-            LabeledCanisterDiagnosticsRequest::new(
-                "denied",
-                CanisterDiagnosticsRequest::new(canister_id, outsider, outsider),
-            ),
-            LabeledCanisterDiagnosticsRequest::new("controller", request),
+            LabeledCanisterDiagnosticsRequest {
+                label: "denied".into(),
+                request: CanisterDiagnosticsRequest {
+                    canister_id,
+                    status_sender: outsider,
+                    log_sender: outsider,
+                    log_limits: CanisterLogRenderLimits::default(),
+                },
+            },
+            LabeledCanisterDiagnosticsRequest {
+                label: "controller".into(),
+                request,
+            },
         ])
         .expect("valid labeled diagnostics batch");
     assert_eq!(batch.entries().len(), 2);

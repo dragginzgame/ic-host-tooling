@@ -6,9 +6,10 @@ mod support;
 use candid::Principal;
 use ic_host_process::testing::http::{HttpContentLength, capture_http_request};
 use ic_testkit::pic::{
-    CandidCallError, CandidCallExt, CanisterDiagnosticsRequest, CanisterInstallError, InstallSpec,
-    PocketIc, PocketIcBuilder, PocketIcCallFailure, PocketIcDiagnosticsExt, PocketIcInstance,
-    PocketIcStartupConfig, StandaloneCanisterFixture, is_dead_pocket_ic_transport_error,
+    CandidCallError, CandidCallExt, CanisterDiagnosticsRequest, CanisterInstallError,
+    CanisterLogRenderLimits, InstallSpec, PocketIc, PocketIcBuilder, PocketIcCallFailure,
+    PocketIcDiagnosticsExt, PocketIcInstance, PocketIcStartupConfig, StandaloneCanisterFixture,
+    is_dead_pocket_ic_transport_error,
 };
 use ic_testkit::pocket_ic::common::rest::{CreateInstanceResponse, RawCanisterId, Topology};
 #[cfg(unix)]
@@ -185,18 +186,25 @@ fn refused_instance_request_probe() {
         .read_exact(&mut [0])
         .expect("parent releases refused call");
     let error = pic
-        .query_candid::<u64, _>(Principal::anonymous(), "get", (), support::REPLY_LIMITS)
+        .query_candid::<u64, _>(
+            Principal::anonymous(),
+            candid::Principal::anonymous(),
+            "get",
+            (),
+            support::REPLY_LIMITS,
+        )
         .expect_err("peer is gone");
     assert!(matches!(error, CandidCallError::Transport { .. }));
     assert!(is_dead_pocket_ic_transport_error(&error));
     let error = std::io::Error::other(error);
     assert!(is_dead_pocket_ic_transport_error(&error));
 
-    let request = CanisterDiagnosticsRequest::new(
-        Principal::anonymous(),
-        Principal::anonymous(),
-        Principal::anonymous(),
-    );
+    let request = CanisterDiagnosticsRequest {
+        canister_id: Principal::anonymous(),
+        status_sender: Principal::anonymous(),
+        log_sender: Principal::anonymous(),
+        log_limits: CanisterLogRenderLimits::default(),
+    };
     let (_, status, logs) = pic.collect_canister_diagnostics(request).into_parts();
     for error in [
         status.expect_err("status peer is gone"),
@@ -223,7 +231,13 @@ fn refused_creation_probe() {
         .expect("parent releases refused creation");
     let error = StandaloneCanisterFixture::try_install(
         pic,
-        InstallSpec::new(vec![], vec![], 1).label("unreachable-fixture"),
+        InstallSpec {
+            wasm: vec![],
+            init_bytes: vec![],
+            cycles: 1,
+            install_sender: None,
+            label: Some("unreachable-fixture".into()),
+        },
     )
     .err()
     .expect("creation should return an error");

@@ -8,6 +8,134 @@ This file ships in the crate archive so upgrades can be completed without the
 repository checkout. The complete historical changelog remains at
 <https://github.com/dragginzgame/ic-testkit/blob/main/CHANGELOG.md>.
 
+## [0.51.0]
+
+### Breaking
+
+- Adopt Host 0.24's public error types and align benchmark tooling with Build
+  0.12. The library compiler floor remains Rust 1.91.
+
+- Pool readiness and validation hooks return `Result<(), E>`. Named receipts and
+  the repeated validation recipe identity are removed; reset/canister coverage,
+  actual invariant checks, failure stages and acquisition timings remain.
+- Benchmark markers contain prefix, label and three measured counters:
+  instructions, Wasm heap bytes and stable-memory bytes. The reserved allocation
+  field is removed from public counters, averages, overflow variants and reports.
+
+- Benchmark report data no longer embeds a run metadata record, and the report
+  module no longer reads or writes metadata sidecars. Applications own run
+  identities, provenance, command recording and previous-run selection.
+
+- Diagnostic input requests, labeled requests and render limits expose public
+  fields instead of infallible constructors, builders and input accessors.
+  Collection retains label validation, bounded rendering and independent senders.
+
+- Installation, retry and snapshot-target inputs use public-field records.
+  Typed query/update calls require an explicit principal; use
+  `Principal::anonymous()` when appropriate.
+- Native CSV/Markdown directory output and its report-bundling record move to
+  the repository's `benchmark_report` example. Library parsing and arithmetic
+  remain available; applications own file layout and output policy.
+
+### Migration
+
+Select `ic-host-process` 0.24 when naming `ToolError` from
+`PocketIcStartupFailure::ServerVersionProbe` or `CleanupError` returned by
+`PocketIcStartupError::command_cleanup` / `server_cleanup`. Their Rust type
+identities follow the adopted Host family; Testkit adds no compatibility aliases.
+Build 0.12 is contributor benchmark tooling and uses the same selected Host types.
+
+Construct `CanisterDiagnosticsRequest { canister_id, status_sender, log_sender,
+log_limits: CanisterLogRenderLimits::default() }` directly. Select custom limits
+with `CanisterLogRenderLimits { record_limit, byte_limit }`, and label a request
+with `LabeledCanisterDiagnosticsRequest { label: label.into(), request }`.
+Read input fields directly. Zero render limits remain valid; empty or duplicate
+batch labels are still rejected before diagnostic effects. Report/output record
+accessors and the original installation failure remain unchanged.
+
+Construct `InstallSpec { wasm, init_bytes, cycles, install_sender, label }`,
+`RetryPolicy { max_attempts, cooldown }` and
+`CanisterSnapshotTarget { canister_id, sender }` directly. Optional installation
+fields use explicit `None`/`Some`; retry counts retain `NonZeroUsize`. Replace
+input getter calls with field access. Installation ordering, rate-limit handling,
+exact snapshot senders and rollback are unchanged.
+
+Rename `update_candid_as` / `query_candid_as` to `update_candid` / `query_candid`.
+Their explicit-caller signatures are retained. Existing anonymous calls add
+`Principal::anonymous()` after the canister ID. Single-value and top-level reply
+argument decoding retain their distinct entry points and explicit limits.
+
+Replace `benchmark::report::write_benchmark_report_dir` and library
+`BenchmarkRunReport` construction with application-owned reporting, or run
+`cargo run -p ic-testkit --locked --example benchmark_report -- INPUT OUTPUT_DIRECTORY [PREVIOUS_INPUT]`
+from this repository. The example preserves the existing nine CSV/Markdown file
+layouts and scale-one comparisons. Existing files are historical evidence; the
+move reads, rewrites and retires no retained report directory automatically.
+
+Change recipe `drive_to_readiness` and `validate` implementations to return
+`Result<(), Self::Error>`. Keep their real readiness and invariant checks, then
+return `Ok(())`; final validation runs against the recipe owned by the pool.
+`PreparedBaseline::Restored` contains only canister and reset receipts.
+
+Build marker producers and consumers from the same release. The current shape is
+`ICTK|label:start-or-end|instructions|heap_bytes|memory_bytes`. Update custom
+producers and CSV/Markdown consumers for three counters. Before adopting this
+layout, explicitly retire older marker logs and report directories from active
+comparison inputs, keeping them as historical evidence. Generate fresh baselines
+and use fresh output directories; do not overwrite or reinterpret retained reports.
+The library selects no retained installation and supplies no old-layout reader.
+Remove `metadata` from `BenchmarkRunReport` construction and replace
+`BenchmarkRunMetadata` / `read_benchmark_run_metadata` with your application's
+provenance record and reader. Testkit writes measurement CSV/Markdown only;
+callers select and write any sidecar themselves. Existing metadata files remain
+historical evidence and are not read, migrated or deleted by Testkit. Choose a
+fresh output directory before using the current report contract. Fixture-reuse
+worker/driver JSON remains owned by its example and is unchanged.
+
+### Added
+
+Unix Rust fixtures can call `pic::server_assets::check(&directory)` to authenticate
+an existing reviewed bundle offline and pass its absolute executable path to
+managed startup. `server_assets::setup(&directory, interrupted)` explicitly
+provisions an absent bundle, with caller-owned cancellation. The CLI delegates
+to this same owner. The library installs no signal handlers, and callers retain
+physical-root custody and prevent namespace replacement before launch.
+
+### Changed
+
+- Candid reply decoders select compact diagnostics on native and Wasm hosts,
+  avoiding full large-input dumps while preserving typed causes and caller limits.
+  Compact diagnostics can include small inputs; callers still own disclosure.
+
+- Git provenance uses Host's observed-version admission instead of capturing and
+  admitting the version separately. Executable/output budgets, explicit environment,
+  cancellation checks and typed Git/tool causes remain selected by the driver
+  ([#112 — Single-probe Host observed-version admission](https://github.com/dragginzgame/ic-testkit/issues/112)).
+- Startup log reading shares Host's prefix operation, retaining the 16 KiB cap,
+  lossy UTF-8 decoding, omitted-byte count and nonblocking special-file refusal.
+- Snapshot funding is selected and calculated once before restore. Preserve mode
+  performs no balance read, and an already satisfied top-up minimum adds no
+  cycles. The live restore case covers preserve, needed and satisfied funding.
+- Testkit's direct JSON dependency and Serde derives are limited to native
+  tests/examples; native Candid calls retain their deserialization dependency.
+
+- Release preparation uses the reviewed shared Cargo metadata helper in a retained
+  private workspace; local exact-byte recovery and additional release views remain.
+
+### Testing
+
+- Asset fixtures re-exec before writing executables so unrelated library forks
+  cannot inherit their writable handles. Production admission and no-retry
+  behavior are unchanged
+  ([#115 — Isolate server-asset fixtures from parallel process tests](https://github.com/dragginzgame/ic-testkit/issues/115)).
+
+- Qualify exact Git status bytes with portable control/quote filenames on macOS
+  and Linux; retain invalid UTF-8 directory-entry coverage on Linux
+  ([#111 — Portable Git dirty-path byte qualification](https://github.com/dragginzgame/ic-testkit/issues/111)).
+- Keep the output-limit producer alive until capture terminates and reaps it,
+  removing the natural-exit/signalling race from cleanup qualification
+  ([#114 — Deterministic live-producer cleanup qualification](https://github.com/dragginzgame/ic-testkit/issues/114)).
+
 ## [0.50.0] - 2026-10-16
 
 ### Breaking

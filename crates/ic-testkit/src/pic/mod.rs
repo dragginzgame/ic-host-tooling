@@ -11,8 +11,9 @@
 //!
 //! [`PocketIcManagedServer`] can explicitly own one exact caller-selected
 //! server child for a serial suite. No type serializes independent instances or
-//! downloads a server implicitly. Explicit provisioning is owned by the
-//! published `ic-testkit-server setup` / `check` commands.
+//! downloads a server implicitly. On Unix, `server_assets` owns explicit
+//! authenticated provisioning and admission; the published
+//! `ic-testkit-server setup` / `check` commands delegate to that implementation.
 
 pub use pocket_ic::{
     CanisterStatusResult, ErrorCode, LATEST_SERVER_VERSION, PocketIc, PocketIcBuilder, RejectCode,
@@ -21,6 +22,8 @@ pub use pocket_ic::{
 
 mod server;
 pub use server::{POCKET_IC_SERVER_VERSION, supports_pocket_ic_server};
+#[cfg(unix)]
+pub mod server_assets;
 
 mod baseline;
 mod baseline_pool;
@@ -42,9 +45,8 @@ pub use baseline_pool::{
     BaselinePoolPreparationError, BaselinePoolTimings, BaselinePreparationStage,
     CachedPocketIcBaselinePool, CachedPocketIcBaselinePoolGuard, CanisterRestoreReceipt,
     CycleResetPolicy, ExtraCanisterPolicy, FailureDisposition, FixtureRecipeId,
-    PocketIcBaselineRecipe, PreparedBaseline, ReadinessReceipt, RebuildReason, ResetDomainKind,
-    ResetDomainPolicy, ResetReceipt, ResetRequirements, StateResetPolicy, TimeResetPolicy,
-    ValidationReceipt,
+    PocketIcBaselineRecipe, PreparedBaseline, RebuildReason, ResetDomainKind, ResetDomainPolicy,
+    ResetReceipt, ResetRequirements, StateResetPolicy, TimeResetPolicy,
 };
 pub use calls::{CandidCallExt, query_candid_args, update_candid_args};
 pub use diagnostics::{

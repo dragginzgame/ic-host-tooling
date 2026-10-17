@@ -6,6 +6,77 @@ documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.51.0]
+
+### Breaking
+
+- Adopt Host 0.24's public error types and align benchmark tooling with Build
+  0.12. Callers naming startup probe or cleanup errors directly must select
+  `ic-host-process` 0.24. Package compiler requirements remain unchanged.
+  [Migration details](crates/ic-testkit/CHANGELOG.md#0510).
+
+- Pool readiness and validation hooks return `Result<(), E>` without mandatory
+  string receipts. Real recipe checks, reset coverage and stage timings remain.
+  Update recipe implementations and rebuild callers together.
+- Remove the reserved allocation counter from benchmark markers, Rust types and
+  reports. Rebuild producers and readers together; retire older logs/reports from
+  active comparisons, retain historical evidence, and start fresh report directories.
+
+- Benchmark reports no longer require library-owned run metadata or emit a
+  metadata sidecar. Applications own provenance and history records; retain
+  existing sidecars as historical evidence and use fresh report directories.
+
+- Diagnostic input requests, labeled requests and log render limits use public
+  fields. Construct and inspect these records directly; batch labels are still
+  validated before collection and exact sender behavior is unchanged.
+
+- Installation, retry and snapshot-target inputs use public-field records.
+  Typed query/update calls require an explicit principal; use
+  `Principal::anonymous()` when appropriate.
+- Native CSV/Markdown directory output and its report-bundling record move to
+  the repository's `benchmark_report` example. Library parsing and arithmetic
+  remain available; applications own file layout and output policy.
+
+### Added
+
+- Unix Rust fixtures can use `pic::server_assets::{check, setup, DEFAULT_DIRECTORY}`
+  for authenticated PocketIC admission without Cargo, Make or CLI adapters.
+  The CLI delegates to the same implementation; callers retain cancellation,
+  namespace custody and managed-server ownership.
+
+### Changed
+
+- Candid reply decoders select compact diagnostics on native and Wasm hosts,
+  avoiding full large-input dumps while preserving typed causes and caller limits.
+  Compact diagnostics can include small inputs; callers still own disclosure.
+
+- Record Git provenance with one admitted version probe, preserving explicit
+  limits, environment and typed failures
+  ([#112 — Single-probe Host observed-version admission](https://github.com/dragginzgame/ic-testkit/issues/112)).
+- Startup diagnostics use Host's bounded file-prefix reader, retaining their
+  existing byte allowance, lossy decoding and omitted-byte message.
+- Snapshot restoration selects funding once and skips top-ups when the minimum
+  is already satisfied, preserving caller-selected cycle behavior.
+
+- Release metadata preparation delegates Cargo workspace/lock/root-note handling
+  to the reviewed Shared Tooling helper inside Testkit's retained private
+  workspace. Exact-byte interruption recovery and installation/package-note views
+  remain owned by Testkit.
+
+### Testing
+
+- Asset fixtures re-exec before writing executables so unrelated library forks
+  cannot inherit their writable handles. Production admission and no-retry
+  behavior are unchanged
+  ([#115 — Isolate server-asset fixtures from parallel process tests](https://github.com/dragginzgame/ic-testkit/issues/115)).
+
+- Qualify exact Git status bytes with portable control/quote filenames on macOS
+  and Linux; retain invalid UTF-8 directory-entry coverage on Linux
+  ([#111 — Portable Git dirty-path byte qualification](https://github.com/dragginzgame/ic-testkit/issues/111)).
+- Keep the output-limit producer alive until capture terminates and reaps it,
+  removing the natural-exit/signalling race from cleanup qualification
+  ([#114 — Deterministic live-producer cleanup qualification](https://github.com/dragginzgame/ic-testkit/issues/114)).
+
 ## [0.50.0] - 2026-10-16
 
 ### Breaking

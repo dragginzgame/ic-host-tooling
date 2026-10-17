@@ -1,42 +1,38 @@
-//! Native benchmark metadata, CSV and Markdown report output.
+//! Example-owned benchmark CSV and Markdown report output.
 //!
-//! Paths and synchronization remain caller-owned; retained report formats are
-//! unchanged. Marker parsing and arithmetic live in the parent module.
+//! Paths and synchronization remain caller-owned. Use a fresh output directory
+//! for each report; marker parsing and arithmetic remain owned by the library.
 
 use std::{fmt::Write as _, fs, io, path::Path};
 
-use super::{
+use ic_testkit::benchmark::{
     BenchmarkAggregateRow, BenchmarkAverages, BenchmarkComparisonRow, BenchmarkEventKind,
-    BenchmarkRunMetadata, BenchmarkRunReport, BenchmarkScope, BenchmarkSpan, InvalidBenchmarkSpan,
+    BenchmarkParseReport, BenchmarkScope, BenchmarkSpan, BenchmarkSpanReport, InvalidBenchmarkSpan,
     MalformedBenchmarkMarker, RawBenchmarkEvent,
 };
 
 const ALL_SUITES_LABEL: &str = "ALL";
 
-impl BenchmarkScope {
-    fn label(&self) -> &str {
-        match self {
-            Self::Suite(suite) => suite,
-            Self::All => ALL_SUITES_LABEL,
-        }
+fn scope_label(scope: &BenchmarkScope) -> &str {
+    match scope {
+        BenchmarkScope::Suite(suite) => suite,
+        BenchmarkScope::All => ALL_SUITES_LABEL,
     }
 }
 
-pub fn read_benchmark_run_metadata(path: impl AsRef<Path>) -> io::Result<BenchmarkRunMetadata> {
-    let input = fs::read_to_string(path)?;
-    if !input.trim_start().starts_with('{') {
-        return Err(io::Error::new(
-            io::ErrorKind::InvalidData,
-            "benchmark metadata JSON must be an object",
-        ));
-    }
-    serde_json::from_str(&input).map_err(metadata_json_error)
+/// Measurements selected by this example's report layout.
+pub struct BenchmarkRunReport {
+    pub parse: BenchmarkParseReport,
+    pub spans: BenchmarkSpanReport,
+    pub aggregates: Vec<BenchmarkAggregateRow>,
+    pub comparison: Option<Vec<BenchmarkComparisonRow>>,
 }
 
 /// Write one complete benchmark report into the requested directory.
 ///
 /// The directory is caller-owned. Concurrent writers must use unique paths or
-/// synchronize access to the same path outside this function.
+/// synchronize access to the same path outside this function. Callers own run
+/// identity, provenance, history selection and any metadata sidecar.
 pub fn write_benchmark_report_dir(
     report: &BenchmarkRunReport,
     path: impl AsRef<Path>,
@@ -81,19 +77,18 @@ pub fn write_benchmark_report_dir(
         comparison_csv(report.comparison.as_deref()),
     )?;
     fs::write(path.join("bench-summary.md"), summary)?;
-    fs::write(path.join("metadata.json"), metadata_json(&report.metadata))?;
 
     Ok(())
 }
 
 fn raw_events_csv(events: &[RawBenchmarkEvent]) -> String {
     let mut out = String::from(
-        "source_line,source,prefix,suite,label,span_label,kind,instructions,heap_bytes,memory_bytes,total_allocation\n",
+        "source_line,source,prefix,suite,label,span_label,kind,instructions,heap_bytes,memory_bytes\n",
     );
     for event in events {
         let _ = writeln!(
             out,
-            "{},{},{},{},{},{},{},{},{},{},{}",
+            "{},{},{},{},{},{},{},{},{},{}",
             event.source_line,
             event.source.as_str(),
             csv_cell(&event.prefix),
@@ -104,7 +99,6 @@ fn raw_events_csv(events: &[RawBenchmarkEvent]) -> String {
             event.counters.instructions,
             event.counters.heap_bytes,
             event.counters.memory_bytes,
-            event.counters.total_allocation
         );
     }
     out
@@ -127,12 +121,12 @@ fn malformed_markers_csv(markers: &[MalformedBenchmarkMarker]) -> String {
 
 fn spans_csv(spans: &[BenchmarkSpan]) -> String {
     let mut out = String::from(
-        "suite,span_label,start_line,end_line,instructions_delta,heap_bytes_delta,memory_bytes_delta,total_allocation_delta\n",
+        "suite,span_label,start_line,end_line,instructions_delta,heap_bytes_delta,memory_bytes_delta\n",
     );
     for span in spans {
         let _ = writeln!(
             out,
-            "{},{},{},{},{},{},{},{}",
+            "{},{},{},{},{},{},{}",
             csv_cell(&span.suite),
             csv_cell(&span.span_label),
             span.start_line,
@@ -140,7 +134,6 @@ fn spans_csv(spans: &[BenchmarkSpan]) -> String {
             span.delta.instructions,
             span.delta.heap_bytes,
             span.delta.memory_bytes,
-            span.delta.total_allocation
         );
     }
     out
@@ -181,14 +174,14 @@ fn invalid_spans_csv(spans: &[InvalidBenchmarkSpan]) -> String {
 
 fn aggregates_csv<'a>(rows: impl Iterator<Item = &'a BenchmarkAggregateRow>) -> io::Result<String> {
     let mut out = String::from(
-        "suite,span_label,runs,instructions_total,instructions_mean,heap_bytes_total,heap_bytes_mean,memory_bytes_total,memory_bytes_mean,total_allocation_total,total_allocation_mean\n",
+        "suite,span_label,runs,instructions_total,instructions_mean,heap_bytes_total,heap_bytes_mean,memory_bytes_total,memory_bytes_mean\n",
     );
     for row in rows {
         let average = row.average(1).map_err(io::Error::other)?;
         let _ = writeln!(
             out,
-            "{},{},{},{},{},{},{},{},{},{},{}",
-            csv_cell(row.scope.label()),
+            "{},{},{},{},{},{},{},{},{}",
+            csv_cell(scope_label(&row.scope)),
             csv_cell(&row.span_label),
             row.runs,
             row.total.instructions,
@@ -197,8 +190,6 @@ fn aggregates_csv<'a>(rows: impl Iterator<Item = &'a BenchmarkAggregateRow>) -> 
             average.heap_bytes,
             row.total.memory_bytes,
             average.memory_bytes,
-            row.total.total_allocation,
-            average.total_allocation
         );
     }
     Ok(out)
@@ -206,7 +197,7 @@ fn aggregates_csv<'a>(rows: impl Iterator<Item = &'a BenchmarkAggregateRow>) -> 
 
 fn comparison_csv(comparison: Option<&[BenchmarkComparisonRow]>) -> String {
     let mut out = String::from(
-        "scope,suite,span_label,current_runs,previous_runs,current_mean_scale,previous_mean_scale,current_instructions_mean,previous_instructions_mean,current_heap_bytes_mean,previous_heap_bytes_mean,current_memory_bytes_mean,previous_memory_bytes_mean,current_total_allocation_mean,previous_total_allocation_mean\n",
+        "scope,suite,span_label,current_runs,previous_runs,current_mean_scale,previous_mean_scale,current_instructions_mean,previous_instructions_mean,current_heap_bytes_mean,previous_heap_bytes_mean,current_memory_bytes_mean,previous_memory_bytes_mean\n",
     );
     if let Some(comparison) = comparison {
         for row in comparison {
@@ -217,13 +208,13 @@ fn comparison_csv(comparison: Option<&[BenchmarkComparisonRow]>) -> String {
             };
             let _ = writeln!(
                 out,
-                "{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}",
+                "{},{},{},{},{},{},{},{},{},{},{},{},{}",
                 if matches!(row.scope, BenchmarkScope::All) {
                     "all"
                 } else {
                     "suite"
                 },
-                csv_cell(row.scope.label()),
+                csv_cell(scope_label(&row.scope)),
                 csv_cell(&row.span_label),
                 optional_u64_cell(row.current.map(|measurement| measurement.runs)),
                 optional_u64_cell(row.previous.map(|measurement| measurement.runs)),
@@ -235,8 +226,6 @@ fn comparison_csv(comparison: Option<&[BenchmarkComparisonRow]>) -> String {
                 value(previous, |m| m.heap_bytes),
                 value(current, |m| m.memory_bytes),
                 value(previous, |m| m.memory_bytes),
-                value(current, |m| m.total_allocation),
-                value(previous, |m| m.total_allocation)
             );
         }
     }
@@ -245,7 +234,7 @@ fn comparison_csv(comparison: Option<&[BenchmarkComparisonRow]>) -> String {
 
 fn benchmark_summary_markdown(report: &BenchmarkRunReport) -> io::Result<String> {
     let mut out = String::from(
-        "# Benchmark Summary\n\nMeans are floor-rounded in original counter units. Comparison CSV retains current and previous scaled means.\n\n| Benchmark | Runs | Instructions Mean | Heap Bytes Mean | Memory Bytes Mean | Allocation Mean |\n| --- | ---: | ---: | ---: | ---: | ---: |\n",
+        "# Benchmark Summary\n\nMeans are floor-rounded in original counter units. Comparison CSV retains current and previous scaled means.\n\n| Benchmark | Runs | Instructions Mean | Heap Bytes Mean | Memory Bytes Mean |\n| --- | ---: | ---: | ---: | ---: |\n",
     );
     for row in report
         .aggregates
@@ -255,29 +244,15 @@ fn benchmark_summary_markdown(report: &BenchmarkRunReport) -> io::Result<String>
         let average = row.average(1).map_err(io::Error::other)?;
         let _ = writeln!(
             out,
-            "| {} | {} | {} | {} | {} | {} |",
+            "| {} | {} | {} | {} | {} |",
             markdown_cell(&row.span_label),
             row.runs,
             average.instructions,
             average.heap_bytes,
             average.memory_bytes,
-            average.total_allocation
         );
     }
     Ok(out)
-}
-
-fn metadata_json(metadata: &BenchmarkRunMetadata) -> String {
-    let mut output = serde_json::to_string_pretty(metadata).expect("metadata JSON must serialize");
-    output.push('\n');
-    output
-}
-
-fn metadata_json_error(err: serde_json::Error) -> io::Error {
-    io::Error::new(
-        io::ErrorKind::InvalidData,
-        format!("invalid benchmark metadata JSON: {err}"),
-    )
 }
 
 const fn kind_str(kind: BenchmarkEventKind) -> &'static str {
@@ -302,3 +277,6 @@ fn optional_u64_cell(value: Option<u64>) -> String {
 fn markdown_cell(value: &str) -> String {
     value.replace('|', "\\|")
 }
+
+#[cfg(test)]
+mod tests;

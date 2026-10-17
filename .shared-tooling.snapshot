@@ -72,6 +72,8 @@ revision	fec7c9b97f6a35a23daf54abe9a6472a5d1829b0
 # entrypoint	scripts/ci/test-local-lock-versions.pl
 # entrypoint	scripts/ci/formatting-evidence.sh
 # entrypoint	scripts/ci/check-formatting-hooks.sh
+# entrypoint	scripts/ci/cargo-release-metadata.sh
+# entrypoint	scripts/ci/test-cargo-release-metadata.sh
 file	b7af05c3ee820b1032136db1a6414a99cfb70dddec841d97ae6f07bedabf3bc2	-	DRAGGINZGAME.md
 file	59f6cb0b47fcfa698396776bbb391737292ebf34457ad7c65803fe7b36961499	-	docs/principles/README.md
 file	9315c9faffa4f36cfab496342535bf49d728ddd2111e8e127cbc44b3fac89ce7	-	docs/principles/decision-artifact-discipline.md
@@ -141,6 +143,8 @@ file	236f9b2d7fe391a73d03cfe355c0d26fa73de8db1553c7e670f7b19aeb65d086	x	scripts/
 file	d4b498337bfd681466e7b541cb2783779aad2a8b326e927450d98f3b570fb5c6	x	scripts/ci/test-local-lock-versions.pl
 file	d517344568e02a638cd19b99bfbcc63f000a0cf1df7b7713f901f52518b1e2ee	x	scripts/ci/formatting-evidence.sh
 file	3634f4eef80eeaf69ebf2d8480adae7fdee1a7f369546e1feb0ece90e6206be0	x	scripts/ci/check-formatting-hooks.sh
+file	37757b1a2f423a0d0b703a9c39fa840c37998d841a9f5e8c6ae5e61a33843a2a	x	scripts/ci/cargo-release-metadata.sh
+file	d5df8dbbfc8209e8800f6b4c9f9436e9223ca1197053e44a3c42500c40b96358	x	scripts/ci/test-cargo-release-metadata.sh
 file	4c981184847462ab3c01cac087e28309f8e054253fd95c7bbe56f643877aa708	x	scripts/ci/verify-file-checksum.sh
 file	a4682503812f210b951aede536cdd65642bfe266b02ab532853a1aeff64f9742	x	scripts/ci/verify-shared-tooling-snapshot.sh
 file	ef2ba87f4a34406c355cef9d101ec97dce72990f04b16ded721761bb59ec4df3	-	docs/rust-toolchains.md
@@ -171,6 +175,8 @@ file	394b173e903aeb4d057f57665a0fad17233b677eff1f63d17d81314b3086856b	-	make/rus
 file	0f86b831af02072f89b74477c73e378fd451f81116def1271a0c0a4552e278bb	x	scripts/dev/install-git-hooks.sh
 file	3a3fbd9ff0ee0bd557706ba529faa3c120bebacbe9c7c174b6a083efb0fdf7d3	x	scripts/dev/check-cargo-tool-versions.pl
 file	c10514df9c63541c1e86633c6311d9448d06426cd33b93e4dd289e743fc2e4c6	-	scripts/ci/select-rust-formatting-sources.sh
+file	e00937f22bd31231993ae9c1d7eda844227b39529466d017de44dbc1f0618026	-	scripts/ci/cargo-workspace-members.jq
+file	fed2573258080a0c89c7db113208a774f615ca29c372e62c1d2334e58c165654	x	scripts/ci/compare-stable-versions.pl
 file	0fe0525667d3d96eb9f25968cb648bfeb3072a0afa980599692776fac256a2ee	x	scripts/dev/install-host-tools.sh
 file	9fc0f0eb833b0db3087adaac90bfe98382a8a43decc23116dd4e962da1da8c0c	x	scripts/dev/install-ic-tools.sh
 file	37477ebdbf9f03da16473290b12bb99436c73f1855df27d592438dc6324e05ea	x	scripts/ci/tool-catalog-records.pl

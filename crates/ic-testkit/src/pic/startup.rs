@@ -1164,14 +1164,7 @@ fn startup_file_error(
 }
 
 fn read_bounded_lossy(path: &Path) -> String {
-    let Ok(file) = ic_host_fs::read::open_regular_file(path) else {
-        return String::new();
-    };
-    let length = file.metadata().map_or(0, |metadata| metadata.len());
-    let Ok(bytes) = ic_host_artifacts::artifact::read_reader(
-        file.take(SERVER_OUTPUT_LIMIT as u64),
-        SERVER_OUTPUT_LIMIT,
-    ) else {
+    let Ok((bytes, length)) = ic_host_fs::read::read_file_prefix(path, SERVER_OUTPUT_LIMIT) else {
         return String::new();
     };
     let mut output = String::from_utf8_lossy(&bytes).into_owned();

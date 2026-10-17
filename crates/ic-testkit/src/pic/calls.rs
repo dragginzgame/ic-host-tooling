@@ -25,26 +25,12 @@ impl CallContext<'_> {
 
 /// Typed Candid calls with caller-selected reply limits and contextual failures.
 ///
+/// Pass [`Principal::anonymous()`] explicitly for anonymous access.
 /// Every call requires explicit [`DecodeLimits`]; these bound reply decoding,
 /// not PocketIC transport duration or canister execution.
 pub trait CandidCallExt {
-    /// Encode and execute an anonymous update call, then decode its result.
-    fn update_candid<T, A>(
-        &self,
-        canister_id: Principal,
-        method: &str,
-        args: A,
-        limits: DecodeLimits,
-    ) -> Result<T, CandidCallError>
-    where
-        T: CandidType + DeserializeOwned,
-        A: ArgumentEncoder,
-    {
-        self.update_candid_as(canister_id, Principal::anonymous(), method, args, limits)
-    }
-
     /// Encode and execute an update call as an explicit caller.
-    fn update_candid_as<T, A>(
+    fn update_candid<T, A>(
         &self,
         canister_id: Principal,
         caller: Principal,
@@ -56,23 +42,8 @@ pub trait CandidCallExt {
         T: CandidType + DeserializeOwned,
         A: ArgumentEncoder;
 
-    /// Encode and execute an anonymous query call, then decode its result.
-    fn query_candid<T, A>(
-        &self,
-        canister_id: Principal,
-        method: &str,
-        args: A,
-        limits: DecodeLimits,
-    ) -> Result<T, CandidCallError>
-    where
-        T: CandidType + DeserializeOwned,
-        A: ArgumentEncoder,
-    {
-        self.query_candid_as(canister_id, Principal::anonymous(), method, args, limits)
-    }
-
     /// Encode and execute a query call as an explicit caller.
-    fn query_candid_as<T, A>(
+    fn query_candid<T, A>(
         &self,
         canister_id: Principal,
         caller: Principal,
@@ -87,7 +58,7 @@ pub trait CandidCallExt {
 
 impl CandidCallExt for PocketIc {
     /// Generic update call helper with an explicit caller principal.
-    fn update_candid_as<T, A>(
+    fn update_candid<T, A>(
         &self,
         canister_id: Principal,
         caller: Principal,
@@ -114,7 +85,7 @@ impl CandidCallExt for PocketIc {
     }
 
     /// Generic query call helper with an explicit caller principal.
-    fn query_candid_as<T, A>(
+    fn query_candid<T, A>(
         &self,
         canister_id: Principal,
         caller: Principal,
@@ -143,7 +114,7 @@ impl CandidCallExt for PocketIc {
 
 /// Execute an update as `caller`, decoding the top-level Candid reply arguments.
 ///
-/// Unlike [`CandidCallExt::update_candid_as`], `(u64, bool)` means two reply
+/// Unlike [`CandidCallExt::update_candid`], `(u64, bool)` means two reply
 /// arguments rather than one tuple-valued reply. Use `()` for no replies or
 /// `(T,)` for one reply. Pass [`Principal::anonymous()`] for an anonymous caller.
 /// Application-level `Result<T, E>` values are returned without unwrapping.
@@ -175,7 +146,7 @@ where
 
 /// Execute a query as `caller`, decoding the top-level Candid reply arguments.
 ///
-/// Unlike [`CandidCallExt::query_candid_as`], `(u64, bool)` means two reply
+/// Unlike [`CandidCallExt::query_candid`], `(u64, bool)` means two reply
 /// arguments rather than one tuple-valued reply. Use `()` for no replies or
 /// `(T,)` for one reply. Pass [`Principal::anonymous()`] for an anonymous caller.
 /// Application-level `Result<T, E>` values are returned without unwrapping.

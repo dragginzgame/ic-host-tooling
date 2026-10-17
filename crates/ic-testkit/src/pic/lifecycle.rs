@@ -6,7 +6,6 @@ use pocket_ic::{ErrorCode, PocketIc, RejectResponse};
 use super::{CanisterInstallError, transport::capture_operation};
 
 /// Inputs and diagnostic context for one generic canister installation.
-#[non_exhaustive]
 pub struct InstallSpec {
     /// Wasm module installed into the newly created canister.
     pub wasm: Vec<u8>,
@@ -20,62 +19,13 @@ pub struct InstallSpec {
     pub label: Option<String>,
 }
 
-impl InstallSpec {
-    /// Build one generic canister install specification.
-    #[must_use]
-    pub const fn new(wasm: Vec<u8>, init_bytes: Vec<u8>, cycles: u128) -> Self {
-        Self {
-            wasm,
-            init_bytes,
-            cycles,
-            install_sender: None,
-            label: None,
-        }
-    }
-
-    /// Set the management-call sender used for `install_canister`.
-    #[must_use]
-    pub const fn install_sender(mut self, sender: Principal) -> Self {
-        self.install_sender = Some(sender);
-        self
-    }
-
-    /// Set a diagnostic label for install failures.
-    #[must_use]
-    pub fn label(mut self, label: impl Into<String>) -> Self {
-        self.label = Some(label.into());
-        self
-    }
-}
-
 /// Retry limits and simulated cooldown for install-code operations.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct RetryPolicy {
-    max_attempts: NonZeroUsize,
-    cooldown: Duration,
-}
-
-impl RetryPolicy {
-    /// Create a policy with an exact, non-zero maximum attempt count.
-    #[must_use]
-    pub const fn new(max_attempts: NonZeroUsize, cooldown: Duration) -> Self {
-        Self {
-            max_attempts,
-            cooldown,
-        }
-    }
-
-    /// Read the maximum number of operation attempts, including the first.
-    #[must_use]
-    pub const fn max_attempts(self) -> NonZeroUsize {
-        self.max_attempts
-    }
-
-    /// Read the simulated cooldown applied between rate-limited attempts.
-    #[must_use]
-    pub const fn cooldown(self) -> Duration {
-        self.cooldown
-    }
+    /// Maximum attempts, including the initial call.
+    pub max_attempts: NonZeroUsize,
+    /// Simulated cooldown between retryable attempts.
+    pub cooldown: Duration,
 }
 
 /// Generic canister installation and structured install-code retry policy.
@@ -176,7 +126,7 @@ impl CanisterInstallExt for PocketIc {
         F: FnMut() -> Result<T, RejectResponse>,
     {
         retry_install_code_with(policy, op, || {
-            self.wait_out_install_code_rate_limit(policy.cooldown());
+            self.wait_out_install_code_rate_limit(policy.cooldown);
         })
     }
 }
@@ -190,7 +140,7 @@ where
     F: FnMut() -> Result<T, RejectResponse>,
     W: FnMut(),
 {
-    let mut retries = 1..policy.max_attempts().get();
+    let mut retries = 1..policy.max_attempts.get();
     loop {
         match op() {
             Err(err)
@@ -231,10 +181,10 @@ mod tests {
             let attempts = Cell::new(0);
             let waits = Cell::new(0);
             let result = retry_install_code_with(
-                RetryPolicy::new(
-                    NonZeroUsize::new(max_attempts).unwrap(),
-                    Duration::from_secs(1),
-                ),
+                RetryPolicy {
+                    max_attempts: NonZeroUsize::new(max_attempts).unwrap(),
+                    cooldown: Duration::from_secs(1),
+                },
                 || {
                     attempts.set(attempts.get() + 1);
                     Err::<(), _>(rejection(
@@ -263,7 +213,10 @@ mod tests {
             let events = RefCell::new(Vec::new());
             let attempts = Cell::new(0);
             let result = retry_install_code_with(
-                RetryPolicy::new(NonZeroUsize::new(3).unwrap(), Duration::from_secs(1)),
+                RetryPolicy {
+                    max_attempts: NonZeroUsize::new(3).unwrap(),
+                    cooldown: Duration::from_secs(1),
+                },
                 || {
                     events.borrow_mut().push("attempt");
                     attempts.set(attempts.get() + 1);
@@ -296,7 +249,10 @@ mod tests {
         let attempts = Cell::new(0);
         let not_retryable = rejection(ErrorCode::CanisterRejectedMessage, "not retryable");
         let result = retry_install_code_with(
-            RetryPolicy::new(NonZeroUsize::new(3).unwrap(), Duration::from_secs(1)),
+            RetryPolicy {
+                max_attempts: NonZeroUsize::new(3).unwrap(),
+                cooldown: Duration::from_secs(1),
+            },
             || {
                 attempts.set(attempts.get() + 1);
                 Err::<(), _>(not_retryable.clone())

@@ -128,7 +128,13 @@ fn standalone_accepts_a_caller_built_instance_and_preserves_it_in_parts() {
         .expect("build explicitly configured custom topology");
     let fixture = StandaloneCanisterFixture::try_install(
         caller_built,
-        InstallSpec::new(EMPTY_WASM.to_vec(), vec![], 0),
+        InstallSpec {
+            wasm: EMPTY_WASM.to_vec(),
+            init_bytes: vec![],
+            cycles: 0,
+            install_sender: None,
+            label: None,
+        },
     )
     .expect("install standalone fixture");
     let (owned, canister_id) = fixture.into_parts();
@@ -499,7 +505,13 @@ fn standalone_dead_transport_preserves_failed_recovery_and_can_build_again() {
                 PocketIcStartupConfig::connect(&url, READY_TIMEOUT)
                     .build_instance(PocketIcBuilder::new().with_application_subnet())
                     .unwrap(),
-                InstallSpec::new(EMPTY_WASM.to_vec(), vec![], 0),
+                InstallSpec {
+                    wasm: EMPTY_WASM.to_vec(),
+                    init_bytes: vec![],
+                    cycles: 0,
+                    install_sender: None,
+                    label: None,
+                },
             )
             .map_err(io::Error::other),
             1 => build_deleted_standalone_fixture(),
@@ -545,7 +557,13 @@ fn standalone_dead_transport_preserves_failed_recovery_and_can_build_again() {
 fn build_empty_standalone_fixture() -> io::Result<StandaloneCanisterFixture> {
     StandaloneCanisterFixture::try_install(
         support::pocket_ic(),
-        InstallSpec::new(EMPTY_WASM.to_vec(), vec![], 0),
+        InstallSpec {
+            wasm: EMPTY_WASM.to_vec(),
+            init_bytes: vec![],
+            cycles: 0,
+            install_sender: None,
+            label: None,
+        },
     )
     .map_err(io::Error::other)
 }

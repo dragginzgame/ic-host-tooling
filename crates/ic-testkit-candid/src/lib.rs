@@ -3,6 +3,8 @@
 //! Callers select finite work limits, authenticate sources and retain original
 //! bytes. Ordinary single-result decoding permits Candid's bounded skipping of
 //! additional values; exact-single-result decoding rejects them.
+//! All decoders select Candid's compact diagnostics while retaining typed causes.
+//! Compact diagnostics can include small inputs; callers own error disclosure.
 
 use candid::{
     CandidType,
@@ -75,7 +77,8 @@ fn config(bytes: &[u8], limits: DecodeLimits) -> Result<DecoderConfig, DecodeErr
         .set_decoding_quota(limits.decoding_quota)
         .set_skipping_quota(limits.skipping_quota)
         .set_max_type_len(limits.type_entries)
-        .set_max_header_len(limits.header_bytes);
+        .set_max_header_len(limits.header_bytes)
+        .set_full_error_message(false);
     Ok(config)
 }
 

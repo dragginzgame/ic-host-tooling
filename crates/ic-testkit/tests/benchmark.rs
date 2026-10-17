@@ -1,24 +1,20 @@
 mod support;
 
-use ic_testkit::benchmark::report::{read_benchmark_run_metadata, write_benchmark_report_dir};
 use ic_testkit::benchmark::{
     BenchmarkCounter, BenchmarkCounters, BenchmarkEventKind, BenchmarkEventSource,
-    BenchmarkParseReport, BenchmarkParserConfig, BenchmarkRunMetadata, BenchmarkRunReport,
-    BenchmarkScope, BenchmarkSpanReport, DEFAULT_PREFIX, SuiteDerivation,
+    BenchmarkParseReport, BenchmarkParserConfig, BenchmarkScope, DEFAULT_PREFIX, SuiteDerivation,
     aggregate_benchmark_spans, compare_benchmark_aggregates, format_marker, pair_benchmark_spans,
     parse_benchmark_events, parse_benchmark_events_from_captured_output,
     parse_benchmark_events_from_source,
 };
-use serde_json::{Value, json};
-use std::{fmt::Write as _, fs};
-use support::unique_temp_directory as unique_temp_dir;
+use std::fmt::Write as _;
 
 #[test]
 fn parses_compact_markers_and_ignores_non_marker_lines() {
     let input = "\
 ordinary debug line
-ICTK|app/myfunc/something:start|100|200|300|400
-ICTK|app/myfunc/something:end|150|260|390|430
+ICTK|app/myfunc/something:start|100|200|300
+ICTK|app/myfunc/something:end|150|260|390
 ";
 
     let report = parse_benchmark_events(input, &BenchmarkParserConfig::default());
@@ -44,22 +40,21 @@ fn marker_formatter_uses_compact_tuple_shape() {
             instructions: 1,
             heap_bytes: 2,
             memory_bytes: 3,
-            total_allocation: 4,
         },
     );
 
-    assert_eq!(line, "ICTK|app/myfunc/something:start|1|2|3|4");
+    assert_eq!(line, "ICTK|app/myfunc/something:start|1|2|3");
 }
 
 #[test]
 fn records_source_stream_for_stdout_and_stderr_capture() {
     let stdout = parse_benchmark_events_from_source(
-        "ICTK|app/a:start|1|2|3|4",
+        "ICTK|app/a:start|1|2|3",
         &BenchmarkParserConfig::default(),
         BenchmarkEventSource::Stdout,
     );
     let stderr = parse_benchmark_events_from_source(
-        "ICTK|app/a:end|2|3|4|5",
+        "ICTK|app/a:end|2|3|4",
         &BenchmarkParserConfig::default(),
         BenchmarkEventSource::Stderr,
     );
@@ -70,10 +65,10 @@ fn records_source_stream_for_stdout_and_stderr_capture() {
 
 #[test]
 fn parses_combined_captured_stdout_and_stderr() {
-    let bad_number = "ICTK|app/b:start|bad|2|3|4";
-    let bad_shape = "ICTK|app/b:end|5|6|7";
-    let stdout = format!("noise\n\nICTK|app/a:start|1|2|3|4\n{bad_number}\n");
-    let stderr = format!("\nICTK|app/a:end|5|6|7|8\n{bad_shape}\nstderr noise\n");
+    let bad_number = "ICTK|app/b:start|bad|2|3";
+    let bad_shape = "ICTK|app/b:end|5|6";
+    let stdout = format!("noise\n\nICTK|app/a:start|1|2|3\n{bad_number}\n");
+    let stderr = format!("\nICTK|app/a:end|5|6|7\n{bad_shape}\nstderr noise\n");
     for strict in [false, true] {
         let config = BenchmarkParserConfig {
             strict,
@@ -118,9 +113,9 @@ fn parses_combined_captured_stdout_and_stderr() {
 #[test]
 fn malformed_markers_capture_bad_shape_and_bad_numbers() {
     let input = "\
-ICTK|app/a:start|1|2|3
-ICTK|app/a:end|1|two|3|4
-ICTK||1|2|3|4
+ICTK|app/a:start|1|2
+ICTK|app/a:end|1|two|3
+ICTK||1|2|3
 ";
 
     let report = parse_benchmark_events(input, &BenchmarkParserConfig::default());
@@ -134,7 +129,7 @@ ICTK||1|2|3|4
         report
             .malformed_markers
             .iter()
-            .any(|marker| marker.reason.contains("six"))
+            .any(|marker| marker.reason.contains("five"))
     );
     assert!(
         report
@@ -152,7 +147,7 @@ ICTK||1|2|3|4
 
 #[test]
 fn malformed_extra_columns_preserve_diagnostics_and_following_markers() {
-    let valid = "ICTK|app/a:start|1|2|3|4";
+    let valid = "ICTK|app/a:start|1|2|3";
     let malformed = [
         format!("{valid}|"),
         format!("{valid}|extra|tail"),
@@ -169,7 +164,7 @@ fn malformed_extra_columns_preserve_diagnostics_and_following_markers() {
         assert_eq!(marker.source_line, index + 1);
         assert_eq!(marker.source, BenchmarkEventSource::FetchedLog);
         assert_eq!(&marker.line, line);
-        assert_eq!(marker.reason, "expected six pipe-separated columns");
+        assert_eq!(marker.reason, "expected five pipe-separated columns");
     }
     assert_eq!(report.events.len(), 1);
     assert_eq!(report.events[0].source_line, 4);
@@ -180,7 +175,6 @@ fn malformed_extra_columns_preserve_diagnostics_and_following_markers() {
             instructions: 1,
             heap_bytes: 2,
             memory_bytes: 3,
-            total_allocation: 4,
         },
     );
 }
@@ -194,7 +188,7 @@ fn strict_parser_reports_non_marker_log_lines() {
     let report = parse_benchmark_events(
         "\
 ordinary debug line
-ICTK|app/a:start|1|2|3|4
+ICTK|app/a:start|1|2|3
 ",
         &config,
     );
@@ -212,10 +206,10 @@ ICTK|app/a:start|1|2|3|4
 fn pairs_repeated_same_label_spans_by_stack_order() {
     let report = parse_benchmark_events(
         "\
-ICTK|app/a:start|10|10|10|10
-ICTK|app/a:start|20|20|20|20
-ICTK|app/a:end|30|30|30|30
-ICTK|app/a:end|50|50|50|50
+ICTK|app/a:start|10|10|10
+ICTK|app/a:start|20|20|20
+ICTK|app/a:end|30|30|30
+ICTK|app/a:end|50|50|50
 ",
         &BenchmarkParserConfig::default(),
     );
@@ -239,10 +233,10 @@ ICTK|app/a:end|50|50|50|50
 fn reports_unpaired_and_invalid_spans() {
     let report = parse_benchmark_events(
         "\
-ICTK|app/a:end|10|10|10|10
-ICTK|app/b:start|20|20|20|20
-ICTK|app/c:start|50|50|50|50
-ICTK|app/c:end|40|60|60|60
+ICTK|app/a:end|10|10|10
+ICTK|app/b:start|20|20|20
+ICTK|app/c:start|50|50|50
+ICTK|app/c:end|40|60|60
 ",
         &BenchmarkParserConfig::default(),
     );
@@ -260,13 +254,13 @@ ICTK|app/c:end|40|60|60|60
 fn pairing_preserves_suite_boundaries_and_owned_diagnostics() {
     let report = {
         let mut parsed = parse_benchmark_events(
-            "ICTK|work:start|10|0|0|0\n\
-             ICTK|work:end|20|0|0|0\n\
-             ICTK|work:end|30|0|0|0\n\
-             ICTK|work:start|50|0|0|0\n\
-             ICTK|work:end|40|0|0|0\n\
-             ICTK|work:start|70|0|0|0\n\
-             ICTK|work:start|80|0|0|0\n",
+            "ICTK|work:start|10|0|0\n\
+             ICTK|work:end|20|0|0\n\
+             ICTK|work:end|30|0|0\n\
+             ICTK|work:start|50|0|0\n\
+             ICTK|work:end|40|0|0\n\
+             ICTK|work:start|70|0|0\n\
+             ICTK|work:start|80|0|0\n",
             &BenchmarkParserConfig::default(),
         );
         for (event, suite) in parsed
@@ -305,10 +299,10 @@ fn pairing_preserves_suite_boundaries_and_owned_diagnostics() {
 fn aggregates_by_suite_and_all_suites() {
     let parse = parse_benchmark_events(
         "\
-ICTK|app/a:start|0|0|0|0
-ICTK|app/a:end|100|20|30|40
-ICTK|app/a:start|100|20|30|40
-ICTK|app/a:end|300|60|90|120
+ICTK|app/a:start|0|0|0
+ICTK|app/a:end|100|20|30
+ICTK|app/a:start|100|20|30
+ICTK|app/a:end|300|60|90
 ",
         &BenchmarkParserConfig::default(),
     );
@@ -338,7 +332,7 @@ ICTK|app/a:end|300|60|90|120
 #[test]
 fn updated_aggregate_totals_and_runs_drive_averages_and_comparisons() {
     let parse = parse_benchmark_events(
-        "ICTK|app/a:start|0|0|0|0\nICTK|app/a:end|100|20|30|40\n",
+        "ICTK|app/a:start|0|0|0\nICTK|app/a:end|100|20|30\n",
         &BenchmarkParserConfig::default(),
     );
     let previous = aggregate_benchmark_spans(&pair_benchmark_spans(&parse.events).spans).unwrap();
@@ -363,7 +357,7 @@ fn wide_means_preserve_integer_differences_and_explicit_projection_errors() {
         [1_u128 << 53, (1_u128 << 53) + 1],
         [u128::MAX - 1, u128::MAX],
     ] {
-        for counter in 0..4 {
+        for counter in 0..3 {
             let spans = boundary_spans(counter, values);
             let previous = aggregate_benchmark_spans(&spans[..1]).unwrap();
             let current = aggregate_benchmark_spans(&spans[1..]).unwrap();
@@ -371,12 +365,7 @@ fn wide_means_preserve_integer_differences_and_explicit_projection_errors() {
                 let before = row.previous.unwrap().average;
                 let after = row.current.unwrap().average;
                 let fields = |m: ic_testkit::benchmark::BenchmarkAverages| {
-                    [
-                        m.instructions,
-                        m.heap_bytes,
-                        m.memory_bytes,
-                        m.total_allocation,
-                    ]
+                    [m.instructions, m.heap_bytes, m.memory_bytes]
                 };
                 assert_eq!(fields(after)[counter], values[1]);
                 assert_eq!(fields(before)[counter], values[0]);
@@ -409,12 +398,12 @@ fn boundary_spans(
 ) -> Vec<ic_testkit::benchmark::BenchmarkSpan> {
     let mut input = String::new();
     for value in values {
-        let mut counters = [0_u128; 4];
+        let mut counters = [0_u128; 3];
         counters[counter_index] = value;
         writeln!(
             input,
-            "ICTK|probe/run:start|0|0|0|0\nICTK|probe/run:end|{}|{}|{}|{}",
-            counters[0], counters[1], counters[2], counters[3]
+            "ICTK|probe/run:start|0|0|0\nICTK|probe/run:end|{}|{}|{}",
+            counters[0], counters[1], counters[2]
         )
         .unwrap();
     }
@@ -442,7 +431,6 @@ fn aggregate_counter_overflow_is_rejected_for_every_counter_and_scope() {
         BenchmarkCounter::Instructions,
         BenchmarkCounter::HeapBytes,
         BenchmarkCounter::MemoryBytes,
-        BenchmarkCounter::TotalAllocation,
     ]
     .into_iter()
     .enumerate()
@@ -470,7 +458,7 @@ fn aggregate_counter_overflow_is_rejected_for_every_counter_and_scope() {
 
 #[test]
 fn aggregate_totals_at_the_numeric_boundary_remain_exact() {
-    for index in 0..4 {
+    for index in 0..3 {
         let spans = boundary_spans(index, [u128::MAX - 1, 1]);
         let report = aggregate_benchmark_spans(&spans).expect("MAX total fits");
         assert_eq!(report.len(), 2);
@@ -480,7 +468,6 @@ fn aggregate_totals_at_the_numeric_boundary_remain_exact() {
                 row.total.instructions,
                 row.total.heap_bytes,
                 row.total.memory_bytes,
-                row.total.total_allocation,
             ];
             assert_eq!(totals[index], u128::MAX);
             assert!(
@@ -499,12 +486,12 @@ fn aggregate_totals_at_the_numeric_boundary_remain_exact() {
 
 #[test]
 fn span_subtraction_underflow_is_rejected_for_every_counter() {
-    for index in 0..4 {
-        let mut end = [10_u128; 4];
+    for index in 0..3 {
+        let mut end = [10_u128; 3];
         end[index] = 9;
         let input = format!(
-            "ICTK|probe/run:start|10|10|10|10\nICTK|probe/run:end|{}|{}|{}|{}\n",
-            end[0], end[1], end[2], end[3]
+            "ICTK|probe/run:start|10|10|10\nICTK|probe/run:end|{}|{}|{}\n",
+            end[0], end[1], end[2]
         );
         let parsed = parse_benchmark_events(&input, &BenchmarkParserConfig::default());
         assert_eq!(
@@ -532,8 +519,8 @@ fn authored_all_suite_does_not_collide_with_cross_suite_aggregate() {
     };
     let parse = parse_benchmark_events(
         "\
-ICTK|benchmark:start|0|0|0|0
-ICTK|benchmark:end|100|20|30|40
+ICTK|benchmark:start|0|0|0
+ICTK|benchmark:end|100|20|30
 ",
         &config,
     );
@@ -574,47 +561,13 @@ ICTK|benchmark:end|100|20|30|40
 }
 
 #[test]
-fn comparison_csv_distinguishes_named_all_suite_from_all_suites() {
-    let parse = parse_benchmark_events(
-        "ICTK|work:start|0|0|0|0\nICTK|work:end|100|20|30|40\n",
-        &BenchmarkParserConfig {
-            suite_derivation: SuiteDerivation::Fixed("ALL".into()),
-            ..BenchmarkParserConfig::default()
-        },
-    );
-    let spans = pair_benchmark_spans(&parse.events);
-    let aggregates = aggregate_benchmark_spans(&spans.spans).expect("aggregate benchmark spans");
-    let comparison = compare_benchmark_aggregates(&aggregates, &aggregates, 1).unwrap();
-    let root_directory = unique_temp_dir("comparison-all-scope");
-    let root = root_directory.path();
-    write_metadata(
-        root,
-        "2026-05-24T162600Z",
-        "2026-05-24T162600Z-a1b2c3d-0001",
-        None,
-    );
-    let report = BenchmarkRunReport {
-        parse,
-        spans,
-        aggregates,
-        comparison: Some(comparison),
-        metadata: read_benchmark_run_metadata(root.join("metadata.json")).unwrap(),
-    };
-    write_benchmark_report_dir(&report, root).expect("write comparison");
-    let csv = fs::read_to_string(root.join("comparison.csv")).unwrap();
-    assert!(csv.starts_with("scope,suite,span_label,"));
-    assert!(csv.lines().any(|row| row.starts_with("suite,ALL,work,")));
-    assert!(csv.lines().any(|row| row.starts_with("all,ALL,work,")));
-}
-
-#[test]
 fn compares_current_average_against_previous_average() {
     let previous = aggregate_benchmark_spans(
         &pair_benchmark_spans(
             &parse_benchmark_events(
                 "\
-ICTK|app/a:start|0|0|0|0
-ICTK|app/a:end|100|100|100|100
+ICTK|app/a:start|0|0|0
+ICTK|app/a:end|100|100|100
 ",
                 &BenchmarkParserConfig::default(),
             )
@@ -627,8 +580,8 @@ ICTK|app/a:end|100|100|100|100
         &pair_benchmark_spans(
             &parse_benchmark_events(
                 "\
-ICTK|app/a:start|0|0|0|0
-ICTK|app/a:end|150|50|100|100
+ICTK|app/a:start|0|0|0
+ICTK|app/a:end|150|50|100
 ",
                 &BenchmarkParserConfig::default(),
             )
@@ -666,12 +619,12 @@ fn comparisons_preserve_order_missing_rows_and_last_duplicate() {
         aggregate_benchmark_spans(&pair_benchmark_spans(&parsed.events).spans).unwrap()
     };
     let previous = aggregate(
-        "ICTK|common:start|0|0|0|0\nICTK|common:end|100|0|0|0\n\
-         ICTK|previous:start|0|0|0|0\nICTK|previous:end|50|0|0|0\n",
+        "ICTK|common:start|0|0|0\nICTK|common:end|100|0|0\n\
+         ICTK|previous:start|0|0|0\nICTK|previous:end|50|0|0\n",
     );
     let mut current = aggregate(
-        "ICTK|common:start|0|0|0|0\nICTK|common:end|150|0|0|0\n\
-         ICTK|current:start|0|0|0|0\nICTK|current:end|75|0|0|0\n",
+        "ICTK|common:start|0|0|0\nICTK|common:end|150|0|0\n\
+         ICTK|current:start|0|0|0\nICTK|current:end|75|0|0\n",
     );
     current.reverse();
     let mut duplicate = current
@@ -731,257 +684,4 @@ fn comparisons_preserve_order_missing_rows_and_last_duplicate() {
         compare_benchmark_aggregates(&[], &[], 1).unwrap(),
         [] as [ic_testkit::benchmark::BenchmarkComparisonRow; 0],
     );
-}
-
-#[test]
-fn writes_csv_markdown_and_metadata_report_files() {
-    let parse = parse_benchmark_events(
-        "\
-ICTK|app/myfunc/something:start|0|0|0|0
-ICTK|app/myfunc/something:end|234_200_000|1|4_194_304|2
-ICTK|app/missing:end|0|0|0|0
-ICTK|app/open:start|0|0|0|0
-ICTK|app/current-only:start|0|0|0|0
-ICTK|app/current-only:end|0|0|0|0
-ICTK|app/quoted,\"thing:start|0|0|0|0
-ICTK|app/quoted,\"thing:end|1|2|3|4
-ICTK|app/decreasing:start|10|0|0|0
-ICTK|app/decreasing:end|9|0|0|0
-"
-        .replace('_', "")
-        .as_str(),
-        &BenchmarkParserConfig::default(),
-    );
-    let spans = pair_benchmark_spans(&parse.events);
-    let aggregates = aggregate_benchmark_spans(&spans.spans).expect("aggregate benchmark spans");
-    let previous_parse = parse_benchmark_events(
-        "\
-ICTK|app/myfunc/something:start|0|0|0|0
-ICTK|app/myfunc/something:end|174776119|1|5447148|2
-ICTK|app/previous-only:start|0|0|0|0
-ICTK|app/previous-only:end|0|0|0|0
-",
-        &BenchmarkParserConfig::default(),
-    );
-    let previous_spans = pair_benchmark_spans(&previous_parse.events);
-    let previous_aggregates =
-        aggregate_benchmark_spans(&previous_spans.spans).expect("aggregate benchmark spans");
-    let comparison = compare_benchmark_aggregates(&aggregates, &previous_aggregates, 1).unwrap();
-    let report = BenchmarkRunReport {
-        parse,
-        spans,
-        aggregates,
-        comparison: Some(comparison),
-        metadata: BenchmarkRunMetadata {
-            timestamp: "2026-05-24T162600Z".to_string(),
-            run_directory_name: "2026-05-24T162600Z-a1b2c3d-0001".to_string(),
-            run_index: 1,
-            git_commit_hash: Some("a1b2c3d4".to_string()),
-            git_commit_short_hash: Some("a1b2c3d".to_string()),
-            ic_testkit_version: env!("CARGO_PKG_VERSION").to_string(),
-            pocket_ic_version: "13.0".to_string(),
-            rustc_version: "rustc 1.88.0".to_string(),
-            benchmark_command: Some("make \"test\"\nagain".to_string()),
-            selected_previous_run: None,
-        },
-    };
-    let root_directory = unique_temp_dir("ic-testkit-benchmark-report");
-    let root = root_directory.path();
-
-    write_benchmark_report_dir(&report, root).expect("write report");
-
-    assert!(root.join("spans.csv").exists());
-    assert!(root.join("suite-aggregates.csv").exists());
-    assert!(root.join("all-aggregates.csv").exists());
-
-    let raw_csv = fs::read_to_string(root.join("raw-events.csv")).unwrap();
-    assert!(raw_csv.lines().any(|line| line == "7,unknown,ICTK,app,\"app/quoted,\"\"thing:start\",\"app/quoted,\"\"thing\",start,0,0,0,0"));
-
-    assert_eq!(
-        fs::read_to_string(root.join("unpaired-markers.csv")).unwrap(),
-        "source_line,source,kind,suite,span_label,label\n3,unknown,end,app,app/missing,app/missing:end\n4,unknown,start,app,app/open,app/open:start\n"
-    );
-    assert_eq!(
-        fs::read_to_string(root.join("invalid-spans.csv")).unwrap(),
-        "start_line,end_line,suite,span_label,reason\n9,10,app,app/decreasing,end counter is lower than start counter\n"
-    );
-    let comparison_csv = fs::read_to_string(root.join("comparison.csv")).expect("read comparison");
-    assert!(comparison_csv.contains("app/myfunc/something"));
-    assert!(comparison_csv.contains("234200000,174776119"));
-    for (label, expected) in [
-        (
-            "app/current-only",
-            ["1", "", "1", "", "0", "", "0", "", "0", "", "0", ""],
-        ),
-        (
-            "app/previous-only",
-            ["", "1", "", "1", "", "0", "", "0", "", "0", "", "0"],
-        ),
-    ] {
-        let rows = comparison_csv
-            .lines()
-            .skip(1)
-            .map(|line| line.split(',').collect::<Vec<_>>())
-            .filter(|columns| columns[2] == label)
-            .collect::<Vec<_>>();
-        assert_eq!(rows.len(), 2, "suite and all-suites rows for {label}");
-        for columns in rows {
-            assert_eq!(columns[3..], expected);
-        }
-    }
-
-    let summary = fs::read_to_string(root.join("bench-summary.md")).expect("read summary");
-    assert!(summary.contains("| app/myfunc/something | 1 | 234200000 | 1 | 4194304 | 2 |"));
-
-    let metadata = fs::read_to_string(root.join("metadata.json")).expect("read metadata");
-    assert!(metadata.contains("\"run_directory_name\": \"2026-05-24T162600Z-a1b2c3d-0001\""));
-    let read_metadata =
-        read_benchmark_run_metadata(root.join("metadata.json")).expect("round-trip metadata");
-    assert_eq!(read_metadata, report.metadata);
-    assert!(metadata.ends_with('\n'));
-
-    fs::remove_dir_all(root).expect("clean temp dir");
-}
-
-#[test]
-fn metadata_reader_round_trips_written_metadata() {
-    let root_directory = unique_temp_dir("ic-testkit-benchmark-metadata");
-    let root = root_directory.path();
-    write_metadata(
-        root,
-        "2026-05-24T162600Z",
-        "2026-05-24T162600Z-a1b2c3d-0001",
-        Some("make benchmark"),
-    );
-
-    let metadata = read_benchmark_run_metadata(root.join("metadata.json")).expect("read metadata");
-
-    assert_eq!(metadata.timestamp, "2026-05-24T162600Z");
-    assert_eq!(
-        metadata.run_directory_name,
-        "2026-05-24T162600Z-a1b2c3d-0001"
-    );
-    assert_eq!(metadata.run_index, 1);
-    assert_eq!(
-        metadata.benchmark_command.as_deref(),
-        Some("make benchmark")
-    );
-
-    fs::remove_dir_all(root).expect("clean temp dir");
-}
-
-#[test]
-fn metadata_reader_enforces_object_schema() {
-    let root_directory = unique_temp_dir("ic-testkit-metadata-schema");
-    let root = root_directory.path();
-    write_metadata(root, "timestamp", "run", Some("benchmark"));
-    let path = root.join("metadata.json");
-    let valid: Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
-    let mut invalid = vec![
-        Value::Null,
-        json!([
-            "timestamp",
-            "run",
-            1,
-            null,
-            null,
-            "0.11",
-            "16",
-            "rust",
-            null,
-            null
-        ]),
-    ];
-
-    for field in [
-        "timestamp",
-        "run_directory_name",
-        "ic_testkit_version",
-        "pocket_ic_version",
-        "rustc_version",
-        "run_index",
-    ] {
-        let mut missing = valid.clone();
-        missing.as_object_mut().unwrap().remove(field);
-        invalid.push(missing);
-        let mut null = valid.clone();
-        null[field] = Value::Null;
-        invalid.push(null);
-    }
-    for index in [json!(-1), json!(1.0), json!(4_294_967_296_u64), json!("1")] {
-        let mut wrong_index = valid.clone();
-        wrong_index["run_index"] = index;
-        invalid.push(wrong_index);
-    }
-    for field in ["timestamp", "benchmark_command"] {
-        let mut wrong_string = valid.clone();
-        wrong_string[field] = json!(true);
-        invalid.push(wrong_string);
-    }
-    for value in invalid {
-        fs::write(&path, value.to_string()).unwrap();
-        assert_eq!(
-            read_benchmark_run_metadata(&path).unwrap_err().kind(),
-            std::io::ErrorKind::InvalidData,
-            "accepted invalid metadata: {value}",
-        );
-    }
-
-    let mut optional = valid;
-    for field in [
-        "git_commit_hash",
-        "git_commit_short_hash",
-        "benchmark_command",
-        "selected_previous_run",
-    ] {
-        optional.as_object_mut().unwrap().remove(field);
-    }
-    optional["run_index"] = json!(u32::MAX);
-    optional["unrecognized_field"] = json!(true);
-    fs::write(&path, optional.to_string()).unwrap();
-    let metadata = read_benchmark_run_metadata(&path).expect("missing optional fields are valid");
-    assert_eq!(metadata.run_index, u32::MAX);
-    assert!(metadata.git_commit_hash.is_none());
-    assert!(metadata.git_commit_short_hash.is_none());
-    assert!(metadata.benchmark_command.is_none());
-    assert!(metadata.selected_previous_run.is_none());
-
-    let object = serde_json::to_string(&optional).unwrap();
-    for (field, value) in [("timestamp", "\"duplicate\""), ("run_index", "2")] {
-        fs::write(&path, format!("{{\"{field}\":{value},{}", &object[1..])).unwrap();
-        assert_eq!(
-            read_benchmark_run_metadata(&path).unwrap_err().kind(),
-            std::io::ErrorKind::InvalidData,
-            "duplicate {field} must not overwrite an earlier value",
-        );
-    }
-}
-
-fn write_metadata(
-    path: &std::path::Path,
-    timestamp: &str,
-    run_directory_name: &str,
-    command: Option<&str>,
-) {
-    let metadata = BenchmarkRunMetadata {
-        timestamp: timestamp.to_string(),
-        run_directory_name: run_directory_name.to_string(),
-        run_index: 1,
-        git_commit_hash: Some("a1b2c3d4".to_string()),
-        git_commit_short_hash: Some("a1b2c3d".to_string()),
-        ic_testkit_version: env!("CARGO_PKG_VERSION").to_string(),
-        pocket_ic_version: "13.0".to_string(),
-        rustc_version: "rustc 1.88.0".to_string(),
-        benchmark_command: command.map(str::to_string),
-        selected_previous_run: None,
-    };
-    let report = BenchmarkRunReport {
-        parse: BenchmarkParseReport::default(),
-        spans: BenchmarkSpanReport::default(),
-        aggregates: Vec::new(),
-        comparison: None,
-        metadata,
-    };
-
-    write_benchmark_report_dir(&report, path).expect("write metadata fixture");
 }
