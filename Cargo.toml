@@ -22,7 +22,7 @@ readme = "README.md"
 
 [workspace.dependencies]
 candid = { version = "0.10", default-features = false }
-ic-build = { version = "0.14" }
+ic-build = { version = "0.15" }
 ic-cdk = "0.20.2"
 ic-host-artifacts = { version = "0.26", features = ["gzip", "wasm"] }
 ic-host-fs = "0.26"
