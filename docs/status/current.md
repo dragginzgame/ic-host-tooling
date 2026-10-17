@@ -47,6 +47,29 @@ until an upstream replacement preserves its tests; see
 Operational directory CR/LF admission remains in Host pending consumer-owned
 migration; see [Canic #575 — Own Backup operational path admission](https://github.com/dragginzgame/canic/issues/575).
 
+## Pending 0.26.2 Backup sync/checksum extraction
+
+FS `durable::tree::sync_checksum_directory_at` now owns the generic existing-tree
+sync/checksum visitor extracted from Backup. Files sync before hashing; directories
+sync after children, including the retained root. Ordered pre-sync hooks can refuse
+an operation. Explicit per-file bounds and raw SHA-256 output reuse the existing
+walker and framing owner. No path is published, removed or replaced; expected
+identity admission, whole-tree budgets, stable custody and recovery remain local
+to consumers. Provenance binds the original Backup source and crash fixtures.
+
+All 139 FS units pass on current Rust and actual Rust 1.88, including five sync
+cases for exact framing/order, hook refusals, limits, unsafe/raw names and held-root
+replacement. Strict all-target/all-feature Clippy, warning-denied docs, snapshot,
+pins, formatting and local links pass. An isolated Backup production adapter
+passes all seven original publication/crash cases, 29 IC artifact cases and five
+public directory/artifact/recovery cases, plus strict Clippy. Evidence is retained
+at `/tmp/backup-30-members-sync-n1_bvf7k/`.
+
+The consumer rehearsal uses direct workspace paths in its own checkout and target,
+without Cargo patches. Normal Backup retains its published graph and local sync
+visitor until a new Host package is available. Native macOS, registry adoption and
+release/publication remain separate. No normal sibling checkout was edited.
+
 ## Backup directory-checksum extraction
 
 Artifacts now composes declared file identities through `artifact::tree`, preserving

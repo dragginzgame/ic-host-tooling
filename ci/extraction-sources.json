@@ -165,6 +165,25 @@
           "sha256": "802ff5e3ce722a342fbefbb71a85484800c2a3e7598de17a4efff756198978e7"
         }
       ]
+    },
+    {
+      "repository": "https://github.com/dragginzgame/ic-backup",
+      "revision": "f9d5e3bf03c93232cb97fc067cdb2e330673d559",
+      "selection": "Ordered file sync before hashing and post-order directory sync visitor extracted into FS durable/tree; original Backup publication/crash fixtures are rerun through the production primitive in an isolated consumer. Product records, expected identity admission and recovery remain Backup-owned.",
+      "files": [
+        {
+          "path": "crates/ic-backup/src/ops/persistence/artifact_commit/supported/mod.rs",
+          "sha256": "fba79234501ee66167521a0c341137f0e1deeb312fdeab756f1599f61b7fd6f1"
+        },
+        {
+          "path": "crates/ic-backup/src/ops/persistence/artifact_commit/tests/mod.rs",
+          "sha256": "c76e1789210be614c1caede2c11f96d5ae9830397ccb3547aab8a1c4dad81108"
+        },
+        {
+          "path": "crates/ic-backup/src/ops/persistence/artifact_commit/regressions/mod.rs",
+          "sha256": "196ffbca1df05c5d82cd658d0380647be006cc26c9e22513e0a0eb82e0f13812"
+        }
+      ]
     }
   ]
 }
