@@ -6,6 +6,38 @@ use crate::test_support::Fixture;
 use std::{fs::File, io, time::Duration};
 
 #[test]
+fn shared_guard_releases_lock_with_a_duplicate_descriptor_open() {
+    let fixture = Fixture::new();
+    let path = fixture.root.join("guarded-shared-lock");
+    std::fs::write(&path, b"caller-owned bytes").unwrap();
+    let first = super::SharedFileLock::acquire(File::open(&path).unwrap()).unwrap();
+    let duplicate = first.file().try_clone().unwrap();
+    let independent = super::SharedFileLock::acquire(File::open(&path).unwrap()).unwrap();
+    let exclusive = File::open(&path).unwrap();
+    drop(first);
+    assert_eq!(
+        try_lock_exclusive(&exclusive).unwrap_err().kind(),
+        io::ErrorKind::WouldBlock
+    );
+    drop(independent);
+    try_lock_exclusive(&exclusive).unwrap();
+    unlock(&exclusive).unwrap();
+    assert_eq!(duplicate.metadata().unwrap().len(), 18);
+    assert_eq!(std::fs::read(&path).unwrap(), b"caller-owned bytes");
+}
+
+#[test]
+fn shared_guard_refuses_nonregular_descriptors() {
+    let fixture = Fixture::new();
+    assert_eq!(
+        super::SharedFileLock::acquire(File::open(&fixture.root).unwrap())
+            .unwrap_err()
+            .kind(),
+        io::ErrorKind::InvalidInput
+    );
+}
+
+#[test]
 fn shared_holders_and_explicit_unlock_preserve_descriptor_custody() {
     let fixture = Fixture::new();
     let path = fixture.root.join("shared-lock");

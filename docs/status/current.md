@@ -1,5 +1,21 @@
 # Current handoff
 
+## Scoped shared descriptor lock extraction
+
+The IC Build contribution from pushed `2f3976d` moves its explicit-unlock guard
+mechanics into `durable::SharedFileLock`. Build retains record sharing, cache
+paths and maintenance policy. Eight selected descriptor-lock tests and FS
+all-target/all-feature checking pass on actual Rust 1.88/Linux; strict current
+Clippy, warning-denied floor rustdoc, formatting and local links pass.
+
+A frozen Build caller removes its guard and uses this API. Actual Rust 1.91
+passes ten cache-filesystem units, six retained-handoff/cache-process integration
+parents and their dispatched workers. Strict all-target Clippy passes. All
+unrelated lock identities/checksums are unchanged; only three coherent Host
+source identities are replaced. Normal Build stays on registry APIs until
+reviewed Host publication; no release or native macOS acceptance is claimed.
+Sources, caller deletion and logs remain in `/tmp/ic-build-cuts-20261017/`.
+
 ## Source and pending release
 
 Latest tagged release: **0.23.1**, commit
