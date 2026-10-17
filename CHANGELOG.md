@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.25.1]
+
+- Accept compatible `thiserror 2.0.18` so Host Tools can coexist with
+  Testkit/PocketIC in one Cargo resolution. Public errors are unchanged.
+
 ## [0.25.0] - 2026-10-17
 
 ### Breaking
