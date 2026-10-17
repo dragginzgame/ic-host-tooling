@@ -30,12 +30,13 @@ for input in scripts/release/adapter.sh ci/release-delivery.txt \
     scripts/ci/read-cargo-workspace-version.sh scripts/ci/check-release-source.sh \
     scripts/ci/next-release-version.sh scripts/ci/finalize-release-changelog.awk \
     scripts/ci/validate-release-inputs.pl scripts/ci/StableVersion.pm \
-    scripts/ci/rewrite-local-lock-versions.pl scripts/ci/render-cargo-workspace-version.pl; do
+    scripts/ci/rewrite-local-lock-versions.pl scripts/ci/render-cargo-workspace-version.pl \
+    scripts/ci/read-cargo-source-context.sh; do
     mkdir -p "$adapter_root/${input%/*}"
     cp "$root/$input" "$adapter_root/$input"
 done
 adapter="$adapter_root/scripts/release/adapter.sh"
-if RELEASE_DELIVERY=pr bash "$adapter" version > "$fixture/unsupported-delivery.log" 2>&1; then exit 1; fi
+if RELEASE_DELIVERY='pr' bash "$adapter" version > "$fixture/unsupported-delivery.log" 2>&1; then exit 1; fi
 [[ ! -e "$ADAPTER_EVENTS" ]] || exit 1
 RELEASE_PREVIOUS="$(cd "$root" && bash scripts/release/adapter.sh version)"
 export RELEASE_PREVIOUS
@@ -93,9 +94,11 @@ export RELEASE_COMMIT=1111111111111111111111111111111111111111
 cat > "$fixture/bin/git" <<'STUB'
 #!/usr/bin/env bash
 set -euo pipefail
+if [[ "${1:-}" == -C ]]; then shift 2; fi
 case "$*" in
     'rev-parse HEAD') echo "${ADAPTER_HEAD:-$RELEASE_SOURCE}" ;;
     'rev-parse --git-path release-state') echo release-state ;;
+    "rev-parse --verify $RELEASE_SOURCE^{commit}") echo "$RELEASE_SOURCE" ;;
     "rev-parse $RELEASE_COMMIT^{commit}") echo "$RELEASE_COMMIT" ;;
     'diff --binary HEAD') ;;
     'hash-object --stdin') cat > /dev/null; echo "$RELEASE_SOURCE" ;;
@@ -349,7 +352,7 @@ cp source/Cargo.toml Cargo.toml
 
 # Member admission must retain failures even after plausible TOML/JSON output.
 # Neither a failed Git source read nor a failed member parser can reach setup.
-for reader in git member; do
+for reader in git member read-cargo-source-context.sh; do
     : > "$ADAPTER_EVENTS"
     rm -f query-count
     status=0
@@ -357,8 +360,8 @@ for reader in git member; do
         ADAPTER_GIT_QUERY="show $RELEASE_SOURCE:crates/ic-host-fs/Cargo.toml" \
             bash "$adapter" preflight > failed-member-git.log 2>&1 || status=$?
     else
-        ADAPTER_FAILED_READER=member bash "$adapter" preflight \
-            > failed-member-parser.log 2>&1 || status=$?
+        ADAPTER_FAILED_READER="$reader" bash "$adapter" preflight \
+            > "failed-member-$reader.log" 2>&1 || status=$?
     fi
     [[ "$status" != 0 ]] || exit 1
     printf '%s\n' 'cargo locate-project --workspace --message-format plain --manifest-path Cargo.toml' > expected

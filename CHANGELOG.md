@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.26.1]
+
+### Changed
+
+- Adopt Shared Tooling 0.22.0 with validated CI-tool catalog records and shared
+  formatting-fixture cleanup, retaining both Cargo source-evidence helpers.
+- Share saved Cargo member-source context with Shared Tooling while retaining
+  local package selection and release recovery.
+- Consolidate durable writer dispatch while preserving admission ordering and
+  publication errors.
+- Build progress frames without temporary padding strings, preserving escaping,
+  width accounting and rendered output.
+
+### Added
+
+- Share bounded newline framing for buffered readers and incremental process
+  output, preserving queued messages, refused prefixes and original I/O causes.
+  Schemas, deadlines, EOF-tail acceptance and recovery remain caller-owned
+  ([#126 — Share bounded newline framing](https://github.com/dragginzgame/ic-host-tooling/issues/126)).
+- Copy caller-selected streams through durable publication with optional exact
+  output permissions. Failed reads preserve prior output and cleanup evidence;
+  source admission, budgets and reuse remain caller-owned
+  ([#92 — Share durable stream copying](https://github.com/dragginzgame/ic-host-tooling/issues/92)).
+
 ## [0.26.0] - 2026-10-17
 
 ### Breaking

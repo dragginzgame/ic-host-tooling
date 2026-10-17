@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Shared companions: scripts/ci/verify-file-checksum.sh
+# Shared companions: scripts/ci/verify-file-checksum.sh scripts/ci/tool-catalog-records.pl ci/tool-versions.env
 set -euo pipefail
 
 # Public entry point for reviewed CI binary installation.
@@ -12,15 +12,18 @@ case "$tool" in actionlint|gitleaks|shellcheck|sccache) shift ;; *) echo 'unknow
 version=""
 checksum=""
 install_dir=""
-usage() { echo "usage: install-ci-tool.sh $tool --version <version> --sha256 <digest> --install-dir <directory>" >&2; }
+catalog="$SCRIPT_DIR/../../ci/tool-versions.env"
+catalog_selected=false
+usage() { echo "usage: install-ci-tool.sh $tool --install-dir <directory> [--catalog <file> | --version <version> --sha256 <digest>]" >&2; }
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --version|--sha256|--install-dir)
+        --version|--sha256|--install-dir|--catalog)
             [[ $# -ge 2 && -n "$2" ]] || { usage; exit 2; }
             case "$1" in
                 --version) version="${2#v}" ;;
                 --sha256) checksum="$2" ;;
                 --install-dir) install_dir="$2" ;;
+                --catalog) catalog="$2"; catalog_selected=true ;;
             esac
             shift 2 ;;
         -h|--help) usage; exit 0 ;;
@@ -28,8 +31,15 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 [[ -n "$install_dir" ]] || { usage; exit 2; }
-[[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z][0-9A-Za-z.-]*)?$ ]] || { usage; exit 2; }
-[[ "$checksum" =~ ^[0-9a-f]{64}$ ]] || { echo 'invalid SHA-256 digest' >&2; exit 2; }
+explicit_pins=false
+if [[ -n "$version" || -n "$checksum" ]]; then
+    [[ "$catalog_selected" == false ]] || { usage; exit 2; }
+    [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z][0-9A-Za-z.-]*)?$ ]] || { usage; exit 2; }
+    [[ "$checksum" =~ ^[0-9a-f]{64}$ ]] || { echo 'invalid SHA-256 digest' >&2; exit 2; }
+    explicit_pins=true
+elif [[ "$tool" == sccache ]]; then
+    echo 'sccache requires explicit version and SHA-256 pins' >&2; exit 2
+fi
 case "$(uname -s):$(uname -m)" in
     Linux:x86_64|Linux:amd64) os=linux; arch=amd64 ;;
     Linux:arm64|Linux:aarch64) os=linux; arch=arm64 ;;
@@ -37,6 +47,18 @@ case "$(uname -s):$(uname -m)" in
     Darwin:arm64|Darwin:aarch64) os=darwin; arch=arm64 ;;
     *) echo "unsupported $tool host" >&2; exit 1 ;;
 esac
+if [[ "$explicit_pins" == false ]]; then
+    case "$tool" in
+        actionlint) catalog_tool=ACTIONLINT ;;
+        gitleaks) catalog_tool=GITLEAKS ;;
+        shellcheck) catalog_tool=SHELLCHECK ;;
+    esac
+    record="$(perl "$SCRIPT_DIR/tool-catalog-records.pl" ci "$catalog" "$catalog_tool")"
+    IFS=$'\t' read -r _ version selected_host checksum <<< "$record"
+    [[ "$os:$arch:$selected_host" == linux:amd64:LINUX_AMD64 ]] || {
+        echo "no catalog pin for $tool on $os:$arch; select qualified explicit pins" >&2; exit 1;
+    }
+fi
 case "$tool" in
     actionlint)
         repo=rhysd/actionlint

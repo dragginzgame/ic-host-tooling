@@ -37,9 +37,9 @@ The current work's qualification and migration patch are reported at handoff.
 
 Publication interruption recovery stays split between Host preparation custody
 and Shared provenance/dispatch receipts. The selected source refreshes
-[Shared PR #269 — Share prepared Cargo package provenance checks](https://github.com/dragginzgame/shared-tooling/pull/269)
-onto released Shared 0.21.0 (`4b0615c43eac50bcc32c089cd06d1e62092771e3`).
-The canonical helper remains an open contribution rather than part of upstream
+[Shared PR #269 — Share Cargo source evidence](https://github.com/dragginzgame/shared-tooling/pull/269)
+onto released Shared 0.22.0 (`a41dee9e92e2461126083ddb1c85289d3fef076c`).
+The canonical helpers remain an open contribution rather than part of upstream
 main; Host pins its clean committed revision. Strict certificate wire admission
 remains local
 until an upstream replacement preserves its tests; see
@@ -49,7 +49,36 @@ migration; see [Canic #575 — Own Backup operational path admission](https://gi
 
 ## Qualification receipt
 
-The latest Shared adoption receipts are at `/tmp/host-shared021.UNdFnp/`.
+Shared refresh evidence is retained at `/tmp/host-shared022.vsM8HK/`. Canonical
+source `08e536c` combines released Shared `a41dee9` with the unchanged Cargo
+source-evidence helpers. All 90 roots and 112 payloads remain selected; executable
+pins are unchanged. Offline common-tool checks, snapshot/pins, formatting, links,
+Host hook adoption and fixture retention pass on Linux. Shared's 42 catalog
+cases, substituted installer checks and real-Git context/provenance fixtures pass;
+affected ShellCheck and independent exact-commit retrieval pass. Native macOS
+qualification remains separate; pending Rust source, own versions and index
+are preserved.
+
+The subsequent simplification receipt is at `/tmp/host0261-cleanup.f3cBJY/`,
+relative to its captured incoming Host tree at `7232b97`. Durable wrappers share
+descriptor dispatch, preserving early permission refusal; progress frames append
+padding directly. The 22 stream and four progress cases pass on current Rust
+and actual Rust 1.88, with strict affected Clippy. Shared source `e7fcbc0` adds
+saved member context independently of its retiring editor, exported canonically
+as 112 payloads. Its real-Git and renderer fixtures and Host's substituted release
+adapter pass on Linux. Native macOS qualification remains separate.
+
+The stream-copy/framing pass is retained at `/tmp/host0261-issues.wTW9Hm/`,
+based on clean Host `7232b97cf976a5ccccdb5897bbcbc542da1fc6e9`. Six framing cases
+and 130 FS units pass on current Rust and actual Rust 1.88; framing covers every
+chunk partition of the UTF-8/multiple-frame/tail fixture. A diagnostic regression
+first reproduced leaked I/O text, then passed with redacted Display and the
+original source retained. Affected all-target MSRV, strict Clippy/Rustdoc,
+formatting, pins, links and snapshot checks pass. Package versions, selected
+dependencies, index, refs and sibling checkouts are unchanged. These additive
+APIs remain local; native qualification and consumer adoption remain separate.
+
+The earlier Shared adoption receipts are at `/tmp/host-shared021.UNdFnp/`.
 Canonical export retains all 89 selected roots and 111 payloads. Offline host/Cargo
 tool checks, snapshot, pins, formatting and links pass on Linux. Host's actual
 Make routing, retention, release and publication fixtures pass with documented

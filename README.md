@@ -50,7 +50,8 @@ subprocess. These counts differ from encoded section sizes and need not match
 optimizer reachability metrics. Type/feature validation and report policy remain
 caller-owned; the structural `wasm::inspect` contract is unchanged.
 `ic-host-tools` has no default features. Response decoding is always available
-without artifact/filesystem/process/text dependencies or the Candid parser.
+without artifact/filesystem/process/text dependencies. The Candid parser remains
+a normal dependency for service inspection.
 Native Candid extraction belongs to IC Build's `artifacts::candid` module;
 Host Tools no longer supplies an extraction feature or invocation wrapper.
 Consumers select tools, source custody, output limits and optional normalization.
@@ -146,6 +147,15 @@ grace and bounded reaping.
 Communication failures and Drop use that same explicit policy. Reap timeout retains
 the owner for explicit recovery and does not start a background reaper. See the
 [bounded cleanup contract](docs/changelog/0.8.md#caller-selected-termination-timing).
+
+`framing::read_line(reader, maximum)` returns one newline-terminated byte frame
+without consuming later buffered messages. `LineFramer::feed` instead assembles
+frames across arbitrary output chunks and emits complete frames by callback;
+`finish` reports a retained unterminated tail for caller-selected EOF policy.
+The inclusive allowance includes the newline. Size/EOF refusals expose bounded
+prefixes; I/O failures retain their original causes. Display text is redacted and
+an incremental refusal is terminal. Schemas, diagnostics, deadlines, stream
+lifetime and recovery stay local.
 
 `tool::capture_group_command` combines bounded stdout/stderr capture with that
 group cleanup for commands whose descendants must be signalled on exit or
@@ -254,6 +264,10 @@ failures. Select mode and permissions explicitly; see the
 expected digest admission before publication. Callers select paths, the byte
 allowance and `WriteOptions`; source symlinks are followed. Existing destination
 bytes survive digest, source and limit failures.
+`durable::copy_from` instead consumes an already-selected reader from its current
+position. Callers retain input admission, byte/time bounds and choose `WriteOptions`.
+Optional exact permissions are applied after copying; otherwise the creation
+mode and umask apply. Failed reads preserve prior output through the same engine.
 `durable::write_existing_parent_validated_with` refuses missing parents and opens
 the selected parent once as a directory. Parent aliases are followed and the held
 directory stays selected across renames. `durable::write_at_validated_with` borrows

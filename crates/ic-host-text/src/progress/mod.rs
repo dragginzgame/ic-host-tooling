@@ -43,7 +43,9 @@ impl ProgressLine {
         if self.last_width == 0 {
             return String::new();
         }
-        let frame = format!("\r{}\r", " ".repeat(self.last_width));
+        let mut frame = String::from("\r");
+        frame.extend(std::iter::repeat_n(' ', self.last_width));
+        frame.push('\r');
         self.last_width = 0;
         frame
     }
@@ -51,8 +53,12 @@ impl ProgressLine {
     fn render(&mut self, text: &str, newline: bool) -> String {
         let text = terminal_text(text);
         let width: usize = text.chars().map(|ch| ch.width().unwrap_or(0)).sum();
-        let padding = " ".repeat(self.last_width.saturating_sub(width));
-        let mut frame = format!("\r{text}{padding}");
+        let mut frame = String::from("\r");
+        frame.push_str(&text);
+        frame.extend(std::iter::repeat_n(
+            ' ',
+            self.last_width.saturating_sub(width),
+        ));
         if newline {
             frame.push('\n');
         }

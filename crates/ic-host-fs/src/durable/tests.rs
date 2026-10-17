@@ -23,6 +23,97 @@ use std::{
 
 #[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
 #[test]
+fn durable_stream_copy_preserves_outputs_on_read_failure_and_create_only_refusal() {
+    use std::io::{self, Cursor, Read};
+    struct PartialInput(bool);
+    impl Read for PartialInput {
+        fn read(&mut self, buffer: &mut [u8]) -> io::Result<usize> {
+            if buffer.is_empty() {
+                return Ok(0);
+            }
+            if self.0 {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "injected input failure",
+                ));
+            }
+            self.0 = true;
+            buffer[0] = b'x';
+            Ok(1)
+        }
+    }
+    let fixture = crate::test_support::Fixture::new();
+    let output = fixture.root.join("copy/output");
+    let options = WriteOptions {
+        mode: PublicationMode::Replace,
+        permissions: 0o666,
+    };
+    let mut source = Cursor::new(b"prefixcomplete");
+    source.set_position(6);
+    assert_eq!(copy_from(&mut source, &output, options, None).unwrap(), 8);
+    assert_eq!(source.position(), 14);
+    assert_eq!(fs::read(&output).unwrap(), b"complete");
+    assert!(matches!(
+        copy_from(&mut PartialInput(false), &output, options, None),
+        Err(NamedWriteError::Producer {
+            source, cleanup_error: None,
+        }) if source.kind() == io::ErrorKind::InvalidData
+            && source.to_string() == "injected input failure"
+    ));
+    assert_eq!(fs::read(&output).unwrap(), b"complete");
+    let create_only = WriteOptions {
+        mode: PublicationMode::CreateNew,
+        ..options
+    };
+    assert!(matches!(
+        copy_from(&mut b"replacement".as_slice(), &output, create_only, None),
+        Err(NamedWriteError::BeforePublication { .. })
+    ));
+    assert_eq!(fs::read(&output).unwrap(), b"complete");
+    assert_eq!(
+        copy_from(&mut b"".as_slice(), &output, options, None).unwrap(),
+        0
+    );
+    assert_eq!(fs::read(&output).unwrap(), [] as [u8; 0]);
+    assert_eq!(fs::read_dir(output.parent().unwrap()).unwrap().count(), 1);
+}
+
+#[cfg(unix)]
+#[test]
+fn durable_stream_copy_keeps_default_or_exact_caller_permissions() {
+    use std::os::unix::fs::PermissionsExt;
+    let fixture = crate::test_support::Fixture::new();
+    let output = fixture.root.join("copy");
+    let control = fixture.root.join("ordinary");
+    fs::File::create(&control).unwrap();
+    let ordinary_mode = fs::metadata(&control).unwrap().permissions().mode() & 0o777;
+    let options = WriteOptions {
+        mode: PublicationMode::Replace,
+        permissions: 0o666,
+    };
+    copy_from(&mut b"bytes".as_slice(), &output, options, None).unwrap();
+    assert_eq!(
+        fs::metadata(&output).unwrap().permissions().mode() & 0o777,
+        ordinary_mode
+    );
+    for permissions in [0o600, 0o4750] {
+        copy_from(
+            &mut b"bytes".as_slice(),
+            &output,
+            options,
+            Some(fs::Permissions::from_mode(permissions)),
+        )
+        .unwrap();
+        assert_eq!(
+            fs::metadata(&output).unwrap().permissions().mode() & 0o7777,
+            permissions
+        );
+    }
+    assert_eq!(fs::read(&output).unwrap(), b"bytes");
+}
+
+#[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
+#[test]
 fn private_parent_preparation_preserves_modes_and_refuses_symlinks() {
     use std::os::unix::fs::{MetadataExt, symlink};
 

@@ -147,21 +147,25 @@ fn existing_parent_remains_selected_after_path_rename() {
 #[test]
 fn existing_parent_refuses_invalid_permissions_before_production_or_admission() {
     let fixture = Fixture::new();
-    let output = fixture.root.join("report");
-    let error = write_existing_parent_validated_with(
-        &output,
-        WriteOptions {
-            permissions: 0o1000,
-            ..CREATE
-        },
-        |_| -> io::Result<()> { panic!("invalid permissions ran producer") },
-        |()| panic!("invalid permissions ran admission"),
-    )
-    .unwrap_err();
-    assert!(
-        matches!(error, NamedWriteError::BeforePublication { source, cleanup_error: None }
-        if source.kind() == io::ErrorKind::InvalidInput)
-    );
+    for output in [
+        fixture.root.join("report"),
+        fixture.root.join("missing/report"),
+    ] {
+        let error = write_existing_parent_validated_with(
+            &output,
+            WriteOptions {
+                permissions: 0o1000,
+                ..CREATE
+            },
+            |_| -> io::Result<()> { panic!("invalid permissions ran producer") },
+            |()| panic!("invalid permissions ran admission"),
+        )
+        .unwrap_err();
+        assert!(
+            matches!(error, NamedWriteError::BeforePublication { source, cleanup_error: None }
+            if source.kind() == io::ErrorKind::InvalidInput)
+        );
+    }
     assert_eq!(fs::read_dir(&fixture.root).unwrap().count(), 0);
 }
 

@@ -35,6 +35,9 @@ no longer owns an `ic-limits` profile or a reference-policy CLI example.
   observation, explicit execution context,
   output limits, deadlines, direct-child/explicit group cleanup evidence, native
   process-table/RSS observations and separate Git queries.
+  Its `framing` module owns bounded newline admission for buffered readers and
+  incremental output chunks. Schemas, EOF-tail policy, deadlines, diagnostics and
+  recovery remain with each process consumer.
   Its Unix `custody` module also owns inherited regular-sidecar descriptors and
   exact existing-sidecar quiescence. Callers retain paths, environment names,
   durable identity records, wait settings, command/effect admission and recovery;

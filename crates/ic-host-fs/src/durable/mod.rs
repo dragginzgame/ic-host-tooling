@@ -90,6 +90,34 @@ pub fn write_bytes(
     write_with(path, options, |file| std::io::Write::write_all(file, bytes))
 }
 
+/// Durably copy a caller-selected stream into one named output.
+///
+/// Reads from the reader's current position. Caller-owned admission, byte limits
+/// and deadlines remain outside this operation. `permissions` selects exact
+/// output permissions when supplied; otherwise `options` and umask apply.
+/// Explicit permissions are applied after copying so writes do not clear them.
+/// Publication, parent creation, interruption cleanup and after-publication
+/// errors have the same contract as [`write_with`]. This adds no input-path policy.
+///
+/// # Errors
+/// Retains read/write, explicit permission and publication failures in
+/// [`NamedWriteError`]. Before-publication failure preserves an existing output;
+/// after-publication sync failure means the complete copy is already visible.
+pub fn copy_from<R: io::Read>(
+    source: &mut R,
+    destination: &Path,
+    options: WriteOptions,
+    permissions: Option<fs::Permissions>,
+) -> Result<u64, NamedWriteError<io::Error>> {
+    write_with(destination, options, |sink| {
+        let copied = io::copy(source, sink)?;
+        if let Some(permissions) = permissions {
+            sink.set_permissions(permissions)?;
+        }
+        Ok(copied)
+    })
+}
+
 /// Durably create missing owner-only parent directories without publishing a file.
 ///
 /// New directories use mode `0700`, reduced by the process umask. Existing
