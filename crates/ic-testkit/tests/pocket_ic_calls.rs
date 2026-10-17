@@ -20,13 +20,20 @@ fn candid_call_errors_preserve_live_pocket_ic_rejections() {
     let sender = Principal::management_canister();
     for (result, operation, caller) in [
         (
-            pocket_ic.query_candid::<(), _>(removed_canister, "missing", (), support::REPLY_LIMITS),
+            pocket_ic.query_candid::<(), _>(
+                removed_canister,
+                candid::Principal::anonymous(),
+                "missing",
+                (),
+                support::REPLY_LIMITS,
+            ),
             "query_call",
             Principal::anonymous(),
         ),
         (
             pocket_ic.update_candid::<(), _>(
                 removed_canister,
+                candid::Principal::anonymous(),
                 "missing",
                 (),
                 support::REPLY_LIMITS,
@@ -35,7 +42,7 @@ fn candid_call_errors_preserve_live_pocket_ic_rejections() {
             Principal::anonymous(),
         ),
         (
-            pocket_ic.query_candid_as::<(), _>(
+            pocket_ic.query_candid::<(), _>(
                 removed_canister,
                 sender,
                 "missing",
@@ -46,7 +53,7 @@ fn candid_call_errors_preserve_live_pocket_ic_rejections() {
             sender,
         ),
         (
-            pocket_ic.update_candid_as::<(), _>(
+            pocket_ic.update_candid::<(), _>(
                 removed_canister,
                 sender,
                 "missing",

@@ -50,13 +50,20 @@ fn perf_probe_canister_emits_parseable_benchmark_markers() {
     let wasm = read_file(wasm_path, 128 * 1024 * 1024).expect("read retained bounded Wasm");
     let fixture = StandaloneCanisterFixture::try_install(
         support::pocket_ic(),
-        InstallSpec::new(wasm, vec![], 0),
+        InstallSpec {
+            wasm,
+            init_bytes: vec![],
+            cycles: 0,
+            install_sender: None,
+            label: None,
+        },
     )
     .expect("install standalone fixture");
     let result: u64 = fixture
         .pocket_ic()
         .update_candid(
             fixture.canister_id(),
+            candid::Principal::anonymous(),
             "benchmark_once",
             (),
             support::REPLY_LIMITS,

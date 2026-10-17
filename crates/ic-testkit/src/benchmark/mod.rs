@@ -3,7 +3,7 @@
 //! The normal pipeline is [`parse_benchmark_events`],
 //! [`pair_benchmark_spans`], [`aggregate_benchmark_spans`], and optionally
 //! [`compare_benchmark_aggregates`]. Native report output lives in
-//! `benchmark::report`. Marker
+//! the repository's `benchmark_report` example. Marker
 //! producers can use [`format_marker`] on the host or
 //! `ic_testkit::performance::Performance` in canister code.
 //!
@@ -15,9 +15,6 @@
 use std::collections::{BTreeMap, btree_map::Entry};
 
 use ic_metrics::{MeasurementRatioError, checked_scaled_ratio};
-
-#[cfg(not(target_arch = "wasm32"))]
-pub mod report;
 
 /// Default prefix for benchmark marker lines.
 pub const DEFAULT_PREFIX: &str = "ICTK";
@@ -102,7 +99,6 @@ pub struct BenchmarkCounters {
     pub instructions: u128,
     pub heap_bytes: u128,
     pub memory_bytes: u128,
-    pub total_allocation: u128,
 }
 
 impl BenchmarkCounters {
@@ -111,7 +107,6 @@ impl BenchmarkCounters {
             instructions: self.instructions.checked_sub(start.instructions)?,
             heap_bytes: self.heap_bytes.checked_sub(start.heap_bytes)?,
             memory_bytes: self.memory_bytes.checked_sub(start.memory_bytes)?,
-            total_allocation: self.total_allocation.checked_sub(start.total_allocation)?,
         })
     }
 
@@ -129,10 +124,6 @@ impl BenchmarkCounters {
                 .memory_bytes
                 .checked_add(other.memory_bytes)
                 .ok_or(BenchmarkCounter::MemoryBytes)?,
-            total_allocation: self
-                .total_allocation
-                .checked_add(other.total_allocation)
-                .ok_or(BenchmarkCounter::TotalAllocation)?,
         })
     }
 
@@ -140,14 +131,12 @@ impl BenchmarkCounters {
         self.instructions = self.instructions.min(other.instructions);
         self.heap_bytes = self.heap_bytes.min(other.heap_bytes);
         self.memory_bytes = self.memory_bytes.min(other.memory_bytes);
-        self.total_allocation = self.total_allocation.min(other.total_allocation);
     }
 
     fn max_assign(&mut self, other: Self) {
         self.instructions = self.instructions.max(other.instructions);
         self.heap_bytes = self.heap_bytes.max(other.heap_bytes);
         self.memory_bytes = self.memory_bytes.max(other.memory_bytes);
-        self.total_allocation = self.total_allocation.max(other.total_allocation);
     }
 }
 
@@ -222,7 +211,6 @@ pub struct BenchmarkAverages {
     pub instructions: u128,
     pub heap_bytes: u128,
     pub memory_bytes: u128,
-    pub total_allocation: u128,
 }
 
 /// Counter whose aggregate cannot be represented.
@@ -232,7 +220,6 @@ pub enum BenchmarkCounter {
     Instructions,
     HeapBytes,
     MemoryBytes,
-    TotalAllocation,
 }
 
 /// Overflow rejects the complete aggregation, without returning partial totals.
@@ -282,44 +269,15 @@ impl BenchmarkAggregateRow {
             instructions: checked_scaled_ratio(self.total.instructions, self.runs, scale)?,
             heap_bytes: checked_scaled_ratio(self.total.heap_bytes, self.runs, scale)?,
             memory_bytes: checked_scaled_ratio(self.total.memory_bytes, self.runs, scale)?,
-            total_allocation: checked_scaled_ratio(self.total.total_allocation, self.runs, scale)?,
         })
     }
-}
-
-#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct BenchmarkRunMetadata {
-    pub timestamp: String,
-    pub run_directory_name: String,
-    pub run_index: u32,
-    pub git_commit_hash: Option<String>,
-    pub git_commit_short_hash: Option<String>,
-    pub ic_testkit_version: String,
-    pub pocket_ic_version: String,
-    pub rustc_version: String,
-    pub benchmark_command: Option<String>,
-    pub selected_previous_run: Option<String>,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct BenchmarkRunReport {
-    pub parse: BenchmarkParseReport,
-    pub spans: BenchmarkSpanReport,
-    pub aggregates: Vec<BenchmarkAggregateRow>,
-    pub comparison: Option<Vec<BenchmarkComparisonRow>>,
-    pub metadata: BenchmarkRunMetadata,
 }
 
 #[must_use]
 pub fn format_marker(prefix: &str, label: &str, counters: BenchmarkCounters) -> String {
     format!(
-        "{}|{}|{}|{}|{}|{}",
-        prefix,
-        label,
-        counters.instructions,
-        counters.heap_bytes,
-        counters.memory_bytes,
-        counters.total_allocation
+        "{}|{}|{}|{}|{}",
+        prefix, label, counters.instructions, counters.heap_bytes, counters.memory_bytes
     )
 }
 
@@ -483,16 +441,15 @@ fn parse_marker_line(
     config: &BenchmarkParserConfig,
 ) -> Result<RawBenchmarkEvent, MalformedBenchmarkMarker> {
     let mut parts = line.split('|');
-    // Six fields and an absent seventh establish the complete marker shape
+    // Five fields and an absent sixth establish the complete marker shape
     // without collecting an arbitrary number of columns from malformed logs.
-    let columns: [Option<&str>; 7] = std::array::from_fn(|_| parts.next());
+    let columns: [Option<&str>; 6] = std::array::from_fn(|_| parts.next());
     let [
         Some(prefix),
         Some(label),
         Some(instructions),
         Some(heap_bytes),
         Some(memory_bytes),
-        Some(total_allocation),
         None,
     ] = columns
     else {
@@ -500,7 +457,7 @@ fn parse_marker_line(
             source_line,
             source,
             line,
-            "expected six pipe-separated columns",
+            "expected five pipe-separated columns",
         ));
     };
 
@@ -530,13 +487,6 @@ fn parse_marker_line(
         instructions: parse_counter(instructions, source_line, source, line, "instructions")?,
         heap_bytes: parse_counter(heap_bytes, source_line, source, line, "heap_bytes")?,
         memory_bytes: parse_counter(memory_bytes, source_line, source, line, "memory_bytes")?,
-        total_allocation: parse_counter(
-            total_allocation,
-            source_line,
-            source,
-            line,
-            "total_allocation",
-        )?,
     };
     let suite = config.suite_derivation.derive_suite(span_label);
 

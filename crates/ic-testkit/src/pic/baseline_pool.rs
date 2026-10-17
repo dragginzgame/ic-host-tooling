@@ -155,27 +155,12 @@ pub struct CanisterRestoreReceipt {
     cycle_policy: CycleResetPolicy,
 }
 
-/// Receipt identifying the readiness boundary reached after reset.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct ReadinessReceipt {
-    identity: String,
-}
-
-/// Receipt proving the recipe's final invariant validation ran successfully.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct ValidationReceipt {
-    recipe_id: FixtureRecipeId,
-    invariant_identity: String,
-}
-
 /// Contract failure while constructing or verifying recipe reset evidence.
 #[non_exhaustive]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum BaselinePoolContractError {
     /// Recipe identity was empty or whitespace-only.
     EmptyRecipeIdentity,
-    /// A receipt identity was empty or whitespace-only.
-    EmptyReceiptIdentity { receipt: &'static str },
     /// A reset domain was declared more than once.
     DuplicateResetDomain { domain: ResetDomainKind },
     /// A restored canister appeared more than once.
@@ -199,11 +184,6 @@ pub enum BaselinePoolContractError {
         requirement: ResetDomainPolicy,
         achievement: ResetDomainPolicy,
     },
-    /// Final validation reported a recipe other than the pool-owned recipe.
-    RecipeIdentityMismatch {
-        expected: FixtureRecipeId,
-        actual: FixtureRecipeId,
-    },
 }
 
 /// Whether validation is observing a newly built or restored baseline.
@@ -218,8 +198,6 @@ pub enum PreparedBaseline {
         canisters: CanisterRestoreReceipt,
         /// Typed non-snapshot reset receipt.
         reset: ResetReceipt,
-        /// Readiness boundary reached after reset.
-        readiness: ReadinessReceipt,
     },
 }
 
@@ -377,17 +355,19 @@ pub trait PocketIcBaselineRecipe: Send + Sync + 'static {
     ) -> Result<ResetReceipt, Self::Error>;
 
     /// Drive the topology to the recipe's readiness boundary.
+    /// Successful completion permits final invariant validation.
     fn drive_to_readiness(
         &self,
         baseline: &CachedPocketIcBaseline<Self::Metadata>,
-    ) -> Result<ReadinessReceipt, Self::Error>;
+    ) -> Result<(), Self::Error>;
 
     /// Validate the same baseline invariants after build and restore.
+    /// Success admits this pool-owned recipe's baseline for leasing.
     fn validate(
         &self,
         baseline: &CachedPocketIcBaseline<Self::Metadata>,
         preparation: &PreparedBaseline,
-    ) -> Result<ValidationReceipt, Self::Error>;
+    ) -> Result<(), Self::Error>;
 
     /// Classify a restored-slot recipe failure as fatal or rebuildable.
     fn classify_failure(
@@ -607,46 +587,6 @@ impl CanisterRestoreReceipt {
     #[must_use]
     pub const fn cycle_policy(&self) -> CycleResetPolicy {
         self.cycle_policy
-    }
-}
-
-impl ReadinessReceipt {
-    /// Construct a nonempty caller-owned readiness identity.
-    pub fn try_new(identity: impl Into<String>) -> Result<Self, BaselinePoolContractError> {
-        Ok(Self {
-            identity: nonempty_receipt_identity("readiness", identity.into())?,
-        })
-    }
-
-    /// Borrow the readiness identity.
-    #[must_use]
-    pub fn identity(&self) -> &str {
-        &self.identity
-    }
-}
-
-impl ValidationReceipt {
-    /// Construct final validation evidence for one recipe.
-    pub fn try_new(
-        recipe_id: FixtureRecipeId,
-        invariant_identity: impl Into<String>,
-    ) -> Result<Self, BaselinePoolContractError> {
-        Ok(Self {
-            recipe_id,
-            invariant_identity: nonempty_receipt_identity("validation", invariant_identity.into())?,
-        })
-    }
-
-    /// Recipe identity validated by this receipt.
-    #[must_use]
-    pub const fn recipe_id(&self) -> &FixtureRecipeId {
-        &self.recipe_id
-    }
-
-    /// Borrow the caller-owned invariant identity.
-    #[must_use]
-    pub fn invariant_identity(&self) -> &str {
-        &self.invariant_identity
     }
 }
 
@@ -924,21 +864,16 @@ where
         let started = Instant::now();
         let readiness_result = self.recipe.drive_to_readiness(baseline);
         add_timing(&mut timings.readiness, started.elapsed());
-        let readiness =
-            readiness_result.map_err(|source| BaselinePoolPreparationError::Recipe {
-                stage: BaselinePreparationStage::DriveToReadiness,
-                source,
-            })?;
+        readiness_result.map_err(|source| BaselinePoolPreparationError::Recipe {
+            stage: BaselinePreparationStage::DriveToReadiness,
+            source,
+        })?;
         self.recipe
             .reset_requirements()
             .verify(&canisters, &reset)
             .map_err(BaselinePoolPreparationError::Contract)?;
 
-        let preparation = PreparedBaseline::Restored {
-            canisters,
-            reset,
-            readiness,
-        };
+        let preparation = PreparedBaseline::Restored { canisters, reset };
         self.validate_baseline(
             baseline,
             &preparation,
@@ -985,17 +920,7 @@ where
         let started = Instant::now();
         let validation = self.recipe.validate(baseline, preparation);
         add_timing(&mut timings.validation, started.elapsed());
-        let receipt =
-            validation.map_err(|source| BaselinePoolPreparationError::Recipe { stage, source })?;
-        if receipt.recipe_id() != self.recipe.id() {
-            return Err(BaselinePoolPreparationError::Contract(
-                BaselinePoolContractError::RecipeIdentityMismatch {
-                    expected: self.recipe.id().clone(),
-                    actual: receipt.recipe_id().clone(),
-                },
-            ));
-        }
-        Ok(())
+        validation.map_err(|source| BaselinePoolPreparationError::Recipe { stage, source })
     }
 
     fn failure_disposition(
@@ -1006,9 +931,6 @@ where
             BaselinePoolPreparationError::Recipe { stage, source } => {
                 self.recipe.classify_failure(*stage, source)
             }
-            BaselinePoolPreparationError::Contract(
-                BaselinePoolContractError::RecipeIdentityMismatch { .. },
-            ) => FailureDisposition::Fatal,
             BaselinePoolPreparationError::Contract(error) => {
                 FailureDisposition::Rebuild(match error {
                     BaselinePoolContractError::MissingResetDomain { .. }
@@ -1065,16 +987,6 @@ where
     }
 }
 
-fn nonempty_receipt_identity(
-    receipt: &'static str,
-    identity: String,
-) -> Result<String, BaselinePoolContractError> {
-    if identity.trim().is_empty() {
-        return Err(BaselinePoolContractError::EmptyReceiptIdentity { receipt });
-    }
-    Ok(identity)
-}
-
 const fn add_timing(total: &mut Option<Duration>, elapsed: Duration) {
     *total = Some(match *total {
         None => elapsed,
@@ -1109,9 +1021,6 @@ impl std::fmt::Display for BaselinePoolContractError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::EmptyRecipeIdentity => formatter.write_str("fixture recipe identity is empty"),
-            Self::EmptyReceiptIdentity { receipt } => {
-                write!(formatter, "{receipt} receipt identity is empty")
-            }
             Self::DuplicateResetDomain { domain } => {
                 write!(
                     formatter,
@@ -1142,10 +1051,6 @@ impl std::fmt::Display for BaselinePoolContractError {
             } => write!(
                 formatter,
                 "reset achievement {achievement:?} does not satisfy {requirement:?}",
-            ),
-            Self::RecipeIdentityMismatch { expected, actual } => write!(
-                formatter,
-                "validation receipt used recipe `{actual}` instead of `{expected}`",
             ),
         }
     }

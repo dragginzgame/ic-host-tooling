@@ -18,8 +18,10 @@ pub struct ControllerSnapshots(BTreeMap<Principal, ControllerSnapshot>);
 /// One canister and exact management-call sender used for snapshot capture.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct CanisterSnapshotTarget {
-    canister_id: Principal,
-    sender: Option<Principal>,
+    /// Canister whose snapshot will be captured.
+    pub canister_id: Principal,
+    /// Exact management-call sender; None selects PocketIC's default.
+    pub sender: Option<Principal>,
 }
 
 /// Failure to remove a snapshot while rolling back a partial capture.
@@ -126,29 +128,6 @@ impl PocketIcSnapshotExt for PocketIc {
             restore_controller_snapshot(self, canister_id, snapshot_id, funding, sender)?;
         }
         Ok(())
-    }
-}
-
-impl CanisterSnapshotTarget {
-    /// Select one canister and exact sender for snapshot capture.
-    #[must_use]
-    pub const fn new(canister_id: Principal, sender: Option<Principal>) -> Self {
-        Self {
-            canister_id,
-            sender,
-        }
-    }
-
-    /// Canister whose snapshot will be captured.
-    #[must_use]
-    pub const fn canister_id(self) -> Principal {
-        self.canister_id
-    }
-
-    /// Exact management-call sender, including `None` for the default sender.
-    #[must_use]
-    pub const fn sender(self) -> Option<Principal> {
-        self.sender
     }
 }
 
@@ -321,30 +300,19 @@ fn apply_snapshot_restore_funding(
     canister_id: Principal,
     funding: SnapshotRestoreFunding,
 ) {
-    if funding == SnapshotRestoreFunding::Preserve {
-        return;
-    }
-
-    let balance = pocket_ic.cycle_balance(canister_id);
-    let top_up = snapshot_restore_top_up(balance, funding);
-    if top_up > 0 {
-        let _ = pocket_ic.add_cycles(canister_id, top_up);
-    }
-}
-
-const fn snapshot_restore_top_up(balance: u128, funding: SnapshotRestoreFunding) -> u128 {
     match funding {
-        SnapshotRestoreFunding::Preserve => 0,
+        SnapshotRestoreFunding::Preserve => {}
         SnapshotRestoreFunding::TopUpTo { minimum_cycles } => {
-            minimum_cycles.saturating_sub(balance)
+            let top_up = minimum_cycles.saturating_sub(pocket_ic.cycle_balance(canister_id));
+            if top_up > 0 {
+                let _ = pocket_ic.add_cycles(canister_id, top_up);
+            }
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{SnapshotRestoreFunding, snapshot_restore_top_up};
-
     #[test]
     fn cleanup_preserves_causes_and_senders_and_continues_after_each_failure() {
         use super::{
@@ -416,21 +384,5 @@ mod tests {
         };
         assert!(source.is_transport());
         assert_eq!(source.message(), transport);
-    }
-
-    #[test]
-    fn snapshot_restore_funding_is_explicit() {
-        assert_eq!(
-            snapshot_restore_top_up(10, SnapshotRestoreFunding::Preserve),
-            0
-        );
-        assert_eq!(
-            snapshot_restore_top_up(10, SnapshotRestoreFunding::TopUpTo { minimum_cycles: 25 }),
-            15
-        );
-        assert_eq!(
-            snapshot_restore_top_up(30, SnapshotRestoreFunding::TopUpTo { minimum_cycles: 25 }),
-            0
-        );
     }
 }

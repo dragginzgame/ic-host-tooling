@@ -1,5 +1,221 @@
 # Host support and qualification
 
+## Pending 0.51.0: explicit callers, fixture records and example reporting
+
+Installation/retry/snapshot-target inputs are field records; retry counts retain
+`NonZeroUsize`. Typed Candid calls require their exact principal under one query
+and update name. Existing decoding limits, rejection/transport handling, snapshot
+senders, funding and rollback remain unchanged. Native CSV/Markdown directory
+output and its bundling record now belong to `examples/benchmark_report/`; the
+library retains parsing, span pairing and measurement arithmetic. The example
+preserves the nine file layouts and scale-one comparisons. Its two output tests
+move from the library integration target; this is relocation, not deleted coverage.
+Existing reports are historical evidence and are not converted by this change.
+
+Linux focused qualification passes three retry and six call-codec units, 19
+marker/arithmetic cases, two relocated report cases, live typed-call/install/
+snapshot cases and both selected managed-server ownership cases. The report CLI
+writes its expected current/previous outputs, refuses missing arguments and
+preserves existing output on missing input. Strict all-target Clippy, actual
+Rust 1.91 native/Wasm compilation, warning-denied Rustdoc, package doctests and
+prepared formatting pass. Raw logs and the task's incoming dirty before-images
+are retained in `target/explicit-inputs-051-evidence/`.
+
+Caller preparation is delivered through draft PRs in
+[Canic #592](https://github.com/dragginzgame/canic/pull/592),
+[Jobs #65](https://github.com/dragginzgame/ic-jobs/pull/65),
+[Auth #67](https://github.com/dragginzgame/ic-auth/pull/67),
+[Blob #79](https://github.com/dragginzgame/ic-blob-storage/pull/79),
+[Storage #5](https://github.com/dragginzgame/ic-storage/pull/5),
+[Query #74](https://github.com/dragginzgame/ic-query/pull/74) and
+[IcyDB #375](https://github.com/dragginzgame/icydb/pull/375).
+Jobs/Auth/Blob/Query and Timers pass affected native compilation on Rust 1.91;
+Storage's benchmark declares Rust 1.99 and passes there. All six pass strict
+focused lint through temporary source overrides, excluded from contributions.
+Normal dependency adoption awaits Testkit publication. Canic and IcyDB also need
+their earlier bounded-reply alignment; only formatting/patch checks are claimed
+for those drafts. IcyDB's source-override compilation stops at five missing decode
+limit arguments in its integration helper. Timers' reviewed patch is delivered in
+[#66 — Prepare PocketIC probes for Testkit 0.51](https://github.com/dragginzgame/ic-timers/issues/66)
+without a commit, respecting its explicit maintainer-owned contribution exception.
+Normal sibling checkouts, root index/refs, own versions and normal dependency
+selections are unchanged. Full CI and native macOS qualification remain release
+checks; these source rehearsals do not establish downstream installed acceptance.
+
+## Pending 0.51.0: diagnostic inputs and shared release metadata
+
+Diagnostic inputs are public-field records; output records retain their existing
+accessors and invariants. Six diagnostic units and the live diagnostic, two
+installation and six teardown parent cases pass on Linux with PocketIC 16.1.
+Exact independent senders, batch label admission, bounded text and subordinate
+failure handling remain. Strict affected Clippy, actual Rust 1.91 compilation,
+warning-denied Rustdoc and package doctests pass. Caller preparation is delivered
+in [Canic PR #592](https://github.com/dragginzgame/canic/pull/592) and
+[Jobs PR #65](https://github.com/dragginzgame/ic-jobs/pull/65). Both remain drafts
+until Testkit 0.51 publication and coherent normal dependency adoption. Jobs'
+recovery target additionally passes actual Rust 1.91 compilation and strict
+Clippy through a temporary source override; Canic compilation is not claimed.
+
+The snapshot adds canonical Cargo metadata preparation/qualification from the
+already reviewed Shared Tooling 0.15.0 revision, without a baseline upgrade or
+local payload edits. Its preparation runs inside Testkit's retained private
+workspace. Testkit retains validation receipts, exact old/new recovery, extra
+note/installation views and committed-tree checks. The shared helper fixtures,
+consumer metadata/recovery fixtures, snapshot verification and shell lint pass
+under prepared Linux Bash 5. Bash 3.2 and native macOS remain release checks.
+
+[Build PR #55](https://github.com/dragginzgame/ic-build/pull/55) supplies required
+spawn/cancellation callbacks for native Cargo builds. Its focused native cases,
+actual Cargo profile/artifact/error case, strict lint, Rust 1.91 and floor
+Rustdoc pass. A private Testkit replacement uses Cargo's reported executable and
+target root with owned-group cleanup and active cancellation. All 21 driver
+cases, strict driver lint, Rust 1.91 and a real two-task fresh/pooled smoke pass.
+No default build deadline or total diagnostic limit is added. Normal Testkit
+keeps its published graph and current driver until Build publication; retirement
+remains [#94](https://github.com/dragginzgame/ic-testkit/issues/94). The apply-checked
+consumer patch and raw evidence are in `target/next-three-051-evidence/`; package
+versions, the real index/refs and normal sibling checkouts are unchanged.
+No full local CI, registry adoption of the new Build API or native macOS
+qualification is claimed.
+
+## Pending 0.51.0: caller-owned benchmark provenance
+
+The public benchmark report now contains measurements only. Run identities,
+Git/tool versions, command recording, previous-run selection and metadata sidecars
+belong to callers; the library metadata record, reader and writer are removed.
+A checked-out Rust caller trace finds only their owning Testkit tests. Existing
+metadata sidecars remain historical evidence; use fresh directories and an
+application-owned provenance record before adopting the current contract. The
+fixture-reuse worker and driver keep their separate example-owned JSON schema.
+
+All 21 current benchmark cases pass. The two removed cases exclusively qualified
+the retired metadata codec. Strict affected Clippy passes. Native JSON and Serde
+derive dependencies are now dev-only; native Candid decoding retains Serde, while
+Testkit no longer directly selects Serde for Wasm. Transitive dependencies still
+select their own features; this does not claim a measured build-time improvement.
+
+Snapshot restoration selects its funding policy and computes its top-up once.
+The focused live snapshot target passes five cases with prepared PocketIC 16.1,
+including preserve, needed funding and an already satisfied minimum. Original
+rejections, exact senders, rollback and transport classification are retained.
+Actual Rust 1.91 native library/all-target checks, Wasm library/probe checks,
+warning-denied Rustdoc, formatting and dependency pins pass. The selected lock
+and package release versions are unchanged. Task before-images and logs live in
+`target/more-cuts-051-evidence/`; earlier
+0.51 qualification below remains evidence for its named source, not a claim that
+retired metadata APIs remain supported. Full CI and native macOS remain release
+checks.
+
+## Pending 0.51.0: pool callbacks and benchmark counter hard cut
+
+Pool readiness and validation hooks return `Result<(), E>` after their existing
+checks. Canister/reset receipts still validate snapshot-set and reset coverage;
+stage timings, recipe errors and unwind invalidation remain. On Linux with
+prepared PocketIC 16.1, all 12 selected live pool cases and six pool unit cases
+pass. The dedicated kill-server case retains its explicit isolated selection.
+
+Benchmark producers, parsers and reports now carry three measured counters.
+All 23 marker/report cases and the real Wasm perf-probe case pass, including
+current CSV shapes, wide arithmetic and overflow/underflow refusal. Before
+adopting the cut, retire prior marker logs/reports from active comparison inputs
+and preserve them as historical evidence. Rebuild producers and consumers
+together, generate fresh baselines and choose fresh report directories. Testkit
+selects no retained installation or old-layout reader; the fixture-reuse worker
+JSON is unchanged. The benchmark metadata ownership cut above supersedes the
+metadata fields qualified in this earlier slice.
+
+Canic's two directly affected recipes are prepared in
+[PR #592 — Unit-returning pool callbacks](https://github.com/dragginzgame/canic/pull/592).
+It remains a draft pending the existing Canic 0.50 caller alignment and Testkit
+0.51 publication; only formatting and patch checks are claimed there. Strict
+focused Testkit Clippy, actual Rust 1.91 native/Wasm compilation, warning-denied
+Rustdoc and prepared formatting pass. A live two-task fresh/pooled driver smoke
+also completes with its existing invariant checks. Raw logs, smoke JSON and task
+before-images are retained in `target/hard-cut-051-evidence/`; full CI and native
+macOS remain release checks.
+
+Structured PocketIC transport errors remain an upstream prerequisite tracked by
+[#118 — Replace transport panic-text recognition](https://github.com/dragginzgame/ic-testkit/issues/118).
+The proposal is prepared and verified against current upstream source; posting
+outside DragginzGame awaits destination approval. No typed upstream API or
+transport-parser retirement is claimed.
+
+## Pending 0.51.0: shared server admission and compact codec diagnostics
+
+[PR #109 — Library server asset admission](https://github.com/dragginzgame/ic-testkit/pull/109)
+at `0b165891acb3510b752a428859b7c8d20f4d0f35` and
+[PR #110 — Compact Candid diagnostics](https://github.com/dragginzgame/ic-testkit/pull/110)
+at `830898538a5cbcf8f5e341316d68bc33fa9af647` are ported into the existing draft.
+The authenticated asset implementation now lives at Unix `pic::server_assets`;
+the CLI delegates setup/check and supplies cancellation while retaining signal
+ownership. It keeps the same pins, bounds, physical-path/byte admission, offline
+checks, evidence retention and publication rules. Seven asset cases re-exec
+before executable writes, removing the ineffective per-module mutex without
+adding production retries. The parallel native library target passes all 87
+non-ignored cases together; four explicit real-server cases remain ignored.
+Fixture isolation belongs to
+[#115 — Isolate server-asset fixtures from parallel process tests](https://github.com/dragginzgame/ic-testkit/issues/115).
+
+The codec selects Candid's compact diagnostics through its shared configuration.
+All six codec cases pass, including large-input failures through ordinary,
+exact-single-result and argument-list decoding. Original causes and inputs are
+retained; compact output is not redaction. On the incoming registry graph (Build
+0.12.0, Host 0.24.0, Metrics 0.12.0), Linux also passes the CLI unit case, all 13
+non-ignored server-runner cases, six teardown parents, the live rejection case
+and all 21 driver cases. The explicitly selected provisioned-CLI case completes
+a real PocketIC 16.1 instance without consumer server selection or new setup.
+
+Strict all-target Clippy, actual Rust 1.91 all-target native checks, Wasm codec
+checks, MSRV execution of all six codec and seven asset cases, warning-denied
+Rustdoc and prepared formatting pass. Before-images and raw failed/passing logs
+are retained in `target/pr109-110-evidence/`; the first extra live-call invocation
+lacked a server selection and is distinct from the passing admitted-path run.
+Source PR heads retain their own hosted evidence; one Intel job per PR was still
+running at inspection. The combined draft requires fresh native macOS CI after
+the maintainer's push. No full local CI, package-version change, merge or release
+was run; incoming dependency selections and earlier draft work are preserved.
+
+## Pending 0.51.0: published Host/Build alignment and native fixtures
+
+The selected registry graph contains Build 0.12.0 and one Host 0.24.0 family.
+The incoming manifest/lock edits are retained without another resolution. This
+is a minor Testkit batch because startup probe failures and cleanup accessors
+expose Host Process error types; direct users select Host Process 0.24. The
+library compiler floor remains Rust 1.91 and own package versions remain 0.50.0.
+
+The driver uses published observed-version admission, eliminating its separate
+preliminary Git version invocation while retaining executable/output budgets,
+explicit environment, cancellation checks and typed causes. Startup diagnostics
+use Host's regular-file prefix read, preserving the 16 KiB allowance, lossy text,
+omitted-byte rendering and special-file refusal. Published adoption of the Git
+operation belongs to
+[#112 — Single-probe Host observed-version admission](https://github.com/dragginzgame/ic-testkit/issues/112).
+
+[PR #113 — Native Git-path and command-cleanup fixtures](https://github.com/dragginzgame/ic-testkit/pull/113)
+is ported into the current source. Its Git fixture uses portable control/quote
+names on every native host and actual invalid UTF-8 directory entries on Linux.
+The output-limit producer stays alive until owned capture terminates and reaps
+it, with exact output and signal/cleanup evidence. This addresses the two macOS
+Git-fixture failures in the
+[0.50.0 release run](https://github.com/dragginzgame/ic-testkit/actions/runs/38930567473).
+The original PR's Linux/macOS passes qualify that source, not this updated graph.
+
+On this registry graph, all 21 driver cases, 27 startup cases and seven provisioning
+cases pass on Linux; four caller-provided-server startup cases remain explicitly
+ignored. Strict all-target Clippy, actual Rust 1.91 all-target compilation,
+warning-denied Rustdoc and prepared formatting pass. A live PocketIC 16.1 smoke
+completes two tasks each in fresh and capacity-one pooled modes with one worker
+and 64 state bytes. This is correctness evidence, not a performance comparison.
+Logs, the exact graph, source before-images and the smoke report remain under
+`target/post050-evidence/`. Current-source native macOS and the full release gate
+remain separately qualified after the maintainer's push.
+
+Published Host 0.24 does not export gzip-to-sink copying. Its source contribution
+was superseded into [Host PR #172 — Queued Host contributions](https://github.com/dragginzgame/ic-host-tooling/pull/172),
+which remains open. The CLI retains its existing authenticated buffering flow;
+normal adoption stays with
+[#116 — Adopt published Host gzip streaming in server provisioning](https://github.com/dragginzgame/ic-testkit/issues/116).
+
 ## Pending 0.50.0: snapshot causes and borrowed aggregation
 
 Snapshot capture, restore and rollback retain one `PocketIcCallFailure` source

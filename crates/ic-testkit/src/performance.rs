@@ -15,16 +15,13 @@ impl Performance {
         ic_cdk::api::debug_print(format_marker(DEFAULT_PREFIX, label, Self::counters()));
     }
 
-    /// Read the instruction, Wasm heap, stable-memory, and allocation counters.
-    ///
-    /// `total_allocation` is currently reserved and emitted as zero.
+    /// Read the instruction, Wasm heap, and stable-memory counters.
     #[must_use]
     pub fn counters() -> BenchmarkCounters {
         BenchmarkCounters {
             instructions: u128::from(ic_cdk::api::call_context_instruction_counter()),
             heap_bytes: wasm_memory_size_bytes(),
             memory_bytes: u128::from(ic_cdk::api::stable_size()) * WASM_PAGE_BYTES,
-            total_allocation: 0,
         }
     }
 }

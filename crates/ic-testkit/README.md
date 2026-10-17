@@ -8,15 +8,15 @@ PocketIC-oriented test utilities for Internet Computer canister tests.
 
 ```toml
 [dev-dependencies]
-ic-testkit = "0.50"
+ic-testkit = "0.51"
 ```
 
 The published MSRV is Rust 1.91, and the selected PocketIC line is 16.
 Canisters using benchmark markers can add the crate under `[dependencies]`.
 `pocket_ic` and `pic` are host-only. `performance` is Wasm-only;
 `benchmark` counters, parsing and aggregation, and `Fake` are available on both
-targets. Native directory, metadata and file-output APIs live in
-`benchmark::report`. Candid calls require caller-selected
+targets. Native CSV and Markdown directory output lives in the repository's
+`benchmark_report` example. Candid calls require an explicit principal and caller-selected
 `ic_testkit_candid::DecodeLimits` and return contextual errors with typed decode
 causes; add `ic-testkit-candid` directly to select those budgets. Choose caller-side
 `expect` when a fixture must panic. Standalone recipe builders return
@@ -41,9 +41,13 @@ This is the PocketIC package in the `ic-testkit` workspace. It provides:
 - compact benchmark marker parsing, aggregation, comparison, and report writing
 - canister-side `Performance::measure` marker emission
 
-`ic-testkit` does not wrap the PocketIC simulator API, serialize independent
-instances. Its published CLI owns explicit server provisioning and offline
-verification; tests never install through that CLI implicitly. Tests normally retain one
+`ic-testkit` does not wrap the PocketIC simulator API or serialize independent
+instances. `pic::server_assets` owns explicit server provisioning and offline
+verification for Rust callers and the published CLI; tests never install implicitly.
+Rust fixtures call `server_assets::check(&directory)` and pass the returned
+absolute executable path to `PocketIcStartupConfig::spawn`, without invoking the CLI.
+Explicit `server_assets::setup` takes a caller-owned cancellation predicate.
+Tests normally retain one
 `PocketIcInstance<PocketIc>` and use `owned.instance` for simulator operations;
 focused extension traits provide reusable harness behavior. Less common
 upstream types remain available through the complete `ic_testkit::pocket_ic`
@@ -142,6 +146,6 @@ For 0.39, invoke Candid extensions on `fixture.pocket_ic()` with
 and lifetime, while `CandidCallExt` owns encoding, invocation and decoding.
 See the [packaged migration notes](CHANGELOG.md#0390).
 
-Benchmark commands own their run-directory naming, allocation and selection of
-previous runs. The report module writes supplied reports and reads supplied
-metadata paths; it no longer discovers or allocates benchmark history directories.
+Benchmark commands own run identities, provenance, history selection and any
+metadata sidecars. The report module renders supplied measurements as CSV and
+Markdown; it has no metadata schema, reader or history-discovery policy.

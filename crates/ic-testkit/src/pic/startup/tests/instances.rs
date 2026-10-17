@@ -337,8 +337,6 @@ fn install_errors_fixtures_and_baselines_retain_the_owned_server() {
     use crate::pic::{
         CachedPocketIcBaseline, CanisterInstallError, InstallSpec, StandaloneCanisterFixture,
     };
-    use candid::Principal;
-
     let binary = PathBuf::from(std::env::var_os("POCKET_IC_BIN").unwrap());
     let owned = PocketIcStartupConfig::spawn(&binary, Duration::from_secs(30))
         .build_instance(PocketIcBuilder::new().with_application_subnet())
@@ -347,7 +345,13 @@ fn install_errors_fixtures_and_baselines_retain_the_owned_server() {
     let instance_id = owned.instance.instance_id();
     let error = StandaloneCanisterFixture::try_install(
         owned,
-        InstallSpec::new(vec![0xde, 0xad], vec![], 5_000_000_000_000).label("invalid-owned-wasm"),
+        InstallSpec {
+            wasm: vec![0xde, 0xad],
+            init_bytes: vec![],
+            cycles: 5_000_000_000_000,
+            install_sender: None,
+            label: Some("invalid-owned-wasm".into()),
+        },
     )
     .err()
     .expect("invalid Wasm must fail installation");
@@ -372,14 +376,23 @@ fn install_errors_fixtures_and_baselines_retain_the_owned_server() {
 
     let fixture = StandaloneCanisterFixture::try_install(
         owned,
-        InstallSpec::new(b"\0asm\x01\0\0\0".to_vec(), vec![], 5_000_000_000_000),
+        InstallSpec {
+            wasm: b"\0asm\x01\0\0\0".to_vec(),
+            init_bytes: vec![],
+            cycles: 5_000_000_000_000,
+            install_sender: None,
+            label: None,
+        },
     )
     .expect("install standalone fixture");
     let (owned, canister) = fixture.into_parts();
     assert_eq!(owned.server.as_ref().unwrap().process_id(), pid);
     let baseline = CachedPocketIcBaseline::capture(
         owned,
-        [crate::pic::CanisterSnapshotTarget::new(canister, None)],
+        [crate::pic::CanisterSnapshotTarget {
+            canister_id: canister,
+            sender: None,
+        }],
         (),
     )
     .unwrap();
@@ -405,17 +418,26 @@ fn install_errors_fixtures_and_baselines_retain_the_owned_server() {
         None,
         "baseline drop must reap its server"
     );
+}
 
+#[cfg(unix)]
+#[test]
+#[ignore = "requires POCKET_IC_BIN=<caller-provided PocketIC server binary>"]
+fn failed_baseline_capture_reaps_the_owned_server() {
+    use crate::pic::CachedPocketIcBaseline;
+    use candid::Principal;
+
+    let binary = PathBuf::from(std::env::var_os("POCKET_IC_BIN").unwrap());
     let owned = PocketIcStartupConfig::spawn(binary, Duration::from_secs(30))
         .build_instance(PocketIcBuilder::new().with_application_subnet())
         .unwrap();
     let pid = owned.server.as_ref().unwrap().process_id();
     let capture = CachedPocketIcBaseline::capture(
         owned,
-        [crate::pic::CanisterSnapshotTarget::new(
-            Principal::anonymous(),
-            None,
-        )],
+        [crate::pic::CanisterSnapshotTarget {
+            canister_id: Principal::anonymous(),
+            sender: None,
+        }],
         (),
     );
     assert!(

@@ -19,9 +19,8 @@ use ic_testkit::pic::{
     CachedPocketIcBaselinePool, CanisterRestoreReceipt, CanisterSnapshotTarget,
     ControllerSnapshotError, CycleResetPolicy, ExtraCanisterPolicy, FailureDisposition,
     FixtureRecipeId, PocketIcBaselineRecipe, PocketIcBuilder, PocketIcStartupConfig,
-    PocketIcStartupError, PreparedBaseline, ReadinessReceipt, RebuildReason, ResetDomainPolicy,
-    ResetReceipt, ResetRequirements, SnapshotRestoreFunding, TimeResetPolicy, ValidationReceipt,
-    is_dead_pocket_ic_transport_error,
+    PocketIcStartupError, PreparedBaseline, RebuildReason, ResetDomainPolicy, ResetReceipt,
+    ResetRequirements, SnapshotRestoreFunding, TimeResetPolicy, is_dead_pocket_ic_transport_error,
 };
 
 const EMPTY_WASM: &[u8] = b"\0asm\x01\0\0\0";
@@ -40,7 +39,6 @@ struct RecipeControls {
     panic_next_restore: Arc<AtomicBool>,
     report_incomplete_restore: Arc<AtomicBool>,
     report_wrong_cycle_policy: Arc<AtomicBool>,
-    report_wrong_validation_recipe: Arc<AtomicBool>,
     tracked_extra_canister: Arc<Mutex<Option<Principal>>>,
     first_server_url: Arc<Mutex<Option<String>>>,
 }
@@ -164,7 +162,10 @@ impl PocketIcBaselineRecipe for TwoCanisterRecipe {
 
         let mut baseline = CachedPocketIcBaseline::capture(
             pocket_ic,
-            canister_ids.map(|id| CanisterSnapshotTarget::new(id, None)),
+            canister_ids.map(|id| CanisterSnapshotTarget {
+                canister_id: id,
+                sender: None,
+            }),
             TwoCanisterMetadata {
                 canister_ids,
                 baseline_time_nanos: 0,
@@ -280,7 +281,7 @@ impl PocketIcBaselineRecipe for TwoCanisterRecipe {
     fn drive_to_readiness(
         &self,
         _baseline: &CachedPocketIcBaseline<Self::Metadata>,
-    ) -> Result<ReadinessReceipt, Self::Error> {
+    ) -> Result<(), Self::Error> {
         if self
             .controls
             .fail_next_readiness
@@ -288,14 +289,14 @@ impl PocketIcBaselineRecipe for TwoCanisterRecipe {
         {
             return Err(TestRecipeError::Synthetic("requested readiness failure"));
         }
-        ReadinessReceipt::try_new("empty-canisters-ready").map_err(Into::into)
+        Ok(())
     }
 
     fn validate(
         &self,
         baseline: &CachedPocketIcBaseline<Self::Metadata>,
         preparation: &PreparedBaseline,
-    ) -> Result<ValidationReceipt, Self::Error> {
+    ) -> Result<(), Self::Error> {
         if self
             .controls
             .fail_next_validation
@@ -328,16 +329,7 @@ impl PocketIcBaselineRecipe for TwoCanisterRecipe {
             }
         }
 
-        let recipe_id = if self
-            .controls
-            .report_wrong_validation_recipe
-            .swap(false, Ordering::SeqCst)
-        {
-            FixtureRecipeId::try_new("ic-testkit/wrong-recipe/v1")?
-        } else {
-            self.id.clone()
-        };
-        ValidationReceipt::try_new(recipe_id, "two-empty-modules-installed").map_err(Into::into)
+        Ok(())
     }
 
     fn classify_failure(
@@ -708,51 +700,6 @@ fn restore_receipt_mismatches_force_a_fresh_baseline() {
         assert_eq!(controls.restored_validations.load(Ordering::SeqCst), 0);
         drop(baseline);
     }
-}
-
-#[test]
-fn validation_recipe_mismatch_is_fatal_and_not_retried_as_a_rebuild() {
-    let controls = RecipeControls::default();
-    let pool = CachedPocketIcBaselinePool::new(
-        NonZeroUsize::new(1).unwrap(),
-        TwoCanisterRecipe::new(controls.clone()),
-    );
-    drop(pool.acquire().expect("first baseline should build").0);
-
-    controls
-        .report_wrong_validation_recipe
-        .store(true, Ordering::SeqCst);
-    let Err(error) = pool.acquire() else {
-        panic!("a mismatched validation recipe must be rejected");
-    };
-    assert!(matches!(
-        &error,
-        BaselinePoolError::Preparation {
-            error: BaselinePoolPreparationError::Contract(
-                BaselinePoolContractError::RecipeIdentityMismatch { .. }
-            ),
-            ..
-        }
-    ));
-    let timings = error.timings();
-    assert!(timings.validation().is_some());
-    assert!(timings.stale_teardown().is_some());
-    assert!(timings.total() >= timings.validation().unwrap());
-    assert_eq!(
-        controls.builds.load(Ordering::SeqCst),
-        1,
-        "identity misuse must not trigger an automatic rebuild",
-    );
-
-    let (baseline, outcome) = pool
-        .acquire()
-        .expect("the discarded fatal slot should build on a later acquisition");
-    assert!(matches!(
-        outcome.disposition,
-        BaselinePoolDisposition::Built
-    ));
-    assert_eq!(controls.builds.load(Ordering::SeqCst), 2);
-    drop(baseline);
 }
 
 #[test]

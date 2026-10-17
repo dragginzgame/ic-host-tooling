@@ -19,8 +19,8 @@ use ic_testkit::pic::{
     BaselinePoolDisposition, BaselinePoolTimings, BaselinePreparationStage, CachedPocketIcBaseline,
     CachedPocketIcBaselinePool, CandidCallExt, CanisterRestoreReceipt, CanisterSnapshotTarget,
     CycleResetPolicy, FailureDisposition, FixtureRecipeId, PocketIc, PocketIcBaselineRecipe,
-    PocketIcBuilder, PocketIcInstance, PocketIcStartupConfig, PreparedBaseline, ReadinessReceipt,
-    ResetReceipt, ResetRequirements, SnapshotRestoreFunding, ValidationReceipt,
+    PocketIcBuilder, PocketIcInstance, PocketIcStartupConfig, PreparedBaseline, ResetReceipt,
+    ResetRequirements, SnapshotRestoreFunding,
 };
 
 type Result<T> = std::result::Result<T, Box<dyn Error + Send + Sync>>;
@@ -83,7 +83,13 @@ impl Recipe {
             pic.instance
                 .install_canister(id, self.wasm.to_vec(), vec![], None);
             pic.instance
-                .update_candid::<(), _>(id, "fixture_seed_state", (self.state_bytes,), REPLY_LIMITS)
+                .update_candid::<(), _>(
+                    id,
+                    candid::Principal::anonymous(),
+                    "fixture_seed_state",
+                    (self.state_bytes,),
+                    REPLY_LIMITS,
+                )
                 .map_err(recipe_error)?;
         }
         Ok((pic, ids))
@@ -99,7 +105,13 @@ impl Recipe {
         let expected = (u64::from(mutated), u64::from(self.state_bytes), first);
         for id in ids {
             let state: (u64, u64, Option<u8>) = pic
-                .query_candid(*id, "fixture_state", (), REPLY_LIMITS)
+                .query_candid(
+                    *id,
+                    candid::Principal::anonymous(),
+                    "fixture_state",
+                    (),
+                    REPLY_LIMITS,
+                )
                 .map_err(recipe_error)?;
             if state != expected {
                 return Err(recipe_error(io::Error::other(format!(
@@ -112,7 +124,13 @@ impl Recipe {
 
     fn exercise(&self, pic: &PocketIc, ids: &[Principal; 2]) -> Result<()> {
         for id in ids {
-            pic.update_candid::<(), _>(*id, "fixture_mutate_state", (), REPLY_LIMITS)?;
+            pic.update_candid::<(), _>(
+                *id,
+                candid::Principal::anonymous(),
+                "fixture_mutate_state",
+                (),
+                REPLY_LIMITS,
+            )?;
         }
         self.validate_state(pic, ids, true)?;
         Ok(())
@@ -135,7 +153,10 @@ impl PocketIcBaselineRecipe for Recipe {
         let (pic, ids) = self.create()?;
         CachedPocketIcBaseline::capture(
             pic,
-            ids.map(|id| CanisterSnapshotTarget::new(id, None)),
+            ids.map(|id| CanisterSnapshotTarget {
+                canister_id: id,
+                sender: None,
+            }),
             ids,
         )
         .map_err(recipe_error)
@@ -162,17 +183,17 @@ impl PocketIcBaselineRecipe for Recipe {
     fn drive_to_readiness(
         &self,
         _baseline: &CachedPocketIcBaseline<Self::Metadata>,
-    ) -> std::result::Result<ReadinessReceipt, Self::Error> {
-        ReadinessReceipt::try_new("synchronous-calls-complete").map_err(recipe_error)
+    ) -> std::result::Result<(), Self::Error> {
+        Ok(())
     }
 
     fn validate(
         &self,
         baseline: &CachedPocketIcBaseline<Self::Metadata>,
         _preparation: &PreparedBaseline,
-    ) -> std::result::Result<ValidationReceipt, Self::Error> {
+    ) -> std::result::Result<(), Self::Error> {
         self.validate_state(baseline.pocket_ic(), baseline.metadata(), false)?;
-        ValidationReceipt::try_new(self.id.clone(), "seeded-state-restored").map_err(recipe_error)
+        Ok(())
     }
 
     fn classify_failure(

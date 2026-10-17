@@ -150,7 +150,7 @@ new_fixture() {
   # inputs. Only the complete validation gate and Git effects are substituted.
   mkdir -p scripts/release scripts/ci ci
   cp "$repo_root/scripts/release/metadata.sh" scripts/release/
-  for helper in check-release-source.sh read-cargo-workspace-version.sh next-release-version.sh validate-release-inputs.pl check-format-tools.sh check-installation-version.sh finalize-release-changelog.awk render-cargo-workspace-version.pl rewrite-local-lock-versions.pl; do
+  for helper in StableVersion.pm cargo-release-metadata.sh cargo-workspace-members.jq compare-stable-versions.pl check-release-source.sh read-cargo-workspace-version.sh next-release-version.sh validate-release-inputs.pl check-format-tools.sh check-installation-version.sh finalize-release-changelog.awk render-cargo-workspace-version.pl rewrite-local-lock-versions.pl; do
     cp "$repo_root/scripts/ci/$helper" scripts/ci/
   done
   cp "$repo_root/ci/tool-versions.env" ci/

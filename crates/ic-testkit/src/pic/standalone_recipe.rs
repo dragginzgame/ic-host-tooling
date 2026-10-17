@@ -4,9 +4,9 @@ use candid::Principal;
 
 use super::{
     CachedPocketIcBaseline, CanisterRestoreReceipt, CanisterSnapshotTarget, FailureDisposition,
-    FixtureRecipeId, PocketIcBaselineRecipe, PreparedBaseline, ReadinessReceipt, RebuildReason,
-    ResetReceipt, ResetRequirements, SnapshotRestoreFunding, StandaloneCanisterFixture,
-    ValidationReceipt, is_dead_pocket_ic_transport_error,
+    FixtureRecipeId, PocketIcBaselineRecipe, PreparedBaseline, RebuildReason, ResetReceipt,
+    ResetRequirements, SnapshotRestoreFunding, StandaloneCanisterFixture,
+    is_dead_pocket_ic_transport_error,
 };
 
 /// Snapshot-only recipe for one caller-built, installed canister.
@@ -66,7 +66,10 @@ where
         let (pocket_ic, canister_id) = (self.build)()?.into_parts();
         CachedPocketIcBaseline::capture(
             pocket_ic,
-            [CanisterSnapshotTarget::new(canister_id, None)],
+            [CanisterSnapshotTarget {
+                canister_id,
+                sender: None,
+            }],
             canister_id,
         )
         .map_err(io::Error::other)
@@ -89,17 +92,16 @@ where
     fn drive_to_readiness(
         &self,
         _baseline: &CachedPocketIcBaseline<Principal>,
-    ) -> Result<ReadinessReceipt, io::Error> {
-        ReadinessReceipt::try_new("snapshot-operation-completed").map_err(io::Error::other)
+    ) -> Result<(), io::Error> {
+        Ok(())
     }
 
     fn validate(
         &self,
         _baseline: &CachedPocketIcBaseline<Principal>,
         _preparation: &PreparedBaseline,
-    ) -> Result<ValidationReceipt, io::Error> {
-        ValidationReceipt::try_new(self.id.clone(), "single-canister-snapshot-completed")
-            .map_err(io::Error::other)
+    ) -> Result<(), io::Error> {
+        Ok(())
     }
 
     fn classify_failure(

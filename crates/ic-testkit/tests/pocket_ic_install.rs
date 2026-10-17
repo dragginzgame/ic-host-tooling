@@ -2,8 +2,8 @@ mod support;
 
 use candid::Principal;
 use ic_testkit::pic::{
-    CanisterDiagnosticsRequest, CanisterInstallError, CanisterInstallExt, InstallSpec,
-    PocketIcDiagnosticsExt, StandaloneCanisterFixture,
+    CanisterDiagnosticsRequest, CanisterInstallError, CanisterInstallExt, CanisterLogRenderLimits,
+    InstallSpec, PocketIcDiagnosticsExt, StandaloneCanisterFixture,
 };
 
 #[test]
@@ -11,7 +11,13 @@ fn fallible_install_preserves_the_original_failure_for_caller_diagnostics() {
     let owned = support::pocket_ic();
     let pocket_ic = &owned.instance;
     let error = pocket_ic
-        .try_create_and_install(InstallSpec::new(vec![0xde, 0xad], vec![], 0).label("invalid-wasm"))
+        .try_create_and_install(InstallSpec {
+            wasm: vec![0xde, 0xad],
+            init_bytes: vec![],
+            cycles: 0,
+            install_sender: None,
+            label: Some("invalid-wasm".into()),
+        })
         .expect_err("invalid Wasm should fail installation");
 
     let CanisterInstallError::InstallCode {
@@ -28,11 +34,12 @@ fn fallible_install_preserves_the_original_failure_for_caller_diagnostics() {
         "original PocketIC rejection should be preserved: {}",
         source.message()
     );
-    let report = pocket_ic.collect_canister_diagnostics(CanisterDiagnosticsRequest::new(
-        *canister_id,
-        Principal::anonymous(),
-        Principal::anonymous(),
-    ));
+    let report = pocket_ic.collect_canister_diagnostics(CanisterDiagnosticsRequest {
+        canister_id: *canister_id,
+        status_sender: Principal::anonymous(),
+        log_sender: Principal::anonymous(),
+        log_limits: CanisterLogRenderLimits::default(),
+    });
     assert!(
         report.status().is_ok(),
         "the failed install's canister remains inspectable"
@@ -44,7 +51,13 @@ fn fallible_install_preserves_the_original_failure_for_caller_diagnostics() {
 fn failed_standalone_install_returns_the_caller_instance() {
     let Err(error) = StandaloneCanisterFixture::try_install(
         support::pocket_ic(),
-        InstallSpec::new(vec![0xde, 0xad], vec![], 0).label("invalid-standalone-wasm"),
+        InstallSpec {
+            wasm: vec![0xde, 0xad],
+            init_bytes: vec![],
+            cycles: 0,
+            install_sender: None,
+            label: Some("invalid-standalone-wasm".into()),
+        },
     ) else {
         panic!("invalid Wasm should fail standalone installation");
     };

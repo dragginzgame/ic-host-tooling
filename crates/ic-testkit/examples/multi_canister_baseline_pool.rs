@@ -14,9 +14,8 @@ use ic_testkit::pic::{
     CachedPocketIcBaseline, CachedPocketIcBaselinePool, CanisterRestoreReceipt,
     CanisterSnapshotTarget, ControllerSnapshotError, CycleResetPolicy, FailureDisposition,
     FixtureRecipeId, PocketIcBaselineRecipe, PocketIcBuilder, PocketIcStartupConfig,
-    PocketIcStartupError, PreparedBaseline, ReadinessReceipt, RebuildReason, ResetReceipt,
-    ResetRequirements, SnapshotRestoreFunding, ValidationReceipt,
-    is_dead_pocket_ic_transport_error,
+    PocketIcStartupError, PreparedBaseline, RebuildReason, ResetReceipt, ResetRequirements,
+    SnapshotRestoreFunding, is_dead_pocket_ic_transport_error,
 };
 
 const EMPTY_WASM: &[u8] = b"\0asm\x01\0\0\0";
@@ -74,7 +73,10 @@ impl PocketIcBaselineRecipe for TwoCanisterRecipe {
 
         CachedPocketIcBaseline::capture(
             pocket_ic,
-            canister_ids.map(|id| CanisterSnapshotTarget::new(id, None)),
+            canister_ids.map(|id| CanisterSnapshotTarget {
+                canister_id: id,
+                sender: None,
+            }),
             TopologyMetadata { canister_ids },
         )
         .map_err(Into::into)
@@ -101,15 +103,15 @@ impl PocketIcBaselineRecipe for TwoCanisterRecipe {
     fn drive_to_readiness(
         &self,
         _baseline: &CachedPocketIcBaseline<Self::Metadata>,
-    ) -> Result<ReadinessReceipt, Self::Error> {
-        ReadinessReceipt::try_new("empty-canisters-ready").map_err(Into::into)
+    ) -> Result<(), Self::Error> {
+        Ok(())
     }
 
     fn validate(
         &self,
         baseline: &CachedPocketIcBaseline<Self::Metadata>,
         _preparation: &PreparedBaseline,
-    ) -> Result<ValidationReceipt, Self::Error> {
+    ) -> Result<(), Self::Error> {
         for canister_id in baseline.metadata().canister_ids {
             let status = baseline
                 .pocket_ic()
@@ -122,8 +124,7 @@ impl PocketIcBaselineRecipe for TwoCanisterRecipe {
             }
         }
 
-        ValidationReceipt::try_new(self.id.clone(), "two-empty-modules-installed")
-            .map_err(Into::into)
+        Ok(())
     }
 
     fn classify_failure(

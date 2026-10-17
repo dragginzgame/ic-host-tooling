@@ -103,7 +103,7 @@ Host-side test crates normally add:
 
 ```toml
 [dev-dependencies]
-ic-testkit = "0.50"
+ic-testkit = "0.51"
 ```
 
 Canister crates that emit benchmark markers can add the same version under
@@ -112,8 +112,8 @@ Canister crates that emit benchmark markers can add the same version under
 The crate supports Rust 1.91 and uses PocketIC 16. The `pocket_ic` and `pic`
 modules are host-only; `performance` emits markers on Wasm. Benchmark counters,
 marker parsing, aggregation and `Fake` are available on native and Wasm targets.
-Native benchmark directory, metadata and file-output APIs live in
-`benchmark::report`.
+Native CSV/Markdown directory output is provided by the repository's
+`benchmark_report` example; applications own provenance and output policy.
 
 ## What ic-testkit provides
 
@@ -202,7 +202,7 @@ use ic_testkit::pic::{PocketIc, prelude::*};
 fn read_counter(pocket_ic: &PocketIc, canister_id: Principal, limits: ic_testkit_candid::DecodeLimits)
     -> Result<u64, ic_testkit::pic::CandidCallError>
 {
-    pocket_ic.query_candid(canister_id, "get", (), limits)
+    pocket_ic.query_candid(canister_id, candid::Principal::anonymous(), "get", (), limits)
 }
 ```
 
@@ -230,7 +230,8 @@ and `ic-host-process` dependencies; Testkit does not re-export those crates.
 
 ## Typed Candid calls
 
-`CandidCallExt` supplies anonymous and caller-aware query/update variants. Each
+`CandidCallExt` requires an explicit principal for every query/update. Pass
+`Principal::anonymous()` for anonymous access. Each
 call requires explicit `ic_testkit_candid::DecodeLimits` for reply bytes, decoder
 work, skipping, type entries and header bytes. These budgets govern reply
 decoding; transport deadlines remain with the caller and PocketIC:
@@ -242,8 +243,8 @@ use ic_testkit::pic::{CandidCallExt, PocketIc};
 fn increment_counter(pocket_ic: &PocketIc, canister_id: Principal, limits: ic_testkit_candid::DecodeLimits)
     -> Result<(), ic_testkit::pic::CandidCallError>
 {
-    let _: () = pocket_ic.update_candid(canister_id, "increment", (), limits)?;
-    let value: u64 = pocket_ic.query_candid_as(
+    let _: () = pocket_ic.update_candid(canister_id, candid::Principal::anonymous(), "increment", (), limits)?;
+    let value: u64 = pocket_ic.query_candid(
         canister_id,
         Principal::anonymous(),
         "get",
@@ -430,6 +431,13 @@ the default is `.tools/ic-testkit-server` relative to the working directory.
 Only Linux x86-64, macOS Intel and macOS Apple Silicon have reviewed assets.
 Provisioning requires `curl`; offline checking does not.
 
+Rust fixtures use `ic_testkit::pic::server_assets::check(&directory)` for the same
+offline authenticated admission, returning an absolute executable path for
+`PocketIcStartupConfig::spawn`. It does not invoke Cargo, Make or the CLI.
+Explicit provisioning is also available through `server_assets::setup`, with
+a caller-supplied cancellation predicate; the library installs no signal handlers.
+The caller still owns the physical root and prevents replacement before launch.
+
 `run` without a server environment selection checks that prepared bundle and
 exports both its `POCKET_IC_BIN` and the governed server URL to the command.
 It never installs or updates a server. An explicit `--directory` conflicts with
@@ -520,12 +528,10 @@ fn install_counter(wasm: Vec<u8>, init_bytes: Vec<u8>, limits: ic_testkit_candid
         .build_instance(PocketIcBuilder::new().with_application_subnet())?;
     let fixture = StandaloneCanisterFixture::try_install(
         owned,
-        InstallSpec::new(wasm, init_bytes, 1_000_000_000_000)
-            .install_sender(Principal::anonymous())
-            .label("counter"),
+        InstallSpec { wasm, init_bytes, cycles: 1_000_000_000_000, install_sender: Some(Principal::anonymous()), label: Some("counter" .into()) },
     )?;
 
-    let _value: u64 = fixture.pocket_ic().query_candid(fixture.canister_id(), "get", (), limits)?;
+    let _value: u64 = fixture.pocket_ic().query_candid(fixture.canister_id(), candid::Principal::anonymous(), "get", (), limits)?;
     Ok(fixture)
 }
 ```
@@ -563,7 +569,7 @@ use ic_testkit::pic::{CanisterInstallExt, PocketIc, RejectResponse, RetryPolicy}
 fn retry_install(pocket_ic: &PocketIc, install_again: impl FnMut() -> Result<(), RejectResponse>)
     -> Result<(), RejectResponse>
 {
-    let policy = RetryPolicy::new(NonZeroUsize::new(3).unwrap(), Duration::from_secs(60));
+    let policy = RetryPolicy { max_attempts: NonZeroUsize::new(3).unwrap(), cooldown: Duration::from_secs(60) };
     pocket_ic.retry_install_code(policy, install_again)
 }
 ```
@@ -590,8 +596,8 @@ fn restore_pair(
     child_canister: Principal,
 ) -> Result<(), ic_testkit::pic::ControllerSnapshotError> {
     let snapshots = pocket_ic.capture_snapshots([
-        CanisterSnapshotTarget::new(root_canister, Some(root_controller)),
-        CanisterSnapshotTarget::new(child_canister, None),
+        CanisterSnapshotTarget { canister_id: root_canister, sender: Some(root_controller) },
+        CanisterSnapshotTarget { canister_id: child_canister, sender: None },
     ])?;
     pocket_ic.restore_snapshots(&snapshots, SnapshotRestoreFunding::Preserve)?;
     pocket_ic.restore_snapshots(
@@ -649,7 +655,7 @@ static POOL: LazyLock<
 # fn build_fixture() -> std::io::Result<StandaloneCanisterFixture> { unimplemented!() }
 fn read_pooled_counter(limits: ic_testkit_candid::DecodeLimits) -> Result<u64, Box<dyn std::error::Error>> {
     let (baseline, _outcome) = POOL.acquire()?;
-    Ok(baseline.pocket_ic().query_candid(*baseline.metadata(), "get", (), limits)?)
+    Ok(baseline.pocket_ic().query_candid(*baseline.metadata(), candid::Principal::anonymous(), "get", (), limits)?)
 }
 ```
 
@@ -727,6 +733,9 @@ topology to readiness, then validate final invariants. Construct requirements
 with `ResetRequirements::try_new(cycle_policy, non_snapshot_requirements)`.
 The pool checks the complete captured set and cycle policy directly against
 `CanisterRestoreReceipt`; `ResetReceipt` reports only non-snapshot guarantees.
+`drive_to_readiness` and `validate` return `Result<(), E>`: successful calls
+admit progress, while recipe errors retain their lifecycle stage. They do not
+construct string receipts or repeat the pool-owned recipe identity.
 Every required policy must have an exact matching achievement before a warm
 lease is returned. Built and restored slots
 run the same validation hook. `baseline.restore(funding)` returns the receipt
@@ -787,10 +796,18 @@ independent principals for canister status and log access. It attempts both
 operations even if one fails and returns their results independently:
 
 ```rust,no_run
-use ic_testkit::pic::{CanisterDiagnosticsRequest, PocketIc, PocketIcDiagnosticsExt};
+use candid::Principal;
+use ic_testkit::pic::{
+    CanisterDiagnosticsRequest, CanisterLogRenderLimits, PocketIc, PocketIcDiagnosticsExt,
+};
 
-fn diagnose(pocket_ic: &PocketIc, request: CanisterDiagnosticsRequest) {
-    let report = pocket_ic.collect_canister_diagnostics(request);
+fn diagnose(pocket_ic: &PocketIc, canister_id: Principal, sender: Principal) {
+    let report = pocket_ic.collect_canister_diagnostics(CanisterDiagnosticsRequest {
+        canister_id,
+        status_sender: sender,
+        log_sender: sender,
+        log_limits: CanisterLogRenderLimits::default(),
+    });
     if report.status().is_err() || report.logs().is_err() {
         eprintln!("{report}");
     }
@@ -810,8 +827,8 @@ fn diagnose_pair(
     pocket_ic: &PocketIc, root: CanisterDiagnosticsRequest, worker: CanisterDiagnosticsRequest,
 ) -> Result<(), ic_testkit::pic::CanisterDiagnosticsBatchContractError> {
     let requests = [
-        LabeledCanisterDiagnosticsRequest::new("root", root),
-        LabeledCanisterDiagnosticsRequest::new("worker", worker),
+        LabeledCanisterDiagnosticsRequest { label: "root".into(), request: root },
+        LabeledCanisterDiagnosticsRequest { label: "worker".into(), request: worker },
     ];
     let batch = pocket_ic.collect_canister_diagnostics_batch(&requests)?;
     if !batch.is_success() {
@@ -885,6 +902,20 @@ the retired `ic_testkit::ic_host_tools` convenience path and direct Host 0.15 im
 
 ## Benchmark markers and reports
 
+Generate this repository's CSV/Markdown layout from a captured marker log:
+
+```sh
+cargo run -p ic-testkit --locked --example benchmark_report -- \
+  current.log /path/to/fresh-report-directory previous.log
+```
+
+The previous log is optional. The example uses the default `ICTK` parser and
+scale-one comparisons. Its output layout and report-bundling record are example
+policy; applications call the library's parser, span pairing and arithmetic
+functions directly when selecting their own reporting policy. Use a fresh output
+directory; existing reports remain historical evidence and are not converted.
+
+
 The `performance` module and direct IC CDK dependency are Wasm-only. Native
 producers use `benchmark::format_marker` with their own counters. Canister code
 emits compact markers around the measured region:
@@ -900,7 +931,7 @@ Performance::measure("storage/write:end");
 The default line format is:
 
 ```text
-ICTK|<label>:<start-or-end>|<instructions>|<heap_bytes>|<memory_bytes>|<total_allocation>
+ICTK|<label>:<start-or-end>|<instructions>|<heap_bytes>|<memory_bytes>
 ```
 
 For benchmarks, fetch the measured canister's logs and select
@@ -918,8 +949,8 @@ use ic_testkit::benchmark::{
 };
 
 let input = "\
-ICTK|storage/write:start|100|200|300|400
-ICTK|storage/write:end|150|260|390|430
+ICTK|storage/write:start|100|200|300
+ICTK|storage/write:end|150|260|390
 ";
 let parsed = parse_benchmark_events_from_source(
     input, &BenchmarkParserConfig::default(), BenchmarkEventSource::FetchedLog,
@@ -941,14 +972,15 @@ overflow rejects the complete aggregation rather than returning partial or
 wrapped totals. The error identifies the typed scope, span label and counter.
 
 The report writer emits raw events, spans, aggregates, comparisons, malformed
-and unpaired markers, `bench-summary.md`, and `metadata.json`. Concurrent writers
-must use unique destinations or synchronize the caller-owned output path.
+and unpaired markers, and `bench-summary.md`. Callers own run identity, provenance,
+previous-run selection and any metadata sidecar. Concurrent writers must use
+unique destinations or synchronize the caller-owned output path.
 
 Aggregate and comparison rows, and aggregate errors, expose their identity as
 `scope: BenchmarkScope`. Match `BenchmarkScope::Suite(name)` or
 `BenchmarkScope::All`; a suite literally named `ALL` remains a distinct value.
-CSV and text labels and columns remain unchanged. Use `average(scale)` for
-checked, floor-rounded `u128`
+CSV and text output carry instructions, Wasm heap bytes and stable-memory bytes.
+Use `average(scale)` for checked, floor-rounded `u128`
 means derived from exact totals and run counts through IC Metrics. For example,
 scale ten projects totals 3 and 4 across two runs to 35 (mean 3.5). Projection
 returns a typed error for zero runs or an unrepresentable scaled result.
@@ -957,9 +989,12 @@ with current/previous means and run counts; missing rows remain distinct from
 measured zero. Percentage-change fields are removed in the 0.41 hard cut.
 CSV/text aggregates report integer means at scale one in original counter units;
 comparison CSV carries both sides' scales and values. Exact totals remain available
-when floor rounding would hide a fraction. Marker framing, metadata discovery and
-retained prior report files are unchanged; new reports must use unique destinations
-rather than reinterpret or overwrite an older report under the changed columns.
+when floor rounding would hide a fraction. For the 0.51 hard cut, rebuild marker
+producers and parsers together. Retire pre-0.51 raw logs and reports from active
+comparison inputs; preserve them as historical evidence and write new runs into
+fresh directories. Do not reinterpret or overwrite retained reports under the
+new marker arity or CSV columns. No automatic retained installation is selected
+or reset by Testkit; applications own that retirement before adopting the cut.
 
 Native synthetic peers use `ic_host_process::testing::http::capture_http_request`
 with Host's `test-support` feature, an explicit read budget, header/body byte

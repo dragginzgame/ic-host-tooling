@@ -21,105 +21,41 @@ pub const DEFAULT_CANISTER_LOG_BYTE_LIMIT: usize = 16 * 1024;
 /// Explicit bounds applied when canister logs are converted to diagnostic text.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct CanisterLogRenderLimits {
-    record_limit: usize,
-    byte_limit: usize,
-}
-
-impl CanisterLogRenderLimits {
-    /// Set exact record and aggregate raw-content byte limits.
-    ///
-    /// Zero is valid for either limit and retains no content in that dimension.
-    #[must_use]
-    pub const fn new(record_limit: usize, byte_limit: usize) -> Self {
-        Self {
-            record_limit,
-            byte_limit,
-        }
-    }
-
-    /// Maximum number of retained records.
-    #[must_use]
-    pub const fn record_limit(self) -> usize {
-        self.record_limit
-    }
-
-    /// Maximum aggregate number of retained raw content bytes.
-    #[must_use]
-    pub const fn byte_limit(self) -> usize {
-        self.byte_limit
-    }
+    /// Maximum retained records; zero retains none.
+    pub record_limit: usize,
+    /// Maximum retained raw-content bytes; zero retains none.
+    pub byte_limit: usize,
 }
 
 impl Default for CanisterLogRenderLimits {
     fn default() -> Self {
-        Self::new(
-            DEFAULT_CANISTER_LOG_RECORD_LIMIT,
-            DEFAULT_CANISTER_LOG_BYTE_LIMIT,
-        )
+        Self {
+            record_limit: DEFAULT_CANISTER_LOG_RECORD_LIMIT,
+            byte_limit: DEFAULT_CANISTER_LOG_BYTE_LIMIT,
+        }
     }
 }
 
 /// Exact controller-aware inputs for one best-effort diagnostic collection.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct CanisterDiagnosticsRequest {
-    canister_id: Principal,
-    status_sender: Principal,
-    log_sender: Principal,
-    log_limits: CanisterLogRenderLimits,
-}
-
-impl CanisterDiagnosticsRequest {
-    /// Create a request with independent, exact status and log senders.
-    ///
-    /// Anonymous access remains available only by explicitly supplying
-    /// [`Principal::anonymous`] for the corresponding operation.
-    #[must_use]
-    pub fn new(canister_id: Principal, status_sender: Principal, log_sender: Principal) -> Self {
-        Self {
-            canister_id,
-            status_sender,
-            log_sender,
-            log_limits: CanisterLogRenderLimits::default(),
-        }
-    }
-
-    /// Override the bounds used to retain and render fetched log content.
-    #[must_use]
-    pub const fn with_log_limits(mut self, limits: CanisterLogRenderLimits) -> Self {
-        self.log_limits = limits;
-        self
-    }
-
-    /// Target canister.
-    #[must_use]
-    pub const fn canister_id(self) -> Principal {
-        self.canister_id
-    }
-
-    /// Exact sender supplied to `canister_status`.
-    #[must_use]
-    pub const fn status_sender(self) -> Principal {
-        self.status_sender
-    }
-
-    /// Exact sender supplied to `fetch_canister_logs`.
-    #[must_use]
-    pub const fn log_sender(self) -> Principal {
-        self.log_sender
-    }
-
-    /// Log rendering bounds.
-    #[must_use]
-    pub const fn log_limits(self) -> CanisterLogRenderLimits {
-        self.log_limits
-    }
+    /// Canister to inspect.
+    pub canister_id: Principal,
+    /// Exact sender for the status request.
+    pub status_sender: Principal,
+    /// Exact sender for the log request.
+    pub log_sender: Principal,
+    /// Caller-selected log rendering bounds.
+    pub log_limits: CanisterLogRenderLimits,
 }
 
 /// One caller-labeled exact diagnostic request in a collect-all batch.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct LabeledCanisterDiagnosticsRequest {
-    label: String,
-    request: CanisterDiagnosticsRequest,
+    /// Caller label, checked for emptiness and uniqueness before collection.
+    pub label: String,
+    /// Exact controller-aware diagnostic inputs.
+    pub request: CanisterDiagnosticsRequest,
 }
 
 /// Structural error that prevents a diagnostics batch from starting.
@@ -140,35 +76,6 @@ pub enum CanisterDiagnosticsBatchContractError {
         /// Position where the label was repeated.
         duplicate_index: usize,
     },
-}
-
-impl LabeledCanisterDiagnosticsRequest {
-    /// Attach a stable caller-facing label to an exact diagnostic request.
-    #[must_use]
-    pub fn new(label: impl Into<String>, request: CanisterDiagnosticsRequest) -> Self {
-        Self {
-            label: label.into(),
-            request,
-        }
-    }
-
-    /// Caller-supplied label retained in the batch report.
-    #[must_use]
-    pub fn label(&self) -> &str {
-        &self.label
-    }
-
-    /// Exact controller-aware request.
-    #[must_use]
-    pub const fn request(&self) -> CanisterDiagnosticsRequest {
-        self.request
-    }
-
-    /// Consume the labeled request into its caller label and exact request.
-    #[must_use]
-    pub fn into_parts(self) -> (String, CanisterDiagnosticsRequest) {
-        (self.label, self.request)
-    }
 }
 
 /// One canister-log record retained as bounded lossy UTF-8 text.
@@ -733,11 +640,12 @@ mod tests {
             calls: Cell::new(0),
             request: Cell::new(None),
         };
-        let request = CanisterDiagnosticsRequest::new(
-            Principal::from_slice(&[1]),
-            Principal::from_slice(&[2]),
-            Principal::from_slice(&[3]),
-        );
+        let request = CanisterDiagnosticsRequest {
+            canister_id: Principal::from_slice(&[1]),
+            status_sender: Principal::from_slice(&[2]),
+            log_sender: Principal::from_slice(&[3]),
+            log_limits: CanisterLogRenderLimits::default(),
+        };
         let mut output = Vec::new();
         let error = collector
             .write_canister_diagnostics(request, "install", &mut output)
@@ -796,20 +704,28 @@ mod tests {
             calls: Cell::new(0),
             request: Cell::new(None),
         };
-        let first = CanisterDiagnosticsRequest::new(
-            Principal::from_slice(&[1]),
-            Principal::from_slice(&[2]),
-            Principal::from_slice(&[3]),
-        );
-        let second = CanisterDiagnosticsRequest::new(
-            Principal::from_slice(&[4]),
-            Principal::from_slice(&[5]),
-            Principal::from_slice(&[6]),
-        );
+        let first = CanisterDiagnosticsRequest {
+            canister_id: Principal::from_slice(&[1]),
+            status_sender: Principal::from_slice(&[2]),
+            log_sender: Principal::from_slice(&[3]),
+            log_limits: CanisterLogRenderLimits::default(),
+        };
+        let second = CanisterDiagnosticsRequest {
+            canister_id: Principal::from_slice(&[4]),
+            status_sender: Principal::from_slice(&[5]),
+            log_sender: Principal::from_slice(&[6]),
+            log_limits: CanisterLogRenderLimits::default(),
+        };
         let report = collector
             .collect_canister_diagnostics_batch(&[
-                LabeledCanisterDiagnosticsRequest::new("root", first),
-                LabeledCanisterDiagnosticsRequest::new("worker", second),
+                LabeledCanisterDiagnosticsRequest {
+                    label: "root".into(),
+                    request: first,
+                },
+                LabeledCanisterDiagnosticsRequest {
+                    label: "worker".into(),
+                    request: second,
+                },
             ])
             .expect("valid labeled diagnostics batch");
 
@@ -839,15 +755,17 @@ mod tests {
             calls: Cell::new(0),
             request: Cell::new(None),
         };
-        let request = CanisterDiagnosticsRequest::new(
-            Principal::from_slice(&[1]),
-            Principal::from_slice(&[2]),
-            Principal::from_slice(&[3]),
-        );
+        let request = CanisterDiagnosticsRequest {
+            canister_id: Principal::from_slice(&[1]),
+            status_sender: Principal::from_slice(&[2]),
+            log_sender: Principal::from_slice(&[3]),
+            log_limits: CanisterLogRenderLimits::default(),
+        };
         let empty = collector
-            .collect_canister_diagnostics_batch(&[LabeledCanisterDiagnosticsRequest::new(
-                "", request,
-            )])
+            .collect_canister_diagnostics_batch(&[LabeledCanisterDiagnosticsRequest {
+                label: String::new(),
+                request,
+            }])
             .expect_err("empty label must reject diagnostics batch");
         assert_eq!(
             empty,
@@ -857,8 +775,14 @@ mod tests {
 
         let duplicate = collector
             .collect_canister_diagnostics_batch(&[
-                LabeledCanisterDiagnosticsRequest::new("same", request),
-                LabeledCanisterDiagnosticsRequest::new("same", request),
+                LabeledCanisterDiagnosticsRequest {
+                    label: "same".into(),
+                    request,
+                },
+                LabeledCanisterDiagnosticsRequest {
+                    label: "same".into(),
+                    request,
+                },
             ])
             .expect_err("duplicate labels must reject diagnostics batch");
         assert_eq!(
@@ -887,7 +811,10 @@ mod tests {
                     content: b"bar".to_vec(),
                 },
             ],
-            CanisterLogRenderLimits::new(1, 2),
+            CanisterLogRenderLimits {
+                record_limit: 1,
+                byte_limit: 2,
+            },
         );
 
         assert_eq!(logs.total_records(), 2);
@@ -914,7 +841,10 @@ mod tests {
                     timestamp_nanos: 2,
                     content: b"hello".to_vec(),
                 }],
-                CanisterLogRenderLimits::new(record_limit, byte_limit),
+                CanisterLogRenderLimits {
+                    record_limit,
+                    byte_limit,
+                },
             );
 
             assert_eq!(logs.records(), []);
@@ -932,7 +862,10 @@ mod tests {
 
     #[test]
     fn logs_within_bounds_preserve_empty_records_and_raw_byte_totals() {
-        let limits = CanisterLogRenderLimits::new(3, 3);
+        let limits = CanisterLogRenderLimits {
+            record_limit: 3,
+            byte_limit: 3,
+        };
         let empty = render_log_records(vec![], limits);
         assert_eq!(empty.total_records(), 0);
         assert_eq!(empty.total_content_bytes(), 0);
