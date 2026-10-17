@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.25.2]
+## [0.26.1]
 
 ### Added
 
@@ -8,6 +8,41 @@
   digests in Artifacts, and hash no-follow directory trees in FS with explicit
   per-file byte limits. Preserve Backup's component ordering and path/NUL/hex/newline
   framing; callers retain tree budgets, custody, synchronization and publication.
+
+## [0.26.0] - 2026-10-17
+
+### Breaking
+
+- Consuming `OwnedDirectory::cleanup()` attempts removal once, including on
+  failure. Capture the path before consuming and own any retry or recovery;
+  borrowed `try_cleanup()` and ordinary armed Drop retain their contracts.
+  [Migration notes](docs/changelog/0.26.md).
+
+### Changed
+
+- Adopt Shared Tooling 0.21.0 with direct validated host-tool records and the
+  ICP CLI 1.7.0 catalog. Preserve the provenance helper through its refreshed
+  Shared contribution; publication policy and explicit IC-tool setup stay local.
+- Share prepared package provenance and exact remote source retrieval with
+  Shared Tooling. Host retains eligibility, licenses, packaging and recovery.
+- Derive filesystem error formatting and source chains with `thiserror`,
+  preserving public variants, sanitized messages and native I/O causes.
+  Retain the [PocketIC-compatible dependency floor](docs/changelog/0.26.md#dependency-compatibility).
+
+### Added
+
+- Copy a bounded regular artifact through durable publication with an expected
+  digest checked before replacement. Preserve prior output and typed cleanup
+  evidence on refusal; paths, reuse and recovery remain caller-owned
+  ([#102 — Own digest-verified durable artifact copying](https://github.com/dragginzgame/ic-host-tooling/issues/102)).
+- Stream one bounded gzip member into a caller-owned sink while identifying its
+  decoded bytes. Integrity and framing checks precede success; errors can retain
+  partial output, so staging and publication remain caller-owned
+  ([#170 — Stream bounded gzip payloads into caller-owned sinks](https://github.com/dragginzgame/ic-host-tooling/issues/170)).
+- Create private invocation files through `ic_host_fs::scratch::create_private_bytes`,
+  with explicit collision attempts, close-before-return and separately retained
+  write/cleanup failures. Callers own byte budgets, successful cleanup and recovery
+  ([#122 — Share private non-durable invocation scratch-file creation](https://github.com/dragginzgame/ic-host-tooling/issues/122)).
 
 ## [0.25.1] - 2026-10-17
 

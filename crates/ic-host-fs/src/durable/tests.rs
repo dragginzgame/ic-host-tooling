@@ -510,6 +510,9 @@ fn lock_errors_preserve_admission_and_original_io_causes() {
     // Existing special entries must be rejected without staging in their parent.
     for path in [&fixture.root, &link, &fifo, Path::new("/dev/null")] {
         let result = open_regular_lock_file_with_parents(path);
+        let error = result.as_ref().unwrap_err();
+        assert_eq!(error.to_string(), "lock target is not a regular file");
+        assert!(error.source().is_none());
         assert!(
             matches!(result, Err(RegularFileLockError::NotRegular)),
             "{path:?}: {result:?}"
@@ -522,6 +525,7 @@ fn lock_errors_preserve_admission_and_original_io_causes() {
         panic!("expected original I/O cause");
     };
     let retained = error.source().unwrap().downcast_ref::<io::Error>().unwrap();
+    assert_eq!(error.to_string(), "regular file lock I/O failed");
     assert!(std::ptr::eq(original, retained));
     assert_eq!(retained.kind(), io::ErrorKind::InvalidInput);
     let projected = io::Error::from(error);
@@ -547,6 +551,7 @@ fn lock_creation_preserves_publication_error_through_io_boundary() {
     let RegularFileLockError::Publication(original) = &error else {
         panic!("expected typed lock-file creation failure: {error:?}");
     };
+    assert_eq!(error.to_string(), "durable lock-file creation failed");
     assert!(
         matches!(original, NamedWriteError::BeforePublication { source, cleanup_error: None }
         if source.kind() == io::ErrorKind::NotADirectory)

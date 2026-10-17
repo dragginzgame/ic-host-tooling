@@ -2,6 +2,7 @@
 pub mod durable;
 pub mod path;
 pub mod read;
+pub mod scratch;
 #[cfg(test)]
 mod test_support;
 #[cfg(any(test, feature = "test-support"))]

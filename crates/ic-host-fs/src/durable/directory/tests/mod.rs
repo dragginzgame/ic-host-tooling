@@ -3,6 +3,28 @@ use crate::test_support::Fixture;
 use std::os::unix::fs::PermissionsExt as _;
 
 #[test]
+fn creation_errors_redact_details_and_preserve_native_causes() {
+    use std::error::Error as _;
+    for (error, message) in [
+        (
+            DirectoryCreationError::BeforeCreation(io::Error::from_raw_os_error(13)),
+            "private directory creation refused",
+        ),
+        (
+            DirectoryCreationError::AfterCreation(io::Error::from_raw_os_error(5)),
+            "created private directory admission failed",
+        ),
+    ] {
+        let (DirectoryCreationError::BeforeCreation(original)
+        | DirectoryCreationError::AfterCreation(original)) = &error;
+        assert_eq!(error.to_string(), message);
+        let retained = error.source().unwrap().downcast_ref::<io::Error>().unwrap();
+        assert!(std::ptr::eq(original, retained));
+        assert_eq!(retained.raw_os_error(), original.raw_os_error());
+    }
+}
+
+#[test]
 fn claim_is_private_exclusive_and_retained_after_drop() {
     let fixture = Fixture::new();
     let path = fixture.root.join("claim");

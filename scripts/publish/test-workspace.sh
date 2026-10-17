@@ -52,8 +52,8 @@ case "$*" in
         if [[ "${PUBLISH_DIRTY:-0}" == 1 ]]; then echo ' M Cargo.toml'; fi ;;
     init\ --bare\ *) mkdir -p "$3" ;;
     -C\ *\ fetch\ --no-tags\ --depth=1\ *)
-        [[ "$6" == https://github.com/dragginzgame/ic-host-tooling &&
-           "$7" == 0000000000000000000000000000000000000000 ]] || exit 1
+        [[ "$6" == -- && "$7" == https://github.com/dragginzgame/ic-host-tooling &&
+           "$8" == 0000000000000000000000000000000000000000 ]] || exit 1
         printf '%s\n' "$*" >> "$PUBLISH_FIXTURE/fetch-calls"
         exit "${PUBLISH_FETCH_RESULT:-0}" ;;
     -C\ *\ rev-parse\ --verify\ *)
@@ -187,7 +187,8 @@ attempts=(target/publish/publish.*)
 attempt="${attempts[0]}"
 successful_attempt="$attempt"
 admission="target/publish/admission/${attempt##*/}"
-[[ -f "$admission/source-verified" && -f "$admission/source-request" && -f "$admission/ic-host-fs-vcs.json" ]] || exit 1
+[[ -f "$admission/provenance/source-verified" && -f "$admission/provenance/source-request" &&
+   -f "$admission/provenance/ic-host-fs-vcs.json" ]] || exit 1
 [[ "$(cat "$admission/publication-attempt")" == "$fixture/$attempt" ]] || exit 1
 
 # Stop at Cargo's failure and retain the attempt's intent, log and artifacts.

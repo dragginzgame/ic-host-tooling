@@ -133,6 +133,17 @@
       ]
     },
     {
+      "repository": "https://github.com/dragginzgame/canic",
+      "revision": "bc238ac363ea1dd51440057c625186e112c657c6",
+      "files": [
+        {
+          "path": "crates/canic-host/src/icp/candid.rs",
+          "sha256": "9d2cea25ef4c033b219b69aafa601b9a0e7a8278ab268b085647ed2e5282dcaa",
+          "selection": "write_candid_argument_file private create-new invocation-file mechanics, adapted as scratch::create_private_bytes with explicit parent/prefix/attempts and retained write/cleanup causes; Candid, byte budgets, successful cleanup and effect recovery remain consumer-owned"
+        }
+      ]
+    },
+    {
       "repository": "https://github.com/dragginzgame/ic-backup",
       "revision": "d9519e52d402355da1a5d533e54d2e977af44c61",
       "selection": "Exact maintained directory framing and no-follow checksum visitor; record adapters, fixed snapshot tree admission, synchronization/publication and recovery remain Backup-owned. Handwritten error projection replaces Backup-specific DTOs; golden cases are rerun at the extracted owners.",

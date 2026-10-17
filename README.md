@@ -17,8 +17,17 @@ support are optional features of ic-host-artifacts. Filesystem/process consumers
 select the small default artifact dependency.
 `ic_host_fs::owned_directory::OwnedDirectory` holds caller-asserted cleanup
 custody without creating an entry. Explicit preservation/disarming transfers
-recovery; armed Drop attempts removal. Callers retain namespace custody,
+recovery; armed Drop attempts removal. Consuming `cleanup()` makes one attempt,
+including on failure; `try_cleanup()` preserves the existing Drop state on failure.
+Callers retain
+namespace custody,
 destructive-operation policy and cache/application lifecycle.
+
+For private invocation arguments, `ic_host_fs::scratch::create_private_bytes`
+creates a complete, closed file without disk synchronization. Select the parent,
+prefix, bytes and collision-attempt allowance explicitly. Successful files remain
+caller-owned; failed writes retain the original error and any failed removal.
+The parent and candidate namespace must remain under the caller's custody.
 
 For test fixtures, opt in to `ic-host-fs`'s `test-support` feature in a
 dev-dependency. `testing::FixtureDirectory::new(parent, prefix)` allocates beneath
@@ -241,6 +250,10 @@ the same engine, with explicit replace/create-only options and file permissions.
 `NamedWriteError<io::Error>`, preserving publication state and separate cleanup
 failures. Select mode and permissions explicitly; see the
 [0.22 migration](docs/changelog/0.22.md).
+`durable::copy_verified` composes a regular source, bounded streaming copy and
+expected digest admission before publication. Callers select paths, the byte
+allowance and `WriteOptions`; source symlinks are followed. Existing destination
+bytes survive digest, source and limit failures.
 `durable::write_existing_parent_validated_with` refuses missing parents and opens
 the selected parent once as a directory. Parent aliases are followed and the held
 directory stays selected across renames. `durable::write_at_validated_with` borrows
@@ -255,7 +268,10 @@ simultaneously active missing-target depth explicitly; `usize::MAX` preserves
 unlimited expansion. This supplies no root confinement or filesystem deadline.
 See the [0.23 resolver migration](docs/changelog/0.23.md).
 
-With the artifact `gzip` feature, `hash_gzip` identifies decoded payloads
+With the artifact `gzip` feature, `copy_gzip` streams a single member into a
+caller-owned sink and returns its decoded identity. Partial output can remain
+after integrity, limit or sink failures; callers own staging and publication.
+`hash_gzip` identifies decoded payloads
 without a full decoded allocation. Callers select raw versus gzip handling
 explicitly; raw streams use `hash_reader`. `gzip_matches` compares
 decoded bytes exactly with an expected slice. All retain explicit input/payload

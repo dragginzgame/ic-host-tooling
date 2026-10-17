@@ -21,6 +21,8 @@ mod retained;
 pub use retained::{create_retained_at, publish_retained_at};
 mod named;
 pub use named::{NamedWriteError, write_named_with};
+mod verified_copy;
+pub use verified_copy::copy_verified;
 mod stream;
 #[cfg(unix)]
 pub use stream::write_at_validated_with;
@@ -32,44 +34,24 @@ pub use stream::{
 #[cfg(test)]
 mod tests;
 
-use std::{fmt, fs, io, path::Path};
+use std::{fs, io, path::Path};
 
 /// A no-follow regular-file lock could not be acquired.
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum RegularFileLockError {
     /// The opened entry is not a regular file.
+    #[error("lock target is not a regular file")]
     NotRegular,
     /// The filesystem operation failed.
-    Io(io::Error),
+    #[error("regular file lock I/O failed")]
+    Io(#[source] io::Error),
     /// Durable lock-file creation failed, retaining publication and cleanup evidence.
-    Publication(NamedWriteError<io::Error>),
+    #[error("durable lock-file creation failed")]
+    Publication(#[source] NamedWriteError<io::Error>),
     #[cfg(windows)]
     /// This operation is unsupported on the selected host.
+    #[error("regular file locking is unsupported")]
     UnsupportedPlatform,
-}
-
-impl fmt::Display for RegularFileLockError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::NotRegular => formatter.write_str("lock target is not a regular file"),
-            Self::Io(_) => formatter.write_str("regular file lock I/O failed"),
-            Self::Publication(_) => formatter.write_str("durable lock-file creation failed"),
-            #[cfg(windows)]
-            Self::UnsupportedPlatform => formatter.write_str("regular file locking is unsupported"),
-        }
-    }
-}
-
-impl std::error::Error for RegularFileLockError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Self::Io(source) => Some(source),
-            Self::Publication(source) => Some(source),
-            Self::NotRegular => None,
-            #[cfg(windows)]
-            Self::UnsupportedPlatform => None,
-        }
-    }
 }
 
 /// Preserve native I/O identity or retain the complete admission/publication cause.

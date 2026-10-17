@@ -131,72 +131,37 @@ impl TreeVisitor for ChecksumVisitor {
 }
 
 /// Directory-path, descriptor, bounded-stream or declared-identity failure.
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum TreeChecksumError {
     /// A filesystem observation or descriptor operation failed.
-    Io(io::Error),
+    #[error("{0}")]
+    Io(#[from] io::Error),
     /// A regular-file stream failed or exceeded its caller-selected bound.
-    Input(ArtifactError),
+    #[error("{0}")]
+    Input(#[from] ArtifactError),
     /// Declared file identities cannot produce the canonical checksum.
-    Declaration(DirectoryChecksumError),
+    #[error("{0}")]
+    Declaration(#[from] DirectoryChecksumError),
     /// A selected path cannot be opened through normal UTF-8 components.
+    #[error("invalid directory checksum path: {path:?}")]
     InvalidPath {
         /// Exact rejected path.
         path: PathBuf,
     },
     /// A child name is not UTF-8.
+    #[error("directory checksum path is not UTF-8: {path:?}")]
     NonUtf8Path {
         /// Exact rejected path.
         path: PathBuf,
     },
     /// A tree entry is not a regular file or directory.
+    #[error("unsupported directory checksum entry at {path:?}: {kind:?}")]
     UnsupportedEntry {
         /// Rejected entry.
         path: PathBuf,
         /// Observed filesystem entry type.
         kind: FileType,
     },
-}
-
-impl std::fmt::Display for TreeChecksumError {
-    #[expect(
-        clippy::unnecessary_debug_formatting,
-        reason = "retain escaped exact path identities, including control characters and non-UTF-8 bytes"
-    )]
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Io(error) => error.fmt(formatter),
-            Self::Input(error) => error.fmt(formatter),
-            Self::Declaration(error) => error.fmt(formatter),
-            Self::InvalidPath { path } => {
-                write!(formatter, "invalid directory checksum path: {path:?}")
-            }
-            Self::NonUtf8Path { path } => {
-                write!(formatter, "directory checksum path is not UTF-8: {path:?}")
-            }
-            Self::UnsupportedEntry { path, kind } => write!(
-                formatter,
-                "unsupported directory checksum entry at {path:?}: {kind:?}"
-            ),
-        }
-    }
-}
-impl std::error::Error for TreeChecksumError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Self::Io(error) => Some(error),
-            Self::Input(error) => Some(error),
-            Self::Declaration(error) => Some(error),
-            Self::InvalidPath { .. } | Self::NonUtf8Path { .. } | Self::UnsupportedEntry { .. } => {
-                None
-            }
-        }
-    }
-}
-impl From<io::Error> for TreeChecksumError {
-    fn from(error: io::Error) -> Self {
-        Self::Io(error)
-    }
 }
 
 #[cfg(test)]
