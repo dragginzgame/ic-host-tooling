@@ -82,7 +82,12 @@ fn failed_write_and_flush_keep_the_observed_prefix_without_finalization_effects(
         writer.flush().unwrap_err().kind(),
         io::ErrorKind::BrokenPipe
     );
+    let prefix = writer.identity();
+    assert_eq!(prefix.bytes, 2);
+    assert_eq!(writer.get_ref().bytes, b"ab");
+    assert_eq!(writer.get_ref().flushes, 1);
     let (sink, identity) = writer.into_parts();
+    assert_eq!(identity, prefix);
     assert_eq!(sink.bytes, b"ab");
     assert_eq!(sink.flushes, 1);
     assert_eq!(identity.bytes, 2);
@@ -100,7 +105,11 @@ fn allowance_rejection_keeps_sink_and_hash_unchanged() {
     );
     assert!(writer.limit_exceeded());
     assert_eq!(writer.write(b"").unwrap(), 0);
+    let prefix = writer.identity();
+    assert_eq!(writer.get_ref(), b"abc");
+    assert_eq!(prefix.bytes, 3);
     let (bytes, identity) = writer.into_parts();
+    assert_eq!(identity, prefix);
     assert_eq!(bytes, b"abc");
     assert_eq!(identity.bytes, 3);
     assert_eq!(identity.sha256, Sha256Digest::compute(b"abc"));
@@ -118,7 +127,10 @@ fn impossible_sink_counts_are_typed_errors_without_advancing_the_identity() {
             written: 3
         })
     );
+    let prefix = writer.identity();
+    assert_eq!(prefix.bytes, 0);
     let (_, identity) = writer.into_parts();
+    assert_eq!(identity, prefix);
     assert_eq!(identity.bytes, 0);
     assert_eq!(identity.sha256, Sha256Digest::compute(b""));
 }
@@ -147,4 +159,26 @@ fn serialization_success_is_required_before_accepting_a_complete_artifact() {
     assert_ne!(bytes, [] as [u8; 0]);
     assert_eq!(prefix.bytes, bytes.len() as u64);
     assert_eq!(prefix.sha256, Sha256Digest::compute(&bytes));
+}
+
+#[test]
+fn inspection_and_repeated_snapshots_preserve_continuation_and_final_identity() {
+    let mut writer = HashingWriter::new(ShortSink::default(), 6);
+    assert_eq!(writer.identity().sha256, Sha256Digest::compute(b""));
+    writer.write_all(b"abc").unwrap();
+    let prefix = writer.identity();
+    assert_eq!(prefix.bytes, 3);
+    assert_eq!(prefix.sha256, Sha256Digest::compute(b"abc"));
+    assert_eq!(writer.identity(), prefix);
+    assert_eq!(writer.get_ref().bytes, b"abc");
+    assert_eq!(writer.get_ref().flushes, 0);
+    writer.write_all(b"def").unwrap();
+    let complete = writer.identity();
+    assert_eq!(complete.bytes, 6);
+    assert_eq!(complete.sha256, Sha256Digest::compute(b"abcdef"));
+    assert_eq!(writer.get_ref().flushes, 0);
+    let (sink, final_identity) = writer.into_parts();
+    assert_eq!(final_identity, complete);
+    assert_eq!(sink.bytes, b"abcdef");
+    assert_eq!(sink.flushes, 0);
 }

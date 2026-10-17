@@ -45,6 +45,14 @@ migration; see [Canic #575 — Own Backup operational path admission](https://gi
 
 ## Qualification receipt
 
+Hashing-writer inspection and HTTP fixture receipts are retained at
+`/tmp/host-issue-pass.EqLEcl/`. All 68 Artifact unit and six consumer-contract
+cases pass on current Rust; seven hashing cases and all four HTTP fixtures pass
+on actual Rust 1.88, with loopback access for HTTP. Affected all-target MSRV
+checks, strict current Clippy/Rustdoc, formatting, links and snapshot checks pass.
+These local results do not qualify native macOS or consumer registry adoption.
+Package versions, dependency selection, index and Git refs remain unchanged.
+
 The preceding simplification slice's Linux receipts and captured sources remain at
 `/tmp/host025-simplify.VHKQBw/`. The compiled Host inputs are bound by
 `host-source.sha256` (manifest digest

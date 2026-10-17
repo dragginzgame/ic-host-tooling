@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.25.1]
+
+### Added
+
+- Inspect `HashingWriter`'s sink and snapshot the identity of accepted bytes
+  without finalizing or flushing it. Producer success, aliased writes and
+  durability remain caller-owned
+  ([PR #175 — Inspect hashing-writer sinks and identities](https://github.com/dragginzgame/ic-host-tooling/pull/175)).
+
+### Fixed
+
+- Accept the staged HTTP fixture connection before selecting nonblocking reads,
+  avoiding the macOS Intel `WouldBlock` setup race while preserving the header gate
+  ([PR #176 — Accept staged HTTP connections before nonblocking reads](https://github.com/dragginzgame/ic-host-tooling/pull/176)).
+
 ## [0.25.0] - 2026-10-17
 
 ### Breaking
