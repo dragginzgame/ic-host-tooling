@@ -131,6 +131,29 @@
           "selection": "Inherited descriptor custody, one-spawn consumption, exact existing-sidecar quiescence and native owner/descendant failure requirements; adapted to Host FS locks, caller-selected paths/environment/waits, passive native identity and Rust subprocess fixtures. Backup retains journal schemas, operation binding, paid spending and reference-release policy. MIT source notices retained."
         }
       ]
+    },
+    {
+      "repository": "https://github.com/dragginzgame/ic-backup",
+      "revision": "d9519e52d402355da1a5d533e54d2e977af44c61",
+      "selection": "Exact maintained directory framing and no-follow checksum visitor; record adapters, fixed snapshot tree admission, synchronization/publication and recovery remain Backup-owned. Handwritten error projection replaces Backup-specific DTOs; golden cases are rerun at the extracted owners.",
+      "files": [
+        {
+          "path": "crates/ic-backup/src/ops/artifacts/mod.rs",
+          "sha256": "748408e6bb93edb3cd47edb04de3766781d4bf4fee1c2c6857b80248bf2e9cfc"
+        },
+        {
+          "path": "crates/ic-backup/src/ops/artifacts/secure/unix/mod.rs",
+          "sha256": "e0c035516d7c0ed9df8e8757088181a020e6cd2e3707057b090180b76a763b3d"
+        },
+        {
+          "path": "crates/ic-backup/tests/directory_checksum.rs",
+          "sha256": "d1b6a4ff7c6f92d04ddec3fee6dfd7d701408305f5263294ae86a8b728beb68f"
+        },
+        {
+          "path": "crates/ic-backup/src/ops/artifacts/regressions/mod.rs",
+          "sha256": "802ff5e3ce722a342fbefbb71a85484800c2a3e7598de17a4efff756198978e7"
+        }
+      ]
     }
   ]
 }

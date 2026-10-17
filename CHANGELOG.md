@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.25.2]
+
+### Added
+
+- Compose exact directory identities from canonical relative paths and SHA-256
+  digests in Artifacts, and hash no-follow directory trees in FS with explicit
+  per-file byte limits. Preserve Backup's component ordering and path/NUL/hex/newline
+  framing; callers retain tree budgets, custody, synchronization and publication.
+
 ## [0.25.1] - 2026-10-17
 
 ### Added

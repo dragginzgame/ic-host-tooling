@@ -23,6 +23,7 @@ mod matching;
 mod test_support;
 #[cfg(test)]
 mod tests;
+pub mod tree;
 mod writer;
 
 pub use chunks::{ChunkDigestError, chunk_digests};
