@@ -344,6 +344,8 @@ Additional reusable mechanics are extracted from committed sibling source:
   needs no complete serialized buffer. Short writes count and hash only accepted
   bytes; a failed producer yields at most an observed prefix, never a completion
   receipt. Encoding, producer success, flush/sync and publication stay local.
+  Sink inspection and non-consuming identity snapshots retain continued writes;
+  consumers own alias discipline, descriptor identity, producer success and durability.
 - `ic_host_artifacts::artifact::MatchingWriter` compares a produced byte stream
   with borrowed expected bytes. It keeps consuming after a mismatch so serializer
   errors remain visible; callers own successful completion and canonical ordering.

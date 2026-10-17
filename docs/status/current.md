@@ -605,3 +605,20 @@ sources and artifacts remain unchanged; inspection is not consumer qualification
 
 GitHub issues are the sole follow-up tracker. Update this handoff in place;
 retain historical source and qualification evidence in its archive.
+
+## Hashing-writer inspection qualification
+
+The pending compatible notes add sink inspection and non-consuming accepted-byte
+identity snapshots for caller-owned streaming descriptors. Snapshotting clones only
+the hash state and performs no IO or publication; aliased writes remain outside
+accounting. All 68 artifact unit and six consumer cases pass, along with seven
+hashing cases on actual Rust 1.88, strict affected Clippy and warning-denied docs.
+Backup's isolated consumer qualification remains separate from a published-package
+selection. Native macOS, merge, release and publication are not claimed.
+
+The isolated Backup file-writer adapter also passes 533 Core unit cases, seven
+public boundary cases, all 34 Core and 12 Agent PocketIC cases, strict Core/Agent
+Clippy, actual Rust 1.91 checking and warning-denied docs. This is source consumer
+qualification; registry publication and fresh published-package acceptance remain
+separate. The scoped contribution includes source, notes and qualification only; merge,
+release, publication and published-package adoption remain separate.

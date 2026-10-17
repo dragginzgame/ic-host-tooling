@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.24.1]
+
+### Added
+
+- Inspect a hashing writer's sink and snapshot its accepted-byte identity without
+  consuming it. Inspection performs no IO and snapshots preserve continued writes;
+  callers retain producer-success, descriptor custody and publication admission.
+  [Detailed notes](docs/changelog/0.24.md).
+
 ## [0.24.0] - 2026-10-16
 
 ### Breaking
