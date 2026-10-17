@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.25.2]
+
+- Save and restore explicitly selected Unix signal actions through one opt-in
+  guard, retaining caller-owned handlers, cancellation and shutdown policy
+  ([#107 — Scoped Unix signal-action installation and restoration](https://github.com/dragginzgame/ic-host-tooling/issues/107)).
+  [Detailed notes](docs/changelog/0.25.md).
+
 ## [0.25.1] - 2026-10-17
 
 ### Added
