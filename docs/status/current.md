@@ -1,5 +1,14 @@
 # Current handoff
 
+## Directory-size extraction snapshot repair
+
+PR #173's first hosted native matrix stopped at snapshot verification because
+local extraction provenance was appended to shared `docs/provenance.md`.
+The exact adopted bytes are restored; the note now lives in the local
+[extraction contract](../extraction.md#logical-directory-sizes-from-ic-build).
+Snapshot verification and documentation links pass. Rust inputs are unchanged;
+the fresh hosted checks retain their own qualification boundary.
+
 ## Source and pending release
 
 Latest tagged release: **0.23.1**, commit

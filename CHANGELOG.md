@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.24.1]
+
+- Extract metadata-only logical directory sizes from IC Build into Host FS,
+  preserving iterative traversal, symlink/sparse-file lengths and native I/O
+  errors. Consumers retain admission, resource limits and cache cleanup policy
+  ([Build #42](https://github.com/dragginzgame/ic-build/issues/42)).
+
 ## [0.24.0] - 2026-10-16
 
 ### Breaking
