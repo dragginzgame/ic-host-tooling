@@ -23,7 +23,8 @@ Replica revision selection, install thresholds and resource-report policy belong
 to the consuming application. Host Artifacts retains generic Wasm facts; Tools
 no longer owns an `ic-limits` profile or a reference-policy CLI example.
 
-- ic-host-artifacts owns pure declared-file directory checksums, stream identities,
+- ic-host-artifacts owns pure ordered nonempty/unique batch-label admission,
+  declared-file directory checksums, stream identities,
   bounded read/write/copy mechanics,
   optional gzip encoding/decoding, optional Wasm
   structural facts, encoded code/data statistics and bounded custom-section framing.
