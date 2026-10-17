@@ -15,11 +15,15 @@ default = []
 certificate = ["dep:ciborium", "dep:ic-certification"]
 ic-interface = ["dep:ic-host-artifacts", "ic-host-artifacts/wasm"]
 
+ledger-evidence = ["dep:candid", "dep:icrc-ledger-types"]
+
 [dependencies]
+candid = { workspace = true, optional = true }
 candid_parser.workspace = true
 ciborium = { workspace = true, optional = true }
 ic-certification = { workspace = true, optional = true }
 ic-host-artifacts = { workspace = true, optional = true }
+icrc-ledger-types = { workspace = true, optional = true }
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true

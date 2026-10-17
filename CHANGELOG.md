@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.26.2]
+
+### Added
+
+- Add opt-in `ledger-evidence` admission and contiguous ICRC-3 chain verification
+  to Host Tools. Callers retain authenticated tip selection, work budgets and
+  transaction interpretation; default Tools consumers do not select ledger types.
+  [#185](https://github.com/dragginzgame/ic-host-tooling/issues/185).
+
 ## [0.26.1] - 2026-10-17
 
 ### Added
