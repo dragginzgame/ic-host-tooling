@@ -41,9 +41,9 @@ check_graph() {
 }
 
 check_graph tools ic-host-tools default '' 'candid_parser candid' \
-    '^(ic-host-(artifacts|fs|process|text)|wasmparser|ciborium|ic-certification) '
+    '^(ic-host-(artifacts|fs|process|text)|wasmparser|ciborium|ic-certification|icrc-ledger-types) '
 check_graph tools-no-defaults ic-host-tools none '' 'candid_parser candid' \
-    '^(ic-host-(artifacts|fs|process|text)|wasmparser|ciborium|ic-certification) '
+    '^(ic-host-(artifacts|fs|process|text)|wasmparser|ciborium|ic-certification|icrc-ledger-types) '
 check_graph ic-interface ic-host-tools none ic-interface \
     'ic-host-artifacts candid_parser wasmparser' '^ic-host-(fs|process|text) '
 check_graph inspection ic-host-wasm-inspect default '' 'ic-host-artifacts ic-host-fs' \
@@ -52,4 +52,6 @@ check_graph certificate ic-host-tools none certificate 'candid_parser ciborium i
     '^(ic-host-(artifacts|fs|process|text)|wasmparser|ic-agent|reqwest) '
 check_graph text ic-host-text default '' unicode-width \
     '^(ic-host-(artifacts|fs|process|tools)|candid_parser|ic-agent|ic-certification|ciborium) '
+check_graph ledger-evidence ic-host-tools none ledger-evidence 'candid icrc-ledger-types' \
+    '^(ic-host-(artifacts|fs|process|text)|wasmparser|ic-certification|ic-agent|reqwest) '
 echo 'tools/text feature dependency graphs passed'

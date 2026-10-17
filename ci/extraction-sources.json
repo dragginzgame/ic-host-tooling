@@ -165,6 +165,22 @@
           "sha256": "802ff5e3ce722a342fbefbb71a85484800c2a3e7598de17a4efff756198978e7"
         }
       ]
+    },
+    {
+      "repository": "https://github.com/dragginzgame/ic-query",
+      "revision": "32759d226414f3ee76cd769533049bf6ce92f3be",
+      "files": [
+        {
+          "path": "crates/ic-query/src/ledger_evidence/mod.rs",
+          "sha256": "734e1522366dbd7a79662bdb51b46f3d3ad908d67130b25344a5223964f14f38",
+          "selection": "bounded ICRC-3 block value admission and contiguous-chain verification; caller retains tip authentication, ledger selection and transaction interpretation"
+        },
+        {
+          "path": "crates/ic-query/src/ledger_evidence/tests.rs",
+          "sha256": "1e39cc3f40782bbecfe37f35f7d6f9f386b6a8971bb061066f0d472d2c85fb5d",
+          "selection": "bounded ICRC-3 block value admission and contiguous-chain verification; caller retains tip authentication, ledger selection and transaction interpretation"
+        }
+      ]
     }
   ]
 }
