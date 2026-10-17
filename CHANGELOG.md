@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.27.2]
+
+### Added
+
+- Add opt-in native `ic_host_tools::agent` builders and exact endpoint/response-
+  ceiling binding using the SDK's `Agent` and `AgentBuilder` directly. Consumers
+  retain endpoint admission, identity, trust roots, certificate-age policy,
+  deadlines and all network calls. Default and certificate graphs exclude Agent.
+
 ## [0.27.1] - 2026-10-17
 
 ### Added

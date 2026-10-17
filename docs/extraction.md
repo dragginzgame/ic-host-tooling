@@ -59,7 +59,8 @@ no longer owns an `ic-limits` profile or a reference-policy CLI example.
   [#110 — Host text ownership](https://github.com/dragginzgame/ic-host-tooling/issues/110).
 - ic-host-tools owns Candid service-method interpretation,
   IC method export projection over generic Wasm facts, JSON/plain-hex ICP responses
-  and bounded certificate decoding.
+  and bounded certificate decoding. Its opt-in native `agent` profile shares
+  response-bounded SDK construction and exact endpoint/ceiling binding.
   CLI labels, preambles and any Unicode whitespace normalization remain with
   consumers rather than a second presentation adapter in the codec.
 
@@ -95,6 +96,19 @@ roots, combined certificate/witness budgets, witness commitment and application
 leaf interpretation remain consumer-owned. No Agent, transport, filesystem,
 process or text dependency enters this profile
 ([#109 — Owned certificate decoding](https://github.com/dragginzgame/ic-host-tooling/issues/109)).
+
+The separate native `agent` profile returns SDK `Agent`/`AgentBuilder` values
+without a second protocol or configuration model. Parsed URLs avoid the SDK's
+infallible URL parser. `EndpointAgent` binds exact original endpoint text and
+the caller's response-byte ceiling once, retaining the winning binding under
+concurrent initialization and refusing conflicts. Failed construction leaves
+the binding unset. URL-equivalent spellings still differ as binding identities.
+Query keeps its stricter HTTP(S), credential, query/fragment and whitespace
+admission in its portable validation boundary. Every consumer retains endpoint
+policy, credentials, identity, root keys, historical certificate policy,
+deadlines, retries and request/evidence lifecycle. Construction performs no
+network call; no Agent dependency enters the certificate/default profiles,
+generic Host crates or Wasm normal graph.
 
 Source tests move with their owner; public artifact projection tests belong to
 ic-host-artifacts. Runnable examples retain explicit dependencies on each owner.

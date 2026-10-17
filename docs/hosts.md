@@ -13,11 +13,15 @@ Check target-directory ownership before compilation. Preserve failure logs and a
 features. `make test-tools-default` checks response decoding and Candid service
 inspection with the default graph. `make test-tools-interface` adds Wasm export
 interpretation; `make test-tools-certificate` adds strict owned certificate/hash-tree
-decoding. `make test PACKAGE=ic-host-text` checks bounded line normalization,
+decoding. `make test-tools-agent` checks opt-in native SDK construction, exact
+endpoint/ceiling binding and response limits against a local HTTP fixture.
+`make test PACKAGE=ic-host-text` checks bounded line normalization,
 escaping, progress frames and Unicode table alignment.
 `make tools-features-check` verifies the normal parser dependency, including with
 default features disabled, and the remaining optional owner boundaries. Native
-CI includes these profiles. Tools includes the Candid parser unconditionally;
+CI includes these profiles. The agent profile excludes transport from the Wasm
+normal graph and leaves default/certificate graphs transport-free.
+Tools includes the Candid parser unconditionally;
 `ic-interface` adds Host Artifacts and Wasm parsing. The standalone Wasm inspector
 retains its parser-free graph. These profiles must qualify on the same Rust 1.88
 and native Linux/macOS matrix as the existing libraries.

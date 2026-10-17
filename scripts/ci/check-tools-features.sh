@@ -15,6 +15,7 @@ check_graph() {
     local owners=()
     [[ "$defaults" != none ]] || arguments+=(--no-default-features)
     [[ -z "$features" ]] || arguments+=(--features "$features")
+    [[ -z "${7:-}" ]] || arguments+=(--target "$7")
     graph="$(cargo "${arguments[@]}")" || {
         status=$?
         printf '%s graph observation failed\n' "$label" >&2
@@ -41,15 +42,19 @@ check_graph() {
 }
 
 check_graph tools ic-host-tools default '' 'candid_parser candid' \
-    '^(ic-host-(artifacts|fs|process|text)|wasmparser|ciborium|ic-certification) '
+    '^(ic-host-(artifacts|fs|process|text)|wasmparser|ciborium|ic-certification|ic-agent|reqwest|url) '
 check_graph tools-no-defaults ic-host-tools none '' 'candid_parser candid' \
-    '^(ic-host-(artifacts|fs|process|text)|wasmparser|ciborium|ic-certification) '
+    '^(ic-host-(artifacts|fs|process|text)|wasmparser|ciborium|ic-certification|ic-agent|reqwest|url) '
 check_graph ic-interface ic-host-tools none ic-interface \
     'ic-host-artifacts candid_parser wasmparser' '^ic-host-(fs|process|text) '
 check_graph inspection ic-host-wasm-inspect default '' 'ic-host-artifacts ic-host-fs' \
     '^(ic-host-process|candid_parser) '
 check_graph certificate ic-host-tools none certificate 'candid_parser ciborium ic-certification' \
     '^(ic-host-(artifacts|fs|process|text)|wasmparser|ic-agent|reqwest) '
+check_graph agent ic-host-tools none agent 'candid_parser ic-agent reqwest url' \
+    '^(ic-host-(artifacts|fs|process|text)|wasmparser|ciborium) '
+check_graph agent-wasm ic-host-tools none agent candid_parser \
+    '^(ic-host-(artifacts|fs|process|text)|wasmparser|ic-agent|reqwest|url) ' wasm32-unknown-unknown
 check_graph text ic-host-text default '' unicode-width \
     '^(ic-host-(artifacts|fs|process|tools)|candid_parser|ic-agent|ic-certification|ciborium) '
 echo 'tools/text feature dependency graphs passed'
