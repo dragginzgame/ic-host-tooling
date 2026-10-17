@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.25.2] - Unreleased
+
+- Add admitted durable symlink publication for caller-owned immutable bundles,
+  retaining producer failures, cleanup evidence and publication phase.
+
 ## [0.25.1] - 2026-10-17
 
 ### Added
