@@ -39,6 +39,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Changed
 
+- Standalone pool recovery qualification checks canonical snapshot errors
+  directly while retaining failed-phase timing and subsequent rebuild checks.
+
 - Fixture benchmark programs and their live marker test belong to the private
   `ic-testkit-bench` workspace package. Run the driver with
   `cargo run -p ic-testkit-bench --bin fixture_reuse_benchmark_driver -- ...`;

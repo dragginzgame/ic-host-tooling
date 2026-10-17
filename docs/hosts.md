@@ -1,5 +1,16 @@
 # Host support and qualification
 
+## Pending 0.52.0: standalone restore recovery qualification
+
+The standalone deleted-canister test matches the pool-owned typed snapshot
+failure directly. Failed restore/teardown timings, slot disposal and the next
+acquisition's rebuild assertions remain in place. All ten ordinary concurrency
+cases pass with prepared PocketIC 16.1; the dedicated server-death case remains
+ignored. Selected-target strict Clippy and formatting pass on the normal registry
+graph with Build 0.15.0, Host 0.26.1 and Metrics 0.13.3. Evidence is under
+`target/standalone-restore-052-evidence/`. This focused run does not cover full CI
+or native macOS qualification.
+
 ## Pending 0.52.0: private benchmarks, typed modes and derived errors
 
 Fixture benchmark programs, their shared modules and live marker qualification
