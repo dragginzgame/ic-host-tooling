@@ -1,7 +1,10 @@
-//! Bounded regular-file reads; callers own path confinement and concurrent writers.
+//! File reads and metadata observations; callers own bounds and namespace custody.
 
 use ic_host_artifacts::artifact::{ArtifactError, ArtifactIdentity, hash_reader, read_reader};
 use std::{fs::File, io::Read as _, path::Path};
+
+mod size;
+pub use size::directory_logical_size;
 
 #[cfg(unix)]
 mod beneath;
