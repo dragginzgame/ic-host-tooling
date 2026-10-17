@@ -12,11 +12,11 @@ include ci/tool-versions.env
 include make/consumer.mk
 export YQ := $(CURDIR)/.tools/host/bin/yq
 
-.PHONY: help check clippy docs-check test test-artifacts-minimal test-tools-response tools-features-check msrv ci install-hooks tooling-command-check shared-tooling-check dependency-pins-check check-doc-links release-adapter-check publish publish-check publish-command-check release-version release-preflight release-verify release-prepare-version release-prepared-check release-files release-commit-check release-committed-check release-tagged-check release-push-check
+.PHONY: help check clippy docs-check test test-artifacts-minimal test-tools-default tools-features-check msrv ci install-hooks tooling-command-check shared-tooling-check dependency-pins-check check-doc-links release-adapter-check publish publish-check publish-command-check release-version release-preflight release-verify release-prepare-version release-prepared-check release-files release-commit-check release-committed-check release-tagged-check release-push-check
 help:
 	@echo 'Selected package: check, clippy, docs-check, test, msrv (PACKAGE=<crate>)'
 	@echo 'Minimal artifact configuration: test-artifacts-minimal'
-	@echo 'Tools profiles: test-tools-response, test-tools-interface, test-tools-service, test-tools-limits, test-tools-certificate and tools-features-check'
+	@echo 'Tools profiles: test-tools-default, test-tools-interface, test-tools-certificate and tools-features-check'
 	@echo 'Formatting and metadata: fmt, fmt-check, shared-tooling-check, dependency-pins-check, check-doc-links, release-adapter-check'
 	@echo 'Hook qualification: formatting-hook-check (disposable Git fixtures; prepared formatters required)'
 	@echo 'Complete setup: install-tools (host, IC and Cargo); install-hooks is separate'
@@ -39,19 +39,13 @@ test:
 	+cargo test -p $(PACKAGE) --all-targets --all-features --locked --offline
 test-artifacts-minimal:
 	+cargo test -p ic-host-artifacts --no-default-features --lib --locked --offline
-test-tools-response:
+test-tools-default:
 	+cargo test -p ic-host-tools --no-default-features --all-targets --locked --offline
 .PHONY: test-tools-interface
 test-tools-interface:
 	+cargo test -p ic-host-tools --no-default-features --features ic-interface --all-targets --locked --offline
 
-.PHONY: test-tools-service
-test-tools-service:
-	+cargo test -p ic-host-tools --no-default-features --features candid-service --all-targets --locked --offline
-
-.PHONY: test-tools-limits test-tools-certificate test-wasm-inspection
-test-tools-limits:
-	+cargo test -p ic-host-tools --no-default-features --features ic-limits --all-targets --locked --offline
+.PHONY: test-tools-certificate test-wasm-inspection
 test-tools-certificate:
 	+cargo test -p ic-host-tools --no-default-features --features certificate --all-targets --locked --offline
 test-wasm-inspection:
@@ -66,7 +60,7 @@ msrv-workspace:
 dependency-pins-check:
 	+bash scripts/ci/check-dependency-pins.sh --cargo-inheritance
 check-doc-links:
-	perl scripts/ci/check-documentation-links.pl --root "$(CURDIR)" README.md AGENTS.md CHANGELOG.md docs/changelog/0.4.md docs/changelog/0.5.md docs/changelog/0.6.md docs/changelog/0.7.md docs/changelog/0.8.md docs/changelog/0.9.md docs/changelog/0.10.md docs/changelog/0.11.md docs/changelog/0.12.md docs/changelog/0.13.md docs/changelog/0.14.md docs/changelog/0.15.md docs/changelog/0.16.md docs/changelog/0.17.md docs/changelog/0.18.md docs/changelog/0.19.md docs/changelog/0.20.md docs/changelog/0.21.md docs/changelog/0.22.md docs/changelog/0.23.md docs/changelog/0.24.md docs/extraction.md docs/hosts.md docs/status/current.md docs/status/archive-2026-10-15.md docs/publishing.md
+	perl scripts/ci/check-documentation-links.pl --root "$(CURDIR)" README.md AGENTS.md CHANGELOG.md docs/changelog/0.4.md docs/changelog/0.5.md docs/changelog/0.6.md docs/changelog/0.7.md docs/changelog/0.8.md docs/changelog/0.9.md docs/changelog/0.10.md docs/changelog/0.11.md docs/changelog/0.12.md docs/changelog/0.13.md docs/changelog/0.14.md docs/changelog/0.15.md docs/changelog/0.16.md docs/changelog/0.17.md docs/changelog/0.18.md docs/changelog/0.19.md docs/changelog/0.20.md docs/changelog/0.21.md docs/changelog/0.22.md docs/changelog/0.23.md docs/changelog/0.24.md docs/changelog/0.25.md docs/extraction.md docs/hosts.md docs/status/current.md docs/status/archive-2026-10-15.md docs/status/archive-2026-10-17.md docs/publishing.md
 release-adapter-check:
 	+bash scripts/release/test-adapter.sh
 tooling-command-check:
@@ -92,10 +86,8 @@ ci:
 	+$(MAKE) --no-print-directory publish-command-check
 	+$(MAKE) --no-print-directory test-artifacts-minimal
 	+$(MAKE) --no-print-directory tools-features-check
-	+$(MAKE) --no-print-directory test-tools-response
+	+$(MAKE) --no-print-directory test-tools-default
 	+$(MAKE) --no-print-directory test-tools-interface
-	+$(MAKE) --no-print-directory test-tools-service
-	+$(MAKE) --no-print-directory test-tools-limits
 	+$(MAKE) --no-print-directory test-tools-certificate
 	+$(MAKE) --no-print-directory test-wasm-inspection
 	+cargo clippy --workspace --all-targets --all-features --locked --offline -- -D warnings

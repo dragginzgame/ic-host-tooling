@@ -158,12 +158,12 @@ tree="$(git write-tree)"
 reject_hook
 cmp "$fixture/sorted-manifest" "$manifest"
 new_case installer
-bash scripts/dev/install-git-hooks.sh > .git/install.log 2>&1
+bash scripts/dev/install-git-hooks.sh --consumer "$PWD" > .git/install.log 2>&1
 [[ "$(git config --local --get core.hooksPath)" == .githooks ]] || exit 1
 ln -s "$PWD" "$fixture/alias"
-(cd "$fixture/alias"; bash scripts/dev/install-git-hooks.sh) >> .git/install.log 2>&1
+(cd "$fixture/alias"; bash scripts/dev/install-git-hooks.sh --consumer "$PWD") >> .git/install.log 2>&1
 git config --local core.hooksPath existing-hooks
-if bash scripts/dev/install-git-hooks.sh > .git/conflict.log 2>&1; then exit 1; fi
+if bash scripts/dev/install-git-hooks.sh --consumer "$PWD" > .git/conflict.log 2>&1; then exit 1; fi
 [[ "$(git config --local --get core.hooksPath)" == existing-hooks ]] || exit 1
 echo 'Consumer formatting, preservation and hook installation checks passed'
 if [[ "$perturb_manifest" == true ]]; then echo 'Dependency sorting perturbation passed'; fi

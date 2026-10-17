@@ -9,18 +9,19 @@ Dependencies point down from ic-host-process to ic-host-fs and from each to
 ic-host-artifacts. Tools selects Artifacts only for explicit Wasm profiles;
 its production graph has no filesystem or process dependency. No generic crate
 depends on Tools, Canic, IcyDB or an IC runtime. Test/example artifact features
-do not become production filesystem dependencies. Empty Tools defaults retain
-response decoding without generic Host dependencies or the optional Candid parser.
+do not become production filesystem dependencies. Tools always includes
+Candid service inspection and response decoding, without generic Host dependencies.
 Native extraction moves to IC Build's `artifacts::candid` for the 0.24 hard cut;
 the five Host crates retain their generic mechanics and IC interpretation roles.
 The 0.23 hard cut moved generic line normalization into
 `ic_host_text::normalize`.
-The optional `ic-interface` feature adds generic Wasm facts without the Candid
-parser. `candid-service` adds parser-backed service inspection independently;
-select `ic-interface` as well when both APIs are needed. Neither adds
-filesystem/process dependencies.
-The optional `ic-limits` profile adds only generic artifact inspection to the
-response-only graph; IC reference values and comparison remain in the tools owner.
+Candid service inspection and shared method identities are always available in
+Tools. Its Candid parser is a normal dependency. The optional `ic-interface`
+feature adds generic Wasm facts and export projection without filesystem/process
+dependencies. There is no separate `candid-service` feature.
+Replica revision selection, install thresholds and resource-report policy belong
+to the consuming application. Host Artifacts retains generic Wasm facts; Tools
+no longer owns an `ic-limits` profile or a reference-policy CLI example.
 
 - ic-host-artifacts owns stream identities, bounded read/write/copy mechanics,
   optional gzip encoding/decoding, optional Wasm
@@ -50,7 +51,7 @@ response-only graph; IC reference values and comparison remain in the tools owne
   [#110 — Host text ownership](https://github.com/dragginzgame/ic-host-tooling/issues/110).
 - ic-host-tools owns Candid service-method interpretation,
   IC method export projection over generic Wasm facts, JSON/plain-hex ICP responses
-  and explicit revision-bound IC resource comparisons.
+  and bounded certificate decoding.
   CLI labels, preambles and any Unicode whitespace normalization remain with
   consumers rather than a second presentation adapter in the codec.
 
@@ -108,9 +109,8 @@ heap, stack or CPU quota for the parser. `interface::exported_methods` borrows
 function export facts without reparsing Wasm. It preserves internal methods,
 empty names and mode differences for caller admission. Oneway remains distinct
 in Candid and maps explicitly to the update export namespace through `as_export`.
-`candid-service` selects only the Candid parser; shared method identities remain
-in `interface` without requiring Wasm support. Select `ic-interface` explicitly
-for export projection, including when combining it with Candid service inspection.
+Candid parsing and shared method identities are always available without Wasm
+support. Select `ic-interface` explicitly for export projection.
 Expected interfaces, CDK allowlists, type compatibility, payload annotations and
 Canic endpoint presentation remain consumer policy. IC Build owns build/cache
 orchestration separately; these libraries do not install tools or build canisters.
@@ -172,12 +172,13 @@ writer. `write_bytes(path, options, bytes)` uses it with explicit publication mo
 and permissions, returning `NamedWriteError<io::Error>` rather than discarding
 publication state or cleanup evidence. Consumers retain error projection
 and recovery decisions; an after-publication failure requires reconciliation.
-`write_existing_parent_with` and `write_existing_parent_validated_with` reuse
-descriptor publication after directory-only opening of an existing selected
-parent. They refuse missing/special-file parents without creating them, retain
-parent-alias following and select the directory once across renames. The validated
-form admits the producer's result after file sync and before publication. This
-pathname convenience supplies no root confinement or independent lifecycle policy.
+`write_existing_parent_validated_with` reuses descriptor publication after
+directory-only opening of an existing selected parent. It refuses missing or
+special-file parents without creating them, follows parent aliases and selects
+the directory once across renames. `write_at_validated_with` accepts the held
+parent directly. Both require explicit result admission after file sync and
+before publication; no-op admission is caller-selected. The forwarding variants
+retire without aliases. Neither supplies root confinement or lifecycle policy.
 The [0.10 migration](changelog/0.10.md) replaces the old two-argument writer and
 removes the `write_typed_with` name without a compatibility alias.
 
@@ -310,12 +311,13 @@ All other process syscalls use safe rustix APIs; the existing selected libc
 version becomes a macOS-only direct dependency, without a bindgen toolchain.
 
 `AdmittedTool::admit_version` shares the exact admission engine for tools whose
-installation the caller already trusts. It takes a `VersionSpec`, records the
-bounded executable identity and admits exact version output; later runs enforce
-that observed digest. It removes consumer-side hash/admit composition without
+installation the caller already trusts. It takes a `VersionSpec` and a mandatory
+exact version identity, records the bounded executable identity and admits exact
+version output; later runs enforce that observed digest. It removes consumer-side
+hash/admit composition without
 claiming that observed bytes are a trusted published pin. Pinned admission takes
-the same `VersionSpec` plus a mandatory digest and compares it before executing
-the version probe.
+the same `VersionSpec` and exact version plus a mandatory digest, checked before
+executing the version probe.
 Installation provenance, per-host pins and selection of either contract remain
 consumer policy; no host catalog or version-range resolver is introduced.
 

@@ -317,6 +317,40 @@ Consumer choices described in those guides remain subject to this baseline.
   Cleanup requires explicit scope and authority. Tools may clean temporary files
   they own; they must not erase consumer artifacts or the only retained evidence.
 
+## IC stable-memory governance
+
+- Production stable stores in `dragginzgame` IC applications and components must
+  use memory handles issued by `ic-memory` after successful admission and durable
+  allocation commitment. Stable keys and their retained memory-ID assignments
+  belong to `ic-memory`; store formats, schema admission and data semantics stay
+  with their storage owners.
+- Application and component code must not independently assign memory IDs,
+  construct `MemoryManager` instances, or read/write unmanaged stable memory.
+  The host integration supplies raw backing memory to its owned `ic-memory`
+  runtime; it must not retain an alternate store-access path or create another
+  manager over that backing. Raw backing access and manager construction belong
+  to that integration boundary and `ic-memory` internals.
+- Production storage integration entry points must require checked runtime
+  handles and preserve validation and persistence before opening stores.
+  Generic storage engines may accept the upstream `Memory` trait, but accepting
+  that trait alone does not enforce allocation governance. Their production
+  callers must supply `ic-memory::RuntimeMemory` through the checked integration.
+- `ic-storage` is a collection layer; it does not replace allocation governance.
+  Its production integrations must use `ic-memory` handles. Selecting it as the
+  standard collection implementation is a separate product decision, qualified
+  at the affected consumers. An upstream collection using checked runtime memory
+  can preserve allocation safety; a replacement collection using unmanaged
+  memory cannot claim that protection.
+- Review actual handle construction and access, including dependency re-exports.
+  Importing `Memory`, `Storable` or an upstream collection is not itself a bypass;
+  neither an import-path rule nor a direct-dependency ban proves this invariant.
+- Raw-memory infrastructure internals, isolated tests and benchmarks may use
+  scoped unmanaged memory. Document the owning boundary and purpose; such
+  evidence does not qualify a production integration. Other production bypasses
+  require a maintainer-approved exception naming the scope, reason and safety
+  qualification. Adopt this rule through a reviewed snapshot or revision-bound
+  reference; policy adoption alone does not prove consumer implementation.
+
 ## Rust workspaces and portable tooling
 
 - Directory names for repositories, workspaces, tooling and operational inputs

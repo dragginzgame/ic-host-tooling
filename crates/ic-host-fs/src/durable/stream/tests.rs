@@ -203,7 +203,7 @@ fn held_directory_survives_parent_rename_and_replacement() {
     let moved = fixture.root.join("moved parent");
     fs::create_dir(&original).unwrap();
     let directory = fs::File::open(&original).unwrap();
-    let result = write_at_with(
+    let result = write_at_validated_with(
         directory.as_fd(),
         OsStr::new("output"),
         REPLACE,
@@ -214,12 +214,13 @@ fn held_directory_survives_parent_rename_and_replacement() {
             file.write_all(b"held directory")?;
             Ok(73)
         },
+        |_| Ok(()),
     )
     .unwrap();
     assert_eq!(result, 73);
     assert_eq!(fs::read(moved.join("output")).unwrap(), b"held directory");
     assert_eq!(fs::read(original.join("output")).unwrap(), b"foreign");
-    let error = write_at_with(
+    let error = write_at_validated_with(
         directory.as_fd(),
         OsStr::new("output"),
         REPLACE,
@@ -227,6 +228,7 @@ fn held_directory_survives_parent_rename_and_replacement() {
             file.write_all(b"partial")?;
             Err(io::Error::from_raw_os_error(13))
         },
+        |()| Ok(()),
     )
     .unwrap_err();
     assert!(
@@ -241,11 +243,12 @@ fn filename_and_descriptor_admission_precedes_any_producer_or_stage() {
     let fixture = Fixture::new();
     let directory = fs::File::open(&fixture.root).unwrap();
     for name in ["", ".", "..", "a/b", "a/", "/absolute", "a\0b"] {
-        let error = write_at_with(
+        let error = write_at_validated_with(
             directory.as_fd(),
             OsStr::new(name),
             REPLACE,
             |_| -> io::Result<()> { panic!("invalid name dispatched") },
+            |()| Ok(()),
         )
         .unwrap_err();
         assert!(
@@ -269,18 +272,22 @@ fn filename_and_descriptor_admission_precedes_any_producer_or_stage() {
         assert!(
             matches!(error, NamedWriteError::BeforePublication { source, cleanup_error: None } if source.kind() == io::ErrorKind::InvalidInput)
         );
-        let error = write_existing_parent_with(&path, options, |_| -> io::Result<()> {
-            panic!("invalid existing-parent mode dispatched")
-        })
+        let error = write_existing_parent_validated_with(
+            &path,
+            options,
+            |_| -> io::Result<()> { panic!("invalid existing-parent mode dispatched") },
+            |()| Ok(()),
+        )
         .unwrap_err();
         assert!(
             matches!(error, NamedWriteError::BeforePublication { source, cleanup_error: None } if source.kind() == io::ErrorKind::InvalidInput)
         );
-        let error = write_at_with(
+        let error = write_at_validated_with(
             directory.as_fd(),
             OsStr::new("output"),
             options,
             |_| -> io::Result<()> { panic!("invalid descriptor mode dispatched") },
+            |()| Ok(()),
         )
         .unwrap_err();
         assert!(
@@ -289,11 +296,12 @@ fn filename_and_descriptor_admission_precedes_any_producer_or_stage() {
     }
     assert_eq!(fs::read_dir(&fixture.root).unwrap().count(), 0);
     let regular = fs::File::create(fixture.root.join("file")).unwrap();
-    let error = write_at_with(
+    let error = write_at_validated_with(
         regular.as_fd(),
         OsStr::new("output"),
         REPLACE,
         |_| -> io::Result<()> { panic!("non-directory dispatched") },
+        |()| Ok(()),
     )
     .unwrap_err();
     assert!(
@@ -325,10 +333,16 @@ fn non_utf8_publication_matches_native_filesystem_admission() {
             fs::remove_file(&native_stage).unwrap();
         }
         let mut produced = false;
-        let result = write_at_with(directory.as_fd(), &name, options, |file| {
-            produced = true;
-            file.write_all(b"non-UTF-8")
-        });
+        let result = write_at_validated_with(
+            directory.as_fd(),
+            &name,
+            options,
+            |file| {
+                produced = true;
+                file.write_all(b"non-UTF-8")
+            },
+            |()| Ok(()),
+        );
         // Lexical name admission precedes the callback; native final-entry
         // admission occurs at publication after the producer has completed.
         assert!(produced);
@@ -366,9 +380,13 @@ fn replace_does_not_follow_a_final_symlink_and_refuses_a_directory() {
     let target = fixture.root.join("target");
     fs::write(&target, b"retained").unwrap();
     symlink(&target, fixture.root.join("link")).unwrap();
-    write_at_with(directory.as_fd(), OsStr::new("link"), REPLACE, |file| {
-        file.write_all(b"replacement")
-    })
+    write_at_validated_with(
+        directory.as_fd(),
+        OsStr::new("link"),
+        REPLACE,
+        |file| file.write_all(b"replacement"),
+        |()| Ok(()),
+    )
     .unwrap();
     assert_eq!(fs::read(target).unwrap(), b"retained");
     assert!(
@@ -379,8 +397,13 @@ fn replace_does_not_follow_a_final_symlink_and_refuses_a_directory() {
     );
     fs::create_dir(fixture.root.join("dir")).unwrap();
     assert!(matches!(
-        write_at_with(directory.as_fd(), OsStr::new("dir"), REPLACE, |file| file
-            .write_all(b"no")),
+        write_at_validated_with(
+            directory.as_fd(),
+            OsStr::new("dir"),
+            REPLACE,
+            |file| file.write_all(b"no"),
+            |()| Ok(())
+        ),
         Err(NamedWriteError::BeforePublication {
             cleanup_error: None,
             ..

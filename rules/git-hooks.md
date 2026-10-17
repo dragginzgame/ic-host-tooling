@@ -233,7 +233,9 @@ See the [Prettier CLI contract](https://prettier.io/docs/cli).
 ## Installation and adoption
 
 The consumer Make entrypoint supplies `install-hooks` for Rust consumers through
-`scripts/dev/install-git-hooks.sh --consumer <checkout>`. Keep the tracked hook
+`scripts/dev/install-git-hooks.sh --consumer <checkout>`. The destination is
+required; neither invocation location nor installer location selects a checkout.
+Keep the tracked hook
 and its root-layout companions in the consumer, even when the installer itself
 is in a nested snapshot. A focused include can still call that documented helper.
 

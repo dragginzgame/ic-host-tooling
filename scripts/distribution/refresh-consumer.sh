@@ -134,9 +134,12 @@ check_consumer_unchanged() {
 # The manifest alone cannot authorize replacing or retiring consumer bytes.
 # Resolve its ownership claim against the exact earlier source for both paths.
 export_previous_payload() {
-    local index="$1" output="$2" path mode executable=-
+    local index="$1" output="$2" path mode revision_kind executable=-
     path="${previous_sources[$index]}"
     local revision="${previous_revisions[$index]}"
+    revision_kind="$(git -C "$SOURCE_ROOT" cat-file -t "$revision")" ||
+        fail "cannot inspect previous snapshot revision"
+    [[ "$revision_kind" == commit ]] || fail "previous snapshot revision is not an available commit"
     mode="$(committed_mode "$revision" "$path")" || fail "previous snapshot source is unavailable: $path"
     [[ "$mode" != 100755 ]] || executable=x
     [[ "$executable" == "${previous_modes[$index]}" ]] || fail "previous snapshot mode disagrees with its source: $path"
@@ -149,9 +152,16 @@ export_previous_payload() {
 
 check_index_unchanged() {
     local index="$1" path="$2"
-    git -C "$CONSUMER_ROOT" --literal-pathspecs ls-files --stage -z -- "$path" > "$STAGING_DIR/current-index" ||
+    local recorded="$STAGING_DIR/index-$index" observed="$STAGING_DIR/current-index"
+    git -C "$CONSUMER_ROOT" --literal-pathspecs ls-files --stage -z -- "$path" > "$observed" ||
         fail "cannot inspect consumer index: $path"
-    cmp -s "$STAGING_DIR/index-$index" "$STAGING_DIR/current-index" ||
+    # Reobserve Git on every check. Two readable, regular empty records already
+    # prove equality; retain byte comparison for all other index observations.
+    if [[ -f "$recorded" && -r "$recorded" && ! -s "$recorded" &&
+          -f "$observed" && -r "$observed" && ! -s "$observed" ]]; then
+        return 0
+    fi
+    cmp -s "$recorded" "$observed" ||
         fail "consumer index changed during refresh: $path"
 }
 
@@ -415,7 +425,7 @@ while [[ "$cursor" -lt "${#proposed[@]}" ]]; do
     source_modes[cursor]="$(committed_mode "$source_revision" "$path")" || fail "cannot read committed companion source: $path"
     staged_parent="$staged_files"
     if [[ "$path" == */* ]]; then staged_parent+="/${path%/*}"; fi
-    mkdir -p "$staged_parent"
+    [[ -d "$staged_parent" ]] || mkdir -p "$staged_parent"
     git -C "$SOURCE_ROOT" cat-file blob "$source_revision:$path" > "$staged_files/$path" || fail "cannot inspect companions: $path"
     # Only line two declares companions. Read it without launching a parser for
     # every payload; an unterminated second line is still a complete declaration.
@@ -534,8 +544,6 @@ for index in "${!files[@]}"; do
         { [[ ! -x "$STAGING_DIR/previous-file" ]] && [[ -x "$destination" ]]; }; then
         fail "consumer destination has local changes; preserve or reconcile them before refreshing: $path"
     fi
-    [[ "$(git -C "$SOURCE_ROOT" cat-file -t "${previous_revisions[$previous_index]}")" == commit ]] ||
-        fail "previous snapshot revision is not an available commit"
 done
 
 # Retire stale payloads automatically. Prove ownership against
@@ -559,8 +567,6 @@ for previous_index in "${!previous_files[@]}"; do
         fail "cannot inspect retirement index: $path"
     git -C "$CONSUMER_ROOT" --literal-pathspecs diff --cached --quiet -- "$path" ||
         fail "retirement has staged changes: $path"
-    [[ "$(git -C "$SOURCE_ROOT" cat-file -t "${previous_revisions[$previous_index]}")" == commit ]] ||
-        fail "previous snapshot revision is not an available commit"
     export_previous_payload "$previous_index" "$STAGING_DIR/retire-$index"
     destination="$CONSUMER_ROOT/$path"
     if [[ -e "$destination" ]]; then
@@ -633,7 +639,7 @@ for index in "${!files[@]}"; do
     check_index_unchanged "$index" "$path"
     destination_parent="$CONSUMER_ROOT"
     if [[ "$path" == */* ]]; then destination_parent+="/${path%/*}"; fi
-    mkdir -p "$destination_parent"
+    [[ -d "$destination_parent" ]] || mkdir -p "$destination_parent"
     # Copy beside the destination so even a mounted subtree gets an atomic
     # rename. A failed/interrupted copy must leave the admitted old bytes intact.
     replacement="$(mktemp "$destination_parent/.shared-tooling-payload.XXXXXX")"

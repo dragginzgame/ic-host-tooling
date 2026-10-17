@@ -24,26 +24,17 @@ pub struct DecodeLimits {
 }
 
 /// CBOR grammar, field/type, hash-tree shape or nesting failure.
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
+#[error("IC CBOR decoding failed")]
 pub struct ParseError {
     source: ciborium::de::Error<io::Error>,
 }
 
-impl fmt::Display for ParseError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("IC CBOR decoding failed")
-    }
-}
-impl std::error::Error for ParseError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        Some(&self.source)
-    }
-}
-
 /// Decoding refused; no partial certificate or hash tree is returned.
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum DecodeError {
     /// Complete input exceeds the allowance before parsing.
+    #[error("IC CBOR input has {actual} bytes, exceeding {limit}")]
     ByteLimit {
         /// Observed input bytes.
         actual: usize,
@@ -51,30 +42,12 @@ pub enum DecodeError {
         limit: usize,
     },
     /// Bytes remain after exactly one CBOR value.
+    #[error("bytes follow the IC CBOR value")]
     TrailingData,
     /// CBOR syntax, structure, strict field/type or nesting admission failed.
-    Cbor(ParseError),
+    #[error("{0}")]
+    Cbor(#[source] ParseError),
 }
-impl fmt::Display for DecodeError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::ByteLimit { actual, limit } => {
-                write!(f, "IC CBOR input has {actual} bytes, exceeding {limit}")
-            }
-            Self::TrailingData => f.write_str("bytes follow the IC CBOR value"),
-            Self::Cbor(source) => source.fmt(f),
-        }
-    }
-}
-impl std::error::Error for DecodeError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Self::Cbor(source) => Some(source),
-            _ => None,
-        }
-    }
-}
-
 /// Decode one certificate into owned upstream IC-format values.
 ///
 /// Required tree/signature and optional delegation fields are strict: duplicate,

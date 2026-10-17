@@ -17,16 +17,16 @@ fn digest_rejection_precedes_any_version_execution() {
         OsString::from("FIXTURE_MARKER"),
         marker.as_os_str().to_owned(),
     )];
-    let mut spec = VersionSpec {
+    let spec = VersionSpec {
         executable: &tool_path(),
         executable_bytes: 1024 * 1024,
         version_arguments: &[OsString::from("--version")],
-        version_identity: VERSION,
     };
     assert!(matches!(
         AdmittedTool::admit(
             &spec,
             Sha256Digest::compute(b"wrong"),
+            VERSION,
             &fixture.context(&environment),
             LIMITS
         ),
@@ -38,6 +38,7 @@ fn digest_rejection_precedes_any_version_execution() {
     let tool = AdmittedTool::admit(
         &spec,
         identity.sha256,
+        VERSION,
         &fixture.context(&environment),
         LIMITS,
     )
@@ -47,10 +48,10 @@ fn digest_rejection_precedes_any_version_execution() {
     assert_eq!(tool.version_identity(), VERSION);
     assert_eq!(fs::read(&marker).unwrap(), b"invoked\n");
 
-    spec.version_identity = "different";
     let wrong = AdmittedTool::admit(
         &spec,
         identity.sha256,
+        "different",
         &fixture.context(&environment),
         LIMITS,
     );

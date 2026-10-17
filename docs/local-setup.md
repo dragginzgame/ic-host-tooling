@@ -240,7 +240,10 @@ an attempt already in flight can finish after the retry window. Permanent HTTP
 errors and checksum/admission failures are not retried. Exhaustion returns curl's
 final failure status and preserves the failed candidate and previous selection.
 Cleanup remains explicit. The `--versions` option
-selects a reviewed shell file, which is executable code like a Makefile.
+selects reviewed literal assignment data. Host/Rust installers, freshness checks
+and cache identities use the same parser. Shell commands, substitutions, duplicate
+keys and nonliteral values refuse before installation or cache output. Replace
+computed catalogs with complete literal selections before adopting this cut.
 
 Setup and offline checks admit the literal `.tools/host` link target. Malformed
 managed names, including trailing newlines, are refused before tool execution

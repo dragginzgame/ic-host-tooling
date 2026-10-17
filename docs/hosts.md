@@ -10,19 +10,17 @@ and Wasm features; production filesystem dependencies select none of them.
 Check target-directory ownership before compilation. Preserve failure logs and artifacts.
 
 `make test-artifacts-minimal` checks the artifact library without optional
-features. `make test-tools-response` checks the response/text library,
-`make test-tools-interface` checks Wasm export interpretation,
-`make test-tools-service` checks parser-backed Candid service inspection,
-`make test-tools-limits` checks IC resource comparison.
-`make test-tools-certificate` checks strict owned certificate/hash-tree decoding.
-`make test PACKAGE=ic-host-text` checks bounded line normalization, escaping,
-progress frames and Unicode table alignment.
-`make tools-features-check` verifies its production dependency exclusions and
-the remaining explicitly selected owners. Native CI includes these profiles.
-The `candid-service` profile introduces the optional Candid parser without Host
-Artifacts or Wasm parsing; `ic-interface` excludes the Candid parser. Their combined
-profile explicitly selects both owners. These profiles must qualify on the same
-Rust 1.88 and native Linux/macOS matrix as the existing libraries.
+features. `make test-tools-default` checks response decoding and Candid service
+inspection with the default graph. `make test-tools-interface` adds Wasm export
+interpretation; `make test-tools-certificate` adds strict owned certificate/hash-tree
+decoding. `make test PACKAGE=ic-host-text` checks bounded line normalization,
+escaping, progress frames and Unicode table alignment.
+`make tools-features-check` verifies the normal parser dependency, including with
+default features disabled, and the remaining optional owner boundaries. Native
+CI includes these profiles. Tools includes the Candid parser unconditionally;
+`ic-interface` adds Host Artifacts and Wasm parsing. The standalone Wasm inspector
+retains its parser-free graph. These profiles must qualify on the same Rust 1.88
+and native Linux/macOS matrix as the existing libraries.
 
 Native CI prepares pinned Rust and the complete common toolsets, then verifies
 the shared snapshot, declarations, formatter prerequisites, actual hook behavior,

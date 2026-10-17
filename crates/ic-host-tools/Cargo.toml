@@ -6,33 +6,27 @@ version.workspace = true
 license.workspace = true
 repository.workspace = true
 authors.workspace = true
-description = "Host-side Candid interfaces, ICP responses and IC resource reports"
+description = "Host-side Candid interfaces, ICP responses and certificate decoding"
 readme = "../../README.md"
 publish = ["crates-io"]
 
 [features]
 default = []
-candid-service = ["dep:candid_parser"]
 certificate = ["dep:ciborium", "dep:ic-certification"]
 ic-interface = ["dep:ic-host-artifacts", "ic-host-artifacts/wasm"]
-ic-limits = ["dep:ic-host-artifacts", "ic-host-artifacts/wasm"]
 
 [dependencies]
-candid_parser = { workspace = true, optional = true }
+candid_parser.workspace = true
 ciborium = { workspace = true, optional = true }
 ic-certification = { workspace = true, optional = true }
 ic-host-artifacts = { workspace = true, optional = true }
 serde.workspace = true
 serde_json.workspace = true
+thiserror.workspace = true
 
 [dev-dependencies]
 ic-host-artifacts.workspace = true
 ic-host-fs = { workspace = true, features = ["test-support"] }
-leb128.workspace = true
 
 [lints]
 workspace = true
-
-[[example]]
-name = "inspect_install_limits"
-required-features = ["ic-limits"]

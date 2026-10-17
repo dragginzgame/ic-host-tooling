@@ -1,7 +1,6 @@
 use crate::tool::{AdmittedTool, ExecutionContext, OutputLimits, VersionSpec};
 use std::{
     ffi::OsString,
-    fs,
     path::{Path, PathBuf},
     time::Duration,
 };
@@ -15,16 +14,21 @@ pub const VERSION: &str = "test-host-tool version 1";
 
 pub struct Fixture {
     pub root: PathBuf,
+    _directory: ic_host_fs::testing::FixtureDirectory,
 }
 
 impl Fixture {
     pub fn new() -> Self {
-        let root = ic_host_fs::testing::create_fixture_directory(
+        let directory = ic_host_fs::testing::FixtureDirectory::new(
             &std::env::temp_dir(),
             "ic-host-process-test",
         )
-        .expect("create process fixture");
-        Self { root }
+        .expect("create test fixture");
+        let root = directory.path().to_path_buf();
+        Self {
+            root,
+            _directory: directory,
+        }
     }
 
     pub fn context<'a>(&'a self, environment: &'a [(OsString, OsString)]) -> ExecutionContext<'a> {
@@ -36,16 +40,6 @@ impl Fixture {
 
     pub fn tool(&self) -> AdmittedTool {
         admit(&tool_path(), &self.context(&[]), VERSION).unwrap()
-    }
-}
-
-impl Drop for Fixture {
-    fn drop(&mut self) {
-        if std::thread::panicking() {
-            eprintln!("Failed process fixture retained: {}", self.root.display());
-            return;
-        }
-        let _ = fs::remove_dir_all(&self.root);
     }
 }
 
@@ -68,8 +62,8 @@ pub fn admit(
             executable: path,
             executable_bytes: 1024 * 1024,
             version_arguments: &[OsString::from("--version")],
-            version_identity: version,
         },
+        version,
         context,
         LIMITS,
     )

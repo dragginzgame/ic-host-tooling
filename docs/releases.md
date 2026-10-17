@@ -692,6 +692,10 @@ Undated numbered sections at or below that version remain history. One pending
 numbered section must agree with the target; competing candidates or a target
 already dated differently are conflicts. The selected numbered candidate must
 be the first release heading; `Draft` and misplaced candidates are rejected.
+The pending spelling is `## [X.Y.Z]`, without ` - Unreleased`. Unsupported
+suffixes are refused with the source line and expected selected heading before
+any candidate output is emitted; conflicting dates and duplicate or misplaced
+candidates remain separate diagnostic causes.
 With no candidate, the first release heading must identify the saved previous
 version; the helper then inserts the selected heading without inventing content.
 

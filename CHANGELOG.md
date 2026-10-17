@@ -1,5 +1,33 @@
 # Changelog
 
+## [0.25.0]
+
+### Breaking
+
+- Retire `write_at_with` and `write_existing_parent_with`. Use their validated
+  counterparts with explicit result admission, preserving publication modes,
+  permissions and recovery. [Migration notes](docs/changelog/0.25.md).
+- Include Candid service inspection in Host Tools unconditionally. Retire the
+  `candid-service` feature; remove it from consumer feature lists. Disabling
+  defaults no longer excludes `candid_parser` and its `candid` dependency.
+- Share one `VersionSpec` across tool observation and verification. Verifying
+  entrypoints require the exact version as a separate argument; digest pins
+  remain mandatory for pinned admission. Remove `VersionObservationSpec`.
+- Remove Host Tools' replica-limit reports, `ic-limits` feature and resource-report
+  example. Consumers own replica revision selection and enforcement, using Host
+  Artifacts for generic Wasm facts. Canic must adopt its local policy before
+  upgrading. [Migration notes](docs/changelog/0.25.md).
+
+### Changed
+
+- Adopt Shared Tooling 0.19.0 with literal tool catalogs, shared stable-version
+  admission and Rust LOC counts that include identical files at distinct paths.
+  Existing tool pins are unchanged; YQ setup uses the common host bundle.
+- Share test-directory cleanup through an opt-in fixture guard that retains
+  failed-test evidence during panic; production directory custody is unchanged.
+- Derive response and certificate error formatting/source chains through
+  `thiserror`, preserving public error variants and sanitized diagnostics.
+
 ## [0.24.0] - 2026-10-16
 
 ### Breaking

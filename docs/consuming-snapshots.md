@@ -23,6 +23,8 @@ Review the preview, then repeat without `--preview`. Without an explicit complet
 `--entrypoint` set, existing and transferred entrypoints are unioned. Every
 transferred record is proved against its recorded source commit, hash and mode;
 edited, forged, staged, aliased or unavailable inputs refuse before publication.
+The recorded revision must itself be a commit object. Tree or annotated-tag
+object IDs and failed Git type observations cannot establish that identity.
 The root must match the actual prior layout; it is never inferred from the
 manifest's directory. The source remote must match the destination owner.
 
@@ -561,9 +563,9 @@ Select fixtures according to their documented effects and local authority rather
 than editing vendored tests or invoking an unauthorized broader suite.
 Pinning adoption also requires the checker and its jq module, prepared Git/jq/yq
 tools (and Cargo for Rust workspaces), a CI/release invocation, and consumer-owned
-qualification for locked builds and external inputs. Consumers may also vendor
-`scripts/ci/install-ci-tool.sh` (selecting `yq`) and the checksum
-helper; choose and record their own reviewed version and platform digests.
+qualification for locked builds and external inputs. Prepare YQ through the
+common host bundle with `make install-host-tools` and `make host-tools-check`;
+its reviewed version and platform digests live in the selected tool catalog.
 Resolve existing exceptions under the
 [pinning policy](../rules/dependency-pinning.md) before claiming adoption.
 

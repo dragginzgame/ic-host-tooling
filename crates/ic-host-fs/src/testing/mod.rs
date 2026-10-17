@@ -1,4 +1,4 @@
-//! Opt-in filesystem fixture allocation without cleanup or application lifecycle.
+//! Opt-in filesystem fixtures with explicit allocation and panic-retaining cleanup.
 
 use std::{
     fs, io,
@@ -7,6 +7,50 @@ use std::{
 };
 
 static SEQUENCE: AtomicU64 = AtomicU64::new(0);
+
+/// A fresh test directory removed on normal Drop and retained during panic.
+///
+/// Uses [`create_fixture_directory`] for allocation and
+/// [`crate::owned_directory::OwnedDirectory`] for cleanup custody. Callers select
+/// the parent/prefix and must exclude namespace replacement. Cleanup is best
+/// effort; a failed cleanup leaves evidence at the original path. Panicking tests
+/// retain the directory and print its path, without changing production cleanup.
+#[derive(Debug)]
+pub struct FixtureDirectory {
+    directory: crate::owned_directory::OwnedDirectory,
+}
+
+impl FixtureDirectory {
+    /// Allocate one fresh directory and take cleanup responsibility for it.
+    ///
+    /// # Errors
+    /// Returns [`create_fixture_directory`]'s validation and allocation failures.
+    pub fn new(parent: &Path, prefix: &str) -> io::Result<Self> {
+        Ok(Self {
+            directory: crate::owned_directory::OwnedDirectory::new(create_fixture_directory(
+                parent, prefix,
+            )?),
+        })
+    }
+
+    /// Borrow the physical path allocated for this fixture.
+    #[must_use]
+    pub fn path(&self) -> &Path {
+        self.directory.path()
+    }
+}
+
+impl Drop for FixtureDirectory {
+    fn drop(&mut self) {
+        if std::thread::panicking() {
+            self.directory.disarm();
+            eprintln!(
+                "Failed test fixture retained: {}",
+                self.directory.path().display()
+            );
+        }
+    }
+}
 
 /// Create one fresh fixture directory beneath the caller-selected existing parent.
 ///
@@ -57,6 +101,34 @@ pub fn create_fixture_directory(parent: &Path, prefix: &str) -> io::Result<PathB
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn fixture_guard_removes_successful_test_output() {
+        let parent = crate::test_support::Fixture::new();
+        let fixture = FixtureDirectory::new(&parent.root, "successful").unwrap();
+        let path = fixture.path().to_path_buf();
+        fs::write(path.join("output"), b"completed output").unwrap();
+        drop(fixture);
+        assert!(!path.exists());
+        assert!(parent.root.is_dir());
+    }
+
+    #[test]
+    fn fixture_guard_retains_failed_test_evidence_during_unwind() {
+        let parent = crate::test_support::Fixture::new();
+        let fixture = FixtureDirectory::new(&parent.root, "failed").unwrap();
+        let path = fixture.path().to_path_buf();
+        fs::write(path.join("evidence"), b"failure evidence").unwrap();
+        let panic = std::panic::catch_unwind(move || {
+            let _fixture = fixture;
+            panic!("intentional fixture failure");
+        });
+        assert!(panic.is_err());
+        assert_eq!(
+            fs::read(path.join("evidence")).unwrap(),
+            b"failure evidence"
+        );
+    }
 
     #[test]
     fn parallel_allocation_preserves_existing_entries_and_caller_retention() {
