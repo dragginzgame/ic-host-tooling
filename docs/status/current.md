@@ -1,5 +1,14 @@
 # Current handoff
 
+## Staged HTTP fixture accept correction
+
+The isolated follow-up from integration head `2de898d` fixes the macOS Intel
+setup failure in PR #172: accept on the blocking listener, then select
+nonblocking reads on the connected stream. The channel-controlled header gate
+and production readers are unchanged. All four HTTP cases pass on actual
+Rust 1.88/Linux; strict all-target Clippy, formatting and links pass.
+Native macOS validation remains with the fresh hosted checks.
+
 ## Source and pending release
 
 Latest tagged release: **0.24.0**, commit

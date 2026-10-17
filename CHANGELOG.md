@@ -2,6 +2,12 @@
 
 ## [0.25.0]
 
+### Fixed
+
+- Make the staged HTTP request fixture accept its connection before selecting
+  nonblocking stream reads, avoiding a macOS Intel `WouldBlock` setup race.
+  [Detailed notes](docs/changelog/0.25.md).
+
 ### Breaking
 
 - Require explicit result admission for existing-parent and descriptor-relative
