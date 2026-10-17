@@ -194,13 +194,3 @@ scripts remained locally unchanged when re-inspected. The shared implementation
 requires an explicit cutoff, retains saved object identities for retries, and
 delegates conditional updates to Git. It does not copy either product's cutoff
 defaults or promote their broad tag-deletion commands into the release flow.
-
-## Logical directory sizes from IC Build
-
-The metadata-only walker and its two filesystem regressions are extracted from
-[IC Build 0.12.0](https://github.com/dragginzgame/ic-build/blob/2598a417a96834d3139751adf549126add666c4b/crates/ic-build/src/artifacts/cache_fs.rs).
-The algorithm retains iterative traversal, metadata lengths, saturating sums
-and original I/O failures. Host owns this pathname observation; callers retain
-namespace custody, resource admission, cache policy and cleanup. Build caller
-deletion remains gated on reviewed publication and consumer qualification under
-[Build #42](https://github.com/dragginzgame/ic-build/issues/42).
