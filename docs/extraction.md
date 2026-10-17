@@ -28,6 +28,8 @@ no longer owns an `ic-limits` profile or a reference-policy CLI example.
   optional gzip encoding/decoding, optional Wasm
   structural facts, encoded code/data statistics and bounded custom-section framing.
 - ic-host-fs owns no-follow directory hashing over caller-held descriptors,
+  cache-directory tag recognition and durable replacement with caller-selected
+  trailing bytes and permissions,
   pathname/descriptor reads, explicit invocation-directory
   cleanup custody and the durable module's replace,
   create-new, private-file, parent synchronization and descriptor-lock operations.

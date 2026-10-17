@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.26.2]
+
+- Ensure cache-directory tags through FS, preserving regular tags with the standard
+  signature and durably replacing missing, invalid or symlink entries. Callers select
+  the cache root, exact trailing bytes and permissions and retain namespace custody
+  and cache-maintenance policy.
+
 ## [0.26.1] - 2026-10-17
 
 ### Added

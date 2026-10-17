@@ -165,6 +165,17 @@
           "sha256": "802ff5e3ce722a342fbefbb71a85484800c2a3e7598de17a4efff756198978e7"
         }
       ]
+    },
+    {
+      "repository": "https://github.com/dragginzgame/ic-build",
+      "revision": "8b85c7408be283e11a4510d17559112df4f0ae94",
+      "files": [
+        {
+          "path": "crates/ic-build/src/artifacts/cache_fs.rs",
+          "sha256": "ab02892e2a8dab3cf14f60bf1d11446223765d45074e0ab613a67e77db05aaf7",
+          "selection": "fixed-width CACHEDIR.TAG signature recognition, preservation and durable invalid/symlink replacement with source behavioral tests; caller retains cache root, exact suffix bytes, permissions, namespace custody and maintenance policy"
+        }
+      ]
     }
   ]
 }

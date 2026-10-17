@@ -1,4 +1,5 @@
 //! Local host filesystem reads, durable publication and descriptor locks.
+pub mod cache_tag;
 pub mod durable;
 pub mod path;
 pub mod read;
