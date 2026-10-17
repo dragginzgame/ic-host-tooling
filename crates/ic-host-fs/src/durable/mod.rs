@@ -814,3 +814,8 @@ mod supported {
         io::Error::from_raw_os_error(error.raw_os_error())
     }
 }
+
+#[cfg(unix)]
+mod symlink;
+#[cfg(unix)]
+pub use symlink::publish_symlink_with;
