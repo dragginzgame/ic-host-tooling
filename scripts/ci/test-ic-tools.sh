@@ -33,6 +33,7 @@ case "$1" in
     -m) echo "${IC_TOOLS_TEST_ARCH:-x86_64}" ;;
     *) exit 2 ;;
 esac
+[[ "$1" != "${IC_TOOLS_TEST_UNAME_FAILURE:-}" ]] || exit 79
 SCRIPT
 cat > "$fixture/bin/curl" <<'SCRIPT'
 #!/usr/bin/env bash
@@ -57,7 +58,7 @@ pins="$fixture/pins.tsv"
 for tool in quill icp didc ic-wasm wasm-opt; do
     case "$tool" in
         quill) version=0.5.4; report="quill $version" ;;
-        icp) version=1.6.0; report="icp $version" ;;
+        icp) version=1.7.0; report="icp $version" ;;
         didc) version=0.6.2; report="didc $version" ;;
         ic-wasm) version=0.11.1; report="ic-wasm $version" ;;
         wasm-opt) version=132; report="wasm-opt version $version (version_$version)" ;;
@@ -104,9 +105,15 @@ expect_failure() {
     if "$@" > "$fixture/refusal.log" 2>&1; then echo 'IC tool rejection failed' >&2; exit 1; fi
 }
 selected_pins="$pins"
+consumer="$fixture/observer"; mkdir "$consumer"
+for observer in -s -m; do
+    status=0
+    IC_TOOLS_TEST_UNAME_FAILURE="$observer" install > "$fixture/observer.log" 2>&1 || status=$?
+    [[ "$status" == 79 && ! -e "$consumer/.tools" && ! -e "$consumer/store" ]] || exit 1
+done
 snapshot="$fixture/snapshot"
 mkdir -p "$snapshot/scripts/dev" "$snapshot/scripts/ci" "$snapshot/ci"
-cp "$ROOT/scripts/dev/install-ic-tools.sh" "$ROOT/scripts/dev/tool-store.sh" "$snapshot/scripts/dev/"
+cp "$ROOT/scripts/dev/"{install-ic-tools.sh,tool-store.sh,host-platform.sh} "$snapshot/scripts/dev/"
 cp "$ROOT/scripts/ci/verify-file-checksum.sh" "$ROOT/scripts/ci/verify-evidence-checksums.sh" \
     "$ROOT/scripts/ci/ic-tool-pins.awk" "$snapshot/scripts/ci/"
 cp "$pins" "$snapshot/ci/ic-tools.tsv"

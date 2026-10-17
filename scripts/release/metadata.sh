@@ -139,7 +139,7 @@ case "$mode" in
     cache_manifest=Cargo.toml
     if [[ -e "$prepared/ready" ]]; then
       check_recovery
-      for member in crates/ic-testkit crates/ic-testkit-candid crates/ic-testkit-bench crates/ic_testkit_perf_probe; do
+      for member in crates/ic-testkit crates/ic-testkit-candid crates/ic-testkit-dev crates/ic_testkit_perf_probe; do
         cmp "$member/Cargo.toml" "$prepared/new/$member/Cargo.toml" \
           || fail "saved member manifest changed: $member"
       done
@@ -192,7 +192,7 @@ case "$mode" in
       done
       # Retain a consistent saved manifest workspace for interrupted-release
       # cache preparation, independent of partially installed live metadata.
-      for member in crates/ic-testkit crates/ic-testkit-candid crates/ic-testkit-bench crates/ic_testkit_perf_probe; do
+      for member in crates/ic-testkit crates/ic-testkit-candid crates/ic-testkit-dev crates/ic_testkit_perf_probe; do
         for selection in old new; do
           mkdir -p "$prepared/$selection/$member/src"
           cp "$member/Cargo.toml" "$prepared/$selection/$member/Cargo.toml"
@@ -211,7 +211,7 @@ case "$mode" in
       cargo sort --workspace "$prepared/new"
       # Member manifests are already sorted inputs, outside the release file
       # set. Formatting must not introduce an unstaged change to those inputs.
-      for member in crates/ic-testkit crates/ic-testkit-candid crates/ic-testkit-bench crates/ic_testkit_perf_probe; do
+      for member in crates/ic-testkit crates/ic-testkit-candid crates/ic-testkit-dev crates/ic_testkit_perf_probe; do
         cmp "$member/Cargo.toml" "$prepared/new/$member/Cargo.toml" \
           || fail "member manifest requires formatting before release: $member"
       done

@@ -234,7 +234,7 @@ claim typed calls themselves as missing upstream functionality.
 The remaining upstream opportunity is a structured error model that can
 distinguish Candid encoding, Candid decoding, transport failure, and canister
 rejection while preserving call context. If upstream gains that behavior,
-`CandidCallExt` should be reduced or removed rather than maintained as a
+Testkit's bounded argument-sequence call helpers should be reduced or removed rather than maintained as a
 parallel call API.
 
 ### Snapshot Baselines

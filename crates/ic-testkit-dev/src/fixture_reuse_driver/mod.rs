@@ -8,7 +8,6 @@ use std::{
     collections::BTreeMap,
     error::Error as StdError,
     ffi::OsString,
-    fmt,
     fs::{self, File, Permissions},
     io::{self, Seek as _, Write as _},
     path::{Path, PathBuf},
@@ -24,7 +23,7 @@ use std::os::unix::{fs::PermissionsExt as _, process::CommandExt as _};
 use ic_build::{
     artifacts::{WasmBuildError, WasmBuildOutcome, WasmBuildSpec, build_wasm_canisters_cached},
     cargo::{
-        native::{NativeExecutableSpec, build_native_executable},
+        native::{NativeExecutableSpec, NativeTargetKind, build_native_executable},
         observation::workspace_root_for,
         selection::CargoSelection,
     },
@@ -65,50 +64,35 @@ const REPORT_LIMIT: u64 = 16 * 1024 * 1024;
 const WASM_LIMIT: u64 = 128 * 1024 * 1024;
 static INTERRUPTED: AtomicBool = AtomicBool::new(false);
 
-#[derive(Debug)]
+#[derive(Debug, derive_more::Display, derive_more::From)]
 pub enum Error {
+    #[display("invalid benchmark argument: {_0}")]
     InvalidArgument(String),
+    #[display("invalid benchmark data: {_0}")]
     InvalidData(&'static str),
+    #[from]
     Io(io::Error),
+    #[from]
     Json(serde_json::Error),
     Statistics(ic_metrics::SampleStatisticsError),
     Artifact(ArtifactError),
     Resolution(ResolutionError),
     Build(Box<WasmBuildError>),
     CargoObservation(Box<dyn StdError>),
+    #[from]
     Sampling(sampling::SamplingError),
     Tool(Box<ToolError>),
     Git(Box<GitError>),
+    #[display("{} exited with {status}", program.display())]
     CommandFailed {
         program: PathBuf,
         status: ExitStatus,
     },
+    #[display("benchmark interrupted")]
     Interrupted,
 }
 
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::InvalidArgument(message) => write!(f, "invalid benchmark argument: {message}"),
-            Self::InvalidData(message) => write!(f, "invalid benchmark data: {message}"),
-            Self::Io(error) => error.fmt(f),
-            Self::Json(error) => error.fmt(f),
-            Self::Statistics(error) => error.fmt(f),
-            Self::Artifact(error) => error.fmt(f),
-            Self::Resolution(error) => error.fmt(f),
-            Self::Build(error) => error.fmt(f),
-            Self::CargoObservation(error) => error.fmt(f),
-            Self::Sampling(error) => error.fmt(f),
-            Self::Tool(error) => error.fmt(f),
-            Self::Git(error) => error.fmt(f),
-            Self::CommandFailed { program, status } => {
-                write!(f, "{} exited with {status}", program.display())
-            }
-            Self::Interrupted => f.write_str("benchmark interrupted"),
-        }
-    }
-}
-
+// Project through boxed causes so callers can downcast the original error directly.
 impl StdError for Error {
     fn source(&self) -> Option<&(dyn StdError + 'static)> {
         match self {
@@ -124,24 +108,6 @@ impl StdError for Error {
             Self::Git(error) => Some(error.as_ref()),
             _ => None,
         }
-    }
-}
-
-impl From<io::Error> for Error {
-    fn from(error: io::Error) -> Self {
-        Self::Io(error)
-    }
-}
-
-impl From<serde_json::Error> for Error {
-    fn from(error: serde_json::Error) -> Self {
-        Self::Json(error)
-    }
-}
-
-impl From<sampling::SamplingError> for Error {
-    fn from(error: sampling::SamplingError) -> Self {
-        Self::Sampling(error)
     }
 }
 
@@ -434,9 +400,9 @@ fn prepare(options: &Options) -> Result<Inputs, Error> {
     check_interrupted()?;
     let native = build_native_executable(
         &NativeExecutableSpec {
-            package: "ic-testkit-bench",
+            package: "ic-testkit-dev",
             target_name: "fixture_reuse_benchmark",
-            target_kind: "bin",
+            target_kind: NativeTargetKind::Binary,
             selection: CargoSelection {
                 profile: Some(options.profile.clone()),
                 locked: true,
@@ -475,7 +441,9 @@ fn prepare(options: &Options) -> Result<Inputs, Error> {
         spec = spec.with_extra_env([("RUSTC", rustc.as_os_str())]);
     }
     check_interrupted()?;
-    let wasm = build_wasm_canisters_cached(&spec);
+    let wasm = build_wasm_canisters_cached(&spec, |command| {
+        OwnedChild::spawn(command, ic_host_process::child::CleanupPolicy::KillAndWait)
+    });
     check_interrupted()?;
     let wasm = wasm.map_err(|error| Error::Build(Box::new(error)))?;
     let worker = native.executable;
@@ -684,6 +652,36 @@ mod tests {
             .permissions(Permissions::from_mode(0o700))
             .tempdir()
             .unwrap()
+    }
+
+    #[test]
+    fn error_projection_preserves_direct_typed_sources() {
+        use std::error::Error as _;
+
+        for error in [
+            Error::from(io::Error::from(io::ErrorKind::PermissionDenied)),
+            Error::CargoObservation(Box::new(io::Error::from(io::ErrorKind::PermissionDenied))),
+        ] {
+            assert_eq!(
+                error
+                    .source()
+                    .unwrap()
+                    .downcast_ref::<io::Error>()
+                    .unwrap()
+                    .kind(),
+                io::ErrorKind::PermissionDenied
+            );
+        }
+        let error = Error::from(serde_json::from_str::<Value>("invalid json").unwrap_err());
+        assert!(
+            error
+                .source()
+                .unwrap()
+                .downcast_ref::<serde_json::Error>()
+                .is_some()
+        );
+        assert!(Error::Interrupted.source().is_none());
+        assert!(Error::InvalidArgument("argument".into()).source().is_none());
     }
 
     #[test]
@@ -905,7 +903,7 @@ mod tests {
             .as_array()
             .unwrap()
             .iter()
-            .find(|package| package["name"] == "ic-testkit-bench")
+            .find(|package| package["name"] == "ic-testkit-dev")
             .unwrap();
         let native_target = package["targets"]
             .as_array()

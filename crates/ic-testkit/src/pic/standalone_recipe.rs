@@ -4,8 +4,8 @@ use candid::Principal;
 
 use super::{
     CachedPocketIcBaseline, CanisterSnapshotTarget, FailureDisposition, PocketIcBaselineRecipe,
-    PreparedBaseline, RebuildReason, ResetReceipt, ResetRequirements, SnapshotRestoreFunding,
-    StandaloneCanisterFixture, is_dead_pocket_ic_transport_error,
+    PreparedBaseline, RebuildReason, ResetPolicies, ResetReceipt, ResetRequirements,
+    SnapshotRestoreFunding, StandaloneCanisterFixture, is_dead_pocket_ic_transport_error,
 };
 
 /// Snapshot-only recipe for one caller-built, installed canister.
@@ -34,8 +34,10 @@ impl<B> StandaloneCanisterRecipe<B> {
     #[must_use]
     pub fn new(funding: SnapshotRestoreFunding, build: B) -> Self {
         Self {
-            requirements: ResetRequirements::try_new(funding, [])
-                .expect("empty non-snapshot requirements are valid"),
+            requirements: ResetRequirements {
+                funding,
+                policies: ResetPolicies::default(),
+            },
             build,
         }
     }
@@ -70,7 +72,7 @@ where
         &self,
         _baseline: &CachedPocketIcBaseline<Principal>,
     ) -> Result<ResetReceipt, io::Error> {
-        Ok(ResetReceipt::empty())
+        Ok(ResetReceipt::default())
     }
 
     fn drive_to_readiness(

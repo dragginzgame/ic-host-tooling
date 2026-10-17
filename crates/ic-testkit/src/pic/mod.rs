@@ -45,9 +45,9 @@ pub use baseline_pool::{
     BaselinePoolPreparationError, BaselinePoolTimings, BaselinePreparationStage,
     CachedPocketIcBaselinePool, CachedPocketIcBaselinePoolGuard, ExtraCanisterPolicy,
     FailureDisposition, PocketIcBaselineRecipe, PreparedBaseline, RebuildReason, ResetDomainKind,
-    ResetDomainPolicy, ResetReceipt, ResetRequirements, StateResetPolicy, TimeResetPolicy,
+    ResetPolicies, ResetReceipt, ResetRequirements, StateResetPolicy, TimeResetPolicy,
 };
-pub use calls::{CandidCallExt, query_candid_args, update_candid_args};
+pub use calls::{query_candid_args, update_candid_args};
 pub use diagnostics::{
     CanisterDiagnosticLogRecord, CanisterDiagnosticLogs, CanisterDiagnosticsBatchContractError,
     CanisterDiagnosticsBatchEntry, CanisterDiagnosticsBatchReport, CanisterDiagnosticsReport,
@@ -78,7 +78,5 @@ pub use transport::{
 /// Importing this module keeps policy/data types explicit while avoiding
 /// repeated trait lists across a large integration-test crate.
 pub mod prelude {
-    pub use super::{
-        CandidCallExt, CanisterInstallExt, PocketIcDiagnosticsExt, PocketIcSnapshotExt,
-    };
+    pub use super::{CanisterInstallExt, PocketIcDiagnosticsExt, PocketIcSnapshotExt};
 }

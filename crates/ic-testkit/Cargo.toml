@@ -25,7 +25,6 @@ ic-host-fs = { workspace = true }
 ic-host-process = { workspace = true }
 ic-testkit-candid = { workspace = true }
 pocket-ic = { workspace = true }
-serde = { workspace = true }
 tempfile = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }

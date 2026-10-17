@@ -178,7 +178,7 @@ restored or validated.
 | --- | --- | --- |
 | PocketIC runtime | `pocket_ic`; `pic::{PocketIc, PocketIcBuilder}` | Complete upstream crate escape hatch plus focused convenience re-exports; no wrapper |
 | Startup | `PocketIcStartupConfig`, `PocketIcManagedServer` | Explicit bounded spawn/connect policy, owned shared-server lifecycle, and structured failures |
-| Calls | `CandidCallExt` | Candid encoding/decoding, contextual errors, preserved rejections |
+| Calls | `query_candid_args`, `update_candid_args` | Candid encoding/decoding, contextual errors, preserved rejections |
 | Installation | `CanisterInstallExt`, `InstallSpec` | Generic install policy, structured failures and rate-limit retry |
 | Standalone fixtures | `StandaloneCanisterFixture` | Owns one caller-built instance and one installed canister id |
 | Snapshots | `PocketIcSnapshotExt`, `CachedPocketIcBaseline` | Ordered transactional capture, explicit restore funding, scoped caching |
@@ -188,7 +188,7 @@ restored or validated.
 | Benchmarks | `benchmark`, `performance` | Marker emission, parsing, aggregation, comparison, and reports |
 | Test identities | `Fake` | Stable deterministic principals |
 
-`ic_testkit::pic::prelude::*` imports the six extension traits only. Data types
+`ic_testkit::pic::prelude::*` imports the three extension traits only. Data types
 and PocketIC types remain explicit imports.
 
 ## PocketIC ownership and concurrency
@@ -197,12 +197,13 @@ Each test normally constructs and directly owns one fresh `PocketIc`:
 
 ```rust,no_run
 use candid::Principal;
-use ic_testkit::pic::{PocketIc, prelude::*};
+use ic_testkit::pic::{PocketIc, query_candid_args};
 
 fn read_counter(pocket_ic: &PocketIc, canister_id: Principal, limits: ic_testkit_candid::DecodeLimits)
     -> Result<u64, ic_testkit::pic::CandidCallError>
 {
-    pocket_ic.query_candid(canister_id, candid::Principal::anonymous(), "get", (), limits)
+    let (value,): (u64,) = query_candid_args(pocket_ic, canister_id, candid::Principal::anonymous(), "get", (), limits)?;
+    Ok(value)
 }
 ```
 
@@ -230,7 +231,7 @@ and `ic-host-process` dependencies; Testkit does not re-export those crates.
 
 ## Typed Candid calls
 
-`CandidCallExt` requires an explicit principal for every query/update. Pass
+`query_candid_args` and `update_candid_args` require an explicit principal for every query/update. Pass
 `Principal::anonymous()` for anonymous access. Each
 call requires explicit `ic_testkit_candid::DecodeLimits` for reply bytes, decoder
 work, skipping, type entries and header bytes. These budgets govern reply
@@ -238,13 +239,14 @@ decoding; transport deadlines remain with the caller and PocketIC:
 
 ```rust,no_run
 use candid::Principal;
-use ic_testkit::pic::{CandidCallExt, PocketIc};
+use ic_testkit::pic::{query_candid_args, update_candid_args, PocketIc};
 
 fn increment_counter(pocket_ic: &PocketIc, canister_id: Principal, limits: ic_testkit_candid::DecodeLimits)
     -> Result<(), ic_testkit::pic::CandidCallError>
 {
-    let _: () = pocket_ic.update_candid(canister_id, candid::Principal::anonymous(), "increment", (), limits)?;
-    let value: u64 = pocket_ic.query_candid(
+    let ((),) = update_candid_args(pocket_ic, canister_id, candid::Principal::anonymous(), "increment", (), limits)?;
+    let (value,): (u64,) = query_candid_args(
+        pocket_ic,
         canister_id,
         Principal::anonymous(),
         "get",
@@ -255,6 +257,9 @@ fn increment_counter(pocket_ic: &PocketIc, canister_id: Principal, limits: ic_te
     Ok(())
 }
 ```
+
+`()` requests no replies, `(T,)` one reply and `(T, U)` two replies. A single
+tuple-valued reply uses `((T, U),)`; one unit reply uses `((),)`.
 
 Handle `CandidCallError` through the returned result or choose an explicit
 caller-side `.expect("call context")`. Application values such as `Result<T, E>`
@@ -535,7 +540,7 @@ the active endpoint.
 ```rust,no_run
 use candid::Principal;
 use ic_testkit::pic::{
-    CandidCallExt, InstallSpec, PocketIcBuilder, PocketIcStartupConfig, StandaloneCanisterFixture,
+    query_candid_args, InstallSpec, PocketIcBuilder, PocketIcStartupConfig, StandaloneCanisterFixture,
 };
 
 fn install_counter(wasm: Vec<u8>, init_bytes: Vec<u8>, limits: ic_testkit_candid::DecodeLimits)
@@ -548,7 +553,7 @@ fn install_counter(wasm: Vec<u8>, init_bytes: Vec<u8>, limits: ic_testkit_candid
         InstallSpec { wasm, init_bytes, cycles: 1_000_000_000_000, install_sender: Some(Principal::anonymous()), label: Some("counter" .into()) },
     )?;
 
-    let _value: u64 = fixture.pocket_ic().query_candid(fixture.canister_id(), candid::Principal::anonymous(), "get", (), limits)?;
+    let (_value,): (u64,) = query_candid_args(fixture.pocket_ic(), fixture.canister_id(), candid::Principal::anonymous(), "get", (), limits)?;
     Ok(fixture)
 }
 ```
@@ -652,7 +657,7 @@ its installed canister ID:
 ```rust,no_run
 use std::{num::NonZeroUsize, sync::LazyLock};
 use ic_testkit::pic::{
-    CachedPocketIcBaselinePool, CandidCallExt, SnapshotRestoreFunding,
+    CachedPocketIcBaselinePool, query_candid_args, SnapshotRestoreFunding,
     StandaloneCanisterFixture, StandaloneCanisterRecipe,
 };
 
@@ -672,7 +677,8 @@ static POOL: LazyLock<
 # fn build_fixture() -> std::io::Result<StandaloneCanisterFixture> { unimplemented!() }
 fn read_pooled_counter(limits: ic_testkit_candid::DecodeLimits) -> Result<u64, Box<dyn std::error::Error>> {
     let (baseline, _outcome) = POOL.acquire()?;
-    Ok(baseline.pocket_ic().query_candid(*baseline.metadata(), candid::Principal::anonymous(), "get", (), limits)?)
+    let (value,): (u64,) = query_candid_args(baseline.pocket_ic(), *baseline.metadata(), candid::Principal::anonymous(), "get", (), limits)?;
+    Ok(value)
 }
 ```
 
@@ -744,8 +750,10 @@ A complete, compile-checked
 shows a two-canister build, canonical restoration, readiness boundary, invariant
 validation, dead-transport classification, and cold/warm acquisition.
 
-The recipe declares funding and non-snapshot reset requirements through
-`ResetRequirements::try_new(funding, non_snapshot_requirements)`. The pool owns
+The recipe declares `ResetRequirements { funding, policies }`, using the fixed
+optional fields in `ResetPolicies` for its non-snapshot requirements. Its reset
+independently returns `ResetReceipt { policies }` with the achieved guarantees.
+`None` makes no claim; explicitly declaring a domain irrelevant remains distinct. The pool owns
 canonical restoration of its captured canister set. Recipes that need a pre-restore guard can implement `prepare_restore`;
 ordinary forwarding restore hooks are unnecessary. The pool then runs the recipe's
 non-snapshot reset, readiness and final invariant checks in order. Every required

@@ -3,7 +3,7 @@ use pocket_ic::{PocketIc, RejectResponse};
 
 use super::{PocketIcInstance, PocketIcOperationError};
 
-/// Structured failure from a [`super::CandidCallExt`] operation.
+/// Structured failure from a bounded [`super::query_candid_args`] or update operation.
 ///
 /// Match the variant to inspect its required context and original failure details.
 #[non_exhaustive]

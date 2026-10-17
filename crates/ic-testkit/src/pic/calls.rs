@@ -1,10 +1,9 @@
 use candid::{
-    CandidType, Principal, encode_args,
+    Principal, encode_args,
     utils::{ArgumentDecoder, ArgumentEncoder},
 };
-use ic_testkit_candid::{DecodeError, DecodeLimits, decode_args, decode_one};
+use ic_testkit_candid::{DecodeError, DecodeLimits, decode_args};
 use pocket_ic::{PocketIc, RejectResponse};
-use serde::de::DeserializeOwned;
 use std::panic::{AssertUnwindSafe, catch_unwind, resume_unwind};
 
 use super::{CandidCallContext, CandidCallError, PocketIcOperationError, transport};
@@ -23,99 +22,10 @@ impl CallContext<'_> {
     }
 }
 
-/// Typed Candid calls with caller-selected reply limits and contextual failures.
-///
-/// Pass [`Principal::anonymous()`] explicitly for anonymous access.
-/// Every call requires explicit [`DecodeLimits`]; these bound reply decoding,
-/// not PocketIC transport duration or canister execution.
-pub trait CandidCallExt {
-    /// Encode and execute an update call as an explicit caller.
-    fn update_candid<T, A>(
-        &self,
-        canister_id: Principal,
-        caller: Principal,
-        method: &str,
-        args: A,
-        limits: DecodeLimits,
-    ) -> Result<T, CandidCallError>
-    where
-        T: CandidType + DeserializeOwned,
-        A: ArgumentEncoder;
-
-    /// Encode and execute a query call as an explicit caller.
-    fn query_candid<T, A>(
-        &self,
-        canister_id: Principal,
-        caller: Principal,
-        method: &str,
-        args: A,
-        limits: DecodeLimits,
-    ) -> Result<T, CandidCallError>
-    where
-        T: CandidType + DeserializeOwned,
-        A: ArgumentEncoder;
-}
-
-impl CandidCallExt for PocketIc {
-    /// Generic update call helper with an explicit caller principal.
-    fn update_candid<T, A>(
-        &self,
-        canister_id: Principal,
-        caller: Principal,
-        method: &str,
-        args: A,
-        limits: DecodeLimits,
-    ) -> Result<T, CandidCallError>
-    where
-        T: CandidType + DeserializeOwned,
-        A: ArgumentEncoder,
-    {
-        let context = CallContext {
-            operation: "update_call",
-            canister_id,
-            caller,
-            method,
-        };
-        call_candid(
-            context,
-            args,
-            |bytes| Self::update_call(self, canister_id, caller, method, bytes),
-            |bytes| decode_one(bytes, limits),
-        )
-    }
-
-    /// Generic query call helper with an explicit caller principal.
-    fn query_candid<T, A>(
-        &self,
-        canister_id: Principal,
-        caller: Principal,
-        method: &str,
-        args: A,
-        limits: DecodeLimits,
-    ) -> Result<T, CandidCallError>
-    where
-        T: CandidType + DeserializeOwned,
-        A: ArgumentEncoder,
-    {
-        let context = CallContext {
-            operation: "query_call",
-            canister_id,
-            caller,
-            method,
-        };
-        call_candid(
-            context,
-            args,
-            |bytes| Self::query_call(self, canister_id, caller, method, bytes),
-            |bytes| decode_one(bytes, limits),
-        )
-    }
-}
-
 /// Execute an update as `caller`, decoding the top-level Candid reply arguments.
 ///
-/// Unlike [`CandidCallExt::update_candid`], `(u64, bool)` means two reply
-/// arguments rather than one tuple-valued reply. Use `()` for no replies or
+/// `(u64, bool)` means two reply arguments; `((u64, bool),)` means one
+/// tuple-valued reply. Use `()` for no replies or
 /// `(T,)` for one reply. Pass [`Principal::anonymous()`] for an anonymous caller.
 /// Application-level `Result<T, E>` values are returned without unwrapping.
 pub fn update_candid_args<T, A>(
@@ -146,8 +56,8 @@ where
 
 /// Execute a query as `caller`, decoding the top-level Candid reply arguments.
 ///
-/// Unlike [`CandidCallExt::query_candid`], `(u64, bool)` means two reply
-/// arguments rather than one tuple-valued reply. Use `()` for no replies or
+/// `(u64, bool)` means two reply arguments; `((u64, bool),)` means one
+/// tuple-valued reply. Use `()` for no replies or
 /// `(T,)` for one reply. Pass [`Principal::anonymous()`] for an anonymous caller.
 /// Application-level `Result<T, E>` values are returned without unwrapping.
 pub fn query_candid_args<T, A>(
@@ -227,7 +137,7 @@ where
 #[cfg(test)]
 mod tests {
     use candid::Principal;
-    use ic_testkit_candid::{DecodeError, DecodeLimits, decode_args, decode_one};
+    use ic_testkit_candid::{DecodeError, DecodeLimits, decode_args};
 
     use super::{CallContext, CandidCallError, call_candid, run_raw_call};
 
@@ -252,7 +162,7 @@ mod tests {
             context,
             (),
             |_| Ok(vec![0xde, 0xad]),
-            |bytes| decode_one::<u64>(bytes, LIMITS),
+            |bytes| decode_args::<(u64,)>(bytes, LIMITS),
         )
         .expect_err("decode fails");
 
@@ -289,7 +199,7 @@ mod tests {
             (),
             |_| Ok(bytes),
             |bytes| {
-                decode_one::<u64>(
+                decode_args::<(u64,)>(
                     bytes,
                     DecodeLimits {
                         reply_bytes: 0,

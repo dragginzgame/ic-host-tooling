@@ -194,6 +194,17 @@ common --preflight
 [[ ! -e "$SHARED_TOOLING_STORE" && ! -e "$consumer/.tools" ]] || exit 1
 refuse common --check
 [[ ! -e "$SHARED_TOOLING_STORE" && ! -e "$consumer/.tools" ]] || exit 1
+# Admit the complete default group before probing the compiler or touching tools.
+for value in '' '01.2.3' '1.2.3-beta.1'; do
+    sed "s/SHARED_TOOLING_CANDID_EXTRACTOR_VERSION=.*/SHARED_TOOLING_CANDID_EXTRACTOR_VERSION=$value/" \
+        "$fixture/versions" > "$fixture/invalid-versions"
+    refuse common --versions "$fixture/invalid-versions" --preflight
+    [[ ! -e "$SHARED_TOOLING_STORE" && ! -e "$consumer/.tools" && ! -e "$fixture/builds" ]] || exit 1
+done
+for value in '' '01.2.3' '1.2.3-beta.1'; do
+    refuse bash "$installer" --consumer "$consumer" --package sample --version "$value" --bin sample --profile release
+    [[ ! -e "$SHARED_TOOLING_STORE" && ! -e "$consumer/.tools" && ! -e "$fixture/builds" ]] || exit 1
+done
 if [[ "$path_context" == true ]]; then
     common
     common --check
@@ -495,6 +506,7 @@ touch "$fixture/no-info"
 attempts=0
 for mode in common selected; do
     status=0
+    : > "$fixture/probes"
     if [[ "$mode" == common ]]; then
         common --versions "$fixture/missing-source-versions" > "$fixture/source-$mode.out" 2> "$fixture/source-$mode.err" || status=$?
     else
@@ -507,6 +519,9 @@ for mode in common selected; do
        "$(readlink "$consumer/.tools/rust/common")" == "$source_common" &&
        "$(perl -MCwd=abs_path -e 'print abs_path(shift)' "$path")" == "$physical" ]] || exit 1
     grep -Fx 'injected Cargo source acquisition failure' "$fixture/source-$mode.err" >/dev/null
+    # Common records can probe an earlier admitted tool before acquisition fails;
+    # selected product tools must still never execute during admission.
+    [[ "$mode" == common || ! -s "$fixture/probes" ]] || exit 1
     diff -r "$fixture/before-source-store" "$SHARED_TOOLING_STORE"
     diff -r "$fixture/before-source-tools" "$consumer/.tools"
 done

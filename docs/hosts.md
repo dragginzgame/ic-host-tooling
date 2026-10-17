@@ -1,5 +1,136 @@
 # Host support and qualification
 
+## Pending 0.53.0: Host 0.27 and Shared Tooling 0.23 adoption
+
+The normal registry graph selects Host 0.27.1 and Build 0.16.0, with one Host
+family across the library and development commands. The driver and marker test
+use Build's typed binary selector and explicit direct-child `KillAndWait`
+spawner. Cargo builds retain no elapsed-time limit. Own package versions remain
+0.52.0; the exposed Host type change belongs in the existing 0.53.0 hard cut.
+
+Shared Tooling 0.23.0 is exported from committed revision
+`0b351cd2ba2bcd8927b783a5fec89afc8013f708`; all 119 payloads pass snapshot
+verification. The selected roots retire no payloads: the upstream publication,
+Make-copier, documentation-debt, Blob and semantic-Wasm retirements were outside
+this consumer's selection. Their still-open producer ownership PRs supply no
+new Testkit qualification claim. The refresh adds the common host observer,
+uses validated catalog records and advances the optional ICP catalog to 1.7.0.
+Generic IC tools remain an explicit setup selection. CI's four direct uploaders
+now match the shared action's exact 7.0.2 source. The GitHub description was
+reviewed against current purpose and remains accurate.
+
+[Issue #122](https://github.com/dragginzgame/ic-testkit/issues/122) is repaired
+locally by completing every required host digest in the synthetic evidence
+catalog. Only the native host's synthetic transport payload is installed.
+Modern Bash and genuine Bash 3.2.57 on Linux pass normal and rejected-selection
+archive round trips, failure retention, prepared host/Cargo admission and the
+actual formatting-hook caller. ShellCheck and workflow lint pass. The isolated
+consumer release-guard and metadata fixtures pass with substituted release effects.
+The issue stays open pending its required native macOS qualification.
+
+On the selected registry graph, all 22 development library cases and nine
+provisioning cases pass. Strict affected all-target Clippy, actual Rust 1.91
+all-target compilation and warning-denied documentation pass. The real Wasm
+marker test and a two-task fresh/pooled smoke with one worker and 64 state bytes
+also pass; the smoke proves integration, without a performance comparison.
+Coordinated archive qualification through Build 0.16 passes, including archived
+target tests, doctests and source/lock custody, with evidence at
+`target/package-qualification-atLsRu/`. The earlier sandbox attempt at
+`target/package-qualification-FHPCFT/` retains its local-listener permission failures.
+
+Dependency declarations pass with a disposable index reflecting the already
+pending private-package move. The real index, own versions, refs and sibling
+checkouts are unchanged. Full CI and native macOS remain unrun. Before-images,
+passing and failed logs, and the smoke JSON are under
+`target/adopt-host-shared-053-evidence/`.
+
+## Pending 0.53.0: streamed provisioning and fixed reset coverage
+
+The selected Host Artifacts 0.26.1 streams authenticated gzip payloads into the
+existing private durable writer and returns the decoded identity for executable
+admission. The decoded executable Vec and its separate hash pass are removed.
+All nine provisioning cases pass on the normal registry graph, including corrupt
+CRC, truncation and trailing-data refusal before execution or bundle publication,
+retained attempts, exact version admission and concurrent setup exclusion.
+
+Reset requirements and receipts carry independent fixed `ResetPolicies` fields.
+Three reset/timing units pass, including missing versus irrelevant coverage,
+all domain mismatches and first-failure ordering. Thirteen multi-canister pool
+cases and ten concurrency cases pass with prepared PocketIC 16.1. The new live
+probe rejects incomplete/mismatched extra-canister receipts before warm validation,
+rebuilds and admits later valid reuse. The two dedicated server-kill cases remain
+ignored. The initial sandboxed run could not bind localhost; an earlier version
+of the new probe reached its time guard before coverage validation. Both failed
+attempts are retained separately from the passing native run.
+
+The private driver derives Display and its three conversions with Derive More
+2.1.1. Its small manual Error source projection remains: a complete thiserror
+derive exposed boxed types rather than the original causes. That failed attempt
+is retained. All 22 driver cases pass with the original direct typed sources and
+cancellation behavior. The macro dependency belongs only to the private development
+package, not the published Testkit library. A two-task fresh/pooled smoke with one
+worker and 64 state bytes passes; its report is
+`target/reset-stream-driver-053-evidence/benchmark-smoke.json`. This proves
+integration, without claiming a speed or memory benchmark result.
+
+Strict affected-target Clippy, actual Rust 1.91 all-target compilation,
+warning-denied native docs and all three Testkit doctests pass.
+[Canic draft PR #594](https://github.com/dragginzgame/canic/pull/594)
+passes strict Clippy and actual Rust 1.91 for its affected native test
+targets with only the Testkit and matching codec source overrides. Its normal
+manifests/lock are restored; normal adoption awaits Testkit/Candid 0.53 publication.
+Formatting and dependency declarations pass, the latter with a disposable index
+reflecting the pending private-package move. Full CI, managed Canic journeys and
+native macOS remain separate. The ordinary sibling checkout, own package versions and real Testkit index are unchanged.
+Before-images, candidate identities and raw passing/failed logs remain under
+`target/reset-stream-driver-053-evidence/`.
+
+## Pending 0.53.0: one reply model and shared qualification owners
+
+Candid calls use only the argument-sequence functions. Existing tests retain
+wire/work bounds, exact principals and rejections, transport classification and
+the original unrelated panic payload. Six codec-boundary units and seven live
+call/teardown parents pass, including the three child probes selected by their
+parents. The development package's 21 library cases and two-task fresh/pooled
+smoke pass with explicit one-value, one-unit and tuple-valued reply shapes.
+
+Private programs now belong to `ic-testkit-dev`; Make/CI and release fixtures
+follow that owner. IC Build 0.15 qualifies the two exact coordinated archives,
+including all-target tests and doctests, isolated verification artifacts and
+before/after source/lock identities. The successful attempt is retained at
+`target/package-qualification-RrerMJ/`; an initial missing archive-directory
+attempt remains separately recorded. Publishing dry runs use normal registry
+admission. This task performed no publication.
+
+Strict affected-target Clippy, actual Rust 1.91 all-target compilation, native
+warning-denied documentation and formatting pass on the normal registry graph.
+Dependency declarations pass with a disposable index reflecting the moved
+manifest; the real index is unchanged. The ordinary pin check still sees the
+tracked old manifest until the maintainer stages its deletion.
+
+[Host PR #184](https://github.com/dragginzgame/ic-host-tooling/pull/184) owns
+the shared ordered label validator. An isolated Testkit consumer using only
+that Artifacts source override passes six diagnostic units, strict all-target
+Clippy and the live exact-sender diagnostics case. Its deletion patch is
+`target/three-cuts-053-evidence/consumer-labels.patch`; normal adoption awaits
+Host publication. [Build PR #65](https://github.com/dragginzgame/ic-build/pull/65)
+prepares the other consumer. These are source-qualified patches, without a
+normal-checkout source override. Full CI and native macOS remain separate.
+Before-images and focused logs are under `target/three-cuts-053-evidence/`.
+
+Caller preparation selects the already published 0.52 argument-sequence functions.
+[Canic PR #592](https://github.com/dragginzgame/canic/pull/592) and
+[Toko Miner PR #52](https://github.com/dragginzgame/toko-miner/pull/52) use explicit
+qualification-only ceilings: 16 MiB reply, 100 million decoding work, one million
+skipping work, 4,096 types and 256 KiB header. Canic's public testing library and
+internal harness pass strict Clippy and actual Rust 1.91 compilation; its affected
+native test targets compile and pass strict Clippy on the registry graph. Toko Miner's User Hub test
+target compiles and passes strict Clippy. These checks do not execute application
+journeys. [Toko draft PR #1843](https://github.com/dragginzgame/toko/pull/1843)
+passes formatting and its test-support library compiles, but its three project
+test targets still require migration from retired artifact imports before their
+qualification can run.
+
 ## Pending 0.52.0: standalone restore recovery qualification
 
 The standalone deleted-canister test matches the pool-owned typed snapshot

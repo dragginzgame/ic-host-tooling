@@ -10,10 +10,10 @@ use std::{error::Error, fmt, num::NonZeroUsize, time::Duration};
 
 use candid::Principal;
 use ic_testkit::pic::{
-    BaselinePoolContractError, BaselinePoolDisposition, BaselinePreparationStage,
-    CachedPocketIcBaseline, CachedPocketIcBaselinePool, CanisterSnapshotTarget,
-    ControllerSnapshotError, FailureDisposition, PocketIcBaselineRecipe, PocketIcBuilder,
-    PocketIcStartupConfig, PocketIcStartupError, PreparedBaseline, RebuildReason, ResetReceipt,
+    BaselinePoolDisposition, BaselinePreparationStage, CachedPocketIcBaseline,
+    CachedPocketIcBaselinePool, CanisterSnapshotTarget, ControllerSnapshotError,
+    FailureDisposition, PocketIcBaselineRecipe, PocketIcBuilder, PocketIcStartupConfig,
+    PocketIcStartupError, PreparedBaseline, RebuildReason, ResetPolicies, ResetReceipt,
     ResetRequirements, SnapshotRestoreFunding, is_dead_pocket_ic_transport_error,
 };
 
@@ -30,16 +30,18 @@ struct TopologyMetadata {
 #[derive(Debug)]
 enum RecipeError {
     Startup(PocketIcStartupError),
-    Contract(BaselinePoolContractError),
     Snapshot(ControllerSnapshotError),
     Validation(&'static str),
 }
 
 impl TwoCanisterRecipe {
-    fn new() -> Result<Self, BaselinePoolContractError> {
-        Ok(Self {
-            requirements: ResetRequirements::try_new(SnapshotRestoreFunding::Preserve, [])?,
-        })
+    fn new() -> Self {
+        Self {
+            requirements: ResetRequirements {
+                funding: SnapshotRestoreFunding::Preserve,
+                policies: ResetPolicies::default(),
+            },
+        }
     }
 }
 
@@ -81,7 +83,7 @@ impl PocketIcBaselineRecipe for TwoCanisterRecipe {
     ) -> Result<ResetReceipt, Self::Error> {
         // This recipe is suitable only for tests whose relevant mutations are
         // fully contained in the two captured canisters.
-        Ok(ResetReceipt::empty())
+        Ok(ResetReceipt::default())
     }
 
     fn drive_to_readiness(
@@ -124,12 +126,6 @@ impl PocketIcBaselineRecipe for TwoCanisterRecipe {
     }
 }
 
-impl From<BaselinePoolContractError> for RecipeError {
-    fn from(error: BaselinePoolContractError) -> Self {
-        Self::Contract(error)
-    }
-}
-
 impl From<PocketIcStartupError> for RecipeError {
     fn from(error: PocketIcStartupError) -> Self {
         Self::Startup(error)
@@ -146,7 +142,6 @@ impl fmt::Display for RecipeError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Startup(error) => error.fmt(formatter),
-            Self::Contract(error) => error.fmt(formatter),
             Self::Snapshot(error) => error.fmt(formatter),
             Self::Validation(message) => formatter.write_str(message),
         }
@@ -157,7 +152,6 @@ impl Error for RecipeError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
             Self::Startup(error) => Some(error),
-            Self::Contract(error) => Some(error),
             Self::Snapshot(error) => Some(error),
             Self::Validation(_) => None,
         }
@@ -167,7 +161,7 @@ impl Error for RecipeError {
 fn main() -> Result<(), Box<dyn Error>> {
     let pool = CachedPocketIcBaselinePool::new(
         NonZeroUsize::new(1).expect("one is nonzero"),
-        TwoCanisterRecipe::new()?,
+        TwoCanisterRecipe::new(),
     );
 
     let (baseline, first) = pool.acquire()?;

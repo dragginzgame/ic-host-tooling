@@ -6,10 +6,10 @@ mod support;
 use candid::Principal;
 use ic_host_process::testing::http::{HttpContentLength, capture_http_request};
 use ic_testkit::pic::{
-    CandidCallError, CandidCallExt, CanisterDiagnosticsRequest, CanisterInstallError,
-    CanisterLogRenderLimits, InstallSpec, PocketIc, PocketIcBuilder, PocketIcCallFailure,
-    PocketIcDiagnosticsExt, PocketIcInstance, PocketIcStartupConfig, StandaloneCanisterFixture,
-    is_dead_pocket_ic_transport_error,
+    CandidCallError, CanisterDiagnosticsRequest, CanisterInstallError, CanisterLogRenderLimits,
+    InstallSpec, PocketIc, PocketIcBuilder, PocketIcCallFailure, PocketIcDiagnosticsExt,
+    PocketIcInstance, PocketIcStartupConfig, StandaloneCanisterFixture,
+    is_dead_pocket_ic_transport_error, query_candid_args,
 };
 use ic_testkit::pocket_ic::common::rest::{CreateInstanceResponse, RawCanisterId, Topology};
 #[cfg(unix)]
@@ -185,15 +185,15 @@ fn refused_instance_request_probe() {
     std::io::stdin()
         .read_exact(&mut [0])
         .expect("parent releases refused call");
-    let error = pic
-        .query_candid::<u64, _>(
-            Principal::anonymous(),
-            candid::Principal::anonymous(),
-            "get",
-            (),
-            support::REPLY_LIMITS,
-        )
-        .expect_err("peer is gone");
+    let error = query_candid_args::<(u64,), _>(
+        pic,
+        Principal::anonymous(),
+        candid::Principal::anonymous(),
+        "get",
+        (),
+        support::REPLY_LIMITS,
+    )
+    .expect_err("peer is gone");
     assert!(matches!(error, CandidCallError::Transport { .. }));
     assert!(is_dead_pocket_ic_transport_error(&error));
     let error = std::io::Error::other(error);

@@ -34,7 +34,7 @@ This builds `ic_testkit_perf_probe.wasm` under
 Run only the live marker fixture test with:
 
 ```sh
-cargo test -p ic-testkit-bench --locked --test canister_benchmark \
+cargo test -p ic-testkit-dev --locked --test canister_benchmark \
   perf_probe_canister_emits_parseable_benchmark_markers -- --exact --nocapture
 ```
 

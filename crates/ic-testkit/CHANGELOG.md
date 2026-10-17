@@ -8,6 +8,59 @@ This file ships in the crate archive so upgrades can be completed without the
 repository checkout. The complete historical changelog remains at
 <https://github.com/dragginzgame/ic-testkit/blob/main/CHANGELOG.md>.
 
+## [0.53.0]
+
+### Breaking
+
+- Native tool failures use Host 0.27 types. Align directly used Host dependencies
+  before passing values through Testkit or IC Build; this batch selects Host
+  0.27.1 and the aligned Build 0.16 release.
+
+- Candid calls use only `query_candid_args` and `update_candid_args`. Remove
+  `CandidCallExt` imports and method calls; decode `(T,)` for one reply, `()`
+  for no replies, `((),)` for one unit and `((T, U),)` for one tuple-valued reply.
+  Explicit callers, decode budgets, original rejections and unrelated panic
+  propagation retain their contracts. No compatibility forwarding methods remain.
+
+- Reset coverage uses fixed `ResetPolicies` fields in distinct requirements and
+  receipts. Replace domain-list constructors and accessors with field construction
+  and reads; recipes still report their achieved policies independently. Missing
+  coverage and policy mismatches refuse reuse before a warm lease is returned.
+
+### Changed
+
+- Adopt Shared Tooling 0.23.0, including validated tool catalog selections,
+  normalized host detection and the pinned 7.0.2 evidence uploader.
+
+- PocketIC provisioning streams authenticated gzip payloads through Host's bounded
+  writer, removing the complete decoded executable buffer and separate hash pass.
+  Integrity, executable admission and retained failure evidence remain in place
+  ([#116](https://github.com/dragginzgame/ic-testkit/issues/116)).
+
+- Private development commands belong to `ic-testkit-dev`, replacing the
+  benchmark-only package name. Benchmark executable names remain unchanged.
+- Coordinated package qualification delegates archive, graph, lock and source
+  integrity checks to IC Build. Per-attempt evidence and verification build
+  artifacts stay under `target/`; normal publish dry runs retain Cargo registry
+  admission without verification-only overrides.
+
+### Fixed
+
+- Complete the synthetic host catalog used by CI evidence qualification so
+  archive retention checks reach their normal and rejected-selection cases
+  ([#122](https://github.com/dragginzgame/ic-testkit/issues/122)).
+
+### Migration
+
+Construct `ResetRequirements { funding, policies }` and return
+`ResetReceipt { policies }` from the completed reset. The shared `ResetPolicies`
+record has optional `pocket_ic_time`, `extra_canisters`, `pending_messages`,
+`subnet_state` and `external_resources` fields. `None` makes no claim; explicit
+`IrrelevantByRecipeContract` remains a reported policy. Use field reads instead
+of `get`/`iter`/`funding()`, and `ResetReceipt::default()` for no achievements.
+Duplicate-domain construction and its error are gone. `ResetPolicyMismatch`
+identifies the first mismatched domain and carries both complete policy records.
+
 ## [0.52.0] - 2026-10-17
 
 ### Breaking

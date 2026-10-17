@@ -130,8 +130,9 @@ Approximate percentage fields are removed. Aggregate CSV/text uses scale one in
 original counter units; comparison CSV includes both scales. Exact totals remain
 available, and zero runs/scaled overflow return typed errors. Write the changed
 columns to new report directories; retained reports are not reinterpreted.
-Baseline recipes construct reset requirements with
-`ResetRequirements::try_new(funding, non_snapshot_requirements)`. The pool
+Baseline recipes construct `ResetRequirements { funding, policies }` with the
+fixed optional fields in `ResetPolicies`. Their resets independently report
+`ResetReceipt { policies }`; absence differs from an explicit irrelevant policy. The pool
 restores the captured snapshots with the selected funding; successful manual
 restoration returns unit. `ResetReceipt` covers non-snapshot guarantees. These are source API hard cuts.
 
@@ -139,10 +140,11 @@ Generic Cargo/Wasm builds, retained artifact caches and freshness APIs belong to
 [IC Build](https://github.com/dragginzgame/ic-build). Depend on it directly and use
 `ic_build::artifacts`; Testkit keeps PocketIC lifecycle and benchmark policy.
 
-For 0.39, invoke Candid extensions on `fixture.pocket_ic()` with
-`fixture.canister_id()` explicitly; the standalone fixture owns installation
-and lifetime, while `CandidCallExt` owns encoding, invocation and decoding.
-See the [packaged migration notes](CHANGELOG.md#0390).
+Pass `fixture.pocket_ic()` and `fixture.canister_id()` explicitly to
+`query_candid_args` or `update_candid_args`. The standalone fixture owns installation
+and lifetime; bounded argument-sequence calls own encoding, invocation and decoding.
+Use `(T,)` for one reply and `()` for no replies; a single tuple reply uses `((T, U),)`.
+See the [packaged migration notes](CHANGELOG.md#0530).
 
 Benchmark commands own run identities, provenance, history selection and any
 metadata sidecars. The report module renders supplied measurements as CSV and

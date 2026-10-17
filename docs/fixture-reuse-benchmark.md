@@ -12,7 +12,7 @@ and Intel macOS. Native qualification evidence is recorded in the [host matrix](
 
 ```sh
 cargo fetch --locked
-cargo run -p ic-testkit-bench --locked --offline --bin fixture_reuse_benchmark_driver -- \
+cargo run -p ic-testkit-dev --locked --offline --bin fixture_reuse_benchmark_driver -- \
   --server /absolute/path/to/pocket-ic \
   --iterations 100 --workers 2 --repeats 3 \
   --state-bytes 1048576 --output /tmp/fixture-reuse.json
@@ -51,7 +51,7 @@ its executable from debug/release directory names. Metadata and individual JSON
 messages have a 16 MiB allowance; diagnostics stream without a total output cap.
 Cargo builds retain their existing unlimited duration and owned-group cancellation.
 
-The private `ic-testkit-bench` package builds the worker and driver as separate
+The private `ic-testkit-dev` package builds the worker and driver as separate
 binaries sharing protocol/report modules through one library. `Mode` remains
 typed through serialization and admission; JSON still uses `fresh` and `pooled`.
 The worker and driver share one complete, closed report schema. Rebuild them
@@ -243,7 +243,7 @@ allows it; they do not establish an optimal capacity for other workloads.
 Repeat this comparison without rebuilding fresh fixtures for every task:
 
 ```sh
-cargo run -p ic-testkit-bench --locked --offline --bin fixture_reuse_benchmark_driver -- \
+cargo run -p ic-testkit-dev --locked --offline --bin fixture_reuse_benchmark_driver -- \
   --server /absolute/path/to/pocket-ic \
   --modes pooled --capacities 1 2 --iterations 100 --workers 2 --repeats 3 \
   --state-bytes 1048576 --output /tmp/fixture-reuse-long.json
@@ -258,7 +258,7 @@ case (`fresh`, `pooled-1`, `pooled-2`, and so on).
 Compare any positive pool capacities with one shared worker budget:
 
 ```sh
-cargo run -p ic-testkit-bench --locked --offline --bin fixture_reuse_benchmark_driver -- \
+cargo run -p ic-testkit-dev --locked --offline --bin fixture_reuse_benchmark_driver -- \
   --server /absolute/path/to/pocket-ic \
   --modes pooled --capacities 1 2 4 8 \
   --iterations 100 --workers 8 --repeats 3 \
@@ -298,7 +298,7 @@ query would only move the measured cost and add another call.
 Focused sampler checks:
 
 ```sh
-cargo test -p ic-testkit-bench --locked --offline --lib
+cargo test -p ic-testkit-dev --locked --offline --lib
 ```
 
 ## Released 0.14.7 baseline

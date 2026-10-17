@@ -4,13 +4,16 @@ use ic_build::{
     cargo::{observation::workspace_root_for, selection::CargoSelection},
 };
 use ic_host_fs::read::read_file;
-use ic_host_process::tool::{OutputLimit, OutputLimits};
+use ic_host_process::{
+    child::{CleanupPolicy, OwnedChild},
+    tool::{OutputLimit, OutputLimits},
+};
 use ic_testkit::{
     benchmark::{
         BenchmarkEventSource, BenchmarkParserConfig, pair_benchmark_spans,
         parse_benchmark_events_from_source,
     },
-    pic::{CandidCallExt, InstallSpec, StandaloneCanisterFixture},
+    pic::{InstallSpec, StandaloneCanisterFixture, update_candid_args},
 };
 use std::process::Command;
 const PERF_PROBE_PACKAGE: &str = "ic_testkit_perf_probe";
@@ -41,19 +44,21 @@ fn perf_probe_canister_emits_parseable_benchmark_markers() {
             .is_file(),
         "benchmark qualification requires the workspace perf probe"
     );
-    let target_dir_directory = tempfile::Builder::new()
+    let target_dir = tempfile::Builder::new()
         .prefix("ic-testkit-perf-probe-target")
         .tempdir_in(workspace.join("target"))
         .expect("create private test directory");
-    let target_dir = target_dir_directory.path();
 
-    let spec = WasmBuildSpec::new(&workspace, target_dir, &[PERF_PROBE_PACKAGE])
+    let spec = WasmBuildSpec::new(&workspace, target_dir.path(), &[PERF_PROBE_PACKAGE])
         .with_cargo_selection(CargoSelection {
             locked: true,
             ..CargoSelection::default()
         })
         .with_shared_incremental_target(workspace.join("target/pic-wasm"));
-    let outcome = build_wasm_canisters_cached(&spec).expect("build perf probe Wasm");
+    let outcome = build_wasm_canisters_cached(&spec, |command| {
+        OwnedChild::spawn(command, CleanupPolicy::KillAndWait)
+    })
+    .expect("build perf probe Wasm");
     let wasm_path = outcome
         .record()
         .artifacts()
@@ -74,16 +79,15 @@ fn perf_probe_canister_emits_parseable_benchmark_markers() {
         },
     )
     .expect("install standalone fixture");
-    let result: u64 = fixture
-        .pocket_ic()
-        .update_candid(
-            fixture.canister_id(),
-            candid::Principal::anonymous(),
-            "benchmark_once",
-            (),
-            REPLY_LIMITS,
-        )
-        .expect("benchmark_once update call");
+    let (result,): (u64,) = update_candid_args(
+        fixture.pocket_ic(),
+        fixture.canister_id(),
+        candid::Principal::anonymous(),
+        "benchmark_once",
+        (),
+        REPLY_LIMITS,
+    )
+    .expect("benchmark_once update call");
 
     assert_eq!(result, 1_498_500);
 
