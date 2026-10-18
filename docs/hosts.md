@@ -137,7 +137,11 @@ Shared Tooling's exported fixtures remain reviewed snapshot payloads for focused
 changed-contract qualification. Routine CI uses the consumer checks below.
 
 Use the same focused package/target selection with `cargo +1.91.0 check` for a
-compiler-floor-sensitive change. The Makefile's `msrv` roster and `make ci`
+compiler-floor-sensitive change. `make msrv` checks all workspace targets on the
+native host, then only the supported `ic-testkit` and probe libraries on Wasm.
+The private development harness and its Host/Build dependencies are native-only;
+compiling every workspace target for Wasm does not qualify a supported product.
+The Makefile's `msrv` roster and `make ci`
 remain complete gates; `make release-check` adds compiler-floor qualification to
 the release gate. Release execution retains separate maintainer authority.
 Passing Linux checks or cross-compilation does not qualify native macOS.

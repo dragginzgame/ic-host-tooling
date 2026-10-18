@@ -126,10 +126,7 @@ docs-check:
 msrv:
 	rustc +$(MSRV) --version
 	cargo +$(MSRV) --version
-	+cargo +$(MSRV) check --all-targets --locked
-	+cargo +$(MSRV) check --all-targets --locked --target wasm32-unknown-unknown
-	+cargo +$(MSRV) check -p ic-testkit --locked
-	+cargo +$(MSRV) check -p ic-testkit-dev --all-targets --locked
+	+cargo +$(MSRV) check --workspace --all-targets --locked
 	+cargo +$(MSRV) check -p ic-testkit --lib --target wasm32-unknown-unknown --locked
 	+cargo +$(MSRV) check -p ic_testkit_perf_probe --lib --target wasm32-unknown-unknown --locked
 

@@ -24,6 +24,9 @@ repository checkout. The complete historical changelog remains at
 
 ### Changed
 
+- MSRV checks cover all native workspace targets and the supported Wasm library
+  and probe, excluding the native development harness from cross-compilation.
+
 - Complete-sample statistics now belong to the private fixture reporter, removing
   its direct Metrics dependency. Count, mean, p50/p95 and typed failures remain
   unchanged ([PR #125 — Own complete sample statistics in the private report package](https://github.com/dragginzgame/ic-testkit/pull/125)).
