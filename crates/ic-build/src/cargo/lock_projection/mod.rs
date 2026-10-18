@@ -67,6 +67,33 @@ pub fn verify_workspace_version_projection(
     after: &str,
     projections: &[WorkspaceVersionProjection<'_>],
 ) -> Result<(), LockProjectionError> {
+    verify_projection(before, after, projections, false)
+}
+
+/// Verify workspace package versions plus exact unqualified local dependency references.
+///
+/// This release projection additionally replaces `name previous` with `name next`
+/// in package dependency arrays. Source-qualified references and every other parsed
+/// value remain immutable. The stricter version-only verifier is unchanged.
+/// No filesystem, process, registry or release effects occur.
+///
+/// # Errors
+/// Returns the same typed selection, parsing and changed-input errors as
+/// [`verify_workspace_version_projection`].
+pub fn verify_workspace_release_projection(
+    before: &str,
+    after: &str,
+    projections: &[WorkspaceVersionProjection<'_>],
+) -> Result<(), LockProjectionError> {
+    verify_projection(before, after, projections, true)
+}
+
+fn verify_projection(
+    before: &str,
+    after: &str,
+    projections: &[WorkspaceVersionProjection<'_>],
+    references: bool,
+) -> Result<(), LockProjectionError> {
     if projections.is_empty() {
         return Err(LockProjectionError::InvalidSelection);
     }
@@ -115,6 +142,30 @@ pub fn verify_workspace_version_projection(
                 package: projection.package.to_owned(),
                 matches: matches.len(),
             });
+        }
+    }
+    if references {
+        for package in packages {
+            if let Some(dependencies) = package
+                .get_mut("dependencies")
+                .and_then(toml::Value::as_array_mut)
+            {
+                for dependency in dependencies {
+                    for projection in projections {
+                        if dependency.as_str()
+                            == Some(
+                                format!("{} {}", projection.package, projection.previous).as_str(),
+                            )
+                        {
+                            *dependency = toml::Value::String(format!(
+                                "{} {}",
+                                projection.package, projection.next
+                            ));
+                            break;
+                        }
+                    }
+                }
+            }
         }
     }
     let actual: toml::Value =
