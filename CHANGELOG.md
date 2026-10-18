@@ -3,6 +3,14 @@
 The 0.1.0 section preserves the original bootstrap notes. The published 0.1.0
 archive also includes the extracted artifact engine and Cargo grouping API.
 
+## [0.17.3]
+
+- Bring retained Wasm evidence/export and compile-diagnostic helpers onto the
+  current engine from PRs #59/#67. Evidence uses explicit child custody and binds
+  both the exact build fingerprint and conservative raw input snapshot.
+- Preserve caller-owned recipes, limits, source custody and report publication;
+  old branch-only consumer APIs need an explicit environment and acquisition spawner.
+
 ## [0.17.2] - 2026-10-18
 
 - Retain fingerprinted tool/recipe facts on successful and reused Wasm records.

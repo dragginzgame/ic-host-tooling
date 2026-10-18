@@ -239,6 +239,25 @@ does not rerun tools or inspect ambient inputs. A reused record reports admitted
 input observations, not a new compiler execution. Keep product provenance schemas
 and redaction local, and retain the record through downstream artifact consumption.
 
+Pending 0.17.3 adds `WasmBuildEvidence::acquire(spec, spawn)` for consumers that
+retain a compiled artifact through measurement and export bounded copies. It
+composes the existing resolved snapshot, retained build record and capture owner;
+there is no second cache, recovery lifecycle or automatic report publication.
+`verify_current` requires the acquired build's exact fingerprint to match the
+snapshot and rechecks both semantic identity and conservative raw input identity.
+Call it after measurement before accepting a report. Source custody remains the
+consumer's responsibility; guards cannot detect edits reverted between checks.
+`export_artifact(index, destination, maximum_bytes)` captures outside the retained
+entry, preserves prior output on admission/capture refusal and returns identities
+for the exact exported bytes. Retention failures preserve their existing recovery
+paths. Retain the evidence owner through consumption; a receipt carries no lease.
+
+`cargo::diagnostics` selects bounded library/proc-macro artifacts from complete
+Cargo output and runs a passing compiler control before negative cases. Each case
+must exit with code 1 and contain every nonempty expected literal in complete
+stderr. Consumers own compiler commands, cases, output budgets and retained log
+directories. No retry, tool installation or elapsed-time deadline is introduced.
+
 `InputEvidenceSpec` declares absolute file/directory/missing roots, an opaque
 caller-derived non-file identity, generated-root exclusions and optional exact
 child-name exclusions. It selects no recipes, tools, output roots or time limits.

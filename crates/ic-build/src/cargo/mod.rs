@@ -7,6 +7,7 @@
 #[cfg(test)]
 mod tests;
 
+pub mod diagnostics;
 pub mod environment;
 pub mod execution;
 pub mod flags;

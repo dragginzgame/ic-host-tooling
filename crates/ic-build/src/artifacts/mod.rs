@@ -62,6 +62,7 @@ pub mod candid;
 
 mod cache_fs;
 mod digest;
+mod evidence;
 mod inputs;
 mod phase;
 mod staging;
@@ -78,6 +79,7 @@ mod host_tests;
 
 pub use cache_fs::{ArtifactCacheMaintenance, ArtifactCachePruneReport, CacheRetentionLimits};
 pub use digest::InputDigest;
+pub use evidence::{WasmArtifactReceipt, WasmBuildEvidence};
 pub use inputs::{
     InputEvidence, InputEvidenceError, InputEvidenceSpec, InputEvidenceValue, parse_cargo_depfile,
     read_cargo_depfile_inputs,

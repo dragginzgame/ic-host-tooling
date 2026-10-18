@@ -1,5 +1,54 @@
 # Current handoff
 
+## Current-engine consumer convergence — pending 0.17.3
+
+This batch starts at released main `795143a` (0.17.2). The live sparse index
+confirms published, non-yanked Build 0.17.2 with Rust 1.91. Retained Wasm evidence
+and compile diagnostics from the earlier Wire branches are adapted onto current
+Host 0.27 and the existing cache/decoder/capture owners. Acquisition requires an
+explicit spawner. Evidence compares the acquired build fingerprint and rechecks
+both semantic and conservative raw input identities; source custody and report
+acceptance remain consumer-owned. No new cache, recovery state, tool installer
+or format migration is introduced. Own versions and Cargo.lock are unchanged.
+
+Consumer contributions are isolated from clean source: Query `8982c2a4`,
+Testkit `55ac397`, Wire `ce56d5e`, and Canic draft #596 `b3e760931`.
+The authorized delivery updates [Canic #596](https://github.com/dragginzgame/canic/pull/596)
+to `b9169f165` and opens [Query #84](https://github.com/dragginzgame/ic-query/pull/84)
+at `cf5fe955` and [Testkit #127](https://github.com/dragginzgame/ic-testkit/pull/127)
+at `8a396ba`. These remain open for owner review; Build and Wire changes stay local.
+Normal dirty sibling checkouts are never edited or imported. Query and Testkit
+use registry Build 0.17.2 with complete environments and project captured compiler
+facts. Canic selects registry Build 0.17.2 / direct Host 0.27.3, keeps its custom
+recipes, and carries actual command recipe/environment/tool observations through
+finalization. Provenance no longer performs independent probes or ambient flag
+reconstruction. Generated runtime artifacts use canonical message selection.
+Canic's complete-release admission remains intact; its normal checkout's separate
+Memory/Storage batch is not qualified by this contribution.
+
+Linux checks pass: four new evidence/diagnostic units, all seventeen real Cargo/
+Wasm cases, Rust 1.91 all-target checking and warning-denied Rustdoc, strict
+development Clippy, formatting, snapshot, pins, direct boundaries and doc links.
+Query's thirty smoke cases and Testkit's nineteen driver cases pass on Rust 1.91;
+the affected consumer targets also pass strict Clippy and floor checking.
+Canic passes 99 focused cases, strict all-target Clippy and Rust 1.91 production
+checks. Its first nested-Cargo attempt lacked global offline policy; explicit
+prepared offline execution passes. The opt-in reuse measurement remains ignored.
+
+Wire passes floor example checking/Clippy, nineteen negative diagnostics plus
+passing controls, and an installed PocketIC 16.1 macro trial covering query/update
+exports, typed failures and sixteen rejection cases. The sandbox first refused
+localhost binding; the explicitly elevated retry passes with a prepared Testkit
+server and fresh output paths. No live IC, native macOS or full release gate is
+claimed. Qualification used a frozen producer source override. Wire's reviewed
+registry graph removes its Git-pinned 0.14 engine and Host 0.25 packages, but the
+new APIs still require producer publication; this is a dependent migration,
+not registry-graph compile acceptance. No source override is included in its
+review diff. Full release/integration and published-graph Wire acceptance remain
+separate. Source identities, isolated branches, before-images, qualified graph
+receipts and logs are retained under `/tmp/ic-build-adoption-20261018/`.
+
+
 ## Outcome facts and consumer hard cuts — pending 0.17.2
 
 Over released `86eddca`, Wasm records retain the same Cargo recipe/tool facts

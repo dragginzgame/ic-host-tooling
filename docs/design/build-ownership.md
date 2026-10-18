@@ -35,7 +35,9 @@ where interpretation or normalization is needed; Build does not depend on them.
 Build's `cargo::execution` composes Host communication with Cargo decoding and
 exact artifact selection. `cargo::native` keeps immediate protocol-refusal cleanup;
 the Wasm path instead drains diagnostics after protocol refusal. These distinct
-contracts share decoding, not one imposed failure policy.
+contracts share decoding, not one imposed failure policy. Pending retained-evidence
+and diagnostic adapters compose these existing owners for Wire evaluation; they
+do not own measurement scenarios, report schemas or acceptance/publication.
 
 IC Platform is the Candid/CDK library dependency boundary. Published 0.1.3 is the
 reviewed adoption baseline; Build currently declares no such dependency or uses
