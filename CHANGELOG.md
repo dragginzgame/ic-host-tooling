@@ -31,6 +31,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
   preserving exact senders and log limits while keeping secondary reporting
   failures separate from the original operation failure.
 
+- Add opt-in native typed Wire query/update helpers with explicit callers,
+  method-owned limits, structured codec/call failures and no update retries.
+  Private probe callers now share this transport owner
+  ([#119 — Own typed IC Wire query/update adapters](https://github.com/dragginzgame/ic-testkit/issues/119)).
+
 ## [0.54.1] - 2026-10-18
 
 ### Changed

@@ -91,7 +91,7 @@ tags:
 
 test: build-server-cli
 	+@server="$$("$(SERVER_CLI)" check)" || exit $$?; \
-		POCKET_IC_BIN="$$server" cargo test -p ic-testkit --locked && \
+		POCKET_IC_BIN="$$server" cargo test -p ic-testkit --features wire --locked && \
 		POCKET_IC_BIN="$$server" cargo test -p ic-testkit-dev --locked && \
 		POCKET_IC_BIN="$$server" cargo test -p ic-testkit --locked --test server_runner real_server_runs_a_separate_process_using_environment_startup -- --ignored --exact
 

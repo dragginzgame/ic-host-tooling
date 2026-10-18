@@ -31,6 +31,19 @@ feature. Upgrade Testkit and replace the decoder dependency together, preserving
 caller-selected limits. Existing registry releases serve older Testkit consumers;
 they are not a second maintained decoder implementation.
 
+The optional native `wire` feature adds `pic::query_wire` and `pic::update_wire`.
+Select it with `ic-testkit = { version = "0.54", features = ["wire"] }` and declare
+`ic-wire` for your method contracts. Each helper takes an explicit target/caller
+and borrowed request; the Method owns the exact name, identity, types and finite
+limits. It executes one PocketIC operation without update retries; a refused reply
+does not prove absence of effects. It preserves
+application-level results. `WireCallError` retains typed codec causes, complete
+structured rejections and the existing transport classification. Unrelated panic
+payloads resume. Display omits payloads; raw calls remain available for malformed
+requests and original-byte evidence. Reply admission follows PocketIC's allocation,
+so it supplies no network pre-allocation or peak-heap guarantee. The feature is off
+by default and adds no Wire dependency to the canister library graph.
+
 This is the PocketIC package in the `ic-testkit` workspace. It provides:
 
 - direct re-exports of `PocketIc` and `PocketIcBuilder`

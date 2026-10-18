@@ -18,9 +18,9 @@ use ic_testkit::pic::{
     CachedPocketIcBaselinePool, CanisterSnapshotTarget, FailureDisposition, PocketIc,
     PocketIcBaselineRecipe, PocketIcBuilder, PocketIcInstance, PocketIcStartupConfig,
     PreparedBaseline, ResetPolicies, ResetReceipt, ResetRequirements, SnapshotRestoreFunding,
+    query_wire, update_wire,
 };
 use ic_testkit_perf_probe::protocol::{InspectState, MutateState, SeedState, State};
-use ic_wire::Method;
 
 type Result<T> = std::result::Result<T, Box<dyn Error + Send + Sync>>;
 const TIMEOUT: Duration = Duration::from_secs(30);
@@ -75,20 +75,8 @@ impl Recipe {
             pic.instance.add_cycles(id, 5_000_000_000_000);
             pic.instance
                 .install_canister(id, self.wasm.to_vec(), vec![], None);
-            let reply = pic
-                .instance
-                .update_call(
-                    id,
-                    ic_platform::Principal::anonymous(),
-                    SeedState::NAME,
-                    ic_wire::encode_request::<SeedState>(&self.state_bytes)
-                        .map_err(recipe_error)?
-                        .into_bytes(),
-                )
-                .map_err(|error| {
-                    recipe_error(io::Error::other(format!("seed probe rejected: {error:?}")))
-                })?;
-            ic_wire::decode_response::<SeedState>(&reply).map_err(recipe_error)?;
+            update_wire::<SeedState>(&pic.instance, id, Principal::anonymous(), &self.state_bytes)
+                .map_err(recipe_error)?;
         }
         Ok((pic, ids))
     }
@@ -106,21 +94,8 @@ impl Recipe {
             first,
         };
         for id in ids {
-            let reply = pic
-                .query_call(
-                    *id,
-                    ic_platform::Principal::anonymous(),
-                    InspectState::NAME,
-                    ic_wire::encode_request::<InspectState>(&())
-                        .map_err(recipe_error)?
-                        .into_bytes(),
-                )
-                .map_err(|error| {
-                    recipe_error(io::Error::other(format!(
-                        "inspect probe rejected: {error:?}"
-                    )))
-                })?;
-            let state = ic_wire::decode_response::<InspectState>(&reply).map_err(recipe_error)?;
+            let state = query_wire::<InspectState>(pic, *id, Principal::anonymous(), &())
+                .map_err(recipe_error)?;
             if state != expected {
                 return Err(recipe_error(io::Error::other(format!(
                     "fixture state mismatch: expected {expected:?}, got {state:?}"
@@ -132,15 +107,7 @@ impl Recipe {
 
     fn exercise(&self, pic: &PocketIc, ids: &[Principal; 2]) -> Result<()> {
         for id in ids {
-            let reply = pic
-                .update_call(
-                    *id,
-                    ic_platform::Principal::anonymous(),
-                    MutateState::NAME,
-                    ic_wire::encode_request::<MutateState>(&())?.into_bytes(),
-                )
-                .map_err(|error| io::Error::other(format!("mutate probe rejected: {error:?}")))?;
-            ic_wire::decode_response::<MutateState>(&reply)?;
+            update_wire::<MutateState>(pic, *id, Principal::anonymous(), &())?;
         }
         self.validate_state(pic, ids, true)?;
         Ok(())
