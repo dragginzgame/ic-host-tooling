@@ -164,7 +164,7 @@ Enable `ic-testkit`'s `reply-fixtures` feature to use
 `pic::fixtures::raw_reply_canister`. Supply exact raw reply bytes and explicit
 aggregate method-count, UTF-8 method-name and reply-byte ceilings. Empty or
 control-containing names, duplicate exports and unsupported Wasm32 extents are
-rejected before encoding. Query and update exports may share a method name.
+rejected before encoding. Method names must be unique across query and update exports.
 The generated memory has a fixed maximum and can hold replies spanning pages.
 This helper does not decode Candid, install canisters, select principals or fund
 instances; keep product reply catalogs and assertions in the consuming tests.
