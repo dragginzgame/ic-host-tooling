@@ -4,21 +4,26 @@ use ic_host_fs::owned_directory::OwnedDirectory;
 use std::{fs, io};
 
 #[test]
-fn owned_directory_cleans_up_on_unwind_and_preserves_transferred_custody() {
-    let root = unique_temp_directory("owned-directory-unwind");
-    let owned = root.join("owned");
-    let retained = root.join("retained");
-    fs::create_dir(&owned).unwrap();
-    fs::create_dir(&retained).unwrap();
-    fs::write(retained.join("evidence"), b"retained").unwrap();
-    let result = std::panic::catch_unwind(|| {
-        let _owned = OwnedDirectory::new(owned.clone());
-        OwnedDirectory::new(retained.clone()).preserve();
+fn staging_unwind_cleans_up_only_owned_children_and_preserves_retained_capture() {
+    let root = unique_temp_directory("staging-unwind");
+    let source = root.join("source");
+    fs::write(&source, b"retained").unwrap();
+    let mut owned = None;
+    let mut retained = None;
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let staging = ArtifactStagingDirectory::new(&root).unwrap();
+        owned = Some(staging.path().to_owned());
+        retained = Some(
+            CapturedArtifact::capture(&source, &root, 8)
+                .unwrap()
+                .retain(),
+        );
         panic!("synthetic producer panic");
-    });
+    }));
     assert!(result.is_err());
-    assert!(!owned.exists());
-    assert_eq!(fs::read(retained.join("evidence")).unwrap(), b"retained");
+    assert!(!owned.unwrap().exists());
+    assert_eq!(fs::read(retained.unwrap()).unwrap(), b"retained");
+    assert_eq!(fs::read(&source).unwrap(), b"retained");
     fs::remove_dir_all(root).unwrap();
 }
 

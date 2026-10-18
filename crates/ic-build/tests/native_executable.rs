@@ -5,7 +5,7 @@ use ic_build::cargo::selection::CargoSelection;
 
 mod support;
 
-use ic_build::cargo::native::{NativeExecutableSpec, build_native_executable};
+use ic_build::cargo::native::{NativeExecutableSpec, NativeTargetKind, build_native_executable};
 use ic_host_process::{child::OwnedChild, tool::ToolError};
 use std::{cell::Cell, ffi::OsString, fs, process::Command};
 
@@ -21,7 +21,7 @@ fn actual_cargo_reports_custom_profile_executable_and_streams_failed_build_diagn
     let spec = NativeExecutableSpec {
         package: "native-fixture",
         target_name: "worker",
-        target_kind: "example",
+        target_kind: NativeTargetKind::Example,
         selection: CargoSelection {
             profile: Some("custom".into()),
             locked: true,
@@ -49,7 +49,7 @@ fn actual_cargo_reports_custom_profile_executable_and_streams_failed_build_diagn
     );
     let binary = NativeExecutableSpec {
         target_name: "native-fixture",
-        target_kind: "bin",
+        target_kind: NativeTargetKind::Binary,
         ..spec.clone()
     };
     let built = build_native_executable(

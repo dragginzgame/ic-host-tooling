@@ -18,6 +18,41 @@ const fn limits() -> PackageQualificationLimits {
 }
 
 #[test]
+fn verification_manifest_preserves_members_and_only_selected_patches() {
+    let specs = [
+        PackageArchiveSpec {
+            name: "first-package",
+            version: "1.0.0-rc.1+build",
+            patch_registry: true,
+        },
+        PackageArchiveSpec {
+            name: "second_package",
+            version: "2.0.0",
+            patch_registry: false,
+        },
+    ];
+    let manifest: toml::Table = toml::from_str(&verification_manifest(&specs).unwrap()).unwrap();
+    let expected: toml::Table = toml::from_str(
+        r#"
+        [workspace]
+        resolver = "3"
+        members = ["first-package-1.0.0-rc.1+build", "second_package-2.0.0"]
+        [patch.crates-io]
+        first-package = { path = "first-package-1.0.0-rc.1+build" }
+        "#,
+    )
+    .unwrap();
+    assert_eq!(manifest, expected);
+    let unpatched = [PackageArchiveSpec {
+        patch_registry: false,
+        ..specs[0]
+    }];
+    let manifest: toml::Table =
+        toml::from_str(&verification_manifest(&unpatched).unwrap()).unwrap();
+    assert_eq!(manifest["patch"]["crates-io"].as_table().unwrap().len(), 0);
+}
+
+#[test]
 fn invalid_selection_and_occupied_evidence_do_not_invoke_tools() {
     let root = unique_temp_directory("package-admission");
     let evidence = root.join("evidence");

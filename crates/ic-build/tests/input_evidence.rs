@@ -3,7 +3,7 @@
 mod support;
 
 use ic_build::artifacts::{
-    InputEvidence, InputEvidenceError, InputEvidenceSpec, discover_cargo_depfile_inputs,
+    InputEvidence, InputEvidenceError, InputEvidenceSpec, read_cargo_depfile_inputs,
 };
 use std::{fs, process::Command};
 
@@ -37,10 +37,9 @@ fn real_cargo_depfiles_retain_external_include_evidence() {
         "{}",
         String::from_utf8_lossy(&output.stderr)
     );
-    let directories = [target.join("debug"), target.join("debug/deps")];
-    let paths = discover_cargo_depfile_inputs(
+    let paths = read_cargo_depfile_inputs(
         &root,
-        &directories,
+        &target.join("debug/libevidence_fixture.d"),
         std::slice::from_ref(&target),
         64 * 1024,
     )

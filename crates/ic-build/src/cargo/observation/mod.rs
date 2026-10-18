@@ -15,14 +15,11 @@ pub use cargo_metadata as schema;
 
 use super::selection::{CargoFeatureSelection, graph_arguments};
 use ic_host_process::tool::{CompletedExecution, OutputLimits, capture_command};
-use serde::Deserialize;
-use serde_json::Value;
 use std::{path::Path, process::Command};
 
-// Borrow the captured document so cache owners can retain its exact projection
-// without cloning the JSON tree or rebuilding it from normalized schema fields.
-pub(crate) fn decode_metadata(value: &Value) -> Result<schema::Metadata, serde_json::Error> {
-    schema::Metadata::deserialize(value)
+// Decode complete captured bytes once through Cargo's canonical schema.
+pub(crate) fn decode_metadata(bytes: &[u8]) -> Result<schema::Metadata, serde_json::Error> {
+    serde_json::from_slice(bytes)
 }
 
 /// One Cargo metadata observation; package/role interpretation stays with callers.
@@ -91,7 +88,7 @@ pub fn observe_metadata(
         command.arg("--filter-platform").arg(target);
     }
     let output = capture(&mut command, limits)?;
-    Ok(serde_json::from_slice(&output.stdout)?)
+    Ok(decode_metadata(&output.stdout)?)
 }
 
 /// Observe a depth-prefixed, non-deduplicated package-selected Cargo tree.

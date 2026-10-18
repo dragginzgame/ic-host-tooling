@@ -2,8 +2,8 @@ use crate::batch::BatchLabelError;
 use std::{cell::Cell, fs};
 
 use super::{
-    ArtifactCacheBatchEntry, ArtifactCacheBatchFailure, ArtifactCacheBatchFailurePhase,
-    LabeledArtifactCacheSpec, build_artifact_caches_batch,
+    ArtifactCacheBatchEntry, ArtifactCacheBatchFailure, LabeledArtifactCacheSpec,
+    build_artifact_caches_batch,
 };
 use crate::artifacts::{
     ArtifactCacheOutcome, ArtifactCachePreparation, ArtifactCacheSpec, prepare_artifact_cache,
@@ -130,16 +130,12 @@ fn callback_failure_retains_label_timings_and_later_transaction() {
         failure.entry_elapsed(),
         failure.failure().unwrap().timings().total()
     );
-    assert_eq!(
-        failure.failure().unwrap().phase(),
-        ArtifactCacheBatchFailurePhase::Callback
-    );
     assert!(failure.failure().unwrap().timings().callback().is_some());
     assert!(failure.failure().unwrap().timings().cleanup().is_some());
     assert!(failure.failure().unwrap().timings().commit().is_none());
     assert!(matches!(
         failure.failure().unwrap(),
-        ArtifactCacheBatchFailure::Build {
+        ArtifactCacheBatchFailure::Callback {
             cleanup_error: None,
             ..
         }
@@ -189,7 +185,7 @@ fn callback_and_abort_failures_retain_both_causes_and_continue() {
     });
     let report = report.unwrap();
     let failed = report.failures().next().unwrap();
-    let ArtifactCacheBatchFailure::Build {
+    let ArtifactCacheBatchFailure::Callback {
         source,
         cleanup_error: Some(cleanup),
         timings,
@@ -247,16 +243,12 @@ fn preparation_failure_is_labeled_timed_and_does_not_stop_later_entries() {
         failure.entry_elapsed(),
         failure.failure().unwrap().timings().total()
     );
-    assert_eq!(
-        failure.failure().unwrap().phase(),
-        ArtifactCacheBatchFailurePhase::Preparation
-    );
     assert!(failure.failure().unwrap().timings().callback().is_none());
     assert!(failure.failure().unwrap().timings().cleanup().is_none());
     assert!(failure.failure().unwrap().timings().commit().is_none());
     assert!(matches!(
         failure.failure().unwrap(),
-        ArtifactCacheBatchFailure::Cache { .. }
+        ArtifactCacheBatchFailure::Preparation { .. }
     ));
     assert_eq!(fs::read(root.join("third.out")).unwrap(), b"output-third");
     fs::remove_dir_all(root).expect("remove artifact cache failure fixture");
@@ -291,10 +283,6 @@ fn commit_failure_is_labeled_timed_and_does_not_stop_later_entries() {
     let failure = &failures[0];
     assert_eq!(failure.label(), "second");
     assert_eq!(
-        failure.failure().unwrap().phase(),
-        ArtifactCacheBatchFailurePhase::Commit
-    );
-    assert_eq!(
         failure.entry_elapsed(),
         failure.failure().unwrap().timings().total()
     );
@@ -303,7 +291,7 @@ fn commit_failure_is_labeled_timed_and_does_not_stop_later_entries() {
     assert!(failure.failure().unwrap().timings().commit().is_some());
     assert!(matches!(
         failure.failure().unwrap(),
-        ArtifactCacheBatchFailure::Cache { .. }
+        ArtifactCacheBatchFailure::Commit { .. }
     ));
     assert!(!root.join("second.out").exists());
     assert_eq!(fs::read(root.join("third.out")).unwrap(), b"output-third");

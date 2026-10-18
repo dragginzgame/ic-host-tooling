@@ -4,15 +4,15 @@
 
 mod support;
 
+use ic_host_process::child::OwnedChild;
 use ic_host_process::testing::{
     crash_barrier::{wait_for_child_path, wait_for_path},
     write_executable_script,
 };
 
 use ic_build::artifacts::{
-    SharedIncrementalTargetMaintenanceOutcome, SharedIncrementalTargetPrunePolicy,
-    WasmBuildOutcome, WasmBuildSpec, build_wasm_canisters_cached,
-    maintain_shared_incremental_target_at_most_every,
+    CacheRetentionLimits, SharedIncrementalTargetMaintenanceOutcome, WasmBuildOutcome,
+    WasmBuildSpec, build_wasm_canisters_cached, maintain_shared_incremental_target_at_most_every,
 };
 use std::{
     ffi::OsString,
@@ -129,10 +129,11 @@ fn shared_incremental_process_worker() {
         &workspace,
         &root.join(format!("cache-{worker}")),
         &["fixture"],
+        support::cargo::environment(),
     )
     .with_shared_incremental_target(root.join("shared-target"))
     .with_cargo_program(root.join("cargo-wrapper.sh"))
-    .with_extra_env([
+    .with_environment(support::cargo::environment_with([
         (OsString::from("REAL_CARGO"), real_cargo),
         (
             OsString::from("IC_TESTKIT_ACTIVE_BUILD"),
@@ -150,9 +151,10 @@ fn shared_incremental_process_worker() {
             OsString::from("IC_TESTKIT_WORKER_VARIANT"),
             OsString::from(worker),
         ),
-    ]);
+    ]));
 
-    let outcome = build_wasm_canisters_cached(&spec).expect("run shared-target worker build");
+    let outcome = build_wasm_canisters_cached(&spec, OwnedChild::spawn_direct)
+        .expect("run shared-target worker build");
     assert!(matches!(outcome, WasmBuildOutcome::Built(_)));
 }
 
@@ -176,11 +178,12 @@ fn scheduled_shared_target_maintenance_process_worker() {
         &workspace,
         &root.join(format!("cache-{worker}")),
         &["fixture"],
+        support::cargo::environment(),
     )
     .with_shared_incremental_target(root.join("shared-target"));
     let outcome = maintain_shared_incremental_target_at_most_every(
         &spec,
-        SharedIncrementalTargetPrunePolicy::new().with_max_size_bytes(u64::MAX),
+        CacheRetentionLimits::new().with_max_size_bytes(u64::MAX),
         Duration::from_hours(1),
     )
     .expect("run scheduled shared-target maintenance worker");

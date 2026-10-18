@@ -135,36 +135,34 @@ checksum = "ed5909b6e89a2db4456e54cd5f673791d7eca6732202bbf2a9cc504fe2f9b84a"
 
 [[package]]
 name = "ic-build"
-version = "0.15.0"
+version = "0.17.6"
 dependencies = [
  "cargo_metadata",
  "ic-host-artifacts",
  "ic-host-fs",
  "ic-host-process",
- "libc",
  "rustix",
  "serde",
  "serde_json",
  "sha2",
+ "thiserror",
  "toml",
 ]
 
 [[package]]
 name = "ic-host-artifacts"
-version = "0.26.1"
+version = "0.27.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c4c6f68dc69e6755bcb43f88aa2778dc8598e12cc3261314bbf49e006e7b79ce"
+checksum = "13b8109ebc6125c90fee344b65c8223c70ea4050d842f2fd23df1e6e714bd8e4"
 dependencies = [
- "leb128",
  "sha2",
- "wasmparser",
 ]
 
 [[package]]
 name = "ic-host-fs"
-version = "0.26.1"
+version = "0.27.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2512971658e8a048fa1e36154e7fef1704920f5257febc6764c99a59bc444be4"
+checksum = "e271757912be279019c27462dff84a39ca597b135ac607d33db3ce52d60bda54"
 dependencies = [
  "ic-host-artifacts",
  "rustix",
@@ -173,9 +171,9 @@ dependencies = [
 
 [[package]]
 name = "ic-host-process"
-version = "0.26.1"
+version = "0.27.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dc6ece3c0dfc22228de37fba171fe85601ba9f906712e50afce2ac3060ddf11c"
+checksum = "b8089e91a074c14b5554dbe758cbe6eb75e03615cb49a5cd7b8699dca2d4bceb"
 dependencies = [
  "command-fds",
  "ic-host-artifacts",
@@ -199,12 +197,6 @@ name = "itoa"
 version = "1.0.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8f42a60cbdf9a97f5d2305f08a87dc4e09308d1276d28c869c684d7777685682"
-
-[[package]]
-name = "leb128"
-version = "0.2.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c83bff1d572d6b9aeef67ddfc8448e4a3737909cb28e81f97c791b9018703e52"
 
 [[package]]
 name = "libc"
@@ -427,16 +419,6 @@ name = "version_check"
 version = "0.9.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
-
-[[package]]
-name = "wasmparser"
-version = "0.261.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4f20f20e44f7e8aeb6744823ea9d869ede51e51be4fdaedede2852282e54d2d8"
-dependencies = [
- "bitflags",
- "indexmap",
-]
 
 [[package]]
 name = "windows-link"

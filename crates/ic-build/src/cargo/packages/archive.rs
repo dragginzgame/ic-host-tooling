@@ -238,21 +238,7 @@ fn qualify(
         evidence.join("entry-sources.json"),
         serde_json::to_vec(&sources)?,
     )?;
-    let members = packages
-        .iter()
-        .map(|p| format!("{}-{}", p.name, p.version))
-        .collect::<Vec<_>>();
-    let mut manifest = format!(
-        "[workspace]\nresolver = \"3\"\nmembers = {}\n[patch.crates-io]\n",
-        serde_json::to_string(&members)?
-    );
-    for spec in packages.iter().filter(|p| p.patch_registry) {
-        writeln!(
-            manifest,
-            "{} = {{ path = \"{}-{}\" }}",
-            spec.name, spec.name, spec.version
-        )?;
-    }
+    let manifest = verification_manifest(packages)?;
     let manifest_path = evidence.join("Cargo.toml");
     let payload_lock = evidence.join("Cargo.lock");
     fs::write(&manifest_path, &manifest)?;
@@ -312,6 +298,28 @@ fn qualify(
         return Err("admitted verification manifest or lock changed".into());
     }
     Ok(())
+}
+
+fn verification_manifest(packages: &[PackageArchiveSpec<'_>]) -> Result<String, toml::ser::Error> {
+    let members = packages
+        .iter()
+        .map(|p| format!("{}-{}", p.name, p.version))
+        .collect::<Vec<_>>();
+    let patches: toml::Table = packages
+        .iter()
+        .filter(|p| p.patch_registry)
+        .map(|p| {
+            let entry = toml::toml! { path = (format!("{}-{}", p.name, p.version)) };
+            (p.name.to_owned(), toml::Value::Table(entry))
+        })
+        .collect();
+    toml::to_string(&toml::toml! {
+        [workspace]
+        resolver = "3"
+        members = (members)
+        [patch]
+        crates-io = (patches)
+    })
 }
 
 fn identifier(value: &str) -> bool {

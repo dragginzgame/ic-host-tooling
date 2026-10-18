@@ -1,40 +1,48 @@
-//! Exercise Cargo's effective flag precedence in isolated child processes.
+//! Pure inherited-flag precedence and one real Cargo argument-boundary check.
 
 use crate::cargo::flags::combined_encoded_rustflags;
 use std::{env, fs, process::Command};
 
-const CASE_ENV: &str = "IC_BUILD_FLAGS_TEST_CASE";
+#[test]
+fn inherited_flag_precedence_preserves_empty_values_and_argument_boundaries() {
+    let additions = [String::new(), "--cfg".into(), "extra".into(), String::new()];
+    for (encoded, ordinary, inherited) in [
+        (
+            Some("--cfg\x1fcaller_encoded"),
+            Some("--cfg ignored"),
+            "--cfg\x1fcaller_encoded",
+        ),
+        (Some(""), Some("--cfg ignored"), ""),
+        (
+            None,
+            Some("--cfg caller_ordinary"),
+            "--cfg\x1fcaller_ordinary",
+        ),
+        (
+            None,
+            Some("\t--cfg  caller_ordinary\n"),
+            "--cfg\x1fcaller_ordinary",
+        ),
+        (None, None, ""),
+    ] {
+        let expected = if inherited.is_empty() {
+            "--cfg\x1fextra\x1f".to_owned()
+        } else {
+            format!("{inherited}\x1f\x1f--cfg\x1fextra\x1f")
+        };
+        assert_eq!(
+            combined_encoded_rustflags(encoded, ordinary, &additions),
+            Some(expected)
+        );
+        assert_eq!(combined_encoded_rustflags(encoded, ordinary, &[]), None);
+    }
+}
 
 #[test]
 fn caller_flags_and_release_remaps_reach_cargo() {
-    let Ok(case) = env::var(CASE_ENV) else {
-        run_cargo_flag_cases();
-        return;
-    };
-
-    let inherited = match case.as_str() {
-        "encoded" | "no_additions" => "--cfg\x1fcaller_encoded",
-        "ordinary" | "whitespace" => "--cfg\x1fcaller_ordinary",
-        _ => "",
-    };
-    let expected = if inherited.is_empty() {
-        "--cfg\x1fextra\x1f".to_owned()
-    } else {
-        format!("{inherited}\x1f\x1f--cfg\x1fextra\x1f")
-    };
-    assert_eq!(
-        combined_encoded_rustflags(
-            &[String::new(), "--cfg".into(), "extra".into(), String::new(),]
-        ),
-        Some(expected)
-    );
-
-    // Spaces must remain inside the remap argument, not become new rustc tokens.
-    let root = ic_host_fs::testing::create_fixture_directory(
-        &env::temp_dir(),
-        &format!("ic build flags {case}"),
-    )
-    .unwrap();
+    let root =
+        ic_host_fs::testing::create_fixture_directory(&env::temp_dir(), "ic build flags explicit")
+            .unwrap();
     fs::create_dir_all(root.join("src")).unwrap();
     fs::write(
         root.join("Cargo.toml"),
@@ -48,91 +56,36 @@ fn caller_flags_and_release_remaps_reach_cargo() {
         format!(
             "#![allow(unexpected_cfgs)]\ninclude!({source:?});\nfn main() {{ println!(\"{{}}|{{}}|{{}}\", SOURCE, cfg!(caller_encoded), cfg!(caller_ordinary)); }}\n"
         ),
+    ).unwrap();
+    let additions = [format!(
+        "--remap-path-prefix={}=/trimmed flags",
+        root.display()
+    )];
+    let flags = combined_encoded_rustflags(
+        Some("--cfg\x1fcaller_encoded"),
+        Some("--cfg caller_ordinary"),
+        &additions,
     )
     .unwrap();
-    let additions = if case == "no_additions" {
-        vec![]
-    } else {
-        vec![format!(
-            "--remap-path-prefix={}=/trimmed flags",
-            root.display()
-        )]
-    };
-    let flags = combined_encoded_rustflags(&additions);
-    assert_eq!(flags.is_none(), case == "no_additions");
-    let mut cargo = Command::new("cargo");
-    cargo
+    let output = Command::new(env!("CARGO"))
         .current_dir(&root)
         .args(["run", "--offline", "--quiet"])
+        .env("CARGO_ENCODED_RUSTFLAGS", flags)
+        .env("RUSTFLAGS", "--cfg caller_ordinary")
         .env("CARGO_TARGET_DIR", root.join("target"))
         .env_remove("CARGO_BUILD_TARGET")
         .env_remove("RUSTC_WRAPPER")
-        .env_remove("RUSTC_WORKSPACE_WRAPPER");
-    if let Some(flags) = flags {
-        cargo.env("CARGO_ENCODED_RUSTFLAGS", flags);
-    }
-    let output = cargo.output().unwrap();
+        .env_remove("RUSTC_WORKSPACE_WRAPPER")
+        .output()
+        .unwrap();
     assert!(
         output.status.success(),
-        "{case}: {}",
+        "{}",
         String::from_utf8_lossy(&output.stderr)
     );
-    let path = if case == "no_additions" {
-        source.to_string_lossy().into_owned()
-    } else {
-        "/trimmed flags/src/absolute.rs".to_string()
-    };
     assert_eq!(
         String::from_utf8(output.stdout).unwrap().trim(),
-        format!(
-            "{path}|{}|{}",
-            matches!(case.as_str(), "encoded" | "no_additions"),
-            matches!(case.as_str(), "ordinary" | "whitespace")
-        )
+        "/trimmed flags/src/absolute.rs|true|false"
     );
     fs::remove_dir_all(&root).unwrap();
-}
-
-fn run_cargo_flag_cases() {
-    for case in [
-        "encoded",
-        "empty",
-        "ordinary",
-        "whitespace",
-        "absent",
-        "no_additions",
-    ] {
-        let mut child = Command::new(env::current_exe().unwrap());
-        child
-            .args([
-                "--exact",
-                "cargo::flags::tests::caller_flags_and_release_remaps_reach_cargo",
-                "--nocapture",
-            ])
-            .env(CASE_ENV, case)
-            .env_remove("RUSTFLAGS")
-            .env_remove("CARGO_ENCODED_RUSTFLAGS");
-        if case != "absent" {
-            child.env("RUSTFLAGS", "--cfg caller_ordinary");
-        }
-        match case {
-            "encoded" | "no_additions" => {
-                child.env("CARGO_ENCODED_RUSTFLAGS", "--cfg\x1fcaller_encoded");
-            }
-            "empty" => {
-                child.env("CARGO_ENCODED_RUSTFLAGS", "");
-            }
-            "whitespace" => {
-                child.env("RUSTFLAGS", "\t--cfg  caller_ordinary\n");
-            }
-            _ => {}
-        }
-        let output = child.output().unwrap();
-        assert!(
-            output.status.success(),
-            "{case}: {}\n{}",
-            String::from_utf8_lossy(&output.stdout),
-            String::from_utf8_lossy(&output.stderr)
-        );
-    }
 }

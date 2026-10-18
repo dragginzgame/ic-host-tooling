@@ -1,7 +1,7 @@
 use crate::artifacts::{
     InputEvidence, InputEvidenceError, InputEvidenceSpec, InputEvidenceValue,
     digest::{InputHasher, digest_labeled_paths},
-    discover_cargo_depfile_inputs, parse_cargo_depfile, read_cargo_depfile_inputs,
+    parse_cargo_depfile, read_cargo_depfile_inputs,
 };
 use crate::fs_fixture::unique_temp_directory;
 use sha2::{Digest as _, Sha256};
@@ -376,7 +376,7 @@ fn depfiles_support_escaped_paths_multiple_rules_and_phony_targets() {
 }
 
 #[test]
-fn depfile_discovery_and_disappearing_records_preserve_external_custody() {
+fn depfile_reads_and_disappearing_records_preserve_external_custody() {
     let root = unique_temp_directory("input-evidence-depfiles");
     let records = root.join("target");
     let external = root.join("external");
@@ -386,36 +386,19 @@ fn depfile_discovery_and_disappearing_records_preserve_external_custody() {
     fs::write(records.join("generated"), b"output").unwrap();
     let record = records.join("role.d");
     fs::write(&record, "role: external target/generated\n").unwrap();
-    let paths = discover_cargo_depfile_inputs(
-        &root,
-        std::slice::from_ref(&records),
-        std::slice::from_ref(&records),
-        4096,
-    )
-    .unwrap();
+    let paths =
+        read_cargo_depfile_inputs(&root, &record, std::slice::from_ref(&records), 4096).unwrap();
     assert_eq!(paths, std::slice::from_ref(&external));
-    fs::write(
-        records.join("second.d"),
-        "other: external/source external\n",
-    )
-    .unwrap();
-    assert_eq!(
-        discover_cargo_depfile_inputs(
-            &root,
-            &[records.clone(), records.clone()],
-            std::slice::from_ref(&records),
-            4096,
-        )
-        .unwrap(),
-        [external.clone(), external.join("source")]
-    );
-    fs::remove_file(records.join("second.d")).unwrap();
     let before = capture(b"same authority", &paths);
     fs::remove_file(&record).unwrap();
-    let paths =
-        discover_cargo_depfile_inputs(&root, std::slice::from_ref(&records), &[], 4096).unwrap();
-    assert_eq!(paths, [] as [PathBuf; 0]);
-    let after = evidence_spec(b"same authority", &paths);
+    assert_eq!(
+        read_cargo_depfile_inputs(&root, &record, &[], 4096)
+            .unwrap_err()
+            .kind(),
+        io::ErrorKind::NotFound
+    );
+    // The consumer may select an empty cold inventory; it cannot drop custody.
+    let after = evidence_spec(b"same authority", &[]);
     before.validate_after(&after).unwrap();
     let added = external.join("added");
     fs::write(&added, b"late bytes").unwrap();
@@ -447,9 +430,6 @@ fn selected_depfile_keeps_foreign_records_out_and_refuses_late_input_authority()
         assert!(read_cargo_depfile_inputs(&root, &alias, &[], 4096).is_err());
     }
     let before = capture(b"selected recipe", &paths);
-    assert!(
-        discover_cargo_depfile_inputs(&root, std::slice::from_ref(&records), &[], 4096).is_err()
-    );
     let late = root.join("late.rs");
     fs::write(&late, b"late bytes").unwrap();
     fs::write(&record, "selected: source.rs late.rs\n").unwrap();
@@ -472,18 +452,18 @@ fn selected_depfile_keeps_foreign_records_out_and_refuses_late_input_authority()
 }
 
 #[test]
-fn malformed_or_oversized_depfiles_refuse_the_entire_discovery() {
+fn malformed_or_oversized_depfiles_refuse_the_entire_record() {
     let root = unique_temp_directory("input-evidence-invalid-records");
     fs::write(root.join("good.d"), "role: source.rs\n").unwrap();
     fs::write(root.join("bad.d"), "role: $(unadmitted)\n").unwrap();
     assert_eq!(
-        discover_cargo_depfile_inputs(&root, std::slice::from_ref(&root), &[], 4096)
+        read_cargo_depfile_inputs(&root, &root.join("bad.d"), &[], 4096)
             .unwrap_err()
             .kind(),
         io::ErrorKind::InvalidData
     );
     fs::remove_file(root.join("bad.d")).unwrap();
-    assert!(discover_cargo_depfile_inputs(&root, std::slice::from_ref(&root), &[], 1).is_err());
+    assert!(read_cargo_depfile_inputs(&root, &root.join("good.d"), &[], 1).is_err());
     #[cfg(unix)]
     {
         // Syntax refusal precedes canonicalization, even when an earlier token
@@ -496,17 +476,9 @@ fn malformed_or_oversized_depfiles_refuse_the_entire_discovery() {
                 .kind(),
             io::ErrorKind::InvalidData
         );
-        assert_eq!(
-            discover_cargo_depfile_inputs(&root, std::slice::from_ref(&root), &[], 4096)
-                .unwrap_err()
-                .kind(),
-            io::ErrorKind::InvalidData
-        );
         fs::remove_file(root.join("bad.d")).unwrap();
         std::os::unix::fs::symlink(root.join("good.d"), root.join("alias.d")).unwrap();
-        assert!(
-            discover_cargo_depfile_inputs(&root, std::slice::from_ref(&root), &[], 4096).is_err()
-        );
+        assert!(read_cargo_depfile_inputs(&root, &root.join("alias.d"), &[], 4096).is_err());
     }
     fs::remove_dir_all(root).unwrap();
 }
@@ -521,8 +493,7 @@ fn replaced_depfile_cannot_authorize_late_bytes_or_drop_old_file_custody() {
     fs::write(&original, b"original").unwrap();
     let record = records.join("role.d");
     fs::write(&record, "role: original.rs\n").unwrap();
-    let discover =
-        || discover_cargo_depfile_inputs(&root, std::slice::from_ref(&records), &[], 4096).unwrap();
+    let discover = || read_cargo_depfile_inputs(&root, &record, &[], 4096).unwrap();
     let before = capture(b"authority", &discover());
     fs::write(&late, b"late").unwrap();
     fs::write(&record, "role: late.rs\n").unwrap();
@@ -553,7 +524,7 @@ fn overlapping_directory_spellings_are_complete_not_false_absence() {
 }
 
 #[test]
-fn missing_generated_traversal_and_cold_record_directories_are_conservative() {
+fn missing_generated_traversal_and_cold_records_are_conservative() {
     let root = unique_temp_directory("input-evidence-generated");
     let generated = root.join("generated");
     fs::create_dir(&generated).unwrap();
@@ -563,9 +534,9 @@ fn missing_generated_traversal_and_cold_record_directories_are_conservative() {
     )
     .unwrap();
     assert_eq!(
-        discover_cargo_depfile_inputs(
+        read_cargo_depfile_inputs(
             &root,
-            std::slice::from_ref(&root),
+            &root.join("role.d"),
             std::slice::from_ref(&generated),
             4096
         )
@@ -573,8 +544,10 @@ fn missing_generated_traversal_and_cold_record_directories_are_conservative() {
         [generated.join("../external.rs")]
     );
     assert_eq!(
-        discover_cargo_depfile_inputs(&root, &[root.join("cold")], &[], 4096).unwrap(),
-        [] as [PathBuf; 0]
+        read_cargo_depfile_inputs(&root, &root.join("cold/role.d"), &[], 4096)
+            .unwrap_err()
+            .kind(),
+        io::ErrorKind::NotFound
     );
     fs::remove_dir_all(root).unwrap();
 }
@@ -657,13 +630,7 @@ fn generated_ownership_uses_resolved_paths_and_preserves_external_inputs() {
     let record = output.join("role.d");
     fs::write(&record, "role: alias/../target/translations.json\n").unwrap();
     let discover = || {
-        discover_cargo_depfile_inputs(
-            &root,
-            std::slice::from_ref(&output),
-            &[root.join("alias/../target")],
-            4096,
-        )
-        .unwrap()
+        read_cargo_depfile_inputs(&root, &record, &[root.join("alias/../target")], 4096).unwrap()
     };
     assert_eq!(discover(), [] as [PathBuf; 0]);
     fs::write(&record, "role: target/../authored.json\n").unwrap();
