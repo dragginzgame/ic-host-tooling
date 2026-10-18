@@ -4,7 +4,7 @@ use super::{
     prune_artifact_cache, resolve_key,
 };
 use crate::artifacts::{
-    ArtifactCacheMaintenance, ArtifactCachePrunePolicy, WasmBuildSpec, resolve_cargo_build_inputs,
+    ArtifactCacheMaintenance, CacheRetentionLimits, WasmBuildSpec, resolve_cargo_build_inputs,
 };
 use crate::fs_fixture::unique_temp_directory;
 use std::{
@@ -161,7 +161,12 @@ fn cargo_snapshot_keys_semantic_identity_and_guards_raw_workspace_inputs() {
         .expect("write Cargo snapshot workspace manifest");
     };
     write_workspace("host_dep_a");
-    let build_spec = WasmBuildSpec::new(&root, &root.join("target"), &["canister"]);
+    let build_spec = WasmBuildSpec::new(
+        &root,
+        &root.join("target"),
+        &["canister"],
+        crate::cargo_fixture::environment(),
+    );
     let before = resolve_cargo_build_inputs(&build_spec).expect("resolve first Cargo snapshot");
     let artifact_spec = |resolved| {
         ArtifactCacheSpec::new(&root.join("cache"), "post-link", "recipe/v1")
@@ -499,6 +504,59 @@ fn incomplete_output_set_fails_and_removes_staging() {
 }
 
 #[test]
+fn preparation_input_race_refuses_once_and_preserves_retained_output() {
+    let root = unique_temp_directory("preparation-input-race");
+    let input = root.join("input");
+    fs::write(&input, b"before").unwrap();
+    let spec = ArtifactCacheSpec::new(&root.join("cache"), "race", "recipe/v1")
+        .with_input("input", &input)
+        .with_output("output", &root.join("output"));
+    let retained = build_output(&spec, b"retained");
+    let before = retained.record().input_digest();
+    let lock_path = super::content_lock_path(&spec, retained.record().key());
+    // Only this fixture owns the idle content lock. A newly created file then
+    // proves preparation has captured the original key, before namespace lookup.
+    fs::remove_file(&lock_path).unwrap();
+    let (namespace_lock, _) = super::lock_cache_file(&super::namespace_lock_path(&spec)).unwrap();
+    let worker_spec = spec.clone();
+    let worker = thread::spawn(move || prepare_artifact_cache(&worker_spec).map(|_| ()));
+    let started = std::time::Instant::now();
+    while !lock_path.exists() {
+        assert!(
+            !worker.is_finished(),
+            "preparation returned before contention"
+        );
+        assert!(
+            started.elapsed() < Duration::from_secs(10),
+            "wait for captured key"
+        );
+        thread::sleep(Duration::from_millis(1));
+    }
+    fs::write(&input, b"after").unwrap();
+    drop(namespace_lock);
+    let after = resolve_key(&spec).unwrap().input_digest;
+    let error = worker
+        .join()
+        .unwrap()
+        .expect_err("mutation must not retry into a new miss");
+    assert!(
+        matches!(error, ArtifactCacheError::InputsChangedDuringPreparation {
+        before: observed_before, after: observed_after
+    } if observed_before == before && observed_after == after)
+    );
+    assert_eq!(
+        fs::read(retained.record().artifacts()[0].path()).unwrap(),
+        b"retained"
+    );
+    // Recovery is explicit, under a fresh caller-owned source boundary.
+    expect_build(prepare_artifact_cache(&spec).unwrap())
+        .abort()
+        .unwrap();
+    drop(retained);
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
 fn changed_inputs_reject_commit_and_remove_staging() {
     let root = unique_temp_directory("changed-inputs");
     let input = root.join("input");
@@ -819,7 +877,7 @@ fn pruning_protects_active_entry_and_removes_older_key() {
     let active = base
         .clone()
         .with_arguments(["active"])
-        .with_prune_policy(ArtifactCachePrunePolicy::new().with_max_size_bytes(0));
+        .with_prune_policy(CacheRetentionLimits::new().with_max_size_bytes(0));
 
     let outcome = build_output(&active, b"active");
     let report = outcome
@@ -843,7 +901,7 @@ fn pruning_protects_active_entry_and_removes_older_key() {
     let strict = prune_artifact_cache(
         active.cache_root(),
         active.namespace(),
-        ArtifactCachePrunePolicy::new().with_max_size_bytes(0),
+        CacheRetentionLimits::new().with_max_size_bytes(0),
     )
     .expect("strict namespace pruning");
     assert_eq!(strict.entries_removed(), 1);
@@ -862,7 +920,7 @@ fn scheduled_pruning_skips_an_immediate_second_acquisition() {
     let spec = ArtifactCacheSpec::new(&root.join("cache"), "scheduled", "recipe/v1")
         .with_input("input", &input)
         .with_output("output", &root.join("output"))
-        .with_prune_policy_at_most_every(ArtifactCachePrunePolicy::new(), Duration::from_hours(1));
+        .with_prune_policy_at_most_every(CacheRetentionLimits::new(), Duration::from_hours(1));
 
     let built = build_output(&spec, b"output");
     assert!(built.record().maintenance().is_some());
@@ -873,8 +931,8 @@ fn scheduled_pruning_skips_an_immediate_second_acquisition() {
     assert!(record.maintenance().is_none());
     assert!(record.timings().maintenance().is_some());
 
-    let changed_policy = spec.with_prune_policy_at_most_every(
-        ArtifactCachePrunePolicy::new().with_max_size_bytes(0),
+    let changed_policy = spec.clone().with_prune_policy_at_most_every(
+        CacheRetentionLimits::new().with_max_size_bytes(0),
         Duration::from_hours(1),
     );
     let reused = prepare_artifact_cache(&changed_policy).expect("reuse under changed policy");
@@ -886,6 +944,23 @@ fn scheduled_pruning_skips_an_immediate_second_acquisition() {
             .is_some(),
         "a changed retention policy must not inherit another policy's interval"
     );
+    for explicit_zero in [false, true] {
+        let always = if explicit_zero {
+            spec.clone()
+                .with_prune_policy_at_most_every(CacheRetentionLimits::new(), Duration::ZERO)
+        } else {
+            spec.clone().with_prune_policy(CacheRetentionLimits::new())
+        };
+        let marker = namespace_directory(&always).join(".ic-testkit-last-maintenance");
+        fs::write(&marker, [0xff]).unwrap();
+        let reused = prepare_artifact_cache(&always).unwrap();
+        let record = reused.reused_record().unwrap();
+        assert!(matches!(
+            record.maintenance(),
+            Some(ArtifactCacheMaintenance::Pruned(_))
+        ));
+        assert!(fs::read_to_string(marker).is_ok());
+    }
     fs::remove_dir_all(root).expect("remove scheduled-pruning test directory");
 }
 
@@ -925,7 +1000,7 @@ fn pruning_removes_abandoned_staging_without_touching_active_transactions() {
     let active_report = prune_artifact_cache(
         spec.cache_root(),
         spec.namespace(),
-        ArtifactCachePrunePolicy::new(),
+        CacheRetentionLimits::new(),
     )
     .expect("prune around active transaction");
     assert_eq!(active_report.uncommitted_directories_removed(), 0);
@@ -955,7 +1030,7 @@ fn pruning_removes_abandoned_staging_without_touching_active_transactions() {
         let held_report = prune_artifact_cache(
             spec.cache_root(),
             spec.namespace(),
-            ArtifactCachePrunePolicy::new(),
+            CacheRetentionLimits::new(),
         )
         .expect("prune while the duplicate content lock remains open");
         assert_eq!(held_report.uncommitted_directories_removed(), 0);
@@ -966,7 +1041,7 @@ fn pruning_removes_abandoned_staging_without_touching_active_transactions() {
     let report = prune_artifact_cache(
         spec.cache_root(),
         spec.namespace(),
-        ArtifactCachePrunePolicy::new(),
+        CacheRetentionLimits::new(),
     )
     .expect("prune abandoned staging");
     assert_eq!(report.uncommitted_directories_removed(), 1);

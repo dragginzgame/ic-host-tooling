@@ -14,7 +14,7 @@ use std::{
 use ic_host_artifacts::artifact::{ArtifactError, CopyError, copy_reader};
 use ic_host_fs::{
     durable::{NamedWriteError, PublicationMode, WriteOptions, write_with},
-    owned_directory::{OwnedDirectory, remove_path_if_present},
+    owned_directory::OwnedDirectory,
     read::open_regular_file,
 };
 
@@ -82,9 +82,8 @@ impl ArtifactStagingDirectory {
     ///
     /// # Errors
     /// Returns the filesystem error if removing the owned child fails.
-    pub fn close(mut self) -> io::Result<()> {
-        self.directory.disarm();
-        remove_path_if_present(self.directory.path())
+    pub fn close(self) -> io::Result<()> {
+        self.directory.cleanup()
     }
 }
 

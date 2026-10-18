@@ -1,3 +1,4 @@
+use ic_host_process::child::OwnedChild;
 #[cfg(unix)]
 use ic_host_process::testing::write_executable_script;
 
@@ -94,7 +95,13 @@ fn shim_wasm_and_post_link_caches_reuse_and_invalidate_independently() {
     let compiler = root.join("selected-rustc");
     write_executable_script(&compiler, "#!/bin/sh\nprintf 'compiler-A\\n'\n")
         .expect("write executable test script");
-    let spec = spec.with_rustc_identity_program(compiler.as_os_str());
+    // The validation adapter selects RUSTC, which takes precedence over an
+    // identity-only shim. This synthetic producer specifically exercises the shim.
+    let mut environment = spec.environment().clone();
+    environment.remove(std::ffi::OsStr::new("RUSTC"));
+    let spec = spec
+        .with_environment(environment)
+        .with_rustc_identity_program(compiler.as_os_str());
     let executable = root.join("optimizer");
     let script = b"#!/bin/sh\nif [ \"$1\" = --version ]; then printf 'optimizer 1\\n'; else /bin/cp \"$1\" \"$3\"; printf 'run\\n' >> \"$0.calls\"; fi\n";
     write_executable_script(&executable, script).expect("write executable test script");
@@ -123,7 +130,7 @@ fn shim_wasm_and_post_link_caches_reuse_and_invalidate_independently() {
     };
     let acquire = |optimizer: &AdmittedTool| -> Result<_, Box<dyn std::error::Error>> {
         let resolved = resolve_cargo_build_inputs(&spec)?;
-        let wasm = build_wasm_canisters_cached(&spec)?;
+        let wasm = build_wasm_canisters_cached(&spec, OwnedChild::spawn_direct)?;
         let input = &wasm.record().artifacts()[0];
         let post_spec = ArtifactCacheSpec::new(&root.join("post-cache"), "deploy", "optimizer/v1")
             .with_cargo_build_inputs("cargo", &spec, &resolved)
@@ -249,7 +256,10 @@ fn failed_admitted_producers_cannot_publish_or_reuse_staged_output() {
             if ending == "exit 23" {
                 assert_eq!(status.code(), Some(23));
             } else {
-                assert_eq!(status.signal(), Some(libc::SIGTERM));
+                assert_eq!(
+                    status.signal(),
+                    Some(rustix::process::Signal::TERM.as_raw())
+                );
             }
             assert_eq!(fs::read(root.join("deploy.wasm")).unwrap(), published);
         }

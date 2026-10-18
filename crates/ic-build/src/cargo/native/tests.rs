@@ -5,7 +5,7 @@ fn spec() -> NativeExecutableSpec<'static> {
     NativeExecutableSpec {
         package: "fixture",
         target_name: "worker",
-        target_kind: "example",
+        target_kind: NativeTargetKind::Example,
         selection: CargoSelection::default(),
         max_message_bytes: 4096,
     }
@@ -149,10 +149,6 @@ fn message_allowance_and_protocol_refusals_preserve_boundaries() {
 fn invalid_selection_refuses_before_the_command_factory() {
     for invalid in [
         NativeExecutableSpec {
-            target_kind: "lib",
-            ..spec()
-        },
-        NativeExecutableSpec {
             package: "",
             ..spec()
         },
@@ -274,7 +270,7 @@ cat "$METADATA"
         assert!(execution.cleanup.is_none());
         assert_eq!(
             execution.evidence.status.unwrap().signal(),
-            Some(libc::SIGKILL)
+            Some(rustix::process::Signal::KILL.as_raw())
         );
     }
     fs::remove_dir_all(root).unwrap();

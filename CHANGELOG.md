@@ -3,12 +3,170 @@
 The 0.1.0 section preserves the original bootstrap notes. The published 0.1.0
 archive also includes the extracted artifact engine and Cargo grouping API.
 
-## [0.16.0]
+## [0.18.0]
 
-- **Breaking:** batch label admission and errors belong to
-  `ic_host_artifacts::batch`. Replace `ic_build::batch::BatchLabelError` imports
-  with the Host owner. Exact labels, first invalid input, original duplicate
-  indices and refusal before build/cache work retain their contracts.
+- **Breaking:** use Host Artifacts 0.27.4 canonical batch label admission and
+  `ic_host_artifacts::batch::BatchLabelError`. Remove `ic_build::batch` without
+  a compatibility re-export; exact labels, duplicate indices and refusal before
+  command/progress/build effects remain unchanged
+  ([PR #65](https://github.com/dragginzgame/ic-build/pull/65)).
+
+## [0.17.6] - 2026-10-18
+
+- Select development Rust 1.99.1, which fixes Rust 1.99.0's direct-invocation
+  macOS rust-lld library lookup regression. Keep the package MSRV at 1.91.0 and
+  retain native qualification requirements ([#76](https://github.com/dragginzgame/ic-build/issues/76),
+  [#77](https://github.com/dragginzgame/ic-build/issues/77)).
+- Add nearest explicit Cargo workspace discovery without invoking Cargo,
+  preserving nested declarations, file starts, symlinks and typed refusals.
+  Canic retains ICP discovery and no-match fallback; publication and consumer
+  adoption remain separate ([PR #63](https://github.com/dragginzgame/ic-build/pull/63)).
+
+## [0.17.5] - 2026-10-18
+
+- Stop enabling Host Artifacts' unused `wasm` feature, removing wasmparser and
+  leb128 from this engine's dependency graph. Consumers performing structural
+  inspection select Host's `wasm` feature explicitly; Cargo/Wasm builds are unchanged.
+- Consolidate Unix user identity, descriptor flags and signal constants onto
+  Rustix, removing IC Build's direct libc dependency and local unsafe calls.
+  Effective-owner admission and exact process-signal checks remain unchanged;
+  libc remains in the upstream dependency graph.
+- Delegate cancellable Cargo input probes to Host Process 0.27.3, retiring local
+  spawn/deadline/capture orchestration. Preserve caller-selected cleanup, absolute
+  probe deadlines, bounded evidence and Build's phase/error mapping; ordinary
+  builds still have no default elapsed-time deadline.
+
+## [0.17.4] - 2026-10-18
+
+- Delegate retained descriptor locks, logical cache sizing and cache-directory
+  tags to published Host FS 0.27.2 APIs. Preserve record lifetime, pruning policy,
+  retained formats and typed failures; newly written tag comments identify Build.
+- Replace stale pre-0.17 adoption guidance with the current API and dependency
+  boundary. Keep historical extraction evidence separate from supported usage.
+
+## [0.17.3] - 2026-10-18
+
+- Bring retained Wasm evidence/export and compile-diagnostic helpers onto the
+  current engine from PRs #59/#67. Evidence uses explicit child custody and binds
+  both the exact build fingerprint and conservative raw input snapshot.
+- Preserve caller-owned recipes, limits, source custody and report publication;
+  old branch-only consumer APIs need an explicit environment and acquisition spawner.
+
+## [0.17.2] - 2026-10-18
+
+- Retain fingerprinted tool/recipe facts on successful and reused Wasm records.
+  Provenance callers borrow the observations without extra probes; retained cache
+  formats, keys, validation and Debug redaction remain unchanged.
+
+## [0.17.1] - 2026-10-18
+
+- Adopt the shared Candid/CDK dependency-boundary check in CI/release validation.
+  Review published IC Platform 0.1.3; Build's opaque extractor orchestration needs
+  no platform library dependency. Preserve extraction limits, errors and evidence.
+
+- Adopt Shared Tooling 0.24.0 and annotate production versus test/tooling roles.
+  Keep global manifest sorting and enforce it in current and committed release
+  checks. Common setup prepares the two formatters; extraction tools stay explicit.
+  Dependency selections and the published library contract are unchanged.
+
+## [0.17.0] - 2026-10-18
+
+- Keep the synthetic compiler-invalidation fixture independent of the validation
+  adapter's explicit `RUSTC`, preserving compiler and optimizer cache assertions.
+
+- Retain fingerprinted tool identities, Cargo selection and the complete selected
+  environment on resolved inputs for provenance consumers, without new probes.
+  Debug omits environment values and probe bytes; consumers own execution binding
+  and publication redaction. Existing fingerprint bytes and admission are unchanged
+  ([#71 — Retain observed build facts](https://github.com/dragginzgame/ic-build/issues/71)).
+
+- Replace drifting README snippets with compiled Cargo examples and correct
+  current ownership/upgrade guidance. Staging close delegates one-attempt cleanup
+  to Host; retained artifacts, recovery policy and public contracts are unchanged.
+- Exclude package target directories from publication and future Git additions,
+  preserving the existing cache tag and lock files on disk.
+
+- **Breaking:** `cargo::compatible_package_groups` requires the recipe's
+  `CargoSelection` after `target`. Isolated and combined probes use its features,
+  locked and offline choices; profiles remain build-only.
+- Carry cache paths, public paths and verified digests together during Wasm
+  publication. Preserve copy-before-stamp ordering and selective warm repairs;
+  refuse mismatched Cargo output counts before copying.
+- Derive configuration and lock-projection error contracts through `thiserror`,
+  preserving variants, messages, redaction and original sources
+  ([#74 — Verified Wasm outputs and recipe selections](https://github.com/dragginzgame/ic-build/issues/74)).
+
+- **Breaking:** Wasm specifications require the complete environment at construction.
+  Probes and builds clear inheritance; replace inherited-name/override builders
+  with a caller-selected map. Environment replacement is complete, and explicit
+  Cargo/Rustc selection remains available. New recipe keys preserve old retained
+  entries and stamp formats without reuse under changed execution semantics.
+- Prepared batches bind requested snapshots once before reuse accounting or
+  progress, preserving rejection order and source-lease invalidation
+  ([#72 — Make Wasm environments explicit and bind prepared inputs once](https://github.com/dragginzgame/ic-build/issues/72)).
+
+- Retain the released silent/progress entrypoints and five-part Wasm batch
+  consumption, while sharing private dispatch and failure storage.
+- **Breaking:** remove mutable `WasmBuildSession` reuse and its metrics. Prepare
+  the complete specification set with `WasmBuildInputSnapshot` under the existing
+  source lease. Independent batches retain within-batch input-resolution sharing.
+- Share Cargo child communication and canonical message observation through
+  `cargo::execution`, including exact manifest-bound cdylib selection. Build uses
+  this path; Canic's isolated adapter is qualified separately
+  ([#75 — Shared execution and one prepared reuse lifecycle](https://github.com/dragginzgame/ic-build/issues/75)).
+- Delegate Cargo newline framing to Host Process while preserving JSON/text
+  interpretation, per-record limits, EOF-tail acceptance and original sink errors
+  ([#47 — Consolidate boundary observations, lock decoding and native stream framing](https://github.com/dragginzgame/ic-build/issues/47)).
+
+## [0.16.0] - 2026-10-17
+
+- **Breaking:** align exposed Host types with the registry Host 0.27 family.
+  Align consumers' direct Host dependencies when passing Host values through Build.
+- Adopt Shared Tooling 0.23.0. Common setup/checks cover host and Cargo tools;
+  IC executables remain an explicit product selection. Release-adapter fixtures
+  no longer require an unused IC installation; retained installations stay intact.
+
+- **Breaking:** artifact preparation refuses the first detected input mutation
+  instead of retrying internally. Callers own recovery; retained outputs and
+  the existing before/after error evidence remain available.
+- **Breaking:** zero-interval retention always runs without reading due markers.
+  Both always-run builders now report `WasmBuildSpec::prune_interval()` as `None`;
+  use `prune_policy()` to distinguish disabled maintenance. Marker formats stay intact
+  ([#69 — Preparation refusal, output admission and schedules](https://github.com/dragginzgame/ic-build/issues/69)).
+
+- **Breaking:** use `CacheRetentionLimits` for exact-entry and shared-target
+  maintenance. Replace both former policy types directly; thresholds and schedule
+  markers stay unchanged, as do LRU pruning and whole-target clearing semantics.
+- **Breaking:** match artifact batch failures as `Preparation`, `Callback` or
+  `Commit`. Remove phase-enum/accessor usage; primary errors, cleanup evidence
+  and partial timings remain available on the canonical failure.
+- **Breaking:** decode Cargo metadata once through its typed schema and use a v2
+  Wasm fingerprint domain. Existing recipes rebuild under new keys; retained
+  artifacts, stamp formats and namespaces stay intact, with no migration or cleanup
+  ([#68 — Retention limits, tagged failures and typed fingerprints](https://github.com/dragginzgame/ic-build/issues/68)).
+
+- **Breaking:** select exact Cargo depfiles with `read_cargo_depfile_inputs`;
+  directory-wide discovery is removed. Consumers select graph records and decide
+  whether `NotFound` permits a cold inventory. Strict parsing and input custody remain.
+- **Breaking:** configuration observations expose Host's `Sha256Digest` directly.
+  Use `as_bytes()` for raw bytes or `Display` for hex; hash bytes stay unchanged.
+
+- **Breaking:** Wasm builds, batches, sessions and prepared readers require an
+  explicit Host child spawner. Select direct-child or group cleanup deliberately;
+  progress no longer changes custody or stdin. No build deadline is introduced.
+- **Breaking:** Rust-flag composition accepts explicit encoded and ordinary inherited
+  values before the additions slice. Resolve the command's selected environment
+  at the caller; precedence and argument boundaries remain unchanged
+  ([#64 — Explicit execution and flag inputs](https://github.com/dragginzgame/ic-build/issues/64)).
+
+- **Breaking:** native executable specifications select `NativeTargetKind::Binary`
+  or `NativeTargetKind::Example` instead of string target kinds. Update callers
+  directly; no compatibility selector is retained.
+- Rebuild missing or invalid exact Wasm cache entries through Cargo. Public
+  outputs no longer reconstruct entries; retained entries still block replacement
+  and valid exact hits still repair public outputs. Retained formats stay unchanged.
+- Serialize archive verification workspaces through TOML, retaining exact generated
+  manifest checks and the independently admitted package graph and lock selections.
 
 ## [0.15.0] - 2026-10-17
 

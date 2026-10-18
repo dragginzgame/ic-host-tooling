@@ -21,6 +21,31 @@ use std::{
 #[cfg(test)]
 mod tests;
 
+/// Native executable target selected structurally before any Cargo command.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum NativeTargetKind {
+    /// A package binary selected with `--bin`.
+    Binary,
+    /// A package example selected with `--example`.
+    Example,
+}
+
+impl NativeTargetKind {
+    const fn argument(self) -> &'static str {
+        match self {
+            Self::Binary => "--bin",
+            Self::Example => "--example",
+        }
+    }
+
+    const fn cargo_kind(self) -> schema::TargetKind {
+        match self {
+            Self::Binary => schema::TargetKind::Bin,
+            Self::Example => schema::TargetKind::Example,
+        }
+    }
+}
+
 /// Exact native target and caller-selected recipe and decoding allowance.
 #[derive(Clone, Debug)]
 pub struct NativeExecutableSpec<'a> {
@@ -28,8 +53,8 @@ pub struct NativeExecutableSpec<'a> {
     pub package: &'a str,
     /// Cargo target name, without guessing an output filename.
     pub target_name: &'a str,
-    /// `bin` or `example`, selecting Cargo's corresponding build target.
-    pub target_kind: &'a str,
+    /// Binary or example, selecting Cargo's corresponding build target.
+    pub target_kind: NativeTargetKind,
     /// Profile, feature and network/lock selections shared by metadata and build.
     /// Commands additionally require locked operation.
     pub selection: CargoSelection,
@@ -75,11 +100,6 @@ pub fn build_native_executable(
     mut spawn: impl FnMut(&mut Command) -> io::Result<OwnedChild>,
     mut interrupted: impl FnMut() -> bool,
 ) -> Result<NativeExecutable, Box<dyn Error + Send + Sync>> {
-    let selector = match spec.target_kind {
-        "bin" => "--bin",
-        "example" => "--example",
-        _ => return Err(protocol("native target kind must be bin or example").into()),
-    };
     if spec.package.is_empty() || spec.target_name.is_empty() || spec.max_message_bytes == 0 {
         return Err(protocol("empty native target selection or message allowance").into());
     }
@@ -110,7 +130,7 @@ pub fn build_native_executable(
         "--message-format=json",
         "-p",
         spec.package,
-        selector,
+        spec.target_kind.argument(),
         spec.target_name,
     ]);
     command.args(arguments.build_arguments());
@@ -186,7 +206,7 @@ fn selection(
 }
 
 fn matches_target(target: &schema::Target, spec: &NativeExecutableSpec<'_>) -> bool {
-    target.name == spec.target_name && target.kind.contains(&spec.target_kind.into())
+    target.name == spec.target_name && target.kind.contains(&spec.target_kind.cargo_kind())
 }
 
 fn selected_message(
@@ -207,7 +227,7 @@ fn selected_message(
                 &artifact,
                 package_id,
                 spec.target_name,
-                &spec.target_kind.into(),
+                &spec.target_kind.cargo_kind(),
             ) =>
         {
             let path = artifact

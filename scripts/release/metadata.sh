@@ -54,7 +54,7 @@ case "$operation" in
         if [[ "$operation" == commit-check ]]; then
             [[ -z "${RELEASE_COMMIT:-}" ]] || exit 1
         fi
-        bash "$root/scripts/ci/cargo-release-metadata.sh" check ic-build
+        bash "$root/scripts/ci/cargo-release-metadata.sh" check ic-build --manifest-order
         bash "$root/scripts/ci/check-release-source.sh" \
             --allow Cargo.toml --allow Cargo.lock --allow CHANGELOG.md
         if [[ "$operation" == commit-check ]]; then
