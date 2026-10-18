@@ -2,6 +2,11 @@
 
 ## [0.27.7]
 
+- Run the non-Unix compile check with the MSRV toolchain that owns its prepared
+  Wasm target, fixing the CI compiler/target mismatch without changing the
+  development compiler or filesystem support contract.
+  [Details](docs/changelog/0.27.md).
+
 - Share opt-in canonical unsigned `u64` LEB128 admission without allocation or
   new dependencies. Callers retain field diagnostics, semantic limits and trust.
   [Details](docs/changelog/0.27.md).
