@@ -23,7 +23,7 @@ ic-host-artifacts = "0.27.1"
 ic-host-fs = "0.27.1"
 ic-host-process = "0.27.1"
 ic-metrics = "0.14"
-ic-platform = { version = "0.1.8", default-features = false }
+ic-platform = { version = "0.1.11", default-features = false }
 libc = "0.2"
 pocket-ic = "16.1"
 serde = { version = "1.0", default-features = false }
@@ -33,10 +33,7 @@ thiserror = "2.0"
 tokio = { version = "1", features = ["net", "rt", "time"] }
 
 # Tests and tooling only
-candid = { version = "0.10", default-features = false }
-derive_more = { version = "2.1.1", default-features = false, features = ["display", "from"] }
-ic-build = { version = "0.17" }
-ic-cdk = "0.20.2"
+ic-build = { version = "0.17.2" }
 ic-host-text = { version = "0.27.1", default-features = false }
 ic-testkit = { path = "crates/ic-testkit" }
 

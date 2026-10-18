@@ -7,7 +7,6 @@ license.workspace = true
 publish = false
 
 [dependencies]
-derive_more = { workspace = true }
 ic-build = { workspace = true }
 ic-host-artifacts = { workspace = true }
 ic-host-fs = { workspace = true }
@@ -19,6 +18,7 @@ libc = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 tempfile = { workspace = true }
+thiserror = { workspace = true }
 
 [lints]
 workspace = true

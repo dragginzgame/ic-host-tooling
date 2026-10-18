@@ -37,8 +37,10 @@ and requires the probe canister checkout.
 The built `target/debug/fixture_reuse_benchmark_driver` executable can
 also be invoked directly while its repository checkout remains available.
 It uses `CARGO`/`RUSTC` when set and native PATH lookup otherwise, preserving
-rustup proxy names. Cargo and compiler provenance run from the workspace to
-apply its toolchain selection. Explicit relative tool paths are interpreted
+rustup proxy names. IC Build observes Cargo and the compiler from the workspace
+when admitting build inputs. Report provenance reads the retained Wasm record's
+compiler identity and selected profile without launching another compiler probe.
+Explicit relative tool paths are interpreted
 from the caller's directory before commands enter the workspace. The selected
 Rust toolchain and Wasm target must already be installed; an invalid override
 returns failure rather than switching tools.
