@@ -168,6 +168,9 @@ set -euo pipefail
 "$ADAPTER_REAL_YQ" "$@"
 if [[ "${ADAPTER_FAILED_READER:-}" == lock && "$*" == '-p toml -o json .' ]]; then exit 23; fi
 if [[ "${ADAPTER_FAILED_READER:-}" == member && "${*: -1}" == */member.toml ]]; then exit 23; fi
+if [[ "${ADAPTER_FAILED_READER:-}" == member-stream && "${*: -1}" == */member.toml ]]; then
+    "$ADAPTER_REAL_YQ" "$@" | jq -c '{package: {name: (.package.name + "-extra")}}'
+fi
 STUB
 chmod +x "$fixture/bin/bash" "$fixture/bin/yq"
 export YQ="$fixture/bin/yq"
@@ -360,7 +363,7 @@ cp source/Cargo.toml Cargo.toml
 
 # Member admission must retain failures even after plausible TOML/JSON output.
 # Neither a failed Git source read nor a failed member parser can reach setup.
-for reader in git member read-source-context.sh; do
+for reader in git member member-stream read-source-context.sh; do
     : > "$ADAPTER_EVENTS"
     rm -f query-count
     status=0

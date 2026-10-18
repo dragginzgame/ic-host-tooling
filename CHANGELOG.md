@@ -4,8 +4,11 @@
 
 ### Fixed
 
+- Refuse multiple parser observations for one saved-source member before release
+  setup, preserving the explicitly selected package set and unchanged metadata.
 - Select the packaged source's Git object format explicitly when retrieving
-  publication evidence, independent of the caller's Git default ([#191](https://github.com/dragginzgame/ic-host-tooling/issues/191)).
+  publication evidence, independent of the caller's Git default
+  ([#191 — Keep source-evidence adapters hash-format independent](https://github.com/dragginzgame/ic-host-tooling/issues/191)).
   Keep the two source-evidence adapters until equivalent canonical Shared helpers
   are delivered; refresh both callers and retire both copies together.
   [Details](docs/changelog/0.27.md).
