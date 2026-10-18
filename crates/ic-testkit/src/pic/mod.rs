@@ -5,9 +5,9 @@
 //! extension traits and policy types.
 //!
 //! Construct and own [`PocketIc`] instances normally, then import individual
-//! extension traits or [`prelude`] for Candid calls, installation, diagnostics,
-//! snapshots, fallible startup, bounded predicate polling. Native
-//! simulator operations remain upstream inherent methods.
+//! extension traits or [`prelude`] for installation, diagnostics and snapshots.
+//! Import the call functions, startup configuration and polling helpers explicitly.
+//! Native simulator operations remain upstream inherent methods.
 //!
 //! [`PocketIcManagedServer`] can explicitly own one exact caller-selected
 //! server child for a serial suite. No type serializes independent instances or

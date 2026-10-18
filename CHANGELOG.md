@@ -6,6 +6,50 @@ documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.54.0]
+
+### Breaking
+
+- Candid calls now accept `ic_platform::candid::DecodeLimits` and retain
+  Platform's typed `DecodeError` sources. Add `ic-platform` 0.1.8 with its
+  `candid` feature and replace `ic_testkit_candid` imports. The local decoder
+  package is retired; wire arity, explicit quotas and compact diagnostics remain
+  unchanged. This prepares the producer change tracked in
+  [#2 — Coordinate published Testkit limits identity](https://github.com/dragginzgame/ic-platform/issues/2); external consumers still need the new Testkit release.
+- Platform owns Principal and supported Candid dependencies. The private probe
+  retains CDK and macro-required Candid until
+  [#1 — Support the CDK call and entrypoint boundary](https://github.com/dragginzgame/ic-platform/issues/1) is resolved.
+
+### Changed
+
+- Complete-sample statistics now belong to the private fixture reporter, removing
+  its direct Metrics dependency. Count, mean, p50/p95 and typed failures remain
+  unchanged ([PR #125 — Own complete sample statistics in the private report package](https://github.com/dragginzgame/ic-testkit/pull/125)).
+
+- The fixture benchmark supplies its inherited build environment explicitly to
+  IC Build 0.17, preserving the selected compiler override.
+
+- Adopt Shared Tooling 0.24.0 and explicit dependency-role labels, retaining
+  matching grouped manifest ordering in formatting hooks and release checks.
+  Common Cargo setup now installs only the formatter tools.
+
+- Platform 0.1.8 supplies Wasm execution counters, stable-page counts, marker
+  logging and the probe's raw trap. The direct `ic0` dependency is removed via
+  [#11 — Expose debug_print for Testkit benchmark marker emission](https://github.com/dragginzgame/ic-platform/issues/11).
+  The library's canister graph remains free of CDK and Candid. Deterministic
+  principals use the same `ic_principal` type and retain their existing features;
+  counter selection, page-to-byte conversion and marker output remain unchanged.
+
+- Native Testkit selects Host's gzip support for server provisioning without
+  enabling Wasm inspection. IC Build selects that capability for development
+  builds; supported Testkit APIs and server admission remain unchanged.
+- Current ownership and qualification guidance names the extracted owners and
+  supported call/startup interfaces. Historical migration and qualification
+  records remain evidence rather than active build instructions.
+- Portable CI checks Testkit's actual prepared tools and dependency selections
+  instead of replaying Shared Tooling's complete synthetic regression suites.
+  Product, release-adapter, hook and failure-evidence qualification remain in place.
+
 ## [0.53.0] - 2026-10-17
 
 ### Breaking

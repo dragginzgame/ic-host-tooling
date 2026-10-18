@@ -12,7 +12,7 @@ use std::{
     time::Duration,
 };
 
-use candid::Principal;
+use ic_platform::Principal;
 use ic_testkit::pic::{
     BaselinePoolDisposition, BaselinePoolError, BaselinePoolOutcome, BaselinePoolPreparationError,
     BaselinePreparationStage, CachedPocketIcBaseline, CachedPocketIcBaselinePool,

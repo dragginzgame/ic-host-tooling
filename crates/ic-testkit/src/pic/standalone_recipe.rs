@@ -1,6 +1,6 @@
 use std::io;
 
-use candid::Principal;
+use ic_platform::Principal;
 
 use super::{
     CachedPocketIcBaseline, CanisterSnapshotTarget, FailureDisposition, PocketIcBaselineRecipe,

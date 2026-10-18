@@ -25,7 +25,7 @@ fn fixture_mutate_state() {
 }
 
 // A named result makes the CDK encode one record instead of expanding a tuple
-// into multiple Candid return values. Testkit's typed calls use decode_one.
+// into multiple Candid return values. Testkit decodes its reply as `(FixtureState,)`.
 type FixtureState = (u64, u64, Option<u8>);
 
 #[query]
@@ -54,5 +54,5 @@ fn benchmark_once() -> u64 {
 #[update]
 fn benchmark_start_then_trap() {
     Performance::measure("probe/benchmark_start_then_trap:start");
-    ic_cdk::trap("intentional perf probe trap");
+    ic_platform::ic0::trap(b"intentional perf probe trap");
 }

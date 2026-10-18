@@ -31,12 +31,12 @@ fi
 case "$1" in
     set-version) echo "preparation must not dispatch manifest mutation tools" >&2; exit 91 ;;
     sort)
-        [[ "$*" == "sort --workspace --check" ]] || exit 91
+        [[ "$*" == "sort --workspace --check" || "$*" == "sort --workspace --check --grouped" ]] || exit 91
         if [[ -n "${ORDER_EVENTS:-}" ]]; then
             printf '%s\n' "$PWD" > "$ORDER_EVENTS.root"
             cat Cargo.toml > "$ORDER_EVENTS.manifest"
         fi
-        [[ "${CASE:-}" != sort-failure ]] || exit 24 ;;
+        case "${CASE:-}" in sort-failure|grouped-failure) exit 24 ;; esac ;;
     metadata)
         if [[ "${CASE:-}" == prepared-local-failure ]] && grep -q '^version = "0.10.0"$' Cargo.toml; then
             "$REAL_CARGO" "$@"
@@ -124,9 +124,12 @@ mkdir "$fixture/success"
 make_workspace "$fixture/success"
 (cd "$fixture/success" && bash "$helper" prepare primary > "$fixture/success.log" 2>&1)
 (cd "$fixture/success" && bash "$helper" check primary)
-(cd "$fixture/success" && ORDER_EVENTS="$fixture/current-order.events" bash "$helper" check primary --manifest-order)
-[[ "$(cat "$fixture/current-order.events.root")" == "$fixture/success" ]] || exit 1
-cmp "$fixture/success/Cargo.toml" "$fixture/current-order.events.manifest"
+for ordering in --manifest-order --manifest-order-grouped; do
+    events="$fixture/current-$ordering.events"
+    (cd "$fixture/success" && ORDER_EVENTS="$events" bash "$helper" check primary "$ordering")
+    [[ "$(cat "$events.root")" == "$fixture/success" ]] || exit 1
+    cmp "$fixture/success/Cargo.toml" "$events.manifest"
+done
 for package in primary secondary; do
     jq -e --arg name "$package" '.packages[] | select(.name == $name) | .version == "1.2.4"' \
         < <(cd "$fixture/success" && "$REAL_CARGO" metadata --offline --locked --format-version 1) > /dev/null
@@ -356,7 +359,12 @@ done
 # Manifest ordering is opt-in and belongs to the same selected source as graph
 # admission. A poisoned working tree must never be used for the committed check.
 git show "$commit:Cargo.toml" > "$fixture/committed-manifest"
-for mode in default ordered sort-failure; do
+for mode in default ordered sort-failure grouped grouped-failure; do
+    ordering=--manifest-order
+    expected_sort='sort --workspace --check'
+    case "$mode" in
+        grouped*) ordering=--manifest-order-grouped; expected_sort+=' --grouped' ;;
+    esac
     events="$fixture/order-$mode.events"
     status=0
     if [[ "$mode" == default ]]; then
@@ -365,11 +373,11 @@ for mode in default ordered sort-failure; do
         [[ "$status" == 0 && ! -e "$events.root" ]] || exit 1
     else
         CASE="$mode" ORDER_EVENTS="$events" RELEASE_COMMIT="$commit" \
-            bash "$helper" check primary --manifest-order > "$fixture/order-$mode.log" 2>&1 || status=$?
-        [[ "$(head -n 1 "$events")" == 'sort --workspace --check' ]] || exit 1
+            bash "$helper" check primary "$ordering" > "$fixture/order-$mode.log" 2>&1 || status=$?
+        [[ "$(head -n 1 "$events")" == "$expected_sort" ]] || exit 1
         [[ "$(cat "$events.root")" != "$PWD" ]] || exit 1
         cmp "$fixture/committed-manifest" "$events.manifest"
-        if [[ "$mode" == ordered ]]; then
+        if [[ "$mode" == ordered || "$mode" == grouped ]]; then
             [[ "$status" == 0 && ! -e "$(cat "$events.root")" ]] || exit 1
             grep -Fxq 'metadata --locked --offline --format-version 1' "$events"
         else
@@ -383,10 +391,12 @@ for mode in default ordered sort-failure; do
 done
 # Reject unsupported flag/operation combinations before invoking any Cargo tool.
 for operation in prepare check-graph; do
-    status=0
-    ORDER_EVENTS="$fixture/rejected-order.events" bash "$helper" "$operation" primary --manifest-order \
-        > "$fixture/order-$operation.log" 2>&1 || status=$?
-    [[ "$status" == 2 && ! -e "$fixture/rejected-order.events" ]] || exit 1
+    for ordering in --manifest-order --manifest-order-grouped; do
+        status=0
+        ORDER_EVENTS="$fixture/rejected-order.events" bash "$helper" "$operation" primary "$ordering" \
+            > "$fixture/order-$operation-$ordering.log" 2>&1 || status=$?
+        [[ "$status" == 2 && ! -e "$fixture/rejected-order.events" ]] || exit 1
+    done
 done
 status=0
 bash "$helper" check primary --unknown > "$fixture/order-unknown.log" 2>&1 || status=$?

@@ -12,16 +12,18 @@ impl Performance {
     ///
     /// Pair labels ending in `:start` and `:end` for host-side span analysis.
     pub fn measure(label: &str) {
-        ic_cdk::api::debug_print(format_marker(DEFAULT_PREFIX, label, Self::counters()));
+        ic_platform::ic0::debug_print(
+            format_marker(DEFAULT_PREFIX, label, Self::counters()).as_bytes(),
+        );
     }
 
     /// Read the instruction, Wasm heap, and stable-memory counters.
     #[must_use]
     pub fn counters() -> BenchmarkCounters {
         BenchmarkCounters {
-            instructions: u128::from(ic_cdk::api::call_context_instruction_counter()),
+            instructions: u128::from(ic_platform::ic0::performance_counter(1)),
             heap_bytes: wasm_memory_size_bytes(),
-            memory_bytes: u128::from(ic_cdk::api::stable_size()) * WASM_PAGE_BYTES,
+            memory_bytes: u128::from(ic_platform::ic0::stable64_size()) * WASM_PAGE_BYTES,
         }
     }
 }

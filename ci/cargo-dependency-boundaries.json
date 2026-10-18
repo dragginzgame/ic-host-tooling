@@ -1,0 +1,10 @@
+[
+  {"dependency": "candid", "allowed_packages": ["ic_testkit_perf_probe"]},
+  {"dependency": "candid_parser", "allowed_packages": []},
+  {"dependency": "ic0", "allowed_packages": []},
+  {"dependency": "ic-cdk", "allowed_packages": ["ic_testkit_perf_probe"]},
+  {"dependency": "ic-cdk-macros", "allowed_packages": []},
+  {"dependency": "ic-cdk-executor", "allowed_packages": []},
+  {"dependency": "ic-cdk-timers", "allowed_packages": []},
+  {"dependency": "ic-cdk-management-canister", "allowed_packages": []}
+]

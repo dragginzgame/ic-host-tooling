@@ -26,6 +26,18 @@ finish() {
 trap finish EXIT
 mkdir -p "$fixture/bin" "$fixture/assets" "$fixture/payload"
 export IC_TOOLS_TEST_FIXTURE="$fixture"
+IC_TOOLS_TEST_REAL_CP="$(command -v cp)"
+export IC_TOOLS_TEST_REAL_CP
+cat > "$fixture/bin/cp" <<'SCRIPT'
+#!/usr/bin/env bash
+set -euo pipefail
+"$IC_TOOLS_TEST_REAL_CP" "$@"
+destination="${!#}"
+if [[ "${IC_TOOLS_TEST_CHANGE_STAGE:-0}" == 1 && "$destination" == */pins.tsv ]]; then
+    perl -pe 's/^quill\t0[.]5[.]4\t/quill\t0.5.5\t/' "$destination" > "$destination.changed"
+    mv "$destination.changed" "$destination"
+fi
+SCRIPT
 cat > "$fixture/bin/uname" <<'SCRIPT'
 #!/usr/bin/env bash
 case "$1" in
@@ -111,11 +123,16 @@ for observer in -s -m; do
     IC_TOOLS_TEST_UNAME_FAILURE="$observer" install > "$fixture/observer.log" 2>&1 || status=$?
     [[ "$status" == 79 && ! -e "$consumer/.tools" && ! -e "$consumer/store" ]] || exit 1
 done
+consumer="$fixture/changed-stage"; mkdir "$consumer"
+IC_TOOLS_TEST_CHANGE_STAGE=1 expect_failure install
+grep -F 'IC tool pins changed before staging' "$fixture/refusal.log" > /dev/null
+[[ ! -e "$fixture/downloads" && ! -e "$fixture/executions" && ! -e "$consumer/.tools/ic" ]] || exit 1
 snapshot="$fixture/snapshot"
 mkdir -p "$snapshot/scripts/dev" "$snapshot/scripts/ci" "$snapshot/ci"
 cp "$ROOT/scripts/dev/"{install-ic-tools.sh,tool-store.sh,host-platform.sh} "$snapshot/scripts/dev/"
 cp "$ROOT/scripts/ci/verify-file-checksum.sh" "$ROOT/scripts/ci/verify-evidence-checksums.sh" \
-    "$ROOT/scripts/ci/ic-tool-pins.awk" "$snapshot/scripts/ci/"
+    "$ROOT/scripts/ci/tool-catalog-records.pl" "$ROOT/scripts/ci/ic-tool-pins.awk" \
+    "$ROOT/scripts/ci/StableVersion.pm" "$snapshot/scripts/ci/"
 cp "$pins" "$snapshot/ci/ic-tools.tsv"
 for host in Linux:x86_64 Darwin:x86_64 Darwin:arm64; do
     export IC_TOOLS_TEST_OS="${host%:*}" IC_TOOLS_TEST_ARCH="${host#*:}"

@@ -456,7 +456,7 @@ fn install_errors_fixtures_and_baselines_retain_the_owned_server() {
 #[ignore = "requires POCKET_IC_BIN=<caller-provided PocketIC server binary>"]
 fn failed_baseline_capture_reaps_the_owned_server() {
     use crate::pic::CachedPocketIcBaseline;
-    use candid::Principal;
+    use ic_platform::Principal;
 
     let binary = PathBuf::from(std::env::var_os("POCKET_IC_BIN").unwrap());
     let owned = PocketIcStartupConfig::Spawn {

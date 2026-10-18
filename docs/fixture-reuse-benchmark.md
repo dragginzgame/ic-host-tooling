@@ -32,8 +32,7 @@ compare performance only within the same host and canister profiles. The result
 records the binary version/path, Git revision and dirty state, Rust compiler,
 Wasm SHA-256, workload, raw samples, and mean/p50/p95 summaries. Run from a quiet
 host and retain the JSON when comparing changes. The driver is repository-local
-and requires the probe canister checkout. The Python driver and its separate
-test script are retired; use this Cargo entry point directly.
+and requires the probe canister checkout.
 
 The built `target/debug/fixture_reuse_benchmark_driver` executable can
 also be invoked directly while its repository checkout remains available.
@@ -45,7 +44,7 @@ Rust toolchain and Wasm target must already be installed; an invalid override
 returns failure rather than switching tools.
 Build's workspace observation uses that selected Cargo command with 64 KiB
 stdout/stderr limits and no deadline; discovery does not resolve dependencies or
-install a toolchain. Build 0.14 selects the native worker from Cargo's package/target artifact
+install a toolchain. IC Build selects the native worker from Cargo's package/target artifact
 messages and returns the reported target root. The driver no longer reconstructs
 its executable from debug/release directory names. Metadata and individual JSON
 messages have a 16 MiB allowance; diagnostics stream without a total output cap.
@@ -62,11 +61,11 @@ keeps one typed report for admission and summaries, and borrows it when encoding
 JSON output. Existing retained
 report files are neither reinterpreted nor rewritten by this schema hard cut.
 
-Sample summaries use Metrics 0.11.1 with an explicit 95/100 nearest-rank
+Sample summaries use the private reporter's statistics with an explicit 95/100 nearest-rank
 selection. Count/mean/p50/p95 field names are unchanged. Floating-point
 projections remain approximate; an even median uses the midpoint of the middle
 samples. Non-finite input, derived rates or rounded means return the original
-typed Metrics error before the output file is replaced. No failed summary is
+typed statistics error before the output file is replaced. No failed summary is
 published as a successful report containing null numeric values.
 
 ## Workload and correctness

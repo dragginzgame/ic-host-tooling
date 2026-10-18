@@ -74,7 +74,7 @@ pub enum Error {
     Io(io::Error),
     #[from]
     Json(serde_json::Error),
-    Statistics(ic_metrics::SampleStatisticsError),
+    Statistics(crate::statistics::SampleStatisticsError),
     Artifact(ArtifactError),
     Resolution(ResolutionError),
     Build(Box<WasmBuildError>),
@@ -425,10 +425,15 @@ fn prepare(options: &Options) -> Result<Inputs, Error> {
     )
     .map_err(|error| Error::CargoObservation(error))?;
     let target = &native.target_directory;
-    let mut spec = WasmBuildSpec::new(
+    let mut environment: std::collections::BTreeMap<_, _> = std::env::vars_os().collect();
+    if let Some(rustc) = &rustc {
+        environment.insert("RUSTC".into(), rustc.as_os_str().to_owned());
+    }
+    let spec = WasmBuildSpec::new(
         &root,
         &target.join("ic-testkit-fixture-benchmark-wasm"),
         &["ic_testkit_perf_probe"],
+        environment,
     )
     .with_cargo_program(cargo)
     .with_cargo_selection(CargoSelection {
@@ -437,9 +442,6 @@ fn prepare(options: &Options) -> Result<Inputs, Error> {
         ..CargoSelection::default()
     })
     .with_shared_incremental_target(target.join("ic-testkit-incremental"));
-    if let Some(rustc) = &rustc {
-        spec = spec.with_extra_env([("RUSTC", rustc.as_os_str())]);
-    }
     check_interrupted()?;
     let wasm = build_wasm_canisters_cached(&spec, |command| {
         OwnedChild::spawn(command, ic_host_process::child::CleanupPolicy::KillAndWait)

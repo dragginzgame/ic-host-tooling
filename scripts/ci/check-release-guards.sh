@@ -339,7 +339,6 @@ if [[ "$operation" == package ]]; then
 fi
 if [[ "$operation" == test ]]; then
   case " $* " in
-    *' -p ic-testkit-candid '*) operation=test:ic-testkit-candid ;;
     *' -p ic-testkit-dev '*)
       [[ "${POCKET_IC_BIN:-}" == /prepared/server ]] || exit 97
       operation=test:ic-testkit-dev
@@ -411,16 +410,16 @@ STUB
   cmp "$TOOL_TRACE" "$TOOL_ROOT/expected" || fail 'canister test bypassed owner admission'
   : > "$TOOL_TRACE"
   "$make_bin" --no-print-directory -j4 -C "$TOOL_ROOT" test > "$TOOL_ROOT/test.log" 2>&1
-  printf '%s\n' cargo:build cargo:test:ic-testkit-candid server:check \
+  printf '%s\n' cargo:build server:check \
     cargo:test:ic-testkit cargo:test:ic-testkit-dev cargo:test:ic-testkit > "$TOOL_ROOT/expected"
   cmp "$TOOL_TRACE" "$TOOL_ROOT/expected" || fail 'full test target omitted separate-process qualification'
-  for stage in cargo:test:ic-testkit-candid server:check cargo:test:ic-testkit cargo:test:ic-testkit-dev; do
+  for stage in server:check cargo:test:ic-testkit cargo:test:ic-testkit-dev; do
     : > "$TOOL_TRACE"
     status=0
     TOOL_FAIL="$stage" "$make_bin" --no-print-directory -j4 -C "$TOOL_ROOT" test > "$TOOL_ROOT/test-failure-${stage//:/-}.log" 2>&1 || status=$?
     [[ "$status" == 2 ]] || fail 'test admission or Cargo failure status lost'
-    printf '%s\n' cargo:build cargo:test:ic-testkit-candid > "$TOOL_ROOT/expected"
-    [[ "$stage" == cargo:test:ic-testkit-candid ]] || printf '%s\n' server:check >> "$TOOL_ROOT/expected"
+    printf '%s\n' cargo:build > "$TOOL_ROOT/expected"
+    printf '%s\n' server:check >> "$TOOL_ROOT/expected"
     case "$stage" in
       cargo:test:ic-testkit) printf '%s\n' cargo:test:ic-testkit >> "$TOOL_ROOT/expected" ;;
       cargo:test:ic-testkit-dev) printf '%s\n' cargo:test:ic-testkit cargo:test:ic-testkit-dev >> "$TOOL_ROOT/expected" ;;

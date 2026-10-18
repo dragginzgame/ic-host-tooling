@@ -203,12 +203,9 @@ jobs:
           TMPDIR: ${{ runner.temp }}/ic-testkit-portable-fixtures
         run: |
           mkdir -p "$TMPDIR"
-          /bin/bash scripts/ci/test-host-tools.sh
-          /bin/bash scripts/ci/test-ic-tools.sh
-          /bin/bash scripts/ci/test-rust-tools.sh
-          /bin/bash scripts/ci/test-cargo-tool-versions.sh
-          /bin/bash scripts/ci/test-dependency-pins.sh
-          CDPATH="$PWD" /bin/bash scripts/ci/test-release-runner.sh
+          # Shared Tooling owns the synthetic implementation matrix. Qualify
+          # our real selections here; consumer recovery guards run in make ci.
+          CDPATH="$PWD" make shared-tooling-check tools-check dependency-pins-check
       - name: Qualify failure evidence archives
         shell: /bin/bash --noprofile --norc -e -u -o pipefail {0}
         env:
@@ -240,8 +237,8 @@ jobs:
         env:
           TMPDIR: ${{ runner.temp }}/ic-testkit-portable-fixtures
         run: CDPATH="$PWD" /bin/bash scripts/ci/test-failure-evidence.sh verify-upload "$RUNNER_TEMP/ic-testkit-archive-downloaded"
-      - name: Check standalone Candid reply decoding
-        run: cargo test -p ic-testkit-candid --locked --offline
+      - name: Check Platform reply integration
+        run: cargo test -p ic-testkit --locked --offline --lib pic::calls::tests
       - name: Check native fixture benchmark driver and sampler
         run: cargo test -p ic-testkit-dev --locked --offline --lib
       - name: Archive failed portable and installer evidence

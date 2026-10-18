@@ -1,8 +1,8 @@
-use candid::{
-    Principal, encode_args,
-    utils::{ArgumentDecoder, ArgumentEncoder},
+use ic_platform::candid::{DecodeError, DecodeLimits, decode_args};
+use ic_platform::{
+    Principal,
+    candid::contract::{ArgumentDecoder, ArgumentEncoder, encode_args},
 };
-use ic_testkit_candid::{DecodeError, DecodeLimits, decode_args};
 use pocket_ic::{PocketIc, RejectResponse};
 use std::panic::{AssertUnwindSafe, catch_unwind, resume_unwind};
 
@@ -136,8 +136,8 @@ where
 
 #[cfg(test)]
 mod tests {
-    use candid::Principal;
-    use ic_testkit_candid::{DecodeError, DecodeLimits, decode_args};
+    use ic_platform::Principal;
+    use ic_platform::candid::{DecodeError, DecodeLimits, decode_args};
 
     use super::{CallContext, CandidCallError, call_candid, run_raw_call};
 
@@ -192,7 +192,7 @@ mod tests {
             caller: Principal::anonymous(),
             method: "get",
         };
-        let bytes = candid::encode_one(42_u64).unwrap();
+        let bytes = ic_platform::candid::contract::encode_one(42_u64).unwrap();
         let length = bytes.len();
         let error = call_candid(
             context,
@@ -219,7 +219,7 @@ mod tests {
 
         // Tiny wire data can still describe expensive values: work is bounded
         // independently of the reply length, including the arguments API.
-        let bytes = candid::encode_args((vec![(); 100_000],)).unwrap();
+        let bytes = ic_platform::candid::contract::encode_args((vec![(); 100_000],)).unwrap();
         let error = call_candid(
             context,
             (),
@@ -252,25 +252,34 @@ mod tests {
             method: "measure",
         };
         let values = (u128::MAX, u128::from(u64::MAX) + 1);
-        let bytes = candid::encode_args(values).unwrap();
-        assert_eq!(candid::decode_args::<(u128, u128)>(&bytes).unwrap(), values);
-        assert!(candid::decode_one::<(u128, u128)>(&bytes).is_err());
-        let tuple = candid::encode_one(values).unwrap();
-        assert!(candid::decode_args::<(u128, u128)>(&tuple).is_err());
-        assert_eq!(candid::decode_one::<(u128, u128)>(&tuple).unwrap(), values);
-        let no_replies = candid::encode_args(()).unwrap();
-        candid::decode_args::<()>(&no_replies).unwrap();
-        let one_reply = candid::encode_args((7_u64,)).unwrap();
-        assert_eq!(candid::decode_args::<(u64,)>(&one_reply).unwrap(), (7,));
+        let bytes = ic_platform::candid::contract::encode_args(values).unwrap();
+        assert_eq!(
+            ic_platform::candid::decode_args::<(u128, u128)>(&bytes, LIMITS).unwrap(),
+            values
+        );
+        assert!(ic_platform::candid::decode_one::<(u128, u128)>(&bytes, LIMITS).is_err());
+        let tuple = ic_platform::candid::contract::encode_one(values).unwrap();
+        assert!(ic_platform::candid::decode_args::<(u128, u128)>(&tuple, LIMITS).is_err());
+        assert_eq!(
+            ic_platform::candid::decode_one::<(u128, u128)>(&tuple, LIMITS).unwrap(),
+            values
+        );
+        let no_replies = ic_platform::candid::contract::encode_args(()).unwrap();
+        ic_platform::candid::decode_args::<()>(&no_replies, LIMITS).unwrap();
+        let one_reply = ic_platform::candid::contract::encode_args((7_u64,)).unwrap();
+        assert_eq!(
+            ic_platform::candid::decode_args::<(u64,)>(&one_reply, LIMITS).unwrap(),
+            (7,)
+        );
         let result: (u64, bool, String) = call_candid(
             context,
             (42_u64, false),
             |args| {
                 assert_eq!(
-                    candid::decode_args::<(u64, bool)>(&args).unwrap(),
+                    ic_platform::candid::decode_args::<(u64, bool)>(&args, LIMITS).unwrap(),
                     (42, false)
                 );
-                Ok(candid::encode_args((9_u64, true, "ready")).unwrap())
+                Ok(ic_platform::candid::contract::encode_args((9_u64, true, "ready")).unwrap())
             },
             |bytes| decode_args(bytes, LIMITS),
         )
@@ -286,7 +295,10 @@ mod tests {
             caller: Principal::management_canister(),
             method: "measure",
         };
-        for bytes in [vec![0xde, 0xad], candid::encode_args((7_u64,)).unwrap()] {
+        for bytes in [
+            vec![0xde, 0xad],
+            ic_platform::candid::contract::encode_args((7_u64,)).unwrap(),
+        ] {
             let length = bytes.len();
             let err = call_candid(
                 context,

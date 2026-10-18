@@ -12,7 +12,7 @@ use std::{
 };
 
 use crate::fixture_reuse_report::{Phases, Sample, WorkerReport};
-use candid::Principal;
+use ic_platform::Principal;
 use ic_testkit::pic::{
     BaselinePoolDisposition, BaselinePoolTimings, BaselinePreparationStage, CachedPocketIcBaseline,
     CachedPocketIcBaselinePool, CanisterSnapshotTarget, FailureDisposition, PocketIc,
@@ -24,7 +24,7 @@ use ic_testkit::pic::{
 type Result<T> = std::result::Result<T, Box<dyn Error + Send + Sync>>;
 const TIMEOUT: Duration = Duration::from_secs(30);
 // The workload returns only unit and a three-field state summary.
-const REPLY_LIMITS: ic_testkit_candid::DecodeLimits = ic_testkit_candid::DecodeLimits {
+const REPLY_LIMITS: ic_platform::candid::DecodeLimits = ic_platform::candid::DecodeLimits {
     reply_bytes: 65_536,
     decoding_quota: 1_000_000,
     skipping_quota: 100_000,
@@ -85,7 +85,7 @@ impl Recipe {
             update_candid_args::<((),), _>(
                 &pic.instance,
                 id,
-                candid::Principal::anonymous(),
+                ic_platform::Principal::anonymous(),
                 "fixture_seed_state",
                 (self.state_bytes,),
                 REPLY_LIMITS,
@@ -107,7 +107,7 @@ impl Recipe {
             let (state,): ((u64, u64, Option<u8>),) = query_candid_args(
                 pic,
                 *id,
-                candid::Principal::anonymous(),
+                ic_platform::Principal::anonymous(),
                 "fixture_state",
                 (),
                 REPLY_LIMITS,
@@ -127,7 +127,7 @@ impl Recipe {
             update_candid_args::<((),), _>(
                 pic,
                 *id,
-                candid::Principal::anonymous(),
+                ic_platform::Principal::anonymous(),
                 "fixture_mutate_state",
                 (),
                 REPLY_LIMITS,

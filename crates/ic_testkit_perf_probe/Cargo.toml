@@ -12,4 +12,5 @@ crate-type = ["cdylib"]
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 candid = { workspace = true }
 ic-cdk = { workspace = true }
+ic-platform = { workspace = true, features = ["ic0"] }
 ic-testkit = { workspace = true }

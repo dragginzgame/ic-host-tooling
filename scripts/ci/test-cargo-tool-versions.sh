@@ -40,21 +40,19 @@ cp "$ROOT/scripts/ci/StableVersion.pm" "$fixture/snapshot/scripts/ci/"
 cp "$ROOT/scripts/ci/tool-catalog-records.pl" "$fixture/snapshot/scripts/ci/"
 cp "$ROOT/scripts/dev/check-cargo-tool-versions.pl" "$fixture/snapshot/scripts/dev/"
 printf 'export SHARED_TOOLING_CARGO_SORT_VERSION=2.1.4\n' > "$fixture/consumer/ci/tool-versions.env"
-printf 'SHARED_TOOLING_CARGO_SORT_DERIVES_VERSION=0.14.1\nSHARED_TOOLING_CANDID_EXTRACTOR_VERSION=0.1.6\n' >> "$fixture/consumer/ci/tool-versions.env"
+printf 'SHARED_TOOLING_CARGO_SORT_DERIVES_VERSION=0.14.1\n' >> "$fixture/consumer/ci/tool-versions.env"
 cp "$fixture/consumer/ci/tool-versions.env" "$fixture/snapshot/ci/tool-versions.env"
 printf 'fixture binary; never execute\n' > "$fixture/bundle/bin/cargo-sort"
 ln -s "$fixture/bundle/bin/cargo-sort" "$fixture/consumer/.tools/rust/common/bin/cargo-sort"
 jq -n '{installs:{"cargo-sort 2.1.4 (registry+https://github.com/rust-lang/crates.io-index)":{}}}' > "$fixture/bundle/.crates2.json"
-for selection in 'cargo-sort-derives 0.14.1' 'candid-extractor 0.1.6'; do
-    read -r tool version <<< "$selection"
-    printf 'fixture binary; never execute\n' > "$fixture/bundle/bin/$tool"
-    ln -s "$fixture/bundle/bin/$tool" "$fixture/consumer/.tools/rust/common/bin/$tool"
-    jq --arg name "$tool $version (registry+https://github.com/rust-lang/crates.io-index)" \
-        '.installs[$name]={}' "$fixture/bundle/.crates2.json" > "$fixture/receipt.next"
-    cp "$fixture/receipt.next" "$fixture/bundle/.crates2.json"
-    jq -n --arg tool "$tool" --arg version "$version" \
-        '{crate:{id:$tool},versions:[{crate:$tool,num:$version,yanked:false}]}' > "$fixture/$tool.json"
-done
+tool=cargo-sort-derives version=0.14.1
+printf 'fixture binary; never execute\n' > "$fixture/bundle/bin/$tool"
+ln -s "$fixture/bundle/bin/$tool" "$fixture/consumer/.tools/rust/common/bin/$tool"
+jq --arg name "$tool $version (registry+https://github.com/rust-lang/crates.io-index)" \
+    '.installs[$name]={}' "$fixture/bundle/.crates2.json" > "$fixture/receipt.next"
+cp "$fixture/receipt.next" "$fixture/bundle/.crates2.json"
+jq -n --arg tool "$tool" --arg version "$version" \
+    '{crate:{id:$tool},versions:[{crate:$tool,num:$version,yanked:false}]}' > "$fixture/$tool.json"
 cp "$fixture/bundle/.crates2.json" "$fixture/home/.crates2.json"
 jq '.installs["twiggy 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)"]={}' "$fixture/home/.crates2.json" > "$fixture/global-receipt"
 cp "$fixture/global-receipt" "$fixture/home/.crates2.json"

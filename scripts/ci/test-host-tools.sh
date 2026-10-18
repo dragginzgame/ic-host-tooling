@@ -168,7 +168,7 @@ original="$(readlink "$consumer/.tools/host")"
 snapshot="$fixture/snapshot"
 mkdir -p "$snapshot/scripts/dev" "$snapshot/scripts/ci" "$snapshot/ci" "$consumer/ci"
 cp "$ROOT/scripts/dev/"{install-host-tools.sh,tool-store.sh,host-platform.sh} "$snapshot/scripts/dev/"
-cp "$ROOT/scripts/ci/"{verify-file-checksum.sh,tool-catalog-records.pl} "$snapshot/scripts/ci/"
+cp "$ROOT/scripts/ci/"{verify-file-checksum.sh,tool-catalog-records.pl,StableVersion.pm} "$snapshot/scripts/ci/"
 cp "$pins" "$snapshot/ci/tool-versions.env"
 printf 'exit 99\n' > "$consumer/ci/tool-versions.env"
 bash "$snapshot/scripts/dev/install-host-tools.sh" --consumer "$consumer" --check

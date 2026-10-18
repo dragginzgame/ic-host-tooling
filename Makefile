@@ -15,6 +15,8 @@ SERVER_CLI := $(REPO_ROOT)target/debug/ic-testkit-server
 override SHARED_TOOLING_ROOT := $(REPO_ROOT)
 LOCAL_TOOL_INSTALL_TARGETS := install-server
 LOCAL_TOOL_CHECK_TARGETS := server-check
+FORMAT_WRITE_COMMAND = bash -ec '"$$1" sort --workspace --grouped; "$$1" fmt --all' -- "$(FORMAT_CARGO)"
+FORMAT_CHECK_COMMAND = bash -ec '"$$1" sort --workspace --grouped --check; "$$1" fmt --all -- --check' -- "$(FORMAT_CARGO)"
 include $(REPO_ROOT)make/consumer.mk
 
 .PHONY: dependency-pins-check
@@ -38,8 +40,8 @@ CI_TARGETS := shared-tooling-check tools-check format-tools-check dependency-pin
 
 RELEASE_CHECK_TARGETS := $(CI_TARGETS) msrv
 VALIDATION_INPUTS := Makefile Cargo.toml Cargo.lock rust-toolchain.toml \
-	crates/ic-testkit/Cargo.toml crates/ic-testkit-candid/Cargo.toml crates/ic-testkit-dev/Cargo.toml crates/ic_testkit_perf_probe/Cargo.toml \
-	ci/tool-versions.env ci/ic-tools.tsv .shared-tooling.snapshot
+	crates/ic-testkit/Cargo.toml crates/ic-testkit-dev/Cargo.toml crates/ic_testkit_perf_probe/Cargo.toml \
+	ci/tool-versions.env ci/ic-tools.tsv ci/cargo-dependency-boundaries.json .shared-tooling.snapshot
 
 help:
 	@echo "Available commands:"
@@ -88,7 +90,6 @@ tags:
 	@git tag --sort=-version:refname | head -10
 
 test: build-server-cli
-	+cargo test -p ic-testkit-candid --locked
 	+@server="$$("$(SERVER_CLI)" check)" || exit $$?; \
 		POCKET_IC_BIN="$$server" cargo test -p ic-testkit --locked && \
 		POCKET_IC_BIN="$$server" cargo test -p ic-testkit-dev --locked && \
@@ -103,6 +104,7 @@ test-canisters: build-server-cli
 
 dependency-pins-check:
 	bash scripts/ci/check-dependency-pins.sh --cargo-inheritance
+	bash scripts/ci/check-cargo-dependency-boundaries.sh --consumer "$(REPO_ROOT)"
 
 install-hooks: format-tools-check
 
@@ -110,22 +112,22 @@ git-hooks-check: format-tools-check
 	bash scripts/ci/check-git-hooks.sh
 
 check:
-	+cargo check -p ic-testkit -p ic-testkit-candid -p ic-testkit-dev --locked
+	+cargo check -p ic-testkit -p ic-testkit-dev --locked
 
 check-wasm:
-	+cargo check -p ic-testkit -p ic-testkit-candid --locked --target wasm32-unknown-unknown
+	+cargo check -p ic-testkit --locked --target wasm32-unknown-unknown
 
 clippy:
-	+cargo clippy -p ic-testkit -p ic-testkit-candid -p ic-testkit-dev --all-targets --locked -- -D warnings
+	+cargo clippy -p ic-testkit -p ic-testkit-dev --all-targets --locked -- -D warnings
 
 docs-check:
-	+RUSTDOCFLAGS="-D warnings" cargo doc -p ic-testkit -p ic-testkit-candid -p ic-testkit-dev --locked --no-deps
+	+RUSTDOCFLAGS="-D warnings" cargo doc -p ic-testkit -p ic-testkit-dev --locked --no-deps
 
 msrv:
 	rustc +$(MSRV) --version
 	cargo +$(MSRV) --version
-	+cargo +$(MSRV) check -p ic-testkit-candid --all-targets --locked
-	+cargo +$(MSRV) check -p ic-testkit-candid --all-targets --locked --target wasm32-unknown-unknown
+	+cargo +$(MSRV) check --all-targets --locked
+	+cargo +$(MSRV) check --all-targets --locked --target wasm32-unknown-unknown
 	+cargo +$(MSRV) check -p ic-testkit --locked
 	+cargo +$(MSRV) check -p ic-testkit-dev --all-targets --locked
 	+cargo +$(MSRV) check -p ic-testkit --lib --target wasm32-unknown-unknown --locked

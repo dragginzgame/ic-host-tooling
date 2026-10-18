@@ -1,10 +1,7 @@
 [workspace]
-members = [
-    "crates/ic-testkit",
-    "crates/ic-testkit-candid",
-    "crates/ic-testkit-dev",
-    "crates/ic_testkit_perf_probe",
-]
+# Production packages: ic-testkit.
+# Tests and tooling packages: ic-testkit-dev and ic_testkit_perf_probe.
+members = ["crates/ic-testkit", "crates/ic-testkit-dev", "crates/ic_testkit_perf_probe"]
 resolver = "2"
 
 [workspace.package]
@@ -21,17 +18,12 @@ categories = ["development-tools::testing", "wasm"]
 readme = "README.md"
 
 [workspace.dependencies]
-candid = { version = "0.10", default-features = false }
-derive_more = { version = "2.1.1", default-features = false, features = ["display", "from"] }
-ic-build = { version = "0.16" }
-ic-cdk = "0.20.2"
-ic-host-artifacts = { version = "0.27.1", features = ["gzip", "wasm"] }
+# Production dependencies
+ic-host-artifacts = "0.27.1"
 ic-host-fs = "0.27.1"
 ic-host-process = "0.27.1"
-ic-host-text = { version = "0.27.1", default-features = false }
-ic-metrics = "0.13"
-ic-testkit = { path = "crates/ic-testkit" }
-ic-testkit-candid = { path = "crates/ic-testkit-candid", version = "0.53" }
+ic-metrics = "0.14"
+ic-platform = { version = "0.1.8", default-features = false }
 libc = "0.2"
 pocket-ic = "16.1"
 serde = { version = "1.0", default-features = false }
@@ -39,6 +31,14 @@ serde_json = "1.0"
 tempfile = "3"
 thiserror = "2.0"
 tokio = { version = "1", features = ["net", "rt", "time"] }
+
+# Tests and tooling only
+candid = { version = "0.10", default-features = false }
+derive_more = { version = "2.1.1", default-features = false, features = ["display", "from"] }
+ic-build = { version = "0.17" }
+ic-cdk = "0.20.2"
+ic-host-text = { version = "0.27.1", default-features = false }
+ic-testkit = { path = "crates/ic-testkit" }
 
 [workspace.lints.clippy]
 all = { level = "warn", priority = -1 }

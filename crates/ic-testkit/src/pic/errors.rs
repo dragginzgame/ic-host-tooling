@@ -1,4 +1,4 @@
-use candid::Principal;
+use ic_platform::Principal;
 use pocket_ic::{PocketIc, RejectResponse};
 
 use super::{PocketIcInstance, PocketIcOperationError};
@@ -23,7 +23,7 @@ pub enum CandidCallError {
         /// Number of reply bytes presented to the decoder.
         bytes: usize,
         /// Original bounded decoder failure.
-        source: Box<ic_testkit_candid::DecodeError>,
+        source: Box<ic_platform::candid::DecodeError>,
     },
     /// PocketIC returned a structured canister rejection.
     CanisterReject {
@@ -242,7 +242,7 @@ impl std::error::Error for StandaloneCanisterInstallError {
 
 #[cfg(test)]
 mod tests {
-    use candid::Principal;
+    use ic_platform::Principal;
 
     use super::CanisterInstallError;
 
