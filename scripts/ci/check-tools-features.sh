@@ -55,6 +55,12 @@ check_graph tools ic-host-tools default '' 'ic-platform candid_parser candid' \
     '^(ic-host-(artifacts|fs|process|text)|wasmparser|ciborium|ic-certification|ic-agent|reqwest|url) '
 check_graph tools-no-defaults ic-host-tools none '' 'ic-platform candid_parser candid' \
     '^(ic-host-(artifacts|fs|process|text)|wasmparser|ciborium|ic-certification|ic-agent|reqwest|url) '
+check_graph encoding ic-host-tools none encoding 'ic-platform candid_parser candid' \
+    '^(ic-host-(artifacts|fs|process|text)|wasmparser|ciborium|ic-certification|ic-agent|reqwest|serde_yaml_ng) '
+check_graph icp-project ic-host-tools none icp-project 'ic-platform candid_parser serde_yaml_ng' \
+    '^(ic-host-(artifacts|fs|process|text)|wasmparser|ciborium|ic-certification|ic-agent|reqwest) '
+check_graph ledger-evidence ic-host-tools none ledger-evidence 'ic-platform icrc-ledger-types candid_parser' \
+    '^(ic-host-(artifacts|fs|process|text)|wasmparser|ciborium|ic-agent|reqwest|ic-stable-structures|serde_yaml_ng) '
 check_graph ic-interface ic-host-tools none ic-interface \
     'ic-platform ic-host-artifacts candid_parser wasmparser' '^ic-host-(fs|process|text) '
 check_graph inspection ic-host-wasm-inspect default '' 'ic-host-artifacts ic-host-fs' \

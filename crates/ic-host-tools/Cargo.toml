@@ -14,7 +14,10 @@ publish = ["crates-io"]
 default = []
 agent = ["ic-platform/agent", "dep:url"]
 certificate = ["dep:ciborium", "ic-platform/certification"]
+encoding = []
 ic-interface = ["dep:ic-host-artifacts", "ic-host-artifacts/wasm"]
+icp-project = ["dep:serde_yaml_ng", "serde/derive"]
+ledger-evidence = ["ic-platform/icrc-ledger-types", "serde/derive"]
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
 url = { workspace = true, optional = true }
@@ -25,6 +28,7 @@ ic-host-artifacts = { workspace = true, optional = true }
 ic-platform = { workspace = true, features = ["candid", "candid-parser"] }
 serde.workspace = true
 serde_json.workspace = true
+serde_yaml_ng = { workspace = true, optional = true }
 thiserror.workspace = true
 
 [dev-dependencies]
@@ -32,6 +36,8 @@ ic-host-artifacts.workspace = true
 ic-host-fs = { workspace = true, features = ["test-support"] }
 ic-host-process = { workspace = true, features = ["test-support"] }
 tokio = { workspace = true, features = ["rt", "macros"] }
+
+leb128.workspace = true
 
 [lints]
 workspace = true

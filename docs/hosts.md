@@ -30,6 +30,12 @@ decoding. `make test PACKAGE=ic-host-text` checks bounded line normalization,
 escaping, progress frames and Unicode table alignment.
 `make test-tools-agent` exercises native construction, exact binding and response
 ceilings. Its Wasm graph check observes dependency exclusion, not Tools execution.
+
+The optional `icp-project` feature qualifies bounded effective-YAML projection;
+default and certificate profiles exclude its YAML parser.
+
+`make test-tools-encoding` checks canonical unsigned LEB128 admission. The decoder
+adds no dependencies; Tools retains its normal Platform/parser dependency.
 `make tools-features-check` verifies the normal parser dependency, including with
 default features disabled, and the remaining optional owner boundaries. Native
 CI includes these profiles. Tools selects Platform's native Candid parser unconditionally;

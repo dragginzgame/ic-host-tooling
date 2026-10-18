@@ -155,6 +155,10 @@ no longer owns an `ic-limits` profile or a reference-policy CLI example.
   `i64::MAX`. Callers retain clocks, freshness and collection-time interpretation.
   Its `decimal` module owns exact two-place rounding/rendering with explicit
   scaling; consumers retain normalization, units, sentinels and raw report fields.
+  Its `duration` module owns positive whole-second parsing, rounded single-unit
+  display and truncating two-unit display. Clock selection, deadlines, freshness,
+  persisted units and output remain caller-owned. Source and six tests are retained
+  from Host PR #162 at `58e03fbb0b2c2e13816a1c34fb7da6965d68942e`.
   Progress callers retain terminal detection, wrapping limits, output, flushing,
   failure policy and cleanup timing; the helper never selects a sink or writes.
   Escaping borrows unchanged input through `Cow<str>` and owns changed text;
@@ -200,6 +204,11 @@ The caller retains endpoint admission, trust roots, identity, historical policy,
 deadlines and every network call. Defaults/certificate exclude transport, and
 the Wasm graph excludes it even with the feature selected. Process and Tokio
 are dev-only fixtures; no lifecycle owner or automatic network activity is added.
+
+The optional tools `encoding` feature decodes a complete canonical unsigned
+`u64` LEB128 value without allocation or new dependencies. It rejects truncated,
+overflowing, nonminimal and trailing encodings while inspecting at most ten bytes.
+Callers retain field names, semantic limits, transport and trust policy.
 
 The optional tools `certificate` feature owns strict CBOR decoding into owned
 certificate/delegation/hash-tree values supplied by `ic_platform::certification`.
@@ -442,9 +451,12 @@ TERM, group KILL, direct-child fallback and reap errors remain separate from the
 original execution failure. See the [0.8 contract](changelog/0.8.md).
 
 The sole-zombie macOS check uses one private fixed-buffer libproc call, explicitly
-approved by the maintainer. Unsafe code remains denied outside that function.
-All other process syscalls use safe rustix APIs; the existing selected libc
-version becomes a macOS-only direct dependency, without a bindgen toolchain.
+approved by the maintainer. Explicit Unix `signal::SignalActions` additionally
+permits scoped FFI for caller-selected action installation, rollback and
+restoration. Its unsafe entrypoint requires async-signal-safe callbacks and
+exclusive process-global registration custody; cancellation and shutdown policy
+remain consumer-owned. Unsafe code stays denied elsewhere. Other process
+syscalls use safe rustix APIs; libc is Unix-scoped without a bindgen toolchain.
 
 `AdmittedTool::admit_version` shares the exact admission engine for tools whose
 installation the caller already trusts. It takes a `VersionSpec` and a mandatory
@@ -546,6 +558,13 @@ Optional expected-digest verification and export/custom-section details are also
 owned by this CLI; the duplicate filesystem `inspect_artifact` example is retired.
 Default TSV output remains stable, and the filesystem development profile no
 longer selects the Wasm parser for that example.
+
+The optional `icp-project` tools profile parses bounded effective YAML produced by
+`icp project show` and projects exact environment/network facts. It adds only
+the optional Serde YAML parser; the default tools graph excludes that parser. ICP
+owns implicit-environment and recipe resolution. Callers retain command execution,
+input budgets, selected identities, local funding and lifecycle. This module does
+not reconstruct effective configuration from raw manifests.
 
 The opt-in `ic-host-process::testing::http` module owns bounded synthetic request
 reading, including phased request-line admission and remaining-deadline socket
