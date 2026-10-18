@@ -234,9 +234,7 @@ fn destination_is_reusable(destination: &Path, expected_bytes: u64) -> bool {
         let Ok(metadata) = fs::symlink_metadata(destination) else {
             return false;
         };
-        // SAFETY: geteuid takes no pointers and has no failure case.
-        #[expect(unsafe_code, reason = "geteuid has no pointers and no failure case")]
-        let effective_uid = unsafe { libc::geteuid() };
+        let effective_uid = rustix::process::geteuid().as_raw();
         // Detach links and normalize foreign-owned, restricted or executable
         // files, even when their bytes match a retained artifact.
         if !metadata.file_type().is_file()

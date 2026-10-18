@@ -653,20 +653,12 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn cache_lock_admission_preserves_bytes_and_returns_an_unlocked_close_on_exec_file() {
-        use std::os::fd::AsRawFd as _;
-
         let root = unique_temp_directory("cache-lock-admission");
         let path = root.join("nested/lock");
         let file = super::open_cache_lock_file(&path).unwrap();
         assert!(super::try_lock_cache_file(&path).unwrap().is_some());
-        // SAFETY: inspect descriptor flags on the live file without changing them.
-        #[expect(
-            unsafe_code,
-            reason = "inspect flags of a live descriptor without changing them"
-        )]
-        let flags = unsafe { libc::fcntl(file.as_raw_fd(), libc::F_GETFD) };
-        assert!(flags >= 0);
-        assert_ne!(flags & libc::FD_CLOEXEC, 0);
+        let flags = rustix::io::fcntl_getfd(&file).unwrap();
+        assert!(flags.contains(rustix::io::FdFlags::CLOEXEC));
         drop(file);
         fs::write(&path, b"retained lock bytes").unwrap();
         drop(super::lock_cache_file(&path).unwrap());

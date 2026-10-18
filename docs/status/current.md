@@ -1,5 +1,73 @@
 # Current handoff
 
+## Artifact dependency feature cleanup — pending 0.17.5
+
+Build stops enabling Host Artifacts' unused `wasm` parser feature. Its source,
+tests and examples use the base byte/artifact APIs; structural inspection remains
+a consumer-selected Host capability. The usage guide now requires inspecting
+consumers to enable that feature explicitly. Cargo/Wasm production and caching
+retain their behavior, and no public API changes.
+
+The refreshed lockfile removes only wasmparser and leb128; every retained package
+version, source and checksum is unchanged. Host Artifacts resolves with no enabled
+features. Linux Rust 1.91 all-target/all-feature checking, seventeen Cargo/Wasm
+integration cases, three Host artifact integration cases, strict development
+Clippy, formatting, pins, direct boundaries and documentation links pass.
+Full release CI, native macOS and installed-IC qualification remain unrun.
+Incoming Rustix/probe work is preserved; evidence and before-images are under
+`/tmp/ic-build-wasm-feature-OEpr0h/`.
+
+## Unix dependency consolidation — pending 0.17.5
+
+Starting from the pending input-probe cleanup below, Build replaces its remaining
+direct libc calls with Rustix effective-UID, descriptor-flag and signal APIs.
+The Unix Rustix dependency explicitly enables `process`; direct libc declarations
+and the root package's lockfile edge are removed. Selected package versions and
+transitive libc remain unchanged. Existing owner admission, close-on-exec and
+exact TERM/KILL assertions retain their behavior; no public API changes.
+
+Linux Rust 1.91 all-target/all-feature checking and six focused output-reuse,
+descriptor and process-failure/cancellation cases pass. Strict development Clippy,
+formatting, dependency pins and direct boundaries pass. Native macOS and the full
+release gate remain unrun. Before-images and logs are retained under
+`/tmp/ic-build-rustix-NzKGeG/`; incoming probe changes remain separate.
+
+## Input-probe process ownership cleanup — pending 0.17.5
+
+Starting source is released `c0f23c3` (0.17.4), with a clean working tree and
+Host 0.27.4 selected. This pass reviews implementation, public entry points,
+manifests, test fixtures, examples, release/CI adapters and current documentation.
+Available Host, Query, Canic, Testkit, IcyDB, Jobs and Wire checkouts are read-only
+evidence; no sibling integration or native qualification is claimed.
+
+Build's bounded input probes still implemented cancellation/deadline refusal,
+process-group spawn and capture setup after their canonical owner became
+available in published Host Process 0.27.3. Build now calls Host's cancellable
+group capture directly and requires at least that release. Cargo.lock remains
+unchanged at 0.27.4. Build retains phase selection, complete-output bounds and
+typed error mapping; the caller retains the absolute deadline, cancellation
+predicate and cleanup policy. There is no default compilation deadline or public
+API change. Query's governance-smoke `resolve_probe_inputs` is a verified caller;
+its existing policy requires no migration.
+
+Input traversal and semantic hashing retain different admission/framing contracts
+from Host's byte hashing and package traversal. Invocation staging and retained
+cache transactions retain distinct lifetimes, while native and Wasm protocol
+refusal intentionally use different cleanup/draining policies. Public batch-label
+errors are supported contracts; replacing their identity is a separate breaking
+decision, not required for this cleanup. Historical cache namespaces and tracked
+cache metadata are preserved, with package exclusion and ignore rules retained.
+Shared payload copies remain pinned dependencies, and local release adapters
+already delegate mechanics to Shared Tooling. Unpublished sibling APIs are not
+used as replacements.
+
+Linux Rust 1.91 passes six focused probe cases, all seventeen Cargo/Wasm integration
+cases and all-target/all-feature package checking. Strict development Clippy and
+the dependency pin, direct-boundary, Shared snapshot and documentation-link
+checks pass. Before-images and focused logs are under
+`/tmp/ic-build-probe-owner-20261018/`. Full release CI, native macOS and installed
+IC qualification remain separate; sibling checkouts were not built or changed.
+
 ## Published-engine consumer delivery — 2026-10-18
 
 The live sparse index confirms non-yanked Build 0.17.3, Rust 1.91. Wire's isolated

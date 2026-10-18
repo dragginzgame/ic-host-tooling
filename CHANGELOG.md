@@ -3,6 +3,20 @@
 The 0.1.0 section preserves the original bootstrap notes. The published 0.1.0
 archive also includes the extracted artifact engine and Cargo grouping API.
 
+## [0.17.5]
+
+- Stop enabling Host Artifacts' unused `wasm` feature, removing wasmparser and
+  leb128 from this engine's dependency graph. Consumers performing structural
+  inspection select Host's `wasm` feature explicitly; Cargo/Wasm builds are unchanged.
+- Consolidate Unix user identity, descriptor flags and signal constants onto
+  Rustix, removing IC Build's direct libc dependency and local unsafe calls.
+  Effective-owner admission and exact process-signal checks remain unchanged;
+  libc remains in the upstream dependency graph.
+- Delegate cancellable Cargo input probes to Host Process 0.27.3, retiring local
+  spawn/deadline/capture orchestration. Preserve caller-selected cleanup, absolute
+  probe deadlines, bounded evidence and Build's phase/error mapping; ordinary
+  builds still have no default elapsed-time deadline.
+
 ## [0.17.4] - 2026-10-18
 
 - Delegate retained descriptor locks, logical cache sizing and cache-directory

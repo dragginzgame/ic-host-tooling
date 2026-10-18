@@ -2447,6 +2447,39 @@ fn controlled_probes_keep_complete_output_bounds_and_spawn_causes() {
     assert!(
         matches!(super::capture_probe_output_with_policy(&mut missing, phase, super::TOOL_IDENTITY_BYTES, &mut Some(&mut policy)), Err(WasmBuildError::CommandSpawn { source, .. }) if source.kind() == io::ErrorKind::NotFound)
     );
+    for cancelled in [true, false] {
+        let marker = root.join("unexpected-start");
+        let mut command = Command::new("/bin/sh");
+        command
+            .args(["-c", "printf started > \"$1\"", "probe"])
+            .arg(&marker);
+        let mut cancellation = || cancelled;
+        let mut policy = CargoInputProbePolicy {
+            deadline: Some(std::time::Instant::now()),
+            cleanup: CleanupPolicy::KillAndWait,
+            cancelled: &mut cancellation,
+        };
+        let error = super::capture_probe_output_with_policy(
+            &mut command,
+            phase,
+            super::TOOL_IDENTITY_BYTES,
+            &mut Some(&mut policy),
+        )
+        .unwrap_err();
+        let WasmBuildError::Io { source, .. } = error else {
+            panic!("expected Host pre-spawn refusal")
+        };
+        let host = source
+            .get_ref()
+            .unwrap()
+            .downcast_ref::<ToolError>()
+            .unwrap();
+        assert!(matches!(
+            (&host.execution_error().unwrap().failure, cancelled),
+            (ExecutionFailure::Cancelled, true) | (ExecutionFailure::TimedOut, false)
+        ));
+        assert!(!marker.exists(), "refused probe must not execute");
+    }
     fs::remove_dir_all(root).unwrap();
 }
 
