@@ -3,7 +3,7 @@
 The 0.1.0 section preserves the original bootstrap notes. The published 0.1.0
 archive also includes the extracted artifact engine and Cargo grouping API.
 
-## [0.17.5]
+## [0.17.5] - 2026-10-18
 
 - Stop enabling Host Artifacts' unused `wasm` feature, removing wasmparser and
   leb128 from this engine's dependency graph. Consumers performing structural
