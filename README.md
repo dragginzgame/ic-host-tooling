@@ -70,7 +70,7 @@ measurements without imposing a shared application optimization profile.
 
 ## Development
 
-Shared Tooling 0.23.0 is pinned in
+Shared Tooling 0.24.0 is pinned in
 [.shared-tooling.snapshot](.shared-tooling.snapshot); commands use this reviewed
 local snapshot. The [Make interface](docs/make-interface.md) owns common setup,
 formatting, hook installation and release entrypoints.
@@ -133,6 +133,7 @@ use the prepared compiler even outside this repository's toolchain selection.
 | `make install-validation-tools` | Prepare pinned Linux x86-64 ShellCheck, actionlint and Gitleaks. |
 | `make lint check-secrets` | Check shell/workflow sources and scan committed history for secrets. |
 | `make check-release-adapters` | Test release metadata, recovery and publication routing in isolated fixtures. |
+| `make check-boundary` | Enforce the direct Candid/CDK dependency ownership policy. |
 | `make release-patch` / `make release-minor` / `make release-major` | Validate and deliver the selected release through Shared Tooling. |
 | `make publish-check` / `make publish` | Dry-run / upload the clean, tagged release to crates.io. |
 
@@ -147,6 +148,29 @@ local candidate checks.
 Keep Cargo.lock tracked: the full shared pin checker enforces lockfile custody
 as well as root/member dependency inheritance. Each dependency graph is checked
 with its selected lockfile; validation never changes package versions.
+
+The catalog labels production dependencies and test/tooling-only uses under
+[Shared Tooling's role rules](rules/cargo-dependencies.md#dependency-roles-and-deployment-checks).
+`ic-build` is the sole production package; every root dependency is used by its
+normal or Unix-specific normal code. Development edges add Host `test-support`
+features. Global `cargo sort --workspace` ordering applies in formatting hooks,
+CI and release metadata checks, including checks of selected committed source.
+The pin checker enforces selections and inheritance, not transitive role exclusions.
+This repository publishes a host library and has no deployable canister or
+deployment admission gate. Deployment consumers must check their own target/feature
+graphs and exclude Build and other host/test tooling from canister artifacts.
+
+IC Platform is the boundary for any Candid/CDK library capability. The published
+0.1.3 archive is the reviewed baseline; Build currently uses none of its APIs and
+adds no unused platform dependency. `artifacts::candid` runs a caller-admitted
+extractor and retains opaque output; it does not parse or decode Candid or run a
+CDK executor. Application protocols stay with IC Wire. `make check-boundary`,
+also in CI/release validation, uses the shared checker and
+[local policy](ci/cargo-dependency-boundaries.json) to reject named direct
+Candid/parser/CDK dependencies, including aliases and normal/build/dev/target
+declarations regardless of feature activation. The checker covers this workspace,
+not transitive reachability, future unlisted family names or deployed Wasm bytes.
+Inspect resolved graphs separately when dependencies or supported targets change.
 
 `make cloc` reports workspace Rust LOC. The transferred tests execute real
 filesystem and process boundaries, Cargo metadata and Wasm compilation, alongside

@@ -184,6 +184,15 @@ make --no-print-directory release-prepare-version > "$fixture/prepare.log" 2>&1
 make --no-print-directory release-prepared-check > "$fixture/prepared.log" 2>&1
 # Lost preparation replies are idempotent at the saved candidate.
 make --no-print-directory release-prepare-version > "$fixture/reprepare.log" 2>&1
+cp Cargo.toml "$fixture/sorted-Cargo.toml"
+perl -0pi -e 's/^(cargo_metadata =[^\n]*\n)(ic-host-artifacts =[^\n]*\n)/$2$1/m' Cargo.toml
+if cmp -s Cargo.toml "$fixture/sorted-Cargo.toml"; then exit 1; fi
+cp Cargo.toml "$fixture/unsorted-Cargo.toml"
+expect_failure make --no-print-directory fmt-check
+expect_failure make --no-print-directory release-prepared-check
+expect_failure make --no-print-directory release-prepare-version
+cmp Cargo.toml "$fixture/unsorted-Cargo.toml"
+cp "$fixture/sorted-Cargo.toml" Cargo.toml
 "$YQ" -p toml -o json '.' "$fixture/before-Cargo.lock" | jq '[.package[] | select(.source != null)]' > "$fixture/external-before"
 "$YQ" -p toml -o json '.' Cargo.lock | jq '[.package[] | select(.source != null)]' > "$fixture/external-after"
 cmp "$fixture/external-before" "$fixture/external-after"
@@ -191,11 +200,25 @@ make --no-print-directory -s release-files > "$fixture/release-files"
 printf '%s\0' Cargo.toml Cargo.lock CHANGELOG.md > "$fixture/expected-files"
 cmp "$fixture/release-files" "$fixture/expected-files"
 git add -- Cargo.toml Cargo.lock CHANGELOG.md
+perl -0pi -e 's/^(cargo_metadata =[^\n]*\n)(ic-host-artifacts =[^\n]*\n)/$2$1/m' Cargo.toml
+git add -- Cargo.toml
+expect_failure make --no-print-directory release-commit-check
+cp "$fixture/sorted-Cargo.toml" Cargo.toml
+git add -- Cargo.toml
 make --no-print-directory release-commit-check > "$fixture/commit-check.log" 2>&1
 git commit --quiet -m "Release $RELEASE_VERSION"
 export RELEASE_COMMIT
 RELEASE_COMMIT="$(git rev-parse HEAD)"
 make --no-print-directory release-committed-check > "$fixture/committed.log" 2>&1
+# Committed checks inspect the selected export, not the current manifest.
+perl -0pi -e 's/^(cargo_metadata =[^\n]*\n)(ic-host-artifacts =[^\n]*\n)/$2$1/m' Cargo.toml
+make --no-print-directory release-committed-check > "$fixture/committed-dirty-manifest.log" 2>&1
+git add -- Cargo.toml
+unsorted_commit="$(printf 'Unsorted fixture manifest\n' | git commit-tree "$(git write-tree)" -p HEAD)"
+cp "$fixture/sorted-Cargo.toml" Cargo.toml
+git add -- Cargo.toml
+expect_failure env RELEASE_COMMIT="$unsorted_commit" make --no-print-directory release-committed-check
+make --no-print-directory release-committed-check > "$fixture/committed-restored.log" 2>&1
 mkdir -p target
 printf 'retained release artifact\n' > target/retained-artifact
 expect_failure make --no-print-directory publish

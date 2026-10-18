@@ -29,6 +29,10 @@ release commit and annotated version tag, and atomically pushes the selected
 branch and tag. Normal release targets reconcile retained release intent;
 `make release-resume VERSION=X.Y.Z` selects only that saved release. Recovery
 checks use `RELEASE_COMMIT`, including when newer committed source exists.
+Metadata checks apply the same global manifest ordering as `make fmt-check`,
+including staged preparation, lost-reply recovery and the selected commit export.
+Role annotations document dependency use; these checks do not enforce transitive
+deployment exclusions or admit downstream canister artifacts.
 An interrupted partial metadata write that cannot pass the prepared check needs
 inspection of the retained backup; do not discard the release plan or artifacts.
 

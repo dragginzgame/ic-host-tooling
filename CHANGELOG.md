@@ -3,6 +3,17 @@
 The 0.1.0 section preserves the original bootstrap notes. The published 0.1.0
 archive also includes the extracted artifact engine and Cargo grouping API.
 
+## [0.17.1]
+
+- Adopt the shared Candid/CDK dependency-boundary check in CI/release validation.
+  Review published IC Platform 0.1.3; Build's opaque extractor orchestration needs
+  no platform library dependency. Preserve extraction limits, errors and evidence.
+
+- Adopt Shared Tooling 0.24.0 and annotate production versus test/tooling roles.
+  Keep global manifest sorting and enforce it in current and committed release
+  checks. Common setup prepares the two formatters; extraction tools stay explicit.
+  Dependency selections and the published library contract are unchanged.
+
 ## [0.17.0] - 2026-10-18
 
 - Keep the synthetic compiler-invalidation fixture independent of the validation

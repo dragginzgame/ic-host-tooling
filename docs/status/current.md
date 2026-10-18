@@ -1,5 +1,83 @@
 # Current handoff
 
+## Platform boundary audit — pending 0.17.1
+
+The live crates.io sparse index selects non-yanked IC Platform 0.1.3, published
+2026-10-18T08:04:25Z. The downloaded archive's SHA-256 matches the registry checksum
+`d68e00f23aa3f397b26ccecc706b27e1d3468dece25f16c26a5aedbc79523ec2`;
+its VCS record is `b22481d6884cf57d3960ef869b9280d8d471d94c`.
+The crates.io API refused this environment with 403; live sparse-index and archive
+receipts establish publication independently of sibling source or cached 0.1.2.
+The published manifest/source/README and that exact commit's migration guidance
+were inspected: empty default features, unconditional Principal, optional bounded
+Candid, certification and Candid-free executor surfaces. No full CDK call/macros
+or host parser surface is supplied by this release.
+
+Both actual manifests, every normal/build/dev/target edge and alias, enabled
+features, public types, Rust sources, examples, fixture generators and independent
+workspace inventory were inspected. Only the root and ic-build manifests exist
+outside tools/build output. There are no direct or transitive Candid/CDK packages
+in the all-target/all-feature graph, including development dependencies. The
+native extraction adapter uses admitted subprocesses and opaque bytes, not a
+Candid codec, parser, DTO or executor. No source replacement, dependency addition
+or obsolete adapter deletion is justified; wire/error/limit/lifecycle contracts
+and application protocols remain untouched. No unused Platform dependency is added.
+
+The committed Shared Tooling 0.24 exporter adds its direct-boundary checker as
+the 110th payload without adopting the sibling's unrelated dirty work. Its local
+policy bans the listed Candid/parser/CDK package names across member declarations;
+`make check-boundary` runs directly and in CI/release validation. It handles
+aliases, inactive optional declarations and dev/build/target edges. This is an
+exact-name direct guard, not a transitive, future-family-name or deployed-Wasm
+admission rule. Future independent workspaces need their own invocation. Build
+is a host library; canister consumers own deployment graph/artifact admission.
+
+Actual Rust 1.91 passes library checking, all eight extraction-process controls
+and all seventeen real Cargo/Wasm integration cases. The extractor fixtures are
+synthetic tools, not an installed extractor qualification. Snapshot integrity,
+boundary/pin checks, formatting and shared release routing pass. No Platform
+API blocker applies to this repository, so no upstream issue is filed. Full
+release gates, native macOS and installed-IC qualification remain separate.
+Local release-adapter fixtures and ShellCheck also pass. The standard execution
+guard refuses CI dry-run inspection; no full CI run or substitute success is claimed.
+Dependency manifests, Cargo.lock, the real index and the earlier Shared adoption
+are preserved. Evidence: `/tmp/ic-build-platform-adoption-20261018/`.
+
+## Shared Tooling 0.24 and dependency roles — pending 0.17.1
+
+The canonical exporter refreshes the existing selection plus the formatting-hook
+qualifier to Shared Tooling 0.24.0 `cab12cd3dfa4fdb34846b25397f0d72881bb9ae0`.
+Its 109 recorded payloads include the release fixture-preparation companion closure.
+Common setup/checks select cargo-sort and cargo-sort-derives, preserving retained
+extractor installations; Build's Candid API still receives caller-selected tools.
+
+The sole production package is `ic-build`. All eleven root catalog entries serve
+normal or Unix-specific normal dependencies. Test/tooling-only member edges enable
+Host fixture features on shared production entries; no separate test-only package
+or catalog entry exists. Inline role labels retain global manifest ordering.
+Current, commit-preparation and selected-commit release checks now explicitly use
+that same policy. Hook qualification preserves role labels, rejects partial staging
+and formatter failures, and preserves locks and unrelated edits. Local adapter
+fixtures reject unsorted current/staged/selected-source manifests, including lost
+preparation replies, while accepting a sorted selected commit over an unsorted
+working manifest. No live release or real index/ref changes occur.
+
+Locked normal/build graphs for Linux x86-64, macOS Intel and Apple Silicon contain
+no Testkit/PocketIC packages or Host test-support features. Default/all-feature
+graphs agree; Build declares no feature switches. Actual Rust 1.91 production-only
+Linux checking passes. This is graph inspection for macOS, not native compilation.
+The pin checker enforces declarations/inheritance, not comment roles or transitive
+deployment exclusions. This host-library repository has no deployment admission
+gate; canister consumers must enforce their own target/feature exclusions and
+artifact/source binding. Snapshot/format success is not deployment acceptance.
+
+Common setup, tools/format checks, formatting-hook controls, release-routing and
+local release-adapter fixtures pass. The first sandboxed setup could not write
+the shared tool store; explicitly elevated setup succeeds. Root/member metadata
+selections, package version 0.17.0, Cargo.lock and real index remain preserved.
+Evidence and before-images: `/tmp/ic-build-shared024-20261018/`. Full release and
+native macOS gates remain separate; no sibling source is changed.
+
 ## Post-link fixture compiler selection — pending 0.17
 
 The reported host-composition failure reproduces on `aa0ff08` with the validation

@@ -37,6 +37,15 @@ exact artifact selection. `cargo::native` keeps immediate protocol-refusal clean
 the Wasm path instead drains diagnostics after protocol refusal. These distinct
 contracts share decoding, not one imposed failure policy.
 
+IC Platform is the Candid/CDK library dependency boundary. Published 0.1.3 is the
+reviewed adoption baseline; Build currently declares no such dependency or uses
+any platform API. Its native extraction adapter executes an admitted tool and
+retains opaque bounded bytes through Host, so replacing it with a Candid decoder
+would change its contract. Keep its non-UTF-8 output, source-change refusal and
+typed execution/cleanup evidence. The shared direct-dependency guard prevents
+listed Candid/CDK packages from being introduced directly, including by aliases.
+Resolved transitive graphs and downstream deployed artifacts need separate checks.
+
 Build 0.12's Unix `artifacts::candid` moves native extraction
 orchestration out of Host Tools, over Host hashing and admitted execution.
 Host 0.24 removes the former extraction owner without an alias. Tools retains
