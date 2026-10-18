@@ -19,6 +19,7 @@ pub(crate) mod messages;
 pub mod native;
 pub mod observation;
 pub mod packages;
+pub mod release_metadata;
 pub mod selection;
 
 use ic_host_artifacts::batch::validate_labels;
