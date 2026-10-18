@@ -3,7 +3,7 @@
 The 0.1.0 section preserves the original bootstrap notes. The published 0.1.0
 archive also includes the extracted artifact engine and Cargo grouping API.
 
-## [0.17.4]
+## [0.17.4] - 2026-10-18
 
 - Delegate retained descriptor locks, logical cache sizing and cache-directory
   tags to published Host FS 0.27.2 APIs. Preserve record lifetime, pruning policy,
