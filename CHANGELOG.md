@@ -3,7 +3,7 @@
 The 0.1.0 section preserves the original bootstrap notes. The published 0.1.0
 archive also includes the extracted artifact engine and Cargo grouping API.
 
-## [0.17.3]
+## [0.17.3] - 2026-10-18
 
 - Bring retained Wasm evidence/export and compile-diagnostic helpers onto the
   current engine from PRs #59/#67. Evidence uses explicit child custody and binds
