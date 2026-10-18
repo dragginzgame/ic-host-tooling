@@ -40,7 +40,7 @@ wasmparser = { version = "0.261.0", default-features = false, features = ["std",
 
 [workspace.lints.rust]
 missing_docs = "warn"
-# One reviewed macOS process-group query locally permits its native FFI call.
+# Reviewed macOS process queries and scoped Unix signal actions permit local FFI.
 unsafe_code = "deny"
 
 [workspace.lints.clippy]

@@ -17,6 +17,10 @@
   new dependencies. Callers retain field diagnostics, semantic limits and trust.
   [Details](docs/changelog/0.27.md).
 
+- Share explicit Unix signal-action installation and restoration with rollback,
+  leaving signal choice, registration custody and shutdown policy with callers.
+  [Details](docs/changelog/0.27.md).
+
 ## [0.27.6] - 2026-10-18
 
 - Share pure ICP call/status command builders and typed installation-state

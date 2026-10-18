@@ -444,9 +444,12 @@ TERM, group KILL, direct-child fallback and reap errors remain separate from the
 original execution failure. See the [0.8 contract](changelog/0.8.md).
 
 The sole-zombie macOS check uses one private fixed-buffer libproc call, explicitly
-approved by the maintainer. Unsafe code remains denied outside that function.
-All other process syscalls use safe rustix APIs; the existing selected libc
-version becomes a macOS-only direct dependency, without a bindgen toolchain.
+approved by the maintainer. Explicit Unix `signal::SignalActions` additionally
+permits scoped FFI for caller-selected action installation, rollback and
+restoration. Its unsafe entrypoint requires async-signal-safe callbacks and
+exclusive process-global registration custody; cancellation and shutdown policy
+remain consumer-owned. Unsafe code stays denied elsewhere. Other process
+syscalls use safe rustix APIs; libc is Unix-scoped without a bindgen toolchain.
 
 `AdmittedTool::admit_version` shares the exact admission engine for tools whose
 installation the caller already trusts. It takes a `VersionSpec` and a mandatory
