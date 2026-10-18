@@ -10,10 +10,26 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Changed
 
+- Use published Host command execution for cancellable server downloads and
+  benchmark preparation, retaining explicit deadlines, output bounds and cleanup.
+  Cargo commands keep inherited progress output and no elapsed-time ceiling
+  ([#85 — Adopt published Host cancellable capture](https://github.com/dragginzgame/ic-testkit/issues/85)).
+
 - Use bounded IC Wire controls for the private performance probe and its callers,
   preserving fixture resets and trap qualification. Rebuild private benchmark
   artifacts together; public Candid call helpers remain unchanged
   ([#128 — Move the private performance probe to IC Wire](https://github.com/dragginzgame/ic-testkit/issues/128)).
+
+### Added
+
+- Add a private Node fixture-session helper for browser harnesses, with retained
+  logs and bounded graceful/TERM/KILL cleanup. Callers keep readiness contracts,
+  browser assertions and executable admission
+  ([#120 — Own Node browser fixture session lifecycle](https://github.com/dragginzgame/ic-testkit/issues/120)).
+
+- Explicit panic-safe diagnostic reporting accepts a caller-selected writer,
+  preserving exact senders and log limits while keeping secondary reporting
+  failures separate from the original operation failure.
 
 ## [0.54.1] - 2026-10-18
 

@@ -21,7 +21,7 @@ readme = "README.md"
 # Production dependencies
 ic-host-artifacts = "0.27.1"
 ic-host-fs = "0.27.1"
-ic-host-process = "0.27.1"
+ic-host-process = "0.27.6"
 ic-metrics = "0.14"
 ic-platform = { version = "0.1.11", default-features = false }
 libc = "0.2"
