@@ -1,13 +1,130 @@
 # Changelog
 
-## [0.27.2]
+## [0.27.7]
+
+- Share opt-in native response-bounded Agent construction and exact endpoint
+  binding through Platform, leaving endpoint admission and network policy local.
+  [Details](docs/changelog/0.27.md).
+
+- Run the non-Unix compile check with the MSRV toolchain that owns its prepared
+  Wasm target, fixing the CI compiler/target mismatch without changing the
+  development compiler or filesystem support contract.
+  [Details](docs/changelog/0.27.md).
+
+## [0.27.6] - 2026-10-18
+
+- Share pure ICP call/status command builders and typed installation-state
+  projection for Canic and IcyDB, preserving native arguments and caller-owned
+  context, execution, budgets and lifecycle
+  ([#97 — ICP command facts](https://github.com/dragginzgame/ic-host-tooling/issues/97)).
+  [Details](docs/changelog/0.27.md).
+
+## [0.27.5] - 2026-10-18
+
+- Adopt Shared's latest committed Platform dependency-boundary rules and extend
+  Host's direct-dependency guard to the known external IC package families.
+  Preserve the canonical snapshot's version label and record its exact revision.
+  [Details](docs/changelog/0.27.md).
+- Adopt Shared Tooling 0.24.2 and replace both local source-evidence adapters with
+  canonical helpers, preserving release custody and matching grouped formatting
+  across hooks and release checks
+  ([#193 — Canonical source-evidence adoption](https://github.com/dragginzgame/ic-host-tooling/issues/193)).
+  [Details](docs/changelog/0.27.md).
+- Remove unused internal dependency aliases and separate current ownership and
+  qualification from historical migration receipts. Preserve public APIs,
+  dependency graphs and release/publication admission.
+  [Details](docs/changelog/0.27.md).
+- Adopt IC Platform 0.1.11 for the existing Candid/parser and optional certification
+  boundary, preserving the selected features and upstream dependency versions.
+  [Details](docs/changelog/0.27.md).
+- Share bounded stream visitation with caller-owned scratch and fresh directory
+  allocation with explicit permissions and collision budgets
+  ([PR #135 — Build traversal and directory allocation](https://github.com/dragginzgame/ic-host-tooling/pull/135)).
+  [Details](docs/changelog/0.27.md).
+- Align lock-file admission with its Unix-only dependency, allowing non-Unix
+  library compilation with explicit unsupported-operation errors
+  ([#194 — Lock platform guards](https://github.com/dragginzgame/ic-host-tooling/issues/194)).
+  [Details](docs/changelog/0.27.md).
+
+## [0.27.4] - 2026-10-18
+
+- Share ordered empty/duplicate batch-label admission with exact comparisons and
+  typed occurrence positions; callers retain batch execution and failure policy
+  ([PR #184 — Batch label admission](https://github.com/dragginzgame/ic-host-tooling/pull/184)).
+  [Details](docs/changelog/0.27.md).
+- Share exact fixed/compact two-place decimal rendering with explicit scaling
+  and half-up rounding, without floating point or new dependencies
+  ([#138 — Exact decimal text](https://github.com/dragginzgame/ic-host-tooling/issues/138)).
+  [Details](docs/changelog/0.27.md).
+- Share canonical UTC second parsing and formatting, preserving expanded years
+  and strict calendar admission without clocks or new dependencies
+  ([#140 — Canonical UTC text](https://github.com/dragginzgame/ic-host-tooling/issues/140)).
+  [Details](docs/changelog/0.27.md).
+- Share read-only physical-directory validation with private-parent creation,
+  keeping symlink, non-directory and parent-traversal checks in one place
+  ([PR #147 — Share read-only physical directory validation](https://github.com/dragginzgame/ic-host-tooling/pull/147)).
+  [Details](docs/changelog/0.27.md).
+
+## [0.27.3] - 2026-10-18
+
+- Protect caller-selected in-place exports from overwriting protected paths or
+  inodes, preserving existing permissions, unrelated symlinks and typed failures
+  ([#153 — Own non-aliasing in-place export writes](https://github.com/dragginzgame/ic-host-tooling/issues/153)).
+  [Details](docs/changelog/0.27.md).
+- Publish admitted symlink selections with explicit before/after-publication
+  errors, preserving immutable bundles when final synchronization fails
+  ([#121 — Extract retained tool-bundle publication](https://github.com/dragginzgame/ic-host-tooling/issues/121)).
+  [Details](docs/changelog/0.27.md).
+- Share cancellable process-group capture and configured-IO execution through the
+  existing process engine. Callers retain cleanup, optional deadlines and inherited
+  build output; no finite deadline is added
+  ([#95 — Expose cancellable group capture](https://github.com/dragginzgame/ic-host-tooling/issues/95)).
+  [Details](docs/changelog/0.27.md).
+- Keep publication source retrieval independent of Git's default hash format and
+  reject ambiguous saved-source member observations before release setup
+  ([#191 — Keep source-evidence adapters hash-format independent](https://github.com/dragginzgame/ic-host-tooling/issues/191)).
+  [Details](docs/changelog/0.27.md).
+- Delegate release metadata backup, installation, caught-failure restoration and
+  receipt archiving to pinned Shared helpers. Retain Host's rendering, source-bound
+  validation and receipt format. [Details](docs/changelog/0.27.md).
+- Route Candid parsing, reply decoding and certification types through published
+  IC Platform 0.1.4. Preserve service/certificate admission and aggregate reply
+  accounting; decoder diagnostics now use Platform's compact format while
+  retaining typed causes. Enforce the direct-dependency boundary in CI and release
+  graph checks. [Details](docs/changelog/0.27.md).
+
+## [0.27.2] - 2026-10-18
+
+### Changed
+
+- Adopt Shared Tooling 0.24.0 with production-role labels, matching release
+  formatting checks and target-specific normal/build dependency exclusions.
+  Common Cargo setup now selects only the two formatters; source-provenance
+  protections remain intact. [Details](docs/changelog/0.27.md).
+- Use Shared's pinned native-host and pipe-jobserver observers in CI and Make
+  integration checks, retaining Host's platform selection and command routing.
+- Share checksum collection between read-only and ordered-sync traversal,
+  preserving file-before-hash and post-order directory synchronization.
+- Render bordered tables without allocating an all-left alignment vector;
+  escaping, widths, padding and plain-table alignment remain unchanged.
+- Share opened-file metadata admission across regular and no-follow reads and
+  hashes, preserving opening policy and refusal ordering. Released tree-descriptor
+  and stream-copy interfaces remain supported. [Details](docs/changelog/0.27.md).
 
 ### Added
 
-- Add opt-in native `ic_host_tools::agent` builders and exact endpoint/response-
-  ceiling binding using the SDK's `Agent` and `AgentBuilder` directly. Consumers
-  retain endpoint admission, identity, trust roots, certificate-age policy,
-  deadlines and all network calls. Default and certificate graphs exclude Agent.
+- Preserve standard cache-directory tags and durably replace invalid entries,
+  with caller-selected trailing bytes and permissions
+  ([PR #183 — Own cache-directory tag recognition and durable replacement](https://github.com/dragginzgame/ic-host-tooling/pull/183)).
+- Hold a shared descriptor lock with explicit unlock on guard drop, so duplicated
+  descriptors cannot prolong it; independently opened holders remain separate
+  ([PR #174 — Extract scoped shared descriptor lock](https://github.com/dragginzgame/ic-host-tooling/pull/174)).
+- Decode Candid replies with caller-selected byte/work limits and aggregate byte
+  accounting, retaining domain interpretation with consumers
+  ([#188 — Centralize bounded Candid reply decoding](https://github.com/dragginzgame/ic-host-tooling/issues/188)).
+- Observe metadata-only logical directory sizes through Host FS, preserving
+  symlink and sparse-file lengths while consumers retain traversal and cache
+  policy ([PR #173 — Extract logical directory-size observation](https://github.com/dragginzgame/ic-host-tooling/pull/173)).
 
 ## [0.27.1] - 2026-10-17
 

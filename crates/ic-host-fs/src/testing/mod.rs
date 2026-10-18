@@ -1,12 +1,9 @@
 //! Opt-in filesystem fixtures with explicit allocation and panic-retaining cleanup.
 
 use std::{
-    fs, io,
-    path::{Component, Path, PathBuf},
-    sync::atomic::{AtomicU64, Ordering},
+    io,
+    path::{Path, PathBuf},
 };
-
-static SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
 /// A fresh test directory removed on normal Drop and retained during panic.
 ///
@@ -65,42 +62,16 @@ impl Drop for FixtureDirectory {
 /// # Errors
 /// Returns invalid-prefix, parent resolution and directory creation errors.
 pub fn create_fixture_directory(parent: &Path, prefix: &str) -> io::Result<PathBuf> {
-    let mut components = Path::new(prefix).components();
-    if prefix.contains(['\r', '\n'])
-        || !matches!(
-            (components.next(), components.next()),
-            (Some(Component::Normal(name)), None) if name == std::ffi::OsStr::new(prefix)
-        )
-    {
-        return Err(io::Error::new(
-            io::ErrorKind::InvalidInput,
-            "invalid fixture prefix",
-        ));
-    }
+    // Preserve invalid-prefix admission before any parent lookup.
+    crate::directory::validate_options(prefix, 0o700)?;
     let parent = parent.canonicalize()?;
-    let mut builder = fs::DirBuilder::new();
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::DirBuilderExt as _;
-        builder.mode(0o700);
-    }
-    loop {
-        let candidate = parent.join(format!(
-            "{prefix}-{}-{}",
-            std::process::id(),
-            SEQUENCE.fetch_add(1, Ordering::Relaxed),
-        ));
-        match builder.create(&candidate) {
-            Ok(()) => return Ok(candidate),
-            Err(error) if error.kind() == io::ErrorKind::AlreadyExists => {}
-            Err(error) => return Err(error),
-        }
-    }
+    crate::directory::create_unique_directory(&parent, prefix, 0o700, None)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
 
     #[test]
     fn fixture_guard_removes_successful_test_output() {
@@ -190,6 +161,12 @@ mod tests {
             io::ErrorKind::NotFound
         );
         assert_eq!(fs::read_dir(root.path()).unwrap().count(), 0);
+        assert_eq!(
+            create_fixture_directory(&root.path().join("absent"), "../invalid")
+                .unwrap_err()
+                .kind(),
+            io::ErrorKind::InvalidInput
+        );
     }
 
     #[cfg(unix)]

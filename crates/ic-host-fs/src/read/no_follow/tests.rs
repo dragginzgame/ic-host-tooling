@@ -3,7 +3,7 @@ use super::{
     read_optional_file_no_follow,
 };
 use crate::{
-    read::{check_metadata, hash_file, read_file, read_opened_file},
+    read::{admit_file, hash_file, read_file, read_opened_file},
     test_support::fixture,
 };
 use ic_host_artifacts::artifact::{ArtifactError, ArtifactIdentity, Sha256Digest, hash_reader};
@@ -231,7 +231,7 @@ fn streaming_hash_rejects_growth_after_descriptor_metadata_admission() {
     // Coordinate growth between the production opener/metadata boundary and
     // shared stream traversal, without a timing race or a production test hook.
     let file = open_no_follow(&path).unwrap();
-    check_metadata(&file.metadata().unwrap(), 4).unwrap();
+    admit_file(&file, 4).unwrap();
     fs::write(&path, b"12345").unwrap();
     assert!(matches!(
         hash_reader(file, 4),

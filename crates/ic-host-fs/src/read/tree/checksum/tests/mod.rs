@@ -113,13 +113,18 @@ fn held_root_keeps_its_inode_after_path_replacement() {
     fs::write(root.join("a"), b"original").unwrap();
     let expected = checksum_directory(&root, 8).unwrap();
     let directory = open_directory_no_follow(&root).unwrap();
+    let directory_fd = OwnedFd::from(directory.try_clone().unwrap());
     fs::rename(&root, fixture.path().join("retained")).unwrap();
     fs::create_dir(&root).unwrap();
     fs::write(root.join("a"), b"changed").unwrap();
-    assert_eq!(
-        checksum_directory_at(&directory.into(), &root, 8).unwrap(),
-        expected
-    );
+    // Reuse the held root after its pathname changes; the caller retains ownership.
+    for _ in 0..2 {
+        assert_eq!(
+            checksum_directory_at(&directory_fd, &root, 8).unwrap(),
+            expected
+        );
+        assert!(directory.metadata().unwrap().is_dir());
+    }
     assert_ne!(checksum_directory(&root, 8).unwrap(), expected);
 }
 

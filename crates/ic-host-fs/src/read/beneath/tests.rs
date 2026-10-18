@@ -3,6 +3,25 @@ use crate::test_support::fixture;
 use std::{fs, io::Read, os::unix::fs::symlink};
 
 #[test]
+fn opening_errors_preserve_messages_and_native_sources() {
+    let source = io::Error::from_raw_os_error(13);
+    let message = format!("root-relative opening failed: {source}");
+    let error = OpenEntryError::from(source);
+    assert_eq!(error.to_string(), message);
+    let source = std::error::Error::source(&error)
+        .unwrap()
+        .downcast_ref::<io::Error>()
+        .unwrap();
+    assert_eq!(source.raw_os_error(), Some(13));
+
+    let error = OpenEntryError::UnsupportedEntry {
+        kind: FileType::Fifo,
+    };
+    assert_eq!(error.to_string(), "unsupported entry: Fifo");
+    assert!(std::error::Error::source(&error).is_none());
+}
+
+#[test]
 fn root_relative_entry_preserves_file_and_directory_descriptors() {
     let fixture = fixture();
     fs::create_dir(fixture.path().join("tree")).unwrap();

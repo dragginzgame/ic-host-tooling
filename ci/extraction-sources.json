@@ -2,6 +2,28 @@
   "format": 1,
   "sources": [
     {
+      "repository": "https://github.com/dragginzgame/ic-build",
+      "revision": "4feef850010ed725edb9b9e9adeaed140baf5106",
+      "files": [
+        {
+          "path": "crates/ic-build/src/artifacts/wasm_cache.rs",
+          "sha256": "1ee3bb3e6d64a5cd04ef4b12af9d02964a5dbb4133f9cd86a1c28519a1149f1d",
+          "selection": "capture_controlled_probe absolute-deadline pre-admission and explicit cleanup selection, adapted through the existing Host capture engine from PR #99; Cargo sequencing, budgets, diagnostics and cache admission remain in Build"
+        }
+      ]
+    },
+    {
+      "repository": "https://github.com/dragginzgame/ic-build",
+      "revision": "2598a417a96834d3139751adf549126add666c4b",
+      "files": [
+        {
+          "path": "crates/ic-build/src/artifacts/cache_fs.rs",
+          "sha256": "ab02892e2a8dab3cf14f60bf1d11446223765d45074e0ab613a67e77db05aaf7",
+          "selection": "metadata-only directory_logical_size iterative walker and two filesystem regressions through Host PR #173, explicit-unlock RetentionLock mechanism through Host PR #174, and fixed-width CACHEDIR.TAG recognition/preservation/durable replacement through Host PR #183; callers retain namespace custody, resource admission, shared record lifetimes, tag suffix/modes, cache policy and cleanup"
+        }
+      ]
+    },
+    {
       "repository": "https://github.com/dragginzgame/ic-testkit",
       "revision": "2db7b4f6b616b484408695656e26207628d74c5f",
       "files": [

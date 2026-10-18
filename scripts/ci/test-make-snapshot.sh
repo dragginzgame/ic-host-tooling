@@ -18,7 +18,8 @@ fixture_complete=false
 trap 'fixture_finish "$?" "$fixture" "Host Make evidence retained"' EXIT
 export TMPDIR="${fixture%/*}"
 mkdir -p "$fixture/local"
-bash "$root/scripts/ci/prepare-script-fixture.sh" "$root" "$fixture/local" make/consumer.mk
+bash "$root/scripts/ci/prepare-script-fixture.sh" "$root" "$fixture/local" \
+    make/consumer.mk scripts/ci/check-pipe-jobserver.pl
 for input in Makefile ci/tool-versions.env ci/release-delivery.txt scripts/ci/check-format-tools.sh; do
     parent=.
     [[ "$input" != */* ]] || parent="${input%/*}"
@@ -26,6 +27,7 @@ for input in Makefile ci/tool-versions.env ci/release-delivery.txt scripts/ci/ch
     cp "$root/$input" "$fixture/local/$input"
 done
 export HOST_MAKE_EVENTS="$fixture/events" HOST_MAKE_EXTERNAL="$fixture/external-events"
+export HOST_MAKE_JOBSERVER_PROBE="$fixture/local/scripts/ci/check-pipe-jobserver.pl"
 mkdir -p "$fixture/external/scripts/ci"
 for helper in check-make-execution.sh check-format-tools.sh run-release.sh; do
     cat > "$fixture/external/scripts/ci/$helper" <<'STUB'
@@ -38,11 +40,7 @@ cat > "$fixture/local/cargo" <<'STUB'
 #!/usr/bin/env bash
 set -euo pipefail
 if [[ "${HOST_MAKE_VERIFY_JOBSERVER:-}" == 1 ]]; then
-    perl -e '
-        ($ENV{MAKEFLAGS} // "") =~ /--jobserver-(?:auth|fds)=(\d+),(\d+)/ or die "missing pipe jobserver\n";
-        open my $reader, "<&=$1" or die "closed jobserver read descriptor: $!\n";
-        open my $writer, ">&=$2" or die "closed jobserver write descriptor: $!\n";
-    '
+    perl "$HOST_MAKE_JOBSERVER_PROBE"
 fi
 case "$*" in
     'sort --version') printf 'cargo-sort %s\n' "$HOST_MAKE_SORT_VERSION" ;;
@@ -101,7 +99,7 @@ for selection in ordinary environment command nested recursive; do
             > "$fixture/$selection-$target.log" 2>&1
         case "$target" in
             help) : > "$fixture/expected" ;;
-            fmt-check) printf 'sort --workspace --check\nfmt --all -- --check\n' > "$fixture/expected" ;;
+            fmt-check) printf 'sort --workspace --grouped --check\nfmt --all -- --check\n' > "$fixture/expected" ;;
             release-resume) printf 'resume 0.9.5 %s release-review\n' "$remote" > "$fixture/expected" ;;
             install-hooks) printf 'install-git-hooks.sh --consumer %s\n' "$PWD" > "$fixture/expected" ;;
             shared-tooling-check) printf 'verify-shared-tooling-snapshot.sh --consumer %s --manifest .shared-tooling.snapshot\n' "$PWD" > "$fixture/expected" ;;
@@ -219,7 +217,7 @@ jobserver_options=(--no-print-directory -j4)
 if make --help | grep -q -- --jobserver-style; then
     jobserver_options+=(--jobserver-style=pipe)
 fi
-cargo_targets=(check clippy docs-check test test-artifacts-minimal
+cargo_targets=(check clippy docs-check test test-artifacts-minimal check-fs-non-unix
     test-tools-default test-tools-interface
     test-wasm-inspection msrv msrv-workspace)
 helper_targets=(publish publish-check dependency-pins-check

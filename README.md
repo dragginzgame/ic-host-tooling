@@ -8,13 +8,28 @@ admitted process execution and IC-specific format handling.
 | ic-host-artifacts | Bounded streams and hashing writers, exact byte comparison, SHA-256, gzip encoding/decoding, generic Wasm facts and custom-section encoding |
 | ic-host-fs | Regular/no-follow reads, missing-suffix path resolution, streamed durable publication, private files and observed descriptor locks |
 | ic-host-process | Executable resolution, digest/version admission, bounded capture, explicit child/group cleanup and Git observations |
-| ic-host-text | Bounded line normalization, terminal-safe escaping, Unicode display-width tables and progress frames |
-| ic-host-tools | Candid service facts, optional IC export facts, ICP response decoding and certificate decoding |
+| ic-host-text | Pure line normalization, decimal/UTC text, terminal-safe rendering, Unicode tables and progress frames |
+| ic-host-tools | Candid service facts, optional IC export facts, ICP command syntax, response decoding and certificate decoding |
 
 These run locally outside canisters. The ic-host prefix identifies their ecosystem;
 the generic crates have no IC runtime dependency. Gzip and Wasm
 support are optional features of ic-host-artifacts. Filesystem/process consumers
 select the small default artifact dependency.
+
+`ic_host_artifacts::artifact::visit_reader` visits bounded chunks using nonempty
+caller-owned scratch and a typed callback. Framing, callback effects and blocking
+deadlines remain caller-owned. `ic_host_fs::directory::create_unique_directory`
+allocates a fresh child with explicit permissions and collision allowance;
+it preserves parent aliases and existing entries, and supplies no cleanup or sync.
+
+`ic_host_fs::durable::SharedFileLock::acquire(file)` holds a blocking shared
+lock on a caller-opened regular file. Drop explicitly unlocks before close,
+preventing duplicates from extending the guard's lock; independent acquisitions
+remain separate. Paths, shared lifetimes, maintenance and cleanup stay with callers.
+`ic_host_fs::cache_tag::ensure(directory, suffix, permissions)` preserves valid
+regular `CACHEDIR.TAG` files or durably replaces invalid entries with the standard
+signature and exact suffix. It uses ordinary durable parent creation. Callers
+retain root admission, namespace custody, suffix budgets and cache maintenance.
 `ic_host_fs::owned_directory::OwnedDirectory` holds caller-asserted cleanup
 custody without creating an entry. Explicit preservation/disarming transfers
 recovery; armed Drop attempts removal. Consuming `cleanup()` makes one attempt,
@@ -49,38 +64,42 @@ encoded indirect calls, including tail calls, and data payload bytes without a
 subprocess. These counts differ from encoded section sizes and need not match
 optimizer reachability metrics. Type/feature validation and report policy remain
 caller-owned; the structural `wasm::inspect` contract is unchanged.
-`ic-host-tools` has no default features. Response decoding is always available
-without artifact/filesystem/process/text dependencies. The Candid parser remains
-a normal dependency for service inspection.
+`ic-host-tools` has no default features. Response decoding, Candid service
+inspection and shared method identities are always available; `ic-platform`
+owns the Candid codec and native parser. The optional `ic-interface` feature adds
+export projection over generic Wasm facts for service/export comparisons.
+The default graph has no other Host library dependency; `ic-interface` adds
+Artifacts without introducing filesystem or process execution.
+
 Native Candid extraction belongs to IC Build's `artifacts::candid` module;
 Host Tools no longer supplies an extraction feature or invocation wrapper.
 Consumers select tools, source custody, output limits and optional normalization.
 See the [0.24 migration](docs/changelog/0.24.md) for the required Build release.
-Host Tools includes parser-backed Candid service inspection and shared method
-identities as a normal dependency. The optional `ic-interface` feature adds
-export projection over generic Wasm facts. Enable it to compare Candid services
-with Wasm exports. Neither surface introduces Host filesystem/process dependencies.
-The former `candid-service` feature is retired; remove it from dependency feature
-lists. Disabling default features does not remove the Candid parser.
-See the
-[0.21 feature migration](docs/changelog/0.21.md),
-[0.17 feature migration](docs/changelog/0.17.md),
-[0.16 extraction migration](docs/changelog/0.16.md) and
-[0.15 API usage](docs/changelog/0.15.md).
+
+`ic_host_tools::candid::decode::decode_one` decodes a reply with explicit
+`DecodeLimits` and a mutable aggregate byte allowance. Oversized replies refuse
+without charging; admitted malformed replies consume their bytes. Candid's
+compatibility rules and skipping quotas apply to extra arguments. Callers retain
+authentication, schemas, domain errors and all resource-policy choices.
+Platform owns the bounded codec and its compact diagnostics; Host retains the
+aggregate-accounting adapter and preserves original typed decoder causes.
+Earlier feature/import changes remain in the
+[0.21 migration notes](docs/changelog/0.21.md) and release history.
 Replica install thresholds and their reports belong to the consuming application.
 Canic selects its replica revision and enforces its resource limits; Host Artifacts
 retains generic Wasm inspection. See the [0.25 migration](docs/changelog/0.25.md).
 
 The optional tools `certificate` feature exposes
 `certificate::{decode_certificate, decode_hash_tree}` with explicit input-byte and
-CBOR-depth limits. It returns owned `ic-certification` values and rejects trailing
+CBOR-depth limits. It returns owned certification values through Platform,
+preserving `ic-certification` type identity, and rejects trailing
 data, malformed trees and invalid certificate fields. Parsing authenticates
 nothing: callers retain Agent verification, trust roots, combined evidence
 budgets, witness commitments and application leaf meanings. The feature adds no
 Agent transport, filesystem/process execution or Candid parser.
 
 The opt-in native `agent` feature exposes `agent::{agent_builder, EndpointAgent}`
-using `ic-agent` types directly. Pass a parsed `url::Url` and response-byte ceiling
+using upstream Agent identities through Platform. Pass a parsed `url::Url` and response-byte ceiling
 to the builder, then customize SDK identity/verification settings as needed.
 `EndpointAgent::get(endpoint, ceiling)` lazily reuses an SDK-default agent bound
 to the exact endpoint text and ceiling; conflicting reuse is a typed error.
@@ -93,6 +112,19 @@ This native-only profile does not widen default or certificate dependencies.
 plain hex. CLI presentation labels, preambles and any broader whitespace policy
 belong to callers; the codec does not infer or strip them. See the
 [0.22 response migration](docs/changelog/0.22.md).
+
+`ic-host-tools::icp` builds call/status commands from an already-configured
+`std::process::Command`, preserving native argument bytes and caller context.
+It supports textual or binary-file arguments, query/update selection and status
+output selection without dispatching a process. `decode_installation_status`
+projects null/string `module_hash` values only from successful caller-captured
+JSON; missing/invalid fields never establish absence. Executable/version admission,
+credentials, targets, capture limits, retries and lifecycle remain caller-owned.
+
+`ic_host_artifacts::batch::validate_labels` admits caller-selected batch labels
+before work, rejecting the first empty or exact duplicate with occurrence indices.
+Empty batches are valid. Callers retain ordering, execution and failure policy;
+iteration must not perform batch effects.
 
 `ic-host-text::escape::terminal_text` makes control and bidirectional formatting
 characters visible without choosing output or colour. It returns `Cow<str>`,
@@ -111,6 +143,16 @@ scalar-column padding. Callers prevent wrapping and own writing, flushing,
 output failures and cleanup timing; dropping the helper performs no IO.
 The crate depends only on the Unicode-width library, with no other Host or IC
 dependencies.
+
+`ic_host_text::decimal` renders exact fixed or compact two-place decimal text
+with explicit power-of-ten scaling and half-up rounding, including values beyond
+`u128`. It uses no floating point. Callers retain input normalization, unit/symbol
+selection, sentinel handling and raw report fields.
+
+`ic_host_text::timestamp` formats unsigned Unix seconds and parses canonical UTC
+second timestamps through `i64::MAX`, without clocks or timezone selection.
+It preserves expanded positive years, strict spelling and impossible-date refusal;
+callers retain freshness and collection-time policy.
 
 `ic_host_text::normalize::normalize_lines(bytes, max_bytes)` separately admits
 UTF-8, trims each line's trailing Unicode whitespace and emits LF endings while
@@ -223,6 +265,10 @@ no-follow reads and typed private-file admission. Durable publication and locks
 remain under `durable`. Upgrading from 0.3 requires the
 [0.4 consumer changes](docs/changelog/0.4.md).
 
+`read::directory_logical_size` sums metadata lengths without reading file content
+or following final symlinks. Sparse files count logical bytes; callers retain
+namespace custody, traversal resources and cache policy.
+
 On Unix, `read::open_directory_no_follow` opens an explicit root capability;
 `read::open_regular_file_beneath` selects a regular file relative to that borrowed
 descriptor without following symlink components. `read::open_entry_beneath`
@@ -260,6 +306,13 @@ publication engine. Callers validate bounded output before success and retain
 typed producer/cleanup errors. See the
 [current publication contract](docs/changelog/0.20.md#named-publication) before adopting it.
 
+On Unix, `durable::write_non_aliasing(path, bytes, protected, symlink_limit)`
+checks protected path/inode aliases before in-place truncation, then writes and
+syncs the output. Existing inode/permissions and unrelated symlinks are preserved.
+Callers select protected paths and own namespace custody and partial-output
+recovery. This operation does not provide atomic replacement or synchronize
+new parent-directory links; `validate_non_aliasing` performs observation only.
+
 `durable::write_validated_with` closes the staging writer before a caller's
 prepublication admission callback, enabling executable probes while preserving
 the working destination on rejection. See the
@@ -275,7 +328,7 @@ failures. Select mode and permissions explicitly; see the
 expected digest admission before publication. Callers select paths, the byte
 allowance and `WriteOptions`; source symlinks are followed. Existing destination
 bytes survive digest, source and limit failures.
-`durable::copy_from` instead consumes an already-selected reader from its current
+`durable::copy_from` consumes an already-selected reader from its current
 position. Callers retain input admission, byte/time bounds and choose `WriteOptions`.
 Optional exact permissions are applied after copying; otherwise the creation
 mode and umask apply. Failed reads preserve prior output through the same engine.
@@ -292,6 +345,11 @@ components and dangling symlinks while normalizing a missing suffix. Choose the
 simultaneously active missing-target depth explicitly; `usize::MAX` preserves
 unlimited expansion. This supplies no root confinement or filesystem deadline.
 See the [0.23 resolver migration](docs/changelog/0.23.md).
+
+`path::validate_physical_directory_allow_missing(path)` checks existing components
+without creating missing directories. Symlinks, non-directories and `..` reject.
+It shares admission with private-parent preparation; callers retain pathname
+policy and namespace custody through later operations.
 
 With the artifact `gzip` feature, `copy_gzip` streams a single member into a
 caller-owned sink and returns its decoded identity. Partial output can remain

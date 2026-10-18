@@ -93,7 +93,9 @@ Fetching from an external repository requires the caller's network authority.
 Each regular archive must contain exactly one JSON provenance value with the
 selected commit, clean Git state and exact package directory. The helper retains
 the extracted JSON and tar diagnostics, then fetches that commit from the declared
-repository into a fresh bare object store. Inherited Git object/directory overrides
+repository into a fresh bare object store. Its object format matches the admitted
+SHA-1 or SHA-256 identity, independently of ambient Git defaults.
+Inherited Git object/directory overrides
 are cleared so cached objects cannot substitute for retrieval. Failed commands
 refuse even when they print plausible output; the retrieved commit must match.
 Source repository configuration, credentials and transport policy stay caller-owned.

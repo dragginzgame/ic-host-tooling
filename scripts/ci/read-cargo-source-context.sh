@@ -35,8 +35,10 @@ trap 'rm -rf -- "$temporary"' EXIT
 for directory in "$@"; do
     git -C "$repository" show "$source:$directory/Cargo.toml" > "$temporary/member.toml"
     "${YQ:-yq}" -p toml -o json '.' "$temporary/member.toml" |
-        jq -ec --arg path "/release-source/$directory/Cargo.toml" '
-            .package.name | if type == "string" and test("^[A-Za-z0-9][A-Za-z0-9_-]*$")
+        jq -esc --arg path "/release-source/$directory/Cargo.toml" '
+            if length == 1 and (.[0] | type == "object")
+            then .[0].package.name else error("expected one source member object") end
+            | if type == "string" and test("^[A-Za-z0-9][A-Za-z0-9_-]*$")
             then {name: ., manifest_path: $path} else error("invalid source member identity") end
         ' >> "$temporary/members.jsonl"
 done

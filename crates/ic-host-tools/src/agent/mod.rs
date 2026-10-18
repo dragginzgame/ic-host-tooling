@@ -3,7 +3,7 @@
 //! Callers admit endpoints and select response ceilings. Trust roots, identity,
 //! historical verification, deadlines, retries and network calls remain theirs.
 
-use ic_agent::{Agent, AgentError, agent::AgentBuilder};
+use ic_platform::agent::{Agent, AgentBuilder, AgentError};
 use std::sync::OnceLock;
 use url::Url;
 

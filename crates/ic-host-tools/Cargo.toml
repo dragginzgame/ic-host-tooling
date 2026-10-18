@@ -12,22 +12,20 @@ publish = ["crates-io"]
 
 [features]
 default = []
-agent = ["dep:ic-agent", "dep:url"]
-certificate = ["dep:ciborium", "dep:ic-certification"]
+agent = ["ic-platform/agent", "dep:url"]
+certificate = ["dep:ciborium", "ic-platform/certification"]
 ic-interface = ["dep:ic-host-artifacts", "ic-host-artifacts/wasm"]
 
+[target.'cfg(not(target_family = "wasm"))'.dependencies]
+url = { workspace = true, optional = true }
+
 [dependencies]
-candid_parser.workspace = true
 ciborium = { workspace = true, optional = true }
-ic-certification = { workspace = true, optional = true }
 ic-host-artifacts = { workspace = true, optional = true }
+ic-platform = { workspace = true, features = ["candid", "candid-parser"] }
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
-
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-ic-agent = { workspace = true, optional = true }
-url = { workspace = true, optional = true }
 
 [dev-dependencies]
 ic-host-artifacts.workspace = true

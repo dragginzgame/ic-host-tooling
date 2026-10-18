@@ -3,14 +3,18 @@
 //! Extracted from IC Backup's ordered descriptor sync visitor. Product records,
 //! expected-checksum admission, publication policy and recovery remain caller-owned.
 
-use crate::read::tree::{TreeVisitor, checksum::TreeChecksumError, walk_tree};
-use ic_host_artifacts::artifact::{Sha256Digest, hash_reader, tree::checksum_relative_files};
+use crate::read::tree::{
+    TreeVisitor,
+    checksum::{ChecksumVisitor, TreeChecksumError},
+    walk_tree,
+};
+use ic_host_artifacts::artifact::Sha256Digest;
 use rustix::{fd::OwnedFd, fs::FileType};
 use std::{
     fs::File,
     io::{self, Seek, SeekFrom},
     os::fd::AsFd,
-    path::{Path, PathBuf},
+    path::Path,
 };
 
 /// Ordered pre-sync observations; an error stops before the selected sync.
@@ -47,17 +51,15 @@ pub fn sync_checksum_directory_at(
 ) -> Result<Sha256Digest, TreeChecksumError> {
     let directory_fd = directory.as_fd().try_clone_to_owned()?;
     let mut visitor = SyncVisitor {
-        checksums: Vec::new(),
-        max_file_bytes,
+        checksum: ChecksumVisitor::new(max_file_bytes),
         before_sync: &mut before_sync,
     };
     walk_tree(&directory_fd, Path::new(""), display_root, &mut visitor)?;
-    checksum_relative_files(visitor.checksums).map_err(TreeChecksumError::Declaration)
+    visitor.checksum.finish()
 }
 
 struct SyncVisitor<'a, F> {
-    checksums: Vec<(PathBuf, Sha256Digest)>,
-    max_file_bytes: u64,
+    checksum: ChecksumVisitor,
     before_sync: &'a mut F,
 }
 
@@ -72,10 +74,7 @@ where
         (self.before_sync)(TreeSyncStep::RegularFile, display)?;
         file.sync_all()?;
         file.seek(SeekFrom::Start(0))?;
-        let identity = hash_reader(file, self.max_file_bytes).map_err(TreeChecksumError::Input)?;
-        self.checksums
-            .push((relative.to_path_buf(), identity.sha256));
-        Ok(())
+        self.checksum.record_file(file, relative)
     }
 
     fn enter_directory(&mut self, _relative: &Path, _display: &Path) -> Result<(), Self::Error> {
@@ -99,16 +98,11 @@ where
     }
 
     fn unsupported(&self, display: &Path, kind: FileType) -> Self::Error {
-        TreeChecksumError::UnsupportedEntry {
-            path: display.to_path_buf(),
-            kind,
-        }
+        self.checksum.unsupported(display, kind)
     }
 
     fn non_utf8(&self, display: &Path) -> Self::Error {
-        TreeChecksumError::NonUtf8Path {
-            path: display.to_path_buf(),
-        }
+        self.checksum.non_utf8(display)
     }
 }
 

@@ -69,7 +69,7 @@ fn strict_tags_arities_and_byte_kinds_refuse_malformed_trees() {
     }
     assert_eq!(
         decode_hash_tree(&[0x9f, 0, 0xff], LIMITS).unwrap(),
-        ic_certification::empty()
+        ic_platform::certification::empty()
     );
     assert!(matches!(
         decode_hash_tree(&[0x9f, 0, 0, 0xff], LIMITS),

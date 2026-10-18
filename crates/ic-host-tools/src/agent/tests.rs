@@ -1,6 +1,9 @@
 use super::*;
-use ic_agent::{AgentError, agent_error::TransportError, export::Principal};
 use ic_host_process::testing::http::{HttpContentLength, capture_http_request};
+use ic_platform::{
+    Principal,
+    agent::{AgentError, TransportError},
+};
 use std::{io::Write, net::TcpListener, sync::Barrier, thread, time::Duration};
 
 #[test]

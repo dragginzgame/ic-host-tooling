@@ -368,9 +368,11 @@ Consumer choices described in those guides remain subject to this baseline.
   lists; repositories without an IC executable caller need not install them.
   The host set includes pinned jq,
   Mike Farah yq, ripgrep with PCRE2 and cloc under `.tools/host/bin`; the Cargo
-  set includes cargo-sort, cargo-sort-derives and candid-extractor under
+  set includes cargo-sort and cargo-sort-derives under
   `.tools/rust/common/bin`. Common and selected Cargo tools share versioned-slot
   receipt and byte admission; common PATH activation requires the complete set.
+  Candid extractor selection belongs to products that extract declarations, using
+  the selected Cargo-tool interface and publishing its admitted path explicitly.
   Aggregates run host and Rust steps, then selected product tools, stopping on
   failure. Consumer-specific setup/check targets extend the ordered lists in
   `make/tools.mk`, not unordered aggregate prerequisites. Make/CI callers select
@@ -430,6 +432,12 @@ Consumer choices described in those guides remain subject to this baseline.
   development toolchain. CI must explicitly check each advertised floor;
   documented package groups may have different floors. Do not upgrade a toolchain
   or raise MSRV without an established need and appropriate validation.
+- Consume every externally maintained IC-specific dependency through `ic-platform`,
+  including DFINITY packages. Apply the
+  [external IC dependency boundary](rules/cargo-dependencies.md#external-ic-dependency-boundary)
+  to production, build, test and tooling code, optional features and all targets.
+  Missing Platform support requires an upstream capability issue, not a new direct
+  dependency or a local replacement facade.
 - Follow the [Rust hygiene baseline](docs/principles/rust-code-hygiene.md): narrow
   visibility, documented APIs/invariants, ordinary module discovery, bounded
   fallible decoding, typed errors and `std` paths in code that requires `std`,
@@ -439,7 +447,7 @@ Consumer choices described in those guides remain subject to this baseline.
 - Rust repositories adopt the [standard formatting hook](rules/git-hooks.md):
   `make install-hooks` enables a reviewed repository-local pre-commit hook that
   auto-formats and refreshes only selected files, rejects partial staging and
-  preserves unrelated working edits. Formatting includes `cargo sort --workspace`
+  preserves unrelated working edits. Formatting includes `cargo sort --workspace --grouped`
   for root and child manifests before Rust formatting. Keep matching `fmt-check`
   sorting and Rust checks in CI and release gates;
   hook activation and independent formatting qualification are separate checks.
