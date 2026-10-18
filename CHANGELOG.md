@@ -33,6 +33,10 @@
   binding through Platform, leaving endpoint admission and network policy local.
   [Details](docs/changelog/0.27.md).
 
+- Share opt-in focused Registry wire projections and shard interval admission,
+  preserving protocol tags and caller-owned budgets, certification and replay.
+  [Details](docs/changelog/0.27.md).
+
 ## [0.27.6] - 2026-10-18
 
 - Share pure ICP call/status command builders and typed installation-state

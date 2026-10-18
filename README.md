@@ -89,6 +89,12 @@ Replica install thresholds and their reports belong to the consuming application
 Canic selects its replica revision and enforces its resource limits; Host Artifacts
 retains generic Wasm inspection. See the [0.25 migration](docs/changelog/0.25.md).
 
+The optional Tools `registry` feature shares focused Registry Protobuf
+projections and canister-range shard key/interval checks. These are partial
+projections, with normal Prost unknown-field behavior. Callers retain budgets,
+complete/sorted/disjoint range checks, trust, discovery and replay policy.
+Principal identities come from Platform; no direct IC dependency is introduced.
+
 The optional `icp-project` feature exposes
 `icp_project::environment_network` over bounded `icp project show` YAML.
 ICP resolves implicit environments and recipes; the parser preserves exact names

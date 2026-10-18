@@ -28,6 +28,8 @@ inspection with the default graph. `make test-tools-interface` adds Wasm export
 interpretation; `make test-tools-certificate` adds strict owned certificate/hash-tree
 decoding. `make test PACKAGE=ic-host-text` checks bounded line normalization,
 escaping, progress frames and Unicode table alignment.
+`make test-tools-registry` checks golden Protobuf tags and shard admission.
+
 `make test-tools-agent` exercises native construction, exact binding and response
 ceilings. Its Wasm graph check observes dependency exclusion, not Tools execution.
 

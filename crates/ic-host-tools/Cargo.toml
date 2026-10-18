@@ -18,6 +18,7 @@ encoding = []
 ic-interface = ["dep:ic-host-artifacts", "ic-host-artifacts/wasm"]
 icp-project = ["dep:serde_yaml_ng", "serde/derive"]
 ledger-evidence = ["ic-platform/icrc-ledger-types", "serde/derive"]
+registry = ["dep:prost"]
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
 url = { workspace = true, optional = true }
@@ -26,6 +27,7 @@ url = { workspace = true, optional = true }
 ciborium = { workspace = true, optional = true }
 ic-host-artifacts = { workspace = true, optional = true }
 ic-platform = { workspace = true, features = ["candid", "candid-parser"] }
+prost = { workspace = true, optional = true }
 serde.workspace = true
 serde_json.workspace = true
 serde_yaml_ng = { workspace = true, optional = true }
