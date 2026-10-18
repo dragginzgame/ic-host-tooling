@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use candid::Principal;
+use ic_platform::Principal;
 use pocket_ic::{PocketIc, RejectResponse};
 
 use super::{PocketIcCallFailure, transport};
@@ -281,7 +281,7 @@ mod tests {
             ControllerSnapshot, PocketIcCallFailure, SnapshotCleanupFailure,
             cleanup_captured_snapshots,
         };
-        use candid::Principal;
+        use ic_platform::Principal;
         use pocket_ic::{ErrorCode, RejectCode, RejectResponse};
 
         let ids = [1, 2, 3, 4].map(|byte| Principal::from_slice(&[byte]));

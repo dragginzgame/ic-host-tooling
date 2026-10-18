@@ -77,13 +77,16 @@ exception. For a snapshot-owned catalog, replace it with `snapshot` (the manifes
 path relative to the consumer) and `snapshot_root` (its documented consumer root,
 relative to the selected consumer; `.` for a root snapshot). The checker reports
 its recorded revision and checks the selected catalog's exact manifest digest.
+Manifest syntax is admitted by the snapshot verifier's `--read-manifest` mode;
+malformed headers, paths or records make that caller unresolved. The checker
+uses its own reviewed reader, without executing code in the inspected consumer.
 This is not whole-snapshot verification; retain the standard snapshot verifier.
 Nested snapshots work without treating the binding file's directory as a root.
 All source, observation, manifest and catalog inputs stay inside the consumer.
 
 IC uses the canonical IC matrix parser, comparing tool/version/host/digest rows.
 Host compares jq, yq, ripgrep and cloc versions and all their supported-host
-digests. Rust compares the three common Cargo executable versions. Host and Rust
+digests. Rust compares the common formatter executable versions. Host and Rust
 are independent even when stored in one environment file: a host override never
 implicitly selects Rust. Installation, freshness inspection and the Cargo cache
 key use this same literal parser. Nonliteral or duplicate assignments refuse;

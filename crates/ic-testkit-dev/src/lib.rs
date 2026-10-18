@@ -4,6 +4,7 @@
 mod fixture_reuse_driver;
 mod fixture_reuse_protocol;
 mod fixture_reuse_report;
+mod statistics;
 mod workload;
 
 pub use workload::worker_main;
@@ -23,7 +24,7 @@ pub fn driver_main() -> ExitCode {
                 Error::InvalidArgument(_) => ExitCode::from(2),
                 Error::Interrupted => ExitCode::from(130),
                 Error::Tool(error)
-                    if matches!(error.as_ref(), ic_host_process::tool::ToolError::Execution(execution)
+                    if matches!(&error, ic_host_process::tool::ToolError::Execution(execution)
                         if matches!(execution.failure, ic_host_process::tool::ExecutionFailure::Cancelled)) =>
                 {
                     ExitCode::from(130)

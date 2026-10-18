@@ -9,6 +9,11 @@ Small canisters used by `ic-testkit` to test its own PocketIC harness behavior.
 The fixture package lives under `crates/ic_testkit_perf_probe` in the root
 workspace. It is a test canister, not an application example.
 
+The probe selects `ic-platform`'s `cdk` feature for entrypoint generation and the
+qualified upstream runtime. It declares no direct Candid or CDK dependency.
+The published Testkit Wasm library independently selects only Platform's raw
+system boundary; the probe's Candid/runtime features belong to this test canister.
+
 ## Current Fixtures
 
 - `ic_testkit_perf_probe`: emits compact `ICTK|...` benchmark markers via
@@ -22,7 +27,7 @@ Install the Wasm target for the repository toolchain first:
 rustup target add wasm32-unknown-unknown
 ```
 
-Build all current test fixtures with:
+For optional inspection of the probe artifact, build it with:
 
 ```sh
 make build-test-canisters
@@ -34,22 +39,26 @@ This builds `ic_testkit_perf_probe.wasm` under
 Run only the live marker fixture test with:
 
 ```sh
-cargo test -p ic-testkit-bench --locked --test canister_benchmark \
+cargo test -p ic-testkit-dev --locked --test canister_benchmark \
   perf_probe_canister_emits_parseable_benchmark_markers -- --exact --nocapture
 ```
 
-The test builds its own content-addressed Wasm in a temporary target directory;
-it does not consume the standalone build above. It uses upstream PocketIC
-startup, which may download the server. Set `POCKET_IC_BIN=/path/to/pocket-ic`
-to use an existing PocketIC 16 binary.
+The test uses IC Build to retain its own exact Wasm in a temporary target
+directory; it does not consume the standalone artifact above. Both builds may
+reuse Cargo's incremental state under `target/pic-wasm`.
+Startup requires an explicit prepared `POCKET_IC_BIN` or caller-owned
+`IC_TESTKIT_POCKET_IC_URL`; it does not download a server. Prepare and admit the
+reviewed binary through `make install-server` and
+`target/debug/ic-testkit-server check` before direct live-test invocations.
 
-Run the complete `canister_benchmark` integration target, including
-artifact-cache and orchestration coverage, with:
+Run the live marker qualification through the repository's prepared-server
+check with:
 
 ```sh
 make test-canisters
 ```
 
-These tests build their own artifacts. The main CI test command already
-includes this integration target; the standalone fixture build is a manual
-command, not a prerequisite for testing.
+The main CI test command includes this integration target. Generic build/cache
+mechanics are qualified by IC Build; this consumer test verifies its retained
+Wasm together with Testkit's actual marker emission, parsing and trap handling.
+The standalone fixture build is a manual command, not a prerequisite for testing.

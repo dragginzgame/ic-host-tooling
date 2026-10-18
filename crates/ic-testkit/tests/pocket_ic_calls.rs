@@ -1,8 +1,8 @@
 mod support;
 
-use candid::Principal;
+use ic_platform::Principal;
 use ic_testkit::pic::{
-    CandidCallError, CandidCallExt, ErrorCode, RejectCode, query_candid_args, update_candid_args,
+    CandidCallError, ErrorCode, RejectCode, query_candid_args, update_candid_args,
 };
 
 #[test]
@@ -20,9 +20,10 @@ fn candid_call_errors_preserve_live_pocket_ic_rejections() {
     let sender = Principal::management_canister();
     for (result, operation, caller) in [
         (
-            pocket_ic.query_candid::<(), _>(
+            query_candid_args::<(), _>(
+                pocket_ic,
                 removed_canister,
-                candid::Principal::anonymous(),
+                Principal::anonymous(),
                 "missing",
                 (),
                 support::REPLY_LIMITS,
@@ -31,37 +32,16 @@ fn candid_call_errors_preserve_live_pocket_ic_rejections() {
             Principal::anonymous(),
         ),
         (
-            pocket_ic.update_candid::<(), _>(
+            update_candid_args::<(), _>(
+                pocket_ic,
                 removed_canister,
-                candid::Principal::anonymous(),
+                Principal::anonymous(),
                 "missing",
                 (),
                 support::REPLY_LIMITS,
             ),
             "update_call",
             Principal::anonymous(),
-        ),
-        (
-            pocket_ic.query_candid::<(), _>(
-                removed_canister,
-                sender,
-                "missing",
-                (),
-                support::REPLY_LIMITS,
-            ),
-            "query_call",
-            sender,
-        ),
-        (
-            pocket_ic.update_candid::<(), _>(
-                removed_canister,
-                sender,
-                "missing",
-                (),
-                support::REPLY_LIMITS,
-            ),
-            "update_call",
-            sender,
         ),
         (
             query_candid_args::<(), _>(

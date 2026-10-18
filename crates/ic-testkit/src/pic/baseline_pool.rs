@@ -1,5 +1,4 @@
 use std::{
-    collections::BTreeMap,
     num::NonZeroUsize,
     ops::Deref,
     panic::{AssertUnwindSafe, catch_unwind},
@@ -65,70 +64,77 @@ pub enum StateResetPolicy {
     RebuildOnChange,
 }
 
-/// Policy for one non-snapshot reset domain.
+/// Fixed non-snapshot reset policies, supplied independently by a recipe and its reset.
 ///
-/// [`ResetRequirements`] declares policies that a recipe requires;
-/// [`ResetReceipt`] reports policies achieved by its reset operation. The pool
-/// checks every required domain against the reported policy before reuse.
+/// A missing field makes no claim for that domain. In particular, absence differs
+/// from explicitly reporting [`StateResetPolicy::IrrelevantByRecipeContract`].
+/// Each domain has one typed field, so duplicate declarations cannot be formed.
 ///
 /// ```
 /// use ic_testkit::pic::{
-///     SnapshotRestoreFunding, ResetDomainKind, ResetDomainPolicy, ResetReceipt,
-///     ResetRequirements, TimeResetPolicy,
+///     ResetPolicies, ResetReceipt, ResetRequirements, SnapshotRestoreFunding, TimeResetPolicy,
 /// };
 ///
-/// let requirements = ResetRequirements::try_new(
-///     SnapshotRestoreFunding::Preserve,
-///     [ResetDomainPolicy::PocketIcTime(TimeResetPolicy::PreserveCurrent)],
-/// )?;
-/// // The reset operation deliberately preserves simulated time.
-/// let receipt = ResetReceipt::try_new([
-///     ResetDomainPolicy::PocketIcTime(TimeResetPolicy::PreserveCurrent),
-/// ])?;
-/// assert_eq!(
-///     requirements.get(ResetDomainKind::PocketIcTime),
-///     receipt.get(ResetDomainKind::PocketIcTime),
-/// );
-/// # Ok::<(), ic_testkit::pic::BaselinePoolContractError>(())
+/// let requirements = ResetRequirements {
+///     funding: SnapshotRestoreFunding::Preserve,
+///     policies: ResetPolicies {
+///         pocket_ic_time: Some(TimeResetPolicy::PreserveCurrent),
+///         ..ResetPolicies::default()
+///     },
+/// };
+/// // The reset independently reports that it preserved simulated time.
+/// let receipt = ResetReceipt {
+///     policies: ResetPolicies {
+///         pocket_ic_time: Some(TimeResetPolicy::PreserveCurrent),
+///         ..ResetPolicies::default()
+///     },
+/// };
+/// assert_eq!(requirements.policies.pocket_ic_time, receipt.policies.pocket_ic_time);
 /// ```
-#[non_exhaustive]
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum ResetDomainPolicy {
-    /// PocketIC time policy.
-    PocketIcTime(TimeResetPolicy),
-    /// Extra-canister policy.
-    ExtraCanisters(ExtraCanisterPolicy),
-    /// Pending-message policy.
-    PendingMessages(StateResetPolicy),
-    /// Subnet-state policy.
-    SubnetState(StateResetPolicy),
-    /// External-resource policy.
-    ExternalResources(StateResetPolicy),
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct ResetPolicies {
+    /// PocketIC simulated time.
+    pub pocket_ic_time: Option<TimeResetPolicy>,
+    /// Canisters outside the captured baseline set.
+    pub extra_canisters: Option<ExtraCanisterPolicy>,
+    /// Pending ingress, timers, or cross-canister messages.
+    pub pending_messages: Option<StateResetPolicy>,
+    /// Subnet-global state outside canister snapshots.
+    pub subnet_state: Option<StateResetPolicy>,
+    /// Caller-owned files, processes, services or other external state.
+    pub external_resources: Option<StateResetPolicy>,
 }
 
 /// Typed reset guarantees required by one fixture recipe.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct ResetRequirements {
-    funding: SnapshotRestoreFunding,
-    domains: BTreeMap<ResetDomainKind, ResetDomainPolicy>,
+    /// Funding selected once for the pool's canonical snapshot restore.
+    pub funding: SnapshotRestoreFunding,
+    /// Required non-snapshot policies, independently checked against each reset.
+    pub policies: ResetPolicies,
 }
 
-/// Typed reset guarantees achieved by one preparation pass.
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
-pub struct ResetReceipt(BTreeMap<ResetDomainKind, ResetDomainPolicy>);
+/// Typed reset guarantees actually achieved by one preparation pass.
+///
+/// Default reports no achievements. Recipes must derive these fields from their
+/// reset work, rather than copying the requirements into an assumed receipt.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct ResetReceipt {
+    /// Non-snapshot policies achieved by the reset operation.
+    pub policies: ResetPolicies,
+}
 
-/// Contract failure while constructing or verifying recipe reset evidence.
+/// Contract failure while verifying recipe reset evidence.
 #[non_exhaustive]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum BaselinePoolContractError {
-    /// A reset domain was declared more than once.
-    DuplicateResetDomain { domain: ResetDomainKind },
     /// A required reset domain had no matching achievement.
     MissingResetDomain { domain: ResetDomainKind },
-    /// A reset achievement did not satisfy the required policy.
+    /// The first mismatched domain, with both complete policy sets for inspection.
     ResetPolicyMismatch {
-        requirement: ResetDomainPolicy,
-        achievement: ResetDomainPolicy,
+        domain: ResetDomainKind,
+        requirement: ResetPolicies,
+        achievement: ResetPolicies,
     },
 }
 
@@ -355,110 +361,61 @@ where
     slot: BoundedSlotLease<'a, CachedPocketIcBaseline<R::Metadata>, RebuildReason>,
 }
 
-impl ResetDomainPolicy {
-    /// Domain governed by this policy.
-    #[must_use]
-    pub const fn domain(&self) -> ResetDomainKind {
-        match self {
-            Self::PocketIcTime(_) => ResetDomainKind::PocketIcTime,
-            Self::ExtraCanisters(_) => ResetDomainKind::ExtraCanisters,
-            Self::PendingMessages(_) => ResetDomainKind::PendingMessages,
-            Self::SubnetState(_) => ResetDomainKind::SubnetState,
-            Self::ExternalResources(_) => ResetDomainKind::ExternalResources,
-        }
-    }
-}
-
-fn collect_reset_domains(
-    policies: impl IntoIterator<Item = ResetDomainPolicy>,
-) -> Result<BTreeMap<ResetDomainKind, ResetDomainPolicy>, BaselinePoolContractError> {
-    let mut domains = BTreeMap::new();
-    for policy in policies {
-        let domain = policy.domain();
-        if domains.insert(domain, policy).is_some() {
-            return Err(BaselinePoolContractError::DuplicateResetDomain { domain });
-        }
-    }
-    Ok(domains)
-}
-
 impl ResetRequirements {
-    /// Construct a duplicate-checked reset requirement set.
-    ///
-    /// The pool restores the complete captured set using `funding`.
-    /// `requirements` describe only non-snapshot domains.
-    pub fn try_new<I>(
-        funding: SnapshotRestoreFunding,
-        requirements: I,
-    ) -> Result<Self, BaselinePoolContractError>
-    where
-        I: IntoIterator<Item = ResetDomainPolicy>,
-    {
-        Ok(Self {
-            funding,
-            domains: collect_reset_domains(requirements)?,
-        })
+    fn verify(&self, receipt: ResetReceipt) -> Result<(), BaselinePoolContractError> {
+        self.verify_policy(
+            receipt,
+            ResetDomainKind::PocketIcTime,
+            self.policies.pocket_ic_time,
+            receipt.policies.pocket_ic_time,
+        )?;
+        self.verify_policy(
+            receipt,
+            ResetDomainKind::ExtraCanisters,
+            self.policies.extra_canisters,
+            receipt.policies.extra_canisters,
+        )?;
+        self.verify_policy(
+            receipt,
+            ResetDomainKind::PendingMessages,
+            self.policies.pending_messages,
+            receipt.policies.pending_messages,
+        )?;
+        self.verify_policy(
+            receipt,
+            ResetDomainKind::SubnetState,
+            self.policies.subnet_state,
+            receipt.policies.subnet_state,
+        )?;
+        self.verify_policy(
+            receipt,
+            ResetDomainKind::ExternalResources,
+            self.policies.external_resources,
+            receipt.policies.external_resources,
+        )
     }
 
-    /// Funding selected once for the pool's canonical snapshot restore.
-    #[must_use]
-    pub const fn funding(&self) -> SnapshotRestoreFunding {
-        self.funding
-    }
-
-    /// Read the requirement for one domain.
-    #[must_use]
-    pub fn get(&self, domain: ResetDomainKind) -> Option<&ResetDomainPolicy> {
-        self.domains.get(&domain)
-    }
-
-    /// Iterate over requirements in deterministic domain order.
-    pub fn iter(&self) -> impl Iterator<Item = &ResetDomainPolicy> {
-        self.domains.values()
-    }
-
-    fn verify(&self, receipt: &ResetReceipt) -> Result<(), BaselinePoolContractError> {
-        for (domain, requirement) in &self.domains {
-            let Some(achievement) = receipt.0.get(domain) else {
-                return Err(BaselinePoolContractError::MissingResetDomain { domain: *domain });
-            };
-            if achievement != requirement {
-                return Err(BaselinePoolContractError::ResetPolicyMismatch {
-                    requirement: requirement.clone(),
-                    achievement: achievement.clone(),
-                });
-            }
+    fn verify_policy<P: PartialEq>(
+        &self,
+        receipt: ResetReceipt,
+        domain: ResetDomainKind,
+        requirement: Option<P>,
+        achievement: Option<P>,
+    ) -> Result<(), BaselinePoolContractError> {
+        let Some(requirement) = requirement else {
+            return Ok(());
+        };
+        let Some(achievement) = achievement else {
+            return Err(BaselinePoolContractError::MissingResetDomain { domain });
+        };
+        if requirement != achievement {
+            return Err(BaselinePoolContractError::ResetPolicyMismatch {
+                domain,
+                requirement: self.policies,
+                achievement: receipt.policies,
+            });
         }
         Ok(())
-    }
-}
-
-impl ResetReceipt {
-    /// Construct a duplicate-checked non-snapshot reset achievement set.
-    ///
-    /// Snapshot restoration is performed and recorded by the pool itself.
-    pub fn try_new<I>(achievements: I) -> Result<Self, BaselinePoolContractError>
-    where
-        I: IntoIterator<Item = ResetDomainPolicy>,
-    {
-        Ok(Self(collect_reset_domains(achievements)?))
-    }
-
-    /// Create an empty receipt for recipes with no non-snapshot reset achievements.
-    #[must_use]
-    pub const fn empty() -> Self {
-        Self(BTreeMap::new())
-    }
-
-    /// Read the achievement for one domain.
-    #[must_use]
-    pub fn get(&self, domain: ResetDomainKind) -> Option<&ResetDomainPolicy> {
-        self.0.get(&domain)
-    }
-
-    /// Iterate over achievements in deterministic domain order.
-    pub fn iter(&self) -> impl Iterator<Item = &ResetDomainPolicy> {
-        self.0.values()
     }
 }
 
@@ -710,7 +667,7 @@ where
             })
             .and_then(|()| {
                 baseline
-                    .restore(self.recipe.reset_requirements().funding())
+                    .restore(self.recipe.reset_requirements().funding)
                     .map_err(BaselinePoolPreparationError::Restore)
             });
         add_timing(&mut timings.restore, started.elapsed());
@@ -733,7 +690,7 @@ where
         })?;
         self.recipe
             .reset_requirements()
-            .verify(&reset)
+            .verify(reset)
             .map_err(BaselinePoolPreparationError::Contract)?;
 
         let preparation = PreparedBaseline::Restored { reset };
@@ -871,12 +828,6 @@ impl std::fmt::Display for BaselinePreparationStage {
 impl std::fmt::Display for BaselinePoolContractError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::DuplicateResetDomain { domain } => {
-                write!(
-                    formatter,
-                    "reset domain {domain:?} was reported more than once"
-                )
-            }
             Self::MissingResetDomain { domain } => {
                 write!(
                     formatter,
@@ -884,11 +835,12 @@ impl std::fmt::Display for BaselinePoolContractError {
                 )
             }
             Self::ResetPolicyMismatch {
+                domain,
                 requirement,
                 achievement,
             } => write!(
                 formatter,
-                "reset achievement {achievement:?} does not satisfy {requirement:?}",
+                "reset achievement {achievement:?} does not satisfy {requirement:?} for {domain:?}",
             ),
         }
     }
@@ -959,8 +911,8 @@ where
 mod tests {
     use super::{
         BaselinePoolContractError, BaselinePoolTimings, ExtraCanisterPolicy, ResetDomainKind,
-        ResetDomainPolicy, ResetReceipt, ResetRequirements, SnapshotRestoreFunding,
-        StateResetPolicy, TimeResetPolicy, add_timing,
+        ResetPolicies, ResetReceipt, ResetRequirements, SnapshotRestoreFunding, StateResetPolicy,
+        TimeResetPolicy, add_timing,
     };
     use std::time::Duration;
 
@@ -978,64 +930,135 @@ mod tests {
     }
 
     #[test]
-    fn reset_declarations_and_receipts_reject_duplicate_domains() {
-        let policies = [
-            ResetDomainPolicy::PocketIcTime(TimeResetPolicy::PreserveCurrent),
-            ResetDomainPolicy::PocketIcTime(TimeResetPolicy::RebuildOnMutation),
-        ];
-        let error = BaselinePoolContractError::DuplicateResetDomain {
-            domain: ResetDomainKind::PocketIcTime,
-        };
-        assert_eq!(
-            ResetRequirements::try_new(SnapshotRestoreFunding::Preserve, policies.clone()),
-            Err(error.clone()),
-        );
-        assert_eq!(ResetReceipt::try_new(policies), Err(error));
+    fn required_policy_must_match_achieved_policy() {
+        for (domain, requirement, achievement) in [
+            (
+                ResetDomainKind::PocketIcTime,
+                ResetPolicies {
+                    pocket_ic_time: Some(TimeResetPolicy::PreserveCurrent),
+                    ..ResetPolicies::default()
+                },
+                ResetPolicies {
+                    pocket_ic_time: Some(TimeResetPolicy::RebuildOnMutation),
+                    ..ResetPolicies::default()
+                },
+            ),
+            (
+                ResetDomainKind::ExtraCanisters,
+                ResetPolicies {
+                    extra_canisters: Some(ExtraCanisterPolicy::RequireBaselineSet),
+                    ..ResetPolicies::default()
+                },
+                ResetPolicies {
+                    extra_canisters: Some(ExtraCanisterPolicy::RemoveTracked),
+                    ..ResetPolicies::default()
+                },
+            ),
+            (
+                ResetDomainKind::PendingMessages,
+                ResetPolicies {
+                    pending_messages: Some(StateResetPolicy::ValidateUnchanged),
+                    ..ResetPolicies::default()
+                },
+                ResetPolicies {
+                    pending_messages: Some(StateResetPolicy::IrrelevantByRecipeContract),
+                    ..ResetPolicies::default()
+                },
+            ),
+            (
+                ResetDomainKind::SubnetState,
+                ResetPolicies {
+                    subnet_state: Some(StateResetPolicy::ResetByRecipe),
+                    ..ResetPolicies::default()
+                },
+                ResetPolicies {
+                    subnet_state: Some(StateResetPolicy::RebuildOnChange),
+                    ..ResetPolicies::default()
+                },
+            ),
+            (
+                ResetDomainKind::ExternalResources,
+                ResetPolicies {
+                    external_resources: Some(StateResetPolicy::ValidateUnchanged),
+                    ..ResetPolicies::default()
+                },
+                ResetPolicies {
+                    external_resources: Some(StateResetPolicy::ResetByRecipe),
+                    ..ResetPolicies::default()
+                },
+            ),
+        ] {
+            let requirements = ResetRequirements {
+                funding: SnapshotRestoreFunding::Preserve,
+                policies: requirement,
+            };
+            assert_eq!(
+                requirements.verify(ResetReceipt {
+                    policies: requirement
+                }),
+                Ok(())
+            );
+            assert_eq!(
+                requirements.verify(ResetReceipt::default()),
+                Err(BaselinePoolContractError::MissingResetDomain { domain })
+            );
+            assert_eq!(
+                requirements.verify(ResetReceipt {
+                    policies: achievement
+                }),
+                Err(BaselinePoolContractError::ResetPolicyMismatch {
+                    domain,
+                    requirement,
+                    achievement
+                })
+            );
+            let unconstrained = ResetRequirements {
+                funding: SnapshotRestoreFunding::Preserve,
+                policies: ResetPolicies::default(),
+            };
+            assert_eq!(
+                unconstrained.verify(ResetReceipt {
+                    policies: achievement
+                }),
+                Ok(())
+            );
+        }
     }
 
     #[test]
-    fn required_policy_must_match_achieved_policy() {
-        for (requirement, achievement) in [
-            (
-                ResetDomainPolicy::PocketIcTime(TimeResetPolicy::PreserveCurrent),
-                ResetDomainPolicy::PocketIcTime(TimeResetPolicy::RebuildOnMutation),
-            ),
-            (
-                ResetDomainPolicy::ExtraCanisters(ExtraCanisterPolicy::RequireBaselineSet),
-                ResetDomainPolicy::ExtraCanisters(ExtraCanisterPolicy::RemoveTracked),
-            ),
-            (
-                ResetDomainPolicy::PendingMessages(StateResetPolicy::ValidateUnchanged),
-                ResetDomainPolicy::PendingMessages(StateResetPolicy::IrrelevantByRecipeContract),
-            ),
-            (
-                ResetDomainPolicy::SubnetState(StateResetPolicy::ResetByRecipe),
-                ResetDomainPolicy::SubnetState(StateResetPolicy::RebuildOnChange),
-            ),
-            (
-                ResetDomainPolicy::ExternalResources(StateResetPolicy::ValidateUnchanged),
-                ResetDomainPolicy::ExternalResources(StateResetPolicy::ResetByRecipe),
-            ),
-        ] {
-            let requirements =
-                ResetRequirements::try_new(SnapshotRestoreFunding::Preserve, [requirement.clone()])
-                    .unwrap();
-            let receipt = ResetReceipt::try_new([requirement.clone()]).unwrap();
-            assert_eq!(requirements.verify(&receipt), Ok(()));
-            assert_eq!(
-                requirements.verify(&ResetReceipt::empty()),
-                Err(BaselinePoolContractError::MissingResetDomain {
-                    domain: requirement.domain(),
-                }),
-            );
-            let receipt = ResetReceipt::try_new([achievement.clone()]).unwrap();
-            assert_eq!(
-                requirements.verify(&receipt),
-                Err(BaselinePoolContractError::ResetPolicyMismatch {
-                    requirement,
-                    achievement,
-                }),
-            );
-        }
+    fn reset_coverage_preserves_absence_and_first_failure() {
+        let requirements = ResetRequirements {
+            funding: SnapshotRestoreFunding::Preserve,
+            policies: ResetPolicies {
+                pocket_ic_time: Some(TimeResetPolicy::PreserveCurrent),
+                pending_messages: Some(StateResetPolicy::IrrelevantByRecipeContract),
+                ..ResetPolicies::default()
+            },
+        };
+        let mut receipt = ResetReceipt::default();
+        assert_eq!(
+            requirements.verify(receipt),
+            Err(BaselinePoolContractError::MissingResetDomain {
+                domain: ResetDomainKind::PocketIcTime,
+            })
+        );
+        receipt.policies.pocket_ic_time = Some(TimeResetPolicy::RebuildOnMutation);
+        assert_eq!(
+            requirements.verify(receipt),
+            Err(BaselinePoolContractError::ResetPolicyMismatch {
+                domain: ResetDomainKind::PocketIcTime,
+                requirement: requirements.policies,
+                achievement: receipt.policies,
+            })
+        );
+        receipt.policies.pocket_ic_time = Some(TimeResetPolicy::PreserveCurrent);
+        assert_eq!(
+            requirements.verify(receipt),
+            Err(BaselinePoolContractError::MissingResetDomain {
+                domain: ResetDomainKind::PendingMessages,
+            })
+        );
+        receipt.policies.pending_messages = Some(StateResetPolicy::IrrelevantByRecipeContract);
+        assert_eq!(requirements.verify(receipt), Ok(()));
     }
 }

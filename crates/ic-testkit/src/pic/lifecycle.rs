@@ -1,6 +1,6 @@
 use std::{num::NonZeroUsize, time::Duration};
 
-use candid::Principal;
+use ic_platform::Principal;
 use pocket_ic::{ErrorCode, PocketIc, RejectResponse};
 
 use super::{CanisterInstallError, transport::capture_operation};

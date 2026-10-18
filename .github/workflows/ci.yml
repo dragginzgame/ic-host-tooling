@@ -2,7 +2,7 @@ name: CI
 
 env:
   IC_TESTKIT_MSRV: 1.91.0
-  IC_TESTKIT_INTERNAL_TOOLCHAIN: 1.99.0
+  IC_TESTKIT_INTERNAL_TOOLCHAIN: 1.99.1
 
 permissions:
   contents: read
@@ -128,7 +128,7 @@ jobs:
           exit "$status"
       - name: Retain failed validation and installer evidence
         if: failure()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: checks-failure-${{ matrix.os }}
           path: ${{ steps.checks-evidence.outputs.archive }}
@@ -203,12 +203,9 @@ jobs:
           TMPDIR: ${{ runner.temp }}/ic-testkit-portable-fixtures
         run: |
           mkdir -p "$TMPDIR"
-          /bin/bash scripts/ci/test-host-tools.sh
-          /bin/bash scripts/ci/test-ic-tools.sh
-          /bin/bash scripts/ci/test-rust-tools.sh
-          /bin/bash scripts/ci/test-cargo-tool-versions.sh
-          /bin/bash scripts/ci/test-dependency-pins.sh
-          CDPATH="$PWD" /bin/bash scripts/ci/test-release-runner.sh
+          # Shared Tooling owns the synthetic implementation matrix. Qualify
+          # our real selections here; consumer recovery guards run in make ci.
+          CDPATH="$PWD" make shared-tooling-check tools-check dependency-pins-check
       - name: Qualify failure evidence archives
         shell: /bin/bash --noprofile --norc -e -u -o pipefail {0}
         env:
@@ -217,7 +214,7 @@ jobs:
         run: CDPATH="$PWD" /bin/bash scripts/ci/test-failure-evidence.sh
       - name: Upload archive qualification artifact
         id: archive-upload
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: evidence-qualification-${{ matrix.os }}
           path: ${{ runner.temp }}/ic-testkit-archive-proof/evidence.tar.gz
@@ -240,10 +237,10 @@ jobs:
         env:
           TMPDIR: ${{ runner.temp }}/ic-testkit-portable-fixtures
         run: CDPATH="$PWD" /bin/bash scripts/ci/test-failure-evidence.sh verify-upload "$RUNNER_TEMP/ic-testkit-archive-downloaded"
-      - name: Check standalone Candid reply decoding
-        run: cargo test -p ic-testkit-candid --locked --offline
+      - name: Check Platform reply integration
+        run: cargo test -p ic-testkit --locked --offline --lib pic::calls::tests
       - name: Check native fixture benchmark driver and sampler
-        run: cargo test -p ic-testkit-bench --locked --offline --lib
+        run: cargo test -p ic-testkit-dev --locked --offline --lib
       - name: Archive failed portable and installer evidence
         if: failure()
         id: portable-evidence
@@ -257,7 +254,7 @@ jobs:
           exit "$status"
       - name: Retain failed portable and installer evidence
         if: failure()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: portable-failure-${{ matrix.os }}
           path: ${{ steps.portable-evidence.outputs.archive }}
@@ -303,7 +300,7 @@ jobs:
         run: cargo test -p ic-testkit --locked --offline --test server_runner managed_idle_ttl_allows_preclient_work_beyond_server_default -- --ignored --exact
       - name: Retain idle lifetime evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: idle-lifetime-${{ matrix.os }}
           path: target/idle-lifetime-*

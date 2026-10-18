@@ -4,7 +4,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use candid::Principal;
+use ic_platform::Principal;
 use pocket_ic::{CanisterLogRecord, CanisterStatusResult, PocketIc};
 
 use super::{
@@ -476,7 +476,7 @@ fn render_log_records(
 mod tests {
     use std::cell::Cell;
 
-    use candid::Principal;
+    use ic_platform::Principal;
     use pocket_ic::CanisterLogRecord;
 
     use super::{

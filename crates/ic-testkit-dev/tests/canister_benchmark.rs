@@ -1,21 +1,27 @@
-use candid::Principal;
 use ic_build::{
     artifacts::{WasmBuildSpec, build_wasm_canisters_cached},
     cargo::{observation::workspace_root_for, selection::CargoSelection},
 };
 use ic_host_fs::read::read_file;
-use ic_host_process::tool::{OutputLimit, OutputLimits};
+use ic_host_process::{
+    child::{CleanupPolicy, OwnedChild},
+    tool::{OutputLimit, OutputLimits},
+};
+use ic_platform::Principal;
 use ic_testkit::{
     benchmark::{
         BenchmarkEventSource, BenchmarkParserConfig, pair_benchmark_spans,
         parse_benchmark_events_from_source,
     },
-    pic::{CandidCallExt, InstallSpec, StandaloneCanisterFixture},
+    pic::{
+        CandidCallError, InstallSpec, StandaloneCanisterFixture, query_candid_args,
+        update_candid_args,
+    },
 };
 use std::process::Command;
 const PERF_PROBE_PACKAGE: &str = "ic_testkit_perf_probe";
 
-const REPLY_LIMITS: ic_testkit_candid::DecodeLimits = ic_testkit_candid::DecodeLimits {
+const REPLY_LIMITS: ic_platform::candid::DecodeLimits = ic_platform::candid::DecodeLimits {
     reply_bytes: 65_536,
     decoding_quota: 1_000_000,
     skipping_quota: 100_000,
@@ -41,19 +47,22 @@ fn perf_probe_canister_emits_parseable_benchmark_markers() {
             .is_file(),
         "benchmark qualification requires the workspace perf probe"
     );
-    let target_dir_directory = tempfile::Builder::new()
+    let target_dir = tempfile::Builder::new()
         .prefix("ic-testkit-perf-probe-target")
         .tempdir_in(workspace.join("target"))
         .expect("create private test directory");
-    let target_dir = target_dir_directory.path();
 
-    let spec = WasmBuildSpec::new(&workspace, target_dir, &[PERF_PROBE_PACKAGE])
+    let env = std::env::vars_os();
+    let spec = WasmBuildSpec::new(&workspace, target_dir.path(), &[PERF_PROBE_PACKAGE], env)
         .with_cargo_selection(CargoSelection {
             locked: true,
             ..CargoSelection::default()
         })
         .with_shared_incremental_target(workspace.join("target/pic-wasm"));
-    let outcome = build_wasm_canisters_cached(&spec).expect("build perf probe Wasm");
+    let outcome = build_wasm_canisters_cached(&spec, |command| {
+        OwnedChild::spawn(command, CleanupPolicy::KillAndWait)
+    })
+    .expect("build perf probe Wasm");
     let wasm_path = outcome
         .record()
         .artifacts()
@@ -74,16 +83,15 @@ fn perf_probe_canister_emits_parseable_benchmark_markers() {
         },
     )
     .expect("install standalone fixture");
-    let result: u64 = fixture
-        .pocket_ic()
-        .update_candid(
-            fixture.canister_id(),
-            candid::Principal::anonymous(),
-            "benchmark_once",
-            (),
-            REPLY_LIMITS,
-        )
-        .expect("benchmark_once update call");
+    let (result,): (u64,) = update_candid_args(
+        fixture.pocket_ic(),
+        fixture.canister_id(),
+        ic_platform::Principal::anonymous(),
+        "benchmark_once",
+        (),
+        REPLY_LIMITS,
+    )
+    .expect("benchmark_once update call");
 
     assert_eq!(result, 1_498_500);
 
@@ -127,6 +135,31 @@ fn perf_probe_canister_emits_parseable_benchmark_markers() {
         spans.spans
     );
 
-    drop(fixture);
-    drop(outcome);
+    assert_probe_trap(&fixture);
+}
+
+fn assert_probe_trap(fixture: &StandaloneCanisterFixture) {
+    let error = update_candid_args::<(), _>(
+        fixture.pocket_ic(),
+        fixture.canister_id(),
+        Principal::anonymous(),
+        "benchmark_start_then_trap",
+        (),
+        REPLY_LIMITS,
+    )
+    .expect_err("the probe deliberately traps");
+    assert!(
+        matches!(error, CandidCallError::CanisterReject { response, .. }
+        if response.reject_message.contains("intentional perf probe trap"))
+    );
+    let (reply,): (String,) = query_candid_args(
+        fixture.pocket_ic(),
+        fixture.canister_id(),
+        Principal::anonymous(),
+        "ping",
+        (),
+        REPLY_LIMITS,
+    )
+    .expect("the same canister remains callable after the trap");
+    assert_eq!(reply, "pong");
 }

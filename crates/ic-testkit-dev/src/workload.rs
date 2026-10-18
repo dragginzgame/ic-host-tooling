@@ -12,18 +12,19 @@ use std::{
 };
 
 use crate::fixture_reuse_report::{Phases, Sample, WorkerReport};
-use candid::Principal;
+use ic_platform::Principal;
 use ic_testkit::pic::{
     BaselinePoolDisposition, BaselinePoolTimings, BaselinePreparationStage, CachedPocketIcBaseline,
-    CachedPocketIcBaselinePool, CandidCallExt, CanisterSnapshotTarget, FailureDisposition,
-    PocketIc, PocketIcBaselineRecipe, PocketIcBuilder, PocketIcInstance, PocketIcStartupConfig,
-    PreparedBaseline, ResetReceipt, ResetRequirements, SnapshotRestoreFunding,
+    CachedPocketIcBaselinePool, CanisterSnapshotTarget, FailureDisposition, PocketIc,
+    PocketIcBaselineRecipe, PocketIcBuilder, PocketIcInstance, PocketIcStartupConfig,
+    PreparedBaseline, ResetPolicies, ResetReceipt, ResetRequirements, SnapshotRestoreFunding,
+    query_candid_args, update_candid_args,
 };
 
 type Result<T> = std::result::Result<T, Box<dyn Error + Send + Sync>>;
 const TIMEOUT: Duration = Duration::from_secs(30);
 // The workload returns only unit and a three-field state summary.
-const REPLY_LIMITS: ic_testkit_candid::DecodeLimits = ic_testkit_candid::DecodeLimits {
+const REPLY_LIMITS: ic_platform::candid::DecodeLimits = ic_platform::candid::DecodeLimits {
     reply_bytes: 65_536,
     decoding_quota: 1_000_000,
     skipping_quota: 100_000,
@@ -81,15 +82,15 @@ impl Recipe {
             pic.instance.add_cycles(id, 5_000_000_000_000);
             pic.instance
                 .install_canister(id, self.wasm.to_vec(), vec![], None);
-            pic.instance
-                .update_candid::<(), _>(
-                    id,
-                    candid::Principal::anonymous(),
-                    "fixture_seed_state",
-                    (self.state_bytes,),
-                    REPLY_LIMITS,
-                )
-                .map_err(recipe_error)?;
+            update_candid_args::<((),), _>(
+                &pic.instance,
+                id,
+                ic_platform::Principal::anonymous(),
+                "fixture_seed_state",
+                (self.state_bytes,),
+                REPLY_LIMITS,
+            )
+            .map_err(recipe_error)?;
         }
         Ok((pic, ids))
     }
@@ -103,15 +104,15 @@ impl Recipe {
         let first = (self.state_bytes > 0).then_some(if mutated { 255 } else { 42 });
         let expected = (u64::from(mutated), u64::from(self.state_bytes), first);
         for id in ids {
-            let state: (u64, u64, Option<u8>) = pic
-                .query_candid(
-                    *id,
-                    candid::Principal::anonymous(),
-                    "fixture_state",
-                    (),
-                    REPLY_LIMITS,
-                )
-                .map_err(recipe_error)?;
+            let (state,): ((u64, u64, Option<u8>),) = query_candid_args(
+                pic,
+                *id,
+                ic_platform::Principal::anonymous(),
+                "fixture_state",
+                (),
+                REPLY_LIMITS,
+            )
+            .map_err(recipe_error)?;
             if state != expected {
                 return Err(recipe_error(io::Error::other(format!(
                     "fixture state mismatch: expected {expected:?}, got {state:?}"
@@ -123,9 +124,10 @@ impl Recipe {
 
     fn exercise(&self, pic: &PocketIc, ids: &[Principal; 2]) -> Result<()> {
         for id in ids {
-            pic.update_candid::<(), _>(
+            update_candid_args::<((),), _>(
+                pic,
                 *id,
-                candid::Principal::anonymous(),
+                ic_platform::Principal::anonymous(),
                 "fixture_mutate_state",
                 (),
                 REPLY_LIMITS,
@@ -163,7 +165,7 @@ impl PocketIcBaselineRecipe for Recipe {
     ) -> std::result::Result<ResetReceipt, Self::Error> {
         // This workload mutates only captured canister state. Time and cycle
         // balances are deliberately not asserted to rewind.
-        Ok(ResetReceipt::empty())
+        Ok(ResetReceipt::default())
     }
 
     fn drive_to_readiness(
@@ -323,7 +325,10 @@ pub fn worker_main() -> Result<()> {
     .start_managed_server()?;
     let server_startup_ms = ms(startup.elapsed());
     let recipe = Recipe {
-        requirements: ResetRequirements::try_new(SnapshotRestoreFunding::Preserve, [])?,
+        requirements: ResetRequirements {
+            funding: SnapshotRestoreFunding::Preserve,
+            policies: ResetPolicies::default(),
+        },
         server_url: server.url().to_owned(),
         wasm: fs::read(&wasm)?.into(),
         state_bytes,
