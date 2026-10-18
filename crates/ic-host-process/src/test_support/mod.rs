@@ -13,8 +13,7 @@ pub const LIMITS: OutputLimits = OutputLimits {
 pub const VERSION: &str = "test-host-tool version 1";
 
 pub struct Fixture {
-    pub root: PathBuf,
-    _directory: ic_host_fs::testing::FixtureDirectory,
+    directory: ic_host_fs::testing::FixtureDirectory,
 }
 
 impl Fixture {
@@ -24,16 +23,16 @@ impl Fixture {
             "ic-host-process-test",
         )
         .expect("create test fixture");
-        let root = directory.path().to_path_buf();
-        Self {
-            root,
-            _directory: directory,
-        }
+        Self { directory }
+    }
+
+    pub fn path(&self) -> &Path {
+        self.directory.path()
     }
 
     pub fn context<'a>(&'a self, environment: &'a [(OsString, OsString)]) -> ExecutionContext<'a> {
         ExecutionContext {
-            current_dir: &self.root,
+            current_dir: self.path(),
             environment,
         }
     }

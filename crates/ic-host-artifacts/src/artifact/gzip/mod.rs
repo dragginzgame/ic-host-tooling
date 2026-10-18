@@ -4,8 +4,8 @@
 mod tests;
 
 use super::{
-    ArtifactError, ArtifactIdentity, BoundedWriter, MatchingWriter, hash_reader, read_reader,
-    visit_reader,
+    ArtifactError, ArtifactIdentity, BoundedWriter, CopyError, MatchingWriter, copy_reader,
+    hash_reader, read_reader, visit_reader,
 };
 use std::{
     fmt,
@@ -61,7 +61,7 @@ pub enum GzipError {
         /// Maximum input bytes permitted by the caller.
         limit: usize,
     },
-    /// Payload decoding, integrity, decoded size or allocation failed.
+    /// Payload decoding, integrity, decoded size, allocation or sink IO failed.
     Decode(ArtifactError),
     /// Bytes follow the first member, including another gzip member.
     TrailingData,
@@ -113,6 +113,38 @@ pub fn decode_gzip(
     })
 }
 
+/// Decode one complete gzip member to a caller-owned sink and identify its bytes.
+///
+/// Applies all [`decode_gzip`] input, integrity and single-member framing checks
+/// with fixed-size traversal storage plus the decoder's working memory. The
+/// returned identity describes decoded bytes. Compressed input remains borrowed;
+/// no complete decoded payload is allocated by this operation.
+///
+/// Verify trusted archive digests before decoding. Output may contain partial
+/// bytes on any error, including invalid CRC or trailing data after a payload
+/// has reached the sink. Use private staging and publish only after success and
+/// caller-owned admission. This operation never opens, flushes, synchronizes or
+/// publishes files; reader/writer deadlines remain caller-owned.
+///
+/// # Errors
+/// Returns [`GzipError`] for input/decoded limits, malformed or incomplete gzip,
+/// integrity, sink IO or trailing data. Sink IO retains its original cause in
+/// [`GzipError::Decode`] as [`ArtifactError::Io`]; that variant does not distinguish
+/// read and write failures. No complete identity is returned on failure.
+pub fn copy_gzip(
+    bytes: &[u8],
+    writer: &mut impl Write,
+    max_compressed_bytes: usize,
+    max_decoded_bytes: u64,
+) -> Result<ArtifactIdentity, GzipError> {
+    with_decoder(bytes, max_compressed_bytes, |decoder| {
+        copy_reader(decoder, writer, max_decoded_bytes).map_err(|error| match error {
+            CopyError::Input(source) => source,
+            CopyError::Output(source) => ArtifactError::Io(source),
+        })
+    })
+}
+
 /// Hash one complete gzip member without allocating its decoded payload.
 ///
 /// Applies the same header, CRC, length and single-member/trailing-data checks
@@ -152,9 +184,12 @@ pub fn gzip_matches(
 ) -> Result<bool, GzipError> {
     with_decoder(bytes, max_compressed_bytes, |decoder| {
         let mut matching = MatchingWriter::new(expected);
-        visit_reader::<ArtifactError>(decoder, expected.len() as u64, |chunk| {
-            matching.write_all(chunk).map_err(ArtifactError::Io)
-        })?;
+        visit_reader::<ArtifactError>(
+            decoder,
+            &mut [0; 16 * 1024],
+            expected.len() as u64,
+            |chunk| matching.write_all(chunk).map_err(ArtifactError::Io),
+        )?;
         Ok(matching.is_complete_match())
     })
 }

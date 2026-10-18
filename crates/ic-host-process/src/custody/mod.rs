@@ -5,55 +5,32 @@
 //! removes sidecars, kills descendants or grants retry or remote-effect authority.
 
 use command_fds::CommandFdExt;
-use ic_host_fs::durable::{self, RegularFileLockError};
+use ic_host_fs::{
+    durable::{self, RegularFileLockError},
+    identity::FileIdentity,
+};
 use std::{
     fmt,
     fs::{self, File, Metadata},
     io,
-    os::{fd::AsRawFd, unix::fs::MetadataExt},
+    os::fd::AsRawFd,
     path::{Path, PathBuf},
     process::{Child, Command},
     thread,
     time::{Duration, Instant},
 };
 
-/// Native regular-file identity; callers own persistence and namespace custody.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct FileIdentity {
-    /// Filesystem device number.
-    pub device: u64,
-    /// Inode number on that device.
-    pub inode: u64,
-}
-
-impl FileIdentity {
-    /// Observe a caller-owned regular descriptor without reopening its path.
-    ///
-    /// # Errors
-    /// Returns metadata failures or rejects a non-regular descriptor.
-    pub fn from_file(file: &File) -> io::Result<Self> {
-        let metadata = file.metadata()?;
-        if !metadata.is_file() {
-            return Err(io::Error::from(io::ErrorKind::InvalidInput));
-        }
-        Ok(Self::from_metadata(&metadata))
+fn require_identity(
+    expected: FileIdentity,
+    metadata: &Metadata,
+    path: &Path,
+) -> Result<(), CustodyError> {
+    if !metadata.is_file() || FileIdentity::from_metadata(metadata) != expected {
+        return Err(CustodyError::IdentityChanged {
+            path: path.to_path_buf(),
+        });
     }
-
-    fn from_metadata(metadata: &Metadata) -> Self {
-        Self {
-            device: metadata.dev(),
-            inode: metadata.ino(),
-        }
-    }
-
-    fn require(self, metadata: &Metadata, path: &Path) -> Result<(), CustodyError> {
-        if !metadata.is_file() || Self::from_metadata(metadata) != self {
-            return Err(CustodyError::IdentityChanged {
-                path: path.to_path_buf(),
-            });
-        }
-        Ok(())
-    }
+    Ok(())
 }
 
 /// One command's inheritable sidecar custody, acquired without waiting.
@@ -116,8 +93,11 @@ impl CommandCustody {
                 path: self.path.clone(),
             });
         }
-        self.identity
-            .require(&fs::symlink_metadata(&self.path)?, &self.path)?;
+        require_identity(
+            self.identity,
+            &fs::symlink_metadata(&self.path)?,
+            &self.path,
+        )?;
         self.dispatched = true;
         let descriptor = rustix::io::fcntl_dupfd_cloexec(&self.file, 3).map_err(io::Error::from)?;
         command.env(descriptor_environment, descriptor.as_raw_fd().to_string());
@@ -185,11 +165,11 @@ impl QuiescenceGuard {
     pub fn acquire(path: &Path, expected: FileIdentity) -> Result<Self, CustodyError> {
         let metadata = fs::symlink_metadata(path)?;
         if metadata.is_file() {
-            expected.require(&metadata, path)?;
+            require_identity(expected, &metadata, path)?;
         }
         let file = durable::open_existing_regular_lock_file(path).map_err(CustodyError::Lock)?;
         try_lock(&file, path)?;
-        expected.require(&file.metadata()?, path)?;
+        require_identity(expected, &file.metadata()?, path)?;
         Ok(Self {
             file,
             identity: expected,

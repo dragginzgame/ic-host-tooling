@@ -1,5 +1,5 @@
 use super::{TreeVisitor, walk_tree};
-use crate::test_support::Fixture;
+use crate::test_support::fixture;
 use rustix::{
     fd::OwnedFd,
     fs::{FileType, Mode, OFlags, open},
@@ -64,14 +64,14 @@ fn opened_root(path: &Path) -> OwnedFd {
 
 #[test]
 fn visits_opened_files_and_leaves_nested_directories_before_root() {
-    let fixture = Fixture::new();
-    fs::create_dir(fixture.root.join("nested")).unwrap();
-    fs::write(fixture.root.join("nested/bytes"), b"exact").unwrap();
+    let fixture = fixture();
+    fs::create_dir(fixture.path().join("nested")).unwrap();
+    fs::write(fixture.path().join("nested/bytes"), b"exact").unwrap();
     let mut visitor = RecordingVisitor::default();
     walk_tree(
-        &opened_root(&fixture.root),
+        &opened_root(fixture.path()),
         Path::new(""),
-        &fixture.root,
+        fixture.path(),
         &mut visitor,
     )
     .unwrap();
@@ -85,27 +85,27 @@ fn visits_opened_files_and_leaves_nested_directories_before_root() {
 
 #[test]
 fn rejects_symlink_and_non_utf8_names_without_visiting_targets() {
-    let fixture = Fixture::new();
-    fs::write(fixture.root.join("target"), b"retained").unwrap();
-    symlink("target", fixture.root.join("link")).unwrap();
+    let fixture = fixture();
+    fs::write(fixture.path().join("target"), b"retained").unwrap();
+    symlink("target", fixture.path().join("link")).unwrap();
     let error = walk_tree(
-        &opened_root(&fixture.root),
+        &opened_root(fixture.path()),
         Path::new(""),
-        &fixture.root,
+        fixture.path(),
         &mut RecordingVisitor::default(),
     )
     .unwrap_err();
     assert_eq!(error.to_string(), "unsupported entry");
-    fs::remove_file(fixture.root.join("link")).unwrap();
+    fs::remove_file(fixture.path().join("link")).unwrap();
     let non_utf8 = OsStr::from_bytes(b"\xff");
     // Observe native name admission independently: some filesystems reject
     // these bytes before the walker can encounter a directory entry.
-    let native = fs::write(fixture.root.join(non_utf8), b"retained");
+    let native = fs::write(fixture.path().join(non_utf8), b"retained");
     let mut visitor = RecordingVisitor::default();
     let result = walk_tree(
-        &opened_root(&fixture.root),
+        &opened_root(fixture.path()),
         Path::new(""),
-        &fixture.root,
+        fixture.path(),
         &mut visitor,
     );
     match native {
@@ -117,7 +117,10 @@ fn rejects_symlink_and_non_utf8_names_without_visiting_targets() {
                     .iter()
                     .all(|(path, _)| path == Path::new("target"))
             );
-            assert_eq!(fs::read(fixture.root.join(non_utf8)).unwrap(), b"retained");
+            assert_eq!(
+                fs::read(fixture.path().join(non_utf8)).unwrap(),
+                b"retained"
+            );
         }
         Err(error) => {
             assert_eq!(
@@ -130,12 +133,15 @@ fn rejects_symlink_and_non_utf8_names_without_visiting_targets() {
                 [(PathBuf::from("target"), b"retained".to_vec())]
             );
             // Enumerate rather than looking up a name the filesystem refused.
-            let names: Vec<_> = fs::read_dir(&fixture.root)
+            let names: Vec<_> = fs::read_dir(fixture.path())
                 .unwrap()
                 .map(|entry| entry.unwrap().file_name())
                 .collect();
             assert_eq!(names, [OsStr::new("target")]);
         }
     }
-    assert_eq!(fs::read(fixture.root.join("target")).unwrap(), b"retained");
+    assert_eq!(
+        fs::read(fixture.path().join("target")).unwrap(),
+        b"retained"
+    );
 }

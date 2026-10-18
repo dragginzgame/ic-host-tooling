@@ -1,20 +1,7 @@
 //! Private filesystem fixtures.
-use std::path::PathBuf;
-pub struct Fixture {
-    pub root: PathBuf,
-    _directory: crate::testing::FixtureDirectory,
-}
-impl Fixture {
-    pub fn new() -> Self {
-        let directory =
-            crate::testing::FixtureDirectory::new(&std::env::temp_dir(), "ic-host-fs-test")
-                .expect("create test fixture");
-        let root = directory.path().to_path_buf();
-        Self {
-            root,
-            _directory: directory,
-        }
-    }
+pub fn fixture() -> crate::testing::FixtureDirectory {
+    crate::testing::FixtureDirectory::new(&std::env::temp_dir(), "ic-host-fs-test")
+        .expect("create test fixture")
 }
 
 /// Create a real FIFO without opening either endpoint; callers select its mode.

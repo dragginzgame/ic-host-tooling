@@ -102,7 +102,8 @@ pub fn write_existing_parent_validated_with<T, E>(
     {
         use rustix::fs::{Mode, OFlags, open};
         use std::os::fd::AsFd as _;
-        let permissions = super::supported::native_permissions(options.permissions)
+        // Preserve permission refusal before attempting to open the parent.
+        super::supported::native_permissions(options.permissions)
             .map_err(NamedWriteError::before)?;
         let (parent, name) =
             super::supported::split_target(path).map_err(NamedWriteError::before)?;
@@ -112,15 +113,7 @@ pub fn write_existing_parent_validated_with<T, E>(
             Mode::empty(),
         )
         .map_err(|source| NamedWriteError::before(source.into()))?;
-        super::supported::commit_at_with_hook(
-            parent.as_fd(),
-            None,
-            name,
-            (options.mode, permissions),
-            |_, file| produce(file),
-            (WriterCustody::Writable, |_, value| admit(value)),
-            |_, _| Ok(()),
-        )
+        write_at_validated_with(parent.as_fd(), name, options, produce, admit)
     }
     #[cfg(not(any(target_os = "linux", target_os = "android", target_vendor = "apple")))]
     {

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Shared companions: scripts/ci/select-rust-formatting-sources.sh
+# Shared companions: scripts/ci/select-rust-formatting-sources.sh scripts/ci/fixture-lifecycle.sh
 set -euo pipefail
 
 # Consumer-owned Make code is reviewed executable input, not sandboxed code.
@@ -39,21 +39,26 @@ unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY G
 export CARGO_NET_OFFLINE=true RUSTUP_AUTO_INSTALL=0
 # Disposable adoption checkouts reuse the consumer's explicitly prepared tools.
 export PATH="$root/.tools/host/bin:$root/.tools/rust/common/bin:$PATH"
-fixture="$(mktemp -d "${TMPDIR:-/tmp}/formatting-adoption.XXXXXX")"
-fixture="$(cd -P "$fixture" && printf '%s/.' "$PWD")"
-fixture="${fixture%/.}"
+script_dir="${BASH_SOURCE[0]}"
+[[ "$script_dir" == /* ]] || script_dir="$PWD/$script_dir"
+script_dir="${script_dir%/*}"
+# shellcheck source=scripts/ci/fixture-lifecycle.sh
+source "$script_dir/fixture-lifecycle.sh"
+fixture="$(fixture_create "${TMPDIR:-/tmp}/formatting-adoption.XXXXXX")"
 fixture_complete=false
 finish() {
     local status=$?
-    [[ "$fixture_complete" == true || "$status" != 0 ]] || status=1
-    if [[ "$status" == 0 ]]; then rm -rf "$fixture";
-    else echo "Formatting adoption evidence retained: $fixture" >&2; fi
-    exit "$status"
+    fixture_completion_status "$status" "$fixture_complete" || status=$?
+    if [[ "$status" != 0 ]]; then
+        fixture_replay_logs "$fixture"/*.log "$fixture"/formatting.* "$fixture"/*/.git/*.log
+    fi
+    fixture_finish "$status" "$fixture" "Formatting adoption evidence retained"
 }
 trap finish EXIT
 # Hooks and formatters change directories inside the disposable checkout.
-# Keep their temporary files under the caller's selected physical parent.
-export TMPDIR="${fixture%/*}"
+# Keep nested scratch and expected formatter-failure logs inside this fixture;
+# a caller's RUNNER_TEMP and unrelated evidence remain outside its custody.
+export TMPDIR="$fixture" RUNNER_TEMP="$fixture"
 mkdir "$fixture/templates"
 export GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null GIT_TEMPLATE_DIR="$fixture/templates"
 objects="$(git -C "$root" rev-parse --git-path objects && printf '.')"

@@ -1,5 +1,99 @@
 # Crate ownership and extraction contract
 
+## Fleet Candid/CDK boundary
+
+The maintainer's 2026-10-18 direction is one controlled dependency boundary for
+Candid and the CDK family, with IC Wire owning controlled application protocols.
+Host now consumes published `ic-platform` 0.1.11 for bounded Candid decoding,
+native parsing and optional certification types. Platform's `docs/migration.md`
+owns the fleet adoption contract. Host retains service-to-Wasm projections,
+strict certificate CBOR admission and the released aggregate-byte adapter.
+Per-reply decoder configuration belongs to Platform; the adapter maps limits and
+typed failures while preserving debit-before-decode behavior. Diagnostics follow
+Platform's compact policy. The historical observations below describe the wider
+migration, not proof of completed sibling adoption.
+
+The dedicated repository has one consumer-facing library, `ic-platform`:
+its scope includes runtime integration as well as Candid. Keep
+codec, host parser and executor/runtime capabilities separately selectable, with
+no default activation. An executor-only consumer must not acquire the parser or
+codec. Selecting today's upstream CDK still brings its Candid dependency; a facade
+alone cannot make that runtime Candid-free. Any necessary proc-macro implementation
+crate belongs to this same boundary repository, not to a second runtime owner.
+
+The boundary owns dependency selection, bounded Candid encoding/decoding,
+external-protocol type integration and the supported CDK/executor interface.
+It must expose explicit supported operations rather than a blanket upstream
+re-export. Where generic external DTOs need Candid traits or derives, a deliberately
+supported trait/macro surface is necessary and remains upstream-coupled until
+replaced. Identity-only consumers can use Platform's unconditional `Principal`,
+which preserves the existing upstream identity without a new wrapper or codec.
+Canic retains dispatch, authentication and lifecycle policy; Timers retains
+scheduling; Query retains NNS/SNS/ledger operations and schemas; Testkit retains
+PocketIC lifecycle; Build retains native extraction execution. Host's five crates
+retain their existing host responsibilities. The new boundary must not depend on
+Host Tools or Testkit and create cycles when those consumers adopt it.
+
+Historical evidence from working trees inspected before Platform adoption on
+2026-10-18 (source identities below):
+
+- Testkit's `crates/ic-testkit-candid/src/lib.rs` already owns bounded single-value,
+  argument-list and exact-single-value decoders. Query selects that package in
+  `crates/ic-query/Cargo.toml`; Testkit calls it from `src/pic/calls.rs`. Consolidate
+  this code and Host's pending `candid/decode` under the boundary, preserving their
+  distinct arity, diagnostics and caller-owned aggregate-accounting contracts.
+- Host's `crates/ic-host-tools/src/candid/service` owns parser-backed service
+  inspection. Move parser mechanics to the boundary's host capability; keep
+  necessary projection into Host's Wasm method identities in Host, without making
+  the boundary depend on Host types. Retire the old decoder owner after migration.
+- Canic's `crates/canic-macros/src/adapter/mod.rs` emits `::candid` paths;
+  `crates/canic-core/src/cdk/mod.rs` re-exports Candid and `infra/ic/call.rs` uses
+  CDK calls directly. Update generators and compile fixtures with imports and
+  manifests. Cached Candid derive 0.10.38 accepts `candid_path`; CDK macros 0.20.3
+  accept a runtime `cratename` but still emit hard-coded `::candid` paths. A simple
+  crate re-export does not establish that consumer manifests can omit both names.
+- Timers' `crates/ic-timers/Cargo.toml` uses `ic-cdk-executor` and `ic0`, without
+  Candid in its production dependency list. Its `src/platform` uses executor
+  method contexts and trap cleanup. Preserve one executor/context identity across
+  entrypoints, calls and timers; qualify cancellation and trap behavior together.
+- Agent, PocketIC and external management/ledger type packages can bring Candid
+  transitively. A ban on direct workspace dependencies does not remove those
+  paths, published upstream types, or linked Wasm code. Record selected dependency
+  graphs separately from installed-canister size and behavior measurements.
+
+Reviewed checkout HEADs were Host `c8cd434`, Testkit `55ac397`, Canic `5583496bf`,
+Query `fdcb0be3`, Timers `194204d`, Wire `ce56d5e` and Storage `009412d`.
+Working-tree observations can include pending edits; these identities do not
+claim the observations are committed, published or adopted.
+
+The migration acceptance sequence is: qualify a boundary prototype with real
+derive/endpoint consumers and host/Wasm feature graphs; publish a compatible
+dependency; move the existing codec/parser owners and their callers together;
+then migrate runtime integrations and enable direct-dependency bans per migrated
+workspace. Include examples, tests, generated templates and independent fixture
+workspaces. Shared's `scripts/ci/check-cargo-dependency-boundaries.sh` already checks
+canonical package names despite aliases, across normal/build/dev/target tables.
+Adopt it through a reviewed snapshot rather than writing a parallel checker.
+Its scope is direct workspace dependencies, so separately enumerate CDK-family
+packages, inspect transitive graphs and check unused root catalog declarations.
+
+External management, NNS/SNS and ledger calls retain their specified wire formats.
+Changing Rust dependency ownership must preserve request/reply bytes, errors,
+decode limits, persisted records and retry identities. Protocol replacement for
+owned endpoints is a separate IC Wire cutover with both ends qualified. Required
+evidence includes malformed/quota/arity cases, macro expansion without forbidden
+direct dependencies, installed query/update/management calls, async/trap cleanup,
+and supported host checks. No fleet-wide source migration is qualified by this audit.
+
+Storage is a separate boundary: current IC Storage delegates collection formats
+to `ic-stable-structures` and allocation/bootstrap/exclusive handles to IC Memory.
+Removing those dependencies requires an explicitly selected replacement for both
+roles and retained-data qualification. The existing Shared stable-memory rule
+requires IC Memory handles; retiring that owner also needs a coordinated baseline
+change. No allocation or stored-format migration is implied by the Candid facade.
+
+## Current implementation
+
 The initial library source is committed IC Host Tools 0.2.0 at
 be7d73908225e73ab5babf8fbb9fe959f40d439b. Pending sibling tooling edits
 were excluded. Canic's clean durable module and its tests are bound to their
@@ -23,23 +117,44 @@ Replica revision selection, install thresholds and resource-report policy belong
 to the consuming application. Host Artifacts retains generic Wasm facts; Tools
 no longer owns an `ic-limits` profile or a reference-policy CLI example.
 
-- ic-host-artifacts owns stream identities, bounded read/write/copy mechanics,
+- ic-host-artifacts owns pure ordered nonempty/unique batch-label admission,
+  declared-file directory checksums, stream identities,
+  bounded read/write/copy mechanics,
+  including allocation-free visitation with caller-owned scratch and callbacks,
   optional gzip encoding/decoding, optional Wasm
   structural facts, encoded code/data statistics and bounded custom-section framing.
-- ic-host-fs owns pathname/descriptor reads, explicit invocation-directory
+- ic-host-fs owns no-follow directory hashing and ordered sync/checksum traversal
+  over caller-held descriptors,
+  fresh child-directory allocation with explicit permissions and collision bounds,
+  standard cache-directory tag recognition and durable replacement with explicit
+  suffix bytes and permissions,
+  pathname/descriptor reads, explicit invocation-directory
   cleanup custody and the durable module's replace,
   create-new, private-file, parent synchronization and descriptor-lock operations.
+  `durable::SharedFileLock` explicitly unlocks on guard drop before closing;
+  consumers retain shared guard lifetimes, paths and cache/maintenance policy.
+  Its `scratch::create_private_bytes` shares private, non-durable invocation-file
+  creation; consumers retain byte budgets, successful cleanup and effect recovery.
+  Read-only and ordered-sync visitors share checksum collection while retaining
+  their released descriptor interfaces and distinct effects.
 - ic-host-process owns executable resolution/admission, installed-version
   observation, explicit execution context,
   output limits, deadlines, direct-child/explicit group cleanup evidence, native
   process-table/RSS observations and separate Git queries.
+  Its `framing` module owns bounded newline admission for buffered readers and
+  incremental output chunks. Schemas, EOF-tail policy, deadlines, diagnostics and
+  recovery remain with each process consumer.
   Its Unix `custody` module also owns inherited regular-sidecar descriptors and
   exact existing-sidecar quiescence. Callers retain paths, environment names,
   durable identity records, wait settings, command/effect admission and recovery;
   custody neither kills processes nor implies a remote effect outcome.
 - ic-host-text owns bounded UTF-8 line normalization, pure terminal-safe escaping,
   explicit column clipping, Unicode display-width tables and pure single-line
-  progress frames.
+  progress frames. Its `timestamp` module owns canonical UTC second spelling and
+  Gregorian conversion, formatting unsigned Unix seconds and parsing zero through
+  `i64::MAX`. Callers retain clocks, freshness and collection-time interpretation.
+  Its `decimal` module owns exact two-place rounding/rendering with explicit
+  scaling; consumers retain normalization, units, sentinels and raw report fields.
   Progress callers retain terminal detection, wrapping limits, output, flushing,
   failure policy and cleanup timing; the helper never selects a sink or writes.
   Escaping borrows unchanged input through `Cow<str>` and owns changed text;
@@ -50,8 +165,13 @@ no longer owns an `ic-limits` profile or a reference-policy CLI example.
   boundary was explicitly selected by the maintainer under
   [#110 — Host text ownership](https://github.com/dragginzgame/ic-host-tooling/issues/110).
 - ic-host-tools owns Candid service-method interpretation,
+  reply decoding with explicit byte/work and caller-owned aggregate limits,
   IC method export projection over generic Wasm facts, JSON/plain-hex ICP responses
-  and bounded certificate decoding.
+  and bounded certificate decoding. Its `icp` module owns pure call/status argv
+  construction and successful status JSON's null/string installation projection;
+  executable/context admission, capture bounds, execution, targets, full status
+  reports and lifecycle stay with callers. The implementation and four tests are
+  taken from reviewed Host PR #101 at `38b114bb30f12e9a6e255ccd85d6b7344331d763`.
   CLI labels, preambles and any Unicode whitespace normalization remain with
   consumers rather than a second presentation adapter in the codec.
 
@@ -75,7 +195,8 @@ parsing; bounded artifact-reader refusals retain their typed cause through
 `SamplingError::Io`, while native disappearance/access skip rules stay intact.
 
 The optional tools `certificate` feature owns strict CBOR decoding into owned
-`ic-certification` certificate/delegation/hash-tree values. It admits complete
+certificate/delegation/hash-tree values supplied by `ic_platform::certification`.
+These retain upstream `ic-certification` type identities. It admits complete
 input bytes and selected CBOR nesting before returning a single fully consumed
 value. Direct Serde visitors enforce actual array/byte kinds, exact tree tags
 and arities and 32-byte pruned digests without a generic CBOR payload tree.
@@ -116,9 +237,16 @@ Canic endpoint presentation remain consumer policy. IC Build owns build/cache
 orchestration separately; these libraries do not install tools or build canisters.
 
 Within `ic-host-fs`, `read` is the sole owner of required/optional/private reads.
-Its Unix `tree` module exposes a no-follow descriptor traversal for caller-owned
-entry handling, but does not own Backup's tree checksum framing, complete
-artifact publication policy or retained byte custody. Callers admit and hold the root, select
+Its metadata-returning hash variants retain the initial metadata from the same
+descriptor used for bounded hashing. Identity-only hash calls project that result;
+Process consumes the paired observation for its executable permission policy,
+after byte/digest admission. Metadata can become stale under concurrent writers;
+neither paired observation nor hashing establishes atomic pathname execution.
+Its Unix `tree` module owns no-follow descriptor traversal and bounded directory
+hashing; `ic-host-artifacts::artifact::tree` owns exact checksum framing. Ordered
+sync/checksum traversal belongs to FS `durable::tree`. Backup retains checksum
+records, expected-identity admission, complete artifact publication policy and
+retained byte custody. Callers admit and hold the root, select
 depth/byte limits, and prevent concurrent namespace or content changes where
 stable evidence is required.
 Observed directories always use directory-only opens and descriptor type checks;
@@ -203,7 +331,8 @@ The first import preserves implemented guarantees. It does not establish root
 confinement for following pathname APIs, immutable source bytes, process sandboxing,
 descendant cleanup, hardware-independent crash durability or safe paid-effect retries.
 Query's capability confinement and refresh leases remain consumer-owned.
-Backup's tree checksums, multi-file publication and journals remain consumer-owned.
+Backup's checksum records and admission policy, multi-file publication and
+journals remain consumer-owned; generic hashing and framing use the Host owners.
 `ic-host-process` opt-in testing also supplies an acknowledged direct-child crash
 barrier. It owns marker timing and direct-child reaping; consumers retain crash
 point selection, fixture evidence and recovery assertions.
@@ -306,9 +435,12 @@ TERM, group KILL, direct-child fallback and reap errors remain separate from the
 original execution failure. See the [0.8 contract](changelog/0.8.md).
 
 The sole-zombie macOS check uses one private fixed-buffer libproc call, explicitly
-approved by the maintainer. Unsafe code remains denied outside that function.
-All other process syscalls use safe rustix APIs; the existing selected libc
-version becomes a macOS-only direct dependency, without a bindgen toolchain.
+approved by the maintainer. Explicit Unix `signal::SignalActions` additionally
+permits scoped FFI for caller-selected action installation, rollback and
+restoration. Its unsafe entrypoint requires async-signal-safe callbacks and
+exclusive process-global registration custody; cancellation and shutdown policy
+remain consumer-owned. Unsafe code stays denied elsewhere. Other process
+syscalls use safe rustix APIs; libc is Unix-scoped without a bindgen toolchain.
 
 `AdmittedTool::admit_version` shares the exact admission engine for tools whose
 installation the caller already trusts. It takes a `VersionSpec` and a mandatory
@@ -376,6 +508,11 @@ Additional reusable mechanics are extracted from committed sibling source:
   lock namespace, descriptor clones and final-owner unlock remain consumer-owned.
   The [0.13 migration](changelog/0.13.md) removes the fixed-cadence pathname wrapper.
 
+Unix native device/inode observations belong to `ic_host_fs::identity`, shared
+by filesystem publication and Process custody. File-kind admission, locks,
+namespace stability, retention formats and lifetime authority stay with callers;
+the identity neither freezes content nor prevents inode reuse after close.
+
 The exact source revisions, file digests and selected mechanics are recorded in
 [source provenance](../ci/extraction-sources.json). These APIs add no JSON schema,
 cache policy, root confinement, tool pin or process-tree ownership. Backup's private
@@ -388,20 +525,19 @@ intentionally selecting an alias supply its canonical physical path; namespace
 stability and root confinement remain caller-owned. Backup retains its own JSON
 encoding, descriptor-relative publication and pre/post-publication crash barriers.
 
-The maintainer authorized retiring the original local checkout after verification
-of a full backup. Existing consumers retain their prior dependency selections;
-adoption of these split crates remains separate. The manifests permit crates.io
-publication through the [explicit publication procedure](publishing.md).
-The breaking removal of generic APIs from ic-host-tools requires a coordinated
-pre-1.0 minor release. This contract assigns ownership; GitHub issues own follow-up tracking.
+Consumers depend directly on each crate owner. Historical extraction provenance
+does not select current consumer versions or authorize dependency upgrades.
+The manifests permit crates.io publication through the
+[explicit publication procedure](publishing.md). This contract assigns ownership;
+GitHub issues own follow-up tracking.
 
 The standalone `apps/ic-host-wasm-inspect` application composes artifact Wasm facts
 with bounded filesystem reads, without process execution or the Candid parser.
 The library boundaries stay independent. Explicit paths, four budgets and
 performance interpretation stay caller-owned. The standard selected Cargo
-installer can prepare its published binary without feature flags. Metrics
-retirement uses published 0.17.4 and an admitted exact consumer selection; its
-working-tree integration and native acceptance remain separately qualified.
+installer can prepare its published binary without feature flags. Consumers own
+binary selection, installation and qualification; Host supplies no Metrics
+integration or canister build workflow.
 Optional expected-digest verification and export/custom-section details are also
 owned by this CLI; the duplicate filesystem `inspect_artifact` example is retired.
 Default TSV output remains stable, and the filesystem development profile no
@@ -411,3 +547,13 @@ The opt-in `ic-host-process::testing::http` module owns bounded synthetic reques
 reading, including phased request-line admission and remaining-deadline socket
 reads. It does not own response generation, application policy or evidence files.
 HTTP fixtures are portable; executable fixtures and crash barriers remain Unix-only.
+
+## Logical directory sizes from IC Build
+
+The metadata-only walker and its two filesystem regressions come from
+[IC Build 0.12.0](https://github.com/dragginzgame/ic-build/blob/2598a417a96834d3139751adf549126add666c4b/crates/ic-build/src/artifacts/cache_fs.rs),
+through [PR #173 — Extract logical directory-size observation](https://github.com/dragginzgame/ic-host-tooling/pull/173).
+The algorithm retains iterative traversal, metadata lengths, saturating sums
+and original I/O failures. Host owns this pathname observation; callers retain
+namespace custody, resource admission, cache policy and cleanup. Build caller
+replacement requires published APIs and its own qualification.

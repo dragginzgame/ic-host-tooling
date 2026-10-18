@@ -1,6 +1,6 @@
 //! No-replace publication of one caller-verified existing directory tree.
 
-use std::{ffi::OsStr, fmt, fs, io, path::Path};
+use std::{ffi::OsStr, fs, io, path::Path};
 
 #[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
 use rustix::{
@@ -29,49 +29,26 @@ pub enum DirectoryCommitStep {
 }
 
 /// Failure to publish or recover one existing directory tree.
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum DirectoryCommitError<E> {
     /// Paths were equal, nameless or not direct siblings.
+    #[error("directory commit requires distinct sibling paths")]
     InvalidPaths,
     /// Both staging and canonical entries exist.
+    #[error("directory commit has two occupied paths")]
     Conflict,
     /// Neither staging nor canonical entry exists.
+    #[error("directory commit has no existing path")]
     Missing,
     /// Caller verification or tree synchronization rejected the selected tree.
-    Prepare(E),
+    #[error("directory preparation failed: {0}")]
+    Prepare(#[source] E),
     /// Filesystem admission or a hook failed before publication.
-    BeforePublication(io::Error),
+    #[error("directory publication failed: {0}")]
+    BeforePublication(#[source] io::Error),
     /// A canonical name may be visible, but its parent sync or final hook failed.
-    AfterPublication(io::Error),
-}
-
-impl<E: fmt::Display> fmt::Display for DirectoryCommitError<E> {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::InvalidPaths => {
-                formatter.write_str("directory commit requires distinct sibling paths")
-            }
-            Self::Conflict => formatter.write_str("directory commit has two occupied paths"),
-            Self::Missing => formatter.write_str("directory commit has no existing path"),
-            Self::Prepare(error) => write!(formatter, "directory preparation failed: {error}"),
-            Self::BeforePublication(error) => {
-                write!(formatter, "directory publication failed: {error}")
-            }
-            Self::AfterPublication(error) => {
-                write!(formatter, "directory publication may be visible: {error}")
-            }
-        }
-    }
-}
-
-impl<E: std::error::Error + 'static> std::error::Error for DirectoryCommitError<E> {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Self::Prepare(error) => Some(error),
-            Self::BeforePublication(error) | Self::AfterPublication(error) => Some(error),
-            Self::InvalidPaths | Self::Conflict | Self::Missing => None,
-        }
-    }
+    #[error("directory publication may be visible: {0}")]
+    AfterPublication(#[source] io::Error),
 }
 
 /// Admit, prepare and publish one existing directory without replacing another name.
@@ -94,11 +71,12 @@ pub fn commit_existing_directory_with<E>(
     staging: &Path,
     canonical: &Path,
     prepare: impl FnOnce(&fs::File, &Path) -> Result<(), E>,
-    mut at_step: impl FnMut(DirectoryCommitStep, &Path) -> io::Result<()>,
+    at_step: impl FnMut(DirectoryCommitStep, &Path) -> io::Result<()>,
 ) -> Result<DirectoryCommitOutcome, DirectoryCommitError<E>> {
     let (parent, staging_name, canonical_name) = sibling_paths(staging, canonical)?;
     #[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
     {
+        let mut at_step = at_step;
         let staging_exists =
             exists_without_following(staging).map_err(DirectoryCommitError::BeforePublication)?;
         let canonical_exists =

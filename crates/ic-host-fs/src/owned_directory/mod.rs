@@ -45,7 +45,8 @@ impl OwnedDirectory {
         self.disarm();
     }
 
-    /// Remove the selected child and disarm on success. Failure leaves Drop armed.
+    /// Remove the selected child and disarm on success.
+    /// Failure preserves the existing Drop state, including explicit disarming.
     ///
     /// # Errors
     /// Returns original metadata/removal I/O failures.
@@ -55,12 +56,20 @@ impl OwnedDirectory {
         Ok(())
     }
 
-    /// Consume the guard, attempting cleanup; failure retries best-effort on Drop.
+    /// Consume the guard and attempt cleanup once, without retrying on Drop.
+    ///
+    /// Capture [`Self::path`] before consuming if a failure needs later recovery.
+    /// The caller owns retry policy, including partially removed directories.
     ///
     /// # Errors
-    /// Returns the first cleanup I/O failure.
-    pub fn cleanup(mut self) -> io::Result<()> {
-        self.try_cleanup()
+    /// Returns the original cleanup I/O failure.
+    pub fn cleanup(self) -> io::Result<()> {
+        self.cleanup_with(remove_path_if_present)
+    }
+
+    fn cleanup_with(mut self, remove: impl FnOnce(&Path) -> io::Result<()>) -> io::Result<()> {
+        self.disarm();
+        remove(&self.path)
     }
 }
 
