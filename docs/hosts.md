@@ -64,9 +64,12 @@ here. Its decoder implementation matches the former local implementation; no
 compatibility crate remains. External consumers must adopt Platform's limits
 and error identities with Testkit 0.54; prior published packages remain available.
 
-The probe retains Wasm-only `ic-cdk` and `candid`: Platform 0.1.8 has no CDK
-entrypoint macros, and CDK generates absolute Candid references. Its intentional
-trap uses Platform's raw `ic0::trap`, forwarding the same bytes as CDK did.
+The private probe and both native callers share bounded IC Wire method contracts
+from the unpublished probe package. Hidden CDK entrypoints use explicit raw codec
+hooks and admit argument length before copying; no workspace package declares
+Candid directly. The probe retains Wasm-only `ic-cdk`, which still depends on
+Candid transitively. Its intentional trap uses Platform's raw `ic0::trap`,
+forwarding the same bytes as CDK did.
 Track this exception in [Platform #1 — CDK call and entrypoint boundary](https://github.com/dragginzgame/ic-platform/issues/1).
 Do not replace its entrypoint/executor/trap behavior with local shims.
 

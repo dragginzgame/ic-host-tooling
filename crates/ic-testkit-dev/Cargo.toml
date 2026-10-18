@@ -13,8 +13,10 @@ ic-host-artifacts = { workspace = true }
 ic-host-fs = { workspace = true }
 ic-host-process = { workspace = true }
 ic-host-text = { workspace = true }
-ic-platform = { workspace = true, features = ["candid"] }
+ic-platform = { workspace = true }
 ic-testkit = { workspace = true }
+ic-wire = { workspace = true }
+ic_testkit_perf_probe = { workspace = true }
 libc = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }

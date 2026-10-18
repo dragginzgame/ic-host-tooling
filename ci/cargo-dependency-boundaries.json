@@ -1,5 +1,5 @@
 [
-  {"dependency": "candid", "allowed_packages": ["ic_testkit_perf_probe"]},
+  {"dependency": "candid", "allowed_packages": []},
   {"dependency": "candid_parser", "allowed_packages": []},
   {"dependency": "ic0", "allowed_packages": []},
   {"dependency": "ic-cdk", "allowed_packages": ["ic_testkit_perf_probe"]},

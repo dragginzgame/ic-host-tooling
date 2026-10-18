@@ -6,6 +6,15 @@ documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.54.1]
+
+### Changed
+
+- Use bounded IC Wire controls for the private performance probe and its callers,
+  preserving fixture resets and trap qualification. Rebuild private benchmark
+  artifacts together; public Candid call helpers remain unchanged
+  ([#128](https://github.com/dragginzgame/ic-testkit/issues/128)).
+
 ## [0.54.0] - 2026-10-18
 
 ### Breaking

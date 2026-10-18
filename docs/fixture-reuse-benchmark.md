@@ -34,6 +34,13 @@ Wasm SHA-256, workload, raw samples, and mean/p50/p95 summaries. Run from a quie
 host and retain the JSON when comparing changes. The driver is repository-local
 and requires the probe canister checkout.
 
+The probe's private control calls use method-bound IC Wire frames shared by its
+canister and native callers. Rebuild the workload and probe together when changing
+those contracts. Wire bounds cover control values, not the configured heap state
+allocation. Reset, mutation and readiness assertions are unchanged. Historical
+Candid-probe samples retain their original artifact identity; codec changes need
+new matched measurements before performance comparisons.
+
 The built `target/debug/fixture_reuse_benchmark_driver` executable can
 also be invoked directly while its repository checkout remains available.
 It uses `CARGO`/`RUSTC` when set and native PATH lookup otherwise, preserving

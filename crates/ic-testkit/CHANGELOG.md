@@ -8,6 +8,20 @@ This file ships in the crate archive so upgrades can be completed without the
 repository checkout. The complete historical changelog remains at
 <https://github.com/dragginzgame/ic-testkit/blob/main/CHANGELOG.md>.
 
+## [0.54.1]
+
+### Changed
+
+- Use shared, method-bound IC Wire controls for the unpublished performance probe,
+  fixture-reuse workload and installed benchmark qualification. Reject oversized
+  arguments before copying and malformed frames before state mutation. The probe
+  drops direct Candid and its tuple-return workaround; CDK still selects Candid
+  transitively. Public Testkit Candid interoperability helpers are unchanged
+  ([#128](https://github.com/dragginzgame/ic-testkit/issues/128)).
+- Rebuild private probe/worker artifacts together after the protocol cut. Retained
+  measurements keep their original source and Wasm identities; no size or
+  performance improvement is claimed.
+
 ## [0.54.0] - 2026-10-18
 
 ### Breaking

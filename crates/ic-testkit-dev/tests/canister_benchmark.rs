@@ -13,24 +13,16 @@ use ic_testkit::{
         BenchmarkEventSource, BenchmarkParserConfig, pair_benchmark_spans,
         parse_benchmark_events_from_source,
     },
-    pic::{
-        CandidCallError, InstallSpec, StandaloneCanisterFixture, query_candid_args,
-        update_candid_args,
-    },
+    pic::{InstallSpec, StandaloneCanisterFixture},
 };
+use ic_testkit_perf_probe::protocol::{
+    self, BenchmarkOnce, BenchmarkTrap, InspectState, MutateState, Ping, SeedState, State,
+};
+use ic_wire::Method;
 use std::process::Command;
 const PERF_PROBE_PACKAGE: &str = "ic_testkit_perf_probe";
 
-const REPLY_LIMITS: ic_platform::candid::DecodeLimits = ic_platform::candid::DecodeLimits {
-    reply_bytes: 65_536,
-    decoding_quota: 1_000_000,
-    skipping_quota: 100_000,
-    type_entries: 1024,
-    header_bytes: 8192,
-};
-
-#[test]
-fn perf_probe_canister_emits_parseable_benchmark_markers() {
+fn install_probe() -> StandaloneCanisterFixture {
     let workspace = workspace_root_for(
         env!("CARGO_MANIFEST_DIR"),
         OutputLimits {
@@ -69,7 +61,7 @@ fn perf_probe_canister_emits_parseable_benchmark_markers() {
         .first()
         .expect("perf probe build returns its retained Wasm");
     let wasm = read_file(wasm_path, 128 * 1024 * 1024).expect("read retained bounded Wasm");
-    let fixture = StandaloneCanisterFixture::try_install(
+    StandaloneCanisterFixture::try_install(
         ic_testkit::pic::PocketIcStartupConfig::from_env(std::time::Duration::from_secs(30))
             .expect("configure prepared PocketIC")
             .build_instance(ic_testkit::pic::PocketIcBuilder::new().with_application_subnet())
@@ -82,16 +74,24 @@ fn perf_probe_canister_emits_parseable_benchmark_markers() {
             label: None,
         },
     )
-    .expect("install standalone fixture");
-    let (result,): (u64,) = update_candid_args(
-        fixture.pocket_ic(),
-        fixture.canister_id(),
-        ic_platform::Principal::anonymous(),
-        "benchmark_once",
-        (),
-        REPLY_LIMITS,
-    )
-    .expect("benchmark_once update call");
+    .expect("install standalone fixture")
+}
+
+#[test]
+fn perf_probe_canister_emits_parseable_benchmark_markers() {
+    let fixture = install_probe();
+    let reply = fixture
+        .pocket_ic()
+        .update_call(
+            fixture.canister_id(),
+            ic_platform::Principal::anonymous(),
+            BenchmarkOnce::NAME,
+            ic_wire::encode_request::<BenchmarkOnce>(&())
+                .unwrap()
+                .into_bytes(),
+        )
+        .expect("benchmark_once update call");
+    let result = ic_wire::decode_response::<BenchmarkOnce>(&reply).unwrap();
 
     assert_eq!(result, 1_498_500);
 
@@ -135,31 +135,146 @@ fn perf_probe_canister_emits_parseable_benchmark_markers() {
         spans.spans
     );
 
+    assert_probe_contract(&fixture);
     assert_probe_trap(&fixture);
 }
 
 fn assert_probe_trap(fixture: &StandaloneCanisterFixture) {
-    let error = update_candid_args::<(), _>(
-        fixture.pocket_ic(),
-        fixture.canister_id(),
-        Principal::anonymous(),
-        "benchmark_start_then_trap",
-        (),
-        REPLY_LIMITS,
-    )
-    .expect_err("the probe deliberately traps");
-    assert!(
-        matches!(error, CandidCallError::CanisterReject { response, .. }
-        if response.reject_message.contains("intentional perf probe trap"))
+    let error = fixture
+        .pocket_ic()
+        .update_call(
+            fixture.canister_id(),
+            Principal::anonymous(),
+            BenchmarkTrap::NAME,
+            ic_wire::encode_request::<BenchmarkTrap>(&())
+                .unwrap()
+                .into_bytes(),
+        )
+        .expect_err("the probe deliberately traps");
+    assert!(error.reject_message.contains("intentional perf probe trap"));
+    let reply = fixture
+        .pocket_ic()
+        .query_call(
+            fixture.canister_id(),
+            Principal::anonymous(),
+            Ping::NAME,
+            ic_wire::encode_request::<Ping>(&()).unwrap().into_bytes(),
+        )
+        .expect("the same canister remains callable after the trap");
+    assert_eq!(
+        ic_wire::decode_response::<Ping>(&reply).unwrap().as_str(),
+        "pong"
     );
-    let (reply,): (String,) = query_candid_args(
-        fixture.pocket_ic(),
-        fixture.canister_id(),
-        Principal::anonymous(),
-        "ping",
-        (),
-        REPLY_LIMITS,
+    assert!(ic_wire::decode_response::<InspectState>(&reply).is_err());
+    let request = ic_wire::encode_request::<Ping>(&()).unwrap();
+    assert!(ic_wire::decode_response::<Ping>(request.as_bytes()).is_err());
+    for malformed in [
+        reply[..reply.len() - 1].to_vec(),
+        [reply.as_slice(), &[0]].concat(),
+        vec![0; protocol::FRAME_BYTES + 1],
+    ] {
+        assert!(ic_wire::decode_response::<Ping>(&malformed).is_err());
+    }
+}
+
+fn assert_probe_contract(fixture: &StandaloneCanisterFixture) {
+    let pic = fixture.pocket_ic();
+    let id = fixture.canister_id();
+    let caller = Principal::anonymous();
+    for size in [0, 3] {
+        let reply = pic
+            .update_call(
+                id,
+                caller,
+                SeedState::NAME,
+                ic_wire::encode_request::<SeedState>(&size)
+                    .unwrap()
+                    .into_bytes(),
+            )
+            .unwrap();
+        ic_wire::decode_response::<SeedState>(&reply).unwrap();
+        let expected = State {
+            mutations: 0,
+            bytes: u64::from(size),
+            first: (size > 0).then_some(42),
+        };
+        let reply = pic
+            .query_call(
+                id,
+                caller,
+                InspectState::NAME,
+                ic_wire::encode_request::<InspectState>(&())
+                    .unwrap()
+                    .into_bytes(),
+            )
+            .unwrap();
+        assert_eq!(
+            ic_wire::decode_response::<InspectState>(&reply).unwrap(),
+            expected
+        );
+    }
+    let reply = pic
+        .update_call(
+            id,
+            caller,
+            MutateState::NAME,
+            ic_wire::encode_request::<MutateState>(&())
+                .unwrap()
+                .into_bytes(),
+        )
+        .unwrap();
+    ic_wire::decode_response::<MutateState>(&reply).unwrap();
+    let request = ic_wire::encode_request::<SeedState>(&99)
+        .unwrap()
+        .into_bytes();
+    let bad = [
+        vec![],
+        request[..request.len() - 1].to_vec(),
+        ic_wire::encode_request::<MutateState>(&())
+            .unwrap()
+            .into_bytes(),
+        ic_wire::encode_response::<SeedState>(&())
+            .unwrap()
+            .into_bytes(),
+        [request.as_slice(), &[0]].concat(),
+        vec![0; protocol::FRAME_BYTES + 1],
+    ];
+    for bytes in bad {
+        let oversized = bytes.len() > protocol::FRAME_BYTES;
+        let error = pic
+            .update_call(id, caller, SeedState::NAME, bytes)
+            .expect_err("invalid request refuses before seeding");
+        if oversized {
+            assert!(
+                error
+                    .reject_message
+                    .contains("perf probe Wire request exceeds limit")
+            );
+        }
+        let reply = pic
+            .query_call(
+                id,
+                caller,
+                InspectState::NAME,
+                ic_wire::encode_request::<InspectState>(&())
+                    .unwrap()
+                    .into_bytes(),
+            )
+            .unwrap();
+        assert_eq!(
+            ic_wire::decode_response::<InspectState>(&reply).unwrap(),
+            State {
+                mutations: 1,
+                bytes: 3,
+                first: Some(255)
+            }
+        );
+    }
+    pic.query_call(
+        id,
+        caller,
+        InspectState::NAME,
+        ic_wire::encode_request::<Ping>(&()).unwrap().into_bytes(),
     )
-    .expect("the same canister remains callable after the trap");
-    assert_eq!(reply, "pong");
+    .expect_err("query must check its method identity too");
 }

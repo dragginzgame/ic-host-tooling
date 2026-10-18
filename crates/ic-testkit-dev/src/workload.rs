@@ -18,19 +18,12 @@ use ic_testkit::pic::{
     CachedPocketIcBaselinePool, CanisterSnapshotTarget, FailureDisposition, PocketIc,
     PocketIcBaselineRecipe, PocketIcBuilder, PocketIcInstance, PocketIcStartupConfig,
     PreparedBaseline, ResetPolicies, ResetReceipt, ResetRequirements, SnapshotRestoreFunding,
-    query_candid_args, update_candid_args,
 };
+use ic_testkit_perf_probe::protocol::{InspectState, MutateState, SeedState, State};
+use ic_wire::Method;
 
 type Result<T> = std::result::Result<T, Box<dyn Error + Send + Sync>>;
 const TIMEOUT: Duration = Duration::from_secs(30);
-// The workload returns only unit and a three-field state summary.
-const REPLY_LIMITS: ic_platform::candid::DecodeLimits = ic_platform::candid::DecodeLimits {
-    reply_bytes: 65_536,
-    decoding_quota: 1_000_000,
-    skipping_quota: 100_000,
-    type_entries: 1024,
-    header_bytes: 8192,
-};
 
 #[derive(Clone)]
 struct Recipe {
@@ -82,15 +75,20 @@ impl Recipe {
             pic.instance.add_cycles(id, 5_000_000_000_000);
             pic.instance
                 .install_canister(id, self.wasm.to_vec(), vec![], None);
-            update_candid_args::<((),), _>(
-                &pic.instance,
-                id,
-                ic_platform::Principal::anonymous(),
-                "fixture_seed_state",
-                (self.state_bytes,),
-                REPLY_LIMITS,
-            )
-            .map_err(recipe_error)?;
+            let reply = pic
+                .instance
+                .update_call(
+                    id,
+                    ic_platform::Principal::anonymous(),
+                    SeedState::NAME,
+                    ic_wire::encode_request::<SeedState>(&self.state_bytes)
+                        .map_err(recipe_error)?
+                        .into_bytes(),
+                )
+                .map_err(|error| {
+                    recipe_error(io::Error::other(format!("seed probe rejected: {error:?}")))
+                })?;
+            ic_wire::decode_response::<SeedState>(&reply).map_err(recipe_error)?;
         }
         Ok((pic, ids))
     }
@@ -102,17 +100,27 @@ impl Recipe {
         mutated: bool,
     ) -> std::result::Result<(), RecipeError> {
         let first = (self.state_bytes > 0).then_some(if mutated { 255 } else { 42 });
-        let expected = (u64::from(mutated), u64::from(self.state_bytes), first);
+        let expected = State {
+            mutations: u64::from(mutated),
+            bytes: u64::from(self.state_bytes),
+            first,
+        };
         for id in ids {
-            let (state,): ((u64, u64, Option<u8>),) = query_candid_args(
-                pic,
-                *id,
-                ic_platform::Principal::anonymous(),
-                "fixture_state",
-                (),
-                REPLY_LIMITS,
-            )
-            .map_err(recipe_error)?;
+            let reply = pic
+                .query_call(
+                    *id,
+                    ic_platform::Principal::anonymous(),
+                    InspectState::NAME,
+                    ic_wire::encode_request::<InspectState>(&())
+                        .map_err(recipe_error)?
+                        .into_bytes(),
+                )
+                .map_err(|error| {
+                    recipe_error(io::Error::other(format!(
+                        "inspect probe rejected: {error:?}"
+                    )))
+                })?;
+            let state = ic_wire::decode_response::<InspectState>(&reply).map_err(recipe_error)?;
             if state != expected {
                 return Err(recipe_error(io::Error::other(format!(
                     "fixture state mismatch: expected {expected:?}, got {state:?}"
@@ -124,14 +132,15 @@ impl Recipe {
 
     fn exercise(&self, pic: &PocketIc, ids: &[Principal; 2]) -> Result<()> {
         for id in ids {
-            update_candid_args::<((),), _>(
-                pic,
-                *id,
-                ic_platform::Principal::anonymous(),
-                "fixture_mutate_state",
-                (),
-                REPLY_LIMITS,
-            )?;
+            let reply = pic
+                .update_call(
+                    *id,
+                    ic_platform::Principal::anonymous(),
+                    MutateState::NAME,
+                    ic_wire::encode_request::<MutateState>(&())?.into_bytes(),
+                )
+                .map_err(|error| io::Error::other(format!("mutate probe rejected: {error:?}")))?;
+            ic_wire::decode_response::<MutateState>(&reply)?;
         }
         self.validate_state(pic, ids, true)?;
         Ok(())
