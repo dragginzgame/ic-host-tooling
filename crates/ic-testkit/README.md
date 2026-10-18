@@ -45,6 +45,8 @@ This is the PocketIC package in the `ic-testkit` workspace. It provides:
 - one recipe baseline pool for single- and multi-canister PocketIC reuse
 - deterministic fake principals
 - controller-aware, caller-labeled collect-all diagnostics
+- explicit diagnostic reporting to a caller-selected writer, containing secondary
+  collection and output panics
 - compact benchmark marker parsing, aggregation and comparison
 - canister-side `Performance::measure` marker emission
 

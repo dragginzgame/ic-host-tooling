@@ -22,6 +22,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
   browser assertions and executable admission
   ([#120 — Own Node browser fixture session lifecycle](https://github.com/dragginzgame/ic-testkit/issues/120)).
 
+- Explicit panic-safe diagnostic reporting accepts a caller-selected writer,
+  preserving exact senders and log limits while keeping secondary reporting
+  failures separate from the original operation failure.
+
 ## [0.54.1] - 2026-10-18
 
 ### Changed
