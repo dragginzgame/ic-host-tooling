@@ -159,6 +159,7 @@ pub enum WasmBuildOutcome {
 /// Details shared by built and reused Wasm outcomes.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct WasmBuildRecord {
+    facts: CargoBuildFacts,
     fingerprint: InputDigest,
     input_digest: InputDigest,
     retention: RetainedCacheEntry,
@@ -1166,6 +1167,16 @@ impl WasmBuildOutcome {
 }
 
 impl WasmBuildRecord {
+    /// Borrow the input observations bound to this artifact's fingerprint.
+    ///
+    /// Both built and reused records retain the selected recipe and tool probes.
+    /// Reuse does not claim that a compiler ran during this acquisition. These
+    /// facts perform no I/O; consumers own execution binding and redaction.
+    #[must_use]
+    pub const fn facts(&self) -> &CargoBuildFacts {
+        &self.facts
+    }
+
     /// Exact build fingerprint used by the atomic cache stamp.
     #[must_use]
     pub const fn fingerprint(&self) -> InputDigest {
@@ -2934,8 +2945,7 @@ fn try_reuse_wasm_artifacts(
     Ok(Some(WasmBuildOutcome::Reused(complete_build_record(
         spec,
         BuildRecordInput {
-            fingerprint,
-            input_digest: resolved.input_digest,
+            resolved,
             lock_wait,
             shared_incremental: shared_incremental.clone(),
             input_resolution,
@@ -3050,8 +3060,7 @@ fn build_wasm_cache_miss(
         Ok(WasmBuildOutcome::Built(complete_build_record(
             spec,
             BuildRecordInput {
-                fingerprint,
-                input_digest: resolved.input_digest,
+                resolved,
                 lock_wait,
                 shared_incremental,
                 input_resolution,
@@ -3088,8 +3097,7 @@ pub fn prune_wasm_build_cache(
 }
 
 struct BuildRecordInput<'a> {
-    fingerprint: InputDigest,
-    input_digest: InputDigest,
+    resolved: &'a ResolvedCargoBuildInputs,
     lock_wait: Duration,
     shared_incremental: WasmAcquisitionContext,
     input_resolution: WasmInputResolutionTimings,
@@ -3123,8 +3131,9 @@ fn complete_build_record(
             })
         });
     Ok(WasmBuildRecord {
-        fingerprint: input.fingerprint,
-        input_digest: input.input_digest,
+        facts: input.resolved.facts.clone(),
+        fingerprint: input.resolved.fingerprint,
+        input_digest: input.resolved.input_digest,
         artifacts: expected_artifacts(spec, input.active_entry, input.targets).into(),
         retention,
         timings: WasmBuildTimings {

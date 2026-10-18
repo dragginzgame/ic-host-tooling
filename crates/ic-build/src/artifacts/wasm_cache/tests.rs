@@ -62,6 +62,34 @@ fn canonical_fixture(path: &Path) -> PathBuf {
 
 #[cfg(unix)]
 #[test]
+fn outcome_facts_are_retained_without_additional_identity_probes() {
+    let (root, spec) = fake_wasm_build_spec("outcome-facts");
+    let cargo = root.join("cargo.sh");
+    let log = root.join("cargo-invocations");
+    let script = fs::read_to_string(&cargo).unwrap().replace(
+        "set -eu\n",
+        &format!("set -eu\nprintf '%s\\n' \"$1\" >> '{}'\n", log.display()),
+    );
+    write_executable_script(&cargo, script).unwrap();
+    let cold = build_wasm_canisters_cached(&spec, OwnedChild::spawn_direct).unwrap();
+    let warm = build_wasm_canisters_cached(&spec, OwnedChild::spawn_direct).unwrap();
+    assert!(!cold.is_reused());
+    assert!(warm.is_reused());
+    assert_eq!(cold.record().facts(), warm.record().facts());
+    let before = fs::read(&log).unwrap();
+    fs::remove_file(cargo).unwrap();
+    let cloned = warm.record().clone();
+    assert_eq!(cloned.facts(), cold.record().facts());
+    assert_eq!(fs::read(&log).unwrap(), before);
+    let calls = String::from_utf8(before).unwrap();
+    assert_eq!(calls.lines().filter(|line| *line == "--version").count(), 4);
+    assert_eq!(calls.lines().filter(|line| *line == "metadata").count(), 4);
+    assert_eq!(calls.lines().filter(|line| *line == "build").count(), 1);
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[cfg(unix)]
+#[test]
 fn caller_selected_environment_reaches_build_and_preserves_cache_identity() {
     let (root, spec) = fake_wasm_build_spec("merged-environment");
     let wrapper = root.join("cargo.sh");
@@ -105,11 +133,15 @@ exec {quoted_producer} "$@"
     let reused = build_wasm_canisters_cached(&combined, OwnedChild::spawn_direct).unwrap();
     assert!(matches!(reused, WasmBuildOutcome::Reused { .. }));
     assert_eq!(first.record().fingerprint(), reused.record().fingerprint());
+    assert_eq!(first.record().facts(), reused.record().facts());
+    assert_eq!(first.record().facts().environment, combined.environment);
     let changed = resolve_cargo_build_inputs(&chained.with_environment(
         crate::cargo_fixture::environment_with([("LEFT", "changed")]),
     ))
     .expect("resolve changed environment identity");
     assert_ne!(first.record().fingerprint(), changed.fingerprint());
+    assert_eq!(first.record().facts().selection, combined.cargo_selection);
+    assert_eq!(first.record().facts().target, combined.target);
     drop((first, reused));
     fs::remove_dir_all(root).unwrap();
 }

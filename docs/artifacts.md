@@ -233,6 +233,12 @@ consumers must bind them to the execution and retain source/target custody.
 Debug omits environment values and probe bytes. Explicit access still exposes
 potentially sensitive data; provenance publication and redaction belong to callers.
 
+`WasmBuildRecord::facts()` carries those same fingerprint-bound observations through
+built and reused outcomes, clones, batches and prepared readers. Reading facts
+does not rerun tools or inspect ambient inputs. A reused record reports admitted
+input observations, not a new compiler execution. Keep product provenance schemas
+and redaction local, and retain the record through downstream artifact consumption.
+
 `InputEvidenceSpec` declares absolute file/directory/missing roots, an opaque
 caller-derived non-file identity, generated-root exclusions and optional exact
 child-name exclusions. It selects no recipes, tools, output roots or time limits.

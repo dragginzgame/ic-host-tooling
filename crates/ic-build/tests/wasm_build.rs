@@ -756,6 +756,7 @@ fn shared_incremental_wasm_cache_keeps_mutable_cargo_state_outside_exact_entries
 
     let first = build_wasm_canisters_cached(&spec, OwnedChild::spawn_direct)
         .expect("build through shared Cargo target");
+    assert_eq!(first.record().facts(), resolved.facts());
     assert!(matches!(first, WasmBuildOutcome::Built(_)));
     assert!(
         first

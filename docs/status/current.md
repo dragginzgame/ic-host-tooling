@@ -1,5 +1,43 @@
 # Current handoff
 
+## Outcome facts and consumer hard cuts — pending 0.17.2
+
+Over released `86eddca`, Wasm records retain the same Cargo recipe/tool facts
+already admitted by their resolved snapshots. Cold builds, exact reuse and
+cloned records expose those facts without another probe. The record constructor
+now takes the authoritative resolved snapshot rather than separate digest fields.
+No cache key, stamp, source-change check, retention or Debug redaction changes.
+Own package versions and the selected Host 0.27.2 dependency graph stay unchanged.
+
+Normal sibling trees contain extensive unrelated migrations and remain untouched.
+Isolated Query and Testkit changes project the observed compiler identity instead
+of executing another compiler after acquisition; Testkit also uses the observed
+Wasm profile. Query consumes the existing resolved-snapshot API; Testkit needs
+this pending producer addition. Their source patches omit temporary dependency
+overrides and are not published-graph acceptance or integrated consumer changes.
+
+The Canic candidate adapts the existing shared-execution draft to current pending
+source: one canonical typed Cargo decode feeds exact artifact selection and
+Canic-owned include-export policy, replacing its raw selector and heartbeat
+thread. Both baseline and candidate stop at the same seventeen Core/Memory/Storage
+errors before Host compilation. This is prepared source, not completed acceptance.
+[Canic draft #596](https://github.com/dragginzgame/canic/pull/596) already owns the
+shared-execution contribution; do not create a competing implementation.
+Canic provenance still uses custom commands without engine records. Its exact
+execution facts must be carried through those paths before removing the old
+probes; do not substitute facts from an unrelated Wasm recipe or weaken admission.
+
+Rust 1.91 passes seventy cache units, thirteen batch units and all seventeen real
+Cargo/Wasm integration cases; floor all-target checking, strict development Clippy,
+warning-denied floor Rustdoc, snapshot, pins and direct-boundary checks pass.
+Isolated Query smoke tests pass thirty cases; Testkit driver tests pass nineteen
+against the frozen candidate and captured consumer lockfiles. Sibling dependency
+work continued during this batch; current normal graphs need fresh qualification.
+These are Linux development checks, not full release,
+native macOS or installed-IC qualification. Source patches, before-images, graph
+checks and logs are retained in `/tmp/ic-build-converge-20261018/`. No staging,
+commit, version bump, push, release or publication is performed.
+
 ## Platform boundary audit — pending 0.17.1
 
 The live crates.io sparse index selects non-yanked IC Platform 0.1.3, published
