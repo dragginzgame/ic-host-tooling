@@ -17,6 +17,13 @@ repository checkout. The complete historical changelog remains at
   Cargo commands keep inherited progress output and no elapsed-time ceiling
   ([#85 — Adopt published Host cancellable capture](https://github.com/dragginzgame/ic-testkit/issues/85)).
 
+### Added
+
+- Add a private Node fixture-session helper for browser harnesses, with retained
+  logs and bounded graceful/TERM/KILL cleanup. Callers keep readiness contracts,
+  browser assertions and executable admission
+  ([#120 — Own Node browser fixture session lifecycle](https://github.com/dragginzgame/ic-testkit/issues/120)).
+
 ## [0.54.1] - 2026-10-18
 
 ### Changed
