@@ -1,5 +1,6 @@
 [workspace]
 members = [
+    # Production packages (including the maintained inspection CLI).
     "apps/ic-host-wasm-inspect",
     "crates/ic-host-artifacts",
     "crates/ic-host-fs",
@@ -20,6 +21,8 @@ description = "Host-side artifact, filesystem, process and IC tooling"
 
 [workspace.dependencies]
 # Registry versions are compatible ranges; Cargo.lock records exact build selections.
+# Production dependencies (including supported optional features and host targets).
+# No catalog dependency is used exclusively by tests or development tooling.
 candid_parser = "0.4.1"
 ciborium = "0.2.2"
 command-fds = "0.3.3"

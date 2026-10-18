@@ -3,7 +3,7 @@
 #[cfg(test)]
 mod tests;
 
-use super::{ArtifactError, ArtifactIdentity, check_metadata, hash_reader, read_opened_file};
+use super::{ArtifactError, ArtifactIdentity, admit_file, hash_reader, read_opened_file};
 use std::{
     fs::{self, File, Metadata},
     io,
@@ -64,8 +64,7 @@ pub fn hash_file_no_follow_with_metadata(
     max_bytes: u64,
 ) -> Result<(ArtifactIdentity, Metadata), ArtifactError> {
     let file = open_no_follow(path)?;
-    let metadata = file.metadata()?;
-    check_metadata(&metadata, max_bytes)?;
+    let metadata = admit_file(&file, max_bytes)?;
     Ok((hash_reader(file, max_bytes)?, metadata))
 }
 

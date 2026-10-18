@@ -9,6 +9,45 @@ use std::{
 #[cfg(all(test, unix))]
 mod tests;
 
+/// An owned shared descriptor lock released explicitly before its file closes.
+///
+/// Duplicated or inherited descriptors must not extend this guard's lock lifetime.
+/// Independent acquisitions remain independent. Callers own any shared guard
+/// lifetime, paths, namespace custody and cleanup policy; dropping it removes no file.
+#[derive(Debug)]
+pub struct SharedFileLock(File);
+
+impl SharedFileLock {
+    /// Acquire a blocking shared lock on an already-opened regular file.
+    ///
+    /// This consumes the descriptor without reopening it or imposing a deadline.
+    ///
+    /// # Errors
+    /// Returns the original regular-descriptor admission or native lock error.
+    pub fn acquire(file: File) -> io::Result<Self> {
+        lock_shared(&file)?;
+        Ok(Self(file))
+    }
+
+    /// Borrow the locked descriptor; clones do not extend the guard's lifetime.
+    ///
+    /// Callers must coordinate explicit unlock or lock-mode changes through this
+    /// descriptor or its duplicates with their own guard lifetime contract.
+    #[must_use]
+    pub const fn file(&self) -> &File {
+        &self.0
+    }
+}
+
+impl Drop for SharedFileLock {
+    fn drop(&mut self) {
+        // Closing alone can leave a flock held by an inherited/duplicated
+        // descriptor. Release at the selected ownership boundary instead.
+        // On unlock failure, closing the owned file remains the fallback.
+        let _ = unlock(&self.0);
+    }
+}
+
 /// Acquire a blocking shared lock on a caller-owned regular descriptor.
 ///
 /// Independent shared holders coexist. Opening, namespace custody, deadlines,

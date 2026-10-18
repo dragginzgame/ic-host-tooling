@@ -18,7 +18,8 @@ fixture_complete=false
 trap 'fixture_finish "$?" "$fixture" "Host Make evidence retained"' EXIT
 export TMPDIR="${fixture%/*}"
 mkdir -p "$fixture/local"
-bash "$root/scripts/ci/prepare-script-fixture.sh" "$root" "$fixture/local" make/consumer.mk
+bash "$root/scripts/ci/prepare-script-fixture.sh" "$root" "$fixture/local" \
+    make/consumer.mk scripts/ci/check-pipe-jobserver.pl
 for input in Makefile ci/tool-versions.env ci/release-delivery.txt scripts/ci/check-format-tools.sh; do
     parent=.
     [[ "$input" != */* ]] || parent="${input%/*}"
@@ -26,6 +27,7 @@ for input in Makefile ci/tool-versions.env ci/release-delivery.txt scripts/ci/ch
     cp "$root/$input" "$fixture/local/$input"
 done
 export HOST_MAKE_EVENTS="$fixture/events" HOST_MAKE_EXTERNAL="$fixture/external-events"
+export HOST_MAKE_JOBSERVER_PROBE="$fixture/local/scripts/ci/check-pipe-jobserver.pl"
 mkdir -p "$fixture/external/scripts/ci"
 for helper in check-make-execution.sh check-format-tools.sh run-release.sh; do
     cat > "$fixture/external/scripts/ci/$helper" <<'STUB'
@@ -38,11 +40,7 @@ cat > "$fixture/local/cargo" <<'STUB'
 #!/usr/bin/env bash
 set -euo pipefail
 if [[ "${HOST_MAKE_VERIFY_JOBSERVER:-}" == 1 ]]; then
-    perl -e '
-        ($ENV{MAKEFLAGS} // "") =~ /--jobserver-(?:auth|fds)=(\d+),(\d+)/ or die "missing pipe jobserver\n";
-        open my $reader, "<&=$1" or die "closed jobserver read descriptor: $!\n";
-        open my $writer, ">&=$2" or die "closed jobserver write descriptor: $!\n";
-    '
+    perl "$HOST_MAKE_JOBSERVER_PROBE"
 fi
 case "$*" in
     'sort --version') printf 'cargo-sort %s\n' "$HOST_MAKE_SORT_VERSION" ;;

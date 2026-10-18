@@ -105,13 +105,18 @@ pub fn render_bordered(headers: &[impl AsRef<str>], rows: &[Vec<impl AsRef<str>>
         separator.extend(std::iter::repeat_n('-', width.saturating_add(2)));
         separator.push('+');
     }
-    let alignments = vec![Alignment::Left; widths.len()];
     let mut output = separator.clone();
     // Header and data rows share one border/padding path. The separator belongs
     // after the header even when there are no data rows.
     for (index, row) in std::iter::once(&headers).chain(&rows).enumerate() {
         output.push_str("\n| ");
-        append_cells(row, &widths, &alignments, " | ", &mut output);
+        append_cells(
+            row,
+            &widths,
+            std::iter::repeat(Alignment::Left),
+            " | ",
+            &mut output,
+        );
         output.push_str(" |");
         if index == 0 {
             output.push('\n');
@@ -139,7 +144,7 @@ fn render_row(
     output: &mut String,
 ) {
     let start = output.len();
-    append_cells(row, widths, alignments, gap, output);
+    append_cells(row, widths, alignments.iter().copied(), gap, output);
     // Trim only this row so empty cells cannot erase earlier line separators.
     output.truncate(start + output[start..].trim_end().len());
 }
@@ -147,7 +152,7 @@ fn render_row(
 fn append_cells(
     row: &[Cow<'_, str>],
     widths: &[usize],
-    alignments: &[Alignment],
+    alignments: impl Iterator<Item = Alignment>,
     gap: &str,
     output: &mut String,
 ) {
@@ -157,11 +162,11 @@ fn append_cells(
         }
         let value = row.get(index).map_or("", |cell| cell.as_ref());
         let padding = width.saturating_sub(display_width(value));
-        if *alignment == Alignment::Right {
+        if alignment == Alignment::Right {
             output.extend(std::iter::repeat_n(' ', padding));
         }
         output.push_str(value);
-        if *alignment == Alignment::Left {
+        if alignment == Alignment::Left {
             output.extend(std::iter::repeat_n(' ', padding));
         }
     }

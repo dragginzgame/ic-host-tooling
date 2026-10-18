@@ -15,6 +15,14 @@ These run locally outside canisters. The ic-host prefix identifies their ecosyst
 the generic crates have no IC runtime dependency. Gzip and Wasm
 support are optional features of ic-host-artifacts. Filesystem/process consumers
 select the small default artifact dependency.
+`ic_host_fs::durable::SharedFileLock::acquire(file)` holds a blocking shared
+lock on a caller-opened regular file. Drop explicitly unlocks before close,
+preventing duplicates from extending the guard's lock; independent acquisitions
+remain separate. Paths, shared lifetimes, maintenance and cleanup stay with callers.
+`ic_host_fs::cache_tag::ensure(directory, suffix, permissions)` preserves valid
+regular `CACHEDIR.TAG` files or durably replaces invalid entries with the standard
+signature and exact suffix. It uses ordinary durable parent creation. Callers
+retain root admission, namespace custody, suffix budgets and cache maintenance.
 `ic_host_fs::owned_directory::OwnedDirectory` holds caller-asserted cleanup
 custody without creating an entry. Explicit preservation/disarming transfers
 recovery; armed Drop attempts removal. Consuming `cleanup()` makes one attempt,
@@ -62,6 +70,11 @@ export projection over generic Wasm facts. Enable it to compare Candid services
 with Wasm exports. Neither surface introduces Host filesystem/process dependencies.
 The former `candid-service` feature is retired; remove it from dependency feature
 lists. Disabling default features does not remove the Candid parser.
+`ic_host_tools::candid::decode::decode_one` decodes a reply with explicit
+`DecodeLimits` and a mutable aggregate byte allowance. Oversized replies refuse
+without charging; admitted malformed replies consume their bytes. Candid's
+compatibility rules and skipping quotas apply to extra arguments. Callers retain
+authentication, schemas, domain errors and all resource-policy choices.
 See the
 [0.21 feature migration](docs/changelog/0.21.md),
 [0.17 feature migration](docs/changelog/0.17.md),
@@ -213,6 +226,10 @@ no-follow reads and typed private-file admission. Durable publication and locks
 remain under `durable`. Upgrading from 0.3 requires the
 [0.4 consumer changes](docs/changelog/0.4.md).
 
+`read::directory_logical_size` sums metadata lengths without reading file content
+or following final symlinks. Sparse files count logical bytes; callers retain
+namespace custody, traversal resources and cache policy.
+
 On Unix, `read::open_directory_no_follow` opens an explicit root capability;
 `read::open_regular_file_beneath` selects a regular file relative to that borrowed
 descriptor without following symlink components. `read::open_entry_beneath`
@@ -265,7 +282,7 @@ failures. Select mode and permissions explicitly; see the
 expected digest admission before publication. Callers select paths, the byte
 allowance and `WriteOptions`; source symlinks are followed. Existing destination
 bytes survive digest, source and limit failures.
-`durable::copy_from` instead consumes an already-selected reader from its current
+`durable::copy_from` consumes an already-selected reader from its current
 position. Callers retain input admission, byte/time bounds and choose `WriteOptions`.
 Optional exact permissions are applied after copying; otherwise the creation
 mode and umask apply. Failed reads preserve prior output through the same engine.

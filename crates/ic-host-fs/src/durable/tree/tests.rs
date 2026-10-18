@@ -1,7 +1,7 @@
 use super::*;
 use crate::{read::tree::checksum::checksum_directory, test_support::fixture};
 use ic_host_artifacts::artifact::ArtifactError;
-use std::{fs, os::unix::fs::symlink};
+use std::{fs, os::unix::fs::symlink, path::PathBuf};
 
 #[test]
 fn syncs_files_then_directories_and_preserves_exact_component_framing() {

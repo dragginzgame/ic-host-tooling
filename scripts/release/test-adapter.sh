@@ -126,6 +126,8 @@ case "$*" in
     'metadata --no-deps --format-version 1 --locked --offline')
         "$ADAPTER_REAL_CARGO" "$@"
         exit "${ADAPTER_METADATA_RESULT:-0}" ;;
+    'sort --workspace --check'|sort\ --check\ *)
+        "$ADAPTER_REAL_CARGO" "$@" ;;
     'fetch --locked'|'fetch --locked --offline')
         if [[ -n "${ADAPTER_CACHE:-}" && ! -e "$ADAPTER_CACHE" ]]; then
             if [[ "$*" == *--offline || "${CARGO_NET_OFFLINE:-}" == true ]]; then
@@ -256,6 +258,7 @@ cargo locate-project --workspace --message-format plain --manifest-path Cargo.to
 cargo metadata --no-deps --format-version 1 --locked --offline
 make --no-print-directory install-tools
 make --no-print-directory tools-check
+cargo sort --workspace --check
 make --no-print-directory dependency-pins-check
 cargo fetch --locked
 EVENTS
@@ -264,6 +267,19 @@ cp expected accepted-events
 cmp Cargo.toml source/Cargo.toml
 cmp Cargo.lock "$root/Cargo.lock"
 [[ ! -e release-state ]] || exit 1
+
+# Role comments do not bypass ordering. Reject an unsorted real catalog before
+# fetching or release validation, without repairing either the source or input.
+perl "$root/scripts/ci/prepare-cargo-formatting-fixture.pl" \
+    Cargo.toml workspace.dependencies ic-host-artifacts ic-host-fs > unsorted.toml
+cp unsorted.toml Cargo.toml
+: > "$ADAPTER_EVENTS"
+if bash "$adapter" preflight > unsorted-preflight.log 2>&1; then
+    echo 'Preflight admitted an unsorted catalog' >&2; exit 1
+fi
+if grep -E '^cargo fetch|^make .* (ci|msrv)' "$ADAPTER_EVENTS"; then exit 1; fi
+cmp unsorted.toml Cargo.toml
+cp source/Cargo.toml Cargo.toml
 
 # The executable is part of coordinated releases, while non-workspace local
 # lock entries must not silently become release-owned packages.
@@ -344,7 +360,7 @@ cp source/Cargo.toml Cargo.toml
 
 # Member admission must retain failures even after plausible TOML/JSON output.
 # Neither a failed Git source read nor a failed member parser can reach setup.
-for reader in git member read-cargo-source-context.sh; do
+for reader in git member read-source-context.sh; do
     : > "$ADAPTER_EVENTS"
     rm -f query-count
     status=0
@@ -457,6 +473,7 @@ cat > expected <<'EVENTS'
 cargo locate-project --workspace --message-format plain --manifest-path Cargo.toml
 cargo metadata --no-deps --format-version 1 --locked --offline
 make --no-print-directory tools-check
+cargo sort --workspace --check
 make --no-print-directory dependency-pins-check
 cargo fetch --locked --offline
 make --no-print-directory ci
@@ -686,6 +703,9 @@ cmp expected-notes CHANGELOG.md
     mkdir -p source/apps
     mv source/crates/ic-host-fs 'source/apps/consumer fs'
     mv crates/ic-host-fs 'apps/consumer fs'
+    # Aliases are inserted above solely for this transaction fixture. Prepare
+    # its actual source with the same global ordering required in production.
+    "$ADAPTER_REAL_CARGO" sort --workspace > major-source-format.log
     cp Cargo.toml source/Cargo.toml
     cp source/Cargo.lock Cargo.lock
     printf '# Changelog\n\n## [%s]\n\n- Major fixture.\n' "$RELEASE_VERSION" > CHANGELOG.md

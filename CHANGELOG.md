@@ -1,5 +1,38 @@
 # Changelog
 
+## [0.27.2]
+
+### Changed
+
+- Adopt Shared Tooling 0.24.0 with production-role labels, matching release
+  formatting checks and target-specific normal/build dependency exclusions.
+  Common Cargo setup now selects only the two formatters; source-provenance
+  protections remain intact. [Details](docs/changelog/0.27.md).
+- Use Shared's pinned native-host and pipe-jobserver observers in CI and Make
+  integration checks, retaining Host's platform selection and command routing.
+- Share checksum collection between read-only and ordered-sync traversal,
+  preserving file-before-hash and post-order directory synchronization.
+- Render bordered tables without allocating an all-left alignment vector;
+  escaping, widths, padding and plain-table alignment remain unchanged.
+- Share opened-file metadata admission across regular and no-follow reads and
+  hashes, preserving opening policy and refusal ordering. Released tree-descriptor
+  and stream-copy interfaces remain supported. [Details](docs/changelog/0.27.md).
+
+### Added
+
+- Preserve standard cache-directory tags and durably replace invalid entries,
+  with caller-selected trailing bytes and permissions
+  ([PR #183 — Own cache-directory tag recognition and durable replacement](https://github.com/dragginzgame/ic-host-tooling/pull/183)).
+- Hold a shared descriptor lock with explicit unlock on guard drop, so duplicated
+  descriptors cannot prolong it; independently opened holders remain separate
+  ([PR #174 — Extract scoped shared descriptor lock](https://github.com/dragginzgame/ic-host-tooling/pull/174)).
+- Decode Candid replies with caller-selected byte/work limits and aggregate byte
+  accounting, retaining domain interpretation with consumers
+  ([#188 — Centralize bounded Candid reply decoding](https://github.com/dragginzgame/ic-host-tooling/issues/188)).
+- Observe metadata-only logical directory sizes through Host FS, preserving
+  symlink and sparse-file lengths while consumers retain traversal and cache
+  policy ([PR #173 — Extract logical directory-size observation](https://github.com/dragginzgame/ic-host-tooling/pull/173)).
+
 ## [0.27.1] - 2026-10-17
 
 ### Added

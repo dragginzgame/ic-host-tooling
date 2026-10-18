@@ -1,12 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Preserve source-bound release admission from Shared PR #269, revision
+# 4eabe7f771907ccebfebceafffe10657b911c0eb; released Shared 0.24.0 omits it.
+# Host owns this adapter until an equivalent canonical helper is available.
 # Read selected member identities from one local Git commit for a Cargo renderer.
 # Requires Git, jq and prepared Mike Farah yq. No Cargo, fetch or Git mutation.
 # The caller admits the root manifest JSON and selects explicit member directories,
 # package eligibility, version policy and the renderer; this is not TOML editing.
 [[ $# -ge 4 ]] || {
-    echo 'usage: read-cargo-source-context.sh REPOSITORY COMMIT MANIFEST_JSON MEMBER_DIRECTORY...' >&2
+    echo 'usage: read-source-context.sh REPOSITORY COMMIT MANIFEST_JSON MEMBER_DIRECTORY...' >&2
     exit 2
 }
 repository="$1" source="$2" manifest="$3"

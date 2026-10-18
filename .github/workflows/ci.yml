@@ -41,10 +41,12 @@ jobs:
           EXPECTED_OS: ${{ matrix.os }}
           EXPECTED_ARCHITECTURE: ${{ matrix.architecture }}
         run: |
-          [[ "$(uname -s)" == "$EXPECTED_OS" ]] || exit 1
-          [[ "$(uname -m)" == "$EXPECTED_ARCHITECTURE" ]] || exit 1
+          host_arguments=("$EXPECTED_OS" "$EXPECTED_ARCHITECTURE")
           if [[ "$EXPECTED_OS" == Darwin ]]; then
-            [[ "$(sw_vers -productVersion)" == 15.* ]] || exit 1
+            host_arguments+=(15)
+          fi
+          bash scripts/ci/check-native-host.sh "${host_arguments[@]}"
+          if [[ "$EXPECTED_OS" == Darwin ]]; then
             echo /bin >> "$GITHUB_PATH"
           fi
       # dtolnay/rust-toolchain v1
@@ -72,7 +74,7 @@ jobs:
           path: |
             ${{ steps.tool-cache-key.outputs.root }}/cargo-cache
             ${{ steps.tool-cache-key.outputs.root }}/rust-*
-          # Host's extra Cargo tool pin and installer extend the shared identity.
+          # The shared identity covers the selected common formatter tools.
           key: cargo-tools-${{ runner.os }}-${{ runner.arch }}-${{ steps.tool-cache-key.outputs.key }}
       - name: Prepare pinned local tools
         uses: ./.github/actions/prepare-common-tools

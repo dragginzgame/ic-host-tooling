@@ -71,7 +71,7 @@ metadata admission and before package preparation or upload. The explicit packag
 allowlist remains separate from workspace membership. All package metadata must
 declare `https://github.com/dragginzgame/ic-host-tooling` as the repository.
 
-The [Shared provenance helper](cargo-publication.md#prepared-package-provenance)
+The [Host provenance adapter](../scripts/publish/check-source.sh)
 checks the prepared archives and fetches that exact commit from the declared HTTPS repository
 into a fresh bare object store beneath the publication attempt. Failed fetches,
 mismatched commit identities, missing/dirty package provenance and source changes
@@ -80,6 +80,14 @@ configuration still applies. The source request, archive provenance, fetch log
 and retrieved objects are retained in the admission attempt's `provenance/`
 directory. This guard is a remote-read effect of the
 explicit upload command; it never pushes a ref or creates a commit.
+
+Shared 0.24.0 does not include the source-evidence helpers from the still-open
+[Shared PR #269 — Share Cargo source evidence](https://github.com/dragginzgame/shared-tooling/pull/269).
+Host retains that reviewed revision's behavior in the provenance adapter above
+and [selected-source reader](../scripts/release/read-source-context.sh), outside
+the refreshed snapshot. Their origin is `4eabe7f771907ccebfebceafffe10657b911c0eb`.
+No source-identity or retrieval check is removed to adopt the released baseline;
+canonical replacement remains contingent on upstream delivery and qualification.
 
 `publish-check` retains its dirty-worktree dry-run contract and does not claim
 remote provenance verification. The upload guard does not establish CI success
