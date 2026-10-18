@@ -863,9 +863,9 @@ dependencies = [
 
 [[package]]
 name = "ic-host-process"
-version = "0.27.4"
+version = "0.27.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b8089e91a074c14b5554dbe758cbe6eb75e03615cb49a5cd7b8699dca2d4bceb"
+checksum = "6a139f4beff95d0b843b6ce9d542fb1e1d62537341d2ffb10bed531cee93a485"
 dependencies = [
  "command-fds",
  "ic-host-artifacts",

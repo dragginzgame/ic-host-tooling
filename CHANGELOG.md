@@ -6,6 +6,22 @@ documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.54.2]
+
+### Changed
+
+- Use published Host command execution for cancellable server downloads and
+  benchmark preparation, retaining explicit deadlines, output bounds and cleanup.
+  Cargo commands keep inherited progress output and no elapsed-time ceiling
+  ([#85 — Adopt published Host cancellable capture](https://github.com/dragginzgame/ic-testkit/issues/85)).
+
+### Added
+
+- Add a private Node fixture-session helper for browser harnesses, with retained
+  logs and bounded graceful/TERM/KILL cleanup. Callers keep readiness contracts,
+  browser assertions and executable admission
+  ([#120 — Own Node browser fixture session lifecycle](https://github.com/dragginzgame/ic-testkit/issues/120)).
+
 ## [0.54.1] - 2026-10-18
 
 ### Changed
