@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Cargo workspace publication admission. Requires prepared Cargo 1.99, Git,
-# jq and tar; Shared owns archive/source proof and attempt/Cargo/tee dispatch.
+# jq and tar; Host admits archive/source proof, Shared owns attempt/Cargo/tee dispatch.
 # Cargo owns packaging, dependency ordering, verification, upload
 # and index waiting. The caller owns credentials and partial-upload recovery.
 mode="${1:-}"

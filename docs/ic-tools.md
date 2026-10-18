@@ -100,14 +100,14 @@ when the checkout already references a verified generation in that slot.
 The installed hash receipt detects accidental byte changes; it is not a signed
 attestation against an attacker who can rewrite the checkout and receipts.
 The reviewed archive hashes and snapshot provenance establish admitted inputs.
-The native CI matrix exercises installation, version execution and a Wasm
-optimization/execution smoke on the three declared hosts. With the common IC
-set and the pinned frontend Node runtime already prepared, run
-`bash scripts/ci/qualify-wasm-opt.sh /absolute/path/to/new-evidence-directory`
-for the same offline smoke. It retains inputs and outputs and checks `-O3`,
-`-Os` and `-Oz` behavior against an unoptimized module using Node's WebAssembly
-engine. It exercises branches, integer boundaries and an IC-style reply import;
-it is not a real canister deployment or product acceptance test.
+The native CI matrix exercises installation, archive integrity, version execution
+and offline reuse on the three declared hosts. Semantic optimizer qualification
+is owned by [IC Build](https://github.com/dragginzgame/ic-build/pull/62): its native
+matrix runs real `-O3`, `-Os` and `-Oz` transforms through retained artifact
+transactions, checks repaired cache reuse and executes the transferred Wasm oracle.
+Run its local `scripts/ci/qualify-wasm-opt.sh` with an explicitly admitted optimizer
+and a new absolute evidence directory. The former Shared qualification command
+is removed; this does not replace product canister/deployment acceptance.
 Product build and deployment qualification stay with consumers;
 PocketIC compatibility and server admission belong to Testkit.
 
@@ -202,10 +202,7 @@ versions before switching. Keep overrides outside the immutable shared snapshot.
 Do not copy version constants into a second catalog or upgrade tools implicitly
 as part of baseline adoption.
 
-This script owns provisioning only. The four packages in
-[IC Host Tooling](https://github.com/dragginzgame/ic-host-tooling) own their library
-contracts: `ic-host-artifacts` owns artifact streams and inspection; `ic-host-fs`
-owns bounded filesystem reads, publication and locks; `ic-host-process` owns
-admitted executable execution; and `ic-host-tools` owns Candid extraction and IC
-response decoding. Consumer orchestration, credentials, destinations and
-measurement policy remain local.
+This script owns executable provisioning. Build and Candid extraction orchestration
+belong to IC Build; host primitives and IC interpretation belong to IC Host
+Tooling. See the [capability boundary](https://github.com/dragginzgame/shared-tooling/blob/main/README.md#capability-ownership).
+Consumer orchestration, credentials, destinations and measurement policy remain local.

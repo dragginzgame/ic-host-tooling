@@ -2,6 +2,7 @@
 pub mod candid;
 #[cfg(feature = "certificate")]
 pub mod certificate;
+pub mod icp;
 pub mod interface;
 #[cfg(feature = "ledger-evidence")]
 pub mod ledger_evidence;

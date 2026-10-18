@@ -8,7 +8,7 @@ fn parallel_writers_return_complete_immediately_executable_scripts() {
     let fixture = Fixture::new();
     thread::scope(|scope| {
         for index in 0..8 {
-            let path = fixture.root.join(format!("script-{index}"));
+            let path = fixture.path().join(format!("script-{index}"));
             scope.spawn(move || {
                 for iteration in 0..8 {
                     let value = format!("{index}-{iteration}");
@@ -34,9 +34,9 @@ fn parallel_writers_return_complete_immediately_executable_scripts() {
 #[test]
 fn missing_parent_is_refused_without_creating_directories() {
     let fixture = Fixture::new();
-    let path = fixture.root.join("absent/script");
+    let path = fixture.path().join("absent/script");
     assert!(write_executable_script(&path, b"#!/bin/sh\nexit 0\n").is_err());
     assert!(!path.exists());
-    assert!(!fixture.root.join("absent").exists());
+    assert!(!fixture.path().join("absent").exists());
     drop(fixture);
 }

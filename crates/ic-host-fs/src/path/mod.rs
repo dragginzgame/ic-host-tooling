@@ -15,6 +15,47 @@ enum ResolutionStep {
     RequireDirectory,
 }
 
+/// Check that every existing path component is a physical directory.
+///
+/// Missing components are permitted, but no directories are created. Symlinks
+/// (including dangling links), non-directories and parent traversal (`..`) reject.
+/// Relative paths use the current working directory; callers own empty-path,
+/// pathname-content and absolute-path policy. This is a point-in-time check,
+/// not root confinement or a held directory capability. Callers retain exclusion
+/// of concurrent namespace mutation through subsequent filesystem operations.
+///
+/// # Errors
+/// Returns [`io::ErrorKind::InvalidInput`] for parent traversal,
+/// [`io::ErrorKind::NotADirectory`] for symlinks/non-directories, or the original
+/// filesystem error other than a permitted not-found result.
+pub fn validate_physical_directory_allow_missing(path: &Path) -> io::Result<()> {
+    let mut current = PathBuf::new();
+    for component in path.components() {
+        if component == Component::ParentDir {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "physical directory path may not contain '..'",
+            ));
+        }
+        current.push(component.as_os_str());
+        match fs::symlink_metadata(&current) {
+            Ok(metadata) if metadata.is_dir() => {}
+            Ok(_) => {
+                return Err(io::Error::new(
+                    io::ErrorKind::NotADirectory,
+                    format!(
+                        "path component is not a physical directory: {}",
+                        current.display()
+                    ),
+                ));
+            }
+            Err(error) if error.kind() == io::ErrorKind::NotFound => {}
+            Err(error) => return Err(error),
+        }
+    }
+    Ok(())
+}
+
 /// Resolve existing symlinks and normalize a missing suffix against an explicit base.
 ///
 /// Relative paths require an absolute `base`; absolute paths ignore it. Dangling

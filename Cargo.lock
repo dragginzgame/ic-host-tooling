@@ -562,7 +562,7 @@ dependencies = [
 
 [[package]]
 name = "ic-host-artifacts"
-version = "0.26.1"
+version = "0.27.6"
 dependencies = [
  "flate2",
  "leb128",
@@ -574,7 +574,7 @@ dependencies = [
 
 [[package]]
 name = "ic-host-fs"
-version = "0.26.1"
+version = "0.27.6"
 dependencies = [
  "ic-host-artifacts",
  "rustix",
@@ -585,7 +585,7 @@ dependencies = [
 
 [[package]]
 name = "ic-host-process"
-version = "0.26.1"
+version = "0.27.6"
 dependencies = [
  "command-fds",
  "ic-host-artifacts",
@@ -596,22 +596,19 @@ dependencies = [
 
 [[package]]
 name = "ic-host-text"
-version = "0.26.1"
+version = "0.27.6"
 dependencies = [
  "unicode-width 0.2.2",
 ]
 
 [[package]]
 name = "ic-host-tools"
-version = "0.26.1"
+version = "0.27.6"
 dependencies = [
- "candid",
- "candid_parser",
  "ciborium",
- "ic-certification",
  "ic-host-artifacts",
  "ic-host-fs",
- "icrc-ledger-types",
+ "ic-platform",
  "serde",
  "serde_json",
  "thiserror 2.0.21",
@@ -619,10 +616,24 @@ dependencies = [
 
 [[package]]
 name = "ic-host-wasm-inspect"
-version = "0.26.1"
+version = "0.27.6"
 dependencies = [
  "ic-host-artifacts",
  "ic-host-fs",
+]
+
+[[package]]
+name = "ic-platform"
+version = "0.1.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e0ab384614a5d8fe251bc2c27c508263d4001d776edf31382b5b985a1a4ced2d"
+dependencies = [
+ "candid",
+ "candid_parser",
+ "ic-certification",
+ "ic_principal",
+ "icrc-ledger-types",
+ "serde",
 ]
 
 [[package]]

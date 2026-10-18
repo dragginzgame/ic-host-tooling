@@ -6,12 +6,23 @@ root="$(cd -P "${root%/*}/../.." && printf '%s/.' "$PWD")"
 root="${root%/.}"
 cd "$root"
 
-# Host owns the profile matrix; Cargo supplies the normal graph, excluding dev
-# fixtures. Observe command failures separately from dependency violations.
+# Inspect all direct declarations (aliases, dev/build and target-specific edges)
+# before inspecting the selected transitive graphs below.
+bash scripts/ci/check-cargo-dependency-boundaries.sh --consumer "$root"
+
+[[ $# -le 1 ]] || { echo 'usage: check-tools-features.sh [TARGET]' >&2; exit 2; }
+target="${1:-${CARGO_BUILD_TARGET:-$(rustc -vV | sed -n 's/^host: //p')}}"
+case "$target" in
+    x86_64-unknown-linux-gnu|x86_64-apple-darwin|aarch64-apple-darwin) ;;
+    *) printf 'unsupported Host graph target: %s\n' "$target" >&2; exit 2 ;;
+esac
+# Host owns the profile matrix; inspect transitive normal/build dependencies for
+# the explicit target, excluding dev fixtures. This is not artifact attestation.
+# Observe command failures separately from dependency violations.
 check_graph() {
     local label="$1" package="$2" defaults="$3" features="$4" required="$5" forbidden="$6"
     local graph status=0 owner
-    local arguments=(tree -p "$package" --edges normal --prefix none --format '{p}' --locked --offline)
+    local arguments=(tree -p "$package" --target "$target" --edges 'normal,build' --prefix none --format '{p}' --locked --offline)
     local owners=()
     [[ "$defaults" != none ]] || arguments+=(--no-default-features)
     [[ -z "$features" ]] || arguments+=(--features "$features")
@@ -40,18 +51,21 @@ check_graph() {
     fi
 }
 
-check_graph tools ic-host-tools default '' 'candid_parser candid' \
-    '^(ic-host-(artifacts|fs|process|text)|wasmparser|ciborium|ic-certification|icrc-ledger-types) '
-check_graph tools-no-defaults ic-host-tools none '' 'candid_parser candid' \
-    '^(ic-host-(artifacts|fs|process|text)|wasmparser|ciborium|ic-certification|icrc-ledger-types) '
+check_graph tools ic-host-tools default '' 'ic-platform candid_parser candid' \
+    '^(ic-host-(artifacts|fs|process|text)|wasmparser|ciborium|ic-certification) '
+check_graph tools-no-defaults ic-host-tools none '' 'ic-platform candid_parser candid' \
+    '^(ic-host-(artifacts|fs|process|text)|wasmparser|ciborium|ic-certification) '
+check_graph ledger-evidence ic-host-tools none ledger-evidence 'ic-platform icrc-ledger-types candid_parser' \
+    '^(ic-host-(artifacts|fs|process|text)|wasmparser|ciborium|ic-agent|reqwest|ic-stable-structures) '
 check_graph ic-interface ic-host-tools none ic-interface \
-    'ic-host-artifacts candid_parser wasmparser' '^ic-host-(fs|process|text) '
+    'ic-platform ic-host-artifacts candid_parser wasmparser' '^ic-host-(fs|process|text) '
 check_graph inspection ic-host-wasm-inspect default '' 'ic-host-artifacts ic-host-fs' \
-    '^(ic-host-process|candid_parser) '
-check_graph certificate ic-host-tools none certificate 'candid_parser ciborium ic-certification' \
+    '^(ic-host-process|ic-platform|candid_parser) '
+check_graph certificate ic-host-tools none certificate 'ic-platform candid_parser ciborium ic-certification' \
     '^(ic-host-(artifacts|fs|process|text)|wasmparser|ic-agent|reqwest) '
+check_graph tools-combined ic-host-tools none ic-interface,certificate \
+    'ic-platform candid_parser ciborium ic-certification ic-host-artifacts wasmparser' \
+    '^(ic-host-(fs|process|text)|ic-agent|reqwest) '
 check_graph text ic-host-text default '' unicode-width \
-    '^(ic-host-(artifacts|fs|process|tools)|candid_parser|ic-agent|ic-certification|ciborium) '
-check_graph ledger-evidence ic-host-tools none ledger-evidence 'candid icrc-ledger-types' \
-    '^(ic-host-(artifacts|fs|process|text)|wasmparser|ic-certification|ic-agent|reqwest) '
-echo 'tools/text feature dependency graphs passed'
+    '^(ic-host-(artifacts|fs|process|tools)|ic-platform|candid_parser|ic-agent|ic-certification|ciborium) '
+printf 'tools/text feature dependency graphs passed for %s (normal/build)\n' "$target"

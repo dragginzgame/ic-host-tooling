@@ -172,7 +172,7 @@ required to run setup. Make targets and CI select this same local tool set.
 | Local IC tool setup | Bash 3.2+, `curl`, `tar`, xz/gzip, Perl, and a SHA-256 implementation; see [IC tools](ic-tools.md) |
 | Nonempty Cargo test helper | Cargo with normal libtest summaries, `awk`, and `tee` |
 | Exact release-tag checker | Git and the caller's selected exact commit/version |
-| Exact crates.io observation | Bash/curl for presence; metadata mode additionally requires jq and curl 8.4.0+ for bounded downloads |
+| Exact crates.io observation | Bash, jq and curl 8.4.0+; mandatory retained metadata with bounded downloads |
 | `scripts/ci/run-sccache.sh` | An absolute executable file selected through `SCCACHE_BIN` |
 | Snapshot verification | A SHA-256 implementation |
 | Snapshot refresh | Git, a clean Shared Tooling checkout, and a SHA-256 implementation |
@@ -196,7 +196,7 @@ cmp. The selected native binary must report PCRE2 support. All four Linux/macOS
 architecture mappings have substitute fixtures; only native execution qualifies
 the corresponding official binary. See [local setup](local-setup.md).
 
-The complete setup/check aggregates include the three pinned Cargo tools on
+The complete setup/check aggregates include the pinned Cargo formatter tools on
 every repository. A prepared Rust/Cargo toolchain and native build prerequisites
 are therefore required even for non-Rust consumers. The native regression jobs
 run the complete aggregate on Linux x86-64 and both macOS architectures; narrower
@@ -235,8 +235,10 @@ native execution qualifies that host.
 ## Cargo installation assessment
 
 The separate manually triggered `cargo-install-qualification.yml` workflow
-qualifies Cargo's registry binary/example mechanics on the same three native
-hosts. It records the prepared Cargo/Rust compiler identity and retains failed-build
+qualifies Cargo's common registry binary mechanics on the same three native
+hosts. Blob owns the frozen published-example case through
+[its native assessment](https://github.com/dragginzgame/ic-blob-storage/pull/80).
+It records the prepared Cargo/Rust compiler identity and retains failed-build
 evidence. The workflow leaves build duration to the GitHub Actions defaults.
 It does not extend the default portable gate or establish a new consumer installer
 contract. See the
@@ -245,7 +247,7 @@ selected fixtures, offline prerequisites and outstanding extraction boundaries.
 
 ## Installer-capable platforms
 
-The actionlint, Gitleaks, ShellCheck and yq installers contain asset mappings for
+The CI actionlint, Gitleaks and ShellCheck installers, and the host-tool yq installer, contain asset mappings for
 Linux and Darwin on x86-64 and ARM64. Branches not exercised by the repository's
 installer-download CI are install-capable, not support claims.
 
@@ -260,13 +262,12 @@ The IC toolset additionally provisions and checks native executables on all
 three CI hosts above. Offline fixtures exercise digest/version refusals, retained
 failed and interrupted setup, and atomic activation using substituted payloads;
 only the separate native installation step qualifies actual upstream binaries.
-After preparing the pinned Node runtime, the native jobs also run
-`scripts/ci/qualify-wasm-opt.sh` against that installed IC set. Its retained
-Wasm inputs/outputs exercise `-O3`, `-Os` and `-Oz` through Node's WebAssembly
-engine, including integer branches and an IC-style reply import. Evidence lives
-under `portable-fixtures/wasm-opt` for ordinary failure collection. This small
-smoke does not qualify consumer canister builds or deployment; those remain
-with the product owner.
+Semantic optimizer qualification lives in
+[IC Build](https://github.com/dragginzgame/ic-build/pull/62), whose native matrix
+exercises `-O3`, `-Os` and `-Oz` through retained artifact transactions and the
+transferred Wasm execution oracle. Shared retains archive, executable and
+installation/reuse qualification. Product canister and deployment checks remain
+with their owners.
 Each native job also selects host/IC and common Cargo tools in a second disposable
 checkout with downloads disabled and verifies identical physical installations.
 The portable fixtures cover different selections, corrupt payloads,
@@ -368,6 +369,10 @@ it does not reconstruct a missing measurement completion receipt.
 
 From a Shared Tooling checkout, the same comparison can run locally through
 `bash scripts/distribution/measure-snapshot-refresh.sh BEFORE AFTER PAYLOAD NEW-DIRECTORY`.
+The payload supplies both runners' integrity helpers and, when present, their
+shared companion reader; its blob is recorded with the other frozen helpers.
+Select a payload containing that reader when measuring exporters that require
+it. Historical payloads remain suitable for their self-contained exporters.
 Use an absent evidence directory beneath an existing parent, with no CR/LF in
 either path. Evidence is retained on success and failure. The bounded export
 workload does not establish a whole-suite speedup; compare repeated samples

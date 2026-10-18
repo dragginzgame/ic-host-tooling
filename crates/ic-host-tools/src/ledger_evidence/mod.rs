@@ -6,8 +6,8 @@
 #[cfg(test)]
 mod tests;
 
-use candid::{CandidType, Nat};
-use icrc_ledger_types::icrc::generic_value::Value;
+use ic_platform::candid::contract::{CandidType, Nat};
+use ic_platform::icrc_ledger_types::Value;
 use serde::Deserialize;
 use thiserror::Error;
 
@@ -30,6 +30,7 @@ pub struct LedgerTip {
 ///
 
 #[derive(CandidType, Clone, Debug, Deserialize)]
+#[candid_path("ic_platform::candid::contract")]
 pub struct LedgerBlock {
     /// Ledger-assigned block index, before bounded admission.
     pub id: Nat,

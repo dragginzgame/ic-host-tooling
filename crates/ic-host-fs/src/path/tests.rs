@@ -1,17 +1,90 @@
-use super::canonicalize_allow_missing;
-use crate::test_support::Fixture;
+use super::{canonicalize_allow_missing, validate_physical_directory_allow_missing};
+use crate::test_support::fixture;
 use std::{fs, io, path::Path};
 
 #[test]
+fn physical_directory_validation_leaves_missing_paths_uncreated() {
+    let fixture = fixture();
+    let missing = fixture.path().join("missing/nested");
+    validate_physical_directory_allow_missing(fixture.path()).unwrap();
+    validate_physical_directory_allow_missing(&missing).unwrap();
+    assert!(!fixture.path().join("missing").exists());
+}
+
+#[test]
+fn physical_directory_validation_rejects_unsafe_components_before_creation() {
+    use std::os::unix::fs::symlink;
+
+    let fixture = fixture();
+    fs::create_dir(fixture.path().join("real")).unwrap();
+    fs::write(fixture.path().join("file"), b"retained").unwrap();
+    symlink("real", fixture.path().join("alias")).unwrap();
+    symlink("missing", fixture.path().join("dangling")).unwrap();
+    for suffix in ["alias/child", "dangling/child", "file/child"] {
+        assert_eq!(
+            validate_physical_directory_allow_missing(&fixture.path().join(suffix))
+                .unwrap_err()
+                .kind(),
+            io::ErrorKind::NotADirectory,
+        );
+    }
+    assert_eq!(
+        validate_physical_directory_allow_missing(&fixture.path().join("missing/../real"))
+            .unwrap_err()
+            .kind(),
+        io::ErrorKind::InvalidInput,
+    );
+    assert!(!fixture.path().join("missing").exists());
+    assert!(!fixture.path().join("real/child").exists());
+    assert_eq!(fs::read(fixture.path().join("file")).unwrap(), b"retained");
+}
+
+#[test]
+fn physical_directory_validation_preserves_native_names_and_relative_selection() {
+    use std::{ffi::OsString, os::unix::ffi::OsStringExt as _};
+
+    let fixture = fixture();
+    let native = fixture.path().join(OsString::from_vec(vec![b'n', 0xff]));
+    match fs::create_dir(&native) {
+        Ok(()) => {
+            validate_physical_directory_allow_missing(&native).unwrap();
+            validate_physical_directory_allow_missing(&native.join("missing")).unwrap();
+        }
+        Err(_) => {
+            // Creation and metadata lookup can report different native errors.
+            // Missing-path admission follows lookup, not creatability.
+            for path in [&native, &native.join("missing")] {
+                let expected = fs::symlink_metadata(path).unwrap_err();
+                let observed = validate_physical_directory_allow_missing(path);
+                if expected.kind() == io::ErrorKind::NotFound {
+                    observed.unwrap();
+                } else {
+                    let observed = observed.unwrap_err();
+                    assert_eq!(observed.kind(), expected.kind());
+                    assert_eq!(observed.raw_os_error(), expected.raw_os_error());
+                }
+            }
+        }
+    }
+    assert!(!native.join("missing").exists());
+    let unicode = fixture.path().join("naïve-é");
+    fs::create_dir(&unicode).unwrap();
+    validate_physical_directory_allow_missing(&unicode).unwrap();
+    validate_physical_directory_allow_missing(&unicode.join("missing")).unwrap();
+    validate_physical_directory_allow_missing(Path::new(".")).unwrap();
+    assert!(!unicode.join("missing").exists());
+}
+
+#[test]
 fn missing_parent_traversal_resumes_symlink_resolution() {
-    let fixture = Fixture::new();
-    let target = fixture.root.join("real");
+    let fixture = fixture();
+    let target = fixture.path().join("real");
     fs::create_dir(&target).unwrap();
-    std::os::unix::fs::symlink(&target, fixture.root.join("alias")).unwrap();
+    std::os::unix::fs::symlink(&target, fixture.path().join("alias")).unwrap();
     assert_eq!(
         canonicalize_allow_missing(
             Path::new("missing/../alias/generated/nested/../output"),
-            &fixture.root,
+            fixture.path(),
             usize::MAX
         )
         .unwrap(),
@@ -19,19 +92,19 @@ fn missing_parent_traversal_resumes_symlink_resolution() {
     );
     assert_eq!(
         canonicalize_allow_missing(
-            &fixture.root.join("alias/../other/output"),
+            &fixture.path().join("alias/../other/output"),
             Path::new("ignored"),
             usize::MAX
         )
         .unwrap(),
-        fixture.root.join("other/output")
+        fixture.path().join("other/output")
     );
 }
 
 #[test]
 fn explicit_base_errors_and_native_names_are_preserved() {
     use std::{ffi::OsString, os::unix::ffi::OsStringExt as _};
-    let fixture = Fixture::new();
+    let fixture = fixture();
     assert_eq!(
         canonicalize_allow_missing(Path::new("output"), Path::new("relative"), usize::MAX)
             .unwrap_err()
@@ -40,31 +113,31 @@ fn explicit_base_errors_and_native_names_are_preserved() {
     );
     let native = OsString::from_vec(vec![b'n', 0xff]);
     assert_eq!(
-        canonicalize_allow_missing(Path::new(&native), &fixture.root, usize::MAX).unwrap(),
-        fixture.root.join(&native)
+        canonicalize_allow_missing(Path::new(&native), fixture.path(), usize::MAX).unwrap(),
+        fixture.path().join(&native)
     );
-    std::os::unix::fs::symlink(&native, fixture.root.join("native-alias")).unwrap();
+    std::os::unix::fs::symlink(&native, fixture.path().join("native-alias")).unwrap();
     assert_eq!(
-        canonicalize_allow_missing(Path::new("native-alias"), &fixture.root, usize::MAX).unwrap(),
-        fixture.root.join(native)
+        canonicalize_allow_missing(Path::new("native-alias"), fixture.path(), usize::MAX).unwrap(),
+        fixture.path().join(native)
     );
-    fs::write(fixture.root.join("file"), b"contents").unwrap();
+    fs::write(fixture.path().join("file"), b"contents").unwrap();
     assert_eq!(
-        canonicalize_allow_missing(Path::new("file/child"), &fixture.root, usize::MAX)
+        canonicalize_allow_missing(Path::new("file/child"), fixture.path(), usize::MAX)
             .unwrap_err()
             .kind(),
         io::ErrorKind::NotADirectory
     );
     assert_eq!(
-        canonicalize_allow_missing(Path::new("."), &fixture.root, usize::MAX).unwrap(),
-        fixture.root
+        canonicalize_allow_missing(Path::new("."), fixture.path(), usize::MAX).unwrap(),
+        fixture.path()
     );
 }
 
 #[test]
 fn existing_file_traversal_errors_survive_missing_suffix_normalization() {
-    let fixture = Fixture::new();
-    fs::write(fixture.root.join("file"), b"contents").unwrap();
+    let fixture = fixture();
+    fs::write(fixture.path().join("file"), b"contents").unwrap();
     // realpath/canonicalize may normalize file/.. on macOS where Linux rejects
     // it. The contract retains the host's result, including after a missing
     // prefix is normalized; it does not impose Linux traversal on every host.
@@ -76,14 +149,18 @@ fn existing_file_traversal_errors_survive_missing_suffix_normalization() {
         ("missing/../file/.", "file/.", ""),
         ("missing/../file/", "file/", ""),
     ] {
-        let native = fixture.root.join(existing).canonicalize().map(|resolved| {
-            if suffix.is_empty() {
-                resolved
-            } else {
-                resolved.join(suffix)
-            }
-        });
-        let actual = canonicalize_allow_missing(Path::new(path), &fixture.root, usize::MAX);
+        let native = fixture
+            .path()
+            .join(existing)
+            .canonicalize()
+            .map(|resolved| {
+                if suffix.is_empty() {
+                    resolved
+                } else {
+                    resolved.join(suffix)
+                }
+            });
+        let actual = canonicalize_allow_missing(Path::new(path), fixture.path(), usize::MAX);
         assert_eq!(
             actual.map_err(|error| error.kind()),
             native.map_err(|error| error.kind()),
@@ -95,92 +172,92 @@ fn existing_file_traversal_errors_survive_missing_suffix_normalization() {
 #[test]
 fn dangling_symlink_targets_chains_and_parent_traversal_share_one_identity() {
     use std::os::unix::fs::symlink;
-    let fixture = Fixture::new();
-    fs::create_dir(fixture.root.join("real")).unwrap();
-    symlink("real/generated", fixture.root.join("relative")).unwrap();
+    let fixture = fixture();
+    fs::create_dir(fixture.path().join("real")).unwrap();
+    symlink("real/generated", fixture.path().join("relative")).unwrap();
     symlink(
-        fixture.root.join("real/generated"),
-        fixture.root.join("absolute"),
+        fixture.path().join("real/generated"),
+        fixture.path().join("absolute"),
     )
     .unwrap();
-    symlink("relative", fixture.root.join("chain")).unwrap();
-    symlink("missing/../chain", fixture.root.join("rewind")).unwrap();
+    symlink("relative", fixture.path().join("chain")).unwrap();
+    symlink("missing/../chain", fixture.path().join("rewind")).unwrap();
     for path in ["relative", "absolute", "chain", "rewind", "chain/nested/.."] {
         assert_eq!(
-            canonicalize_allow_missing(Path::new(path), &fixture.root, usize::MAX).unwrap(),
-            fixture.root.join("real/generated")
+            canonicalize_allow_missing(Path::new(path), fixture.path(), usize::MAX).unwrap(),
+            fixture.path().join("real/generated")
         );
     }
     assert_eq!(
         canonicalize_allow_missing(
             Path::new("chain/../../chain/output"),
-            &fixture.root,
+            fixture.path(),
             usize::MAX
         )
         .unwrap(),
-        fixture.root.join("real/generated/output")
+        fixture.path().join("real/generated/output")
     );
 }
 
 #[test]
 fn symlink_cycles_reject_without_confusing_repeated_completed_expansions() {
     use std::os::unix::fs::symlink;
-    let fixture = Fixture::new();
-    symlink("missing/../cycle", fixture.root.join("cycle")).unwrap();
+    let fixture = fixture();
+    symlink("missing/../cycle", fixture.path().join("cycle")).unwrap();
     assert_eq!(
-        canonicalize_allow_missing(Path::new("cycle"), &fixture.root, usize::MAX)
+        canonicalize_allow_missing(Path::new("cycle"), fixture.path(), usize::MAX)
             .unwrap_err()
             .kind(),
         io::ErrorKind::InvalidInput
     );
-    symlink("second", fixture.root.join("first")).unwrap();
-    symlink("first", fixture.root.join("second")).unwrap();
-    let native = fixture.root.join("first").canonicalize().unwrap_err();
+    symlink("second", fixture.path().join("first")).unwrap();
+    symlink("first", fixture.path().join("second")).unwrap();
+    let native = fixture.path().join("first").canonicalize().unwrap_err();
     assert_eq!(
-        canonicalize_allow_missing(Path::new("first"), &fixture.root, usize::MAX)
+        canonicalize_allow_missing(Path::new("first"), fixture.path(), usize::MAX)
             .unwrap_err()
             .kind(),
         native.kind()
     );
-    symlink("missing", fixture.root.join("alias")).unwrap();
+    symlink("missing", fixture.path().join("alias")).unwrap();
     assert_eq!(
         canonicalize_allow_missing(
             Path::new("alias/../alias/../output"),
-            &fixture.root,
+            fixture.path(),
             usize::MAX
         )
         .unwrap(),
-        fixture.root.join("output")
+        fixture.path().join("output")
     );
 }
 
 #[test]
 fn long_acyclic_missing_target_chains_use_iterative_resolution() {
     use std::os::unix::fs::symlink;
-    let fixture = Fixture::new();
+    let fixture = fixture();
     for index in 0..100 {
         symlink(
             format!("missing/../chain-{}", index + 1),
-            fixture.root.join(format!("chain-{index}")),
+            fixture.path().join(format!("chain-{index}")),
         )
         .unwrap();
     }
-    symlink("generated/output", fixture.root.join("chain-100")).unwrap();
+    symlink("generated/output", fixture.path().join("chain-100")).unwrap();
     assert_eq!(
-        canonicalize_allow_missing(Path::new("chain-0"), &fixture.root, usize::MAX).unwrap(),
-        fixture.root.join("generated/output")
+        canonicalize_allow_missing(Path::new("chain-0"), fixture.path(), usize::MAX).unwrap(),
+        fixture.path().join("generated/output")
     );
 }
 
 #[test]
 fn missing_target_depth_is_caller_selected_and_completed_links_do_not_accumulate() {
     use std::os::unix::fs::symlink;
-    let fixture = Fixture::new();
-    symlink("missing", fixture.root.join("alias")).unwrap();
-    symlink("alias", fixture.root.join("chain")).unwrap();
+    let fixture = fixture();
+    symlink("missing", fixture.path().join("alias")).unwrap();
+    symlink("alias", fixture.path().join("chain")).unwrap();
     for (path, depth) in [("alias", 0), ("chain", 1)] {
         assert_eq!(
-            canonicalize_allow_missing(Path::new(path), &fixture.root, depth)
+            canonicalize_allow_missing(Path::new(path), fixture.path(), depth)
                 .unwrap_err()
                 .kind(),
             io::ErrorKind::InvalidInput
@@ -192,8 +269,8 @@ fn missing_target_depth_is_caller_selected_and_completed_links_do_not_accumulate
         ("alias/../alias/../output", 1, "output"),
     ] {
         assert_eq!(
-            canonicalize_allow_missing(Path::new(path), &fixture.root, depth).unwrap(),
-            fixture.root.join(expected)
+            canonicalize_allow_missing(Path::new(path), fixture.path(), depth).unwrap(),
+            fixture.path().join(expected)
         );
     }
 }

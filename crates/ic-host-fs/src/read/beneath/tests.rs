@@ -1,13 +1,32 @@
 use super::*;
-use crate::test_support::Fixture;
+use crate::test_support::fixture;
 use std::{fs, io::Read, os::unix::fs::symlink};
 
 #[test]
+fn opening_errors_preserve_messages_and_native_sources() {
+    let source = io::Error::from_raw_os_error(13);
+    let message = format!("root-relative opening failed: {source}");
+    let error = OpenEntryError::from(source);
+    assert_eq!(error.to_string(), message);
+    let source = std::error::Error::source(&error)
+        .unwrap()
+        .downcast_ref::<io::Error>()
+        .unwrap();
+    assert_eq!(source.raw_os_error(), Some(13));
+
+    let error = OpenEntryError::UnsupportedEntry {
+        kind: FileType::Fifo,
+    };
+    assert_eq!(error.to_string(), "unsupported entry: Fifo");
+    assert!(std::error::Error::source(&error).is_none());
+}
+
+#[test]
 fn root_relative_entry_preserves_file_and_directory_descriptors() {
-    let fixture = Fixture::new();
-    fs::create_dir(fixture.root.join("tree")).unwrap();
-    fs::write(fixture.root.join("tree/data"), b"original").unwrap();
-    let root = File::open(&fixture.root).unwrap();
+    let fixture = fixture();
+    fs::create_dir(fixture.path().join("tree")).unwrap();
+    fs::write(fixture.path().join("tree/data"), b"original").unwrap();
+    let root = File::open(fixture.path()).unwrap();
     let OpenedEntry::Directory(directory) =
         open_entry_beneath(root.as_fd(), Path::new("tree")).unwrap()
     else {
@@ -18,34 +37,34 @@ fn root_relative_entry_preserves_file_and_directory_descriptors() {
     else {
         panic!("selected regular file");
     };
-    fs::rename(fixture.root.join("tree"), fixture.root.join("moved")).unwrap();
-    fs::create_dir(fixture.root.join("tree")).unwrap();
-    fs::write(fixture.root.join("tree/data"), b"changed").unwrap();
+    fs::rename(fixture.path().join("tree"), fixture.path().join("moved")).unwrap();
+    fs::create_dir(fixture.path().join("tree")).unwrap();
+    fs::write(fixture.path().join("tree/data"), b"changed").unwrap();
     assert!(directory.metadata().unwrap().is_dir());
     let mut bytes = Vec::new();
     file.read_to_end(&mut bytes).unwrap();
     assert_eq!(bytes, b"original");
     assert_eq!(
-        fs::read(fixture.root.join("tree/data")).unwrap(),
+        fs::read(fixture.path().join("tree/data")).unwrap(),
         b"changed"
     );
 }
 
 #[test]
 fn root_relative_entry_refuses_aliases_and_special_files() {
-    let fixture = Fixture::new();
-    fs::create_dir(fixture.root.join("tree")).unwrap();
-    fs::write(fixture.root.join("tree/data"), b"data").unwrap();
-    symlink("tree", fixture.root.join("alias")).unwrap();
-    symlink("data", fixture.root.join("tree/link")).unwrap();
+    let fixture = fixture();
+    fs::create_dir(fixture.path().join("tree")).unwrap();
+    fs::write(fixture.path().join("tree/data"), b"data").unwrap();
+    symlink("tree", fixture.path().join("alias")).unwrap();
+    symlink("data", fixture.path().join("tree/link")).unwrap();
     assert!(
         std::process::Command::new("/usr/bin/mkfifo")
-            .arg(fixture.root.join("tree/fifo"))
+            .arg(fixture.path().join("tree/fifo"))
             .status()
             .unwrap()
             .success()
     );
-    let root = File::open(&fixture.root).unwrap();
+    let root = File::open(fixture.path()).unwrap();
     for path in ["", "/tree", "tree/../tree", "alias", "tree/link"] {
         assert!(matches!(
             open_entry_beneath(root.as_fd(), Path::new(path)),
@@ -62,8 +81,8 @@ fn root_relative_entry_refuses_aliases_and_special_files() {
 
 #[test]
 fn descriptor_selection_survives_path_replacement_and_bounds_reads() {
-    let fixture = Fixture::new();
-    let dir = &fixture.root;
+    let fixture = fixture();
+    let dir = fixture.path();
     fs::create_dir(dir.join("input")).unwrap();
     fs::write(dir.join("input/body"), b"original").unwrap();
     let root = File::open(dir).unwrap();
@@ -82,8 +101,8 @@ fn descriptor_selection_survives_path_replacement_and_bounds_reads() {
 
 #[test]
 fn traversal_aliases_special_files_and_missing_inputs_fail_closed() {
-    let fixture = Fixture::new();
-    let dir = &fixture.root;
+    let fixture = fixture();
+    let dir = fixture.path();
     fs::create_dir(dir.join("input")).unwrap();
     fs::write(dir.join("input/body"), b"data").unwrap();
     symlink("input", dir.join("alias")).unwrap();
@@ -126,8 +145,8 @@ fn traversal_aliases_special_files_and_missing_inputs_fail_closed() {
 
 #[test]
 fn root_opening_refuses_aliases_files_and_fifos_without_waiting() {
-    let fixture = Fixture::new();
-    let dir = &fixture.root;
+    let fixture = fixture();
+    let dir = fixture.path();
     fs::create_dir(dir.join("root")).unwrap();
     fs::write(dir.join("file"), b"data").unwrap();
     symlink("root", dir.join("alias")).unwrap();

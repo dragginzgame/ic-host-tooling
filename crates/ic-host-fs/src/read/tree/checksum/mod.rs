@@ -85,26 +85,43 @@ pub fn checksum_directory_at(
     display_root: &Path,
     max_file_bytes: u64,
 ) -> Result<Sha256Digest, TreeChecksumError> {
-    let mut visitor = ChecksumVisitor {
-        checksums: Vec::new(),
-        max_file_bytes,
-    };
+    let mut visitor = ChecksumVisitor::new(max_file_bytes);
     walk_tree(directory, Path::new(""), display_root, &mut visitor)?;
-    checksum_relative_files(visitor.checksums).map_err(TreeChecksumError::Declaration)
+    visitor.finish()
 }
 
-struct ChecksumVisitor {
+pub(crate) struct ChecksumVisitor {
     checksums: Vec<(PathBuf, Sha256Digest)>,
     max_file_bytes: u64,
 }
-impl TreeVisitor for ChecksumVisitor {
-    type Error = TreeChecksumError;
-    fn file(&mut self, fd: &OwnedFd, relative: &Path, _display: &Path) -> Result<(), Self::Error> {
-        let identity = hash_reader(File::from(fd.try_clone()?), self.max_file_bytes)
-            .map_err(TreeChecksumError::Input)?;
+impl ChecksumVisitor {
+    pub(crate) const fn new(max_file_bytes: u64) -> Self {
+        Self {
+            checksums: Vec::new(),
+            max_file_bytes,
+        }
+    }
+
+    pub(crate) fn record_file(
+        &mut self,
+        file: File,
+        relative: &Path,
+    ) -> Result<(), TreeChecksumError> {
+        let identity = hash_reader(file, self.max_file_bytes).map_err(TreeChecksumError::Input)?;
         self.checksums
             .push((relative.to_path_buf(), identity.sha256));
         Ok(())
+    }
+
+    pub(crate) fn finish(self) -> Result<Sha256Digest, TreeChecksumError> {
+        checksum_relative_files(self.checksums).map_err(TreeChecksumError::Declaration)
+    }
+}
+
+impl TreeVisitor for ChecksumVisitor {
+    type Error = TreeChecksumError;
+    fn file(&mut self, fd: &OwnedFd, relative: &Path, _display: &Path) -> Result<(), Self::Error> {
+        self.record_file(File::from(fd.try_clone()?), relative)
     }
     fn enter_directory(&mut self, _relative: &Path, _display: &Path) -> Result<(), Self::Error> {
         Ok(())

@@ -1,5 +1,5 @@
 use super::*;
-use crate::test_support::Fixture;
+use crate::test_support::fixture;
 use std::{
     error::Error as _,
     os::unix::fs::{PermissionsExt as _, symlink},
@@ -7,9 +7,9 @@ use std::{
 
 #[test]
 fn complete_private_files_are_absolute_unique_and_caller_retained() {
-    let fixture = Fixture::new();
-    let alias = fixture.root.join("alias");
-    let parent = fixture.root.join("parent");
+    let fixture = fixture();
+    let alias = fixture.path().join("alias");
+    let parent = fixture.path().join("parent");
     fs::create_dir(&parent).unwrap();
     symlink(&parent, &alias).unwrap();
     let payload = vec![0xa5; 128 * 1024];
@@ -29,19 +29,19 @@ fn complete_private_files_are_absolute_unique_and_caller_retained() {
 
 #[test]
 fn collision_allowance_preserves_files_links_and_directories() {
-    let fixture = Fixture::new();
+    let fixture = fixture();
     let candidate = |sequence| {
         fixture
-            .root
+            .path()
             .join(format!("held-{}-{sequence}", std::process::id()))
     };
-    let target = fixture.root.join("target");
+    let target = fixture.path().join("target");
     fs::write(&target, b"target").unwrap();
     fs::write(candidate(0), b"existing").unwrap();
     symlink(&target, candidate(1)).unwrap();
     fs::create_dir(candidate(2)).unwrap();
     let mut sequence = 0;
-    let error = create_with_sequence(&fixture.root, "held", b"new", 3, || {
+    let error = create_with_sequence(fixture.path(), "held", b"new", 3, || {
         let next = sequence;
         sequence += 1;
         next
@@ -56,7 +56,7 @@ fn collision_allowance_preserves_files_links_and_directories() {
     assert!(candidate(2).is_dir());
     assert!(!candidate(3).exists());
     assert_eq!(fs::read(&target).unwrap(), b"target");
-    let path = create_with_sequence(&fixture.root, "held", b"new", 4, {
+    let path = create_with_sequence(fixture.path(), "held", b"new", 4, {
         let mut n = 0;
         move || {
             let next = n;
@@ -71,17 +71,17 @@ fn collision_allowance_preserves_files_links_and_directories() {
 
 #[test]
 fn invalid_requests_and_open_failures_create_nothing() {
-    let fixture = Fixture::new();
+    let fixture = fixture();
     for prefix in ["", ".", "..", "a/b", "a/", "a\n", "a\r", "a\0"] {
         assert!(
-            matches!(create_private_bytes(&fixture.root, prefix, b"secret", 1), Err(PrivateBytesError::BeforeCreation(source)) if source.kind() == io::ErrorKind::InvalidInput)
+            matches!(create_private_bytes(fixture.path(), prefix, b"secret", 1), Err(PrivateBytesError::BeforeCreation(source)) if source.kind() == io::ErrorKind::InvalidInput)
         );
     }
     assert!(
-        matches!(create_private_bytes(&fixture.root, "ok", b"", 0), Err(PrivateBytesError::BeforeCreation(source)) if source.kind() == io::ErrorKind::InvalidInput)
+        matches!(create_private_bytes(fixture.path(), "ok", b"", 0), Err(PrivateBytesError::BeforeCreation(source)) if source.kind() == io::ErrorKind::InvalidInput)
     );
-    assert_eq!(fs::read_dir(&fixture.root).unwrap().count(), 0);
-    let missing = create_private_bytes(&fixture.root.join("missing"), "ok", b"", 3).unwrap_err();
+    assert_eq!(fs::read_dir(fixture.path()).unwrap().count(), 0);
+    let missing = create_private_bytes(&fixture.path().join("missing"), "ok", b"", 3).unwrap_err();
     assert_eq!(missing.to_string(), "private scratch creation failed");
     assert_eq!(
         missing
@@ -92,21 +92,21 @@ fn invalid_requests_and_open_failures_create_nothing() {
             .kind(),
         io::ErrorKind::NotFound
     );
-    let file = fixture.root.join("file");
+    let file = fixture.path().join("file");
     fs::write(&file, b"preserved").unwrap();
     assert!(matches!(
         create_private_bytes(&file, "ok", b"", 3),
         Err(PrivateBytesError::BeforeCreation(_))
     ));
     assert_eq!(fs::read(file).unwrap(), b"preserved");
-    assert_eq!(fs::read_dir(&fixture.root).unwrap().count(), 1);
+    assert_eq!(fs::read_dir(fixture.path()).unwrap().count(), 1);
 }
 
 #[test]
 fn partial_write_failure_removes_only_the_created_candidate() {
-    let fixture = Fixture::new();
-    let path = fixture.root.join("candidate");
-    let retained = fixture.root.join("retained");
+    let fixture = fixture();
+    let path = fixture.path().join("candidate");
+    let retained = fixture.path().join("retained");
     fs::write(&retained, b"retained").unwrap();
     let file = OpenOptions::new()
         .write(true)
@@ -141,8 +141,8 @@ fn partial_write_failure_removes_only_the_created_candidate() {
 
 #[test]
 fn failed_cleanup_retains_the_partial_file_and_both_causes() {
-    let fixture = Fixture::new();
-    let path = fixture.root.join("candidate");
+    let fixture = fixture();
+    let path = fixture.path().join("candidate");
     let file = OpenOptions::new()
         .write(true)
         .create_new(true)

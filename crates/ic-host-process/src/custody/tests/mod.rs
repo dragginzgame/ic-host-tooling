@@ -38,7 +38,7 @@ fn command_for(root: &Path, role: &str) -> Command {
 #[test]
 fn one_spawn_preserves_identity_permissions_and_owner_cloexec() {
     let fixture = Fixture::new();
-    let path = fixture.root.join("sidecar");
+    let path = fixture.path().join("sidecar");
     let mut custody = CommandCustody::acquire(&path).unwrap();
     let identity = custody.identity();
     assert_eq!(custody.path(), path);
@@ -85,9 +85,9 @@ fn one_spawn_preserves_identity_permissions_and_owner_cloexec() {
 #[test]
 fn failed_spawn_consumes_allowance_and_closes_command_copy() {
     let fixture = Fixture::new();
-    let mut custody = CommandCustody::acquire(&fixture.root.join("sidecar")).unwrap();
+    let mut custody = CommandCustody::acquire(&fixture.path().join("sidecar")).unwrap();
     assert!(
-        matches!(custody.spawn(Command::new(fixture.root.join("absent")), DESCRIPTOR_ENV), Err(CustodyError::Io(e)) if e.kind() == io::ErrorKind::NotFound)
+        matches!(custody.spawn(Command::new(fixture.path().join("absent")), DESCRIPTOR_ENV), Err(CustodyError::Io(e)) if e.kind() == io::ErrorKind::NotFound)
     );
     assert!(matches!(
         custody.spawn(Command::new("unused"), DESCRIPTOR_ENV),
@@ -101,7 +101,7 @@ fn failed_spawn_consumes_allowance_and_closes_command_copy() {
 #[test]
 fn quiescence_drop_unlocks_even_with_a_transient_descriptor_copy() {
     let fixture = Fixture::new();
-    let path = fixture.root.join("sidecar");
+    let path = fixture.path().join("sidecar");
     let custody = CommandCustody::acquire(&path).unwrap();
     let identity = custody.identity();
     let guard = custody
@@ -126,8 +126,8 @@ fn quiescence_drop_unlocks_even_with_a_transient_descriptor_copy() {
 #[test]
 fn replaced_missing_and_unsafe_sidecars_never_prove_quiescence() {
     let fixture = Fixture::new();
-    let path = fixture.root.join("sidecar");
-    let retained = fixture.root.join("original");
+    let path = fixture.path().join("sidecar");
+    let retained = fixture.path().join("original");
     let mut custody = CommandCustody::acquire(&path).unwrap();
     let identity = custody.identity();
     fs::rename(&path, &retained).unwrap();
@@ -168,7 +168,7 @@ fn replaced_missing_and_unsafe_sidecars_never_prove_quiescence() {
 #[test]
 fn existing_bytes_and_permissions_survive_and_missing_parents_are_not_created() {
     let fixture = Fixture::new();
-    let path = fixture.root.join("sidecar");
+    let path = fixture.path().join("sidecar");
     fs::write(&path, b"retained bytes").unwrap();
     fs::set_permissions(&path, fs::Permissions::from_mode(0o640)).unwrap();
     let original = FileIdentity::from_file(&File::open(&path).unwrap()).unwrap();
@@ -179,8 +179,8 @@ fn existing_bytes_and_permissions_survive_and_missing_parents_are_not_created() 
         fs::metadata(&path).unwrap().permissions().mode() & 0o777,
         0o640
     );
-    assert!(CommandCustody::acquire(&fixture.root.join("missing/sidecar")).is_err());
-    assert!(!fixture.root.join("missing").exists());
+    assert!(CommandCustody::acquire(&fixture.path().join("missing/sidecar")).is_err());
+    assert!(!fixture.path().join("missing").exists());
     assert!(
         matches!(custody.finish(Duration::ZERO, Duration::ZERO), Err(CustodyError::Io(e)) if e.kind() == io::ErrorKind::InvalidInput)
     );
@@ -230,7 +230,7 @@ fn owner_death_retains_custody_until_last_descendant_exits() {
         return;
     }
     let fixture = Fixture::new();
-    let root = &fixture.root;
+    let root = fixture.path();
     let path = root.join("sidecar");
     let mut owner = command_for(root, "owner").spawn().unwrap();
     wait_file(&root.join("owner-ready"));
@@ -267,13 +267,13 @@ fn owner_death_retains_custody_until_last_descendant_exits() {
 #[test]
 fn finish_stops_after_grace_while_an_inherited_holder_remains() {
     let fixture = Fixture::new();
-    let path = fixture.root.join("sidecar");
+    let path = fixture.path().join("sidecar");
     let mut custody = CommandCustody::acquire(&path).unwrap();
     let identity = custody.identity();
     let mut child = custody
-        .spawn(command_for(&fixture.root, "holder"), DESCRIPTOR_ENV)
+        .spawn(command_for(fixture.path(), "holder"), DESCRIPTOR_ENV)
         .unwrap();
-    wait_file(&fixture.root.join("holder-ready"));
+    wait_file(&fixture.path().join("holder-ready"));
     let started = Instant::now();
     assert!(matches!(
         custody.finish(Duration::from_millis(25), Duration::from_millis(5)),
@@ -284,7 +284,7 @@ fn finish_stops_after_grace_while_an_inherited_holder_remains() {
         QuiescenceGuard::acquire(&path, identity),
         Err(CustodyError::InFlight { .. })
     ));
-    fs::write(fixture.root.join("allow-holder-exit"), b"exit").unwrap();
+    fs::write(fixture.path().join("allow-holder-exit"), b"exit").unwrap();
     assert!(child.wait().unwrap().success());
     until(|| match QuiescenceGuard::acquire(&path, identity) {
         Ok(_) => true,

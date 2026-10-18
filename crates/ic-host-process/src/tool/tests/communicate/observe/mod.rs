@@ -93,7 +93,7 @@ fn output_is_observed_before_child_exit_and_descendant_pipe_cleanup() {
     for timeout in [LIMITS.timeout, None] {
         let limits = OutputLimits { timeout, ..LIMITS };
         let fixture = Fixture::new();
-        let go = fixture.root.join("go");
+        let go = fixture.path().join("go");
         let mut command = command(
             "printf '\\377'; while ! test -f \"$GO\"; do sleep 0.01; done; sleep 30 & exit 0",
         );

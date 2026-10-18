@@ -66,7 +66,7 @@ fn command_context_and_caller_owned_pipes_are_preserved() {
     );
     command
         .process_group(rustix::process::getpgrp().as_raw_nonzero().get())
-        .current_dir(&fixture.root)
+        .current_dir(fixture.path())
         .env_clear()
         .env("SELECTED", "explicit")
         .stdin(Stdio::piped())
@@ -98,7 +98,7 @@ fn command_context_and_caller_owned_pipes_are_preserved() {
     assert_eq!(child.terminate().unwrap(), status);
     assert_eq!(
         output,
-        format!("caller input|explicit|{}", fixture.root.display()).as_bytes()
+        format!("caller input|explicit|{}", fixture.path().display()).as_bytes()
     );
     assert_eq!(errors, b"error");
     assert_reaped(pid);
@@ -161,7 +161,7 @@ fn explicit_termination_drop_and_unwind_close_descendant_pipes() {
 #[test]
 fn failed_spawn_preserves_native_error() {
     let fixture = Fixture::new();
-    let path = fixture.root.join("missing");
+    let path = fixture.path().join("missing");
     let expected = Command::new(&path).spawn().err().unwrap();
     let actual = OwnedChild::spawn(&mut Command::new(&path), CleanupPolicy::KillAndWait)
         .err()
@@ -349,7 +349,7 @@ fn handoff_refuses_external_reaping_without_signalling_reused_identity() {
 #[test]
 fn term_grace_reserves_exited_leader_until_descendant_kill() {
     let fixture = Fixture::new();
-    let marker = fixture.root.join("term");
+    let marker = fixture.path().join("term");
     let mut command = command(
         "trap 'printf term > \"$MARKER\"; exit 0' TERM; \
          sh -c 'trap \"\" TERM; printf ready; exec sleep 30' & wait",
@@ -454,7 +454,7 @@ fn exhausted_reap_allowance_is_not_restarted_by_return_or_drop() {
 #[test]
 fn bounded_policy_keeps_successful_handoff_explicit() {
     let fixture = Fixture::new();
-    let marker = fixture.root.join("survived");
+    let marker = fixture.path().join("survived");
     let mut command = command("(sleep 0.1; printf alive > \"$MARKER\") & exit 0");
     command.env("MARKER", &marker);
     let mut child = OwnedChild::spawn(
