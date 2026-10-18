@@ -64,7 +64,8 @@ here. Its decoder implementation matches the former local implementation; no
 compatibility crate remains. External consumers must adopt Platform's limits
 and error identities with Testkit 0.54; prior published packages remain available.
 
-The private probe selects Platform's `cdk` feature and entrypoint macros. Its
+The private probe selects Platform's `cdk` feature and entrypoint macros, with
+IC Wire framing and shared private method contracts for its native callers. Its
 direct Candid/CDK declarations and policy exceptions are removed; Platform owns
 the generator and qualified upstream runtime. The locked runtime remains CDK
 0.20.3, executor 2.0.0 and ic0 1.2.0. Candid and CDK remain transitive in the
@@ -72,6 +73,14 @@ probe's Wasm graph, while parser/Agent features stay absent. Its intentional tra
 still calls Platform's raw `ic0::trap` with the same bytes. This completes
 Testkit's entrypoint migration under [Platform #1 — CDK call and entrypoint boundary](https://github.com/dragginzgame/ic-platform/issues/1);
 other consumers retain their own acceptance. No runtime or codec is copied here.
+
+Native controlled-protocol callers may enable Testkit's optional `wire` feature.
+Its query/update helpers use Wire's method types, identities and finite limits;
+the private workload and installed probe qualify their actual calls. Default native
+and all Wasm library graphs omit this optional dependency. The CI test target
+selects `wire` explicitly, while the development package also selects it for its
+fixture callers. Reply length checks follow PocketIC allocation. Auth and Wire
+retain their own protocol, trust and replay qualification when adopting the helpers.
 
 Platform now supplies `debug_print`, completing the removal of Testkit's direct
 `ic0` dependency under [Platform #11 — Expose debug_print for Testkit benchmark marker emission](https://github.com/dragginzgame/ic-platform/issues/11).

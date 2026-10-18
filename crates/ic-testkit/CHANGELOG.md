@@ -17,7 +17,17 @@ repository checkout. The complete historical changelog remains at
   Cargo commands keep inherited progress output and no elapsed-time ceiling
   ([#85 — Adopt published Host cancellable capture](https://github.com/dragginzgame/ic-testkit/issues/85)).
 
+- Use bounded IC Wire controls for the private performance probe and its callers,
+  preserving fixture resets and trap qualification. Rebuild private benchmark
+  artifacts together; public Candid call helpers remain unchanged
+  ([#128 — Move the private performance probe to IC Wire](https://github.com/dragginzgame/ic-testkit/issues/128)).
+
 ### Added
+
+- Add opt-in raw reply canister fixtures with caller-selected method and byte
+  budgets, standard Wasm encoding and unchanged query/update reply bytes,
+  including intentionally malformed protocol payloads. Simulator setup,
+  installation and application reply catalogs remain caller-owned.
 
 - Add a private Node fixture-session helper for browser harnesses, with retained
   logs and bounded graceful/TERM/KILL cleanup. Callers keep readiness contracts,
@@ -32,6 +42,11 @@ repository checkout. The complete historical changelog remains at
   allocator selection, thread-local scopes, nesting refusal and unwind cleanup.
   Workloads and report policy remain with consumers
   ([#86 — Own lightweight native allocation measurement](https://github.com/dragginzgame/ic-testkit/issues/86)).
+
+- Add opt-in native typed Wire query/update helpers with explicit callers,
+  method-owned limits, structured codec/call failures and no update retries.
+  Private probe callers now share this transport owner
+  ([#119 — Own typed IC Wire query/update adapters](https://github.com/dragginzgame/ic-testkit/issues/119)).
 
 ## [0.54.1] - 2026-10-18
 

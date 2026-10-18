@@ -20,6 +20,9 @@ pub use pocket_ic::{
     RejectResponse,
 };
 
+#[cfg(feature = "reply-fixtures")]
+pub mod fixtures;
+
 mod server;
 pub use server::{POCKET_IC_SERVER_VERSION, supports_pocket_ic_server};
 #[cfg(unix)]
@@ -38,6 +41,8 @@ mod standalone_recipe;
 mod startup;
 mod time;
 mod transport;
+#[cfg(feature = "wire")]
+mod wire;
 
 pub use baseline::CachedPocketIcBaseline;
 pub use baseline_pool::{
@@ -72,6 +77,8 @@ pub use time::{TickUntilError, advance_and_tick, tick_until};
 pub use transport::{
     PocketIcCallFailure, PocketIcOperationError, is_dead_pocket_ic_transport_error,
 };
+#[cfg(feature = "wire")]
+pub use wire::{WireCallContext, WireCallError, query_wire, update_wire};
 
 /// All PocketIC extension traits, and no data types.
 ///

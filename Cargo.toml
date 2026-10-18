@@ -29,6 +29,7 @@ ic-host-fs = "0.27.1"
 ic-host-process = "0.27.6"
 ic-metrics = "0.14"
 ic-platform = { version = "0.1.11", default-features = false }
+ic-wire = "0.4.1"
 libc = "0.2"
 pocket-ic = "16.1"
 serde = { version = "1.0", default-features = false }
@@ -36,11 +37,14 @@ serde_json = "1.0"
 tempfile = "3"
 thiserror = "2.0"
 tokio = { version = "1", features = ["net", "rt", "time"] }
+wasm-encoder = { version = "0.262", default-features = false }
 
 # Tests and tooling only
 ic-build = { version = "0.17.2" }
 ic-host-text = { version = "0.27.1", default-features = false }
 ic-testkit = { path = "crates/ic-testkit" }
+ic_testkit_perf_probe = { path = "crates/ic_testkit_perf_probe" }
+wasmparser = { version = "0.261", default-features = false, features = ["std", "validate"] }
 
 [workspace.lints.clippy]
 all = { level = "warn", priority = -1 }
