@@ -2,7 +2,7 @@ use crate::protocol::{
     self, BenchmarkOnce, BenchmarkTrap, InspectState, MutateState, Ping, QueryCaller, SeedState,
     State, UpdateCaller,
 };
-use ic_cdk::{query, update};
+use ic_platform::cdk::{query, update};
 use ic_testkit::performance::Performance;
 use ic_wire::{Bytes, Method, Text};
 use std::cell::RefCell;
@@ -97,7 +97,7 @@ fn benchmark_start_then_trap() {
     encode_with = "encode::<QueryCaller>"
 )]
 fn fixture_query_caller() -> Bytes<29> {
-    Bytes::new(ic_cdk::api::msg_caller().as_slice().to_vec()).expect("principal byte bound")
+    Bytes::new(ic_platform::cdk::api::msg_caller().as_slice().to_vec()).expect("principal byte bound")
 }
 
 #[update(
@@ -107,7 +107,7 @@ fn fixture_query_caller() -> Bytes<29> {
     encode_with = "encode::<UpdateCaller>"
 )]
 fn fixture_update_caller() -> Bytes<29> {
-    Bytes::new(ic_cdk::api::msg_caller().as_slice().to_vec()).expect("principal byte bound")
+    Bytes::new(ic_platform::cdk::api::msg_caller().as_slice().to_vec()).expect("principal byte bound")
 }
 
 fn guard() -> Result<(), String> {

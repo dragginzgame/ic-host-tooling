@@ -6,21 +6,55 @@ documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
-## [0.54.1]
-
-### Added
-
-- Add opt-in native Wire query/update helpers with method-bound limits and
-  structured codec/transport failures. Raw calls remain available for negative
-  tests; updates are never retried
-  ([#119 — Own typed IC Wire query/update adapters](https://github.com/dragginzgame/ic-testkit/issues/119)).
+## [0.54.2]
 
 ### Changed
+
+- Use published Host command execution for cancellable server downloads and
+  benchmark preparation, retaining explicit deadlines, output bounds and cleanup.
+  Cargo commands keep inherited progress output and no elapsed-time ceiling
+  ([#85 — Adopt published Host cancellable capture](https://github.com/dragginzgame/ic-testkit/issues/85)).
 
 - Use bounded IC Wire controls for the private performance probe and its callers,
   preserving fixture resets and trap qualification. Rebuild private benchmark
   artifacts together; public Candid call helpers remain unchanged
-  ([#128 — Move the private performance probe from Candid to IC Wire](https://github.com/dragginzgame/ic-testkit/issues/128)).
+  ([#128 — Move the private performance probe to IC Wire](https://github.com/dragginzgame/ic-testkit/issues/128)).
+
+### Added
+
+- Add a private Node fixture-session helper for browser harnesses, with retained
+  logs and bounded graceful/TERM/KILL cleanup. Callers keep readiness contracts,
+  browser assertions and executable admission
+  ([#120 — Own Node browser fixture session lifecycle](https://github.com/dragginzgame/ic-testkit/issues/120)).
+
+- Explicit panic-safe diagnostic reporting accepts a caller-selected writer,
+  preserving exact senders and log limits while keeping secondary reporting
+  failures separate from the original operation failure.
+
+- Add opt-in native typed Wire query/update helpers with explicit callers,
+  method-owned limits, structured codec/call failures and no update retries.
+  Private probe callers now share this transport owner
+  ([#119 — Own typed IC Wire query/update adapters](https://github.com/dragginzgame/ic-testkit/issues/119)).
+
+## [0.54.1] - 2026-10-18
+
+### Changed
+
+- Consolidate fixture-driver error handling onto the existing `thiserror`
+  dependency, preserving diagnostic messages and directly inspectable causes.
+- Complete the tooling ownership cleanup: retire unused generic regression
+  fixtures from the snapshot and select Testkit's real check, hook, cache and
+  evidence helpers directly. Shared Tooling retains the producer suites; consumer
+  qualification and the reviewed Shared revision are unchanged.
+- Adopt published Platform 0.1.11 and its probe entrypoint generator, removing
+  the final direct Candid/CDK dependencies and their policy exceptions. Existing
+  runtime identities, reply formats, explicit limits and trap behavior remain
+  unchanged ([Platform #1 — CDK call and entrypoint boundary](https://github.com/dragginzgame/ic-platform/issues/1)).
+- Select Rust 1.99.1 for contributor checks and CI, retaining Rust 1.91 as the
+  library compiler floor ([#126 — Qualify Rust 1.99.1 as the development compiler](https://github.com/dragginzgame/ic-testkit/issues/126)).
+- Fixture benchmark provenance uses IC Build's retained compiler and profile
+  facts, avoiding a separate compiler probe after a build or cache hit
+  ([PR #127 — Project fixture provenance from retained build facts](https://github.com/dragginzgame/ic-testkit/pull/127)).
 
 ## [0.54.0] - 2026-10-18
 

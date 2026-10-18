@@ -9,7 +9,7 @@ PocketIC-oriented test utilities for Internet Computer canister tests.
 ```toml
 [dev-dependencies]
 ic-testkit = "0.54"
-ic-platform = { version = "0.1.8", default-features = false, features = ["candid"] }
+ic-platform = { version = "0.1.11", default-features = false, features = ["candid"] }
 ```
 
 The published MSRV is Rust 1.91, and the selected PocketIC line is 16.
@@ -24,6 +24,12 @@ targets. Native CSV and Markdown directory output lives in the repository's
 causes; add `ic-platform` with its `candid` feature directly to select those budgets. Choose caller-side
 `expect` when a fixture must panic. Standalone recipe builders return
 `std::io::Result<StandaloneCanisterFixture>`.
+
+`ic-testkit-candid` is retired and is no longer released from this workspace.
+For Testkit 0.54 and later, use `ic_platform::candid` with Platform's `candid`
+feature. Upgrade Testkit and replace the decoder dependency together, preserving
+caller-selected limits. Existing registry releases serve older Testkit consumers;
+they are not a second maintained decoder implementation.
 
 The optional native `wire` feature adds `pic::query_wire` and `pic::update_wire`.
 Select it with `ic-testkit = { version = "0.54", features = ["wire"] }` and declare
@@ -52,6 +58,8 @@ This is the PocketIC package in the `ic-testkit` workspace. It provides:
 - one recipe baseline pool for single- and multi-canister PocketIC reuse
 - deterministic fake principals
 - controller-aware, caller-labeled collect-all diagnostics
+- explicit diagnostic reporting to a caller-selected writer, containing secondary
+  collection and output panics
 - compact benchmark marker parsing, aggregation and comparison
 - canister-side `Performance::measure` marker emission
 

@@ -30,7 +30,7 @@ not change Cargo resolution or enforce dependency exclusions.
 
 For the Platform adoption, inspect the locked default-feature normal/build graph
 on native Linux and `wasm32-unknown-unknown` separately. Testkit excludes
-`derive_more`, `ic-build`, `ic-cdk` and `ic-host-text`. The local `ic-testkit`
+`ic-build`, `ic-cdk` and `ic-host-text`. The local `ic-testkit`
 catalog entry serves the private harness/probe; exclude the selected root itself
 when inspecting its product graph. Reproduce the inspection with:
 
@@ -49,29 +49,30 @@ deployments; the probe intentionally includes CDK for its test-canister role.
 
 ### Published Platform boundary
 
-Testkit selects registry `ic-platform` 0.1.8 with no default features. Its native
+Testkit selects registry `ic-platform` 0.1.11 with no default features. Its native
 target enables `candid`; the Wasm library selects `ic0` for marker logging,
 execution counters and stable-page counts alongside the unconditional Principal identity. Candid, CDK
-and host parsing stay out of that graph. No executor, certification, Agent,
-management DTO or `candid-parser` feature is selected. Native PocketIC and other dependencies still
+and host parsing stay out of that graph. The published library selects no executor,
+certification, Agent, management DTO or `candid-parser` feature. Native PocketIC and other dependencies still
 require transitive Candid; removing direct declarations does not remove that code.
 
 The published archive checksum is
-`4a3adb6d9785133587b854b66b37dfdd8f7945555bdc59b6d0be26995187484d`,
+`8d55106ea1d1ccd65bd67c7d2a681b7d8199f3c0206ae990e24589b3ce502bdf`,
 matching Cargo's registry index. The archive provides the argument traits,
 encoders, bounded decoders, five explicit limits and typed error sources used
 here. Its decoder implementation matches the former local implementation; no
 compatibility crate remains. External consumers must adopt Platform's limits
 and error identities with Testkit 0.54; prior published packages remain available.
 
-The private probe and both native callers share bounded IC Wire method contracts
-from the unpublished probe package. Hidden CDK entrypoints use explicit raw codec
-hooks and admit argument length before copying; no workspace package declares
-Candid directly. The probe retains Wasm-only `ic-cdk`, which still depends on
-Candid transitively. Its intentional trap uses Platform's raw `ic0::trap`,
-forwarding the same bytes as CDK did.
-Track this exception in [Platform #1 — CDK call and entrypoint boundary](https://github.com/dragginzgame/ic-platform/issues/1).
-Do not replace its entrypoint/executor/trap behavior with local shims.
+The private probe selects Platform's `cdk` feature and entrypoint macros, with
+IC Wire framing and shared private method contracts for its native callers. Its
+direct Candid/CDK declarations and policy exceptions are removed; Platform owns
+the generator and qualified upstream runtime. The locked runtime remains CDK
+0.20.3, executor 2.0.0 and ic0 1.2.0. Candid and CDK remain transitive in the
+probe's Wasm graph, while parser/Agent features stay absent. Its intentional trap
+still calls Platform's raw `ic0::trap` with the same bytes. This completes
+Testkit's entrypoint migration under [Platform #1 — CDK call and entrypoint boundary](https://github.com/dragginzgame/ic-platform/issues/1);
+other consumers retain their own acceptance. No runtime or codec is copied here.
 
 Native controlled-protocol callers may enable Testkit's optional `wire` feature.
 Its query/update helpers use Wire's method types, identities and finite limits;
@@ -83,7 +84,8 @@ retain their own protocol, trust and replay qualification when adopting the help
 
 Platform now supplies `debug_print`, completing the removal of Testkit's direct
 `ic0` dependency under [Platform #11 — Expose debug_print for Testkit benchmark marker emission](https://github.com/dragginzgame/ic-platform/issues/11).
-The direct-dependency policy permits no workspace package to declare `ic0`.
+The direct-dependency policy permits no workspace package to declare Candid,
+CDK-family crates, `ic0` or the private Platform macro implementation directly.
 One upstream `ic0` 1.2.0 identity remains transitive through Platform and CDK.
 Counter 1, 65,536-byte stable-page conversion and marker formatting remain
 unchanged. The live probe test checks marker spans, the intentional rejection
@@ -106,7 +108,7 @@ its root catalog and resolved native/Wasm feature graphs require separate review
 
 Use Bash 3.2 or newer, GNU Make, Git, Perl and the native Unix utilities named in
 [Shared Tooling's setup prerequisites](local-setup.md#bootstrap-prerequisites).
-The repository selects Rust 1.99; the published compiler floor is Rust 1.91.
+The repository selects Rust 1.99.1; the published compiler floor is Rust 1.91.
 Prepare its Wasm target explicitly. `make install-tools` prepares common host
 and Cargo tools, builds the local owner CLI and explicitly provisions PocketIC.
 Generic IC executables remain optional. `make tools-check` checks prepared
@@ -172,9 +174,18 @@ suites. The adopted Shared Tooling revision dispatches all six from its own
 | `test-release-runner.sh`: generic release state machine and recovery | Local release-command, metadata and guard fixtures exercise Testkit's adapter and Make wiring, including input changes and rejected phases |
 
 The existing hook checks, failure-evidence archive/transport qualification and
-product tests remain in CI. Snapshot bytes and entrypoints are unchanged; exported
-producer fixtures remain available for a relevant adoption investigation. This
-selection follows the [shared consumer policy](consuming-snapshots.md#consumer-qualification-selection).
+product tests remain in CI. The canonical exporter retires the six unused producer
+matrix roots and their fixture-only companions at the same Shared revision.
+Shared Tooling retains those matrices; they are not needed to execute Testkit's
+consumer checks.
+
+Runtime tooling is selected explicitly: the dependency-pin checker, Cargo-tool
+cache-key observer, installed hook, Cargo version observer, failure-evidence
+action and shared evidence collector are snapshot roots. These helpers used to
+arrive only through producer fixture roots; deleting a generic regression suite
+must not remove a consumer's real checker or evidence path. Required companions
+remain exporter-derived, with no local copies or alternate implementations.
+This selection follows the [shared consumer policy](consuming-snapshots.md#consumer-qualification-selection).
 It makes no measured gate-duration claim. Native macOS and the GitHub artifact
 round trip still require their configured CI runs.
 

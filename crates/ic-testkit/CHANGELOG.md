@@ -8,29 +8,55 @@ This file ships in the crate archive so upgrades can be completed without the
 repository checkout. The complete historical changelog remains at
 <https://github.com/dragginzgame/ic-testkit/blob/main/CHANGELOG.md>.
 
-## [0.54.1]
-
-### Added
-
-- Enable the optional native `wire` feature for `pic::query_wire` and
-  `pic::update_wire`. Both use the selected `ic_wire::Method` contract, explicit
-  target/caller, finite limits and one transport operation. `WireCallError` keeps
-  typed codec versus transport failures and complete rejections without rendering
-  reply payloads. Application results and unrelated panic payloads remain intact;
-  updates are never retried. Wasm library graphs remain free of Wire
-  ([#119 — Own typed IC Wire query/update adapters](https://github.com/dragginzgame/ic-testkit/issues/119)).
+## [0.54.2]
 
 ### Changed
 
-- Use shared, method-bound IC Wire controls for the unpublished performance probe,
-  fixture-reuse workload and installed benchmark qualification. Reject oversized
-  arguments before copying and malformed frames before state mutation. The probe
-  drops direct Candid and its tuple-return workaround; CDK still selects Candid
-  transitively. Public Testkit Candid interoperability helpers are unchanged
-  ([#128 — Move the private performance probe from Candid to IC Wire](https://github.com/dragginzgame/ic-testkit/issues/128)).
-- Rebuild private probe/worker artifacts together after the protocol cut. Retained
-  measurements keep their original source and Wasm identities; no size or
-  performance improvement is claimed.
+- Use published Host command execution for cancellable server downloads and
+  benchmark preparation, retaining explicit deadlines, output bounds and cleanup.
+  Cargo commands keep inherited progress output and no elapsed-time ceiling
+  ([#85 — Adopt published Host cancellable capture](https://github.com/dragginzgame/ic-testkit/issues/85)).
+
+- Use bounded IC Wire controls for the private performance probe and its callers,
+  preserving fixture resets and trap qualification. Rebuild private benchmark
+  artifacts together; public Candid call helpers remain unchanged
+  ([#128 — Move the private performance probe to IC Wire](https://github.com/dragginzgame/ic-testkit/issues/128)).
+
+### Added
+
+- Add a private Node fixture-session helper for browser harnesses, with retained
+  logs and bounded graceful/TERM/KILL cleanup. Callers keep readiness contracts,
+  browser assertions and executable admission
+  ([#120 — Own Node browser fixture session lifecycle](https://github.com/dragginzgame/ic-testkit/issues/120)).
+
+- Explicit panic-safe diagnostic reporting accepts a caller-selected writer,
+  preserving exact senders and log limits while keeping secondary reporting
+  failures separate from the original operation failure.
+
+- Add opt-in native typed Wire query/update helpers with explicit callers,
+  method-owned limits, structured codec/call failures and no update retries.
+  Private probe callers now share this transport owner
+  ([#119 — Own typed IC Wire query/update adapters](https://github.com/dragginzgame/ic-testkit/issues/119)).
+
+## [0.54.1] - 2026-10-18
+
+### Changed
+
+- Consolidate fixture-driver error handling onto the existing `thiserror`
+  dependency, preserving diagnostic messages and directly inspectable causes.
+- Complete the tooling ownership cleanup: retire unused generic regression
+  fixtures from the snapshot and select Testkit's real check, hook, cache and
+  evidence helpers directly. Shared Tooling retains the producer suites; consumer
+  qualification and the reviewed Shared revision are unchanged.
+- Adopt published Platform 0.1.11 and its probe entrypoint generator, removing
+  the final direct Candid/CDK dependencies and their policy exceptions. Existing
+  runtime identities, reply formats, explicit limits and trap behavior remain
+  unchanged ([Platform #1 — CDK call and entrypoint boundary](https://github.com/dragginzgame/ic-platform/issues/1)).
+- Select Rust 1.99.1 for contributor checks and CI, retaining Rust 1.91 as the
+  library compiler floor ([#126 — Qualify Rust 1.99.1 as the development compiler](https://github.com/dragginzgame/ic-testkit/issues/126)).
+- Fixture benchmark provenance uses IC Build's retained compiler and profile
+  facts, avoiding a separate compiler probe after a build or cache hit
+  ([PR #127 — Project fixture provenance from retained build facts](https://github.com/dragginzgame/ic-testkit/pull/127)).
 
 ## [0.54.0] - 2026-10-18
 
