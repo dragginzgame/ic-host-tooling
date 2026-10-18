@@ -1,5 +1,7 @@
 //! Local host filesystem reads, durable publication and descriptor locks.
 pub mod cache_tag;
+#[cfg(unix)]
+pub mod copy;
 pub mod directory;
 pub mod durable;
 #[cfg(unix)]
