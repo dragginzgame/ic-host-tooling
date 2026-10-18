@@ -25,6 +25,19 @@ causes; add `ic-platform` with its `candid` feature directly to select those bud
 `expect` when a fixture must panic. Standalone recipe builders return
 `std::io::Result<StandaloneCanisterFixture>`.
 
+The optional native `wire` feature adds `pic::query_wire` and `pic::update_wire`.
+Select it with `ic-testkit = { version = "0.54", features = ["wire"] }` and declare
+`ic-wire` for your method contracts. Each helper takes an explicit target/caller
+and borrowed request; the Method owns the exact name, identity, types and finite
+limits. It executes one PocketIC operation without update retries; a refused reply
+does not prove absence of effects. It preserves
+application-level results. `WireCallError` retains typed codec causes, complete
+structured rejections and the existing transport classification. Unrelated panic
+payloads resume. Display omits payloads; raw calls remain available for malformed
+requests and original-byte evidence. Reply admission follows PocketIC's allocation,
+so it supplies no network pre-allocation or peak-heap guarantee. The feature is off
+by default and adds no Wire dependency to the canister library graph.
+
 This is the PocketIC package in the `ic-testkit` workspace. It provides:
 
 - direct re-exports of `PocketIc` and `PocketIcBuilder`

@@ -1,9 +1,10 @@
 use crate::protocol::{
-    self, BenchmarkOnce, BenchmarkTrap, InspectState, MutateState, Ping, SeedState, State,
+    self, BenchmarkOnce, BenchmarkTrap, InspectState, MutateState, Ping, QueryCaller, SeedState,
+    State, UpdateCaller,
 };
 use ic_cdk::{query, update};
 use ic_testkit::performance::Performance;
-use ic_wire::{Method, Text};
+use ic_wire::{Bytes, Method, Text};
 use std::cell::RefCell;
 
 thread_local! {
@@ -87,6 +88,26 @@ fn benchmark_once() -> u64 {
 fn benchmark_start_then_trap() {
     Performance::measure("probe/benchmark_start_then_trap:start");
     ic_platform::ic0::trap(b"intentional perf probe trap");
+}
+
+#[query(
+    hidden = true,
+    guard = "guard",
+    decode_with = "decode::<QueryCaller>",
+    encode_with = "encode::<QueryCaller>"
+)]
+fn fixture_query_caller() -> Bytes<29> {
+    Bytes::new(ic_cdk::api::msg_caller().as_slice().to_vec()).expect("principal byte bound")
+}
+
+#[update(
+    hidden = true,
+    guard = "guard",
+    decode_with = "decode::<UpdateCaller>",
+    encode_with = "encode::<UpdateCaller>"
+)]
+fn fixture_update_caller() -> Bytes<29> {
+    Bytes::new(ic_cdk::api::msg_caller().as_slice().to_vec()).expect("principal byte bound")
 }
 
 fn guard() -> Result<(), String> {

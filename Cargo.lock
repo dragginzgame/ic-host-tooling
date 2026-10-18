@@ -977,6 +977,7 @@ dependencies = [
  "ic-host-process",
  "ic-metrics",
  "ic-platform",
+ "ic-wire",
  "libc",
  "pocket-ic",
  "serde_json",

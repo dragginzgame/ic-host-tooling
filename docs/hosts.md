@@ -73,6 +73,14 @@ forwarding the same bytes as CDK did.
 Track this exception in [Platform #1 — CDK call and entrypoint boundary](https://github.com/dragginzgame/ic-platform/issues/1).
 Do not replace its entrypoint/executor/trap behavior with local shims.
 
+Native controlled-protocol callers may enable Testkit's optional `wire` feature.
+Its query/update helpers use Wire's method types, identities and finite limits;
+the private workload and installed probe qualify their actual calls. Default native
+and all Wasm library graphs omit this optional dependency. The CI test target
+selects `wire` explicitly, while the development package also selects it for its
+fixture callers. Reply length checks follow PocketIC allocation. Auth and Wire
+retain their own protocol, trust and replay qualification when adopting the helpers.
+
 Platform now supplies `debug_print`, completing the removal of Testkit's direct
 `ic0` dependency under [Platform #11 — Expose debug_print for Testkit benchmark marker emission](https://github.com/dragginzgame/ic-platform/issues/11).
 The direct-dependency policy permits no workspace package to declare `ic0`.

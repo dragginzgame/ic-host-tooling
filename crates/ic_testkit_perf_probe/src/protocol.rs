@@ -1,7 +1,7 @@
 //! Private method contracts shared by the probe and its native callers.
 //! These bounds cover control values; seeded heap bytes never cross the wire.
 
-use ic_wire::{Limits, Method, Text, Wire};
+use ic_wire::{Bytes, Limits, Method, Text, Wire};
 
 /// Maximum frame size admitted before the CDK copies an argument.
 pub const FRAME_BYTES: usize = 64;
@@ -85,6 +85,28 @@ impl Method for BenchmarkTrap {
     type Response = ();
     const ID: u64 = 0x544b_5052_4f42_0006;
     const NAME: &'static str = "benchmark_start_then_trap";
+    const REQUEST_LIMITS: Limits = LIMITS;
+    const RESPONSE_LIMITS: Limits = LIMITS;
+}
+
+/// Observe the actual caller of a query through the typed native adapter.
+pub struct QueryCaller;
+impl Method for QueryCaller {
+    type Request = ();
+    type Response = Bytes<29>;
+    const ID: u64 = 0x544b_5052_4f42_0007;
+    const NAME: &'static str = "fixture_query_caller";
+    const REQUEST_LIMITS: Limits = LIMITS;
+    const RESPONSE_LIMITS: Limits = LIMITS;
+}
+
+/// Observe the actual caller of an update through the typed native adapter.
+pub struct UpdateCaller;
+impl Method for UpdateCaller {
+    type Request = ();
+    type Response = Bytes<29>;
+    const ID: u64 = 0x544b_5052_4f42_0008;
+    const NAME: &'static str = "fixture_update_caller";
     const REQUEST_LIMITS: Limits = LIMITS;
     const RESPONSE_LIMITS: Limits = LIMITS;
 }

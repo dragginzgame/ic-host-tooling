@@ -10,6 +10,16 @@ repository checkout. The complete historical changelog remains at
 
 ## [0.54.1]
 
+### Added
+
+- Enable the optional native `wire` feature for `pic::query_wire` and
+  `pic::update_wire`. Both use the selected `ic_wire::Method` contract, explicit
+  target/caller, finite limits and one transport operation. `WireCallError` keeps
+  typed codec versus transport failures and complete rejections without rendering
+  reply payloads. Application results and unrelated panic payloads remain intact;
+  updates are never retried. Wasm library graphs remain free of Wire
+  ([#119 — Own typed IC Wire query/update adapters](https://github.com/dragginzgame/ic-testkit/issues/119)).
+
 ### Changed
 
 - Use shared, method-bound IC Wire controls for the unpublished performance probe,
@@ -17,7 +27,7 @@ repository checkout. The complete historical changelog remains at
   arguments before copying and malformed frames before state mutation. The probe
   drops direct Candid and its tuple-return workaround; CDK still selects Candid
   transitively. Public Testkit Candid interoperability helpers are unchanged
-  ([#128](https://github.com/dragginzgame/ic-testkit/issues/128)).
+  ([#128 — Move the private performance probe from Candid to IC Wire](https://github.com/dragginzgame/ic-testkit/issues/128)).
 - Rebuild private probe/worker artifacts together after the protocol cut. Retained
   measurements keep their original source and Wasm identities; no size or
   performance improvement is claimed.

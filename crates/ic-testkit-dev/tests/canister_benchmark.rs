@@ -13,10 +13,14 @@ use ic_testkit::{
         BenchmarkEventSource, BenchmarkParserConfig, pair_benchmark_spans,
         parse_benchmark_events_from_source,
     },
-    pic::{InstallSpec, StandaloneCanisterFixture},
+    pic::{
+        InstallSpec, PocketIcCallFailure, StandaloneCanisterFixture, WireCallError, query_wire,
+        update_wire,
+    },
 };
 use ic_testkit_perf_probe::protocol::{
-    self, BenchmarkOnce, BenchmarkTrap, InspectState, MutateState, Ping, SeedState, State,
+    self, BenchmarkOnce, BenchmarkTrap, InspectState, MutateState, Ping, QueryCaller, SeedState,
+    State, UpdateCaller,
 };
 use ic_wire::Method;
 use std::process::Command;
@@ -80,18 +84,13 @@ fn install_probe() -> StandaloneCanisterFixture {
 #[test]
 fn perf_probe_canister_emits_parseable_benchmark_markers() {
     let fixture = install_probe();
-    let reply = fixture
-        .pocket_ic()
-        .update_call(
-            fixture.canister_id(),
-            ic_platform::Principal::anonymous(),
-            BenchmarkOnce::NAME,
-            ic_wire::encode_request::<BenchmarkOnce>(&())
-                .unwrap()
-                .into_bytes(),
-        )
-        .expect("benchmark_once update call");
-    let result = ic_wire::decode_response::<BenchmarkOnce>(&reply).unwrap();
+    let result = update_wire::<BenchmarkOnce>(
+        fixture.pocket_ic(),
+        fixture.canister_id(),
+        Principal::anonymous(),
+        &(),
+    )
+    .expect("benchmark_once update call");
 
     assert_eq!(result, 1_498_500);
 
@@ -137,21 +136,34 @@ fn perf_probe_canister_emits_parseable_benchmark_markers() {
 
     assert_probe_contract(&fixture);
     assert_probe_trap(&fixture);
+    assert_callers(&fixture);
 }
 
 fn assert_probe_trap(fixture: &StandaloneCanisterFixture) {
-    let error = fixture
-        .pocket_ic()
-        .update_call(
+    let error = update_wire::<BenchmarkTrap>(
+        fixture.pocket_ic(),
+        fixture.canister_id(),
+        Principal::anonymous(),
+        &(),
+    )
+    .expect_err("the probe deliberately traps");
+    let WireCallError::Call { source, .. } = error else {
+        panic!("structured rejection required")
+    };
+    assert!(
+        matches!(*source, PocketIcCallFailure::Rejected(response) if response.reject_message.contains("intentional perf probe trap"))
+    );
+    assert_eq!(
+        query_wire::<Ping>(
+            fixture.pocket_ic(),
             fixture.canister_id(),
             Principal::anonymous(),
-            BenchmarkTrap::NAME,
-            ic_wire::encode_request::<BenchmarkTrap>(&())
-                .unwrap()
-                .into_bytes(),
+            &()
         )
-        .expect_err("the probe deliberately traps");
-    assert!(error.reject_message.contains("intentional perf probe trap"));
+        .unwrap()
+        .as_str(),
+        "pong"
+    );
     let reply = fixture
         .pocket_ic()
         .query_call(
@@ -182,48 +194,18 @@ fn assert_probe_contract(fixture: &StandaloneCanisterFixture) {
     let id = fixture.canister_id();
     let caller = Principal::anonymous();
     for size in [0, 3] {
-        let reply = pic
-            .update_call(
-                id,
-                caller,
-                SeedState::NAME,
-                ic_wire::encode_request::<SeedState>(&size)
-                    .unwrap()
-                    .into_bytes(),
-            )
-            .unwrap();
-        ic_wire::decode_response::<SeedState>(&reply).unwrap();
+        update_wire::<SeedState>(pic, id, caller, &size).unwrap();
         let expected = State {
             mutations: 0,
             bytes: u64::from(size),
             first: (size > 0).then_some(42),
         };
-        let reply = pic
-            .query_call(
-                id,
-                caller,
-                InspectState::NAME,
-                ic_wire::encode_request::<InspectState>(&())
-                    .unwrap()
-                    .into_bytes(),
-            )
-            .unwrap();
         assert_eq!(
-            ic_wire::decode_response::<InspectState>(&reply).unwrap(),
+            query_wire::<InspectState>(pic, id, caller, &()).unwrap(),
             expected
         );
     }
-    let reply = pic
-        .update_call(
-            id,
-            caller,
-            MutateState::NAME,
-            ic_wire::encode_request::<MutateState>(&())
-                .unwrap()
-                .into_bytes(),
-        )
-        .unwrap();
-    ic_wire::decode_response::<MutateState>(&reply).unwrap();
+    update_wire::<MutateState>(pic, id, caller, &()).unwrap();
     let request = ic_wire::encode_request::<SeedState>(&99)
         .unwrap()
         .into_bytes();
@@ -251,18 +233,8 @@ fn assert_probe_contract(fixture: &StandaloneCanisterFixture) {
                     .contains("perf probe Wire request exceeds limit")
             );
         }
-        let reply = pic
-            .query_call(
-                id,
-                caller,
-                InspectState::NAME,
-                ic_wire::encode_request::<InspectState>(&())
-                    .unwrap()
-                    .into_bytes(),
-            )
-            .unwrap();
         assert_eq!(
-            ic_wire::decode_response::<InspectState>(&reply).unwrap(),
+            query_wire::<InspectState>(pic, id, caller, &()).unwrap(),
             State {
                 mutations: 1,
                 bytes: 3,
@@ -277,4 +249,17 @@ fn assert_probe_contract(fixture: &StandaloneCanisterFixture) {
         ic_wire::encode_request::<Ping>(&()).unwrap().into_bytes(),
     )
     .expect_err("query must check its method identity too");
+}
+
+fn assert_callers(fixture: &StandaloneCanisterFixture) {
+    for caller in [Principal::anonymous(), Principal::from_slice(&[7, 3])] {
+        let query =
+            query_wire::<QueryCaller>(fixture.pocket_ic(), fixture.canister_id(), caller, &())
+                .unwrap();
+        assert_eq!(query.as_slice(), caller.as_slice());
+        let update =
+            update_wire::<UpdateCaller>(fixture.pocket_ic(), fixture.canister_id(), caller, &())
+                .unwrap();
+        assert_eq!(update.as_slice(), caller.as_slice());
+    }
 }

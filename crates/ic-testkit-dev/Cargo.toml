@@ -14,7 +14,7 @@ ic-host-fs = { workspace = true }
 ic-host-process = { workspace = true }
 ic-host-text = { workspace = true }
 ic-platform = { workspace = true }
-ic-testkit = { workspace = true }
+ic-testkit = { workspace = true, features = ["wire"] }
 ic-wire = { workspace = true }
 ic_testkit_perf_probe = { workspace = true }
 libc = { workspace = true }

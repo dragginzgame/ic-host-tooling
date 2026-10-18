@@ -24,6 +24,7 @@ ic-host-fs = "0.27.1"
 ic-host-process = "0.27.1"
 ic-metrics = "0.14"
 ic-platform = { version = "0.1.8", default-features = false }
+ic-wire = "0.4.1"
 libc = "0.2"
 pocket-ic = "16.1"
 serde = { version = "1.0", default-features = false }
@@ -38,7 +39,6 @@ ic-build = { version = "0.17" }
 ic-cdk = "0.20.2"
 ic-host-text = { version = "0.27.1", default-features = false }
 ic-testkit = { path = "crates/ic-testkit" }
-ic-wire = "0.4.1"
 ic_testkit_perf_probe = { path = "crates/ic_testkit_perf_probe" }
 
 [workspace.lints.clippy]

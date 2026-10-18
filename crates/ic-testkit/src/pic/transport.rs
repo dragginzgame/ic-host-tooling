@@ -1,6 +1,6 @@
 use std::{
     any::Any,
-    panic::{AssertUnwindSafe, catch_unwind},
+    panic::{AssertUnwindSafe, catch_unwind, resume_unwind},
 };
 
 use pocket_ic::RejectResponse;
@@ -35,7 +35,7 @@ impl PocketIcOperationError {
 }
 
 // Only callers that intentionally capture every unwind use this boundary.
-// Candid calls retain their separate policy of resuming unrelated panics.
+// Typed calls retain their separate policy of resuming unrelated panics.
 pub(super) fn capture_operation<T>(
     operation: impl FnOnce() -> T,
 ) -> Result<T, PocketIcOperationError> {
@@ -89,6 +89,25 @@ pub(super) fn capture_call<T>(
         Ok(Ok(value)) => Ok(value),
         Ok(Err(response)) => Err(PocketIcCallFailure::Rejected(response)),
         Err(source) => Err(PocketIcCallFailure::Operation(source)),
+    }
+}
+
+// Typed codec adapters share one transport policy: retain structured rejection,
+// classify known transport unwinds and resume every unrelated original payload.
+pub(super) fn call_or_resume<T>(
+    call: impl FnOnce() -> Result<T, RejectResponse>,
+) -> Result<T, PocketIcCallFailure> {
+    match catch_unwind(AssertUnwindSafe(call)) {
+        Ok(Ok(value)) => Ok(value),
+        Ok(Err(response)) => Err(PocketIcCallFailure::Rejected(response)),
+        Err(payload) => {
+            let source = PocketIcOperationError::new(panic_payload_to_string(payload.as_ref()));
+            if source.is_transport() {
+                Err(PocketIcCallFailure::Operation(source))
+            } else {
+                resume_unwind(payload)
+            }
+        }
     }
 }
 

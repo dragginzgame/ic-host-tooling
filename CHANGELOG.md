@@ -8,12 +8,19 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [0.54.1]
 
+### Added
+
+- Add opt-in native Wire query/update helpers with method-bound limits and
+  structured codec/transport failures. Raw calls remain available for negative
+  tests; updates are never retried
+  ([#119 — Own typed IC Wire query/update adapters](https://github.com/dragginzgame/ic-testkit/issues/119)).
+
 ### Changed
 
 - Use bounded IC Wire controls for the private performance probe and its callers,
   preserving fixture resets and trap qualification. Rebuild private benchmark
   artifacts together; public Candid call helpers remain unchanged
-  ([#128](https://github.com/dragginzgame/ic-testkit/issues/128)).
+  ([#128 — Move the private performance probe from Candid to IC Wire](https://github.com/dragginzgame/ic-testkit/issues/128)).
 
 ## [0.54.0] - 2026-10-18
 

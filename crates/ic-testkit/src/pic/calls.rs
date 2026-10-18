@@ -1,12 +1,12 @@
+#[cfg(test)]
+use super::PocketIcOperationError;
+use super::{CandidCallContext, CandidCallError, PocketIcCallFailure, transport};
 use ic_platform::candid::{DecodeError, DecodeLimits, decode_args};
 use ic_platform::{
     Principal,
     candid::contract::{ArgumentDecoder, ArgumentEncoder, encode_args},
 };
 use pocket_ic::{PocketIc, RejectResponse};
-use std::panic::{AssertUnwindSafe, catch_unwind, resume_unwind};
-
-use super::{CandidCallContext, CandidCallError, PocketIcOperationError, transport};
 
 #[derive(Clone, Copy)]
 struct CallContext<'a> {
@@ -113,24 +113,16 @@ fn run_raw_call<F>(context: CallContext<'_>, call: F) -> Result<Vec<u8>, CandidC
 where
     F: FnOnce() -> Result<Vec<u8>, RejectResponse>,
 {
-    match catch_unwind(AssertUnwindSafe(call)) {
-        Ok(Ok(bytes)) => Ok(bytes),
-        Ok(Err(response)) => Err(CandidCallError::CanisterReject {
+    match transport::call_or_resume(call) {
+        Ok(bytes) => Ok(bytes),
+        Err(PocketIcCallFailure::Rejected(response)) => Err(CandidCallError::CanisterReject {
             context: Box::new(context.to_error_context()),
             response: Box::new(response),
         }),
-        Err(payload) => {
-            let source =
-                PocketIcOperationError::new(transport::panic_payload_to_string(payload.as_ref()));
-            if source.is_transport() {
-                Err(CandidCallError::Transport {
-                    context: Box::new(context.to_error_context()),
-                    source,
-                })
-            } else {
-                resume_unwind(payload)
-            }
-        }
+        Err(PocketIcCallFailure::Operation(source)) => Err(CandidCallError::Transport {
+            context: Box::new(context.to_error_context()),
+            source,
+        }),
     }
 }
 
