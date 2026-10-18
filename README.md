@@ -11,6 +11,10 @@ admitted process execution and IC-specific format handling.
 | ic-host-text | Pure line normalization, decimal/UTC text, terminal-safe rendering, Unicode tables and progress frames |
 | ic-host-tools | Candid service facts, optional IC export facts, ICP command syntax, response decoding and certificate decoding |
 
+The FS package also supplies [native `ic-host-file` commands](docs/file-cli.md)
+for bounded hashes and private create/replace operations, with caller-selected
+batch limits and explicit executable preparation.
+
 These run locally outside canisters. The ic-host prefix identifies their ecosystem;
 the generic crates have no IC runtime dependency. Gzip and Wasm
 support are optional features of ic-host-artifacts. Filesystem/process consumers

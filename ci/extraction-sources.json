@@ -2,6 +2,27 @@
   "format": 1,
   "sources": [
     {
+      "repository": "https://github.com/dragginzgame/ic-auth",
+      "revision": "337122cdb42f9b9be445b032bd95169d74569e6f",
+      "files": [
+        {
+          "path": "apps/tooling/src/main.rs",
+          "sha256": "55baffcdf593666ec4920d832c91850ce567701533be5ab5423f37005b698261",
+          "selection": "hash-file/create-private/replace-private command translation only; browser contracts and Cargo lock admission stay Auth/Build-owned"
+        },
+        {
+          "path": "apps/tooling/src/file_hashes.rs",
+          "sha256": "0bee55273c2bf7e16a196551c12357763c19b0eaf61c721faa596726995592eb",
+          "selection": "ordered NUL-delimited hash batch and no stdout prefix on list/file refusal; caller-selected limits and existing bounded stream admission replace Auth's fixed batch policy"
+        },
+        {
+          "path": "apps/tooling/tests/files.rs",
+          "sha256": "e2d7e2da9eaa222f8906736e77994e2fe4c297632108c7aef23e8fa46bb2488f",
+          "selection": "generic actual-executable file/batch contracts, adapted to Host fixture custody; product browser/lock/release acceptance remains at its owner"
+        }
+      ]
+    },
+    {
       "repository": "https://github.com/dragginzgame/ic-testkit",
       "revision": "9c42f52ec577d6db6de32199b970f2b014c01149",
       "files": [
