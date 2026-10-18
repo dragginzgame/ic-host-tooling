@@ -9,7 +9,7 @@ admitted process execution and IC-specific format handling.
 | ic-host-fs | Regular/no-follow reads, missing-suffix path resolution, streamed durable publication, private files and observed descriptor locks |
 | ic-host-process | Executable resolution, digest/version admission, bounded capture, explicit child/group cleanup and Git observations |
 | ic-host-text | Pure line normalization, decimal/UTC text, terminal-safe rendering, Unicode tables and progress frames |
-| ic-host-tools | Candid service facts, optional IC export facts, ICP response decoding and certificate decoding |
+| ic-host-tools | Candid service facts, optional IC export facts, ICP command syntax, response decoding and certificate decoding |
 
 These run locally outside canisters. The ic-host prefix identifies their ecosystem;
 the generic crates have no IC runtime dependency. Gzip and Wasm
@@ -102,6 +102,14 @@ Agent transport, filesystem/process execution or Candid parser.
 plain hex. CLI presentation labels, preambles and any broader whitespace policy
 belong to callers; the codec does not infer or strip them. See the
 [0.22 response migration](docs/changelog/0.22.md).
+
+`ic-host-tools::icp` builds call/status commands from an already-configured
+`std::process::Command`, preserving native argument bytes and caller context.
+It supports textual or binary-file arguments, query/update selection and status
+output selection without dispatching a process. `decode_installation_status`
+projects null/string `module_hash` values only from successful caller-captured
+JSON; missing/invalid fields never establish absence. Executable/version admission,
+credentials, targets, capture limits, retries and lifecycle remain caller-owned.
 
 `ic_host_artifacts::batch::validate_labels` admits caller-selected batch labels
 before work, rejecting the first empty or exact duplicate with occurrence indices.

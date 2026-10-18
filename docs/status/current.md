@@ -4,8 +4,8 @@
 
 Read [Cargo.toml](../../Cargo.toml), [CHANGELOG.md](../../CHANGELOG.md), Git tags,
 [AGENTS.md](../../AGENTS.md) and the exact [Shared snapshot](../../.shared-tooling.snapshot).
-Released Host 0.27.4 is tagged at `bcc37e7afc1e831e7e8b41e2e11664f3ed873bf3`.
-Pending compatible work belongs to [0.27.5](../changelog/0.27.md#0275);
+Released Host 0.27.5 is delivered at `71d7c9154078a15c420163d08193848424689ad7`.
+Pending compatible work belongs to [0.27.6](../changelog/0.27.md#0276);
 package versions, the index, Git delivery and releases remain user-owned.
 Sibling checkouts are read-only. GitHub issues are the sole follow-up tracker.
 
@@ -34,8 +34,8 @@ Released 0.27.4 passed Linux x86-64, macOS 15 Intel/Apple Silicon and MSRV in
 [its exact-source CI run](https://github.com/dragginzgame/ic-host-tooling/actions/runs/39125028075).
 Consumer adoption remains distinct from that producer qualification.
 
-Pending 0.27.5 has focused Linux evidence, with source-matching native macOS
-qualification still required:
+Delivered 0.27.5 preparation has the following focused Linux evidence. Its
+exact-source native CI was still running when the Canic issue pass began:
 
 - [#194 — Lock platform guards](https://github.com/dragginzgame/ic-host-tooling/issues/194):
   18 lock cases pass on current Rust and actual 1.88, with directory and fixture
@@ -60,6 +60,15 @@ Focused passing evidence does not claim a full local release gate, publication,
 deployment or native macOS execution of pending bytes.
 
 ## Retained integration boundaries
+
+The Canic producer pass brings #97's reviewed ICP command/status implementation
+and four tests from PR #101 (`38b114bb30f12e9a6e255ccd85d6b7344331d763`) into
+pending 0.27.6. All 33 Tools cases pass on current Rust and actual 1.88, including
+the four ICP cases separately on the minimal profile. Strict Tools Clippy/Rustdoc,
+Rustfmt, feature boundaries, pins, snapshot and links pass. No dependency, feature,
+manifest, lockfile or sibling source changed. Receipt:
+`/tmp/host-canic-issues.t1JUg3/`. Integration/publication and native qualification
+of this new source remain separate; Canic #458 and IcyDB #307 own adoption.
 
 The snapshot selects reviewed Shared main
 `86464be41588182be6c979070a26ea9dfa5aa566` (0.24.3 in its changelog; committed

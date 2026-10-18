@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.27.6]
+
+- Share pure ICP call/status command builders and typed installation-state
+  projection for Canic and IcyDB, preserving native arguments and caller-owned
+  context, execution, budgets and lifecycle
+  ([#97 — ICP command facts](https://github.com/dragginzgame/ic-host-tooling/issues/97)).
+  [Details](docs/changelog/0.27.md).
+
 ## [0.27.5] - 2026-10-18
 
 - Adopt Shared's latest committed Platform dependency-boundary rules and extend
