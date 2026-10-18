@@ -3,7 +3,7 @@
 The 0.1.0 section preserves the original bootstrap notes. The published 0.1.0
 archive also includes the extracted artifact engine and Cargo grouping API.
 
-## [0.17.6]
+## [0.17.6] - 2026-10-18
 
 - Select development Rust 1.99.1, which fixes Rust 1.99.0's direct-invocation
   macOS rust-lld library lookup regression. Keep the package MSRV at 1.91.0 and
