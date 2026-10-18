@@ -361,9 +361,6 @@ bytes survive digest, source and limit failures.
 `durable::write_retained_at_with` creates and syncs a caller-named entry before
 production, then syncs its file and directory on success. Errors and panics retain
 partial evidence; callers own schemas, byte bounds and recovery decisions.
-Unix `copy::{copy_file, copy_directory}` uses held source descriptors and creates
-fresh private outputs. It returns per-file identities without choosing aggregate
-limits, final durability, publication or cleanup; source/namespace custody stays local.
 `durable::copy_from` consumes an already-selected reader from its current
 position. Callers retain input admission, byte/time bounds and choose `WriteOptions`.
 Optional exact permissions are applied after copying; otherwise the creation
