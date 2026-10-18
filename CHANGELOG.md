@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.27.4]
+
+- Share ordered empty/duplicate batch-label admission with exact comparisons and
+  typed occurrence positions; callers retain batch execution and failure policy
+  ([PR #184 — Batch label admission](https://github.com/dragginzgame/ic-host-tooling/pull/184)).
+  [Details](docs/changelog/0.27.md).
+- Share exact fixed/compact two-place decimal rendering with explicit scaling
+  and half-up rounding, without floating point or new dependencies
+  ([#138 — Exact decimal text](https://github.com/dragginzgame/ic-host-tooling/issues/138)).
+  [Details](docs/changelog/0.27.md).
+- Share canonical UTC second parsing and formatting, preserving expanded years
+  and strict calendar admission without clocks or new dependencies
+  ([#140 — Canonical UTC text](https://github.com/dragginzgame/ic-host-tooling/issues/140)).
+  [Details](docs/changelog/0.27.md).
+- Share read-only physical-directory validation with private-parent creation,
+  keeping symlink, non-directory and parent-traversal checks in one place
+  ([PR #147 — Share read-only physical directory validation](https://github.com/dragginzgame/ic-host-tooling/pull/147)).
+  [Details](docs/changelog/0.27.md).
+
 ## [0.27.3] - 2026-10-18
 
 - Protect caller-selected in-place exports from overwriting protected paths or

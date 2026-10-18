@@ -117,7 +117,8 @@ Replica revision selection, install thresholds and resource-report policy belong
 to the consuming application. Host Artifacts retains generic Wasm facts; Tools
 no longer owns an `ic-limits` profile or a reference-policy CLI example.
 
-- ic-host-artifacts owns pure declared-file directory checksums, stream identities,
+- ic-host-artifacts owns pure ordered nonempty/unique batch-label admission,
+  declared-file directory checksums, stream identities,
   bounded read/write/copy mechanics,
   optional gzip encoding/decoding, optional Wasm
   structural facts, encoded code/data statistics and bounded custom-section framing.
@@ -147,7 +148,11 @@ no longer owns an `ic-limits` profile or a reference-policy CLI example.
   custody neither kills processes nor implies a remote effect outcome.
 - ic-host-text owns bounded UTF-8 line normalization, pure terminal-safe escaping,
   explicit column clipping, Unicode display-width tables and pure single-line
-  progress frames.
+  progress frames. Its `timestamp` module owns canonical UTC second spelling and
+  Gregorian conversion, formatting unsigned Unix seconds and parsing zero through
+  `i64::MAX`. Callers retain clocks, freshness and collection-time interpretation.
+  Its `decimal` module owns exact two-place rounding/rendering with explicit
+  scaling; consumers retain normalization, units, sentinels and raw report fields.
   Progress callers retain terminal detection, wrapping limits, output, flushing,
   failure policy and cleanup timing; the helper never selects a sink or writes.
   Escaping borrows unchanged input through `Cow<str>` and owns changed text;

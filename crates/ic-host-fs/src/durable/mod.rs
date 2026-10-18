@@ -309,7 +309,7 @@ mod supported {
     use std::{
         ffi::{OsStr, OsString},
         fs, io,
-        path::{Component, Path, PathBuf},
+        path::{Path, PathBuf},
         sync::atomic::{AtomicU64, Ordering},
     };
 
@@ -679,30 +679,7 @@ mod supported {
     }
 
     pub(super) fn prepare_private_parents(parent: &Path) -> io::Result<()> {
-        let mut component_path = PathBuf::new();
-        for component in parent.components() {
-            if component == Component::ParentDir {
-                return Err(io::Error::new(
-                    io::ErrorKind::InvalidInput,
-                    "private parent path may not contain '..'",
-                ));
-            }
-            component_path.push(component.as_os_str());
-            match fs::symlink_metadata(&component_path) {
-                Ok(metadata) if metadata.is_dir() => {}
-                Ok(_) => {
-                    return Err(io::Error::new(
-                        io::ErrorKind::NotADirectory,
-                        format!(
-                            "output parent is not a directory: {}",
-                            component_path.display()
-                        ),
-                    ));
-                }
-                Err(error) if error.kind() == io::ErrorKind::NotFound => {}
-                Err(error) => return Err(error),
-            }
-        }
+        crate::path::validate_physical_directory_allow_missing(parent)?;
         create_parent_hierarchy(parent, &mut |_, _| Ok(()), true)
     }
 

@@ -100,6 +100,11 @@ plain hex. CLI presentation labels, preambles and any broader whitespace policy
 belong to callers; the codec does not infer or strip them. See the
 [0.22 response migration](docs/changelog/0.22.md).
 
+`ic_host_artifacts::batch::validate_labels` admits caller-selected batch labels
+before work, rejecting the first empty or exact duplicate with occurrence indices.
+Empty batches are valid. Callers retain ordering, execution and failure policy;
+iteration must not perform batch effects.
+
 `ic-host-text::escape::terminal_text` makes control and bidirectional formatting
 characters visible without choosing output or colour. It returns `Cow<str>`,
 borrowing safe input; use `.into_owned()` when independent ownership is required.
@@ -117,6 +122,16 @@ scalar-column padding. Callers prevent wrapping and own writing, flushing,
 output failures and cleanup timing; dropping the helper performs no IO.
 The crate depends only on the Unicode-width library, with no other Host or IC
 dependencies.
+
+`ic_host_text::decimal` renders exact fixed or compact two-place decimal text
+with explicit power-of-ten scaling and half-up rounding, including values beyond
+`u128`. It uses no floating point. Callers retain input normalization, unit/symbol
+selection, sentinel handling and raw report fields.
+
+`ic_host_text::timestamp` formats unsigned Unix seconds and parses canonical UTC
+second timestamps through `i64::MAX`, without clocks or timezone selection.
+It preserves expanded positive years, strict spelling and impossible-date refusal;
+callers retain freshness and collection-time policy.
 
 `ic_host_text::normalize::normalize_lines(bytes, max_bytes)` separately admits
 UTF-8, trims each line's trailing Unicode whitespace and emits LF endings while
@@ -309,6 +324,11 @@ components and dangling symlinks while normalizing a missing suffix. Choose the
 simultaneously active missing-target depth explicitly; `usize::MAX` preserves
 unlimited expansion. This supplies no root confinement or filesystem deadline.
 See the [0.23 resolver migration](docs/changelog/0.23.md).
+
+`path::validate_physical_directory_allow_missing(path)` checks existing components
+without creating missing directories. Symlinks, non-directories and `..` reject.
+It shares admission with private-parent preparation; callers retain pathname
+policy and namespace custody through later operations.
 
 With the artifact `gzip` feature, `copy_gzip` streams a single member into a
 caller-owned sink and returns its decoded identity. Partial output can remain

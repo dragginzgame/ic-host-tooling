@@ -6,7 +6,8 @@ Read the workspace version in [Cargo.toml](../../Cargo.toml), release notes in
 [CHANGELOG.md](../../CHANGELOG.md), and exact release identities from Git tags.
 [AGENTS.md](../../AGENTS.md) and [the snapshot](../../.shared-tooling.snapshot)
 identify the reviewed Shared baseline and exact selected payloads.
-The pending [0.27.3 notes](../changelog/0.27.md#0273) describe compatible changes;
+Released Host 0.27.3 is tagged at `70b553e0e8c1c0dcc1db89f67b4172436ef1a42d`.
+The pending [0.27.4 notes](../changelog/0.27.md#0274) describe compatible changes;
 released tree-descriptor and stream-copy interfaces remain supported. Versions,
 Git effects, publication and releases remain user-owned. Siblings are read-only.
 
@@ -54,6 +55,60 @@ Historical statements and qualification results apply only to their named source
 archives link earlier evidence rather than assigning current ownership.
 
 ## Qualification and coordination
+
+PR #184's shared batch-label validator is prepared locally for 0.27.4. Current
+Build Cargo/artifact batches and Testkit diagnostics still own matching loops;
+normal sibling checkouts remain unchanged. [Build PR #65](https://github.com/dragginzgame/ic-build/pull/65)
+prepares the consumer deletion after Host publication. Receipt:
+`/tmp/host-batch-intake.9Ohta6/`, relative to the incoming dirty tree.
+Three batch tests pass on current Rust and actual Rust 1.88, with strict Artifacts
+all-target/all-feature Clippy, warning-denied Rustdoc, formatting, links and
+changelog admission. All 19,608 generated short batches match current Build,
+including exact spelling, first-invalid ordering and duplicate positions.
+Native qualification and publication remain pending. The incoming Platform
+lockfile update, FS/Text work, package versions and real index are preserved.
+
+Issue #138 / PR #139's exact decimal rendering is prepared locally for 0.27.4.
+Query's token and cycle-rate mechanics remain in its normal checkout; adoption
+is tracked in [Query #64](https://github.com/dragginzgame/ic-query/issues/64).
+Receipt: `/tmp/host-decimal-intake.NDtS2E/`, relative to the incoming dirty tree.
+Three focused decimal tests pass on current Rust and actual Rust 1.88, including
+an independent integer-arithmetic oracle. Strict Text Clippy, warning-denied
+Rustdoc, formatting, links and changelog admission pass. A scratch comparison
+matches current Query fixed/compact behavior in 1,536,000 cases across every u8
+scaling exponent and values beyond u128. No dependency or own version changed.
+Native qualification and publication remain pending; prior FS/timestamp work
+and the real index are preserved.
+
+Issue #140 / PR #142's pure canonical UTC timestamp module is prepared locally
+for 0.27.4. Query's current calendar implementation and report callers were
+verified at `8982c2a4a98830d9ec1be771b07d326b483f5a85`; its normal checkout is
+unchanged and adoption remains in
+[Query #66](https://github.com/dragginzgame/ic-query/issues/66).
+Receipt: `/tmp/host-timestamp-intake.hJ0Inj/`, measured against the incoming dirty
+tree so PR #147's work is preserved. Seven focused timestamp cases pass on current
+Rust and actual Rust 1.88, with strict Text Clippy, warning-denied Rustdoc and
+100,000 old/new comparisons over unsigned and signed-range seconds. Formatting,
+links and changelog admission pass. No dependency, package version or Git release
+effects ran; delivery and native qualification of this source remain pending.
+
+PR #147's physical-directory validator is prepared locally for 0.27.4 and reused
+by private-parent preparation. Testkit's normal bundle checker remains unchanged;
+its path policy and consumer adoption are separate. Receipt:
+`/tmp/host-physical-intake.0YmqYY/`. No package version or Git release effects ran.
+Ten path tests and the private-parent case pass on current Rust and actual Rust
+1.88, with strict FS Clippy and warning-denied Rustdoc. Native qualification of
+this new source remains separate.
+
+Released 0.27.3's [CI run](https://github.com/dragginzgame/ic-host-tooling/actions/runs/39120529749)
+has passed Linux, macOS 15 Intel, macOS 15 Apple Silicon and MSRV. Completed Host
+producer issues #95, #121, #153 and #191 and superseded PRs #99, #180, #154 and #192
+are closed with that delivery evidence. Consumer adoption remains separate.
+The earlier local-preparation status below is historical.
+
+The preparation receipts below describe changes now included in released 0.27.3,
+not additional pending source. Required delivery CI and consumer adoption are
+separate from their recorded focused local checks.
 
 The working tree prepares PR #154's protected in-place export API for
 [#153 — Own non-aliasing in-place export writes](https://github.com/dragginzgame/ic-host-tooling/issues/153),
