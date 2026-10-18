@@ -23,6 +23,7 @@ serde_json = "1.0"
 sha2 = "0.10"
 thiserror = "2"
 toml = "1"
+toml_edit = "0.25.17"
 # Tests and tooling only: no exclusive entries; dev uses inherit this catalog.
 
 [workspace.lints.rust]

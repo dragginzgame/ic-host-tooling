@@ -208,3 +208,7 @@ sole follow-up tracker.
 Consumer acceptance remains separate from producer delivery. Follow the adopted
 [contribution rules](rules/contributions.md) for isolated cross-repository work;
 explicit task limits still apply.
+
+The read-only [Cargo release candidate editor](docs/cargo-release-candidates.md)
+provides `ic-build-release-metadata` and pure manifest/lock renderers. Consumers
+prepare the executable explicitly and retain release policy and recovery.

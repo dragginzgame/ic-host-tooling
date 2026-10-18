@@ -17,6 +17,13 @@ cleanup errors, retained paths and artifact namespaces remain intact. Required
 current-head hosted/native checks gate integration. Own version remains 0.17.6;
 no release or publication is included.
 
+## Cargo editor contribution refreshed for 0.17.7
+
+PR #56 follows released main `aff79af` (0.17.6), retaining the published Rust
+1.99.1 macOS linker repair and public Cargo discovery/selection APIs. Candidate
+rendering remains additive. Shared #273 owns adoption after reviewed publication;
+no branch dependency, implicit installation or package version change is added.
+
 ## Canic producer follow-up and native linker repair — pending 0.17.6
 
 This pass starts at clean released `6614782` (0.17.5), verifies its non-yanked
