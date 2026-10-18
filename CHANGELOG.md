@@ -2,6 +2,11 @@
 
 ## [0.27.7]
 
+- Run the non-Unix compile check with the MSRV toolchain that owns its prepared
+  Wasm target, fixing the CI compiler/target mismatch without changing the
+  development compiler or filesystem support contract.
+  [Details](docs/changelog/0.27.md).
+
 - Project exact environment/network facts from bounded effective ICP YAML using
   an optional real parser, leaving configuration resolution and funding to callers.
   [Details](docs/changelog/0.27.md).

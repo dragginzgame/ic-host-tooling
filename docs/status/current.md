@@ -4,8 +4,8 @@
 
 Read [Cargo.toml](../../Cargo.toml), [CHANGELOG.md](../../CHANGELOG.md), Git tags,
 [AGENTS.md](../../AGENTS.md) and the exact [Shared snapshot](../../.shared-tooling.snapshot).
-Released Host 0.27.5 is delivered at `71d7c9154078a15c420163d08193848424689ad7`.
-Pending compatible work belongs to [0.27.6](../changelog/0.27.md#0276);
+Released Host 0.27.6 is delivered at `0c3acb8d52e8017dd7a3b39d0ae94443f90066a0`.
+Pending compatible work belongs to [0.27.7](../changelog/0.27.md#0277);
 package versions, the index, Git delivery and releases remain user-owned.
 Sibling checkouts are read-only. GitHub issues are the sole follow-up tracker.
 
@@ -60,6 +60,12 @@ Focused passing evidence does not claim a full local release gate, publication,
 deployment or native macOS execution of pending bytes.
 
 ## Retained integration boundaries
+
+The 0.27.6 MSRV job passed native compilation but its non-Unix step selected the
+1.99 development pin after installing the Wasm target only for 1.88, causing E0463.
+The prepared fix scopes that step to `RUSTUP_TOOLCHAIN=1.88.0`; no target download,
+compiler upgrade or product portability change is involved. Host #194 retains
+source/native qualification; this corrects CI invocation ownership.
 
 The Canic producer pass brings #97's reviewed ICP command/status implementation
 and four tests from PR #101 (`38b114bb30f12e9a6e255ccd85d6b7344331d763`) into
