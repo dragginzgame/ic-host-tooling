@@ -275,6 +275,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "cobs"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0fa961b519f0b462e3a3b4a34b64d119eeaca1d59af726fe450bbba07a9fc0a1"
+dependencies = [
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "combine"
 version = "4.6.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -446,6 +455,18 @@ name = "either"
 version = "1.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0e9c71c2167ca323c882b99918929403426e2373ea17242ff5653e0d5e1058be"
+
+[[package]]
+name = "embedded-io"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ef1a6892d9eef45c8fa6b9e0086428a2cca8491aca8f787c534a3d6d0bcb3ced"
+
+[[package]]
+name = "embedded-io"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "edd0f118536f44f5ccd48bcb8b111bdc3de888b58c74639dfb034a357d0f206d"
 
 [[package]]
 name = "equivalent"
@@ -761,19 +782,19 @@ dependencies = [
 
 [[package]]
 name = "ic-build"
-version = "0.15.0"
+version = "0.17.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ce36c43488b210b5c6265c6f3a6962411d394e0ba98695c71d817235effe415d"
+checksum = "2a104bff5a78e8bcc9a29b92e6b793b8b566a96d81a6a160d359fb77bd59680a"
 dependencies = [
  "cargo_metadata",
  "ic-host-artifacts",
  "ic-host-fs",
  "ic-host-process",
- "libc",
  "rustix",
  "serde",
  "serde_json",
  "sha2",
+ "thiserror 2.0.18",
  "toml",
 ]
 
@@ -842,9 +863,9 @@ dependencies = [
 
 [[package]]
 name = "ic-host-artifacts"
-version = "0.26.1"
+version = "0.27.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c4c6f68dc69e6755bcb43f88aa2778dc8598e12cc3261314bbf49e006e7b79ce"
+checksum = "13b8109ebc6125c90fee344b65c8223c70ea4050d842f2fd23df1e6e714bd8e4"
 dependencies = [
  "flate2",
  "leb128",
@@ -854,9 +875,9 @@ dependencies = [
 
 [[package]]
 name = "ic-host-fs"
-version = "0.26.1"
+version = "0.27.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2512971658e8a048fa1e36154e7fef1704920f5257febc6764c99a59bc444be4"
+checksum = "e271757912be279019c27462dff84a39ca597b135ac607d33db3ce52d60bda54"
 dependencies = [
  "ic-host-artifacts",
  "rustix",
@@ -865,9 +886,9 @@ dependencies = [
 
 [[package]]
 name = "ic-host-process"
-version = "0.26.1"
+version = "0.27.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dc6ece3c0dfc22228de37fba171fe85601ba9f906712e50afce2ac3060ddf11c"
+checksum = "6a139f4beff95d0b843b6ce9d542fb1e1d62537341d2ffb10bed531cee93a485"
 dependencies = [
  "command-fds",
  "ic-host-artifacts",
@@ -878,9 +899,9 @@ dependencies = [
 
 [[package]]
 name = "ic-host-text"
-version = "0.26.1"
+version = "0.27.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "739024c7ab969703236ac84d517b3c3d3b2303a77c101d88ba72f65fcbe1ac93"
+checksum = "c50c36687078aa9a31367ae24eb92826a69115fa0c9e6999261dcccad96a87c2"
 dependencies = [
  "unicode-width",
 ]
@@ -898,24 +919,49 @@ dependencies = [
 
 [[package]]
 name = "ic-metrics"
-version = "0.13.3"
+version = "0.14.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "57aba474ca1a1c31e591d7c22bb66a5ac1b0cce80bfb0141ca2f9ae6c9d14989"
+checksum = "dac61137e8b7a67d649f475bdff907b278168292fe4bf103578293d1fb842651"
 
 [[package]]
-name = "ic-testkit"
-version = "0.52.0"
+name = "ic-platform"
+version = "0.1.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e0ab384614a5d8fe251bc2c27c508263d4001d776edf31382b5b985a1a4ced2d"
 dependencies = [
  "candid",
  "ic-cdk",
+ "ic-cdk-executor",
+ "ic-platform-macros",
+ "ic0",
+ "ic_principal",
+ "serde",
+]
+
+[[package]]
+name = "ic-platform-macros"
+version = "0.1.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9b5de9771169e34ca8da9bbb04c9c6196b1d2de8d2d0d21bc79d5921984ce6be"
+dependencies = [
+ "darling",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
+]
+
+[[package]]
+name = "ic-testkit"
+version = "0.54.1"
+dependencies = [
  "ic-host-artifacts",
  "ic-host-fs",
  "ic-host-process",
  "ic-metrics",
- "ic-testkit-candid",
+ "ic-platform",
+ "ic-wire",
  "libc",
  "pocket-ic",
- "serde",
  "serde_json",
  "tempfile",
  "thiserror 2.0.18",
@@ -925,30 +971,23 @@ dependencies = [
 ]
 
 [[package]]
-name = "ic-testkit-bench"
-version = "0.52.0"
+name = "ic-testkit-dev"
+version = "0.54.1"
 dependencies = [
- "candid",
  "ic-build",
  "ic-host-artifacts",
  "ic-host-fs",
  "ic-host-process",
  "ic-host-text",
- "ic-metrics",
+ "ic-platform",
  "ic-testkit",
- "ic-testkit-candid",
+ "ic-wire",
+ "ic_testkit_perf_probe",
  "libc",
  "serde",
  "serde_json",
  "tempfile",
-]
-
-[[package]]
-name = "ic-testkit-candid"
-version = "0.52.0"
-dependencies = [
- "candid",
- "serde",
+ "thiserror 2.0.18",
 ]
 
 [[package]]
@@ -967,6 +1006,28 @@ dependencies = [
  "serde_repr",
  "sha2",
  "thiserror 2.0.18",
+]
+
+[[package]]
+name = "ic-wire"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "402feba473fddd969f6383186ab925ff173cd462612385b186c559f8ab9419e7"
+dependencies = [
+ "ic-wire-derive",
+ "postcard",
+ "serde",
+]
+
+[[package]]
+name = "ic-wire-derive"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "00c93e16f19f85cd04393c00faf67245a1f101c723f8eddc9b14bb4d6a5fcbcd"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 3.0.9",
 ]
 
 [[package]]
@@ -990,11 +1051,11 @@ dependencies = [
 
 [[package]]
 name = "ic_testkit_perf_probe"
-version = "0.52.0"
+version = "0.54.1"
 dependencies = [
- "candid",
- "ic-cdk",
+ "ic-platform",
  "ic-testkit",
+ "ic-wire",
 ]
 
 [[package]]
@@ -1462,6 +1523,18 @@ dependencies = [
  "tracing",
  "tracing-appender",
  "tracing-subscriber",
+]
+
+[[package]]
+name = "postcard"
+version = "1.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6764c3b5dd454e283a30e6dfe78e9b31096d9e32036b5d1eaac7a6119ccb9a24"
+dependencies = [
+ "cobs",
+ "embedded-io 0.4.0",
+ "embedded-io 0.6.1",
+ "serde",
 ]
 
 [[package]]

@@ -5,21 +5,20 @@
 //! managed startup and application safety remain separate responsibilities.
 
 use super::POCKET_IC_SERVER_VERSION;
-use ic_host_artifacts::artifact::{Sha256Digest, decode_gzip, hash_gzip, hash_reader};
+use ic_host_artifacts::artifact::{Sha256Digest, copy_gzip, hash_gzip, hash_reader};
 use ic_host_fs::{durable, read::read_file_no_follow};
 use ic_host_process::{
-    child::{CleanupPolicy, OwnedChild},
+    child::CleanupPolicy,
     tool::{
-        AdmittedTool, ExecutionContext, ExecutionError, ExecutionEvidence, ExecutionFailure,
-        ExecutionOperation, OutputLimit, OutputLimits, SuccessfulExit, ToolError, VersionSpec,
-        communicate_child,
+        AdmittedTool, ExecutionContext, OutputLimit, OutputLimits, VersionSpec,
+        capture_group_command_with_cancellation,
     },
 };
 use std::{
     error::Error,
     ffi::OsString,
     fs::{self, File},
-    io::{self, Write as _},
+    io,
     path::{Component, Path, PathBuf},
     process::{Command, Stdio},
     sync::atomic::{AtomicU64, Ordering},
@@ -109,11 +108,6 @@ fn authenticated_archive(archive: &Path, digest: Sha256Digest) -> Result<Vec<u8>
     let bytes = read_file_no_follow(archive, ARCHIVE_LIMIT)?;
     hash_reader(bytes.as_slice(), ARCHIVE_LIMIT as u64)?.verify(digest)?;
     Ok(bytes)
-}
-
-fn payload(archive: &Path, digest: Sha256Digest) -> Result<Vec<u8>> {
-    let bytes = authenticated_archive(archive, digest)?;
-    Ok(decode_gzip(&bytes, ARCHIVE_LIMIT, EXECUTABLE_LIMIT)?)
 }
 
 fn admit(executable: &Path, digest: Sha256Digest) -> Result<()> {
@@ -208,31 +202,18 @@ pub fn setup(directory: &Path, mut interrupted: impl FnMut() -> bool) -> Result<
             .stdin(Stdio::null())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
-        let outcome = OwnedChild::spawn(&mut command, CleanupPolicy::KillAndWait)
-            .map_err(|source| {
-                ToolError::Execution(Box::new(ExecutionError {
-                    failure: ExecutionFailure::Io {
-                        operation: ExecutionOperation::Spawn,
-                        source,
-                    },
-                    evidence: ExecutionEvidence::default(),
-                    cleanup: None,
-                }))
-            })
-            .and_then(|mut child| {
-                communicate_child(
-                    &mut child,
-                    None,
-                    OutputLimits {
-                        stdout: OutputLimit::Terminate(4096),
-                        stderr: OutputLimit::Terminate(64 * 1024),
-                        timeout: Some(Duration::from_secs(310)),
-                    },
-                    SuccessfulExit::Cleanup,
-                    &mut interrupted,
-                )
-            })
-            .and_then(ic_host_process::tool::CompletedExecution::require_success);
+        let outcome = capture_group_command_with_cancellation(
+            &mut command,
+            OutputLimits {
+                stdout: OutputLimit::Terminate(4096),
+                stderr: OutputLimit::Terminate(64 * 1024),
+                timeout: Some(Duration::from_secs(310)),
+            },
+            CleanupPolicy::KillAndWait,
+            None,
+            &mut interrupted,
+        )
+        .and_then(ic_host_process::tool::CompletedExecution::require_success);
         if let Some(stderr) = outcome
             .as_ref()
             .ok()
@@ -334,22 +315,21 @@ fn install(
 ) -> Result<()> {
     let archive = attempt.join("archive.gz");
     download(&archive)?;
-    let bytes = payload(&archive, asset.digest)?;
+    let bytes = authenticated_archive(&archive, asset.digest)?;
     File::open(&archive)?.sync_all()?;
-    let digest = Sha256Digest::compute(&bytes);
     let executable = attempt.join("pocket-ic");
-    durable::write_with(
+    let identity = durable::write_with(
         &executable,
         durable::WriteOptions {
             mode: durable::PublicationMode::CreateNew,
             permissions: 0o755,
         },
-        |file| -> io::Result<()> { file.write_all(&bytes) },
+        |file| copy_gzip(&bytes, file, ARCHIVE_LIMIT, EXECUTABLE_LIMIT as u64),
     )?;
     drop(bytes);
     // PocketIC requires its canonical basename. The whole directory is private
     // and unselected until this admission succeeds; no existing bundle is replaced.
-    if let Err(error) = admit(&executable, digest) {
+    if let Err(error) = admit(&executable, identity.sha256) {
         if let Some(evidence) = error
             .downcast_ref::<ic_host_process::tool::ToolError>()
             .and_then(|error| error.evidence())
@@ -379,6 +359,10 @@ fn install(
 mod tests {
     use super::*;
     use ic_host_artifacts::artifact::encode_gzip;
+    use ic_host_process::{
+        child::OwnedChild,
+        tool::{SuccessfulExit, communicate_child},
+    };
     use std::os::unix::fs::{PermissionsExt as _, symlink};
 
     fn run_in_subprocess() -> bool {
@@ -540,6 +524,49 @@ mod tests {
         fs::write(&path, &original).unwrap();
         asset.digest = Sha256Digest::compute(&original);
         assert_eq!(check_bundle(&bundle, &asset).unwrap(), executable);
+    }
+
+    #[test]
+    fn setup_rejects_corrupt_payloads_without_execution_or_publication() {
+        use ic_host_artifacts::artifact::GzipError;
+
+        if run_in_subprocess() {
+            return;
+        }
+        let root = Fixture::new();
+        let marker = root.root.path().join("executed");
+        let script = format!("#!/bin/sh\nprintf executed > '{}'\n", marker.display());
+        let mut original = Vec::new();
+        encode_gzip(script.as_bytes(), &mut original, 1, 65536).unwrap();
+        let mut bad_crc = original.clone();
+        let crc = bad_crc.len() - 8;
+        bad_crc[crc] ^= 1;
+        for bytes in [
+            bad_crc,
+            original[..original.len() - 1].to_vec(),
+            [original.as_slice(), b"trailing"].concat(),
+        ] {
+            let asset = Asset {
+                host: "fixture",
+                digest: Sha256Digest::compute(&bytes),
+            };
+            let error = setup_with(root.root.path(), &asset, |path| {
+                fs::write(path, &bytes)?;
+                Ok(())
+            })
+            .unwrap_err();
+            assert!(matches!(
+                error.downcast_ref::<durable::NamedWriteError<GzipError>>(),
+                Some(durable::NamedWriteError::Producer { .. })
+            ));
+            assert!(!marker.exists());
+            assert!(!bundle_path(root.root.path(), &asset).exists());
+            assert!(fs::read_dir(root.root.path()).unwrap().any(|entry| {
+                let path = entry.unwrap().path();
+                path.join("failure.txt").is_file()
+                    && fs::read(path.join("archive.gz")).ok().as_deref() == Some(bytes.as_slice())
+            }));
+        }
     }
 
     #[test]

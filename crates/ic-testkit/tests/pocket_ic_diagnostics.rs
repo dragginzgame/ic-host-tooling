@@ -1,6 +1,6 @@
 mod support;
 
-use candid::Principal;
+use ic_platform::Principal;
 use ic_testkit::pic::{
     CanisterDiagnosticsRequest, CanisterLogRenderLimits, LabeledCanisterDiagnosticsRequest,
     PocketIcCallFailure, PocketIcDiagnosticsExt, is_dead_pocket_ic_transport_error,

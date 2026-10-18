@@ -90,7 +90,7 @@ check_prepared() {
   # Prepared checks inspect this working payload; committed checks below bind
   # the selected release tree separately through its exact admitted file set.
   RELEASE_COMMIT='' bash "$script_dir/../ci/cargo-release-metadata.sh" \
-    check ic-testkit --manifest-order
+    check ic-testkit --manifest-order-grouped
   bash "$script_dir/../ci/check-installation-version.sh"
 }
 check_committed() {
@@ -139,7 +139,7 @@ case "$mode" in
     cache_manifest=Cargo.toml
     if [[ -e "$prepared/ready" ]]; then
       check_recovery
-      for member in crates/ic-testkit crates/ic-testkit-candid crates/ic-testkit-bench crates/ic_testkit_perf_probe; do
+      for member in crates/ic-testkit crates/ic-testkit-dev crates/ic_testkit_perf_probe; do
         cmp "$member/Cargo.toml" "$prepared/new/$member/Cargo.toml" \
           || fail "saved member manifest changed: $member"
       done
@@ -192,7 +192,7 @@ case "$mode" in
       done
       # Retain a consistent saved manifest workspace for interrupted-release
       # cache preparation, independent of partially installed live metadata.
-      for member in crates/ic-testkit crates/ic-testkit-candid crates/ic-testkit-bench crates/ic_testkit_perf_probe; do
+      for member in crates/ic-testkit crates/ic-testkit-dev crates/ic_testkit_perf_probe; do
         for selection in old new; do
           mkdir -p "$prepared/$selection/$member/src"
           cp "$member/Cargo.toml" "$prepared/$selection/$member/Cargo.toml"
@@ -208,10 +208,10 @@ case "$mode" in
           || fail "cannot prepare saved Cargo metadata"
       ) || fail "saved Cargo preparation failed"
       bash "$script_dir/../ci/check-format-tools.sh" "$SHARED_TOOLING_CARGO_SORT_VERSION"
-      cargo sort --workspace "$prepared/new"
+      cargo sort --workspace --grouped "$prepared/new"
       # Member manifests are already sorted inputs, outside the release file
       # set. Formatting must not introduce an unstaged change to those inputs.
-      for member in crates/ic-testkit crates/ic-testkit-candid crates/ic-testkit-bench crates/ic_testkit_perf_probe; do
+      for member in crates/ic-testkit crates/ic-testkit-dev crates/ic_testkit_perf_probe; do
         cmp "$member/Cargo.toml" "$prepared/new/$member/Cargo.toml" \
           || fail "member manifest requires formatting before release: $member"
       done

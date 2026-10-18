@@ -1,6 +1,6 @@
 mod support;
 
-use candid::Principal;
+use ic_platform::Principal;
 use ic_testkit::pic::{
     CanisterSnapshotTarget, ControllerSnapshotError, PocketIcCallFailure, PocketIcSnapshotExt,
     SnapshotRestoreFunding,

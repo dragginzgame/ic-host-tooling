@@ -1,4 +1,4 @@
-use candid::Principal;
+use ic_platform::Principal;
 use pocket_ic::PocketIc;
 
 use super::{CanisterInstallExt, InstallSpec, PocketIcInstance, StandaloneCanisterInstallError};

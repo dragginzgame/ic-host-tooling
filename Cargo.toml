@@ -1,16 +1,13 @@
 [workspace]
-members = [
-    "crates/ic-testkit",
-    "crates/ic-testkit-bench",
-    "crates/ic-testkit-candid",
-    "crates/ic_testkit_perf_probe",
-]
+# Production packages: ic-testkit.
+# Tests and tooling packages: ic-testkit-dev and ic_testkit_perf_probe.
+members = ["crates/ic-testkit", "crates/ic-testkit-dev", "crates/ic_testkit_perf_probe"]
 resolver = "2"
 
 [workspace.package]
 edition = "2024"
 rust-version = "1.91.0"
-version = "0.52.0"
+version = "0.54.1"
 license = "MIT"
 authors = ["borovan <84897664+borovan@users.noreply.github.com>"]
 description = "PocketIC-oriented test utilities for IC canister tests"
@@ -21,16 +18,13 @@ categories = ["development-tools::testing", "wasm"]
 readme = "README.md"
 
 [workspace.dependencies]
-candid = { version = "0.10", default-features = false }
-ic-build = { version = "0.15" }
-ic-cdk = "0.20.2"
-ic-host-artifacts = { version = "0.26", features = ["gzip", "wasm"] }
-ic-host-fs = "0.26"
-ic-host-process = "0.26"
-ic-host-text = { version = "0.26", default-features = false }
-ic-metrics = "0.13"
-ic-testkit = { path = "crates/ic-testkit" }
-ic-testkit-candid = { path = "crates/ic-testkit-candid", version = "0.52" }
+# Production dependencies
+ic-host-artifacts = "0.27.1"
+ic-host-fs = "0.27.1"
+ic-host-process = "0.27.6"
+ic-metrics = "0.14"
+ic-platform = { version = "0.1.11", default-features = false }
+ic-wire = "0.4.1"
 libc = "0.2"
 pocket-ic = "16.1"
 serde = { version = "1.0", default-features = false }
@@ -39,6 +33,12 @@ tempfile = "3"
 thiserror = "2.0"
 tokio = { version = "1", features = ["net", "rt", "time"] }
 wasm-encoder = { version = "0.262", default-features = false }
+
+# Tests and tooling only
+ic-build = { version = "0.17.2" }
+ic-host-text = { version = "0.27.1", default-features = false }
+ic-testkit = { path = "crates/ic-testkit" }
+ic_testkit_perf_probe = { path = "crates/ic_testkit_perf_probe" }
 wasmparser = { version = "0.261", default-features = false, features = ["std", "validate"] }
 
 [workspace.lints.clippy]

@@ -4,7 +4,7 @@
 pub mod wait;
 
 // These fixtures exchange small scalar/tuple replies, never fixture Wasm or logs.
-pub const REPLY_LIMITS: ic_testkit_candid::DecodeLimits = ic_testkit_candid::DecodeLimits {
+pub const REPLY_LIMITS: ic_platform::candid::DecodeLimits = ic_platform::candid::DecodeLimits {
     reply_bytes: 65_536,
     decoding_quota: 1_000_000,
     skipping_quota: 100_000,

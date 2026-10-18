@@ -51,7 +51,7 @@ fn exports_both_modes_preserving_raw_binary_data_and_page_boundaries() {
 }
 
 #[test]
-fn permits_same_name_across_modes_empty_replies_and_an_empty_catalog() {
+fn permits_empty_replies_and_an_empty_catalog() {
     let methods = [
         RawReplyMethod {
             name: "same",
@@ -59,7 +59,7 @@ fn permits_same_name_across_modes_empty_replies_and_an_empty_catalog() {
             reply: &[],
         },
         RawReplyMethod {
-            name: "same",
+            name: "other",
             mode: ReplyMode::Update,
             reply: &[],
         },
@@ -119,6 +119,18 @@ fn rejects_names_duplicates_and_each_aggregate_limit() {
     let pair = [
         method,
         RawReplyMethod {
+            mode: ReplyMode::Query,
+            ..method
+        },
+    ];
+    assert_eq!(
+        raw_reply_canister(&pair, LIMITS),
+        Err(RawReplyError::DuplicateExport { index: 1 })
+    );
+    let pair = [
+        method,
+        RawReplyMethod {
+            name: "second",
             mode: ReplyMode::Query,
             ..method
         },

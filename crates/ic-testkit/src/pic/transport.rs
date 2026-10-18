@@ -1,6 +1,6 @@
 use std::{
     any::Any,
-    panic::{AssertUnwindSafe, catch_unwind},
+    panic::{AssertUnwindSafe, catch_unwind, resume_unwind},
 };
 
 use pocket_ic::RejectResponse;
@@ -35,7 +35,7 @@ impl PocketIcOperationError {
 }
 
 // Only callers that intentionally capture every unwind use this boundary.
-// Candid calls retain their separate policy of resuming unrelated panics.
+// Typed calls retain their separate policy of resuming unrelated panics.
 pub(super) fn capture_operation<T>(
     operation: impl FnOnce() -> T,
 ) -> Result<T, PocketIcOperationError> {
@@ -92,6 +92,25 @@ pub(super) fn capture_call<T>(
     }
 }
 
+// Typed codec adapters share one transport policy: retain structured rejection,
+// classify known transport unwinds and resume every unrelated original payload.
+pub(super) fn call_or_resume<T>(
+    call: impl FnOnce() -> Result<T, RejectResponse>,
+) -> Result<T, PocketIcCallFailure> {
+    match catch_unwind(AssertUnwindSafe(call)) {
+        Ok(Ok(value)) => Ok(value),
+        Ok(Err(response)) => Err(PocketIcCallFailure::Rejected(response)),
+        Err(payload) => {
+            let source = PocketIcOperationError::new(panic_payload_to_string(payload.as_ref()));
+            if source.is_transport() {
+                Err(PocketIcCallFailure::Operation(source))
+            } else {
+                resume_unwind(payload)
+            }
+        }
+    }
+}
+
 // Extract a stable string message from one panic payload.
 pub(super) fn panic_payload_to_string(payload: &(dyn Any + Send)) -> String {
     if let Some(message) = payload.downcast_ref::<String>() {
@@ -131,7 +150,7 @@ pub fn is_dead_pocket_ic_transport_error(error: &(dyn std::error::Error + 'stati
     while let Some(candidate) = current {
         // Decoder diagnostics may quote arbitrary reply content. Reaching a
         // typed decode failure proves this branch is not a transport failure.
-        if candidate.is::<ic_testkit_candid::DecodeError>() {
+        if candidate.is::<ic_platform::candid::DecodeError>() {
             return false;
         }
         if candidate
@@ -295,7 +314,7 @@ mod tests {
 
     #[test]
     fn snapshot_and_install_wrappers_preserve_transport_causes() {
-        let canister_id = candid::Principal::anonymous();
+        let canister_id = ic_platform::Principal::anonymous();
         for message in [REFUSED, RESET, "unrelated application panic"] {
             let expected = message != "unrelated application panic";
             let capture = ControllerSnapshotError::CaptureFailed {
@@ -389,8 +408,8 @@ mod tests {
     fn contextual_call_errors_use_their_structured_kind() {
         let context = super::super::CandidCallContext::new(
             "query_call",
-            candid::Principal::anonymous(),
-            candid::Principal::anonymous(),
+            ic_platform::Principal::anonymous(),
+            ic_platform::Principal::anonymous(),
             "get",
         );
         let error = super::super::CandidCallError::Transport {
@@ -401,9 +420,9 @@ mod tests {
         let error = super::super::CandidCallError::Decode {
             context: Box::new(context),
             bytes: 0,
-            source: Box::new(ic_testkit_candid::DecodeError::Candid(candid::Error::msg(
-                "channel closed",
-            ))),
+            source: Box::new(ic_platform::candid::DecodeError::Candid(
+                ic_platform::candid::contract::Error::msg("channel closed"),
+            )),
         };
         assert!(!is_dead_pocket_ic_transport_error(&error));
     }
@@ -412,8 +431,8 @@ mod tests {
     fn io_wrappers_preserve_contextual_call_error_kinds() {
         let context = super::super::CandidCallContext::new(
             "query_call",
-            candid::Principal::anonymous(),
-            candid::Principal::anonymous(),
+            ic_platform::Principal::anonymous(),
+            ic_platform::Principal::anonymous(),
             "get",
         );
         for (error, expected) in [
@@ -428,9 +447,9 @@ mod tests {
                 super::super::CandidCallError::Decode {
                     context: Box::new(context),
                     bytes: 0,
-                    source: Box::new(ic_testkit_candid::DecodeError::Candid(candid::Error::msg(
-                        REFUSED,
-                    ))),
+                    source: Box::new(ic_platform::candid::DecodeError::Candid(
+                        ic_platform::candid::contract::Error::msg(REFUSED),
+                    )),
                 },
                 false,
             ),

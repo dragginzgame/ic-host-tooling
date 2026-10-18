@@ -8,12 +8,163 @@ This file ships in the crate archive so upgrades can be completed without the
 repository checkout. The complete historical changelog remains at
 <https://github.com/dragginzgame/ic-testkit/blob/main/CHANGELOG.md>.
 
-## [0.52.1]
+## [0.54.2]
 
-- Add opt-in native `pic::fixtures::raw_reply_canister` under `reply-fixtures`.
-  Callers select query/update methods, exact raw reply bytes, and aggregate
-  method, name-byte and reply-byte limits. The builder uses the standard Wasm
-  encoder, owns no simulator lifecycle and accepts malformed Candid evidence.
+### Changed
+
+- Use published Host command execution for cancellable server downloads and
+  benchmark preparation, retaining explicit deadlines, output bounds and cleanup.
+  Cargo commands keep inherited progress output and no elapsed-time ceiling
+  ([#85 — Adopt published Host cancellable capture](https://github.com/dragginzgame/ic-testkit/issues/85)).
+
+- Use bounded IC Wire controls for the private performance probe and its callers,
+  preserving fixture resets and trap qualification. Rebuild private benchmark
+  artifacts together; public Candid call helpers remain unchanged
+  ([#128 — Move the private performance probe to IC Wire](https://github.com/dragginzgame/ic-testkit/issues/128)).
+
+### Added
+
+- Add opt-in raw reply canister fixtures with caller-selected method and byte
+  budgets, standard Wasm encoding and unchanged query/update reply bytes,
+  including intentionally malformed protocol payloads. Simulator setup,
+  installation and application reply catalogs remain caller-owned.
+
+- Add a private Node fixture-session helper for browser harnesses, with retained
+  logs and bounded graceful/TERM/KILL cleanup. Callers keep readiness contracts,
+  browser assertions and executable admission
+  ([#120 — Own Node browser fixture session lifecycle](https://github.com/dragginzgame/ic-testkit/issues/120)).
+
+- Explicit panic-safe diagnostic reporting accepts a caller-selected writer,
+  preserving exact senders and log limits while keeping secondary reporting
+  failures separate from the original operation failure.
+
+- Add opt-in native typed Wire query/update helpers with explicit callers,
+  method-owned limits, structured codec/call failures and no update retries.
+  Private probe callers now share this transport owner
+  ([#119 — Own typed IC Wire query/update adapters](https://github.com/dragginzgame/ic-testkit/issues/119)).
+
+## [0.54.1] - 2026-10-18
+
+### Changed
+
+- Consolidate fixture-driver error handling onto the existing `thiserror`
+  dependency, preserving diagnostic messages and directly inspectable causes.
+- Complete the tooling ownership cleanup: retire unused generic regression
+  fixtures from the snapshot and select Testkit's real check, hook, cache and
+  evidence helpers directly. Shared Tooling retains the producer suites; consumer
+  qualification and the reviewed Shared revision are unchanged.
+- Adopt published Platform 0.1.11 and its probe entrypoint generator, removing
+  the final direct Candid/CDK dependencies and their policy exceptions. Existing
+  runtime identities, reply formats, explicit limits and trap behavior remain
+  unchanged ([Platform #1 — CDK call and entrypoint boundary](https://github.com/dragginzgame/ic-platform/issues/1)).
+- Select Rust 1.99.1 for contributor checks and CI, retaining Rust 1.91 as the
+  library compiler floor ([#126 — Qualify Rust 1.99.1 as the development compiler](https://github.com/dragginzgame/ic-testkit/issues/126)).
+- Fixture benchmark provenance uses IC Build's retained compiler and profile
+  facts, avoiding a separate compiler probe after a build or cache hit
+  ([PR #127 — Project fixture provenance from retained build facts](https://github.com/dragginzgame/ic-testkit/pull/127)).
+
+## [0.54.0] - 2026-10-18
+
+### Breaking
+
+- Candid calls now accept `ic_platform::candid::DecodeLimits` and retain
+  Platform's typed `DecodeError` sources. Add `ic-platform` 0.1.8 with its
+  `candid` feature and replace `ic_testkit_candid` imports. The local decoder
+  package is retired; wire arity, explicit quotas and compact diagnostics remain
+  unchanged. This prepares the producer change tracked in
+  [#2 — Coordinate published Testkit limits identity](https://github.com/dragginzgame/ic-platform/issues/2); external consumers still need the new Testkit release.
+- Platform owns Principal and supported Candid dependencies. The private probe
+  retains CDK and macro-required Candid until
+  [#1 — Support the CDK call and entrypoint boundary](https://github.com/dragginzgame/ic-platform/issues/1) is resolved.
+
+### Changed
+
+- MSRV checks cover all native workspace targets and the supported Wasm library
+  and probe, excluding the native development harness from cross-compilation.
+
+- Complete-sample statistics now belong to the private fixture reporter, removing
+  its direct Metrics dependency. Count, mean, p50/p95 and typed failures remain
+  unchanged ([PR #125 — Own complete sample statistics in the private report package](https://github.com/dragginzgame/ic-testkit/pull/125)).
+
+- The fixture benchmark supplies its inherited build environment explicitly to
+  IC Build 0.17, preserving the selected compiler override.
+
+- Adopt Shared Tooling 0.24.0 and explicit dependency-role labels, retaining
+  matching grouped manifest ordering in formatting hooks and release checks.
+  Common Cargo setup now installs only the formatter tools.
+
+- Platform 0.1.8 supplies Wasm execution counters, stable-page counts, marker
+  logging and the probe's raw trap. The direct `ic0` dependency is removed via
+  [#11 — Expose debug_print for Testkit benchmark marker emission](https://github.com/dragginzgame/ic-platform/issues/11).
+  The library's canister graph remains free of CDK and Candid. Deterministic
+  principals use the same `ic_principal` type and retain their existing features;
+  counter selection, page-to-byte conversion and marker output remain unchanged.
+
+- Native Testkit selects Host's gzip support for server provisioning without
+  enabling Wasm inspection. IC Build selects that capability for development
+  builds; supported Testkit APIs and server admission remain unchanged.
+- Current ownership and qualification guidance names the extracted owners and
+  supported call/startup interfaces. Historical migration and qualification
+  records remain evidence rather than active build instructions.
+- Portable CI checks Testkit's actual prepared tools and dependency selections
+  instead of replaying Shared Tooling's complete synthetic regression suites.
+  Product, release-adapter, hook and failure-evidence qualification remain in place.
+
+## [0.53.0] - 2026-10-17
+
+### Breaking
+
+- Native tool failures use Host 0.27 types. Align directly used Host dependencies
+  before passing values through Testkit or IC Build; this batch selects Host
+  0.27.1 and the aligned Build 0.16 release.
+
+- Candid calls use only `query_candid_args` and `update_candid_args`. Remove
+  `CandidCallExt` imports and method calls; decode `(T,)` for one reply, `()`
+  for no replies, `((),)` for one unit and `((T, U),)` for one tuple-valued reply.
+  Explicit callers, decode budgets, original rejections and unrelated panic
+  propagation retain their contracts. No compatibility forwarding methods remain.
+
+- Reset coverage uses fixed `ResetPolicies` fields in distinct requirements and
+  receipts. Replace domain-list constructors and accessors with field construction
+  and reads; recipes still report their achieved policies independently. Missing
+  coverage and policy mismatches refuse reuse before a warm lease is returned.
+
+### Changed
+
+- Adopt Shared Tooling 0.23.0, including validated tool catalog selections,
+  normalized host detection and the pinned 7.0.2 evidence uploader.
+
+- PocketIC provisioning streams authenticated gzip payloads through Host's bounded
+  writer, removing the complete decoded executable buffer and separate hash pass.
+  Integrity, executable admission and retained failure evidence remain in place
+  ([#116](https://github.com/dragginzgame/ic-testkit/issues/116)).
+
+- Private development commands belong to `ic-testkit-dev`, replacing the
+  benchmark-only package name. Benchmark executable names remain unchanged.
+- Coordinated package qualification delegates archive, graph, lock and source
+  integrity checks to IC Build. Per-attempt evidence and verification build
+  artifacts stay under `target/`; normal publish dry runs retain Cargo registry
+  admission without verification-only overrides.
+
+### Fixed
+
+- Package qualification passes the offline-verified PocketIC binary to archived
+  tests, so `make package` works without a manually exported `POCKET_IC_BIN`.
+
+- Complete the synthetic host catalog used by CI evidence qualification so
+  archive retention checks reach their normal and rejected-selection cases
+  ([#122](https://github.com/dragginzgame/ic-testkit/issues/122)).
+
+### Migration
+
+Construct `ResetRequirements { funding, policies }` and return
+`ResetReceipt { policies }` from the completed reset. The shared `ResetPolicies`
+record has optional `pocket_ic_time`, `extra_canisters`, `pending_messages`,
+`subnet_state` and `external_resources` fields. `None` makes no claim; explicit
+`IrrelevantByRecipeContract` remains a reported policy. Use field reads instead
+of `get`/`iter`/`funding()`, and `ResetReceipt::default()` for no achievements.
+Duplicate-domain construction and its error are gone. `ResetPolicyMismatch`
+identifies the first mismatched domain and carries both complete policy records.
 
 ## [0.52.0] - 2026-10-17
 

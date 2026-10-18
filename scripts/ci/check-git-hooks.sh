@@ -12,7 +12,8 @@ trap 'rm -rf -- "$fixture"' EXIT
 # Perturb only ordering in the actual workspace dependency table.
 awk '
     $0 == "[workspace.dependencies]" {
-        print; getline first; getline second; print second; print first; next
+        print; getline header; print header; getline first; print first
+        getline second; getline third; print third; print second; next
     }
     { print }
 ' "$root/Cargo.toml" > "$fixture/Cargo.toml"

@@ -76,7 +76,7 @@ pub enum RawReplyError {
         /// Input method position.
         index: usize,
     },
-    /// Query/update mode and method name must form a unique export.
+    /// Method names must be unique across query and update exports.
     #[error("duplicate method export at index {index}")]
     DuplicateExport {
         /// Input method position.
@@ -126,7 +126,7 @@ pub fn raw_reply_canister(
         if method.name.is_empty() || method.name.chars().any(char::is_control) {
             return Err(RawReplyError::InvalidName { index });
         }
-        if !exports.insert((method.mode, method.name)) {
+        if !exports.insert(method.name) {
             return Err(RawReplyError::DuplicateExport { index });
         }
         names = charge(

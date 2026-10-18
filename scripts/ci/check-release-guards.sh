@@ -300,6 +300,7 @@ bash "${repo_root}/scripts/ci/check-release-commands.sh" "${repo_root}" \
 # Cargo and owner CLI. Parallel Make must retain ordering and checks stay offline.
 (
   unset MAKEFLAGS MFLAGS MAKEOVERRIDES GNUMAKEFLAGS MAKEFILES
+  unset POCKET_IC_BIN IC_TESTKIT_POCKET_IC_URL
   export TOOL_ROOT="${work_dir}/tools" TOOL_TRACE="${work_dir}/tools/trace"
   mkdir -p "$TOOL_ROOT/make" "$TOOL_ROOT/scripts/dev" "$TOOL_ROOT/scripts/ci" "$TOOL_ROOT/bin" "$TOOL_ROOT/ci"
   cp "$repo_root/Makefile" "$TOOL_ROOT/"
@@ -333,12 +334,14 @@ set -euo pipefail
 [[ "$1" != --version ]] || exit 0
 [[ "$*" == *--locked* ]] || exit 97
 operation="$1"
+if [[ "$operation" == package ]]; then
+  [[ "${POCKET_IC_BIN:-}" == /prepared/server ]] || exit 97
+fi
 if [[ "$operation" == test ]]; then
   case " $* " in
-    *' -p ic-testkit-candid '*) operation=test:ic-testkit-candid ;;
-    *' -p ic-testkit-bench '*)
+    *' -p ic-testkit-dev '*)
       [[ "${POCKET_IC_BIN:-}" == /prepared/server ]] || exit 97
-      operation=test:ic-testkit-bench
+      operation=test:ic-testkit-dev
       ;;
     *' -p ic-testkit '*)
       [[ "${POCKET_IC_BIN:-}" == /prepared/server ]] || exit 97
@@ -403,25 +406,41 @@ STUB
       fail "substituted $target recipe failed; see $TOOL_ROOT/$target.log"
     }
   done
-  printf '%s\n' cargo:build server:check cargo:test:ic-testkit-bench > "$TOOL_ROOT/expected"
+  printf '%s\n' cargo:build server:check cargo:test:ic-testkit-dev > "$TOOL_ROOT/expected"
   cmp "$TOOL_TRACE" "$TOOL_ROOT/expected" || fail 'canister test bypassed owner admission'
   : > "$TOOL_TRACE"
   "$make_bin" --no-print-directory -j4 -C "$TOOL_ROOT" test > "$TOOL_ROOT/test.log" 2>&1
-  printf '%s\n' cargo:build cargo:test:ic-testkit-candid server:check \
-    cargo:test:ic-testkit cargo:test:ic-testkit-bench cargo:test:ic-testkit > "$TOOL_ROOT/expected"
+  printf '%s\n' cargo:build server:check \
+    cargo:test:ic-testkit cargo:test:ic-testkit-dev cargo:test:ic-testkit > "$TOOL_ROOT/expected"
   cmp "$TOOL_TRACE" "$TOOL_ROOT/expected" || fail 'full test target omitted separate-process qualification'
-  for stage in cargo:test:ic-testkit-candid server:check cargo:test:ic-testkit cargo:test:ic-testkit-bench; do
+  for stage in server:check cargo:test:ic-testkit cargo:test:ic-testkit-dev; do
     : > "$TOOL_TRACE"
     status=0
     TOOL_FAIL="$stage" "$make_bin" --no-print-directory -j4 -C "$TOOL_ROOT" test > "$TOOL_ROOT/test-failure-${stage//:/-}.log" 2>&1 || status=$?
     [[ "$status" == 2 ]] || fail 'test admission or Cargo failure status lost'
-    printf '%s\n' cargo:build cargo:test:ic-testkit-candid > "$TOOL_ROOT/expected"
-    [[ "$stage" == cargo:test:ic-testkit-candid ]] || printf '%s\n' server:check >> "$TOOL_ROOT/expected"
+    printf '%s\n' cargo:build > "$TOOL_ROOT/expected"
+    printf '%s\n' server:check >> "$TOOL_ROOT/expected"
     case "$stage" in
       cargo:test:ic-testkit) printf '%s\n' cargo:test:ic-testkit >> "$TOOL_ROOT/expected" ;;
-      cargo:test:ic-testkit-bench) printf '%s\n' cargo:test:ic-testkit cargo:test:ic-testkit-bench >> "$TOOL_ROOT/expected" ;;
+      cargo:test:ic-testkit-dev) printf '%s\n' cargo:test:ic-testkit cargo:test:ic-testkit-dev >> "$TOOL_ROOT/expected" ;;
     esac
     cmp "$TOOL_TRACE" "$TOOL_ROOT/expected" || fail 'failed test dispatched later Cargo work'
+  done
+  for stage in success cargo:build server:check cargo:package; do
+    : > "$TOOL_TRACE"
+    status=0
+    TOOL_FAIL="$stage" "$make_bin" --no-print-directory -j4 -C "$TOOL_ROOT" package \
+      > "$TOOL_ROOT/package-${stage//:/-}.log" 2>&1 || status=$?
+    expected_status=2
+    [[ "$stage" != success ]] || expected_status=0
+    [[ "$status" == "$expected_status" ]] || fail 'package admission or Cargo failure status lost'
+    case "$stage" in
+      cargo:build) printf '%s\n' cargo:build > "$TOOL_ROOT/expected" ;;
+      server:check) printf '%s\n' cargo:build server:check > "$TOOL_ROOT/expected" ;;
+      *) printf '%s\n' cargo:build server:check cargo:package > "$TOOL_ROOT/expected" ;;
+    esac
+    cmp "$TOOL_TRACE" "$TOOL_ROOT/expected" || fail 'package bypassed admission or continued after failure'
+    cmp "$TOOL_ROOT/server-bytes" "$TOOL_ROOT/retained-server" || fail 'package changed the prepared server'
   done
   : > "$TOOL_TRACE"
   status=0

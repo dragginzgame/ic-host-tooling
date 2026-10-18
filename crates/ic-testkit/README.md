@@ -8,19 +8,41 @@ PocketIC-oriented test utilities for Internet Computer canister tests.
 
 ```toml
 [dev-dependencies]
-ic-testkit = "0.52"
+ic-testkit = "0.54"
+ic-platform = { version = "0.1.11", default-features = false, features = ["candid"] }
 ```
 
 The published MSRV is Rust 1.91, and the selected PocketIC line is 16.
 Canisters using benchmark markers can add the crate under `[dependencies]`.
+The Wasm library uses Platform's raw counters and marker logging,
+without a canister SDK or Candid; `Fake` uses the shared Principal type through `ic_platform::Principal`.
 `pocket_ic` and `pic` are host-only. `performance` is Wasm-only;
 `benchmark` counters, parsing and aggregation, and `Fake` are available on both
 targets. Native CSV and Markdown directory output lives in the repository's
 `benchmark_report` example. Candid calls require an explicit principal and caller-selected
-`ic_testkit_candid::DecodeLimits` and return contextual errors with typed decode
-causes; add `ic-testkit-candid` directly to select those budgets. Choose caller-side
+`ic_platform::candid::DecodeLimits` and return contextual errors with typed decode
+causes; add `ic-platform` with its `candid` feature directly to select those budgets. Choose caller-side
 `expect` when a fixture must panic. Standalone recipe builders return
 `std::io::Result<StandaloneCanisterFixture>`.
+
+`ic-testkit-candid` is retired and is no longer released from this workspace.
+For Testkit 0.54 and later, use `ic_platform::candid` with Platform's `candid`
+feature. Upgrade Testkit and replace the decoder dependency together, preserving
+caller-selected limits. Existing registry releases serve older Testkit consumers;
+they are not a second maintained decoder implementation.
+
+The optional native `wire` feature adds `pic::query_wire` and `pic::update_wire`.
+Select it with `ic-testkit = { version = "0.54", features = ["wire"] }` and declare
+`ic-wire` for your method contracts. Each helper takes an explicit target/caller
+and borrowed request; the Method owns the exact name, identity, types and finite
+limits. It executes one PocketIC operation without update retries; a refused reply
+does not prove absence of effects. It preserves
+application-level results. `WireCallError` retains typed codec causes, complete
+structured rejections and the existing transport classification. Unrelated panic
+payloads resume. Display omits payloads; raw calls remain available for malformed
+requests and original-byte evidence. Reply admission follows PocketIC's allocation,
+so it supplies no network pre-allocation or peak-heap guarantee. The feature is off
+by default and adds no Wire dependency to the canister library graph.
 
 This is the PocketIC package in the `ic-testkit` workspace. It provides:
 
@@ -36,7 +58,9 @@ This is the PocketIC package in the `ic-testkit` workspace. It provides:
 - one recipe baseline pool for single- and multi-canister PocketIC reuse
 - deterministic fake principals
 - controller-aware, caller-labeled collect-all diagnostics
-- compact benchmark marker parsing, aggregation, comparison, and report writing
+- explicit diagnostic reporting to a caller-selected writer, containing secondary
+  collection and output panics
+- compact benchmark marker parsing, aggregation and comparison
 - canister-side `Performance::measure` marker emission
 
 `ic-testkit` does not wrap the PocketIC simulator API or serialize independent
@@ -82,38 +106,21 @@ setup, examples, local checks, and release notes.
 The [documentation index](https://github.com/dragginzgame/ic-testkit/blob/main/docs/README.md)
 links current usage guidance and historical design records.
 
-The 0.27 startup-error contract uses `PocketIcStartupError::failure()`
+Startup failures expose `PocketIcStartupError::failure()`
 and `PocketIcStartupFailure` for cause matching. Read bounded server excerpts
 through `output()`, and inspect typed secondary failures through
 `command_cleanup()` and `server_cleanup()`. The original cause remains primary;
-raw output files remain caller-owned. Replace matches on the old error enum
-with matches on `error.failure()`; no compatibility entry points are retained.
+raw output files remain caller-owned.
 
-Import generic Host APIs directly from `ic-host-artifacts`, `ic-host-fs` and
-`ic-host-process` dependencies. Testkit no longer re-exports those crates.
-Add `ic-host-tools` directly for Candid and IC helpers;
-the [0.35 migration guide](CHANGELOG.md#0350) covers the removed convenience
-re-export and current import paths. The [Host 0.14 migration guide](CHANGELOG.md#0340)
-covers dependency alignment, completed results for nonzero exits, explicit
-`require_success()` before producer publication and fallible output observers.
-The [Host 0.13 upgrade guidance](CHANGELOG.md#0334) covers descriptor-based locking
-after removal of the pathname progress-lock helper. The [0.28 migration guide](CHANGELOG.md#0280)
-covers the earlier consolidated durable writer and retained publication-error
-evidence.
-The [0.24 migration guide](CHANGELOG.md#0240) covers IC Host 0.7's execution
-failure categories and replacing `artifacts::read_wasm` with
-`ic_host_fs::read::read_file` on an `artifacts::wasm_path`. The
-[0.20 migration guide](CHANGELOG.md#0200) maps the split owners.
-The [0.19 guide](CHANGELOG.md#0190) covers
-explicit tool resolution and verified external-transform arguments.
+Use direct `ic-host-artifacts`, `ic-host-fs` and `ic-host-process` dependencies
+for generic artifact streams, filesystem operations and process custody. Testkit
+selects gzip for its reviewed PocketIC server assets; its normal dependency graph
+does not select Host's Wasm-inspection feature. Consumers select the capabilities
+they use rather than inheriting them through Testkit.
 
-The published archive includes [`CHANGELOG.md`](CHANGELOG.md), which contains
-the [0.41.0 integer benchmark projection migration](CHANGELOG.md#0410),
-the [0.40.0 instance/server ownership migration](CHANGELOG.md#0400),
-the [0.38.0 single-pool migration](CHANGELOG.md#0380),
-the [0.13.0 benchmark and reset-requirement migration](CHANGELOG.md#0130),
-the `0.11.0` API and report-schema cuts, the `0.10` retained-artifact migration,
-the `0.9` managed-server lifetime migration, and earlier hard-cut tables.
+The published archive includes [`CHANGELOG.md`](CHANGELOG.md) for historical
+upgrade actions. Current build and artifact-cache contracts belong to IC Build;
+historical Testkit artifact imports are not current entry points.
 
 The repository also includes a complete
 [multi-canister baseline recipe](https://github.com/dragginzgame/ic-testkit/blob/main/crates/ic-testkit/examples/multi_canister_baseline_pool.rs)
@@ -130,8 +137,9 @@ Approximate percentage fields are removed. Aggregate CSV/text uses scale one in
 original counter units; comparison CSV includes both scales. Exact totals remain
 available, and zero runs/scaled overflow return typed errors. Write the changed
 columns to new report directories; retained reports are not reinterpreted.
-Baseline recipes construct reset requirements with
-`ResetRequirements::try_new(funding, non_snapshot_requirements)`. The pool
+Baseline recipes construct `ResetRequirements { funding, policies }` with the
+fixed optional fields in `ResetPolicies`. Their resets independently report
+`ResetReceipt { policies }`; absence differs from an explicit irrelevant policy. The pool
 restores the captured snapshots with the selected funding; successful manual
 restoration returns unit. `ResetReceipt` covers non-snapshot guarantees. These are source API hard cuts.
 
@@ -139,20 +147,21 @@ Generic Cargo/Wasm builds, retained artifact caches and freshness APIs belong to
 [IC Build](https://github.com/dragginzgame/ic-build). Depend on it directly and use
 `ic_build::artifacts`; Testkit keeps PocketIC lifecycle and benchmark policy.
 
-For 0.39, invoke Candid extensions on `fixture.pocket_ic()` with
-`fixture.canister_id()` explicitly; the standalone fixture owns installation
-and lifetime, while `CandidCallExt` owns encoding, invocation and decoding.
-See the [packaged migration notes](CHANGELOG.md#0390).
+Pass `fixture.pocket_ic()` and `fixture.canister_id()` explicitly to
+`query_candid_args` or `update_candid_args`. The standalone fixture owns installation
+and lifetime; bounded argument-sequence calls own encoding, invocation and decoding.
+Use `(T,)` for one reply and `()` for no replies; a single tuple reply uses `((T, U),)`.
+See the [packaged migration notes](CHANGELOG.md#0530---2026-10-17).
 
 Benchmark commands own run identities, provenance, history selection and any
-metadata sidecars. The report module renders supplied measurements as CSV and
-Markdown; it has no metadata schema, reader or history-discovery policy.
+metadata sidecars. The repository's `benchmark_report` example renders supplied
+measurements as CSV and Markdown; it has no metadata schema, reader or
+history-discovery policy.
 
 ### Raw reply canister fixtures
 
 Enable `ic-testkit`'s `reply-fixtures` feature to use
-`pic::fixtures::{raw_reply_canister, RawReplyMethod, RawReplyLimits, ReplyMode}`.
-Supply an explicit query/update mode and raw reply bytes for every method, plus
+`pic::fixtures::raw_reply_canister`. Supply exact raw reply bytes and explicit
 aggregate method-count, UTF-8 method-name and reply-byte ceilings. Empty or
 control-containing names, duplicate exports and unsupported Wasm32 extents are
 rejected before encoding. Query and update exports may share a method name.

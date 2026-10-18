@@ -5,9 +5,9 @@
 //! extension traits and policy types.
 //!
 //! Construct and own [`PocketIc`] instances normally, then import individual
-//! extension traits or [`prelude`] for Candid calls, installation, diagnostics,
-//! snapshots, fallible startup, bounded predicate polling. Native
-//! simulator operations remain upstream inherent methods.
+//! extension traits or [`prelude`] for installation, diagnostics and snapshots.
+//! Import the call functions, startup configuration and polling helpers explicitly.
+//! Native simulator operations remain upstream inherent methods.
 //!
 //! [`PocketIcManagedServer`] can explicitly own one exact caller-selected
 //! server child for a serial suite. No type serializes independent instances or
@@ -41,6 +41,8 @@ mod standalone_recipe;
 mod startup;
 mod time;
 mod transport;
+#[cfg(feature = "wire")]
+mod wire;
 
 pub use baseline::CachedPocketIcBaseline;
 pub use baseline_pool::{
@@ -48,9 +50,9 @@ pub use baseline_pool::{
     BaselinePoolPreparationError, BaselinePoolTimings, BaselinePreparationStage,
     CachedPocketIcBaselinePool, CachedPocketIcBaselinePoolGuard, ExtraCanisterPolicy,
     FailureDisposition, PocketIcBaselineRecipe, PreparedBaseline, RebuildReason, ResetDomainKind,
-    ResetDomainPolicy, ResetReceipt, ResetRequirements, StateResetPolicy, TimeResetPolicy,
+    ResetPolicies, ResetReceipt, ResetRequirements, StateResetPolicy, TimeResetPolicy,
 };
-pub use calls::{CandidCallExt, query_candid_args, update_candid_args};
+pub use calls::{query_candid_args, update_candid_args};
 pub use diagnostics::{
     CanisterDiagnosticLogRecord, CanisterDiagnosticLogs, CanisterDiagnosticsBatchContractError,
     CanisterDiagnosticsBatchEntry, CanisterDiagnosticsBatchReport, CanisterDiagnosticsReport,
@@ -75,13 +77,13 @@ pub use time::{TickUntilError, advance_and_tick, tick_until};
 pub use transport::{
     PocketIcCallFailure, PocketIcOperationError, is_dead_pocket_ic_transport_error,
 };
+#[cfg(feature = "wire")]
+pub use wire::{WireCallContext, WireCallError, query_wire, update_wire};
 
 /// All PocketIC extension traits, and no data types.
 ///
 /// Importing this module keeps policy/data types explicit while avoiding
 /// repeated trait lists across a large integration-test crate.
 pub mod prelude {
-    pub use super::{
-        CandidCallExt, CanisterInstallExt, PocketIcDiagnosticsExt, PocketIcSnapshotExt,
-    };
+    pub use super::{CanisterInstallExt, PocketIcDiagnosticsExt, PocketIcSnapshotExt};
 }
