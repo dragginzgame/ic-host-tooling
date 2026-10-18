@@ -30,6 +30,11 @@ roles, release identities or manifests.
 
 ## Implemented ownership
 
+Native optimizer semantic qualification belongs to Build. Its explicit qualifier
+uses retained transactions and the transferred execution oracle; callers admit
+the optimizer and select Node. Shared Tooling retains archive authentication and
+installation. Product-specific installed-IC qualification stays with consumers.
+
 Published Host Artifacts/FS 0.27.5 own caller-scratch stream visitation and fresh-
 directory allocation. Build retains digest framing, exact-size refusal and its
 capture prefix/permissions/collision policy, using Host OwnedDirectory directly.

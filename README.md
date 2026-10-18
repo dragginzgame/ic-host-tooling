@@ -117,10 +117,10 @@ prerequisites.
 [rust-toolchain.toml](rust-toolchain.toml) selects Rust 1.99.1
 development compiler, rustfmt, Clippy and its Wasm target independently of the qualified Linux
 library MSRV. Explicit setup reads that target from the toolchain file. The complete
-common host/Cargo toolset is prepared and checked on Linux x86-64. This repo has
-no installed IC-executable caller; IC setup remains an explicit opt-in through
-the shared ordered local target lists when such a caller is added. Existing IC
-installations remain retained. Interactive shells use
+common host/Cargo toolset is prepared and checked on Linux x86-64. Native optimizer
+qualification additionally requires explicit IC-tool setup and admission; ordinary
+tests do not choose or install those executables. Existing IC installations remain
+retained. Interactive shells use
 the PATH selection in [local developer setup](docs/local-setup.md).
 Fetch the selected workspace dependencies before the offline validation gate;
 installing developer tools does not populate this project cache. CI performs the
@@ -202,6 +202,23 @@ The [transactional transform example](crates/ic-build/examples/transactional_art
 composes a caller-selected, admitted tool with the generic cache; it chooses its
 own recipe and maintenance policy. Follow [AGENTS.md](AGENTS.md) and the ownership
 design for further convergence of Canic's complete-build mechanics.
+
+Native optimizer qualification is owned here, with the transferred WAT and
+JavaScript oracle under `crates/ic-build/tests/fixtures/wasm-optimizer/`. After
+explicit tool setup/admission, prepare the Node version in `.node-version` and
+the locked Cargo cache, then run:
+
+```bash
+optimizer="$(bash scripts/dev/install-ic-tools.sh --check)"
+bash scripts/ci/qualify-wasm-opt.sh "$optimizer/wasm-opt" /absolute/new-evidence
+```
+
+The ignored integration target runs real `-O3`, `-Os` and `-Oz` transforms through
+retained cache transactions, checks repaired materialization and reuse, and holds
+the records through Wasm execution. The CI matrix explicitly runs this target on
+Linux and both macOS hosts. Failures retain inputs, outputs and logs. Ordinary
+test runs do not implicitly install or select an optimizer. Shared Tooling keeps
+archive authentication and executable-installation checks.
 
 ## Coordination
 

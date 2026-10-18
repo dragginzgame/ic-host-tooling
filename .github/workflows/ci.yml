@@ -31,6 +31,45 @@ jobs:
       - name: Check shell and workflow sources and scan history
         run: make lint check-secrets
 
+  wasm-optimizer:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15, macos-15-intel]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          persist-credentials: false
+      - name: Prepare retained qualification directory
+        run: |
+          mkdir -p "$RUNNER_TEMP/wasm-qualification"
+          echo "TMPDIR=$RUNNER_TEMP/wasm-qualification" >> "$GITHUB_ENV"
+      - name: Prepare declared compiler
+        run: rustup toolchain install --profile minimal --no-self-update
+      - name: Prepare and admit native optimizer tools
+        run: |
+          make install-host-tools 2>&1 | tee "$TMPDIR/host-tools-install.log"
+          make install-ic-tools 2>&1 | tee "$TMPDIR/ic-tools-install.log"
+          make host-tools-check ic-tools-check
+      - name: Prepare pinned Wasm execution runtime
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version-file: .node-version
+      - name: Prepare locked dependencies
+        run: cargo fetch --locked 2>&1 | tee "$TMPDIR/dependencies-fetch.log"
+      - name: Qualify native artifact transforms
+        run: |
+          optimizer="$(bash scripts/dev/install-ic-tools.sh --check)"
+          bash scripts/ci/qualify-wasm-opt.sh "$optimizer/wasm-opt" "$RUNNER_TEMP/wasm-qualification/optimizer"
+      - name: Retain failed native qualification
+        if: ${{ failure() && !cancelled() }}
+        uses: ./.github/actions/retain-failure-evidence
+        with:
+          name: wasm-optimizer-${{ matrix.os }}-${{ github.run_attempt }}
+          temp-root: ${{ runner.temp }}/wasm-qualification
+          repository-root: ${{ github.workspace }}
+
   bootstrap:
     strategy:
       fail-fast: false

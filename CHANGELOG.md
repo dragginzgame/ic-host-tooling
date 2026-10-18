@@ -17,6 +17,12 @@ archive also includes the extracted artifact engine and Cargo grouping API.
   command/progress/build effects remain unchanged
   ([PR #65](https://github.com/dragginzgame/ic-build/pull/65)).
 
+- Own explicit native Wasm optimizer qualification through retained artifact
+  transactions, repaired cache reuse and the transferred execution oracle.
+  Shared Tooling retains tool installation/admission; ordinary tests do not
+  install or choose tools ([#61](https://github.com/dragginzgame/ic-build/issues/61),
+  [PR #62](https://github.com/dragginzgame/ic-build/pull/62)).
+
 - Render read-only Cargo release candidates with TOML-owned literal spans,
   preserving unrelated bytes and source-qualified dependencies. Expose an
   explicit, bounded CLI with live or saved workspace identity admission.
