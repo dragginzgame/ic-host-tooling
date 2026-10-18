@@ -109,6 +109,16 @@ nothing: callers retain Agent verification, trust roots, combined evidence
 budgets, witness commitments and application leaf meanings. The feature adds no
 Agent transport, filesystem/process execution or Candid parser.
 
+The opt-in native `agent` feature exposes `agent::{agent_builder, EndpointAgent}`
+using upstream Agent identities through Platform. Pass a parsed `url::Url` and response-byte ceiling
+to the builder, then customize SDK identity/verification settings as needed.
+`EndpointAgent::get(endpoint, ceiling)` lazily reuses an SDK-default agent bound
+to the exact endpoint text and ceiling; conflicting reuse is a typed error.
+Consumers must admit their endpoints before use: URL parsing alone does not
+enforce HTTP(S), credential, query or fragment policy. Root-key fetching,
+historical verification, deadlines and all network calls remain caller-owned.
+This native-only profile does not widen default or certificate dependencies.
+
 The optional `ledger-evidence` feature adds `ledger_evidence::BoundedLedgerBlocks`
 for caller-bounded ICRC-3 value admission and exact descending-chain verification.
 Supply a separately authenticated `LedgerTip`; constructing that passive record

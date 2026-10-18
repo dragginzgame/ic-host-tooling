@@ -15,7 +15,7 @@ help:
 	@echo 'Selected package: check, clippy, docs-check, test, msrv (PACKAGE=<crate>)'
 	@echo 'Minimal artifact configuration: test-artifacts-minimal'
 	@echo 'Unsupported-target compile contract: check-fs-non-unix (prepared Wasm target required)'
-	@echo 'Tools profiles: test-tools-default, test-tools-interface, test-tools-certificate, test-tools-encoding and tools-features-check'
+	@echo 'Tools profiles: test-tools-default, test-tools-interface, test-tools-certificate, test-tools-agent, test-tools-encoding and tools-features-check'
 	@echo 'Formatting and metadata: fmt, fmt-check, shared-tooling-check, dependency-pins-check, check-doc-links, release-adapter-check'
 	@echo 'Hook qualification: formatting-hook-check (disposable Git fixtures; prepared formatters required)'
 	@echo 'Common setup: install-tools (host and Cargo); install-hooks is separate'
@@ -50,6 +50,10 @@ test-tools-interface:
 .PHONY: test-tools-certificate test-tools-encoding test-wasm-inspection
 test-tools-certificate:
 	+cargo test -p ic-host-tools --no-default-features --features certificate --all-targets --locked --offline
+.PHONY: test-tools-agent
+test-tools-agent:
+	+cargo test -p ic-host-tools --no-default-features --features agent --all-targets --locked --offline
+
 test-tools-encoding:
 	+cargo test -p ic-host-tools --no-default-features --features encoding --all-targets --locked --offline
 test-wasm-inspection:
@@ -93,6 +97,8 @@ ci:
 	+$(MAKE) --no-print-directory test-tools-default
 	+$(MAKE) --no-print-directory test-tools-interface
 	+$(MAKE) --no-print-directory test-tools-certificate
+	+$(MAKE) --no-print-directory test-tools-agent
+
 	+$(MAKE) --no-print-directory test-tools-encoding
 	+$(MAKE) --no-print-directory test-wasm-inspection
 	+cargo clippy --workspace --all-targets --all-features --locked --offline -- -D warnings

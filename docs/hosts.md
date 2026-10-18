@@ -28,6 +28,9 @@ inspection with the default graph. `make test-tools-interface` adds Wasm export
 interpretation; `make test-tools-certificate` adds strict owned certificate/hash-tree
 decoding. `make test PACKAGE=ic-host-text` checks bounded line normalization,
 escaping, progress frames and Unicode table alignment.
+`make test-tools-agent` exercises native construction, exact binding and response
+ceilings. Its Wasm graph check observes dependency exclusion, not Tools execution.
+
 The optional `icp-project` feature qualifies bounded effective-YAML projection;
 default and certificate profiles exclude its YAML parser.
 
@@ -99,6 +102,10 @@ CLI members are `Production packages`. Shared test/production dependencies stay
 in the production category. No current external catalog entry is test-only.
 Internal aliases exist only for dependencies inherited by actual members;
 workspace membership does not require a matching catalog dependency.
+The Process alias is a test-only dependency of Tools' HTTP fixture and is excluded
+from the other packages' normal/build graphs. Process itself remains a production
+package. Tokio stays in the production category because Agent transport also
+uses it transitively, although Host's direct Tokio declaration is dev-only.
 Host's direct-dependency guard covers the known external IC package families in
 `ci/cargo-dependency-boundaries.json`, including renamed, development, optional and
 target-specific declarations. The broader Platform boundary also requires review
@@ -163,12 +170,13 @@ review; the checker covers declared member edges and exact policy names.
 These checks preserve Tools/Text/inspection ownership boundaries; role comments
 are explanatory and are not parsed as an executable exclusion policy.
 
-There is no tests/tooling-only dependency set in the current production catalog,
-and no canister build or deployment entrypoint in Host. This repository publishes
+The test-only Process alias is graph-checked out of the other production owners;
+the selected Process root is intentionally excluded from that dependency rule.
+There is no canister build or deployment entrypoint in Host. This repository publishes
 libraries and a native CLI. It cannot certify a downstream deployment's features,
 transitive test-only exclusions or final artifact digest. Deployment owners must
 enforce their own exclusions against their locked target/feature graph and bind
 successful build evidence to the installed artifact. Shared's sorter, pin checker
-and snapshot verification do not provide that admission. Adding a test-only catalog
-entry in future requires an explicit graph exclusion; a comment alone will not
-activate one. Native macOS and deployment evidence remain distinct from graph checks.
+and snapshot verification do not provide that admission. Further test-only catalog
+entries require explicit graph exclusions; comments alone do not activate them.
+Native macOS and deployment evidence remain distinct from graph checks.

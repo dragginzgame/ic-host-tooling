@@ -198,6 +198,13 @@ Linux requires each stat record to fit completely within its allowance before
 parsing; bounded artifact-reader refusals retain their typed cause through
 `SamplingError::Io`, while native disappearance/access skip rules stay intact.
 
+The optional native Tools `agent` feature shares response-bounded SDK construction
+and lazy exact endpoint/ceiling binding using Platform's supported Agent API.
+The caller retains endpoint admission, trust roots, identity, historical policy,
+deadlines and every network call. Defaults/certificate exclude transport, and
+the Wasm graph excludes it even with the feature selected. Process and Tokio
+are dev-only fixtures; no lifecycle owner or automatic network activity is added.
+
 The optional tools `encoding` feature decodes a complete canonical unsigned
 `u64` LEB128 value without allocation or new dependencies. It rejects truncated,
 overflowing, nonminimal and trailing encodings while inspecting at most ten bytes.
