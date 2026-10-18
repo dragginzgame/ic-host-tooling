@@ -28,7 +28,7 @@
   <a href="https://crates.io/crates/ic-testkit"><img src="https://img.shields.io/crates/d/ic-testkit.svg" alt="Downloads"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
   <a href="Cargo.toml"><img src="https://img.shields.io/badge/MSRV-1.91.0-blue.svg" alt="MSRV"></a>
-  <a href="README.md#toolchains-and-checks"><img src="https://img.shields.io/badge/internal%20rust-1.99.0-orange.svg" alt="Internal Rust"></a>
+  <a href="README.md#toolchains-and-checks"><img src="https://img.shields.io/badge/internal%20rust-1.99.1-orange.svg" alt="Internal Rust"></a>
   <a href="Cargo.toml"><img src="https://img.shields.io/badge/edition-2024-purple.svg" alt="Rust edition"></a>
   <a href="Cargo.toml"><img src="https://img.shields.io/badge/PocketIC-16.1-green.svg" alt="PocketIC"></a>
   <a href="https://github.com/dragginzgame/ic-testkit"><img src="https://img.shields.io/badge/GitHub-dragginzgame%2Fic--testkit-black.svg" alt="Repository"></a>
@@ -103,7 +103,8 @@ Host-side test crates normally add:
 
 ```toml
 [dev-dependencies]
-ic-testkit = "0.51"
+ic-testkit = "0.54"
+ic-platform = { version = "0.1.11", default-features = false, features = ["candid"] }
 ```
 
 Canister crates that emit benchmark markers can add the same version under
@@ -112,6 +113,8 @@ Canister crates that emit benchmark markers can add the same version under
 The crate supports Rust 1.91 and uses PocketIC 16. The `pocket_ic` and `pic`
 modules are host-only; `performance` emits markers on Wasm. Benchmark counters,
 marker parsing, aggregation and `Fake` are available on native and Wasm targets.
+The Wasm library uses Platform's raw counters and marker logging,
+without a canister SDK or Candid; `Fake` uses the shared Principal type through `ic_platform::Principal`.
 Native CSV/Markdown directory output is provided by the repository's
 `benchmark_report` example; applications own provenance and output policy.
 
@@ -178,7 +181,7 @@ restored or validated.
 | --- | --- | --- |
 | PocketIC runtime | `pocket_ic`; `pic::{PocketIc, PocketIcBuilder}` | Complete upstream crate escape hatch plus focused convenience re-exports; no wrapper |
 | Startup | `PocketIcStartupConfig`, `PocketIcManagedServer` | Explicit bounded spawn/connect policy, owned shared-server lifecycle, and structured failures |
-| Calls | `CandidCallExt` | Candid encoding/decoding, contextual errors, preserved rejections |
+| Calls | `query_candid_args`, `update_candid_args` | Candid encoding/decoding, contextual errors, preserved rejections |
 | Installation | `CanisterInstallExt`, `InstallSpec` | Generic install policy, structured failures and rate-limit retry |
 | Standalone fixtures | `StandaloneCanisterFixture` | Owns one caller-built instance and one installed canister id |
 | Snapshots | `PocketIcSnapshotExt`, `CachedPocketIcBaseline` | Ordered transactional capture, explicit restore funding, scoped caching |
@@ -188,7 +191,7 @@ restored or validated.
 | Benchmarks | `benchmark`, `performance` | Marker emission, parsing, aggregation, comparison, and reports |
 | Test identities | `Fake` | Stable deterministic principals |
 
-`ic_testkit::pic::prelude::*` imports the six extension traits only. Data types
+`ic_testkit::pic::prelude::*` imports the three extension traits only. Data types
 and PocketIC types remain explicit imports.
 
 ## PocketIC ownership and concurrency
@@ -196,13 +199,14 @@ and PocketIC types remain explicit imports.
 Each test normally constructs and directly owns one fresh `PocketIc`:
 
 ```rust,no_run
-use candid::Principal;
-use ic_testkit::pic::{PocketIc, prelude::*};
+use ic_platform::Principal;
+use ic_testkit::pic::{PocketIc, query_candid_args};
 
-fn read_counter(pocket_ic: &PocketIc, canister_id: Principal, limits: ic_testkit_candid::DecodeLimits)
+fn read_counter(pocket_ic: &PocketIc, canister_id: Principal, limits: ic_platform::candid::DecodeLimits)
     -> Result<u64, ic_testkit::pic::CandidCallError>
 {
-    pocket_ic.query_candid(canister_id, candid::Principal::anonymous(), "get", (), limits)
+    let (value,): (u64,) = query_candid_args(pocket_ic, canister_id, ic_platform::Principal::anonymous(), "get", (), limits)?;
+    Ok(value)
 }
 ```
 
@@ -221,30 +225,37 @@ cargo test --test pocket_ic_e2e -- --test-threads=1
 Keep ordinary unit tests parallel. The thread count is downstream capacity
 tuning, not an ic-testkit correctness requirement.
 
-The separate [ic-testkit-candid](crates/ic-testkit-candid/README.md) package
+The published `ic-platform` package with its `candid` feature
 provides caller-bounded native/Wasm reply decoding without simulator dependencies.
 Consumers own budgets, transport, trust, raw evidence and error projection.
+
+`ic-testkit-candid` is retired and is no longer released from this workspace.
+For Testkit 0.54 and later, use `ic_platform::candid` with Platform's `candid`
+feature. Upgrade Testkit and replace the decoder dependency together, preserving
+caller-selected limits. Existing registry releases serve older Testkit consumers;
+they are not a second maintained decoder implementation.
 
 Generic Host functionality belongs to direct `ic-host-artifacts`, `ic-host-fs`
 and `ic-host-process` dependencies; Testkit does not re-export those crates.
 
 ## Typed Candid calls
 
-`CandidCallExt` requires an explicit principal for every query/update. Pass
+`query_candid_args` and `update_candid_args` require an explicit principal for every query/update. Pass
 `Principal::anonymous()` for anonymous access. Each
-call requires explicit `ic_testkit_candid::DecodeLimits` for reply bytes, decoder
+call requires explicit `ic_platform::candid::DecodeLimits` for reply bytes, decoder
 work, skipping, type entries and header bytes. These budgets govern reply
 decoding; transport deadlines remain with the caller and PocketIC:
 
 ```rust,no_run
-use candid::Principal;
-use ic_testkit::pic::{CandidCallExt, PocketIc};
+use ic_platform::Principal;
+use ic_testkit::pic::{query_candid_args, update_candid_args, PocketIc};
 
-fn increment_counter(pocket_ic: &PocketIc, canister_id: Principal, limits: ic_testkit_candid::DecodeLimits)
+fn increment_counter(pocket_ic: &PocketIc, canister_id: Principal, limits: ic_platform::candid::DecodeLimits)
     -> Result<(), ic_testkit::pic::CandidCallError>
 {
-    let _: () = pocket_ic.update_candid(canister_id, candid::Principal::anonymous(), "increment", (), limits)?;
-    let value: u64 = pocket_ic.query_candid(
+    let ((),) = update_candid_args(pocket_ic, canister_id, ic_platform::Principal::anonymous(), "increment", (), limits)?;
+    let (value,): (u64,) = query_candid_args(
+        pocket_ic,
         canister_id,
         Principal::anonymous(),
         "get",
@@ -256,6 +267,9 @@ fn increment_counter(pocket_ic: &PocketIc, canister_id: Principal, limits: ic_te
 }
 ```
 
+`()` requests no replies, `(T,)` one reply and `(T, U)` two replies. A single
+tuple-valued reply uses `((T, U),)`; one unit reply uses `((),)`.
+
 Handle `CandidCallError` through the returned result or choose an explicit
 caller-side `.expect("call context")`. Application values such as `Result<T, E>`
 remain unchanged.
@@ -263,7 +277,7 @@ remain unchanged.
 `CandidCallError` variants distinguish:
 
 - `Encode` and `Decode` failures with call context; `Decode::source` retains
-  `ic_testkit_candid::DecodeError` and exposes it through `Error::source()`;
+  `ic_platform::candid::DecodeError` and exposes it through `Error::source()`;
 - `CanisterReject`, retaining the complete upstream `RejectResponse`;
 - `Transport` when the PocketIC instance is unreachable;
 
@@ -284,12 +298,18 @@ use ic_testkit::pic::{
 use std::{path::Path, time::Duration};
 
 fn build_test_ic(server_binary: &Path) -> Result<PocketIcInstance<PocketIc>, ic_testkit::pic::PocketIcStartupError> {
-    PocketIcStartupConfig::spawn(server_binary, Duration::from_secs(30))
+    PocketIcStartupConfig::Spawn {
+        server_binary: server_binary.into(),
+        timeout: Duration::from_secs(30),
+        server_hard_ttl: None,
+        server_idle_ttl: None,
+        server_output_files: None,
+    }
         .build_instance(PocketIcBuilder::new().with_application_subnet().with_ii_subnet())
 }
 ```
 
-`PocketIcStartupConfig::spawn` launches one exact, caller-resolved executable,
+`PocketIcStartupConfig::Spawn` launches one exact, caller-resolved executable,
 monitors it while waiting for its port file and while PocketIC creates the
 instance, and terminates it if the complete deadline expires. A child exit,
 readiness timeout, invalid port, spawn failure, builder panic, and instance
@@ -304,7 +324,7 @@ matches on `error.failure()`. The CLI preserves a failed command's status when
 server teardown also fails and reports failure if a successful command's server
 cannot be cleaned up. No absolute hard TTL is applied
 by default; PocketIC's activity-based soft TTL still bounds orphaned servers.
-Call `with_server_hard_ttl` to opt into an absolute lifetime.
+Set `Spawn.server_hard_ttl` to opt into an absolute lifetime.
 
 For a fresh server whose lifetime ends with the fixture, use
 `config.build_instance(builder)`. It returns `PocketIcInstance<PocketIc>` with
@@ -331,7 +351,13 @@ The async instance requires explicit deletion while its server is retained:
 # async fn example(binary: &std::path::Path) -> Result<(), ic_testkit::pic::PocketIcStartupError> {
 use ic_testkit::pic::{PocketIcBuilder, PocketIcStartupConfig};
 use std::time::Duration;
-let owned = PocketIcStartupConfig::spawn(binary, Duration::from_secs(60))
+let owned = PocketIcStartupConfig::Spawn {
+        server_binary: binary.into(),
+        timeout: Duration::from_secs(60),
+        server_hard_ttl: None,
+        server_idle_ttl: None,
+        server_output_files: None,
+    }
     .build_instance_async(PocketIcBuilder::new().with_application_subnet()).await?;
 let canister = owned.instance.create_canister().await;
 assert!(owned.instance.canister_exists(canister).await);
@@ -344,7 +370,7 @@ drop(owned.server);
 Neither construction method adds an instance-operation or deletion deadline.
 The synchronous upstream drop limitation below still applies.
 
-Use `PocketIcStartupConfig::connect(url, timeout)` for a caller-owned existing
+Use `PocketIcStartupConfig::Connect { server_url: url.into(), timeout }` for a caller-owned existing
 server. Both modes set the server URL on the builder, preventing its implicit,
 unbounded child-startup path. There is no implicit binary fallback or hidden retry.
 
@@ -364,12 +390,18 @@ use ic_testkit::pic::{
 use std::{path::Path, time::Duration};
 
 fn run_serial_suite(server_binary: &Path) -> Result<(), ic_testkit::pic::PocketIcStartupError> {
-    let server = PocketIcStartupConfig::spawn(server_binary, Duration::from_secs(30))
+    let server = PocketIcStartupConfig::Spawn {
+        server_binary: server_binary.into(),
+        timeout: Duration::from_secs(30),
+        server_hard_ttl: None,
+        server_idle_ttl: None,
+        server_output_files: None,
+    }
         .start_managed_server()?;
     eprintln!("managed server PID: {}", server.process_id());
-    let first = PocketIcStartupConfig::connect(server.url(), Duration::from_secs(30))
+    let first = PocketIcStartupConfig::Connect { server_url: (server.url()).into(), timeout: Duration::from_secs(30) }
         .build_instance(PocketIcBuilder::new().with_application_subnet())?;
-    let second = PocketIcStartupConfig::connect(server.url(), Duration::from_secs(30))
+    let second = PocketIcStartupConfig::Connect { server_url: (server.url()).into(), timeout: Duration::from_secs(30) }
         .build_instance(PocketIcBuilder::new().with_application_subnet())?;
     eprintln!("managed server stdout: {}", server.output().stdout());
     drop((first, second));
@@ -433,7 +465,7 @@ Provisioning requires `curl`; offline checking does not.
 
 Rust fixtures use `ic_testkit::pic::server_assets::check(&directory)` for the same
 offline authenticated admission, returning an absolute executable path for
-`PocketIcStartupConfig::spawn`. It does not invoke Cargo, Make or the CLI.
+`PocketIcStartupConfig::Spawn`. It does not invoke Cargo, Make or the CLI.
 Explicit provisioning is also available through `server_assets::setup`, with
 a caller-supplied cancellation predicate; the library installs no signal handlers.
 The caller still owns the physical root and prevents replacement before launch.
@@ -483,11 +515,10 @@ request. Without this option, PocketIC keeps its own idle default (60 seconds
 in the prepared 16.1.0 server). For example, `run --idle-ttl 10800 -- COMMAND`
 allows up to three idle hours without imposing a hard lifetime. Both TTL options
 require positive whole seconds and owned-server mode. Library callers use
-`with_server_idle_ttl`; `--ttl` continues to select the independent hard lifetime.
+`Spawn.server_idle_ttl`; `--ttl` continues to select the independent hard lifetime.
 
 For complete raw diagnostics after startup failure, command failure or interruption,
-select two new files with `PocketIcStartupConfig::with_server_output_files(stdout,
-stderr)`, or use the paired CLI flags:
+select two new files with `Spawn { server_output_files: Some((stdout, stderr)), ... }`, or use the paired CLI flags:
 
 ```bash
 attempt="$(mktemp -d "${TMPDIR:-/tmp}/pocket-ic-attempt.XXXXXX")"
@@ -516,12 +547,12 @@ the active endpoint.
 `InstallSpec` carries Wasm, initialization bytes, funding and an optional error label:
 
 ```rust,no_run
-use candid::Principal;
+use ic_platform::Principal;
 use ic_testkit::pic::{
-    CandidCallExt, InstallSpec, PocketIcBuilder, PocketIcStartupConfig, StandaloneCanisterFixture,
+    query_candid_args, InstallSpec, PocketIcBuilder, PocketIcStartupConfig, StandaloneCanisterFixture,
 };
 
-fn install_counter(wasm: Vec<u8>, init_bytes: Vec<u8>, limits: ic_testkit_candid::DecodeLimits)
+fn install_counter(wasm: Vec<u8>, init_bytes: Vec<u8>, limits: ic_platform::candid::DecodeLimits)
     -> Result<StandaloneCanisterFixture, Box<dyn std::error::Error>>
 {
     let owned = PocketIcStartupConfig::from_env(std::time::Duration::from_secs(30))?
@@ -531,7 +562,7 @@ fn install_counter(wasm: Vec<u8>, init_bytes: Vec<u8>, limits: ic_testkit_candid
         InstallSpec { wasm, init_bytes, cycles: 1_000_000_000_000, install_sender: Some(Principal::anonymous()), label: Some("counter" .into()) },
     )?;
 
-    let _value: u64 = fixture.pocket_ic().query_candid(fixture.canister_id(), candid::Principal::anonymous(), "get", (), limits)?;
+    let (_value,): (u64,) = query_candid_args(fixture.pocket_ic(), fixture.canister_id(), ic_platform::Principal::anonymous(), "get", (), limits)?;
     Ok(fixture)
 }
 ```
@@ -553,8 +584,8 @@ print diagnostics. A fixture can use the retained canister ID and instance with
 output policy. Keep any diagnostic failure subordinate to the install error.
 
 For installation into an existing instance, import `CanisterInstallExt` and
-use `try_create_and_install` or `try_create_and_install_many`. Batch installs
-run in iterator order. If one fails, earlier installs remain, the failed
+use `try_create_and_install`. For a batch, map the ordered iterator through
+that method and collect into `Result<Vec<_>, _>`. If one fails, earlier installs remain, the failed
 canister may already exist, and later installs are not attempted.
 
 ### Install-code rate limiting
@@ -586,7 +617,7 @@ order, and cleans up earlier snapshots if a later capture fails. Restore reuses
 those captured senders and requires an explicit cycle-funding policy:
 
 ```rust,no_run
-use candid::Principal;
+use ic_platform::Principal;
 use ic_testkit::pic::{
     CanisterSnapshotTarget, PocketIc, PocketIcSnapshotExt, SnapshotRestoreFunding,
 };
@@ -629,13 +660,13 @@ outcome rather than a cache-hit boolean. See the [complete recipe example](crate
 
 Single-canister suites use the same pool with `StandaloneCanisterRecipe`. Each
 slot owns an independent instance and captured snapshot. The recipe requires an
-explicit identity and restore-funding policy, and the lease's metadata carries
+explicit restore-funding policy, and the lease's metadata carries
 its installed canister ID:
 
 ```rust,no_run
 use std::{num::NonZeroUsize, sync::LazyLock};
 use ic_testkit::pic::{
-    CachedPocketIcBaselinePool, CandidCallExt, FixtureRecipeId, SnapshotRestoreFunding,
+    CachedPocketIcBaselinePool, query_candid_args, SnapshotRestoreFunding,
     StandaloneCanisterFixture, StandaloneCanisterRecipe,
 };
 
@@ -645,7 +676,7 @@ static POOL: LazyLock<
     CachedPocketIcBaselinePool::new(
         NonZeroUsize::new(8).unwrap(),
         StandaloneCanisterRecipe::new(
-            FixtureRecipeId::try_new("suite/counter").unwrap(),
+
             SnapshotRestoreFunding::Preserve,
             build_fixture as fn() -> _,
         ),
@@ -653,9 +684,10 @@ static POOL: LazyLock<
 });
 
 # fn build_fixture() -> std::io::Result<StandaloneCanisterFixture> { unimplemented!() }
-fn read_pooled_counter(limits: ic_testkit_candid::DecodeLimits) -> Result<u64, Box<dyn std::error::Error>> {
+fn read_pooled_counter(limits: ic_platform::candid::DecodeLimits) -> Result<u64, Box<dyn std::error::Error>> {
     let (baseline, _outcome) = POOL.acquire()?;
-    Ok(baseline.pocket_ic().query_candid(*baseline.metadata(), candid::Principal::anonymous(), "get", (), limits)?)
+    let (value,): (u64,) = query_candid_args(baseline.pocket_ic(), *baseline.metadata(), ic_platform::Principal::anonymous(), "get", (), limits)?;
+    Ok(value)
 }
 ```
 
@@ -671,7 +703,7 @@ One pool owns one recipe. The builder must produce the same Wasm, init arguments
 topology and seeded state whenever invoked. Builders return `std::io::Result<StandaloneCanisterFixture>` and may own
 configuration in a `Send + Sync + 'static` closure. Returned errors keep their
 source and build-stage timings; ordinary construction failures need no panic. Use a fresh instance or a custom recipe for state
-outside the captured canister. See the [0.38 migration](crates/ic-testkit/CHANGELOG.md#0380)
+outside the captured canister. See the [0.38 migration](crates/ic-testkit/CHANGELOG.md#0380---2026-10-13)
 for the removed standalone-pool interface.
 
 The lease's `Drop` implementation releases a capacity slot, so Clippy can
@@ -724,25 +756,26 @@ fn use_recipe<R: PocketIcBaselineRecipe>(recipe: R)
 
 A complete, compile-checked
 [`PocketIcBaselineRecipe`](crates/ic-testkit/examples/multi_canister_baseline_pool.rs)
-shows a two-canister build, exact restore receipt, readiness boundary, invariant
+shows a two-canister build, canonical restoration, readiness boundary, invariant
 validation, dead-transport classification, and cold/warm acquisition.
 
-The recipe declares typed reset requirements and implements the exact reuse
-sequence: restore every captured canister, reset non-snapshot state, drive the
-topology to readiness, then validate final invariants. Construct requirements
-with `ResetRequirements::try_new(cycle_policy, non_snapshot_requirements)`.
-The pool checks the complete captured set and cycle policy directly against
-`CanisterRestoreReceipt`; `ResetReceipt` reports only non-snapshot guarantees.
-`drive_to_readiness` and `validate` return `Result<(), E>`: successful calls
-admit progress, while recipe errors retain their lifecycle stage. They do not
-construct string receipts or repeat the pool-owned recipe identity.
-Every required policy must have an exact matching achievement before a warm
-lease is returned. Built and restored slots
-run the same validation hook. `baseline.restore(funding)` returns the receipt
-for its captured set and selected funding; return it directly from ordinary
-recipe restore hooks. Cached baseline capture rejects empty canister sets before
-capture. Custom recipes that establish additional cycle guarantees can use
-`CanisterRestoreReceipt::try_new` to report their complete achieved contract.
+The recipe declares `ResetRequirements { funding, policies }`, using the fixed
+optional fields in `ResetPolicies` for its non-snapshot requirements. Its reset
+independently returns `ResetReceipt { policies }` with the achieved guarantees.
+`None` makes no claim; explicitly declaring a domain irrelevant remains distinct. The pool owns
+canonical restoration of its captured canister set. Recipes that need a pre-restore guard can implement `prepare_restore`;
+ordinary forwarding restore hooks are unnecessary. The pool then runs the recipe's
+non-snapshot reset, readiness and final invariant checks in order. Every required
+non-snapshot policy must match its achievement before a warm lease is returned.
+Built and restored slots run the same final validation hook.
+
+`drive_to_readiness` and `validate` return `Result<(), E>`, with lifecycle stages
+retained on failure. `baseline.restore(funding)` still supports explicit manual
+restoration and returns `Result<(), ControllerSnapshotError>`. Inspect captured
+IDs through `baseline.snapshot_canister_ids()` and funding through the recipe
+requirements; `PreparedBaseline::Restored { reset }` retains non-snapshot evidence. Cached baseline
+capture rejects empty canister sets before effects. `classify_failure` receives
+the original recipe or canonical snapshot cause through the error trait object.
 
 A recoverable preparation failure discards the slot and rebuilds once; if that
 also fails, `BaselinePoolError::RecoveryFailed` retains both errors. Recipe or
@@ -796,7 +829,7 @@ independent principals for canister status and log access. It attempts both
 operations even if one fails and returns their results independently:
 
 ```rust,no_run
-use candid::Principal;
+use ic_platform::Principal;
 use ic_testkit::pic::{
     CanisterDiagnosticsRequest, CanisterLogRenderLimits, PocketIc, PocketIcDiagnosticsExt,
 };
@@ -808,7 +841,7 @@ fn diagnose(pocket_ic: &PocketIc, canister_id: Principal, sender: Principal) {
         log_sender: sender,
         log_limits: CanisterLogRenderLimits::default(),
     });
-    if report.status().is_err() || report.logs().is_err() {
+    if report.status.is_err() || report.logs.is_err() {
         eprintln!("{report}");
     }
 }
@@ -894,12 +927,6 @@ builds, exact input resolution, transactional artifact caches, retained records
 and explicit maintenance. Testkit owns PocketIC provisioning, runtime lifecycle
 and test/benchmark policy. Generic build APIs are not re-exported here.
 
-The [0.35 migration guide](crates/ic-testkit/CHANGELOG.md#0350) also covers
-the retired `ic_testkit::ic_host_tools` convenience path and direct Host 0.15 imports.
-
-The [0.35 migration guide](crates/ic-testkit/CHANGELOG.md#0350) also covers
-the retired `ic_testkit::ic_host_tools` convenience path and direct Host 0.15 imports.
-
 ## Benchmark markers and reports
 
 Generate this repository's CSV/Markdown layout from a captured marker log:
@@ -916,7 +943,7 @@ functions directly when selecting their own reporting policy. Use a fresh output
 directory; existing reports remain historical evidence and are not converted.
 
 
-The `performance` module and direct IC CDK dependency are Wasm-only. Native
+The Wasm-only `performance` module uses Platform's raw counters and marker logging. Native
 producers use `benchmark::format_marker` with their own counters. Canister code
 emits compact markers around the measured region:
 
@@ -1016,6 +1043,23 @@ assert_eq!(alice, Fake::principal(1));
 
 ## Scope boundaries
 
+| Capability | Owner and Testkit's integration |
+| --- | --- |
+| Simulator, canister execution and client runtime types | PocketIC; Testkit re-exports its types and adds explicit fixture lifecycle policy |
+| Server provisioning, startup, typed calls, snapshots, baseline reuse and benchmark markers | `ic-testkit`; callers select topology, reset coverage, limits and scenarios |
+| Bounded Candid reply decoding on native and Wasm targets | `ic-platform` with its `candid` feature; transports and applications select budgets and retain their own reply policy |
+| Cargo/Wasm builds, input resolution, retained artifacts and package qualification | IC Build; only the private `ic-testkit-dev` programs depend on it here |
+| Stream hashing/gzip, filesystem publication and process custody | Host packages; Testkit supplies PocketIC identities, paths and lifecycle decisions |
+| Checked integer ratios | IC Metrics; Testkit owns marker pairing and counter meanings |
+| Complete-sample benchmark statistics and report policy | The private `ic-testkit-dev` fixture reporter |
+| Common setup, formatting and release mechanics | The reviewed Shared Tooling snapshot; Testkit owns its Make/CI wiring and product qualification |
+
+The published library selects Host's gzip capability for server assets. Wasm
+inspection is selected by IC Build for development builds, independently of
+Testkit's normal dependency graph. Platform owns the private probe's CDK
+entrypoint generator; the published Wasm library uses Platform's raw
+counters and marker logging.
+
 ic-testkit remains generic. It does not define application init payloads,
 endpoint names, role models, application readiness conditions, canister graph topology,
 benchmark labels, regression thresholds, CI failure policy, or broad self-test
@@ -1048,7 +1092,7 @@ For code changes, run tests for the affected module or integration target, for
 example:
 
 ```bash
-cargo test -p ic-testkit --locked --lib artifacts::icp::tests
+cargo test -p ic-testkit --locked --lib pic::transport::tests
 cargo test -p ic-testkit --locked --test benchmark
 ```
 
@@ -1060,6 +1104,10 @@ also require the `wasm32-unknown-unknown` target:
 ```bash
 rustup target add wasm32-unknown-unknown
 ```
+
+The [current host matrix](docs/hosts.md#current-focused-qualification) lists
+focused checks by owner. Historical qualification receipts in that file preserve
+their original commands and versions; they are not current setup instructions.
 
 Developer setup and updates prepare `rustfmt` for the selected toolchain,
 the pinned checkout-local Rust tool bundle, and the reviewed repository-local hook:
@@ -1075,15 +1123,16 @@ The reviewed Shared Tooling snapshot owns the default versions and digests in
 `ci/tool-versions.env` and `ci/ic-tools.tsv`, also used by CI. Host, Rust and IC
 exceptions are independent; see [catalog selection](docs/local-setup.md#catalog-selection).
 `make install-tools` prepares pinned jq/yq, ripgrep with
-PCRE2, cloc, common IC executables and the Cargo toolset in order under
-`.tools/host/bin`, `.tools/ic/bin` and `.tools/rust/common/bin`, then builds the owning
+PCRE2, cloc and the Cargo toolset in order under
+`.tools/host/bin` and `.tools/rust/common/bin`, then builds the owning
 CLI and prepares PocketIC. The Cargo set includes `cargo-sort`,
-`cargo-sort-derives` and `candid-extractor`. `make tools-check` verifies all
+`cargo-sort-derives`. `make tools-check` verifies these
 selections and the prepared server offline, without compiling or installing
 the owner CLI. Prepare the declared Rust toolchain before explicit setup.
-Host and IC paths select verified bundles in Shared Tooling's per-user store.
-After adopting that storage layout, rerun `make install-host-tools`, then
-`make install-ic-tools`, followed by their offline checks. See
+Host paths select verified bundles in Shared Tooling's per-user store.
+Generic IC executables are optional: explicitly run `make install-ic-tools`
+and `make ic-tools-check` if your application needs them. Testkit does not
+require them for its common setup or checks. See
 [store configuration and retention](docs/local-setup.md#shared-executable-storage).
 After adopting Shared Tooling 0.6.0's shared Cargo storage, rerun
 `make install-rust-tools`, then `make rust-tools-check`. Exact compiler, native
@@ -1094,7 +1143,7 @@ Make and the formatting hook select these local tool directories; direct Cargo
 commands should export them explicitly:
 
 ```bash
-export PATH="$PWD/.tools/host/bin:$PWD/.tools/ic/bin:$PWD/.tools/rust/common/bin:$PATH"
+export PATH="$PWD/.tools/host/bin:$PWD/.tools/rust/common/bin:$PATH"
 server="$(target/debug/ic-testkit-server check)" || exit
 export POCKET_IC_BIN="$server"
 ```

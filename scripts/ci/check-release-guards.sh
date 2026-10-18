@@ -300,6 +300,7 @@ bash "${repo_root}/scripts/ci/check-release-commands.sh" "${repo_root}" \
 # Cargo and owner CLI. Parallel Make must retain ordering and checks stay offline.
 (
   unset MAKEFLAGS MFLAGS MAKEOVERRIDES GNUMAKEFLAGS MAKEFILES
+  unset POCKET_IC_BIN IC_TESTKIT_POCKET_IC_URL
   export TOOL_ROOT="${work_dir}/tools" TOOL_TRACE="${work_dir}/tools/trace"
   mkdir -p "$TOOL_ROOT/make" "$TOOL_ROOT/scripts/dev" "$TOOL_ROOT/scripts/ci" "$TOOL_ROOT/bin" "$TOOL_ROOT/ci"
   cp "$repo_root/Makefile" "$TOOL_ROOT/"
@@ -311,7 +312,7 @@ bash "${repo_root}/scripts/ci/check-release-commands.sh" "${repo_root}" \
 set -euo pipefail
 exec cargo "$1" --locked
 STUB
-  for name in host ic rust; do
+  for name in host rust; do
     cat > "$TOOL_ROOT/scripts/dev/install-$name-tools.sh" <<'STUB'
 #!/usr/bin/env bash
 set -euo pipefail
@@ -333,9 +334,15 @@ set -euo pipefail
 [[ "$1" != --version ]] || exit 0
 [[ "$*" == *--locked* ]] || exit 97
 operation="$1"
+if [[ "$operation" == package ]]; then
+  [[ "${POCKET_IC_BIN:-}" == /prepared/server ]] || exit 97
+fi
 if [[ "$operation" == test ]]; then
   case " $* " in
-    *' -p ic-testkit-candid '*) operation=test:ic-testkit-candid ;;
+    *' -p ic-testkit-dev '*)
+      [[ "${POCKET_IC_BIN:-}" == /prepared/server ]] || exit 97
+      operation=test:ic-testkit-dev
+      ;;
     *' -p ic-testkit '*)
       [[ "${POCKET_IC_BIN:-}" == /prepared/server ]] || exit 97
       operation=test:ic-testkit
@@ -381,12 +388,12 @@ STUB
   [[ "$status" == 2 && "$(cat "$TOOL_TRACE")" == host:check ]] || fail 'missing common tool check installed or continued'
   : > "$TOOL_TRACE"
   "$make_bin" --no-print-directory -j4 -C "$TOOL_ROOT" install-tools > "$TOOL_ROOT/install.log" 2>&1
-  printf '%s\n' ic:preflight rust:preflight host:setup ic:setup rust:setup cargo:build server:setup > "$TOOL_ROOT/expected"
+  printf '%s\n' rust:preflight host:setup rust:setup cargo:build server:setup > "$TOOL_ROOT/expected"
   cmp "$TOOL_TRACE" "$TOOL_ROOT/expected" || fail 'complete setup ordering changed'
   cp "$TOOL_ROOT/server-bytes" "$TOOL_ROOT/retained-server"
   : > "$TOOL_TRACE"
   "$make_bin" --no-print-directory -j4 -C "$TOOL_ROOT" tools-check > "$TOOL_ROOT/check.log" 2>&1
-  printf '%s\n' host:check ic:check rust:check server:check > "$TOOL_ROOT/expected"
+  printf '%s\n' host:check rust:check server:check > "$TOOL_ROOT/expected"
   cmp "$TOOL_TRACE" "$TOOL_ROOT/expected" || fail 'complete offline check rebuilt or installed'
   cmp "$TOOL_ROOT/server-bytes" "$TOOL_ROOT/retained-server"
   # The real product recipes must pass Make's jobserver to every Cargo build,
@@ -399,45 +406,61 @@ STUB
       fail "substituted $target recipe failed; see $TOOL_ROOT/$target.log"
     }
   done
-  printf '%s\n' cargo:build server:check cargo:test:ic-testkit > "$TOOL_ROOT/expected"
+  printf '%s\n' cargo:build server:check cargo:test:ic-testkit-dev > "$TOOL_ROOT/expected"
   cmp "$TOOL_TRACE" "$TOOL_ROOT/expected" || fail 'canister test bypassed owner admission'
   : > "$TOOL_TRACE"
   "$make_bin" --no-print-directory -j4 -C "$TOOL_ROOT" test > "$TOOL_ROOT/test.log" 2>&1
-  printf '%s\n' cargo:build cargo:test:ic-testkit-candid server:check \
-    cargo:test:ic-testkit cargo:test:ic-testkit > "$TOOL_ROOT/expected"
+  printf '%s\n' cargo:build server:check \
+    cargo:test:ic-testkit cargo:test:ic-testkit-dev cargo:test:ic-testkit > "$TOOL_ROOT/expected"
   cmp "$TOOL_TRACE" "$TOOL_ROOT/expected" || fail 'full test target omitted separate-process qualification'
-  for stage in cargo:test:ic-testkit-candid server:check cargo:test:ic-testkit; do
+  for stage in server:check cargo:test:ic-testkit cargo:test:ic-testkit-dev; do
     : > "$TOOL_TRACE"
     status=0
     TOOL_FAIL="$stage" "$make_bin" --no-print-directory -j4 -C "$TOOL_ROOT" test > "$TOOL_ROOT/test-failure-${stage//:/-}.log" 2>&1 || status=$?
     [[ "$status" == 2 ]] || fail 'test admission or Cargo failure status lost'
-    printf '%s\n' cargo:build cargo:test:ic-testkit-candid > "$TOOL_ROOT/expected"
-    [[ "$stage" == cargo:test:ic-testkit-candid ]] || printf '%s\n' server:check >> "$TOOL_ROOT/expected"
-    [[ "$stage" != cargo:test:ic-testkit ]] || printf '%s\n' cargo:test:ic-testkit >> "$TOOL_ROOT/expected"
+    printf '%s\n' cargo:build > "$TOOL_ROOT/expected"
+    printf '%s\n' server:check >> "$TOOL_ROOT/expected"
+    case "$stage" in
+      cargo:test:ic-testkit) printf '%s\n' cargo:test:ic-testkit >> "$TOOL_ROOT/expected" ;;
+      cargo:test:ic-testkit-dev) printf '%s\n' cargo:test:ic-testkit cargo:test:ic-testkit-dev >> "$TOOL_ROOT/expected" ;;
+    esac
     cmp "$TOOL_TRACE" "$TOOL_ROOT/expected" || fail 'failed test dispatched later Cargo work'
+  done
+  for stage in success cargo:build server:check cargo:package; do
+    : > "$TOOL_TRACE"
+    status=0
+    TOOL_FAIL="$stage" "$make_bin" --no-print-directory -j4 -C "$TOOL_ROOT" package \
+      > "$TOOL_ROOT/package-${stage//:/-}.log" 2>&1 || status=$?
+    expected_status=2
+    [[ "$stage" != success ]] || expected_status=0
+    [[ "$status" == "$expected_status" ]] || fail 'package admission or Cargo failure status lost'
+    case "$stage" in
+      cargo:build) printf '%s\n' cargo:build > "$TOOL_ROOT/expected" ;;
+      server:check) printf '%s\n' cargo:build server:check > "$TOOL_ROOT/expected" ;;
+      *) printf '%s\n' cargo:build server:check cargo:package > "$TOOL_ROOT/expected" ;;
+    esac
+    cmp "$TOOL_TRACE" "$TOOL_ROOT/expected" || fail 'package bypassed admission or continued after failure'
+    cmp "$TOOL_ROOT/server-bytes" "$TOOL_ROOT/retained-server" || fail 'package changed the prepared server'
   done
   : > "$TOOL_TRACE"
   status=0
   TOOL_FAIL=rust:setup "$make_bin" --no-print-directory -j4 -C "$TOOL_ROOT" install-tools > "$TOOL_ROOT/failed.log" 2>&1 || status=$?
-  printf '%s\n' ic:preflight rust:preflight host:setup ic:setup rust:setup > "$TOOL_ROOT/expected"
+  printf '%s\n' rust:preflight host:setup rust:setup > "$TOOL_ROOT/expected"
   [[ "$status" == 2 ]] || fail 'setup failure status lost'
   cmp "$TOOL_TRACE" "$TOOL_ROOT/expected" || fail 'failed common setup dispatched product'
   cmp "$TOOL_ROOT/server-bytes" "$TOOL_ROOT/retained-server"
-  for prerequisite in ic rust; do
-    : > "$TOOL_TRACE"
-    status=0
-    TOOL_FAIL="$prerequisite:preflight" "$make_bin" --no-print-directory -j4 -C "$TOOL_ROOT" install-tools > "$TOOL_ROOT/preflight-$prerequisite.log" 2>&1 || status=$?
-    printf '%s\n' ic:preflight > "$TOOL_ROOT/expected"
-    [[ "$prerequisite" != rust ]] || printf '%s\n' rust:preflight >> "$TOOL_ROOT/expected"
-    [[ "$status" == 2 ]] || fail 'preflight failure status lost'
-    cmp "$TOOL_TRACE" "$TOOL_ROOT/expected" || fail 'preflight failure dispatched setup'
-    cmp "$TOOL_ROOT/server-bytes" "$TOOL_ROOT/retained-server"
-  done
+  : > "$TOOL_TRACE"
+  status=0
+  TOOL_FAIL=rust:preflight "$make_bin" --no-print-directory -j4 -C "$TOOL_ROOT" install-tools > "$TOOL_ROOT/preflight-rust.log" 2>&1 || status=$?
+  printf '%s\n' rust:preflight > "$TOOL_ROOT/expected"
+  [[ "$status" == 2 ]] || fail 'preflight failure status lost'
+  cmp "$TOOL_TRACE" "$TOOL_ROOT/expected" || fail 'preflight failure dispatched setup'
+  cmp "$TOOL_ROOT/server-bytes" "$TOOL_ROOT/retained-server"
   rm "$TOOL_ROOT/target/debug/ic-testkit-server"
   : > "$TOOL_TRACE"
   status=0
   "$make_bin" --no-print-directory -j4 -C "$TOOL_ROOT" tools-check > "$TOOL_ROOT/missing-cli.log" 2>&1 || status=$?
-  printf '%s\n' host:check ic:check rust:check > "$TOOL_ROOT/expected"
+  printf '%s\n' host:check rust:check > "$TOOL_ROOT/expected"
   [[ "$status" == 2 ]] || fail 'missing owner CLI was accepted'
   cmp "$TOOL_TRACE" "$TOOL_ROOT/expected" || fail 'missing CLI check compiled or installed'
 )

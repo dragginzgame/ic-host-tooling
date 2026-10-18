@@ -150,7 +150,8 @@ fn external_server_precedence_borrows_ownership_and_rejects_owned_ttl() {
         .output()
         .unwrap();
     assert!(!output.status.success());
-    assert!(String::from_utf8_lossy(&output.stderr).contains("--ttl requires an owned server"));
+    assert_eq!(output.status.code(), Some(1));
+    assert!(!fixture.0.path().join("server.pid").exists());
     let output = fixture
         .runner()
         .env("IC_TESTKIT_POCKET_IC_URL", "http://127.0.0.1:45678/")
@@ -282,7 +283,7 @@ fn server_exit_returns_diagnostics_and_stops_the_pending_command_group() {
         "#!/bin/sh\nprintf '%s' \"$$\" > \"$0.pid\"\nprintf '34567\\n' > \"$2\"\nwhile [ ! -s \"$0.descendant.pid\" ]; do sleep 0.02; done\nprintf 'server stopped\\n'\nprintf 'failure detail\\n' >&2\nexit 42\n",
     ).expect("write executable test script");
     let started = Instant::now();
-    let error = PocketIcStartupConfig::spawn(&binary, Duration::from_secs(2))
+    let error = PocketIcStartupConfig::Spawn { server_binary: (&binary).into(), timeout: Duration::from_secs(2), server_hard_ttl: None, server_idle_ttl: None, server_output_files: None }
         .run_command(
             Command::new("/bin/sh")
                 .env("SERVER_SCRIPT", &binary)

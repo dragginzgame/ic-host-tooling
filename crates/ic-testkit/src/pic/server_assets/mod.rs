@@ -5,21 +5,20 @@
 //! managed startup and application safety remain separate responsibilities.
 
 use super::POCKET_IC_SERVER_VERSION;
-use ic_host_artifacts::artifact::{Sha256Digest, decode_gzip, hash_gzip, hash_reader};
+use ic_host_artifacts::artifact::{Sha256Digest, copy_gzip, hash_gzip, hash_reader};
 use ic_host_fs::{durable, read::read_file_no_follow};
 use ic_host_process::{
-    child::{CleanupPolicy, OwnedChild},
+    child::CleanupPolicy,
     tool::{
-        AdmittedTool, ExecutionContext, ExecutionError, ExecutionEvidence, ExecutionFailure,
-        ExecutionOperation, OutputLimit, OutputLimits, SuccessfulExit, ToolError, VersionSpec,
-        communicate_child,
+        AdmittedTool, ExecutionContext, OutputLimit, OutputLimits, VersionSpec,
+        capture_group_command_with_cancellation,
     },
 };
 use std::{
     error::Error,
     ffi::OsString,
     fs::{self, File},
-    io::{self, Write as _},
+    io,
     path::{Component, Path, PathBuf},
     process::{Command, Stdio},
     sync::atomic::{AtomicU64, Ordering},
@@ -109,11 +108,6 @@ fn authenticated_archive(archive: &Path, digest: Sha256Digest) -> Result<Vec<u8>
     let bytes = read_file_no_follow(archive, ARCHIVE_LIMIT)?;
     hash_reader(bytes.as_slice(), ARCHIVE_LIMIT as u64)?.verify(digest)?;
     Ok(bytes)
-}
-
-fn payload(archive: &Path, digest: Sha256Digest) -> Result<Vec<u8>> {
-    let bytes = authenticated_archive(archive, digest)?;
-    Ok(decode_gzip(&bytes, ARCHIVE_LIMIT, EXECUTABLE_LIMIT)?)
 }
 
 fn admit(executable: &Path, digest: Sha256Digest) -> Result<()> {
@@ -208,31 +202,18 @@ pub fn setup(directory: &Path, mut interrupted: impl FnMut() -> bool) -> Result<
             .stdin(Stdio::null())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
-        let outcome = OwnedChild::spawn(&mut command, CleanupPolicy::KillAndWait)
-            .map_err(|source| {
-                ToolError::Execution(Box::new(ExecutionError {
-                    failure: ExecutionFailure::Io {
-                        operation: ExecutionOperation::Spawn,
-                        source,
-                    },
-                    evidence: ExecutionEvidence::default(),
-                    cleanup: None,
-                }))
-            })
-            .and_then(|mut child| {
-                communicate_child(
-                    &mut child,
-                    None,
-                    OutputLimits {
-                        stdout: OutputLimit::Terminate(4096),
-                        stderr: OutputLimit::Terminate(64 * 1024),
-                        timeout: Some(Duration::from_secs(310)),
-                    },
-                    SuccessfulExit::Cleanup,
-                    &mut interrupted,
-                )
-            })
-            .and_then(ic_host_process::tool::CompletedExecution::require_success);
+        let outcome = capture_group_command_with_cancellation(
+            &mut command,
+            OutputLimits {
+                stdout: OutputLimit::Terminate(4096),
+                stderr: OutputLimit::Terminate(64 * 1024),
+                timeout: Some(Duration::from_secs(310)),
+            },
+            CleanupPolicy::KillAndWait,
+            None,
+            &mut interrupted,
+        )
+        .and_then(ic_host_process::tool::CompletedExecution::require_success);
         if let Some(stderr) = outcome
             .as_ref()
             .ok()
@@ -278,39 +259,52 @@ fn setup_with(
     let lock = durable::open_regular_lock_file_with_parents(&root.join(".setup-v1.lock"))?;
     durable::lock_exclusive(&lock)?;
     let bundle = bundle_path(&root, asset);
-    match fs::symlink_metadata(&bundle) {
-        Ok(_) => return check_bundle(&bundle, asset),
-        Err(error) if error.kind() == io::ErrorKind::NotFound => {}
-        Err(error) => return Err(error.into()),
-    }
     let attempt = root.join(format!(
         ".setup-v1-{}-{}",
         std::process::id(),
         SEQUENCE.fetch_add(1, Ordering::Relaxed)
     ));
-    let staging_directory = durable::create_private_directory(&attempt)?;
-    eprintln!("PocketIC setup evidence: {}", attempt.display());
-    let result = install(&attempt, asset, download);
-    if let Err(error) = result {
-        if let Err(record_error) = durable::write_bytes(
-            &attempt.join("failure.txt"),
-            durable::WriteOptions {
-                mode: durable::PublicationMode::Replace,
-                permissions: 0o666,
-            },
-            error.to_string().as_bytes(),
-        ) {
-            eprintln!("could not record setup failure: {record_error}");
+    let staging_directory = match fs::symlink_metadata(&bundle) {
+        Ok(_) => {
+            check_bundle(&bundle, asset)?;
+            None
         }
-        return Err(error);
-    }
-    // A complete immutable bundle is visible only after all admission succeeds.
-    // No previous version, failed attempt or installed selection is removed.
-    durable::admit_directory(&attempt, &staging_directory)?;
-    staging_directory.sync_all()?;
-    fs::rename(&attempt, &bundle)?;
+        Err(error) if error.kind() == io::ErrorKind::NotFound => {
+            let held = durable::create_private_directory(&attempt)?;
+            eprintln!("PocketIC setup evidence: {}", attempt.display());
+            if let Err(error) = install(&attempt, asset, download) {
+                if let Err(record_error) = durable::write_bytes(
+                    &attempt.join("failure.txt"),
+                    durable::WriteOptions {
+                        mode: durable::PublicationMode::Replace,
+                        permissions: 0o666,
+                    },
+                    error.to_string().as_bytes(),
+                ) {
+                    eprintln!("could not record setup failure: {record_error}");
+                }
+                return Err(error);
+            }
+            Some(held)
+        }
+        Err(error) => return Err(error.into()),
+    };
+    // Host owns no-replace publication and phase-aware durability failures.
+    // Fresh staging must retain its original directory identity. Recovery admits
+    // the installed bundle again before Host synchronizes its parent.
+    durable::commit_existing_directory_with(
+        &attempt,
+        &bundle,
+        |selected, path| -> io::Result<()> {
+            if let Some(held) = &staging_directory {
+                durable::admit_directory(path, held)?;
+            }
+            selected.sync_all()?;
+            Ok(())
+        },
+        |_, _| Ok(()),
+    )?;
     eprintln!("PocketIC setup evidence retained: {}", bundle.display());
-    File::open(&root)?.sync_all()?;
     Ok(bundle.join("pocket-ic"))
 }
 
@@ -321,22 +315,21 @@ fn install(
 ) -> Result<()> {
     let archive = attempt.join("archive.gz");
     download(&archive)?;
-    let bytes = payload(&archive, asset.digest)?;
+    let bytes = authenticated_archive(&archive, asset.digest)?;
     File::open(&archive)?.sync_all()?;
-    let digest = Sha256Digest::compute(&bytes);
     let executable = attempt.join("pocket-ic");
-    durable::write_with(
+    let identity = durable::write_with(
         &executable,
         durable::WriteOptions {
             mode: durable::PublicationMode::CreateNew,
             permissions: 0o755,
         },
-        |file| -> io::Result<()> { file.write_all(&bytes) },
+        |file| copy_gzip(&bytes, file, ARCHIVE_LIMIT, EXECUTABLE_LIMIT as u64),
     )?;
     drop(bytes);
     // PocketIC requires its canonical basename. The whole directory is private
     // and unselected until this admission succeeds; no existing bundle is replaced.
-    if let Err(error) = admit(&executable, digest) {
+    if let Err(error) = admit(&executable, identity.sha256) {
         if let Some(evidence) = error
             .downcast_ref::<ic_host_process::tool::ToolError>()
             .and_then(|error| error.evidence())
@@ -366,6 +359,10 @@ fn install(
 mod tests {
     use super::*;
     use ic_host_artifacts::artifact::encode_gzip;
+    use ic_host_process::{
+        child::OwnedChild,
+        tool::{SuccessfulExit, communicate_child},
+    };
     use std::os::unix::fs::{PermissionsExt as _, symlink};
 
     fn run_in_subprocess() -> bool {
@@ -530,6 +527,49 @@ mod tests {
     }
 
     #[test]
+    fn setup_rejects_corrupt_payloads_without_execution_or_publication() {
+        use ic_host_artifacts::artifact::GzipError;
+
+        if run_in_subprocess() {
+            return;
+        }
+        let root = Fixture::new();
+        let marker = root.root.path().join("executed");
+        let script = format!("#!/bin/sh\nprintf executed > '{}'\n", marker.display());
+        let mut original = Vec::new();
+        encode_gzip(script.as_bytes(), &mut original, 1, 65536).unwrap();
+        let mut bad_crc = original.clone();
+        let crc = bad_crc.len() - 8;
+        bad_crc[crc] ^= 1;
+        for bytes in [
+            bad_crc,
+            original[..original.len() - 1].to_vec(),
+            [original.as_slice(), b"trailing"].concat(),
+        ] {
+            let asset = Asset {
+                host: "fixture",
+                digest: Sha256Digest::compute(&bytes),
+            };
+            let error = setup_with(root.root.path(), &asset, |path| {
+                fs::write(path, &bytes)?;
+                Ok(())
+            })
+            .unwrap_err();
+            assert!(matches!(
+                error.downcast_ref::<durable::NamedWriteError<GzipError>>(),
+                Some(durable::NamedWriteError::Producer { .. })
+            ));
+            assert!(!marker.exists());
+            assert!(!bundle_path(root.root.path(), &asset).exists());
+            assert!(fs::read_dir(root.root.path()).unwrap().any(|entry| {
+                let path = entry.unwrap().path();
+                path.join("failure.txt").is_file()
+                    && fs::read(path.join("archive.gz")).ok().as_deref() == Some(bytes.as_slice())
+            }));
+        }
+    }
+
+    #[test]
     fn failed_setup_retains_evidence_and_previous_bundles_then_can_retry() {
         if run_in_subprocess() {
             return;
@@ -658,15 +698,43 @@ mod tests {
             Ok(())
         })
         .expect_err("replacement must not inherit the held directory claim");
-        assert_eq!(
-            error
-                .downcast_ref::<io::Error>()
-                .unwrap_or_else(|| panic!("expected directory identity refusal, got {error:?}"))
-                .kind(),
-            io::ErrorKind::InvalidInput,
-        );
+        assert!(matches!(
+            error.downcast_ref::<durable::DirectoryCommitError<io::Error>>(),
+            Some(durable::DirectoryCommitError::Prepare(source))
+                if source.kind() == io::ErrorKind::InvalidInput
+        ));
         assert!(!bundle_path(root.root.path(), &asset).exists());
         assert_eq!(fs::read(retained.join("archive.gz")).unwrap(), bytes);
+    }
+
+    #[test]
+    fn occupied_destination_preserves_both_bundle_and_verified_staging() {
+        if run_in_subprocess() {
+            return;
+        }
+        let root = Fixture::new();
+        let (asset, bytes) = archive(POCKET_IC_SERVER_VERSION);
+        let bundle = bundle_path(root.root.path(), &asset);
+        let mut attempt = None;
+        let error = setup_with(root.root.path(), &asset, |archive| {
+            fs::write(archive, &bytes)?;
+            attempt = archive.parent().map(Path::to_owned);
+            fs::create_dir(&bundle)?;
+            fs::write(bundle.join("unrelated"), b"retained destination")?;
+            Ok(())
+        })
+        .unwrap_err();
+        assert!(matches!(
+            error.downcast_ref::<durable::DirectoryCommitError<io::Error>>(),
+            Some(durable::DirectoryCommitError::Conflict)
+        ));
+        assert_eq!(
+            fs::read(bundle.join("unrelated")).unwrap(),
+            b"retained destination"
+        );
+        let attempt = attempt.unwrap();
+        assert_eq!(fs::read(attempt.join("archive.gz")).unwrap(), bytes);
+        assert!(attempt.join("pocket-ic").is_file());
     }
 
     #[test]

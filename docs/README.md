@@ -32,9 +32,9 @@ Build local API documentation with `make docs-check`, then open
 These records preserve the decisions and contracts at the time of their
 design. Version-specific API names and proposals in their bodies may have been
 superseded; use the current README, rustdoc, and migration guide when writing code.
-Successful artifact records now retain read-only exact-cache paths for their
-lifetime. Configured materialization paths remain mutable, and repository-owned
-cache, stamp, and digest formats remain `v1`.
+The artifact-build and cache designs describe code subsequently extracted to
+IC Build. Its artifact guide above owns the current implementation and contracts;
+these records do not define a second Testkit build API.
 
 | Record | Subject |
 | --- | --- |

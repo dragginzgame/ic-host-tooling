@@ -2,6 +2,8 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::fixture_reuse_protocol::Mode;
+
 #[derive(Default, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Phases {
@@ -32,7 +34,7 @@ pub struct Sample {
 #[derive(Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct WorkerReport {
-    pub(super) mode: String,
+    pub(super) mode: Mode,
     pub(super) capacity: usize,
     pub(super) iterations: usize,
     pub(super) workers: usize,

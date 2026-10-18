@@ -3,13 +3,13 @@
 
 mod support;
 
-use candid::Principal;
 use ic_host_process::testing::http::{HttpContentLength, capture_http_request};
+use ic_platform::Principal;
 use ic_testkit::pic::{
-    CandidCallError, CandidCallExt, CanisterDiagnosticsRequest, CanisterInstallError,
-    CanisterLogRenderLimits, InstallSpec, PocketIc, PocketIcBuilder, PocketIcCallFailure,
-    PocketIcDiagnosticsExt, PocketIcInstance, PocketIcStartupConfig, StandaloneCanisterFixture,
-    is_dead_pocket_ic_transport_error,
+    CandidCallError, CanisterDiagnosticsRequest, CanisterInstallError, CanisterLogRenderLimits,
+    InstallSpec, PocketIc, PocketIcBuilder, PocketIcCallFailure, PocketIcDiagnosticsExt,
+    PocketIcInstance, PocketIcStartupConfig, StandaloneCanisterFixture,
+    is_dead_pocket_ic_transport_error, query_candid_args,
 };
 use ic_testkit::pocket_ic::common::rest::{CreateInstanceResponse, RawCanisterId, Topology};
 #[cfg(unix)]
@@ -185,15 +185,15 @@ fn refused_instance_request_probe() {
     std::io::stdin()
         .read_exact(&mut [0])
         .expect("parent releases refused call");
-    let error = pic
-        .query_candid::<u64, _>(
-            Principal::anonymous(),
-            candid::Principal::anonymous(),
-            "get",
-            (),
-            support::REPLY_LIMITS,
-        )
-        .expect_err("peer is gone");
+    let error = query_candid_args::<(u64,), _>(
+        pic,
+        Principal::anonymous(),
+        ic_platform::Principal::anonymous(),
+        "get",
+        (),
+        support::REPLY_LIMITS,
+    )
+    .expect_err("peer is gone");
     assert!(matches!(error, CandidCallError::Transport { .. }));
     assert!(is_dead_pocket_ic_transport_error(&error));
     let error = std::io::Error::other(error);
@@ -205,10 +205,10 @@ fn refused_instance_request_probe() {
         log_sender: Principal::anonymous(),
         log_limits: CanisterLogRenderLimits::default(),
     };
-    let (_, status, logs) = pic.collect_canister_diagnostics(request).into_parts();
+    let report = pic.collect_canister_diagnostics(request);
     for error in [
-        status.expect_err("status peer is gone"),
-        logs.expect_err("log peer is gone"),
+        report.status.expect_err("status peer is gone"),
+        report.logs.expect_err("log peer is gone"),
     ] {
         assert!(matches!(
             &error,
@@ -255,13 +255,16 @@ fn refused_creation_probe() {
 
 fn synthetic_instance() -> PocketIcInstance<PocketIc> {
     let url = std::env::var(PROBE_URL_ENV).expect("parent supplies synthetic peer URL");
-    PocketIcStartupConfig::connect(url, DEADLOCK_ESCAPE)
-        .build_instance(
-            PocketIcBuilder::new()
-                .with_application_subnet()
-                .with_max_request_time_ms(Some(1)),
-        )
-        .expect("construct synthetic instance through bounded startup")
+    PocketIcStartupConfig::Connect {
+        server_url: url,
+        timeout: DEADLOCK_ESCAPE,
+    }
+    .build_instance(
+        PocketIcBuilder::new()
+            .with_application_subnet()
+            .with_max_request_time_ms(Some(1)),
+    )
+    .expect("construct synthetic instance through bounded startup")
 }
 
 fn spawn_probe(listener: &TcpListener, name: &str) -> Probe {

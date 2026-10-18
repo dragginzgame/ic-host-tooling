@@ -4,7 +4,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use candid::Principal;
+use ic_platform::Principal;
 use pocket_ic::{CanisterLogRecord, CanisterStatusResult, PocketIc};
 
 use super::{
@@ -215,100 +215,51 @@ impl fmt::Display for CanisterDiagnosticLogs {
 /// Independent status and log outcomes for one diagnostic collection.
 #[derive(Debug)]
 pub struct CanisterDiagnosticsReport {
-    request: CanisterDiagnosticsRequest,
-    status: Result<CanisterStatusResult, PocketIcCallFailure>,
-    logs: Result<CanisterDiagnosticLogs, PocketIcCallFailure>,
+    /// Exact request used for this report.
+    pub request: CanisterDiagnosticsRequest,
+    /// Status result, independent of log retrieval.
+    pub status: Result<CanisterStatusResult, PocketIcCallFailure>,
+    /// Log result, independent of status retrieval.
+    pub logs: Result<CanisterDiagnosticLogs, PocketIcCallFailure>,
 }
 
 impl CanisterDiagnosticsReport {
-    /// Exact request used for this report.
-    #[must_use]
-    pub const fn request(&self) -> CanisterDiagnosticsRequest {
-        self.request
-    }
-
-    /// Status result, independent of log retrieval.
-    pub const fn status(&self) -> Result<&CanisterStatusResult, &PocketIcCallFailure> {
-        self.status.as_ref()
-    }
-
-    /// Log result, independent of status retrieval.
-    pub const fn logs(&self) -> Result<&CanisterDiagnosticLogs, &PocketIcCallFailure> {
-        self.logs.as_ref()
-    }
-
     /// Whether both status and log collection succeeded.
     #[must_use]
     pub const fn is_success(&self) -> bool {
         self.status.is_ok() && self.logs.is_ok()
-    }
-
-    /// Consume the report into its exact request and independent outcomes.
-    pub fn into_parts(
-        self,
-    ) -> (
-        CanisterDiagnosticsRequest,
-        Result<CanisterStatusResult, PocketIcCallFailure>,
-        Result<CanisterDiagnosticLogs, PocketIcCallFailure>,
-    ) {
-        (self.request, self.status, self.logs)
     }
 }
 
 /// One ordered labeled entry in a collect-all diagnostics batch.
 #[derive(Debug)]
 pub struct CanisterDiagnosticsBatchEntry {
-    label: String,
-    report: CanisterDiagnosticsReport,
-    entry_elapsed: Duration,
+    /// Caller-supplied label.
+    pub label: String,
+    /// Structured status and log outcomes for this entry.
+    pub report: CanisterDiagnosticsReport,
+    /// Complete wall-clock time for this target's diagnostic collection.
+    pub entry_elapsed: Duration,
 }
 
 impl CanisterDiagnosticsBatchEntry {
-    /// Caller-supplied label.
-    #[must_use]
-    pub fn label(&self) -> &str {
-        &self.label
-    }
-
-    /// Structured status and log outcomes for this entry.
-    #[must_use]
-    pub const fn report(&self) -> &CanisterDiagnosticsReport {
-        &self.report
-    }
-
     /// Whether both status and log collection succeeded for this entry.
     #[must_use]
     pub const fn is_success(&self) -> bool {
         self.report.is_success()
-    }
-
-    /// Complete wall-clock time for this target's diagnostic collection.
-    #[must_use]
-    pub const fn entry_elapsed(&self) -> Duration {
-        self.entry_elapsed
-    }
-
-    /// Consume the entry into its label, structured report, and wall time.
-    #[must_use]
-    pub fn into_parts(self) -> (String, CanisterDiagnosticsReport, Duration) {
-        (self.label, self.report, self.entry_elapsed)
     }
 }
 
 /// Ordered entries from a sequential collect-all diagnostics batch.
 #[derive(Debug, Default)]
 pub struct CanisterDiagnosticsBatchReport {
-    entries: Vec<CanisterDiagnosticsBatchEntry>,
-    total: Duration,
+    /// Entries in the supplied request order.
+    pub entries: Vec<CanisterDiagnosticsBatchEntry>,
+    /// Complete wall-clock time for the sequential collect-all batch.
+    pub total: Duration,
 }
 
 impl CanisterDiagnosticsBatchReport {
-    /// Entries in the supplied request order.
-    #[must_use]
-    pub fn entries(&self) -> &[CanisterDiagnosticsBatchEntry] {
-        &self.entries
-    }
-
     /// Entries with at least one failed status or log operation.
     pub fn failures(&self) -> impl Iterator<Item = &CanisterDiagnosticsBatchEntry> {
         self.entries.iter().filter(|entry| !entry.is_success())
@@ -320,18 +271,6 @@ impl CanisterDiagnosticsBatchReport {
         self.entries
             .iter()
             .all(CanisterDiagnosticsBatchEntry::is_success)
-    }
-
-    /// Complete wall-clock time for the sequential collect-all batch.
-    #[must_use]
-    pub const fn total(&self) -> Duration {
-        self.total
-    }
-
-    /// Consume the report into its ordered entries.
-    #[must_use]
-    pub fn into_entries(self) -> Vec<CanisterDiagnosticsBatchEntry> {
-        self.entries
     }
 }
 
@@ -559,7 +498,7 @@ fn render_log_records(
 mod tests {
     use std::cell::Cell;
 
-    use candid::Principal;
+    use ic_platform::Principal;
     use pocket_ic::CanisterLogRecord;
 
     use super::{
@@ -730,16 +669,16 @@ mod tests {
             .expect("valid labeled diagnostics batch");
 
         assert_eq!(collector.calls.get(), 2);
-        assert_eq!(report.entries().len(), 2);
-        assert_eq!(report.entries()[0].label(), "root");
-        assert_eq!(report.entries()[0].report().request(), first);
-        assert_eq!(report.entries()[1].label(), "worker");
-        assert_eq!(report.entries()[1].report().request(), second);
+        assert_eq!(report.entries.len(), 2);
+        assert_eq!(report.entries[0].label, "root");
+        assert_eq!(report.entries[0].report.request, first);
+        assert_eq!(report.entries[1].label, "worker");
+        assert_eq!(report.entries[1].report.request, second);
         assert!(
             report
-                .entries()
+                .entries
                 .iter()
-                .all(|entry| entry.entry_elapsed() <= report.total())
+                .all(|entry| entry.entry_elapsed <= report.total)
         );
         assert_eq!(report.failures().count(), 2);
         assert!(!report.is_success());

@@ -2,333 +2,187 @@
   <img src="https://raw.githubusercontent.com/dragginzgame/shared-assets/main/ic-testkit/ic-testkit-readme-header.svg" alt="IC Testkit — Internet Computer helper library" width="100%">
 </p>
 
-# PocketIC Upstream Boundary
+# PocketIC upstream boundary
 
-> Status: maintained against `pocket-ic` 16 and the current ic-testkit API.
-> Revalidate these claims whenever the client or server version changes.
+This is maintained against the selected `pocket-ic` 16.1 client and Testkit's
+current public interfaces. Recheck the relevant capabilities when changing that
+dependency. Historical decisions remain in the
+[design records](docs/README.md#historical-design-records) and
+[qualification receipts](docs/hosts.md#historical-qualification-receipts).
+Those records do not define current APIs or imply that a proposed upstream change
+has shipped.
 
-This document tracks upstream limitations that currently justify ic-testkit
-harness code. It is not a roadmap for wrapping more of PocketIC.
+## Ownership
 
-`ic-testkit` is not intended to replace `pocket-ic`. The goal is to keep this
-crate small, generic, and mostly focused on reusable test-harness ergonomics.
-When a need is broadly useful to PocketIC users, the preferred long-term home is
-upstream.
+PocketIC owns the simulator, management operations, client runtime types and
+its default server discovery/download path. Testkit exposes the complete native
+crate through `ic_testkit::pocket_ic`; the convenience exports in `pic` preserve
+those same types. Testkit does not mirror the upstream simulator API.
 
-The complete host-only upstream crate is re-exported at
-`ic_testkit::pocket_ic`. This is a version- and type-preserving access path, not
-a mirrored API; the focused `ic_testkit::pic` exports remain conveniences for
-the testkit extension traits.
+Testkit owns explicit server provisioning and fixture lifecycle policy. It adds
+bounded startup, server/instance custody, contextual calls, installation policy,
+controller-aware snapshots, reusable baseline contracts, diagnostics and benchmark
+markers. Application topology, reset coverage, funding amounts, byte/work budgets,
+readiness predicates and performance thresholds remain caller-owned.
 
-## Maintenance
+The [repository ownership map](README.md#scope-boundaries) identifies the other
+owners: IC Build supplies generic build/cache and package qualification mechanics;
+Host supplies streams, filesystem and process primitives; IC Metrics supplies
+measurement arithmetic. Those capabilities are not PocketIC workarounds and are
+not reimplemented here.
 
-- Review this file whenever bumping the `pocket-ic` dependency.
-- Remove items once upstream exposes a stable equivalent and `ic-testkit` no
-  longer needs the workaround.
-- Add concrete links to upstream issues or pull requests when they exist.
-- Keep entries generic. Application-specific test conventions belong outside
-  this repository.
+## Server selection and provisioning
 
-The upstream discussion is tracked in
-[PocketIC issue #67](https://github.com/dfinity/pocketic/issues/67), which links
-this document. As of 2026-10-03 it has no replies; the latest published server
-release is [16.0.0](https://github.com/dfinity/pocketic/releases/tag/16.0.0).
+The upstream implicit builder may discover or download a server. Testkit's bounded
+startup path requires an explicit selection instead:
 
-## High-Value Upstream Improvements
+- `server_assets::setup` and `ic-testkit-server setup` explicitly provision one
+  release-bound, reviewed archive. Testkit owns the version/digests and bundle
+  layout; Host supplies no-follow reads, gzip hashing/copying, durable publication
+  and executable admission.
+- `server_assets::check` and the CLI's `check` admit an existing bundle offline.
+  They do not repair it or download a missing binary. Failed setup attempts and
+  retained installations remain evidence.
+- `PocketIcStartupConfig::Spawn` receives an already selected binary. Its caller
+  owns byte admission and namespace custody. `from_env` gives an explicitly set
+  `IC_TESTKIT_POCKET_IC_URL` precedence over `POCKET_IC_BIN`; binary mode performs
+  a bounded version probe, not archive authentication.
+- `PocketIcStartupConfig::Connect` borrows an existing server without claiming
+  process ownership. It does not infer the remote server's executable identity.
 
-### Server Binary Resolution
+`POCKET_IC_SERVER_VERSION` selects the provisioning release. The separate
+`supports_pocket_ic_server` predicate admits stable 16.x probe output, matching
+the client protocol range. The upstream `LATEST_SERVER_VERSION` is available as
+an upstream fact; it does not silently choose Testkit's provisioning artifact.
 
-PocketIC owns its default server-binary discovery, downloading, validation,
-and caching. The bounded ic-testkit startup path deliberately bypasses that
-implicit path: the caller supplies one already-resolved compatible executable,
-and ic-testkit owns that child's lifecycle and, on Unix, its process group.
-Teardown terminates descendants in that group before reaping the child, keeping
-the group identity reserved through cleanup. One-shot managed
-`try_build` keeps a reaper until the child exits; a caller can instead retain
-`PocketIcManagedServer` explicitly and construct several instances through its
-URL. Neither path adds a downloader, resolver, binary cache, or compatibility
-guess.
+An upstream resolver could replace part of this integration if its published
+contract preserves explicit download policy, byte authentication, offline admission
+and usable failure evidence. Testkit's release pins and caller-owned trust policy
+would still need an explicit owner.
 
-It would be useful if upstream provided a first-class, non-panicking server
-binary resolver with:
+## Bounded startup and process lifetime
 
-- explicit binary path configuration;
-- predictable versioned cache locations;
-- opt-in download policy;
-- checksum verification hooks;
-- typed errors with setup guidance;
-- support for offline CI environments.
+The selected upstream server launcher waits for port publication without Testkit's
+complete readiness deadline and child-exit observation. Testkit's `build_instance`
+and `build_instance_async` use the explicit configuration, preserve a typed
+`PocketIcStartupFailure`, and return `PocketIcInstance<T>` with the upstream
+instance and its server lifetime. Startup cancellation/failure cleans up the
+owned child; borrowed-server failure leaves ownership with its caller.
 
-That would let downstream test harnesses combine one trusted upstream-owned
-resolution path with bounded process startup instead of resolving the exact
-binary before calling `PocketIcStartupConfig::spawn`.
+`start_managed_server` exposes the same launcher without building an instance.
+Its `PocketIcManagedServer` can support several independent instances through an
+explicit URL. On Unix, Host's lifecycle engine keeps custody of the exact process
+group through descendant termination and leader reaping. Caller-owned output files
+remain available after failure; bounded excerpts and secondary cleanup errors are
+available through the structured startup error.
 
-### Typed Startup Errors
+The port path must be absent before spawning PocketIC. The launcher owns a private
+directory and waits for a newline-terminated port while also checking child exit.
+The server's default operation-idle lifetime remains distinct from an optional
+hard lifetime; neither creates a default deadline for arbitrary caller commands.
 
-Some PocketIC startup failures currently surface as panics or stringly typed
-messages. More importantly, the upstream implicit server path waits for a
-port-file newline without inspecting whether the spawned child has already
-exited and without a readiness deadline. A server that fails before binding
-can therefore leave construction blocked indefinitely.
+`PocketIcStartupConfig::run_command` scopes a command to an owned or borrowed
+server and supplies `IC_TESTKIT_POCKET_IC_URL`. The CLI's `run -- COMMAND` delegates
+to that implementation. Cancellation or owned-server exit terminates the owned
+command group and preserves failure evidence. External server processes remain
+caller-owned. No process-global server registry or instance lock is involved.
 
-ic-testkit provides a narrow `PocketIcBuilderExt::try_build` boundary requiring
-an explicit `PocketIcStartupConfig`. Managed mode spawns the exact
-caller-resolved binary itself, observes child exit while awaiting both the port
-file and instance construction, captures bounded stdout/stderr, and terminates
-the child when the complete deadline expires. Connect mode bounds construction
-against an existing caller-owned server. Upstream panics remain unclassified
-structured errors.
+Upstream typed, deadline-aware construction could retire local orchestration when
+it supplies equivalent cancellation, custody and error contracts. The existing
+synthetic and real instance-lifetime tests qualify those obligations separately
+from ordinary simulator behavior.
 
-PocketIC 15 and later require the `--port-file` path not to exist before spawn.
-If an empty file is pre-created, the server exits successfully and silently
-rather than binding and publishing its port. The local launcher therefore
-creates a unique private directory and output files but deliberately leaves the
-port path absent; `NotFound` remains pending until PocketIC publishes a
-newline-terminated port. Synthetic startup tests verify both the default
-argument shape and explicit hard-TTL forwarding. An ignored live regression
-test accepts the exact binary through `IC_TESTKIT_POCKET_IC_SERVER` and verifies
-real port publication, bounded instance construction, owned shutdown, and
-temporary-directory cleanup.
+### Bounded instance teardown
 
-`PocketIcStartupConfig::start_managed_server` exposes the same bounded launcher
-without constructing an instance. The returned `PocketIcManagedServer` retains
-the URL and bounded lossy output and terminates and waits for the child on drop.
-Matching PocketIC 16, the launcher relies on the server's activity-based soft
-TTL by default and passes no absolute `--hard-ttl`; callers can opt into one
-explicitly. Serial runners can keep that handle alive and use bounded
-connect-mode builders without reimplementing process ownership. This remains
-explicit caller scope, not a process-global singleton. The handle cannot
-transfer ownership across Cargo or test-runner processes; multi-process CI
-should retain a runner-owned external server and pass its URL to bounded connect
-mode in each process.
+The construction deadline ends when startup returns. PocketIC 16.1's synchronous
+instance destructor sends HTTP DELETE through a client without a request timeout;
+its operation retry budget does not bound that wait. Testkit returns the upstream
+instance and preserves this limitation. Catching a panic cannot bound a blocked
+request. The nonblocking instance instead requires an explicit
+`instance.drop().await` while the server remains available.
 
-Upstream typed errors would make this cleaner and more reliable. In particular,
-`PocketIcBuilder::build` could have a non-panicking counterpart that returns a
-structured startup error, while `start_server` could accept a readiness
-deadline, poll `Child::try_wait`, retain bounded output, and terminate/reap on
-failure. An upstream owned-server handle would additionally remove the need for
-the local serial-suite lifecycle type. Once those cover the same lifecycle,
-ic-testkit should delegate or remove its process-owning extension.
-
-[Upstream PR #10751](https://github.com/dfinity/ic/pull/10751) proposes a Unix
-process-exit registry that kills server process groups and reaps direct
-children. It remains open as of 2026-10-03, and does not provide bounded
-instance deletion. Separately,
-[PocketIC issue #62](https://github.com/dfinity/pocketic/issues/62) reports
-child-process leaks when instance creation panics after partial setup; it also
-remains open. These are upstream lifecycle concerns, not reasons to add another
-local server registry.
-
-[Upstream PR #11167](https://github.com/dfinity/ic/pull/11167) merged the removal
-of the default hard TTL. The local launcher already follows that behavior.
-
-### Fallible Lifecycle and Transport APIs
-
-Some PocketIC lifecycle and observation operations still panic on failure.
-ic-testkit consequently catches panics around canister installation, calls,
-snapshots, cached-baseline restoration, and best-effort diagnostics. It also
-recognizes maintained reqwest request-error shapes with an instance URL and
-specific transport sources so a stale cached baseline can be rebuilt and
-contextual call errors can preserve their transport classification. The public
-classifier recognizes testkit call transport kinds directly. Bare I/O errors
-and generic application or quoted transport text do not qualify. Message
-matching remains a heuristic for PocketIC-originating errors, not a liveness
-proof.
-
-This is a temporary upstream limitation, not an error model ic-testkit wants to
-own. Result-returning upstream lifecycle, call, snapshot, status, and log APIs
-should expose structured transport and dead-instance variants. Once those
-variants cover the operations ic-testkit uses, remove `pic/transport.rs`, the
-corresponding `catch_unwind` adapters, and all transport-message matching.
-
-### Bounded Instance Teardown
-
-PocketIC 16's synchronous `PocketIc::drop` waits for its asynchronous
-`do_drop`, which sends HTTP DELETE to the instance URL with a reqwest client
-that has no request timeout. It does not check the response status. The
-operation-level `max_request_time_ms` retry budget is not applied to this
-deletion, and the ic-testkit construction deadline ends when startup returns.
-Catching a panic around drop does not bound a blocked HTTP request.
-
-`tests/pocket_ic_teardown.rs` provides a controlled reproduction against a
-synthetic loopback HTTP peer. An isolated child constructs an instance through
-bounded startup with a one-millisecond operation budget, then drops it. The
-parent receives DELETE, observes that the child is still pending, acknowledges
-the request, and verifies completion. A parent-owned kill/reap guard and bounded
-socket/process waits contain fixture failures. The ordering assertion has no
-elapsed-time threshold. It illustrates the deletion wait; it does not reproduce
-the cause of a real server's earlier Busy/tick timeout.
-
-Run it without a PocketIC binary or download:
+The controlled loopback test observes DELETE, confirms the child is still waiting,
+then acknowledges it and verifies completion. The parent bounds its own waits and
+owns child termination/reaping. It needs no PocketIC binary:
 
 ```bash
 cargo test -p ic-testkit --locked --test pocket_ic_teardown \
   instance_drop_waits_for_the_deletion_response -- --exact --nocapture
 ```
 
-Instance teardown improvements are deferred until an upstream PocketIC release
-provides them. ic-testkit uses the unmodified registry dependency and returns
-the upstream instance directly. The isolated patch experiment introduced in
-0.10.3 was removed in 0.10.4. The reproduction above remains evidence of the
-current limitation.
+### Temporary-directory ownership
 
-### Temporary-Directory Ownership
+Keep temporary directories available for the lifetime of any server using them.
+The managed launcher retains its startup directory until its child has been
+terminated and reaped. Borrowed or upstream background servers remain their
+caller's responsibility; validation does not remove their files or discover and
+terminate unrelated processes. CI retains the caller's temporary-directory
+environment instead of adding a scratch lifetime shorter than those servers.
+Earlier server-directory failure observations remain in the historical host
+receipts; they are not fresh qualification of every selected server release.
 
-PocketIC 16's server HTTP adapter destructor calls
-`remove_file(self.uds_path.clone()).unwrap()` at
-[server source line 457](https://github.com/dfinity/ic/blob/fc21803c3c3a8dd452b3b58b959751c41fecb89c/rs/pocket_ic_server/src/pocket_ic.rs#L454-L458).
-Removing the server's temporary directory while it is alive deletes that Unix
-socket first, so later adapter teardown panics with `NotFound`. This is separate
-from the client HTTP DELETE wait above.
+## Calls, installation and diagnostics
 
-A focused before/after probe against the released PocketIC 16.0.0 binary
-reproduced that exact panic with directory deletion first. Stopping the owned
-server first completed without it; no canister Wasm build was required.
+PocketIC already has typed Candid helpers. Testkit's `query_candid_args` and
+`update_candid_args` add explicit callers, finite reply-decoding budgets and
+contextual encode/decode/rejection/transport errors. They delegate reply decoding
+to `ic-platform` with its `candid` feature. Top-level reply arity stays explicit: `(T,)` requests one
+reply, `((),)` one unit value, and `()` no reply values. Unrelated panic payloads
+continue unwinding rather than becoming transport failures.
 
-Release CI now invokes ordinary `make ci` directly and inherits the caller's
-temporary-directory environment. It does not introduce a private scratch
-lifetime that ends before upstream background servers exit. Upstream owns its
-background-server lifecycle; callers who supply temporary directories must
-keep them available for that lifetime. Explicit managed server handles own
-and terminate their child processes before removing their startup files.
+Some upstream operations still panic instead of returning structured failures.
+The operation adapters preserve their messages and recognized transport causes;
+the isolated transport classifier exists because that source is not a stable
+typed transport contract. A generic Host error parser cannot supply PocketIC's
+missing distinction. Replace this classifier when the selected upstream API
+exposes equivalent typed causes, not by adding another string-matching layer.
 
-The Linux-only release process scanner and its pidfd/Python prerequisites are
-retired. The portable release guards check CI delegation and failure propagation
-without launching servers or invoking real release effects. Native managed
-startup and ownership tests run on the declared hosts in [docs/hosts.md](docs/hosts.md).
+`CanisterInstallExt` preserves create, funding and installation failures. Retry
+policy uses `ErrorCode::CanisterInstallCodeRateLimited` and caller-selected
+attempt/cooldown values. Diagnostics are a separate explicit operation:
+`PocketIcDiagnosticsExt` retains status, controller-aware logs and bounded
+rendering. Installation does not silently fetch or print diagnostic logs.
 
-### Install-Code Rate Limiting
+Upstream error enrichment could reduce these adapters if it preserves context,
+original rejects and bounded decoding. Merely adding another typed-call spelling
+would not remove their current responsibilities.
 
-PocketIC exposes `RejectResponse::error_code` and the structured
-`ErrorCode::CanisterInstallCodeRateLimited` variant. ic-testkit uses that field
-directly when applying install retry policy and never classifies display text.
+## Snapshot baselines and reuse
 
-Useful upstream behavior would include:
+PocketIC owns canister snapshots. Testkit captures/restores a declared snapshot
+set and retains original rejection/operation causes. A baseline pool owns the
+recipe and canonical restoration; recipes own non-snapshot reset work, readiness
+and invariant checks. Reuse is admitted only when achieved reset coverage matches
+requirements. Canister snapshots do not automatically restore PocketIC time,
+extra canisters, pending work or external resources.
 
-- an accessor for the required cooldown, when available;
-- a helper that advances simulated time enough for a retry in deterministic
-  tests;
-- documentation for when the rate limit applies inside PocketIC.
+Each pool bounds its own leases and resource use. Independent PocketIC instances
+are not serialized through a host-wide guard. Failed reuse disposes of the stale
+slot and may rebuild once under the recipe's failure policy; caller panics still
+unwind. These are test-fixture guarantees, separate from IC Build's persisted
+artifact caches and application deployment recovery.
 
-### Canister Install Diagnostics
+## Benchmarking and provenance
 
-When `install_canister` panics or rejects, `ic-testkit` tries to print canister
-status and logs to make the failure actionable. This is generic harness behavior
-that many PocketIC users would benefit from.
+Testkit owns the `ICTK` marker format, span pairing and counter interpretation.
+Canister-side `Performance` reads the system API through `ic0`; the private probe
+uses CDK entrypoint macros to qualify actual marker emission and trap handling.
+IC Metrics owns ratio/statistical arithmetic. The native report example and
+private benchmark programs own output schemas, files and workload policy.
 
-Upstream could expose richer install errors that include:
+Callers that need runtime provenance should retain the exact selected path,
+admission evidence and observed version. A borrowed URL does not establish those
+facts. The private benchmark driver records its explicit server selection and
+consumes IC Build's retained Wasm rather than reconstructing mutable build paths.
 
-- canister id;
-- reject code and message;
-- canister status, when available;
-- recent canister logs, when available;
-- whether the canister was created before install failed.
+## Qualification and future retirement
 
-### Candid-Aware Call Helpers
+Use the [current host matrix](docs/hosts.md#current-focused-qualification) for
+focused commands and declared native support. Source review and Linux execution
+do not establish native macOS qualification.
 
-PocketIC 16 already provides typed `query_candid`, `update_candid`, and
-caller-aware variants. They panic on Candid encoding and decoding failures and
-return `RejectResponse` for canister rejection. `ic-testkit` therefore does not
-claim typed calls themselves as missing upstream functionality.
-
-The remaining upstream opportunity is a structured error model that can
-distinguish Candid encoding, Candid decoding, transport failure, and canister
-rejection while preserving call context. If upstream gains that behavior,
-`CandidCallExt` should be reduced or removed rather than maintained as a
-parallel call API.
-
-### Snapshot Baselines
-
-`ic-testkit` uses PocketIC snapshots to cache expensive setup and restore
-canisters between tests. It also rebuilds the baseline if the underlying
-PocketIC instance becomes unreachable.
-
-Useful upstream support would include:
-
-- documented snapshot lifecycle guarantees;
-- structured errors for restore failures and dead transports;
-- examples for baseline-style test reuse;
-- APIs that make it clear which parts of instance state are captured or omitted
-  by canister snapshots.
-
-### Log Access and Benchmarking
-
-`ic-testkit` parses canister log markers for benchmark reports. Direct log
-fetching is useful for diagnostics, but log buffering and trimming behavior need
-to be clear for high-volume benchmark output.
-
-Upstream improvements that would help:
-
-- documented log retention limits;
-- streaming or incremental log access for tests;
-- stable ordering and source metadata for fetched log records;
-- guidance on stdout/stderr behavior when canister logs are emitted during
-  PocketIC calls.
-
-### Runtime Introspection
-
-Test harnesses often need to know which runtime they used when writing reports
-or debugging CI failures.
-
-PocketIC 16 exposes the expected server version through
-`LATEST_SERVER_VERSION` and the active endpoint through
-`PocketIc::get_server_url()`. ic-testkit re-exports the version constant. A
-built instance does not expose the resolved binary path or its digest, so
-ic-testkit cannot truthfully forward those values.
-
-Until upstream exposes that provenance, reproducible benchmark suites should
-resolve and hash a compatible binary themselves, pass that exact path to
-`PocketIcStartupConfig::spawn` for either one-shot construction or an explicit
-managed handle, and record those values. ic-testkit should not recreate
-PocketIC's binary resolver to infer them.
-
-Useful additional upstream APIs are:
-
-- resolved PocketIC server version;
-- resolved server binary path and digest;
-- server process or endpoint metadata;
-- effective runtime directories;
-- feature flags or subnet layout configured for an instance.
-
-## Reviewed Upstream Capabilities And Local Decisions
-
-### Independent Test Instances
-
-PocketIC 16 supports many independent IC instances, and the official testing
-guidance describes parallel execution as one fresh `PocketIc` instance per
-test. The Rust documentation also says sharing one instance among test cases is
-generally not recommended.
-
-ic-testkit has no host-wide PocketIC serialization guard. It re-exports
-`PocketIc` directly instead of retaining a forwarding simulator wrapper, while
-downstream suites tune heavy test capacity through
-`cargo test -- --test-threads=N` or their CI scheduler.
-
-The previous wasm chunk-store rationale was incorrect: the management-canister
-interface defines chunk storage per canister, so it does not justify a lock
-across unrelated PocketIC instances.
-
-Locks remain local to genuinely shared resources owned by `ic-testkit`, such
-as one benchmark output path or one explicitly shared cached baseline. The
-PocketIC server cache and any synchronization around it remain upstream-owned.
-
-An optional `PocketIcManagedServer` is likewise caller-scoped ownership of one
-server process, not a host-wide instance lock. Several `PocketIc` instances may
-use its endpoint while retaining independent upstream instance state and
-lifetimes; the caller decides whether that serial-suite topology is appropriate.
-
-See [`docs/design/0.2-concurrency/0.2-design.md`](docs/design/0.2-concurrency/0.2-design.md)
-for the historical design record behind this decision.
-
-## Current `ic-testkit` Helper Areas To Revisit
-
-These modules should be checked against upstream capabilities when updating
-`pocket-ic`:
-
-- `crates/ic-testkit/src/pic/transport.rs`
-- `crates/ic-testkit/src/pic/startup.rs`
-- `crates/ic-testkit/src/pic/lifecycle.rs`
-- `crates/ic-testkit/src/pic/calls.rs`
-- `crates/ic-testkit/src/pic/snapshot.rs`
-- `crates/ic-testkit/src/pic/baseline.rs`
-- `crates/ic-testkit/src/pic/diagnostics.rs`
+Retire a local workaround only after checking the selected upstream implementation,
+its actual consumers and success/failure/cancellation behavior. Keep supported
+fixtures and caller policy unless an equivalent published interface gives them a
+clearer owner. Historical proposals and similarly named functions alone are not
+proof that the local obligation has expired.

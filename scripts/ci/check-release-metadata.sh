@@ -158,7 +158,7 @@ new_fixture() {
     mkdir -p "$(dirname "$file")"
     cp "$repo_root/$file" "$file"
   done
-  for member in crates/ic-testkit crates/ic-testkit-candid crates/ic_testkit_perf_probe; do
+  for member in crates/ic-testkit crates/ic-testkit-dev crates/ic_testkit_perf_probe; do
     mkdir -p "$member/src"
     cp "$repo_root/$member/Cargo.toml" "$member/Cargo.toml"
     : > "$member/src/lib.rs"
@@ -331,8 +331,6 @@ HISTORY
     adapter prepare
   adapter prepared
   [[ "$(bash "$repo_root/scripts/ci/read-cargo-workspace-version.sh" --stable Cargo.toml)" == "$RELEASE_VERSION" ]] || fail "fixture invariant in $PWD at line $LINENO"
-  [[ "$("${YQ:-yq}" -p toml -r '.workspace.dependencies.ic-testkit-candid.version' Cargo.toml)" == "${RELEASE_VERSION%.*}" ]] \
-    || fail 'prepared local Candid requirement did not follow the release line'
   # The exact generated metadata, dependency selection and retained old bytes
   # are the contract; no test inspects the adapter's implementation layout.
   cmp history-root ".release-state/$RELEASE_VERSION.metadata/old/CHANGELOG.md"
@@ -430,7 +428,7 @@ printf '/.release-state/\n' > .git/info/exclude
 "$REAL_GIT" add -- .gitignore Cargo.toml Cargo.lock CHANGELOG.md \
   crates/ic-testkit/CHANGELOG.md README.md crates/ic-testkit/README.md \
   rust-toolchain.toml crates/ic-testkit/Cargo.toml crates/ic-testkit/src/lib.rs \
-  crates/ic-testkit-candid/Cargo.toml crates/ic-testkit-candid/src/lib.rs \
+  crates/ic-testkit-dev/Cargo.toml crates/ic-testkit-dev/src/lib.rs \
   crates/ic_testkit_perf_probe/Cargo.toml crates/ic_testkit_perf_probe/src/lib.rs \
   artifact gate-trace gate-environment tool-trace preparation-trace rejected.log scripts ci
 printf 'interrupted root staging bytes\n' > .release-metadata.fixture

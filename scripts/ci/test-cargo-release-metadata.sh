@@ -31,12 +31,12 @@ fi
 case "$1" in
     set-version) echo "preparation must not dispatch manifest mutation tools" >&2; exit 91 ;;
     sort)
-        [[ "$*" == "sort --workspace --check" ]] || exit 91
+        [[ "$*" == "sort --workspace --check" || "$*" == "sort --workspace --check --grouped" ]] || exit 91
         if [[ -n "${ORDER_EVENTS:-}" ]]; then
             printf '%s\n' "$PWD" > "$ORDER_EVENTS.root"
             cat Cargo.toml > "$ORDER_EVENTS.manifest"
         fi
-        [[ "${CASE:-}" != sort-failure ]] || exit 24 ;;
+        case "${CASE:-}" in sort-failure|grouped-failure) exit 24 ;; esac ;;
     metadata)
         if [[ "${CASE:-}" == prepared-local-failure ]] && grep -q '^version = "0.10.0"$' Cargo.toml; then
             "$REAL_CARGO" "$@"
@@ -124,9 +124,12 @@ mkdir "$fixture/success"
 make_workspace "$fixture/success"
 (cd "$fixture/success" && bash "$helper" prepare primary > "$fixture/success.log" 2>&1)
 (cd "$fixture/success" && bash "$helper" check primary)
-(cd "$fixture/success" && ORDER_EVENTS="$fixture/current-order.events" bash "$helper" check primary --manifest-order)
-[[ "$(cat "$fixture/current-order.events.root")" == "$fixture/success" ]] || exit 1
-cmp "$fixture/success/Cargo.toml" "$fixture/current-order.events.manifest"
+for ordering in --manifest-order --manifest-order-grouped; do
+    events="$fixture/current-$ordering.events"
+    (cd "$fixture/success" && ORDER_EVENTS="$events" bash "$helper" check primary "$ordering")
+    [[ "$(cat "$events.root")" == "$fixture/success" ]] || exit 1
+    cmp "$fixture/success/Cargo.toml" "$events.manifest"
+done
 for package in primary secondary; do
     jq -e --arg name "$package" '.packages[] | select(.name == $name) | .version == "1.2.4"' \
         < <(cd "$fixture/success" && "$REAL_CARGO" metadata --offline --locked --format-version 1) > /dev/null
@@ -302,15 +305,66 @@ mv secondary/Cargo.toml secondary/current-manifest.retained
 RELEASE_COMMIT="$commit" bash "$helper" check primary
 [[ "$(git rev-parse HEAD)" == "$commit" && "$(git write-tree)" == "$index_before" ]]
 [[ "$(cat Cargo.toml)" == 'broken current metadata' && ! -e secondary/Cargo.toml ]]
-for failure in type export; do
+# Selected-source admission and retention belong to this helper, not every
+# consumer adapter. Keep each attempt separate so an old receipt cannot pass.
+blob="$(git rev-parse "$commit:Cargo.toml")"
+for failure in type export missing-version missing-date wrong-version wrong-date short-commit absent-commit blob; do
+    attempts="$fixture/selected-$failure"
+    mkdir "$attempts"
+    events="$attempts/cargo-events"
     status=0
-    GIT_FAILURE="$failure" RELEASE_COMMIT="$commit" bash "$helper" check primary > "$fixture/git-$failure.log" 2>&1 || status=$?
-    [[ "$status" == 43 ]] || { echo 'failed Git output was accepted or its status lost' >&2; exit 1; }
+    (
+        export RELEASE_COMMIT="$commit" RELEASE_VERSION=1.2.4 RELEASE_DATE=2026-10-13
+        export TMPDIR="$attempts" ORDER_EVENTS="$events"
+        unset GIT_FAILURE
+        case "$failure" in
+            type|export) export GIT_FAILURE="$failure" ;;
+            missing-version) unset RELEASE_VERSION ;;
+            missing-date) unset RELEASE_DATE ;;
+            wrong-version) export RELEASE_VERSION=9.8.7 ;;
+            wrong-date) export RELEASE_DATE=1999-01-01 ;;
+            short-commit) export RELEASE_COMMIT=abcdef0 ;;
+            absent-commit) export RELEASE_COMMIT=0000000000000000000000000000000000000000 ;;
+            blob) export RELEASE_COMMIT="$blob" ;;
+        esac
+        bash "$helper" check primary --manifest-order
+    ) > "$attempts/result.log" 2>&1 || status=$?
+    expected=1
+    case "$failure" in type|export) expected=43 ;; absent-commit) expected=128 ;; esac
+    [[ "$status" == "$expected" ]] || exit 1
+    case "$failure" in
+        type|short-commit|absent-commit|blob)
+            [[ ! -e "$events" ]] || exit 1
+            for remaining in "$attempts"/cargo-release-check.*; do [[ ! -e "$remaining" ]] || exit 1; done ;;
+        *)
+            retained=("$attempts"/cargo-release-check.*)
+            [[ "${#retained[@]}" == 1 && -d "${retained[0]}/source" ]] || exit 1
+            grep -F "failed Cargo metadata check retained: ${retained[0]}" "$attempts/result.log" > /dev/null
+            for path in Cargo.toml Cargo.lock CHANGELOG.md primary/Cargo.toml secondary/Cargo.toml; do
+                git show "$commit:$path" > "$attempts/expected-input"
+                cmp "$attempts/expected-input" "${retained[0]}/source/$path"
+            done
+            if [[ "$failure" == export ]]; then
+                [[ ! -e "$events" ]] || exit 1
+            else
+                printf 'sort --workspace --check\n' > "$attempts/expected-events"
+                printf 'locate-project --workspace --message-format plain --manifest-path %s/source/Cargo.toml\n' \
+                    "${retained[0]}" >> "$attempts/expected-events"
+                cmp "$attempts/expected-events" "$events"
+            fi ;;
+    esac
+    [[ "$(git rev-parse HEAD)" == "$commit" && "$(git write-tree)" == "$index_before" ]] || exit 1
+    [[ "$(cat Cargo.toml)" == 'broken current metadata' && ! -e secondary/Cargo.toml ]] || exit 1
 done
 # Manifest ordering is opt-in and belongs to the same selected source as graph
 # admission. A poisoned working tree must never be used for the committed check.
 git show "$commit:Cargo.toml" > "$fixture/committed-manifest"
-for mode in default ordered sort-failure; do
+for mode in default ordered sort-failure grouped grouped-failure; do
+    ordering=--manifest-order
+    expected_sort='sort --workspace --check'
+    case "$mode" in
+        grouped*) ordering=--manifest-order-grouped; expected_sort+=' --grouped' ;;
+    esac
     events="$fixture/order-$mode.events"
     status=0
     if [[ "$mode" == default ]]; then
@@ -319,11 +373,11 @@ for mode in default ordered sort-failure; do
         [[ "$status" == 0 && ! -e "$events.root" ]] || exit 1
     else
         CASE="$mode" ORDER_EVENTS="$events" RELEASE_COMMIT="$commit" \
-            bash "$helper" check primary --manifest-order > "$fixture/order-$mode.log" 2>&1 || status=$?
-        [[ "$(head -n 1 "$events")" == 'sort --workspace --check' ]] || exit 1
+            bash "$helper" check primary "$ordering" > "$fixture/order-$mode.log" 2>&1 || status=$?
+        [[ "$(head -n 1 "$events")" == "$expected_sort" ]] || exit 1
         [[ "$(cat "$events.root")" != "$PWD" ]] || exit 1
         cmp "$fixture/committed-manifest" "$events.manifest"
-        if [[ "$mode" == ordered ]]; then
+        if [[ "$mode" == ordered || "$mode" == grouped ]]; then
             [[ "$status" == 0 && ! -e "$(cat "$events.root")" ]] || exit 1
             grep -Fxq 'metadata --locked --offline --format-version 1' "$events"
         else
@@ -337,10 +391,12 @@ for mode in default ordered sort-failure; do
 done
 # Reject unsupported flag/operation combinations before invoking any Cargo tool.
 for operation in prepare check-graph; do
-    status=0
-    ORDER_EVENTS="$fixture/rejected-order.events" bash "$helper" "$operation" primary --manifest-order \
-        > "$fixture/order-$operation.log" 2>&1 || status=$?
-    [[ "$status" == 2 && ! -e "$fixture/rejected-order.events" ]] || exit 1
+    for ordering in --manifest-order --manifest-order-grouped; do
+        status=0
+        ORDER_EVENTS="$fixture/rejected-order.events" bash "$helper" "$operation" primary "$ordering" \
+            > "$fixture/order-$operation-$ordering.log" 2>&1 || status=$?
+        [[ "$status" == 2 && ! -e "$fixture/rejected-order.events" ]] || exit 1
+    done
 done
 status=0
 bash "$helper" check primary --unknown > "$fixture/order-unknown.log" 2>&1 || status=$?

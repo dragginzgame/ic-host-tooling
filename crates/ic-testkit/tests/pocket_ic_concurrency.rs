@@ -13,13 +13,12 @@ use std::{
     time::{Duration, Instant},
 };
 
-use candid::Principal;
+use ic_platform::Principal;
 use ic_testkit::pic::{
     BaselinePoolDisposition, BaselinePoolError, BaselinePoolPreparationError,
-    BaselinePreparationStage, CachedPocketIcBaselinePool, ControllerSnapshotError, FixtureRecipeId,
-    InstallSpec, PocketIc, PocketIcBuilder, PocketIcInstance, PocketIcStartupConfig,
-    PocketIcStartupFailure, RebuildReason, SnapshotRestoreFunding, StandaloneCanisterFixture,
-    StandaloneCanisterRecipe,
+    BaselinePreparationStage, CachedPocketIcBaselinePool, ControllerSnapshotError, InstallSpec,
+    PocketIc, PocketIcBuilder, PocketIcInstance, PocketIcStartupConfig, PocketIcStartupFailure,
+    RebuildReason, SnapshotRestoreFunding, StandaloneCanisterFixture, StandaloneCanisterRecipe,
 };
 
 const READY_TIMEOUT: Duration = Duration::from_secs(60);
@@ -58,11 +57,7 @@ where
 {
     CachedPocketIcBaselinePool::new(
         capacity,
-        StandaloneCanisterRecipe::new(
-            FixtureRecipeId::try_new("test/single-canister").unwrap(),
-            SnapshotRestoreFunding::Preserve,
-            build,
-        ),
+        StandaloneCanisterRecipe::new(SnapshotRestoreFunding::Preserve, build),
     )
 }
 
@@ -108,8 +103,14 @@ fn startup_configuration_returns_a_typed_startup_error() {
         "ic-testkit-missing-pocket-ic-{}",
         std::process::id()
     ));
-    let result = PocketIcStartupConfig::spawn(&missing_binary, Duration::from_secs(1))
-        .build_instance(PocketIcBuilder::new().with_application_subnet());
+    let result = PocketIcStartupConfig::Spawn {
+        server_binary: (&missing_binary).into(),
+        timeout: Duration::from_secs(1),
+        server_hard_ttl: None,
+        server_idle_ttl: None,
+        server_output_files: None,
+    }
+    .build_instance(PocketIcBuilder::new().with_application_subnet());
 
     let error = result.err().unwrap();
     assert!(
@@ -426,13 +427,11 @@ fn failed_standalone_restore_is_timed_and_rebuilt_on_the_next_acquisition() {
     assert!(matches!(
         error,
         BaselinePoolError::Preparation {
-            error: BaselinePoolPreparationError::Recipe {
-                stage: BaselinePreparationStage::RestoreCanisters,
-                source,
-            },
+            error: BaselinePoolPreparationError::Restore(
+                ControllerSnapshotError::RestoreFailed { .. }
+            ),
             ..
-        } if matches!(source.get_ref().and_then(|error| error.downcast_ref::<ControllerSnapshotError>()),
-            Some(ControllerSnapshotError::RestoreFailed { .. }))
+        }
     ));
 
     let (fixture, outcome) = pool
@@ -452,7 +451,6 @@ fn failed_standalone_restore_is_timed_and_rebuilt_on_the_next_acquisition() {
 #[test]
 fn single_canister_recipe_applies_funding_before_warm_restore() {
     let recipe = StandaloneCanisterRecipe::new(
-        FixtureRecipeId::try_new("test/funded-canister").unwrap(),
         SnapshotRestoreFunding::TopUpTo {
             minimum_cycles: 1_000_000_000_000_000_000,
         },
@@ -489,11 +487,15 @@ fn single_canister_recipe_applies_funding_before_warm_restore() {
 #[test]
 #[ignore = "requires POCKET_IC_BIN and stops a dedicated test-owned server"]
 fn standalone_dead_transport_preserves_failed_recovery_and_can_build_again() {
-    let server = PocketIcStartupConfig::spawn(
-        std::env::var_os("POCKET_IC_BIN")
-            .expect("prepare POCKET_IC_BIN for dedicated-server recovery"),
-        READY_TIMEOUT,
-    )
+    let server = PocketIcStartupConfig::Spawn {
+        server_binary: (std::env::var_os("POCKET_IC_BIN")
+            .expect("prepare POCKET_IC_BIN for dedicated-server recovery"))
+        .into(),
+        timeout: READY_TIMEOUT,
+        server_hard_ttl: None,
+        server_idle_ttl: None,
+        server_output_files: None,
+    }
     .start_managed_server()
     .unwrap();
     let url = server.url().to_owned();
@@ -502,9 +504,12 @@ fn standalone_dead_transport_preserves_failed_recovery_and_can_build_again() {
     let pool = single_canister_pool(NonZeroUsize::new(1).unwrap(), move || {
         match builder_count.fetch_add(1, Ordering::SeqCst) {
             0 => StandaloneCanisterFixture::try_install(
-                PocketIcStartupConfig::connect(&url, READY_TIMEOUT)
-                    .build_instance(PocketIcBuilder::new().with_application_subnet())
-                    .unwrap(),
+                PocketIcStartupConfig::Connect {
+                    server_url: (&url).into(),
+                    timeout: READY_TIMEOUT,
+                }
+                .build_instance(PocketIcBuilder::new().with_application_subnet())
+                .unwrap(),
                 InstallSpec {
                     wasm: EMPTY_WASM.to_vec(),
                     init_bytes: vec![],

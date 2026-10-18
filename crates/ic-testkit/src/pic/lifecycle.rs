@@ -1,6 +1,6 @@
 use std::{num::NonZeroUsize, time::Duration};
 
-use candid::Principal;
+use ic_platform::Principal;
 use pocket_ic::{ErrorCode, PocketIc, RejectResponse};
 
 use super::{CanisterInstallError, transport::capture_operation};
@@ -40,14 +40,6 @@ pub trait CanisterInstallExt {
     /// Callers choose whether to collect diagnostics; this performs no diagnostic
     /// requests or error logging.
     fn try_create_and_install(&self, spec: InstallSpec) -> Result<Principal, CanisterInstallError>;
-
-    /// Sequentially create and install multiple canisters, stopping at the first failure.
-    fn try_create_and_install_many<I>(
-        &self,
-        specs: I,
-    ) -> Result<Vec<Principal>, CanisterInstallError>
-    where
-        I: IntoIterator<Item = InstallSpec>;
 
     /// Advance simulated time once, then tick twice for an install-code cooldown.
     /// Zero duration skips time reads/writes while retaining both ticks.
@@ -95,25 +87,6 @@ impl CanisterInstallExt for PocketIc {
         }
 
         Ok(canister_id)
-    }
-
-    /// Sequentially install multiple arbitrary wasm modules into this PocketIC instance.
-    ///
-    /// Installs are attempted in iterator order. If one install fails, earlier
-    /// installs remain in the PocketIC instance, the failed canister may exist
-    /// with the id retained in the funding or installation error variant, and later
-    /// installs are not attempted.
-    fn try_create_and_install_many<I>(
-        &self,
-        specs: I,
-    ) -> Result<Vec<Principal>, CanisterInstallError>
-    where
-        I: IntoIterator<Item = InstallSpec>,
-    {
-        specs
-            .into_iter()
-            .map(|spec| self.try_create_and_install(spec))
-            .collect()
     }
 
     /// Wait out the PocketIC `install_code` cooldown window inside the same instance.

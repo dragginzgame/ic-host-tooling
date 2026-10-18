@@ -213,21 +213,32 @@ pub fn main() -> ExitCode {
                 &directory.unwrap_or_else(|| PathBuf::from(server_assets::DEFAULT_DIRECTORY)),
             )?;
             command.env("POCKET_IC_BIN", &binary);
-            PocketIcStartupConfig::spawn(binary, timeout)
+            PocketIcStartupConfig::Spawn {
+                server_binary: binary,
+                timeout,
+                server_hard_ttl: None,
+                server_idle_ttl: None,
+                server_output_files: None,
+            }
         } else {
             PocketIcStartupConfig::from_env(timeout)?
         };
-        if let Some(ttl) = ttl {
-            if config.server_url().is_some() {
-                return Err("--ttl requires an owned server".into());
+        match &mut config {
+            PocketIcStartupConfig::Spawn {
+                server_hard_ttl,
+                server_idle_ttl,
+                server_output_files,
+                ..
+            } => {
+                *server_hard_ttl = ttl;
+                *server_idle_ttl = idle_ttl;
+                *server_output_files = output_files;
             }
-            config = config.with_server_hard_ttl(ttl);
-        }
-        if let Some(idle_ttl) = idle_ttl {
-            config = config.with_server_idle_ttl(idle_ttl);
-        }
-        if let Some((stdout, stderr)) = output_files {
-            config = config.with_server_output_files(stdout, stderr);
+            PocketIcStartupConfig::Connect { .. } => {
+                if ttl.is_some() || idle_ttl.is_some() || output_files.is_some() {
+                    return Err("--ttl, --idle-ttl and output files require an owned server".into());
+                }
+            }
         }
         Ok::<_, Box<dyn std::error::Error>>(
             config.run_command(&mut command, || INTERRUPTED.load(Ordering::Relaxed) != 0)?,

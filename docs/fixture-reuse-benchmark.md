@@ -12,13 +12,13 @@ and Intel macOS. Native qualification evidence is recorded in the [host matrix](
 
 ```sh
 cargo fetch --locked
-cargo run -p ic-testkit --locked --offline --example fixture_reuse_benchmark_driver -- \
+cargo run -p ic-testkit-dev --locked --offline --bin fixture_reuse_benchmark_driver -- \
   --server /absolute/path/to/pocket-ic \
   --iterations 100 --workers 2 --repeats 3 \
   --state-bytes 1048576 --output /tmp/fixture-reuse.json
 ```
 
-The driver builds the workload example in release mode and the existing `perf_probe`
+The driver builds the workload binary in release mode and the existing `perf_probe`
 canister in dev mode, using locked dependencies and prepared offline caches.
 The first command explicitly prepares those caches. For an already prepared
 offline host, use `cargo fetch --locked --offline`. The Rust Wasm target must
@@ -32,21 +32,29 @@ compare performance only within the same host and canister profiles. The result
 records the binary version/path, Git revision and dirty state, Rust compiler,
 Wasm SHA-256, workload, raw samples, and mean/p50/p95 summaries. Run from a quiet
 host and retain the JSON when comparing changes. The driver is repository-local
-and requires the probe canister checkout. The Python driver and its separate
-test script are retired; use this Cargo entry point directly.
+and requires the probe canister checkout.
 
-The built `target/debug/examples/fixture_reuse_benchmark_driver` executable can
+The built `target/debug/fixture_reuse_benchmark_driver` executable can
 also be invoked directly while its repository checkout remains available.
 It uses `CARGO`/`RUSTC` when set and native PATH lookup otherwise, preserving
-rustup proxy names. Cargo and compiler provenance run from the workspace to
-apply its toolchain selection. Explicit relative tool paths are interpreted
+rustup proxy names. IC Build observes Cargo and the compiler from the workspace
+when admitting build inputs. Report provenance reads the retained Wasm record's
+compiler identity and selected profile without launching another compiler probe.
+Explicit relative tool paths are interpreted
 from the caller's directory before commands enter the workspace. The selected
 Rust toolchain and Wasm target must already be installed; an invalid override
 returns failure rather than switching tools.
-Build 0.6's workspace observation uses that selected Cargo command with 64 KiB
+Build's workspace observation uses that selected Cargo command with 64 KiB
 stdout/stderr limits and no deadline; discovery does not resolve dependencies or
-install a toolchain. Cargo builds retain their existing unlimited duration.
+install a toolchain. IC Build selects the native worker from Cargo's package/target artifact
+messages and returns the reported target root. The driver no longer reconstructs
+its executable from debug/release directory names. Metadata and individual JSON
+messages have a 16 MiB allowance; diagnostics stream without a total output cap.
+Cargo builds retain their existing unlimited duration and owned-group cancellation.
 
+The private `ic-testkit-dev` package builds the worker and driver as separate
+binaries sharing protocol/report modules through one library. `Mode` remains
+typed through serialization and admission; JSON still uses `fresh` and `pooled`.
 The worker and driver share one complete, closed report schema. Rebuild them
 from the same checkout when updating: startup, cold-preparation and teardown
 measurements are required, alongside task and phase measurements. Unknown
@@ -55,11 +63,11 @@ keeps one typed report for admission and summaries, and borrows it when encoding
 JSON output. Existing retained
 report files are neither reinterpreted nor rewritten by this schema hard cut.
 
-Sample summaries use Metrics 0.11.1 with an explicit 95/100 nearest-rank
+Sample summaries use the private reporter's statistics with an explicit 95/100 nearest-rank
 selection. Count/mean/p50/p95 field names are unchanged. Floating-point
 projections remain approximate; an even median uses the midpoint of the middle
 samples. Non-finite input, derived rates or rounded means return the original
-typed Metrics error before the output file is replaced. No failed summary is
+typed statistics error before the output file is replaced. No failed summary is
 published as a successful report containing null numeric values.
 
 ## Workload and correctness
@@ -236,7 +244,7 @@ allows it; they do not establish an optimal capacity for other workloads.
 Repeat this comparison without rebuilding fresh fixtures for every task:
 
 ```sh
-cargo run -p ic-testkit --locked --offline --example fixture_reuse_benchmark_driver -- \
+cargo run -p ic-testkit-dev --locked --offline --bin fixture_reuse_benchmark_driver -- \
   --server /absolute/path/to/pocket-ic \
   --modes pooled --capacities 1 2 --iterations 100 --workers 2 --repeats 3 \
   --state-bytes 1048576 --output /tmp/fixture-reuse-long.json
@@ -251,7 +259,7 @@ case (`fresh`, `pooled-1`, `pooled-2`, and so on).
 Compare any positive pool capacities with one shared worker budget:
 
 ```sh
-cargo run -p ic-testkit --locked --offline --example fixture_reuse_benchmark_driver -- \
+cargo run -p ic-testkit-dev --locked --offline --bin fixture_reuse_benchmark_driver -- \
   --server /absolute/path/to/pocket-ic \
   --modes pooled --capacities 1 2 4 8 \
   --iterations 100 --workers 8 --repeats 3 \
@@ -291,7 +299,7 @@ query would only move the measured cost and add another call.
 Focused sampler checks:
 
 ```sh
-cargo test -p ic-testkit --locked --offline --example fixture_reuse_benchmark_driver
+cargo test -p ic-testkit-dev --locked --offline --lib
 ```
 
 ## Released 0.14.7 baseline
