@@ -260,6 +260,20 @@ fn held_pipe_deadline_and_overflow_keep_cleanup_armed_after_leader_exit() {
     ] {
         let mut child =
             OwnedChild::spawn(&mut command(script), CleanupPolicy::KillAndWait).unwrap();
+        // Establish the exited-leader case without charging scheduler/startup
+        // latency to the communication deadline or releasing group custody.
+        let startup_deadline = Instant::now() + Duration::from_secs(5);
+        loop {
+            if let Some(status) = child.poll_exit().unwrap() {
+                assert!(status.success());
+                break;
+            }
+            assert!(
+                Instant::now() < startup_deadline,
+                "fixture leader did not exit"
+            );
+            std::thread::sleep(Duration::from_millis(2));
+        }
         let error = communicate_child(
             &mut child,
             None,
@@ -273,6 +287,7 @@ fn held_pipe_deadline_and_overflow_keep_cleanup_armed_after_leader_exit() {
         )
         .unwrap_err();
         let execution = error.execution_error().unwrap();
+        assert!(execution.evidence.status.unwrap().success());
         if overflow {
             assert!(matches!(
                 execution.failure,

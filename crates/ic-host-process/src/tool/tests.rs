@@ -240,9 +240,8 @@ fn deadlines_cover_running_children_closed_streams_and_descendant_pipe_copies() 
         assert!(matches!(error.failure, ExecutionFailure::TimedOut));
         assert!(error.evidence.status.is_some());
         assert!(error.cleanup.is_none());
-        if argument == "--descendant" {
-            assert!(error.evidence.status.is_some_and(|status| status.success()));
-        }
+        // The deadline may expire before the shell exits, especially on a busy
+        // host. The held-pipe test separately establishes leader exit first.
     }
 }
 
