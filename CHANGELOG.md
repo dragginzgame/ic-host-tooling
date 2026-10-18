@@ -37,7 +37,7 @@
   preserving protocol tags and caller-owned budgets, certification and replay.
   [Details](docs/changelog/0.27.md).
 
-- Complete retained writes, descriptor-based create-new copying and shell-status
+- Complete retained writes and shell-status
   projection, preserving caller-owned publication, cleanup and recovery policy.
   Document direct managed Wasm-inspector use. [Details](docs/changelog/0.27.md).
 
