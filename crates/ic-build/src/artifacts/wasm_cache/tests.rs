@@ -1,6 +1,7 @@
 use crate::cargo::selection::{CargoFeatureSelection, CargoSelection};
 use crate::cargo_fixture::spawn_cargo;
 use ic_host_fs::owned_directory::OwnedDirectory;
+use ic_host_fs::read::directory_logical_size;
 use ic_host_process::child::OwnedChild;
 #[cfg(unix)]
 use ic_host_process::testing::write_executable_script;
@@ -21,9 +22,7 @@ use super::{
     resolve_cargo_build_inputs, run_cargo_build, semantic_package_identity, validate_spec,
     validated_artifact_set,
 };
-use crate::artifacts::cache_fs::{
-    CACHE_DIRECTORY_TAG_SIGNATURE, CacheRetentionLimits, directory_logical_size, write_last_used,
-};
+use crate::artifacts::cache_fs::{CacheRetentionLimits, write_last_used};
 use crate::artifacts::{WasmBuildInputSnapshot, digest::digest_bytes};
 use crate::fs_fixture::unique_temp_directory;
 use std::{
@@ -2536,7 +2535,7 @@ fn cache_directory_tag_is_created_at_target_root() {
 
     let contents =
         fs::read_to_string(target_dir.join("CACHEDIR.TAG")).expect("read cache directory tag");
-    assert!(contents.starts_with(CACHE_DIRECTORY_TAG_SIGNATURE));
+    assert!(contents.starts_with(ic_host_fs::cache_tag::SIGNATURE));
     fs::remove_dir_all(target_dir).expect("remove tag test directory");
 }
 

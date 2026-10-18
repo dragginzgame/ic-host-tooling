@@ -1,5 +1,77 @@
 # Current handoff
 
+## Published-engine consumer delivery — 2026-10-18
+
+The live sparse index confirms non-yanked Build 0.17.3, Rust 1.91. Wire's isolated
+registry migration is [PR #11](https://github.com/dragginzgame/ic-wire/pull/11),
+`8f16545` over released `3f5748f`. It removes the 0.14 Git pin and all three Host
+0.25 packages. Rust 1.91 example checks, nineteen negative compiler cases with
+passing controls, strict development Clippy, pins/boundaries/links and installed
+PocketIC 16.1 macro and Chromium browser trials pass on the registry graph.
+The new direct Process edge remains private evaluation tooling. No consumer
+runtime or wire contract changes. Full CI/native macOS/live IC remain separate.
+
+[Testkit #127](https://github.com/dragginzgame/ic-testkit/pull/127) is refreshed
+without force-push to `ac673f5`, merging released 0.54.0 `ff88087` and preserving
+its Platform decoder migration. Nineteen driver cases, floor all-target checking,
+strict development Clippy and focused policy/document checks pass. Pending notes
+target 0.54.1; own versions and current-main lock selections remain unchanged.
+[Query #84](https://github.com/dragginzgame/ic-query/pull/84) needs no source
+refresh against upstream `8982c2a4`; all thirty floor smoke cases pass again.
+Neither contribution imports the normal sibling checkout's pending work.
+
+[Canic #596](https://github.com/dragginzgame/canic/pull/596) stays draft at its
+earlier validated branch head. The newer unified infrastructure pipeline exists
+only in the maintainer's dirty normal checkout, so replaying the older bootstrap
+modules would reverse that work. A narrow facts patch is prepared against an
+isolated snapshot, preserving the process-wide environment and release checks.
+Baseline and candidate both stop at the same seventeen existing Core Memory/
+Storage errors before Host compilation; older Build callers also remain outside
+that patch. Current-pipeline compile/test acceptance is blocked. The patch and
+before-images are under `/tmp/ic-build-consumer-finish-20261018/`; no part of the
+normal pending batch is pushed or imported into the shared PR. Superseded producer
+PRs #59/#67/#73 are closed without merge or branch deletion: their implementations
+already ship in current Build. No release, publication or merge occurs here.
+
+## Post-extraction filesystem ownership cleanup — pending 0.17.4
+
+Starting source is released `a4aecf9` (0.17.3), with a clean working tree and
+Host 0.27.3 already selected. The repository audit covers public modules,
+manifests, examples, test support, release adapters, CI, generated cache metadata
+and current guides. Available Canic, Testkit, Query, IcyDB, Jobs and Wire checkouts
+provide read-only consumer evidence; their dirty or older adoption paths are not
+proof of integrated current-API acceptance. No sibling source is changed.
+
+Three filesystem primitives survived their Host extraction: shared-descriptor
+unlock-on-drop, metadata-only directory sizing and standard cache-tag handling.
+The published Host FS 0.27.2 source and changelog establish their canonical APIs;
+Build now consumes those APIs with a minimum FS requirement of 0.27.2.
+The local lock guard, size walker and two copies of Host's
+size tests are removed. Build retains its shared record-clone owner, pruning and
+scheduling policy, tag suffix and cache-error mapping. Tag generation now names
+Build; valid tags, formats, paths and existing artifacts stay intact.
+
+Current usage guides describe 0.17.3 rather than the superseded 0.16/pending-0.17
+split. Historical upgrade actions and source-bound extraction records remain.
+Input traversal/semantic hashing, invocation staging, cache transactions and the
+different native/Wasm protocol-refusal policies remain distinct because their
+admission, identity and lifetime contracts differ. Pinned Shared payloads remain
+reviewed dependencies; release adapters already delegate to their shared owner.
+No additional runtime implementation deletion is justified by this inspection.
+
+Linux Rust 1.91 passes focused cache filesystem, pruning, retained-artifact and
+shared-maintenance units, both cross-process cache targets, and all-target/
+all-feature checking. Strict development Clippy, formatting, dependency pins,
+direct boundaries, snapshot integrity, documentation links and diff checks pass.
+After initial qualification on Host 0.27.3, an external lockfile refresh selects
+Host 0.27.4. That refresh is preserved; all affected focused tests, process
+controls, MSRV checking and strict Clippy pass again on the new graph. The three
+delegated Host implementations are byte-identical across these selected releases.
+No full release gate, native macOS or installed-IC qualification is claimed.
+This cleanup changes no package versions, lock selections, index, refs or retained
+artifacts. The concurrent lockfile change remains separate from its source delta.
+Before-images and focused logs: `/tmp/ic-build-sediment-20261018-followup/`.
+
 ## Current-engine consumer convergence — pending 0.17.3
 
 This batch starts at released main `795143a` (0.17.2). The live sparse index

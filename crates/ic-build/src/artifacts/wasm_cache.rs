@@ -6,6 +6,7 @@ use crate::cargo::{
     selection::CargoSelection,
 };
 use ic_host_fs::owned_directory::{OwnedDirectory, remove_path_if_present};
+use ic_host_fs::read::directory_logical_size;
 use ic_host_process::{
     child::{CleanupPolicy, OwnedChild},
     tool::{
@@ -39,11 +40,11 @@ use super::{
     cache_fs::{
         ArtifactCacheMaintenance, ArtifactCachePruneReport, CacheFsError, CacheRetentionLimits,
         RetainedCacheEntry, cache_entry_last_used, cache_maintenance_due,
-        canonicalize_allow_missing, directory_logical_size,
-        ensure_cache_directory_tag as ensure_cache_tag, is_sha256_directory, lock_cache_file,
-        lock_cache_file_with_wait_observer, perform_scheduled_cache_maintenance,
-        prune_direct_child_directories, record_cache_entry_use as record_entry_use,
-        record_cache_maintenance, remove_unretained_entry,
+        canonicalize_allow_missing, ensure_cache_directory_tag as ensure_cache_tag,
+        is_sha256_directory, lock_cache_file, lock_cache_file_with_wait_observer,
+        perform_scheduled_cache_maintenance, prune_direct_child_directories,
+        record_cache_entry_use as record_entry_use, record_cache_maintenance,
+        remove_unretained_entry,
     },
     digest::{
         FileDigest, InputDigest, InputHasher, LabeledPathDigestCache, copy_file_atomic,

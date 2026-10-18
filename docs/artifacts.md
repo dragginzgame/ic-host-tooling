@@ -1,6 +1,6 @@
 # Artifact and Wasm build APIs
 
-Examples target pending 0.17. Standalone Wasm acquisition retains the released
+Examples target the current 0.17 API. Standalone Wasm acquisition provides two
 entrypoints: `build_wasm_canisters_cached(&spec, spawn)` for silent execution,
 and `build_wasm_canisters_cached_with_progress(&spec, config, observer, spawn)`
 for observation. Both use the same internal acquisition engine. Progress remains
@@ -18,7 +18,7 @@ values, or literal cargo/rustc defaults; explicit tool builders remain available
 Keep CARGO_TARGET_DIR absent: Build supplies its selected output directory after
 applying the recipe environment. Debug output lists environment names only.
 
-Pending 0.17 uses the `ic-build-explicit-environment-fingerprint` domain so
+The 0.17 API uses the `ic-build-explicit-environment-fingerprint` domain so
 old inherited execution cannot authorize a cleared-environment cache hit.
 Recipes build under new keys; retained entries, stamp formats and namespaces
 stay intact without a migration reader or automatic cleanup.
@@ -239,7 +239,7 @@ does not rerun tools or inspect ambient inputs. A reused record reports admitted
 input observations, not a new compiler execution. Keep product provenance schemas
 and redaction local, and retain the record through downstream artifact consumption.
 
-Pending 0.17.3 adds `WasmBuildEvidence::acquire(spec, spawn)` for consumers that
+Since 0.17.3, `WasmBuildEvidence::acquire(spec, spawn)` supports consumers that
 retain a compiled artifact through measurement and export bounded copies. It
 composes the existing resolved snapshot, retained build record and capture owner;
 there is no second cache, recovery lifecycle or automatic report publication.
@@ -1108,7 +1108,11 @@ Host 0.24 has removed its extraction module/feature; adopt the new Build owner
 when upgrading that graph ([#51](https://github.com/dragginzgame/ic-build/issues/51)).
 Structural Wasm inspection does not replace PocketIC's runtime validation.
 IC Build currently requires compatible IC Host 0.27 releases at the
-public dependency boundary; the lockfile selects Host 0.27.1.
+public dependency boundary. Host FS requires at least 0.27.2 for shared lock
+guards, logical directory sizing and cache-directory tags; Cargo.lock records
+the selected graph. Build owns record lifetime, pruning policy and tag comments,
+while Host owns these filesystem primitives. Existing valid tags are preserved;
+new tags identify IC Build without renaming retained cache paths or formats.
 Retained staging still uses checked native permission conversion on macOS. Align direct Host
 dependencies when passing `OutputLimits`, `CleanupPolicy` or matching typed Host
 failures across the engine boundary. Different Host minor families have distinct Rust crate identities even

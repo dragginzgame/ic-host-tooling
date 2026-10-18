@@ -3,6 +3,14 @@
 The 0.1.0 section preserves the original bootstrap notes. The published 0.1.0
 archive also includes the extracted artifact engine and Cargo grouping API.
 
+## [0.17.4]
+
+- Delegate retained descriptor locks, logical cache sizing and cache-directory
+  tags to published Host FS 0.27.2 APIs. Preserve record lifetime, pruning policy,
+  retained formats and typed failures; newly written tag comments identify Build.
+- Replace stale pre-0.17 adoption guidance with the current API and dependency
+  boundary. Keep historical extraction evidence separate from supported usage.
+
 ## [0.17.3] - 2026-10-18
 
 - Bring retained Wasm evidence/export and compile-diagnostic helpers onto the

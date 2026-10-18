@@ -17,11 +17,11 @@ The current implementation and qualification evidence is recorded in the
 [handoff](../status/current.md); [IC Build #1](https://github.com/dragginzgame/ic-build/issues/1)
 owns extraction acceptance. The generic engine retains Testkit's `v1` stamp
 format and `.ic-testkit` cache/lock namespaces. Release 0.16 changes Wasm recipe
-keys to a typed v2 fingerprint domain. Pending 0.17 selects a separate explicit-
+keys to a typed v2 fingerprint domain. Release 0.17 selects a separate explicit-
 environment recipe domain and clears child inheritance, causing cold builds while preserving
 retained entries and conservative raw-input mutation checks. No migration reader or
 automatic cleanup is introduced. Canic's feature-equivalent Cargo grouping moved
-to IC Build with caller-supplied environment and output policy. Pending 0.17
+to IC Build with caller-supplied environment and output policy. Release 0.17
 also requires the recipe's `CargoSelection` for isolated and combined grouping
 probes, leaving feature, lock and network choices with the consumer. Complete-release
 reuse/finalization remains Canic-owned. Shared execution does not admit Canic
@@ -35,9 +35,17 @@ where interpretation or normalization is needed; Build does not depend on them.
 Build's `cargo::execution` composes Host communication with Cargo decoding and
 exact artifact selection. `cargo::native` keeps immediate protocol-refusal cleanup;
 the Wasm path instead drains diagnostics after protocol refusal. These distinct
-contracts share decoding, not one imposed failure policy. Pending retained-evidence
+contracts share decoding, not one imposed failure policy. The 0.17.3 retained-evidence
 and diagnostic adapters compose these existing owners for Wire evaluation; they
 do not own measurement scenarios, report schemas or acceptance/publication.
+
+Host FS 0.27.2 owns shared descriptor-lock release, metadata-only logical directory
+sizes and standard cache-directory tag recognition/publication. Build consumes
+those APIs directly, keeping its record-clone lifetime, cache thresholds,
+maintenance ordering, tag suffix and typed cache-error context. Generic filesystem
+tests belong to Host; Build retains record-retention and cache-policy integration
+checks. The historical `.ic-testkit` names are live retained identities, not an
+alternate implementation or an invitation to remove existing artifacts.
 
 IC Platform is the Candid/CDK library dependency boundary. Published 0.1.3 is the
 reviewed adoption baseline; Build currently declares no such dependency or uses

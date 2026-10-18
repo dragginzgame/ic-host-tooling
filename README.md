@@ -30,20 +30,19 @@ records source-bound qualification and outstanding consumer acceptance.
 
 ## Use
 
-The released dependency line is 0.16, requiring Rust 1.91.0 or newer:
+The current 0.17 API requires Rust 1.91.0 or newer:
 
 ```toml
 [dependencies]
-ic-build = "0.16"
+ic-build = "0.17.3"
 # Add matching direct Host dependencies when passing Host values through Build.
 ic-host-process = { version = "0.27", default-features = false }
 ```
 
-The working tree targets pending 0.17; its examples use the pending API and are
-compiled as Cargo example targets rather than duplicated in this README. Do not
-apply them to the released 0.16 API unchanged. In particular, pending Wasm specs
-require the complete environment at construction; the released silent build
-entrypoint is retained. See the [upgrade guidance](docs/artifacts.md) for the full cut.
+The examples use the current API and are compiled as Cargo example targets.
+Wasm specifications require the complete environment at construction and an
+explicit spawner at acquisition. See the [artifact guide](docs/artifacts.md) for
+contracts and upgrade actions from earlier versions.
 
 With the toolchain prepared and source writers excluded for the whole invocation:
 
@@ -180,9 +179,9 @@ adapters, exact tagged-source admission and retained recovery evidence.
 The adapter fixtures qualify command behavior; they do not establish publication
 or native macOS support. Published-version custody is recorded in the handoff.
 
-Testkit's v1 stamp format and `.ic-testkit` cache/lock names remain intact.
-Release 0.16 uses typed Cargo metadata; pending 0.17 selects the explicit-
-environment fingerprint domain, causing cold builds under the changed semantics. Old retained entries remain available to their
+The extracted v1 stamp format and `.ic-testkit` cache/lock names remain intact.
+The 0.17 explicit-environment fingerprint domain causes cold builds when upgrading
+from inherited-environment execution. Old retained entries remain available to their
 owners; no migration reader or automatic cleanup is added. Returned records must
 remain alive until their artifact paths have finished being consumed.
 
