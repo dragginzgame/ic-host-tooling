@@ -1,4 +1,4 @@
-use crate::batch::BatchLabelError;
+use ic_host_artifacts::batch::BatchLabelError;
 use std::{cell::Cell, fs};
 
 use super::{

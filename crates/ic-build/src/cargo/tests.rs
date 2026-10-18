@@ -1,5 +1,5 @@
 use super::*;
-use crate::batch::BatchLabelError;
+use ic_host_artifacts::batch::BatchLabelError;
 use ic_host_process::tool::OutputLimit;
 
 #[test]

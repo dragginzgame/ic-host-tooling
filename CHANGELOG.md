@@ -3,7 +3,13 @@
 The 0.1.0 section preserves the original bootstrap notes. The published 0.1.0
 archive also includes the extracted artifact engine and Cargo grouping API.
 
-## [0.17.7]
+## [0.18.0]
+
+- **Breaking:** use Host Artifacts 0.27.4 canonical batch label admission and
+  `ic_host_artifacts::batch::BatchLabelError`. Remove `ic_build::batch` without
+  a compatibility re-export; exact labels, duplicate indices and refusal before
+  command/progress/build effects remain unchanged
+  ([PR #65](https://github.com/dragginzgame/ic-build/pull/65)).
 
 - Render read-only Cargo release candidates with TOML-owned literal spans,
   preserving unrelated bytes and source-qualified dependencies. Expose an
