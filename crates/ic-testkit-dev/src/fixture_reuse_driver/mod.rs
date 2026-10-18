@@ -43,8 +43,7 @@ use ic_host_process::{
     sampling,
     tool::{
         AdmittedTool, CompletedExecution, ExecutionContext, OutputLimit, OutputLimits,
-        ResolutionError, SuccessfulExit, ToolError, VersionSpec, communicate_child,
-        resolve_executable,
+        ResolutionError, ToolError, VersionSpec, resolve_executable, run_group_command,
     },
 };
 use ic_host_text::table::{self, Alignment};
@@ -244,19 +243,15 @@ fn measure(
 
 fn execute_command(command: &mut Command) -> Result<CompletedExecution, Error> {
     check_interrupted()?;
-    let mut child = OwnedChild::spawn(
+    run_group_command(
         command.stdin(Stdio::null()).stderr(Stdio::inherit()),
-        ic_host_process::child::CleanupPolicy::KillAndWait,
-    )?;
-    communicate_child(
-        &mut child,
-        None,
         OutputLimits {
             stdout: OutputLimit::Terminate(64 * 1024),
             stderr: OutputLimit::Terminate(0),
             timeout: None,
         },
-        SuccessfulExit::Cleanup,
+        ic_host_process::child::CleanupPolicy::KillAndWait,
+        None,
         || INTERRUPTED.load(Ordering::Relaxed),
     )
     .and_then(CompletedExecution::require_success)
@@ -1375,10 +1370,19 @@ esac
             matches!(&error, ToolError::Execution(execution) if matches!(execution.failure, ExecutionFailure::ExitStatus))
         );
         assert_eq!(error.evidence().unwrap().status.unwrap().code(), Some(23));
+        let Err(Error::Tool(ToolError::Execution(error))) =
+            text_command(&mut Command::new("/missing/testkit-command"))
+        else {
+            panic!("expected retained spawn failure");
+        };
         assert!(matches!(
-            text_command(&mut Command::new("/missing/testkit-command")),
-            Err(Error::Io(error)) if error.kind() == io::ErrorKind::NotFound
+            &error.failure,
+            ExecutionFailure::Io {
+                operation: ic_host_process::tool::ExecutionOperation::Spawn,
+                source,
+            } if source.kind() == io::ErrorKind::NotFound
         ));
+        assert!(error.cleanup.is_none());
     }
 
     #[test]
