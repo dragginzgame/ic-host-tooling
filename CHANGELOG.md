@@ -3,6 +3,14 @@
 The 0.1.0 section preserves the original bootstrap notes. The published 0.1.0
 archive also includes the extracted artifact engine and Cargo grouping API.
 
+## [0.18.0]
+
+- **Breaking:** replace `ArtifactStagingDirectory` with Host fresh-directory
+  allocation and `OwnedDirectory`. Use published Host 0.27.5 stream visitation,
+  retaining framed digests, bounded scratch and immediate size-change refusal.
+  Host retries interrupted reads; callers retain cleanup policy
+  ([#45](https://github.com/dragginzgame/ic-build/issues/45)).
+
 ## [0.17.6] - 2026-10-18
 
 - Select development Rust 1.99.1, which fixes Rust 1.99.0's direct-invocation

@@ -29,6 +29,12 @@ roles, release identities or manifests.
 
 ## Implemented ownership
 
+Published Host Artifacts/FS 0.27.5 own caller-scratch stream visitation and fresh-
+directory allocation. Build retains digest framing, exact-size refusal and its
+capture prefix/permissions/collision policy, using Host OwnedDirectory directly.
+The pending 0.18 cut removes the public staging wrapper; direct staging consumers
+select their allocation policy and guard at the Host boundary.
+
 The current manifest depends directly on Host Artifacts, FS and Process, plus
 Cargo's canonical metadata schema. Host Tools and Text are consumer dependencies
 where interpretation or normalization is needed; Build does not depend on them.
