@@ -7,6 +7,12 @@
   development compiler or filesystem support contract.
   [Details](docs/changelog/0.27.md).
 
+- Share positive whole-second duration parsing, rounded single-unit display and
+  compact two-unit display for Query and Canic. Keep their distinct text policies
+  explicit; deadlines, freshness and persisted units remain caller-owned
+  ([PR #162 — Duration text](https://github.com/dragginzgame/ic-host-tooling/pull/162)).
+  [Details](docs/changelog/0.27.md).
+
 - Share opt-in canonical unsigned `u64` LEB128 admission without allocation or
   new dependencies. Callers retain field diagnostics, semantic limits and trust.
   [Details](docs/changelog/0.27.md).
