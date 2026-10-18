@@ -28,7 +28,7 @@
   <a href="https://crates.io/crates/ic-testkit"><img src="https://img.shields.io/crates/d/ic-testkit.svg" alt="Downloads"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
   <a href="Cargo.toml"><img src="https://img.shields.io/badge/MSRV-1.91.0-blue.svg" alt="MSRV"></a>
-  <a href="README.md#toolchains-and-checks"><img src="https://img.shields.io/badge/internal%20rust-1.99.0-orange.svg" alt="Internal Rust"></a>
+  <a href="README.md#toolchains-and-checks"><img src="https://img.shields.io/badge/internal%20rust-1.99.1-orange.svg" alt="Internal Rust"></a>
   <a href="Cargo.toml"><img src="https://img.shields.io/badge/edition-2024-purple.svg" alt="Rust edition"></a>
   <a href="Cargo.toml"><img src="https://img.shields.io/badge/PocketIC-16.1-green.svg" alt="PocketIC"></a>
   <a href="https://github.com/dragginzgame/ic-testkit"><img src="https://img.shields.io/badge/GitHub-dragginzgame%2Fic--testkit-black.svg" alt="Repository"></a>
@@ -104,7 +104,7 @@ Host-side test crates normally add:
 ```toml
 [dev-dependencies]
 ic-testkit = "0.54"
-ic-platform = { version = "0.1.8", default-features = false, features = ["candid"] }
+ic-platform = { version = "0.1.11", default-features = false, features = ["candid"] }
 ```
 
 Canister crates that emit benchmark markers can add the same version under
@@ -228,6 +228,12 @@ tuning, not an ic-testkit correctness requirement.
 The published `ic-platform` package with its `candid` feature
 provides caller-bounded native/Wasm reply decoding without simulator dependencies.
 Consumers own budgets, transport, trust, raw evidence and error projection.
+
+`ic-testkit-candid` is retired and is no longer released from this workspace.
+For Testkit 0.54 and later, use `ic_platform::candid` with Platform's `candid`
+feature. Upgrade Testkit and replace the decoder dependency together, preserving
+caller-selected limits. Existing registry releases serve older Testkit consumers;
+they are not a second maintained decoder implementation.
 
 Generic Host functionality belongs to direct `ic-host-artifacts`, `ic-host-fs`
 and `ic-host-process` dependencies; Testkit does not re-export those crates.
@@ -1050,8 +1056,8 @@ assert_eq!(alice, Fake::principal(1));
 
 The published library selects Host's gzip capability for server assets. Wasm
 inspection is selected by IC Build for development builds, independently of
-Testkit's normal dependency graph. The private probe's CDK entrypoint macros
-belong to its test canister; the published Wasm library uses Platform's raw
+Testkit's normal dependency graph. Platform owns the private probe's CDK
+entrypoint generator; the published Wasm library uses Platform's raw
 counters and marker logging.
 
 ic-testkit remains generic. It does not define application init payloads,

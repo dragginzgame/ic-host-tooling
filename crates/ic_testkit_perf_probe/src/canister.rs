@@ -1,7 +1,7 @@
 use crate::protocol::{
     self, BenchmarkOnce, BenchmarkTrap, InspectState, MutateState, Ping, SeedState, State,
 };
-use ic_cdk::{query, update};
+use ic_platform::cdk::{query, update};
 use ic_testkit::performance::Performance;
 use ic_wire::{Method, Text};
 use std::cell::RefCell;
