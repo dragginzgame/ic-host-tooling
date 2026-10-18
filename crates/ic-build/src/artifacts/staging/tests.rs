@@ -1,4 +1,4 @@
-use super::{ArtifactStagingDirectory, CapturedArtifact};
+use super::{CapturedArtifact, staging_directory};
 use crate::fs_fixture::unique_temp_directory;
 use ic_host_fs::owned_directory::OwnedDirectory;
 use std::{fs, io};
@@ -11,7 +11,7 @@ fn staging_unwind_cleans_up_only_owned_children_and_preserves_retained_capture()
     let mut owned = None;
     let mut retained = None;
     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        let staging = ArtifactStagingDirectory::new(&root).unwrap();
+        let staging = staging_directory(&root).unwrap();
         owned = Some(staging.path().to_owned());
         retained = Some(
             CapturedArtifact::capture(&source, &root, 8)
@@ -41,12 +41,12 @@ fn cleanup_failure_keeps_build_retry_but_explicit_close_transfers_recovery() {
     let owned = root.join("build");
     fs::create_dir(&owned).unwrap();
     let mut build = OwnedDirectory::new(owned.clone());
-    let staging = ArtifactStagingDirectory::new(&root).unwrap();
+    let staging = staging_directory(&root).unwrap();
     let stage_path = staging.path().to_owned();
     let original_permissions = fs::metadata(&root).unwrap().permissions();
     fs::set_permissions(&root, fs::Permissions::from_mode(0o500)).unwrap();
     let build_error = build.try_cleanup().unwrap_err();
-    let close_error = staging.close().unwrap_err();
+    let close_error = staging.cleanup().unwrap_err();
     fs::set_permissions(&root, original_permissions).unwrap();
 
     assert_eq!(build_error.kind(), io::ErrorKind::PermissionDenied);
@@ -176,14 +176,14 @@ fn staging_preserves_unowned_children_and_requires_an_existing_parent() {
     fs::write(foreign.join("evidence"), b"preserve").unwrap();
     let missing = root.join("missing");
     assert_eq!(
-        ArtifactStagingDirectory::new(&missing).unwrap_err().kind(),
+        staging_directory(&missing).unwrap_err().kind(),
         io::ErrorKind::NotFound
     );
     assert!(!missing.exists());
-    let staging = ArtifactStagingDirectory::new(&root).unwrap();
+    let staging = staging_directory(&root).unwrap();
     fs::write(staging.path().join("candidate"), b"owned").unwrap();
     let staged_path = staging.path().to_owned();
-    staging.close().unwrap();
+    staging.cleanup().unwrap();
     assert!(!staged_path.exists());
     assert_eq!(fs::read(foreign.join("evidence")).unwrap(), b"preserve");
     fs::remove_dir_all(root).unwrap();

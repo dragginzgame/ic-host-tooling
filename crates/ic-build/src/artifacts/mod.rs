@@ -85,9 +85,7 @@ pub use inputs::{
     read_cargo_depfile_inputs,
 };
 pub use phase::WasmBuildPhase;
-pub use staging::{
-    ArtifactStagingDirectory, CaptureRetentionError, CapturedArtifact, produce_and_retain_artifact,
-};
+pub use staging::{CaptureRetentionError, CapturedArtifact, produce_and_retain_artifact};
 pub use transaction::{
     ArtifactBuildTransaction, ArtifactCacheArtifact, ArtifactCacheError, ArtifactCacheOutcome,
     ArtifactCachePreparation, ArtifactCacheRecord, ArtifactCacheSpec, ArtifactCacheTimings,

@@ -5,6 +5,12 @@ archive also includes the extracted artifact engine and Cargo grouping API.
 
 ## [0.18.0]
 
+- **Breaking:** replace `ArtifactStagingDirectory` with Host fresh-directory
+  allocation and `OwnedDirectory`. Use published Host 0.27.5 stream visitation,
+  retaining framed digests, bounded scratch and immediate size-change refusal.
+  Host retries interrupted reads; callers retain cleanup policy
+  ([#45](https://github.com/dragginzgame/ic-build/issues/45)).
+
 - **Breaking:** use Host Artifacts 0.27.4 canonical batch label admission and
   `ic_host_artifacts::batch::BatchLabelError`. Remove `ic_build::batch` without
   a compatibility re-export; exact labels, duplicate indices and refusal before

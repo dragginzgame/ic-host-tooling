@@ -15,7 +15,8 @@ acceptance and delivery status.
 
 The current implementation and qualification evidence is recorded in the
 [handoff](../status/current.md); [IC Build #1](https://github.com/dragginzgame/ic-build/issues/1)
-owns extraction acceptance. The generic engine retains Testkit's `v1` stamp
+records completed extraction; [Build #9](https://github.com/dragginzgame/ic-build/issues/9)
+owns remaining consumer acceptance. The generic engine retains Testkit's `v1` stamp
 format and `.ic-testkit` cache/lock namespaces. Release 0.16 changes Wasm recipe
 keys to a typed v2 fingerprint domain. Release 0.17 selects a separate explicit-
 environment recipe domain and clears child inheritance, causing cold builds while preserving
@@ -28,6 +29,12 @@ reuse/finalization remains Canic-owned. Shared execution does not admit Canic
 roles, release identities or manifests.
 
 ## Implemented ownership
+
+Published Host Artifacts/FS 0.27.5 own caller-scratch stream visitation and fresh-
+directory allocation. Build retains digest framing, exact-size refusal and its
+capture prefix/permissions/collision policy, using Host OwnedDirectory directly.
+The pending 0.18 cut removes the public staging wrapper; direct staging consumers
+select their allocation policy and guard at the Host boundary.
 
 Published Host Artifacts 0.27.4 owns ordered batch label validation and its error
 identity. The pending 0.18 cut consumes that owner directly and removes Build
