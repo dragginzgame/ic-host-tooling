@@ -1,9 +1,8 @@
 //! Fixed-size private reads with explicit admission failures.
 
-use super::no_follow::open_optional_regular_file;
+use super::no_follow::open_optional_no_follow;
 use ic_host_artifacts::artifact::ArtifactError;
 use std::{
-    fmt,
     fs::File,
     io::{self, Read},
     os::unix::fs::MetadataExt as _,
@@ -14,53 +13,29 @@ use std::{
 mod tests;
 
 /// A private-file read failed without returning partial bytes.
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum PrivateFileReadError {
     /// Opening, file admission, metadata or reading failed.
-    Read(ArtifactError),
+    #[error("private file read failed")]
+    Read(#[source] ArtifactError),
     /// The opened descriptor does not have exactly owner read/write permissions.
+    #[error("private file permissions are {mode:o}, expected 600")]
     Permissions {
         /// Observed Unix permission bits, masked to `0o777`.
         mode: u32,
     },
     /// The opened file does not have exactly one directory link.
+    #[error("private file has {actual} links, expected one")]
     LinkCount {
         /// Observed number of links to the inode.
         actual: u64,
     },
     /// Metadata or a trailing byte proves the file is not the required length.
+    #[error("private file must contain exactly {expected} bytes")]
     Length {
         /// Required complete byte length.
         expected: usize,
     },
-}
-
-impl fmt::Display for PrivateFileReadError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Read(_) => formatter.write_str("private file read failed"),
-            Self::Permissions { mode } => write!(
-                formatter,
-                "private file permissions are {mode:o}, expected 600"
-            ),
-            Self::LinkCount { actual } => {
-                write!(formatter, "private file has {actual} links, expected one")
-            }
-            Self::Length { expected } => write!(
-                formatter,
-                "private file must contain exactly {expected} bytes"
-            ),
-        }
-    }
-}
-
-impl std::error::Error for PrivateFileReadError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Self::Read(source) => Some(source),
-            _ => None,
-        }
-    }
 }
 
 /// Read exactly `N` private bytes through a no-follow regular descriptor.
@@ -81,7 +56,7 @@ impl std::error::Error for PrivateFileReadError {
 pub fn read_private_bytes<const N: usize>(
     path: &Path,
 ) -> Result<Option<[u8; N]>, PrivateFileReadError> {
-    open_optional_regular_file(path)
+    open_optional_no_follow(path)
         .map_err(PrivateFileReadError::Read)?
         .map(read_private_descriptor)
         .transpose()
@@ -92,6 +67,9 @@ fn read_private_descriptor<const N: usize>(
 ) -> Result<[u8; N], PrivateFileReadError> {
     let io_error = |source| PrivateFileReadError::Read(ArtifactError::Io(source));
     let metadata = file.metadata().map_err(io_error)?;
+    if !metadata.is_file() {
+        return Err(PrivateFileReadError::Read(ArtifactError::NotRegularFile));
+    }
     if metadata.len() != N as u64 {
         return Err(PrivateFileReadError::Length { expected: N });
     }

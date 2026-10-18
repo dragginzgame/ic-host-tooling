@@ -5,7 +5,7 @@
 //! diagnostics printed, files opened or processes run.
 
 use crate::interface::{ExportedMethod, MethodMode};
-use candid_parser::{IDLProg, TypeEnv, syntax::Dec, types::FuncMode};
+use ic_platform::candid_parser::{self, Dec, FuncMode, IDLProg, TypeEnv};
 use std::fmt;
 
 #[cfg(test)]

@@ -92,6 +92,7 @@ for pair in '43 0' '0 17' '43 17'; do
     name="status-$PUBLICATION_CARGO_STATUS-$PUBLICATION_LOG_STATUS"
     refuse "$expected" run publish "$name" --package library@1.2.3 --no-verify
     [[ "$(cat "$fixture/evidence/$name/cargo-status")" == "$PUBLICATION_CARGO_STATUS" ]] || exit 1
+    [[ "$(cat "$fixture/evidence/$name/log-status")" == "$PUBLICATION_LOG_STATUS" ]] || exit 1
     [[ "$(cat "$fixture/evidence/$name/status")" == "$expected" ]] || exit 1
     [[ -s "$fixture/evidence/$name/cargo.log" && ! -e "$fixture/evidence/.cargo-publication.lock" ]] || exit 1
 done

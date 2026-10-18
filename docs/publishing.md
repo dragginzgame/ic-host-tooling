@@ -4,16 +4,20 @@
 
 The maintainer-operated `make release-patch`, `make release-minor` and
 `make release-major` commands use the [shared release contract](releases.md).
-Host selects `RELEASE_DELIVERY=direct`: preparation, commit, tag and atomic
-branch/tag push. Other delivery selections are rejected before execution;
+Host's [delivery policy](../ci/release-delivery.txt) selects `RELEASE_DELIVERY=direct`:
+preparation, commit, tag and atomic branch/tag push. Other delivery selections
+are rejected before execution;
 the shared runner's optional PR flow is not qualified by this adapter.
 These commands do not publish crates to a registry.
 
 Prepare the development toolchain selected in [rust-toolchain.toml](../rust-toolchain.toml),
 then run `make install-tools` and `make tools-check`. Shared Tooling owns
 [common setup and executable storage](local-setup.md). Release preparation uses
-the canonical literal workspace-version and lock renderers, with Host's exact
-dependency-requirement projection. It validates candidate TOML and the prepared
+the canonical literal workspace-version and lock renderers. Host admits its
+explicit workspace member paths and reads member identities from the selected
+Git source; Shared projects owned dependency requirements for live and saved
+manifests. Recovery does not need today's member paths or a reconstructed old
+workspace. It validates candidate TOML and the prepared
 locked Cargo graph, restoring original bytes/modes after failure or catchable
 interruption and retaining recovery evidence. No cargo-edit executable or
 release-only tool installation is required. The development toolchain is separate
@@ -60,17 +64,30 @@ Before any upload, the wrapper prepares all selected archives with `cargo packag
 --workspace --all-features --locked --no-verify`. This step resolves package
 dependencies but does not compile or upload; the final Cargo publication still
 verifies packages. Each archive's `.cargo_vcs_info.json` must name the selected
-clean `HEAD` and its exact source path: `crates/<package>` for a library or
-`apps/ic-host-wasm-inspect` for the CLI. All package metadata must
+clean `HEAD` and the package directory recorded by admitted Cargo metadata.
+Package paths must be physical directories beneath the checkout, without parent
+traversal or CR/LF. License notices are checked in those same directories after
+metadata admission and before package preparation or upload. The explicit package
+allowlist remains separate from workspace membership. All package metadata must
 declare `https://github.com/dragginzgame/ic-host-tooling` as the repository.
 
-The wrapper then fetches that exact commit from the declared HTTPS repository
+Shared's [canonical provenance helper](../scripts/ci/check-cargo-package-provenance.sh)
+checks the prepared archives and fetches that exact commit from the declared HTTPS repository
 into a fresh bare object store beneath the publication attempt. Failed fetches,
 mismatched commit identities, missing/dirty package provenance and source changes
 stop before upload. Git prompts are disabled; ordinary trusted Git transport
 configuration still applies. The source request, archive provenance, fetch log
-and retrieved objects are retained. This guard is a remote-read effect of the
+and retrieved objects are retained in the admission attempt's `provenance/`
+directory. This guard is a remote-read effect of the
 explicit upload command; it never pushes a ref or creates a commit.
+
+The single Shared 0.24.2 snapshot supplies this helper and the
+[selected-source reader](../scripts/ci/read-cargo-source-context.sh), alongside
+the existing release metadata/receipt custody. Host selects packages, manifests,
+versions and recovery; Shared owns exact commit retrieval, archive provenance
+and selected-source member observation. There are no local source-evidence copies.
+Both Git object formats, ambiguous parser-stream refusal and retained failure
+evidence remain part of admission; replacing the helper owner removes no check.
 
 `publish-check` retains its dirty-worktree dry-run contract and does not claim
 remote provenance verification. The upload guard does not establish CI success

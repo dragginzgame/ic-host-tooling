@@ -20,17 +20,22 @@ export CARGO_NET_OFFLINE=true RUSTUP_AUTO_INSTALL=0
 mkdir "$fixture/bin"
 bash "$root/scripts/ci/prepare-workspace-fixture.sh" "$root" "$fixture"
 cd "$fixture"
-cargo metadata --no-deps --format-version 1 --locked --offline > metadata.json
-cp metadata.json original-metadata.json
 # Fixture mechanics follow independently prepared Cargo members/paths. Host's
 # adapter retains the separate explicit publication eligibility policy.
-jq -r --arg root "$fixture/" '
+real_cargo="$(command -v cargo)"
+capture_metadata() {
+    "$real_cargo" metadata --no-deps --format-version 1 --locked --offline > metadata.json
+    jq -r --arg root "$fixture/" '
     . as $m | [.packages[] | select(.id as $id | $m.workspace_members | index($id))]
     | sort_by(.name)[]
     | [.name, (.manifest_path | if startswith($root) then
         ltrimstr($root) | rtrimstr("/Cargo.toml") else error("fixture manifest escapes root") end)]
     | @tsv
-' original-metadata.json > fixture-packages.tsv
+    ' metadata.json > fixture-packages.tsv
+}
+capture_metadata
+cp metadata.json original-metadata.json
+cp Cargo.toml original-Cargo.toml
 export PUBLISH_FIXTURE="$fixture" REAL_PUBLISH_TEE
 REAL_PUBLISH_TEE="$(command -v tee)"
 cat > bin/git <<'STUB'
@@ -45,10 +50,10 @@ case "$*" in
     'status --porcelain --untracked-files=all')
         if [[ "${PUBLISH_CORE_RACE:-0}" == 1 && -d target/publish/.cargo-publication.lock ]]; then echo ' M raced'; fi
         if [[ "${PUBLISH_DIRTY:-0}" == 1 ]]; then echo ' M Cargo.toml'; fi ;;
-    init\ --bare\ *) mkdir -p "$3" ;;
+    init\ --bare\ --object-format=sha1\ *) mkdir -p "$4" ;;
     -C\ *\ fetch\ --no-tags\ --depth=1\ *)
-        [[ "$6" == https://github.com/dragginzgame/ic-host-tooling &&
-           "$7" == 0000000000000000000000000000000000000000 ]] || exit 1
+        [[ "$6" == -- && "$7" == https://github.com/dragginzgame/ic-host-tooling &&
+           "$8" == 0000000000000000000000000000000000000000 ]] || exit 1
         printf '%s\n' "$*" >> "$PUBLISH_FIXTURE/fetch-calls"
         exit "${PUBLISH_FETCH_RESULT:-0}" ;;
     -C\ *\ rev-parse\ --verify\ *)
@@ -136,16 +141,21 @@ for separator in $'\n' $'\r'; do
     PUBLISH_FIXTURE="$bad" refuse check
     rg 'CR/LF' refusal.log > /dev/null
 done
-# License copies must remain regular and identical before either Cargo entry.
-notice=crates/ic-host-artifacts/LICENSE
+# Package license checks follow metadata admission and precede package/upload.
+IFS=$'\t' read -r _ notice_root < fixture-packages.tsv
+notice="$notice_root/LICENSE"
 for scenario in missing changed symlink; do
     case "$scenario" in
         missing) rm "$notice" ;;
         changed) printf '\nchanged notice\n' >> "$notice" ;;
         symlink) rm "$notice"; ln -s ../../LICENSE "$notice" ;;
     esac
-    refuse check
-    refuse publish
+    for mode in check publish; do
+        : > calls
+        if invoke "$mode" > refusal.log 2>&1; then exit 1; fi
+        printf 'metadata\n' > expected-calls
+        cmp expected-calls calls
+    done
     rm -f "$notice"
     cp LICENSE "$notice"
 done
@@ -177,7 +187,8 @@ attempts=(target/publish/publish.*)
 attempt="${attempts[0]}"
 successful_attempt="$attempt"
 admission="target/publish/admission/${attempt##*/}"
-[[ -f "$admission/source-verified" && -f "$admission/source-request" && -f "$admission/ic-host-fs-vcs.json" ]] || exit 1
+[[ -f "$admission/provenance/source-verified" && -f "$admission/provenance/source-request" &&
+   -f "$admission/provenance/ic-host-fs-vcs.json" ]] || exit 1
 [[ "$(cat "$admission/publication-attempt")" == "$fixture/$attempt" ]] || exit 1
 
 # Stop at Cargo's failure and retain the attempt's intent, log and artifacts.
@@ -194,22 +205,17 @@ done
 [[ -f "$attempt/intent" && -f "$attempt/arguments" && -f "$attempt/cargo.log" && "$(cat "$attempt/status")" == 17 ]] || exit 1
 [[ -f target/package/fixture.crate && ! -e target/publish/lock ]] || exit 1
 
-# The adapter preserves both shared statuses, with Cargo failure taking priority.
-for pair in '0 23' '17 23'; do
-    read -r cargo_status log_status <<< "$pair"
-    : > calls
-    status=0
-    PUBLISH_CARGO_RESULT="$cargo_status" PUBLISH_LOG_RESULT="$log_status" \
-        invoke publish > logger-failure.log 2>&1 || status=$?
-    expected_status="$cargo_status"; [[ "$expected_status" != 0 ]] || expected_status="$log_status"
-    [[ "$status" == "$expected_status" ]] || exit 1
-    cmp expected-calls calls
-    core="$(sed -n 's/^Publication evidence: //p' logger-failure.log)"
-    [[ "$(cat "$core/cargo-status")" == "$cargo_status" &&
-       "$(cat "$core/log-status")" == "$log_status" &&
-       "$(cat "$core/status")" == "$expected_status" ]] || exit 1
-    [[ ! -e target/publish/lock && ! -e target/publish/.cargo-publication.lock ]] || exit 1
-done
+# Shared owns status precedence and the complete Cargo/logger failure matrix.
+# Host proves delegation preserves its status and releases the preparation lock.
+: > calls
+status=0
+PUBLISH_CARGO_RESULT=0 PUBLISH_LOG_RESULT=23 \
+    invoke publish > logger-failure.log 2>&1 || status=$?
+[[ "$status" == 23 ]] || exit 1
+cmp expected-calls calls
+core="$(sed -n 's/^Publication evidence: //p' logger-failure.log)"
+[[ "$(cat "$core/status")" == "$status" &&
+   ! -e target/publish/lock && ! -e target/publish/.cargo-publication.lock ]] || exit 1
 
 # Plausible stdout from a failed metadata query is never upload authority.
 : > calls
@@ -226,6 +232,37 @@ for scenario in disabled mixed-version extra-package wrong-repository; do
     : > calls
     if invoke publish > "$scenario.log" 2>&1; then exit 1; fi
     cmp expected-calls calls
+done
+cp original-metadata.json metadata.json
+# Package directories follow real Cargo observations after an allowed layout move.
+mv crates/ic-host-artifacts 'apps/relocated artifacts'
+sed 's|crates/ic-host-artifacts|apps/relocated artifacts|g' original-Cargo.toml > Cargo.toml
+capture_metadata
+invoke check > relocated-check.log 2>&1
+invoke publish > relocated-publish.log 2>&1
+mv 'apps/relocated artifacts' crates/ic-host-artifacts
+cp original-Cargo.toml Cargo.toml
+capture_metadata
+cmp original-metadata.json metadata.json
+
+# Plausible metadata cannot redirect license/provenance reads outside the checkout.
+mkdir "$FIXTURE_ROOT/outside"
+cp LICENSE "$FIXTURE_ROOT/outside/LICENSE"
+cp crates/ic-host-artifacts/Cargo.toml "$FIXTURE_ROOT/outside/Cargo.toml"
+ln -s "$FIXTURE_ROOT/outside" apps/package-alias
+for path in "$FIXTURE_ROOT/outside/Cargo.toml" "$fixture/../outside/Cargo.toml" \
+    "$fixture/crates//ic-host-artifacts/Cargo.toml" \
+    "$fixture/crates/./ic-host-artifacts/Cargo.toml" \
+    "$fixture/"$'line\nfeed/Cargo.toml' "$fixture/"$'carriage\rreturn/Cargo.toml' \
+    "$fixture/apps/package-alias/Cargo.toml"; do
+    jq --arg path "$path" '(.packages[] | select(.name == "ic-host-artifacts").manifest_path) = $path' \
+        original-metadata.json > metadata.json
+    for mode in check publish; do
+        : > calls
+        if invoke "$mode" > invalid-path.log 2>&1; then exit 1; fi
+        printf 'metadata\n' > expected-calls
+        cmp expected-calls calls
+    done
 done
 cp original-metadata.json metadata.json
 # Neither stale archives nor plausible failed retrieval can authorize upload.

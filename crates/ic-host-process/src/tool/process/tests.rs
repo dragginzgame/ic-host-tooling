@@ -11,7 +11,7 @@ fn communication_without_deadline_accepts_long_elapsed_time() {
             .args(["-c", "cat"])
             .stdin(Stdio::piped())
             .stdout(Stdio::piped());
-        let mut child = OwnedChild::spawn(&mut command).unwrap();
+        let mut child = OwnedChild::spawn(&mut command, CleanupPolicy::KillAndWait).unwrap();
         let watchdog = Instant::now();
         // Inject only elapsed time: child, pipes and cleanup are real. The
         // fixture does not require a multi-hour build to exercise this contract.
@@ -101,7 +101,7 @@ fn io_failure_cleans_the_group_and_keeps_the_original_error() {
     command
         .args(["-c", "sleep 30 & printf ready; wait"])
         .stdout(Stdio::piped());
-    let mut child = OwnedChild::spawn(&mut command).unwrap();
+    let mut child = OwnedChild::spawn(&mut command, CleanupPolicy::KillAndWait).unwrap();
     let mut stdout = child.take_stdout().unwrap();
     let mut ready = [0; 5];
     stdout.read_exact(&mut ready).unwrap();
@@ -141,7 +141,7 @@ fn cleanup_ownership_failure_does_not_replace_original_timeout() {
     let _fixture = Fixture::new();
     let mut command = Command::new("/bin/sh");
     command.args(["-c", "exit 0"]);
-    let mut child = OwnedChild::spawn(&mut command).unwrap();
+    let mut child = OwnedChild::spawn(&mut command, CleanupPolicy::KillAndWait).unwrap();
     let pid = Pid::from_raw(i32::try_from(child.id()).unwrap()).unwrap();
     // Deliberately break exclusive reaping to provoke real typed cleanup errors;
     // there are no descendants and no signalling through a reused identity.
@@ -182,7 +182,11 @@ fn cleanup_ownership_failure_does_not_replace_original_timeout() {
 #[test]
 fn observer_cause_survives_cleanup_failure() {
     let _fixture = Fixture::new();
-    let mut child = OwnedChild::spawn(Command::new("/bin/sh").args(["-c", "exit 0"])).unwrap();
+    let mut child = OwnedChild::spawn(
+        Command::new("/bin/sh").args(["-c", "exit 0"]),
+        CleanupPolicy::KillAndWait,
+    )
+    .unwrap();
     let pid = Pid::from_raw(i32::try_from(child.id()).unwrap()).unwrap();
     // Deliberately break exclusive reaping, as above, at the shared finalizer.
     waitid(WaitId::Pid(pid), WaitIdOptions::EXITED).unwrap();
@@ -211,7 +215,7 @@ fn observer_cause_survives_cleanup_failure() {
 #[test]
 fn bounded_cleanup_retains_term_kill_and_reap_failures_beside_cancellation() {
     let _fixture = Fixture::new();
-    let mut child = OwnedChild::spawn_with_cleanup(
+    let mut child = OwnedChild::spawn(
         Command::new("/bin/sh").args(["-c", "exit 0"]),
         crate::child::CleanupPolicy::TermThenKill {
             grace: Duration::from_secs(30),
