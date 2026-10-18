@@ -61,15 +61,23 @@ deployment or native macOS execution of pending bytes.
 
 ## Retained integration boundaries
 
+PR #162's duration implementation and six tests are reconciled unchanged with
+Host 0.27.6 for pending 0.27.7. All 34 Text tests and both duration doctests pass
+on actual Rust 1.88; current Text tests, strict Clippy/Rustdoc, Rustfmt, links and
+feature graphs pass. Both truncating and rounded displays remain explicit.
+Receipt: `/tmp/host-duration-pr.BQDRsO/`. Consumer adoption stays with Query #71
+and Canic #458. Native qualification of the refreshed PR remains separate; the
+current release's non-Unix CI toolchain mismatch is tracked under Host #194.
+
 The 0.27.6 MSRV job passed native compilation but its non-Unix step selected the
 1.99 development pin after installing the Wasm target only for 1.88, causing E0463.
 The prepared fix scopes that step to `RUSTUP_TOOLCHAIN=1.88.0`; no target download,
 compiler upgrade or product portability change is involved. Host #194 retains
 source/native qualification; this corrects CI invocation ownership.
 
-The Canic producer pass brings #97's reviewed ICP command/status implementation
+The Canic producer pass brought #97's reviewed ICP command/status implementation
 and four tests from PR #101 (`38b114bb30f12e9a6e255ccd85d6b7344331d763`) into
-pending 0.27.6. All 33 Tools cases pass on current Rust and actual 1.88, including
+now-delivered 0.27.6. All 33 Tools cases pass on current Rust and actual 1.88, including
 the four ICP cases separately on the minimal profile. Strict Tools Clippy/Rustdoc,
 Rustfmt, feature boundaries, pins, snapshot and links pass. No dependency, feature,
 manifest, lockfile or sibling source changed. Receipt:

@@ -116,6 +116,12 @@ before work, rejecting the first empty or exact duplicate with occurrence indice
 Empty batches are valid. Callers retain ordering, execution and failure policy;
 iteration must not perform batch effects.
 
+`ic_host_text::duration` parses positive whole-second inputs and exposes two
+explicit displays: rounded single-unit `display_duration_seconds(90)` is `1.50m`,
+while truncating `compact_duration(90)` is `1m 30s`. Callers retain clocks,
+deadlines, freshness, persisted units and output. Display text is not a lossless
+or parseable storage representation.
+
 `ic-host-text::escape::terminal_text` makes control and bidirectional formatting
 characters visible without choosing output or colour. It returns `Cow<str>`,
 borrowing safe input; use `.into_owned()` when independent ownership is required.
