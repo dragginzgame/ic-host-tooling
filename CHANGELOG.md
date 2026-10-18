@@ -3,7 +3,7 @@
 The 0.1.0 section preserves the original bootstrap notes. The published 0.1.0
 archive also includes the extracted artifact engine and Cargo grouping API.
 
-## [0.17.2]
+## [0.17.2] - 2026-10-18
 
 - Retain fingerprinted tool/recipe facts on successful and reused Wasm records.
   Provenance callers borrow the observations without extra probes; retained cache
