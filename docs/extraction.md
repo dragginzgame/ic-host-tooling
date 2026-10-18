@@ -198,6 +198,11 @@ Linux requires each stat record to fit completely within its allowance before
 parsing; bounded artifact-reader refusals retain their typed cause through
 `SamplingError::Io`, while native disappearance/access skip rules stay intact.
 
+The optional tools `encoding` feature decodes a complete canonical unsigned
+`u64` LEB128 value without allocation or new dependencies. It rejects truncated,
+overflowing, nonminimal and trailing encodings while inspecting at most ten bytes.
+Callers retain field names, semantic limits, transport and trust policy.
+
 The optional tools `certificate` feature owns strict CBOR decoding into owned
 certificate/delegation/hash-tree values supplied by `ic_platform::certification`.
 These retain upstream `ic-certification` type identities. It admits complete

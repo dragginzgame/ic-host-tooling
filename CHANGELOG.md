@@ -13,6 +13,10 @@
   ([PR #162 — Duration text](https://github.com/dragginzgame/ic-host-tooling/pull/162)).
   [Details](docs/changelog/0.27.md).
 
+- Share opt-in canonical unsigned `u64` LEB128 admission without allocation or
+  new dependencies. Callers retain field diagnostics, semantic limits and trust.
+  [Details](docs/changelog/0.27.md).
+
 ## [0.27.6] - 2026-10-18
 
 - Share pure ICP call/status command builders and typed installation-state

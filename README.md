@@ -89,6 +89,11 @@ Replica install thresholds and their reports belong to the consuming application
 Canic selects its replica revision and enforces its resource limits; Host Artifacts
 retains generic Wasm inspection. See the [0.25 migration](docs/changelog/0.25.md).
 
+The optional tools `encoding` feature decodes a complete canonical unsigned
+`u64` LEB128 value without allocation or new dependencies. It rejects truncated,
+overflowing, nonminimal and trailing encodings while inspecting at most ten bytes.
+Callers retain field names, semantic limits, transport and trust policy.
+
 The optional tools `certificate` feature exposes
 `certificate::{decode_certificate, decode_hash_tree}` with explicit input-byte and
 CBOR-depth limits. It returns owned certification values through Platform,
