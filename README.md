@@ -59,7 +59,7 @@ optimizer reachability metrics. Type/feature validation and report policy remain
 caller-owned; the structural `wasm::inspect` contract is unchanged.
 `ic-host-tools` has no default features. Response decoding is always available
 without artifact/filesystem/process/text dependencies. The Candid parser remains
-a normal dependency for service inspection.
+a normal capability through `ic-platform` for native service inspection.
 Native Candid extraction belongs to IC Build's `artifacts::candid` module;
 Host Tools no longer supplies an extraction feature or invocation wrapper.
 Consumers select tools, source custody, output limits and optional normalization.
@@ -75,6 +75,8 @@ lists. Disabling default features does not remove the Candid parser.
 without charging; admitted malformed replies consume their bytes. Candid's
 compatibility rules and skipping quotas apply to extra arguments. Callers retain
 authentication, schemas, domain errors and all resource-policy choices.
+Platform owns the bounded codec and its compact diagnostics; Host retains the
+aggregate-accounting adapter and preserves original typed decoder causes.
 See the
 [0.21 feature migration](docs/changelog/0.21.md),
 [0.17 feature migration](docs/changelog/0.17.md),
@@ -86,7 +88,8 @@ retains generic Wasm inspection. See the [0.25 migration](docs/changelog/0.25.md
 
 The optional tools `certificate` feature exposes
 `certificate::{decode_certificate, decode_hash_tree}` with explicit input-byte and
-CBOR-depth limits. It returns owned `ic-certification` values and rejects trailing
+CBOR-depth limits. It returns owned certification values through Platform,
+preserving `ic-certification` type identity, and rejects trailing
 data, malformed trees and invalid certificate fields. Parsing authenticates
 nothing: callers retain Agent verification, trust roots, combined evidence
 budgets, witness commitments and application leaf meanings. The feature adds no
@@ -266,6 +269,13 @@ staging path with explicit `WriteOptions`, then shares the normal durable
 publication engine. Callers validate bounded output before success and retain
 typed producer/cleanup errors. See the
 [current publication contract](docs/changelog/0.20.md#named-publication) before adopting it.
+
+On Unix, `durable::write_non_aliasing(path, bytes, protected, symlink_limit)`
+checks protected path/inode aliases before in-place truncation, then writes and
+syncs the output. Existing inode/permissions and unrelated symlinks are preserved.
+Callers select protected paths and own namespace custody and partial-output
+recovery. This operation does not provide atomic replacement or synchronize
+new parent-directory links; `validate_non_aliasing` performs observation only.
 
 `durable::write_validated_with` closes the staging writer before a caller's
 prepublication admission callback, enabling executable probes while preserving

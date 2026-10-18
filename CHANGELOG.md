@@ -1,5 +1,33 @@
 # Changelog
 
+## [0.27.3]
+
+- Protect caller-selected in-place exports from overwriting protected paths or
+  inodes, preserving existing permissions, unrelated symlinks and typed failures
+  ([#153 — Own non-aliasing in-place export writes](https://github.com/dragginzgame/ic-host-tooling/issues/153)).
+  [Details](docs/changelog/0.27.md).
+- Publish admitted symlink selections with explicit before/after-publication
+  errors, preserving immutable bundles when final synchronization fails
+  ([#121 — Extract retained tool-bundle publication](https://github.com/dragginzgame/ic-host-tooling/issues/121)).
+  [Details](docs/changelog/0.27.md).
+- Share cancellable process-group capture and configured-IO execution through the
+  existing process engine. Callers retain cleanup, optional deadlines and inherited
+  build output; no finite deadline is added
+  ([#95 — Expose cancellable group capture](https://github.com/dragginzgame/ic-host-tooling/issues/95)).
+  [Details](docs/changelog/0.27.md).
+- Keep publication source retrieval independent of Git's default hash format and
+  reject ambiguous saved-source member observations before release setup
+  ([#191 — Keep source-evidence adapters hash-format independent](https://github.com/dragginzgame/ic-host-tooling/issues/191)).
+  [Details](docs/changelog/0.27.md).
+- Delegate release metadata backup, installation, caught-failure restoration and
+  receipt archiving to pinned Shared helpers. Retain Host's rendering, source-bound
+  validation and receipt format. [Details](docs/changelog/0.27.md).
+- Route Candid parsing, reply decoding and certification types through published
+  IC Platform 0.1.4. Preserve service/certificate admission and aggregate reply
+  accounting; decoder diagnostics now use Platform's compact format while
+  retaining typed causes. Enforce the direct-dependency boundary in CI and release
+  graph checks. [Details](docs/changelog/0.27.md).
+
 ## [0.27.2] - 2026-10-18
 
 ### Changed

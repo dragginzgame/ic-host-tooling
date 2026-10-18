@@ -2,7 +2,7 @@
 # version	0.24.0
 format	1
 source	https://github.com/dragginzgame/shared-tooling
-revision	cab12cd3dfa4fdb34846b25397f0d72881bb9ae0
+revision	e0b6478a6f0a557b75caeb3e23e34cff6589a9fd
 # entrypoint	rules/changelogs.md
 # entrypoint	docs/releases.md
 # entrypoint	scripts/ci/run-release.sh
@@ -93,8 +93,11 @@ revision	cab12cd3dfa4fdb34846b25397f0d72881bb9ae0
 # entrypoint	scripts/ci/prepare-script-fixture.sh
 # entrypoint	scripts/ci/check-native-host.sh
 # entrypoint	scripts/ci/check-pipe-jobserver.pl
+# entrypoint	scripts/ci/check-cargo-dependency-boundaries.sh
+# entrypoint	scripts/ci/release-receipts.sh
+# entrypoint	scripts/ci/release-metadata-transaction.sh
 file	372e8a256767514d119ecd3e584cd20f15732b3eb169b212716069be7c3f9c80	-	rules/changelogs.md
-file	9ce496be6cba027574a8d182bbc9d0514314f65a8c42345054e209b6331b01a8	-	docs/releases.md
+file	b8e717db09f9ca05ed47ad31cacbbf46d406475e58533af009f6439fc27efda2	-	docs/releases.md
 file	924e66af90c91cf6b5efa0d330d53742dcdf8eb28d34ca8465c15fe8687ab4ea	x	scripts/ci/run-release.sh
 file	918815a81861abd80684fea14f71cb5a298644317afc0f5860a3d1b6506a0a16	x	scripts/ci/next-release-version.sh
 file	4ac92baf6ec8887acee153fb15d468a4d6306cbd55ceb58ac3fd807283b0f363	-	scripts/ci/finalize-release-changelog.awk
@@ -183,6 +186,9 @@ file	62603f4ab5614737c4a17703080b10bc26c4bdb5b0e5c4ad81b2f9b6d53b7b8f	-	.github/
 file	5304096b9c21cca5155d1763f4616a372a8df3ac9992cc26c315d45555e3619b	x	scripts/ci/prepare-script-fixture.sh
 file	a022de645d391ca6fd85949d5f4f8c48eb2f5320bc41a161d92887b24f66638d	x	scripts/ci/check-native-host.sh
 file	d866bd1ae0bf5c5d22120c3427857968eba86cbc2affa310951f76742e339116	x	scripts/ci/check-pipe-jobserver.pl
+file	d38467ef1b8e143e9d8daca99975b93f6957fa3796f825b830997b3dc7f0b145	-	scripts/ci/check-cargo-dependency-boundaries.sh
+file	c086b25513e923137e60a28bbfb26bba9c597e55cd7a29a5e54e4c75f630bc26	-	scripts/ci/release-receipts.sh
+file	b0221c706bcd6382fbb5d658529466aa447e3e03222df74524131115eed4d203	-	scripts/ci/release-metadata-transaction.sh
 file	4c981184847462ab3c01cac087e28309f8e054253fd95c7bbe56f643877aa708	x	scripts/ci/verify-file-checksum.sh
 file	d7b179f9ceaec6e11c690c975b61f91bedc80526415f71571615064db14f0c9c	x	scripts/ci/check-release-tag.sh
 file	d2670d079e6fe54ccb72f0f6fab328723bf1baf7829b852ba8157cc9ddebd27b	x	scripts/ci/validate-release-inputs.pl

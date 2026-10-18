@@ -3,7 +3,9 @@
 //! Caller owns trust roots, signatures, combined evidence budgets, commitment
 //! verification and application leaf meanings. Original bytes stay caller-owned.
 
-use ic_certification::{Certificate, Delegation, HashTree, empty, fork, labeled, leaf, pruned};
+use ic_platform::certification::{
+    Certificate, Delegation, HashTree, empty, fork, labeled, leaf, pruned,
+};
 use serde::{
     Deserialize, Deserializer,
     de::{self, DeserializeOwned, IgnoredAny, SeqAccess, Visitor},

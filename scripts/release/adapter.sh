@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Shared companions: ci/release-delivery.txt scripts/ci/check-release-delivery.sh scripts/ci/read-cargo-workspace-version.sh scripts/ci/check-release-source.sh scripts/ci/next-release-version.sh scripts/ci/finalize-release-changelog.awk scripts/ci/rewrite-local-lock-versions.pl scripts/ci/render-cargo-workspace-version.pl scripts/release/read-source-context.sh
+# Shared companions: ci/release-delivery.txt scripts/ci/check-release-delivery.sh scripts/ci/read-cargo-workspace-version.sh scripts/ci/check-release-source.sh scripts/ci/next-release-version.sh scripts/ci/finalize-release-changelog.awk scripts/ci/rewrite-local-lock-versions.pl scripts/ci/render-cargo-workspace-version.pl scripts/release/read-source-context.sh scripts/ci/release-receipts.sh scripts/ci/release-metadata-transaction.sh
 set -euo pipefail
 
 # Consumer-owned Cargo adapter. Requires Bash 3.2, Git, Make, awk, the selected
@@ -84,26 +84,7 @@ receipt_header() {
 }
 check_receipt() {
     [[ -f "$receipt" && ! -L "$receipt" && -f "$notes" && ! -L "$notes" ]] || fail "source-bound validation evidence is missing"
-    receipt_header | cmp - "$receipt"
-}
-archive_validation_evidence() {
-    local file archive=""
-    # Admission precedes any copy or log append. The release runner owns the
-    # enclosing release lock; standalone callers must exclude concurrent writers.
-    for file in "$receipt" "$notes" "$receipt.log"; do
-        if [[ -e "$file" || -L "$file" ]]; then
-            [[ -f "$file" && ! -L "$file" ]] || fail 'validation evidence is not a regular file'
-        fi
-    done
-    for file in "$receipt" "$notes" "$receipt.log"; do
-        [[ -e "$file" ]] || continue
-        if [[ -z "$archive" ]]; then
-            archive="$(mktemp -d "$state/$RELEASE_VERSION.validation-attempt.XXXXXX")" ||
-                fail 'cannot create validation evidence archive'
-        fi
-        cp -p "$file" "$archive/${file##*/}" || fail 'cannot preserve validation evidence'
-        cmp "$file" "$archive/${file##*/}" || fail 'validation evidence copy differs'
-    done
+    release_receipt_check "$receipt" receipt_header
 }
 check_payload() (
     local directory="$1" file packages scratch
@@ -150,11 +131,31 @@ check_committed() (
     done
     check_payload "$scratch"
 )
+render_prepared_metadata() {
+    local original="$1" candidate="$2" packages
+    local selected=()
+    packages="$(local_packages < "$original/Cargo.lock")" || return
+    read -r -a selected <<< "$packages"
+    project_manifest "$original/Cargo.toml" "$RELEASE_VERSION" "$packages" > "$candidate/Cargo.toml" || return
+    perl "$tooling_root/scripts/ci/rewrite-local-lock-versions.pl" \
+        "$original/Cargo.lock" "$RELEASE_PREVIOUS" "$RELEASE_VERSION" "${selected[@]}" > "$candidate/Cargo.lock" || return
+    finalize_notes "$notes" > "$candidate/CHANGELOG.md" || return
+    "${YQ:-yq}" -p toml -o json '.' "$candidate/Cargo.toml" > /dev/null
+}
+validate_prepared_metadata() {
+    # A separate strict shell preserves every nested observation failure when
+    # the transaction invokes its callback in a conditional status context.
+    bash "$tooling_root/scripts/release/adapter.sh" check
+}
 case "$operation" in
     version) version; exit ;;
     preflight|verify|prepare|check|commit-check|committed-check) selections ;;
     *) echo 'usage: adapter.sh version|preflight|verify|prepare|check|commit-check|committed-check' >&2; exit 2 ;;
 esac
+# shellcheck source=scripts/ci/release-receipts.sh
+source "$tooling_root/scripts/ci/release-receipts.sh"
+# shellcheck source=scripts/ci/release-metadata-transaction.sh
+source "$tooling_root/scripts/ci/release-metadata-transaction.sh"
 case "$operation" in
     preflight|verify)
         observed_source="$(git rev-parse HEAD)" || exit $?
@@ -201,7 +202,8 @@ case "$operation" in
             trap 'rm -rf "$scratch"' EXIT
             cp -p CHANGELOG.md "$scratch/notes"
             before="$(git diff --binary HEAD | git hash-object --stdin)" || exit $?
-            archive_validation_evidence
+            release_receipt_archive "$state/$RELEASE_VERSION.validation-attempt.XXXXXX" \
+                "$receipt" "$notes" "$receipt.log"
             {
                 receipt_header
                 CARGO_NET_OFFLINE=true make --no-print-directory ci
@@ -212,9 +214,8 @@ case "$operation" in
             [[ "$observed_source" == "$RELEASE_SOURCE" && "$after" == "$before" ]] || fail "source changed during validation"
             admit_files
             cmp "$scratch/notes" CHANGELOG.md
-            receipt_header > "$scratch/receipt"
-            mv "$scratch/notes" "$notes"
-            mv "$scratch/receipt" "$receipt"
+            release_receipt_write "$notes" cat "$scratch/notes"
+            release_receipt_write "$receipt" receipt_header
         fi
         ;;
     prepare)
@@ -224,43 +225,8 @@ case "$operation" in
         [[ "$observed_version" == "$RELEASE_PREVIOUS" ]] || fail "preparation workspace version changed"
         check_receipt
         cmp "$notes" CHANGELOG.md
-        scratch="$(mktemp -d "$state/$RELEASE_VERSION.prepare.XXXXXX")"
-        complete=false
-        originals=(Cargo.toml Cargo.lock CHANGELOG.md)
-        for file in "${originals[@]}"; do
-            [[ -f "$file" && ! -L "$file" ]] || fail 'preparation requires regular metadata'
-            cp -p "$file" "$scratch/$file"
-        done
-        # Retain originals on failure, including catchable interruption.
-        finish_prepare() {
-            local status=$? file
-            trap - EXIT
-            if [[ "$complete" == true ]]; then rm -rf "$scratch" || status=$?;
-            else
-                [[ "$status" != 0 ]] || status=1
-                for file in "${originals[@]}"; do
-                    cp -p "$scratch/$file" "$file" || status=1
-                done
-                printf 'Failed preparation restored; originals retained: %s\n' "$scratch" >&2
-            fi
-            exit "$status"
-        }
-        trap finish_prepare EXIT
-        trap 'exit 130' INT
-        trap 'exit 143' TERM
-        printf 'Release preparation originals retained: %s\n' "$scratch" >&2
-        packages="$(local_packages < "$scratch/Cargo.lock")" || exit $?
-        read -r -a selected <<< "$packages"
-        project_manifest "$scratch/Cargo.toml" "$RELEASE_VERSION" "$packages" > "$scratch/candidate.toml"
-        perl "$tooling_root/scripts/ci/rewrite-local-lock-versions.pl" \
-            "$scratch/Cargo.lock" "$RELEASE_PREVIOUS" "$RELEASE_VERSION" "${selected[@]}" > "$scratch/candidate.lock"
-        finalize_notes "$notes" > "$scratch/candidate.notes"
-        "${YQ:-yq}" -p toml -o json '.' "$scratch/candidate.toml" > /dev/null
-        cp "$scratch/candidate.toml" Cargo.toml
-        cp "$scratch/candidate.lock" Cargo.lock
-        cp "$scratch/candidate.notes" CHANGELOG.md
-        check_prepared
-        complete=true
+        release_metadata_prepare "$state/$RELEASE_VERSION.prepare.XXXXXX" \
+            render_prepared_metadata validate_prepared_metadata Cargo.toml Cargo.lock CHANGELOG.md
         ;;
     check) check_prepared ;;
     committed-check) check_committed ;;

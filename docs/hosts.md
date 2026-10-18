@@ -17,7 +17,7 @@ decoding. `make test PACKAGE=ic-host-text` checks bounded line normalization,
 escaping, progress frames and Unicode table alignment.
 `make tools-features-check` verifies the normal parser dependency, including with
 default features disabled, and the remaining optional owner boundaries. Native
-CI includes these profiles. Tools includes the Candid parser unconditionally;
+CI includes these profiles. Tools selects Platform's native Candid parser unconditionally;
 `ic-interface` adds Host Artifacts and Wasm parsing. The standalone Wasm inspector
 retains its parser-free graph. These profiles must qualify on the same Rust 1.88
 and native Linux/macOS matrix as the existing libraries.
@@ -27,6 +27,11 @@ the shared snapshot, declarations, formatter prerequisites, actual hook behavior
 release adapter,
 common tool/LOC command wiring,
 minimal artifact tests and each selected package with all features in sequence.
+Release metadata backup/install/restoration and receipt custody use pinned Shared
+helpers. Their synthetic failure matrices stay with Shared; Host's adapter fixture
+checks the real rendering, source and committed-payload contracts with substituted
+qualification commands and Git effects. Rendering, gates and recovery decisions
+remain local; see [release custody](releases.md#reusing-metadata-preparation-and-evidence-custody).
 Shared owns the synthetic Make-consumer, host/IC/Rust installer and LOC parser
 matrices in `shared-tooling/scripts/ci/test-portable-tools.sh`. Host retains its actual
 Make routing, aggregate failure ordering, LOC arguments/status and pipe-jobserver
@@ -124,6 +129,12 @@ for the native target (or `CARGO_BUILD_TARGET`), including the combined Tools
 features. `bash scripts/ci/check-tools-features.sh TARGET` inspects a named supported
 Linux/macOS target without claiming native execution. The checker is in CI and
 release validation. Cargo aliases are reported by their resolved package names.
+Before those graph checks, Shared's canonical dependency-boundary checker reads
+`ci/cargo-dependency-boundaries.json` and rejects direct Candid, parser,
+certification and enumerated CDK dependencies in every workspace member, including
+renamed, dev/build and target-specific declarations. Platform owns those upstream
+edges. Unused root catalog declarations and future CDK package names still require
+review; the checker covers declared member edges and exact policy names.
 These checks preserve Tools/Text/inspection ownership boundaries; role comments
 are explanatory and are not parsed as an executable exclusion policy.
 

@@ -2,7 +2,7 @@
 //!
 //! This module does not authenticate replies or interpret application errors.
 
-use candid_parser::candid::{CandidType, de::DecoderConfig, utils::decode_one_with_config};
+use ic_platform::candid::{self as codec, contract::CandidType};
 use serde::de::DeserializeOwned;
 use thiserror::Error;
 
@@ -35,7 +35,7 @@ pub enum DecodeError {
     AggregateBytes,
     /// Malformed, incompatible or decoder-quota-exhausting Candid.
     #[error("Candid reply could not be decoded: {0}")]
-    Candid(#[source] candid_parser::candid::Error),
+    Candid(#[source] codec::contract::Error),
 }
 
 /// Decode one result using Candid's compatibility rules, charging admitted bytes.
@@ -46,6 +46,8 @@ pub enum DecodeError {
 /// Extra wire arguments are skipped under the selected work quotas, like Candid's
 /// decoder; trailing undecodable bytes reject. These are byte and decoder-work
 /// limits, not a heap, stack or elapsed-time guarantee.
+/// Platform selects compact Candid diagnostics, which can still include small
+/// inputs. Callers retain error-disclosure policy and the original typed cause.
 ///
 /// # Errors
 /// Returns byte admission failure before decoding, or the original Candid error.
@@ -60,11 +62,18 @@ pub fn decode_one<T: CandidType + DeserializeOwned>(
     *remaining = remaining
         .checked_sub(bytes.len())
         .ok_or(DecodeError::AggregateBytes)?;
-    let mut config = DecoderConfig::new();
-    config
-        .set_decoding_quota(limits.decoding_quota)
-        .set_skipping_quota(limits.skipping_quota)
-        .set_max_type_len(limits.type_entries)
-        .set_max_header_len(limits.header_bytes);
-    decode_one_with_config(bytes, &config).map_err(DecodeError::Candid)
+    codec::decode_one(
+        bytes,
+        codec::DecodeLimits {
+            reply_bytes: limits.reply_bytes,
+            decoding_quota: limits.decoding_quota,
+            skipping_quota: limits.skipping_quota,
+            type_entries: limits.type_entries,
+            header_bytes: limits.header_bytes,
+        },
+    )
+    .map_err(|error| match error {
+        codec::DecodeError::ReplyTooLarge { .. } => DecodeError::ReplyBytes,
+        codec::DecodeError::Candid(source) => DecodeError::Candid(source),
+    })
 }

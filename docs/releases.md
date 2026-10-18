@@ -862,3 +862,49 @@ to this calculation and returns exit 2 for invalid inputs; existing adapters do
 not need an invocation change.
 The runner admits generated and retained dates before dispatching release
 callbacks. Consumers still own metadata, selected identity, receipts and replay.
+
+## Reusing metadata preparation and evidence custody
+
+Consumers with custom metadata rendering can source
+`scripts/ci/release-metadata-transaction.sh` and call:
+
+```bash
+release_metadata_prepare "$state/$RELEASE_VERSION.prepare.XXXXXX" \
+  render_metadata verify_metadata Cargo.toml Cargo.lock CHANGELOG.md
+```
+
+`render_metadata ORIGINAL_ROOT CANDIDATE_ROOT` writes each selected candidate
+under the supplied root. `verify_metadata` validates the installed working payload.
+Callbacks must explicitly propagate every failed observation, or execute an
+independent script with its own strict shell settings; do not rely on a caller's
+`errexit` when a function is invoked in a conditional context. The helper admits
+all original files before rendering and all candidate files before installation.
+Nested relative names and spaces are supported; path aliases, links, non-regular
+files and duplicate selections refuse. Existing destination modes are retained.
+
+The helper owns backup, installation and caught-failure restoration only. It
+preserves originals/candidates on failure, including failed restoration, and
+prints their location before preparation. It does not promise multi-file atomicity
+or crash durability. An uncatchable interruption retains evidence for the
+consumer's existing reconciliation; this helper never decides whether to resume,
+rerender or retry. Existing pending releases must finish with their owning adapter
+before incompatible receipt formats are adopted. No receipt migration is implied.
+
+The consumer retains selected files, exact source/commit qualification, metadata
+semantics, gates, version and delivery decisions. It must hold exclusive source
+and state custody, supply a trusted temporary parent outside selected files, and
+keep callbacks within those contracts. A successful verifier must not change the
+rendered payload. The helper does not execute Git/Cargo or publication effects.
+
+`scripts/ci/release-receipts.sh` supplies atomic single-receipt write/check and
+`release_receipt_archive TEMPLATE FILE...`. Archive admits the complete old set
+before copying, preserves it before append/replacement, and retains partial
+archives on failure. Missing entries are permitted; links, non-regular entries
+and duplicate basenames refuse. Receipt schemas and multi-file relationships
+remain consumer policy. These sourceable helpers leave caller traps intact;
+preparation installs its restoration traps only inside its own subshell.
+
+Host's adoption retains its original validation receipt format and reconstruction
+of expected release bytes from the selected source. Testkit and Backup have
+additional metadata contracts; they must qualify their own callbacks and recovery
+fixtures before replacing their local preparation mechanics.

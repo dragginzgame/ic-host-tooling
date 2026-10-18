@@ -6,6 +6,10 @@ root="$(cd -P "${root%/*}/../.." && printf '%s/.' "$PWD")"
 root="${root%/.}"
 cd "$root"
 
+# Inspect all direct declarations (aliases, dev/build and target-specific edges)
+# before inspecting the selected transitive graphs below.
+bash scripts/ci/check-cargo-dependency-boundaries.sh --consumer "$root"
+
 [[ $# -le 1 ]] || { echo 'usage: check-tools-features.sh [TARGET]' >&2; exit 2; }
 target="${1:-${CARGO_BUILD_TARGET:-$(rustc -vV | sed -n 's/^host: //p')}}"
 case "$target" in
@@ -47,19 +51,19 @@ check_graph() {
     fi
 }
 
-check_graph tools ic-host-tools default '' 'candid_parser candid' \
+check_graph tools ic-host-tools default '' 'ic-platform candid_parser candid' \
     '^(ic-host-(artifacts|fs|process|text)|wasmparser|ciborium|ic-certification) '
-check_graph tools-no-defaults ic-host-tools none '' 'candid_parser candid' \
+check_graph tools-no-defaults ic-host-tools none '' 'ic-platform candid_parser candid' \
     '^(ic-host-(artifacts|fs|process|text)|wasmparser|ciborium|ic-certification) '
 check_graph ic-interface ic-host-tools none ic-interface \
-    'ic-host-artifacts candid_parser wasmparser' '^ic-host-(fs|process|text) '
+    'ic-platform ic-host-artifacts candid_parser wasmparser' '^ic-host-(fs|process|text) '
 check_graph inspection ic-host-wasm-inspect default '' 'ic-host-artifacts ic-host-fs' \
-    '^(ic-host-process|candid_parser) '
-check_graph certificate ic-host-tools none certificate 'candid_parser ciborium ic-certification' \
+    '^(ic-host-process|ic-platform|candid_parser) '
+check_graph certificate ic-host-tools none certificate 'ic-platform candid_parser ciborium ic-certification' \
     '^(ic-host-(artifacts|fs|process|text)|wasmparser|ic-agent|reqwest) '
 check_graph tools-combined ic-host-tools none ic-interface,certificate \
-    'candid_parser ciborium ic-certification ic-host-artifacts wasmparser' \
+    'ic-platform candid_parser ciborium ic-certification ic-host-artifacts wasmparser' \
     '^(ic-host-(fs|process|text)|ic-agent|reqwest) '
 check_graph text ic-host-text default '' unicode-width \
-    '^(ic-host-(artifacts|fs|process|tools)|candid_parser|ic-agent|ic-certification|ciborium) '
+    '^(ic-host-(artifacts|fs|process|tools)|ic-platform|candid_parser|ic-agent|ic-certification|ciborium) '
 printf 'tools/text feature dependency graphs passed for %s (normal/build)\n' "$target"

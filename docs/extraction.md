@@ -1,16 +1,17 @@
 # Crate ownership and extraction contract
 
-## Proposed fleet Candid/CDK boundary
+## Fleet Candid/CDK boundary
 
 The maintainer's 2026-10-18 direction is one controlled dependency boundary for
 Candid and the CDK family, with IC Wire owning controlled application protocols.
-The new local `../ic-platform` repository now contains an unpublished initial
-crate with Testkit's bounded decoders and an independent executor feature. Its
-`docs/migration.md` owns the adoption contract and source provenance. The design
-below still describes the wider migration, not a completed fleet boundary.
-The existing Host contract remains until a qualified replacement is available.
-The pending Host bounded decoder in PR #189 is held for owner consolidation;
-its prepared source is preserved, not a second recommended fleet owner.
+Host now consumes published `ic-platform` 0.1.4 for bounded Candid decoding,
+native parsing and optional certification types. Platform's `docs/migration.md`
+owns the fleet adoption contract. Host retains service-to-Wasm projections,
+strict certificate CBOR admission and the released aggregate-byte adapter.
+Per-reply decoder configuration belongs to Platform; the adapter maps limits and
+typed failures while preserving debit-before-decode behavior. Diagnostics follow
+Platform's compact policy. The historical observations below describe the wider
+migration, not proof of completed sibling adoption.
 
 The dedicated repository has one consumer-facing library, `ic-platform`:
 its scope includes runtime integration as well as Candid. Keep
@@ -25,15 +26,16 @@ external-protocol type integration and the supported CDK/executor interface.
 It must expose explicit supported operations rather than a blanket upstream
 re-export. Where generic external DTOs need Candid traits or derives, a deliberately
 supported trait/macro surface is necessary and remains upstream-coupled until
-replaced. Identity-only consumers should use the existing `ic_principal` package;
-they need no codec facade or new Principal wrapper.
+replaced. Identity-only consumers can use Platform's unconditional `Principal`,
+which preserves the existing upstream identity without a new wrapper or codec.
 Canic retains dispatch, authentication and lifecycle policy; Timers retains
 scheduling; Query retains NNS/SNS/ledger operations and schemas; Testkit retains
 PocketIC lifecycle; Build retains native extraction execution. Host's five crates
 retain their existing host responsibilities. The new boundary must not depend on
 Host Tools or Testkit and create cycles when those consumers adopt it.
 
-Evidence from the available working trees, inspected read-only on 2026-10-18:
+Historical evidence from working trees inspected before Platform adoption on
+2026-10-18 (source identities below):
 
 - Testkit's `crates/ic-testkit-candid/src/lib.rs` already owns bounded single-value,
   argument-list and exact-single-value decoders. Query selects that package in
@@ -182,7 +184,8 @@ parsing; bounded artifact-reader refusals retain their typed cause through
 `SamplingError::Io`, while native disappearance/access skip rules stay intact.
 
 The optional tools `certificate` feature owns strict CBOR decoding into owned
-`ic-certification` certificate/delegation/hash-tree values. It admits complete
+certificate/delegation/hash-tree values supplied by `ic_platform::certification`.
+These retain upstream `ic-certification` type identities. It admits complete
 input bytes and selected CBOR nesting before returning a single fully consumed
 value. Direct Serde visitors enforce actual array/byte kinds, exact tree tags
 and arities and 32-byte pruned digests without a generic CBOR payload tree.

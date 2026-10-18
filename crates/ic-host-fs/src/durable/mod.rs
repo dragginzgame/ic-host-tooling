@@ -1,6 +1,6 @@
 //! Durable filesystem publication and regular descriptor locks.
 //!
-//! Responsibility: own atomic durable regular-file publication for host consumers.
+//! Responsibility: own durable publication and explicitly in-place synchronized writes.
 //! Does not own: domain schemas or transitions, path selection, ephemeral protocol files, open
 //! command-result descriptors, backup persistence, or multi-file transactions.
 //! Boundary: writes own sibling staging, publication, cleanup and filesystem syncs
@@ -25,6 +25,14 @@ mod retained;
 pub use retained::{create_retained_at, publish_retained_at};
 mod named;
 pub use named::{NamedWriteError, write_named_with};
+#[cfg(unix)]
+mod export;
+#[cfg(unix)]
+pub use export::{NonAliasingWriteError, validate_non_aliasing, write_non_aliasing};
+#[cfg(unix)]
+mod symlink;
+#[cfg(unix)]
+pub use symlink::publish_symlink_with;
 mod verified_copy;
 pub use verified_copy::copy_verified;
 mod stream;

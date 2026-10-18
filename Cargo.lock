@@ -584,11 +584,10 @@ dependencies = [
 name = "ic-host-tools"
 version = "0.27.2"
 dependencies = [
- "candid_parser",
  "ciborium",
- "ic-certification",
  "ic-host-artifacts",
  "ic-host-fs",
+ "ic-platform",
  "serde",
  "serde_json",
  "thiserror 2.0.21",
@@ -600,6 +599,19 @@ version = "0.27.2"
 dependencies = [
  "ic-host-artifacts",
  "ic-host-fs",
+]
+
+[[package]]
+name = "ic-platform"
+version = "0.1.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4a3adb6d9785133587b854b66b37dfdd8f7945555bdc59b6d0be26995187484d"
+dependencies = [
+ "candid",
+ "candid_parser",
+ "ic-certification",
+ "ic_principal",
+ "serde",
 ]
 
 [[package]]
