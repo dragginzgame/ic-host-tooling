@@ -2,13 +2,39 @@
 
 ## [0.27.7]
 
-- Share opt-in focused Registry wire projections and shard interval admission,
-  preserving protocol tags and caller-owned budgets, certification and replay.
-  [Details](docs/changelog/0.27.md).
-
 - Run the non-Unix compile check with the MSRV toolchain that owns its prepared
   Wasm target, fixing the CI compiler/target mismatch without changing the
   development compiler or filesystem support contract.
+  [Details](docs/changelog/0.27.md).
+
+- Share positive whole-second duration parsing, rounded single-unit display and
+  compact two-unit display for Query and Canic. Keep their distinct text policies
+  explicit; deadlines, freshness and persisted units remain caller-owned
+  ([PR #162 — Duration text](https://github.com/dragginzgame/ic-host-tooling/pull/162)).
+  [Details](docs/changelog/0.27.md).
+
+- Share opt-in canonical unsigned `u64` LEB128 admission without allocation or
+  new dependencies. Callers retain field diagnostics, semantic limits and trust.
+  [Details](docs/changelog/0.27.md).
+
+- Share explicit Unix signal-action installation and restoration with rollback,
+  leaving signal choice, registration custody and shutdown policy with callers.
+  [Details](docs/changelog/0.27.md).
+
+- Project exact environment/network facts from bounded effective ICP YAML using
+  an optional real parser, leaving configuration resolution and funding to callers.
+  [Details](docs/changelog/0.27.md).
+
+- Share opt-in bounded ICRC-3 block admission and contiguous-chain verification,
+  using Platform's upstream types and leaving tip authentication with callers.
+  [Details](docs/changelog/0.27.md).
+
+- Share opt-in native response-bounded Agent construction and exact endpoint
+  binding through Platform, leaving endpoint admission and network policy local.
+  [Details](docs/changelog/0.27.md).
+
+- Share opt-in focused Registry wire projections and shard interval admission,
+  preserving protocol tags and caller-owned budgets, certification and replay.
   [Details](docs/changelog/0.27.md).
 
 ## [0.27.6] - 2026-10-18
