@@ -2,6 +2,11 @@
 
 ## [0.27.7]
 
+- Run the non-Unix compile check with the MSRV toolchain that owns its prepared
+  Wasm target, fixing the CI compiler/target mismatch without changing the
+  development compiler or filesystem support contract.
+  [Details](docs/changelog/0.27.md).
+
 - Share explicit Unix signal-action installation and restoration with rollback,
   leaving signal choice, registration custody and shutdown policy with callers.
   [Details](docs/changelog/0.27.md).
