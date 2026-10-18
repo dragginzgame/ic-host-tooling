@@ -3,6 +3,17 @@
 The 0.1.0 section preserves the original bootstrap notes. The published 0.1.0
 archive also includes the extracted artifact engine and Cargo grouping API.
 
+## [0.17.6]
+
+- Select development Rust 1.99.1, which fixes Rust 1.99.0's direct-invocation
+  macOS rust-lld library lookup regression. Keep the package MSRV at 1.91.0 and
+  retain native qualification requirements ([#76](https://github.com/dragginzgame/ic-build/issues/76),
+  [#77](https://github.com/dragginzgame/ic-build/issues/77)).
+- Add nearest explicit Cargo workspace discovery without invoking Cargo,
+  preserving nested declarations, file starts, symlinks and typed refusals.
+  Canic retains ICP discovery and no-match fallback; publication and consumer
+  adoption remain separate ([PR #63](https://github.com/dragginzgame/ic-build/pull/63)).
+
 ## [0.17.5] - 2026-10-18
 
 - Stop enabling Host Artifacts' unused `wasm` feature, removing wasmparser and

@@ -61,6 +61,12 @@ explicitly and add no elapsed-time deadline. Applications supply their own
 cancellation, process-group custody and source admission where required.
 
 Align direct Host dependencies with the 0.27 family when exchanging Host values.
+`cargo::discovery::declared_workspace_root_from` finds the nearest explicit
+`[workspace]` from an existing file or directory without invoking Cargo. It follows
+file symlinks and refuses invalid manifests, non-file markers and dangling links.
+This is distinct from Cargo membership or `package.workspace` resolution through
+`cargo::observation::workspace_root_for`; consumers retain no-match fallback.
+
 Cargo owns compiler freshness; Build admits exact artifacts from Cargo messages
 without filename inference. Native Candid extraction uses an admitted tool and
 retains raw bounded evidence; consumers own normalization, grammar and publication.
@@ -101,7 +107,7 @@ Release preparation uses the shared workspace-version renderer and does not
 require an additional Cargo editor. Global Cargo plugins are not setup
 prerequisites.
 
-[rust-toolchain.toml](rust-toolchain.toml) selects the existing Rust 1.99.0
+[rust-toolchain.toml](rust-toolchain.toml) selects Rust 1.99.1
 development compiler, rustfmt, Clippy and its Wasm target independently of the qualified Linux
 library MSRV. Explicit setup reads that target from the toolchain file. The complete
 common host/Cargo toolset is prepared and checked on Linux x86-64. This repo has

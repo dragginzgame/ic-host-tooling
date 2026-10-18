@@ -1,5 +1,37 @@
 # Current handoff
 
+## Canic producer follow-up and native linker repair — pending 0.17.6
+
+This pass starts at clean released `6614782` (0.17.5), verifies its non-yanked
+registry entry and reviews all twenty open Build issues plus the four open PRs.
+Canic-related producer work stays in Build; sibling checkouts remain read-only.
+Most historical extraction/API trackers now describe shipped implementation,
+while Canic's actual pipeline adoption remains with its #530 / PR #596 owners.
+
+Current release CI run `39138406591` fails the unchanged positive-heartbeat Wasm
+control on both native macOS architectures: Rust 1.99.0 rust-lld cannot load
+`@rpath/libLLVM.dylib`. Rust's official 1.99.1 release fixes that precise loader
+regression. The development selector now uses already-installed 1.99.1; package
+MSRV remains 1.91.0, and CI reads the selector without a separate version override.
+No test skip, loader-path workaround or fixture weakening is introduced.
+Native acceptance remains open under Build #76/#77 until new hosted evidence.
+
+Existing Canic discovery PR #63 is adapted onto current Build. The additive
+`cargo::discovery::declared_workspace_root_from` preserves the nearest explicit
+declaration, canonical file/directory starts, file symlinks and typed parse/IO
+refusals. It intentionally differs from Cargo membership resolution and leaves
+Canic's ICP discovery and no-match fallback local. No old API is removed, and
+the Canic implementation stays until a published producer permits its adoption.
+The PR is not merged or closed by local source application.
+
+Linux evidence: three discovery cases and all-target/all-feature checking on
+actual Rust 1.91; the unchanged real-Wasm heartbeat control and seventeen Wasm
+integration cases on development 1.99.1; strict development Clippy, warning-denied
+floor Rustdoc, formatting, snapshot/pins/boundaries and links all pass. Shared
+payloads and Cargo.lock remain unchanged. Full release CI, native macOS and
+complete Canic qualification are not claimed. Before-images, PR source and logs:
+`/tmp/ic-build-canic-issues-mXzeRq/`. No commits, pushes or release effects occur.
+
 ## Artifact dependency feature cleanup — pending 0.17.5
 
 Build stops enabling Host Artifacts' unused `wasm` parser feature. Its source,
