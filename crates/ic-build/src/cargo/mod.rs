@@ -8,6 +8,7 @@
 mod tests;
 
 pub mod diagnostics;
+pub mod discovery;
 pub mod environment;
 pub mod execution;
 pub mod flags;

@@ -1,12 +1,111 @@
 # Current handoff
 
-## Cargo editor contribution refreshed for 0.17.5
+## Cargo editor contribution refreshed for 0.17.7
 
-PR #56 now follows released main `c0f23c3` (0.17.4), retaining the current
-public selection API and registry Host 0.27 graph. The bounded pure candidate
-renderers and explicit CLI remain additive. Shared adoption is tracked in
-dragginzgame/shared-tooling#273 and waits for reviewed publication; there is no
-branch dependency or implicit installation. No package version is changed.
+PR #56 follows released main `aff79af` (0.17.6), retaining the published Rust
+1.99.1 macOS linker repair and public Cargo discovery/selection APIs. Candidate
+rendering remains additive. Shared #273 owns adoption after reviewed publication;
+no branch dependency, implicit installation or package version change is added.
+
+## Canic producer follow-up and native linker repair — pending 0.17.6
+
+This pass starts at clean released `6614782` (0.17.5), verifies its non-yanked
+registry entry and reviews all twenty open Build issues plus the four open PRs.
+Canic-related producer work stays in Build; sibling checkouts remain read-only.
+Most historical extraction/API trackers now describe shipped implementation,
+while Canic's actual pipeline adoption remains with its #530 / PR #596 owners.
+
+Current release CI run `39138406591` fails the unchanged positive-heartbeat Wasm
+control on both native macOS architectures: Rust 1.99.0 rust-lld cannot load
+`@rpath/libLLVM.dylib`. Rust's official 1.99.1 release fixes that precise loader
+regression. The development selector now uses already-installed 1.99.1; package
+MSRV remains 1.91.0, and CI reads the selector without a separate version override.
+No test skip, loader-path workaround or fixture weakening is introduced.
+Native acceptance remains open under Build #76/#77 until new hosted evidence.
+
+Existing Canic discovery PR #63 is adapted onto current Build. The additive
+`cargo::discovery::declared_workspace_root_from` preserves the nearest explicit
+declaration, canonical file/directory starts, file symlinks and typed parse/IO
+refusals. It intentionally differs from Cargo membership resolution and leaves
+Canic's ICP discovery and no-match fallback local. No old API is removed, and
+the Canic implementation stays until a published producer permits its adoption.
+The PR is not merged or closed by local source application.
+
+Linux evidence: three discovery cases and all-target/all-feature checking on
+actual Rust 1.91; the unchanged real-Wasm heartbeat control and seventeen Wasm
+integration cases on development 1.99.1; strict development Clippy, warning-denied
+floor Rustdoc, formatting, snapshot/pins/boundaries and links all pass. Shared
+payloads and Cargo.lock remain unchanged. Full release CI, native macOS and
+complete Canic qualification are not claimed. Before-images, PR source and logs:
+`/tmp/ic-build-canic-issues-mXzeRq/`. No commits, pushes or release effects occur.
+
+## Artifact dependency feature cleanup — pending 0.17.5
+
+Build stops enabling Host Artifacts' unused `wasm` parser feature. Its source,
+tests and examples use the base byte/artifact APIs; structural inspection remains
+a consumer-selected Host capability. The usage guide now requires inspecting
+consumers to enable that feature explicitly. Cargo/Wasm production and caching
+retain their behavior, and no public API changes.
+
+The refreshed lockfile removes only wasmparser and leb128; every retained package
+version, source and checksum is unchanged. Host Artifacts resolves with no enabled
+features. Linux Rust 1.91 all-target/all-feature checking, seventeen Cargo/Wasm
+integration cases, three Host artifact integration cases, strict development
+Clippy, formatting, pins, direct boundaries and documentation links pass.
+Full release CI, native macOS and installed-IC qualification remain unrun.
+Incoming Rustix/probe work is preserved; evidence and before-images are under
+`/tmp/ic-build-wasm-feature-OEpr0h/`.
+
+## Unix dependency consolidation — pending 0.17.5
+
+Starting from the pending input-probe cleanup below, Build replaces its remaining
+direct libc calls with Rustix effective-UID, descriptor-flag and signal APIs.
+The Unix Rustix dependency explicitly enables `process`; direct libc declarations
+and the root package's lockfile edge are removed. Selected package versions and
+transitive libc remain unchanged. Existing owner admission, close-on-exec and
+exact TERM/KILL assertions retain their behavior; no public API changes.
+
+Linux Rust 1.91 all-target/all-feature checking and six focused output-reuse,
+descriptor and process-failure/cancellation cases pass. Strict development Clippy,
+formatting, dependency pins and direct boundaries pass. Native macOS and the full
+release gate remain unrun. Before-images and logs are retained under
+`/tmp/ic-build-rustix-NzKGeG/`; incoming probe changes remain separate.
+
+## Input-probe process ownership cleanup — pending 0.17.5
+
+Starting source is released `c0f23c3` (0.17.4), with a clean working tree and
+Host 0.27.4 selected. This pass reviews implementation, public entry points,
+manifests, test fixtures, examples, release/CI adapters and current documentation.
+Available Host, Query, Canic, Testkit, IcyDB, Jobs and Wire checkouts are read-only
+evidence; no sibling integration or native qualification is claimed.
+
+Build's bounded input probes still implemented cancellation/deadline refusal,
+process-group spawn and capture setup after their canonical owner became
+available in published Host Process 0.27.3. Build now calls Host's cancellable
+group capture directly and requires at least that release. Cargo.lock remains
+unchanged at 0.27.4. Build retains phase selection, complete-output bounds and
+typed error mapping; the caller retains the absolute deadline, cancellation
+predicate and cleanup policy. There is no default compilation deadline or public
+API change. Query's governance-smoke `resolve_probe_inputs` is a verified caller;
+its existing policy requires no migration.
+
+Input traversal and semantic hashing retain different admission/framing contracts
+from Host's byte hashing and package traversal. Invocation staging and retained
+cache transactions retain distinct lifetimes, while native and Wasm protocol
+refusal intentionally use different cleanup/draining policies. Public batch-label
+errors are supported contracts; replacing their identity is a separate breaking
+decision, not required for this cleanup. Historical cache namespaces and tracked
+cache metadata are preserved, with package exclusion and ignore rules retained.
+Shared payload copies remain pinned dependencies, and local release adapters
+already delegate mechanics to Shared Tooling. Unpublished sibling APIs are not
+used as replacements.
+
+Linux Rust 1.91 passes six focused probe cases, all seventeen Cargo/Wasm integration
+cases and all-target/all-feature package checking. Strict development Clippy and
+the dependency pin, direct-boundary, Shared snapshot and documentation-link
+checks pass. Before-images and focused logs are under
+`/tmp/ic-build-probe-owner-20261018/`. Full release CI, native macOS and installed
+IC qualification remain separate; sibling checkouts were not built or changed.
 
 ## Published-engine consumer delivery — 2026-10-18
 

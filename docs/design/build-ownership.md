@@ -39,6 +39,12 @@ contracts share decoding, not one imposed failure policy. The 0.17.3 retained-ev
 and diagnostic adapters compose these existing owners for Wire evaluation; they
 do not own measurement scenarios, report schemas or acceptance/publication.
 
+Host Process 0.27.3 owns cancellable process-group capture for Cargo input probes,
+including pre-spawn refusal, absolute deadlines and cleanup. Build supplies probe
+commands, bounded-output requirements and phase/error mapping; callers select the
+deadline, cancellation predicate and cleanup policy. This delegation introduces
+no default build deadline or consumer lifecycle policy.
+
 Host FS 0.27.2 owns shared descriptor-lock release, metadata-only logical directory
 sizes and standard cache-directory tag recognition/publication. Build consumes
 those APIs directly, keeping its record-clone lifetime, cache thresholds,

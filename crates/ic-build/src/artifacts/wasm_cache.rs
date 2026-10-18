@@ -10,9 +10,8 @@ use ic_host_fs::read::directory_logical_size;
 use ic_host_process::{
     child::{CleanupPolicy, OwnedChild},
     tool::{
-        CompletedExecution, ExecutionError, ExecutionEvidence, ExecutionFailure,
-        ExecutionOperation, OutputLimit, OutputLimits, OutputStream, SuccessfulExit, ToolError,
-        capture_command, communicate_child,
+        CompletedExecution, ExecutionFailure, ExecutionOperation, OutputLimit, OutputLimits,
+        OutputStream, ToolError, capture_command, capture_group_command_with_cancellation,
     },
 };
 use std::{
@@ -3596,7 +3595,13 @@ fn capture_probe_output_with_policy(
         timeout: None,
     };
     let result = if let Some(policy) = policy {
-        capture_controlled_probe(command, limits, policy)
+        capture_group_command_with_cancellation(
+            command,
+            limits,
+            policy.cleanup,
+            policy.deadline,
+            &mut *policy.cancelled,
+        )
     } else {
         capture_command(command, limits)
     }
@@ -3634,57 +3639,6 @@ fn capture_probe_output_with_policy(
         }
     };
     Ok(evidence)
-}
-
-fn capture_controlled_probe(
-    command: &mut Command,
-    mut limits: OutputLimits,
-    policy: &mut CargoInputProbePolicy<'_>,
-) -> Result<CompletedExecution, ToolError> {
-    let failure = if (policy.cancelled)() {
-        Some(ExecutionFailure::Cancelled)
-    } else if policy
-        .deadline
-        .is_some_and(|deadline| deadline <= Instant::now())
-    {
-        Some(ExecutionFailure::TimedOut)
-    } else {
-        None
-    };
-    if let Some(failure) = failure {
-        return Err(ToolError::Execution(Box::new(ExecutionError {
-            failure,
-            evidence: ExecutionEvidence::default(),
-            cleanup: None,
-        })));
-    }
-    command
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped());
-    let mut child = OwnedChild::spawn(command, policy.cleanup).map_err(|source| {
-        ToolError::Execution(Box::new(ExecutionError {
-            failure: ExecutionFailure::Io {
-                operation: ExecutionOperation::Spawn,
-                source,
-            },
-            evidence: ExecutionEvidence::default(),
-            cleanup: None,
-        }))
-    })?;
-    // The deadline is shared across probes, not restarted at each command.
-    limits.timeout = policy.deadline.map(|deadline| {
-        deadline
-            .saturating_duration_since(Instant::now())
-            .max(Duration::from_nanos(1))
-    });
-    communicate_child(
-        &mut child,
-        None,
-        limits,
-        SuccessfulExit::Cleanup,
-        &mut *policy.cancelled,
-    )
 }
 
 // Parsed once per Cargo resolution context. Each specification still selects

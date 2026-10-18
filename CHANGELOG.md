@@ -3,7 +3,7 @@
 The 0.1.0 section preserves the original bootstrap notes. The published 0.1.0
 archive also includes the extracted artifact engine and Cargo grouping API.
 
-## [0.17.5]
+## [0.17.7]
 
 - Render read-only Cargo release candidates with TOML-owned literal spans,
   preserving unrelated bytes and source-qualified dependencies. Expose an
@@ -11,6 +11,31 @@ archive also includes the extracted artifact engine and Cargo grouping API.
   Consumers retain preparation, release policy, source custody and rollback.
 - Add independent semantic lock admission for exact local dependency-reference
   changes; the existing version-only projection contract remains unchanged.
+
+## [0.17.6] - 2026-10-18
+
+- Select development Rust 1.99.1, which fixes Rust 1.99.0's direct-invocation
+  macOS rust-lld library lookup regression. Keep the package MSRV at 1.91.0 and
+  retain native qualification requirements ([#76](https://github.com/dragginzgame/ic-build/issues/76),
+  [#77](https://github.com/dragginzgame/ic-build/issues/77)).
+- Add nearest explicit Cargo workspace discovery without invoking Cargo,
+  preserving nested declarations, file starts, symlinks and typed refusals.
+  Canic retains ICP discovery and no-match fallback; publication and consumer
+  adoption remain separate ([PR #63](https://github.com/dragginzgame/ic-build/pull/63)).
+
+## [0.17.5] - 2026-10-18
+
+- Stop enabling Host Artifacts' unused `wasm` feature, removing wasmparser and
+  leb128 from this engine's dependency graph. Consumers performing structural
+  inspection select Host's `wasm` feature explicitly; Cargo/Wasm builds are unchanged.
+- Consolidate Unix user identity, descriptor flags and signal constants onto
+  Rustix, removing IC Build's direct libc dependency and local unsafe calls.
+  Effective-owner admission and exact process-signal checks remain unchanged;
+  libc remains in the upstream dependency graph.
+- Delegate cancellable Cargo input probes to Host Process 0.27.3, retiring local
+  spawn/deadline/capture orchestration. Preserve caller-selected cleanup, absolute
+  probe deadlines, bounded evidence and Build's phase/error mapping; ordinary
+  builds still have no default elapsed-time deadline.
 
 ## [0.17.4] - 2026-10-18
 

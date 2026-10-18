@@ -256,7 +256,10 @@ fn failed_admitted_producers_cannot_publish_or_reuse_staged_output() {
             if ending == "exit 23" {
                 assert_eq!(status.code(), Some(23));
             } else {
-                assert_eq!(status.signal(), Some(libc::SIGTERM));
+                assert_eq!(
+                    status.signal(),
+                    Some(rustix::process::Signal::TERM.as_raw())
+                );
             }
             assert_eq!(fs::read(root.join("deploy.wasm")).unwrap(), published);
         }

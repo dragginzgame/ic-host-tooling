@@ -100,8 +100,9 @@ Wasm builds, batches and prepared readers take a final Host spawner
 argument. Pass `ic_host_process::child::OwnedChild::spawn_direct` for direct-child
 ownership, or a closure calling `OwnedChild::spawn(command, cleanup)` for an owned
 process group and explicit cleanup. Progress never chooses custody or cleanup.
-Cargo starts with null stdin; the spawner may override it. Probe execution retains
-its separate existing policy, and compilation has no finite default deadline.
+Cargo starts with null stdin; the spawner may override it. Input probes delegate
+capture to Host Process with their separate caller-selected policy; compilation
+has no finite default deadline.
 
 `cargo::observation::observe_metadata` accepts a `CargoMetadataSpec`, caller-selected
 `Command` and Host `OutputLimits`. The command retains its executable, launcher
@@ -394,7 +395,10 @@ errors. For bounded input probes, use
 `inputs.is_current_with_probe_policy(spec, &mut policy)`. `CargoInputProbePolicy`
 selects one absolute `Instant` deadline, cancellation predicate and Host cleanup
 policy across Cargo identity, compiler identity and metadata. Reuse the policy
-to keep the same deadline during revalidation. Probes retain the existing
+to keep the same deadline during revalidation. Host Process owns pre-spawn
+cancellation/deadline refusal, process-group capture and cleanup through
+`tool::capture_group_command_with_cancellation`; Build selects probe phases,
+output limits and error context. Probes retain the existing
 complete-output bounds (64 KiB per identity stream; 16 MiB metadata stdout and
 64 KiB stderr). Original failures, observed output and cleanup errors remain in
 the Host `ToolError` inside `WasmBuildError::Io`; the operation identifies the
@@ -1091,7 +1095,9 @@ The 0.4 API removed `wasm_path` and `wasm_artifacts_ready`. Consumers
 obtain verified outputs from retained records. Path construction needed only
 by fixtures stays in consumer test support.
 Paths must be caller-controlled; symbolic links are allowed. Reading bytes does
-not validate Wasm; use `ic_host_artifacts::wasm::inspect` for structural facts.
+not validate Wasm; use `ic_host_artifacts::wasm::inspect` for structural facts,
+enabling Host Artifacts' `wasm` feature in the inspecting consumer. Build does not
+enable that parser feature; producing and caching Wasm does not require it.
 Stream identities, archives and Wasm inspection belong to `ic_host_artifacts`;
 pathname reads and durable publication belong to `ic_host_fs`; executable
 resolution, execution and Git provenance belong to `ic_host_process`; Candid
@@ -1110,7 +1116,8 @@ Structural Wasm inspection does not replace PocketIC's runtime validation.
 IC Build currently requires compatible IC Host 0.27 releases at the
 public dependency boundary. Host FS requires at least 0.27.2 for shared lock
 guards, logical directory sizing and cache-directory tags; Cargo.lock records
-the selected graph. Build owns record lifetime, pruning policy and tag comments,
+the selected graph. Host Process requires at least 0.27.3 for cancellable
+process-group probe capture. Build owns record lifetime, pruning policy and tag comments,
 while Host owns these filesystem primitives. Existing valid tags are preserved;
 new tags identify IC Build without renaming retained cache paths or formats.
 Retained staging still uses checked native permission conversion on macOS. Align direct Host

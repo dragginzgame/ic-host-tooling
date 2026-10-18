@@ -270,7 +270,7 @@ cat "$METADATA"
         assert!(execution.cleanup.is_none());
         assert_eq!(
             execution.evidence.status.unwrap().signal(),
-            Some(libc::SIGKILL)
+            Some(rustix::process::Signal::KILL.as_raw())
         );
     }
     fs::remove_dir_all(root).unwrap();
