@@ -21,6 +21,10 @@
   leaving signal choice, registration custody and shutdown policy with callers.
   [Details](docs/changelog/0.27.md).
 
+- Project exact environment/network facts from bounded effective ICP YAML using
+  an optional real parser, leaving configuration resolution and funding to callers.
+  [Details](docs/changelog/0.27.md).
+
 ## [0.27.6] - 2026-10-18
 
 - Share pure ICP call/status command builders and typed installation-state

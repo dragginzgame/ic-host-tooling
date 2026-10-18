@@ -28,6 +28,9 @@ inspection with the default graph. `make test-tools-interface` adds Wasm export
 interpretation; `make test-tools-certificate` adds strict owned certificate/hash-tree
 decoding. `make test PACKAGE=ic-host-text` checks bounded line normalization,
 escaping, progress frames and Unicode table alignment.
+The optional `icp-project` feature qualifies bounded effective-YAML projection;
+default and certificate profiles exclude its YAML parser.
+
 `make test-tools-encoding` checks canonical unsigned LEB128 admission. The decoder
 adds no dependencies; Tools retains its normal Platform/parser dependency.
 `make tools-features-check` verifies the normal parser dependency, including with

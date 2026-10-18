@@ -52,17 +52,19 @@ check_graph() {
 }
 
 check_graph tools ic-host-tools default '' 'ic-platform candid_parser candid' \
-    '^(ic-host-(artifacts|fs|process|text)|wasmparser|ciborium|ic-certification) '
+    '^(ic-host-(artifacts|fs|process|text)|wasmparser|ciborium|ic-certification|serde_yaml_ng) '
 check_graph tools-no-defaults ic-host-tools none '' 'ic-platform candid_parser candid' \
-    '^(ic-host-(artifacts|fs|process|text)|wasmparser|ciborium|ic-certification) '
-check_graph encoding ic-host-tools none encoding 'ic-platform candid_parser candid' \
+    '^(ic-host-(artifacts|fs|process|text)|wasmparser|ciborium|ic-certification|serde_yaml_ng) '
+check_graph icp-project ic-host-tools none icp-project 'ic-platform candid_parser serde_yaml_ng' \
     '^(ic-host-(artifacts|fs|process|text)|wasmparser|ciborium|ic-certification|ic-agent|reqwest) '
+check_graph encoding ic-host-tools none encoding 'ic-platform candid_parser candid' \
+    '^(ic-host-(artifacts|fs|process|text)|wasmparser|ciborium|ic-certification|ic-agent|reqwest|serde_yaml_ng) '
 check_graph ic-interface ic-host-tools none ic-interface \
     'ic-platform ic-host-artifacts candid_parser wasmparser' '^ic-host-(fs|process|text) '
 check_graph inspection ic-host-wasm-inspect default '' 'ic-host-artifacts ic-host-fs' \
     '^(ic-host-process|ic-platform|candid_parser) '
 check_graph certificate ic-host-tools none certificate 'ic-platform candid_parser ciborium ic-certification' \
-    '^(ic-host-(artifacts|fs|process|text)|wasmparser|ic-agent|reqwest) '
+    '^(ic-host-(artifacts|fs|process|text)|wasmparser|ic-agent|reqwest|serde_yaml_ng) '
 check_graph tools-combined ic-host-tools none ic-interface,certificate \
     'ic-platform candid_parser ciborium ic-certification ic-host-artifacts wasmparser' \
     '^(ic-host-(fs|process|text)|ic-agent|reqwest) '

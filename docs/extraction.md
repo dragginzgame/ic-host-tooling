@@ -552,6 +552,13 @@ owned by this CLI; the duplicate filesystem `inspect_artifact` example is retire
 Default TSV output remains stable, and the filesystem development profile no
 longer selects the Wasm parser for that example.
 
+The optional `icp-project` tools profile parses bounded effective YAML produced by
+`icp project show` and projects exact environment/network facts. It adds only
+the optional Serde YAML parser; the default tools graph excludes that parser. ICP
+owns implicit-environment and recipe resolution. Callers retain command execution,
+input budgets, selected identities, local funding and lifecycle. This module does
+not reconstruct effective configuration from raw manifests.
+
 The opt-in `ic-host-process::testing::http` module owns bounded synthetic request
 reading, including phased request-line admission and remaining-deadline socket
 reads. It does not own response generation, application policy or evidence files.

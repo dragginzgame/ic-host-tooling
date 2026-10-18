@@ -89,6 +89,12 @@ Replica install thresholds and their reports belong to the consuming application
 Canic selects its replica revision and enforces its resource limits; Host Artifacts
 retains generic Wasm inspection. See the [0.25 migration](docs/changelog/0.25.md).
 
+The optional `icp-project` feature exposes
+`icp_project::environment_network` over bounded `icp project show` YAML.
+ICP resolves implicit environments and recipes; the parser preserves exact names
+and refuses malformed or ambiguous facts. Callers retain executable selection,
+capture limits, funding and lifecycle. The YAML parser is absent from defaults.
+
 The optional tools `encoding` feature decodes a complete canonical unsigned
 `u64` LEB128 value without allocation or new dependencies. It rejects truncated,
 overflowing, nonminimal and trailing encodings while inspecting at most ten bytes.
