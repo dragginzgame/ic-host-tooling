@@ -29,6 +29,11 @@ roles, release identities or manifests.
 
 ## Implemented ownership
 
+Published Host Artifacts 0.27.4 owns ordered batch label validation and its error
+identity. The pending 0.18 cut consumes that owner directly and removes Build
+batch admission without an alias. Consumers update their error import paths;
+pre-effect ordering and original label/index evidence are unchanged.
+
 The current manifest depends directly on Host Artifacts, FS and Process, plus
 Cargo's canonical metadata schema. Host Tools and Text are consumer dependencies
 where interpretation or normalization is needed; Build does not depend on them.

@@ -1,6 +1,6 @@
 # Artifact and Wasm build APIs
 
-Examples target the current 0.17 API. Standalone Wasm acquisition provides two
+Examples target the pending 0.18 API. Standalone Wasm acquisition provides two
 entrypoints: `build_wasm_canisters_cached(&spec, spawn)` for silent execution,
 and `build_wasm_canisters_cached_with_progress(&spec, config, observer, spawn)`
 for observation. Both use the same internal acquisition engine. Progress remains
@@ -60,8 +60,9 @@ one `artifacts::WasmBuildPhase`. Replace `WasmBuildProgressPhase` and
 `RustcIdentity`; the timing summary still adds both to `tool_identity`.
 Specification and cleanup retain their own phases.
 
-Artifact batch functions return `ic_build::batch::BatchLabelError` directly;
-remove `ArtifactCacheBatchContractError`. Match `Empty { index }` or
+In 0.18, artifact batch functions return `ic_host_artifacts::batch::BatchLabelError`
+directly; replace imports from the removed `ic_build::batch` module. The earlier
+`ArtifactCacheBatchContractError` is also removed. Match `Empty { index }` or
 `Duplicate { label, first_index, duplicate_index }`. Wasm batch contract errors
 wrap those values in `WasmBuildBatchContractError::Labels`; its error source
 exposes the same typed label failure. Source-lease invalidation and unprepared
@@ -85,10 +86,6 @@ outside that target. Maintenance still requires explicit policy and scheduling.
 These generic APIs are extracted from IC Testkit. Recipes, budgets, tool
 selection, credentials, source custody and lifecycle remain with the caller.
 The existing v1 retained formats and namespaces are unchanged.
-
-Batch label validation belongs to Host Artifacts 0.27.4. The pending 0.18 cut
-removes `ic_build::batch`; import `ic_host_artifacts::batch::BatchLabelError`
-directly. First-invalid ordering and original duplicate indices are unchanged.
 
 ## Cargo observations
 
