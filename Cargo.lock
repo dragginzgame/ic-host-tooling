@@ -588,6 +588,7 @@ dependencies = [
  "ic-host-artifacts",
  "ic-host-fs",
  "ic-platform",
+ "leb128",
  "serde",
  "serde_json",
  "serde_yaml_ng",
