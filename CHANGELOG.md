@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.27.6]
+## [0.27.6] - 2026-10-18
 
 - Share pure ICP call/status command builders and typed installation-state
   projection for Canic and IcyDB, preserving native arguments and caller-owned
