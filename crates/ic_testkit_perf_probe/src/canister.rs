@@ -97,7 +97,8 @@ fn benchmark_start_then_trap() {
     encode_with = "encode::<QueryCaller>"
 )]
 fn fixture_query_caller() -> Bytes<29> {
-    Bytes::new(ic_platform::cdk::api::msg_caller().as_slice().to_vec()).expect("principal byte bound")
+    Bytes::new(ic_platform::cdk::api::msg_caller().as_slice().to_vec())
+        .expect("principal byte bound")
 }
 
 #[update(
@@ -107,7 +108,8 @@ fn fixture_query_caller() -> Bytes<29> {
     encode_with = "encode::<UpdateCaller>"
 )]
 fn fixture_update_caller() -> Bytes<29> {
-    Bytes::new(ic_platform::cdk::api::msg_caller().as_slice().to_vec()).expect("principal byte bound")
+    Bytes::new(ic_platform::cdk::api::msg_caller().as_slice().to_vec())
+        .expect("principal byte bound")
 }
 
 fn guard() -> Result<(), String> {
