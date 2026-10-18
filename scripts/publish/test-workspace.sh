@@ -50,7 +50,7 @@ case "$*" in
     'status --porcelain --untracked-files=all')
         if [[ "${PUBLISH_CORE_RACE:-0}" == 1 && -d target/publish/.cargo-publication.lock ]]; then echo ' M raced'; fi
         if [[ "${PUBLISH_DIRTY:-0}" == 1 ]]; then echo ' M Cargo.toml'; fi ;;
-    init\ --bare\ *) mkdir -p "$3" ;;
+    init\ --bare\ --object-format=sha1\ *) mkdir -p "$4" ;;
     -C\ *\ fetch\ --no-tags\ --depth=1\ *)
         [[ "$6" == -- && "$7" == https://github.com/dragginzgame/ic-host-tooling &&
            "$8" == 0000000000000000000000000000000000000000 ]] || exit 1

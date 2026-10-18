@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.27.3]
+
+### Fixed
+
+- Select the packaged source's Git object format explicitly when retrieving
+  publication evidence, independent of the caller's Git default ([#191](https://github.com/dragginzgame/ic-host-tooling/issues/191)).
+  Keep the two source-evidence adapters until equivalent canonical Shared helpers
+  are delivered; refresh both callers and retire both copies together.
+  [Details](docs/changelog/0.27.md).
+
 ## [0.27.2] - 2026-10-18
 
 ### Changed

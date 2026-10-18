@@ -63,7 +63,9 @@ done
 # Do not let inherited Git object locations turn local cache presence into proof
 # of retrieval. Caller credentials/configuration and offline policy stay intact.
 unset GIT_DIR GIT_WORK_TREE GIT_COMMON_DIR GIT_INDEX_FILE GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES
-git init --bare "$evidence/source.git" > "$evidence/source-init.log" 2>&1 || fail 'cannot prepare source evidence'
+object_format=sha1
+[[ ${#source} == 40 ]] || object_format=sha256
+git init --bare --object-format="$object_format" "$evidence/source.git" > "$evidence/source-init.log" 2>&1 || fail 'cannot prepare source evidence'
 GIT_TERMINAL_PROMPT=0 git -C "$evidence/source.git" fetch --no-tags --depth=1 -- \
     "$repository" "$source" > "$evidence/source-fetch.log" 2>&1 || fail 'packaged source is not retrievable from the declared repository'
 retrieved="$(git -C "$evidence/source.git" rev-parse --verify 'FETCH_HEAD^{commit}')" || fail 'retrieved source is not a commit'

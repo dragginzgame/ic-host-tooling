@@ -88,6 +88,10 @@ and [selected-source reader](../scripts/release/read-source-context.sh), outside
 the refreshed snapshot. Their origin is `4eabe7f771907ccebfebceafffe10657b911c0eb`.
 No source-identity or retrieval check is removed to adopt the released baseline;
 canonical replacement remains contingent on upstream delivery and qualification.
+Once an equivalent release is delivered, refresh both canonical helpers through
+the snapshot exporter, update both callers and remove both Host adapters in the
+same change. Qualify the release/publication rejection and retained-evidence paths
+before retiring the local copies.
 
 `publish-check` retains its dirty-worktree dry-run contract and does not claim
 remote provenance verification. The upload guard does not establish CI success
