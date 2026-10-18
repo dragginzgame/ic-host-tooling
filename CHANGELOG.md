@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.27.7]
+
+- Qualify Rust 1.99.1 for development and native CI, retaining Rust 1.88 as
+  the package minimum and preserving dependency selections.
+  [Details](docs/changelog/0.27.md).
+
 ## [0.27.6] - 2026-10-18
 
 - Share pure ICP call/status command builders and typed installation-state
