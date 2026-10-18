@@ -579,7 +579,11 @@ not reconstruct effective configuration from raw manifests.
 
 The opt-in `ic-host-process::testing::http` module owns bounded synthetic request
 reading, including phased request-line admission and remaining-deadline socket
-reads. It does not own response generation, application policy or evidence files.
+reads. Its one-request `HttpFixture` composes that reader with HTTP 200 framing,
+explicit caller-selected response bytes, request budgets and one total deadline;
+it cancels socket IO and joins its worker on Drop. `testing::net::accept_tcp_until`
+shares bounded acceptance with custom-response fixtures. Payload schemas,
+application assertions, simulator lifecycle and evidence files stay consumer-owned.
 HTTP fixtures are portable; executable fixtures and crash barriers remain Unix-only.
 
 ## Logical directory sizes from IC Build

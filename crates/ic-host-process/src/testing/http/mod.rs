@@ -2,6 +2,8 @@
 
 mod evidence;
 pub use evidence::{HttpCapture, HttpCaptureFailure, HttpContentLength, capture_http_request};
+mod fixture;
+pub use fixture::{HttpFixture, HttpFixtureLimits};
 
 use std::{
     io::{self, Read as _},

@@ -2,6 +2,38 @@
   "format": 1,
   "sources": [
     {
+      "repository": "https://github.com/dragginzgame/ic-testkit",
+      "revision": "9c42f52ec577d6db6de32199b970f2b014c01149",
+      "files": [
+        {
+          "path": "crates/ic-testkit/src/testing/http/mod.rs",
+          "sha256": "3303a94ea6eafa76d556eee8b81d9cf4bf313f12783a5d4105a999b0d1b953e0",
+          "selection": "one-request HTTP fixture ownership, explicit response/request budgets and deadline, cancellation and worker joining; adapted to Process's existing request capture and shared accept loop"
+        },
+        {
+          "path": "crates/ic-testkit/src/testing/http/tests.rs",
+          "sha256": "11fd4241ce8ac8f09addcaf6b40071a8a7045cb4d67470a9db888e85f758ad6b",
+          "selection": "generic exact-byte, budget, deadline and cancellation regressions; response schemas and application assertions stay consumer-owned"
+        }
+      ]
+    },
+    {
+      "repository": "https://github.com/dragginzgame/ic-testkit",
+      "revision": "5a9733bf06338ac8e79ea8926b6bf49aa83c746c",
+      "files": [
+        {
+          "path": "crates/ic-testkit/src/testing/mod.rs",
+          "sha256": "8ff81ba97b56b8299a4fa36531f4a8903e70c0d65ce5ee08f19ef704e7c2ffe2",
+          "selection": "deadline-bounded nonblocking listener acceptance and explicit blocking accepted streams; response and simulator policy stay consumer-owned"
+        },
+        {
+          "path": "crates/ic-testkit/src/testing/tests.rs",
+          "sha256": "f6e2c6e91145416c72cd9bb882b9de56ebaf5b9d6e707c9f076de0273c797756",
+          "selection": "accepted-stream, timeout and elapsed-deadline queued-connection preservation regressions"
+        }
+      ]
+    },
+    {
       "repository": "https://github.com/dragginzgame/ic-build",
       "revision": "4feef850010ed725edb9b9e9adeaed140baf5106",
       "files": [

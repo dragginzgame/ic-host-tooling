@@ -72,6 +72,9 @@ check_graph certificate ic-host-tools none certificate 'ic-platform candid_parse
 check_graph tools-combined ic-host-tools none ic-interface,certificate \
     'ic-platform candid_parser ciborium ic-certification ic-host-artifacts wasmparser' \
     '^(ic-host-(fs|process|text)|ic-agent|reqwest) '
+check_graph tools-all ic-host-tools none agent,certificate,encoding,ic-interface,icp-project,ledger-evidence,registry \
+    'ic-platform candid_parser ciborium ic-certification ic-host-artifacts wasmparser ic-agent reqwest icrc-ledger-types serde_yaml_ng prost' \
+    '^(ic-host-(fs|process|text)|ic-stable-structures) '
 check_graph text ic-host-text default '' unicode-width \
     '^(ic-host-(artifacts|fs|process|tools)|ic-platform|candid_parser|ic-agent|ic-certification|ciborium) '
 check_graph artifacts ic-host-artifacts default '' '' '^ic-host-process '

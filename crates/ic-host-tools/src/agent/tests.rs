@@ -1,10 +1,10 @@
 use super::*;
-use ic_host_process::testing::http::{HttpContentLength, capture_http_request};
+use ic_host_process::testing::http::{HttpFixture, HttpFixtureLimits};
 use ic_platform::{
     Principal,
     agent::{AgentError, TransportError},
 };
-use std::{io::Write, net::TcpListener, sync::Barrier, thread, time::Duration};
+use std::{sync::Barrier, thread, time::Duration};
 
 #[test]
 fn native_builder_retains_caller_customization_without_network() {
@@ -77,34 +77,25 @@ fn competing_bindings_select_exactly_one_and_keep_the_winner() {
 
 #[tokio::test(flavor = "current_thread")]
 async fn native_transport_enforces_the_selected_response_ceiling() {
-    let listener = TcpListener::bind("127.0.0.1:0").expect("bind fixture");
-    let endpoint = format!("http://{}", listener.local_addr().unwrap());
-    let server = thread::spawn(move || {
-        let (mut stream, _) = listener.accept().expect("accept fixture request");
-        capture_http_request(
-            &mut stream,
-            Duration::from_secs(10),
-            64 * 1024,
-            8 * 1024 * 1024,
-            HttpContentLength::Optional,
-        )
-        .into_result()
-        .expect("bounded fixture request");
-        stream
-            .write_all(
-                b"HTTP/1.1 200 OK\r\nContent-Type: application/cbor\r\nContent-Length: 65\r\nConnection: close\r\n\r\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
-            )
-            .expect("fixture response");
-    });
+    let fixture = HttpFixture::spawn(
+        &[b'x'; 65],
+        "application/cbor",
+        HttpFixtureLimits {
+            timeout: Duration::from_secs(10),
+            max_header_bytes: 64 * 1024,
+            max_body_bytes: 8 * 1024 * 1024,
+        },
+    )
+    .expect("response fixture");
     let source = EndpointAgent::default();
     let error = source
-        .get(&endpoint, 64)
+        .get(fixture.endpoint(), 64)
         .unwrap()
         .query(&Principal::anonymous(), "bounded_response")
         .call_without_verification()
         .await
         .expect_err("body exceeds the selected ceiling");
-    server.join().expect("fixture server");
+    fixture.finish().expect("fixture exchange");
     assert!(matches!(
         error,
         AgentError::TransportError(TransportError::Generic(_))

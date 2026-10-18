@@ -18,6 +18,7 @@ use crate::child::{CleanupPolicy, OwnedChild};
 #[cfg(unix)]
 pub mod crash_barrier;
 pub mod http;
+pub mod net;
 
 /// Create or replace a caller-owned executable script with mode 0755.
 ///
