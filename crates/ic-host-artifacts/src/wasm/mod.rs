@@ -7,7 +7,7 @@
 //! Facts borrow source bytes; no metadata or export names are copied.
 
 use std::{collections::BTreeMap, fmt};
-use wasmparser::{Encoding, ExternalKind, Parser, Payload, TypeRef};
+use wasmparser::{Encoding, ExternalKind, Operator, Parser, Payload, TypeRef};
 
 #[cfg(test)]
 mod tests;
@@ -318,6 +318,64 @@ pub struct WasmFacts<'a> {
     pub exports: BTreeMap<&'a str, Export>,
     /// All custom metadata; callers select Candid sections and acceptance rules.
     pub custom_sections: Vec<CustomSection<'a>>,
+}
+
+/// Encoded code/data statistics, independent of optimizer reachability or policy.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct WasmCodeStatistics {
+    /// Encoded indirect calls, including the `return_call_indirect` tail form.
+    pub call_indirect_count: u64,
+    /// Sum of data-segment payload bytes, excluding section/segment framing.
+    pub data_payload_bytes: u64,
+}
+
+/// Count encoded indirect calls and data payload bytes without executing a tool.
+///
+/// Traversal is bounded by `module_bytes`; no names or instruction trees are
+/// retained. This decodes instructions, but does not validate their types,
+/// reachability or enabled features. Optimizer AST metrics may differ from raw
+/// encoded counts; consumers must preserve their selected measurement contract.
+/// The existing [`inspect`] framing contract remains separate and unchanged.
+///
+/// # Errors
+/// Rejects oversized input, components, and malformed framing, instructions or
+/// data segments. No partial statistics are returned.
+pub fn code_statistics(
+    bytes: &[u8],
+    module_bytes: usize,
+) -> Result<WasmCodeStatistics, InspectionError> {
+    enforce(
+        InspectionResource::ModuleBytes,
+        bytes.len() as u64,
+        module_bytes as u64,
+    )?;
+    let mut statistics = WasmCodeStatistics::default();
+    for payload in Parser::new(0).parse_all(bytes) {
+        match payload.map_err(parse_error)? {
+            Payload::Version { encoding, .. } if encoding != Encoding::Module => {
+                return Err(InspectionError::UnsupportedEncoding);
+            }
+            Payload::CodeSectionEntry(body) => {
+                let mut operators = body.get_operators_reader().map_err(parse_error)?;
+                while !operators.eof() {
+                    if matches!(
+                        operators.read().map_err(parse_error)?,
+                        Operator::CallIndirect { .. } | Operator::ReturnCallIndirect { .. }
+                    ) {
+                        statistics.call_indirect_count += 1;
+                    }
+                }
+            }
+            Payload::DataSection(reader) => {
+                for segment in reader {
+                    statistics.data_payload_bytes +=
+                        segment.map_err(parse_error)?.data.len() as u64;
+                }
+            }
+            _ => {}
+        }
+    }
+    Ok(statistics)
 }
 
 /// Inspect bounded core Wasm framing and the vectors used by artifact reports.

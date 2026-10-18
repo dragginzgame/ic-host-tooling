@@ -47,8 +47,8 @@ pub enum CleanupPolicy {
 /// releasing cleanup ownership, then [`Self::handoff`] reaps a successful leader
 /// without signalling its group. The caller then owns the background lifetime.
 /// Drop makes a best-effort kill/reap attempt, including during unwinding. Use
-/// [`Self::terminate`] to observe cleanup failures. The default cleanup waits
-/// synchronously; [`Self::spawn_with_cleanup`] can select bounded reaping.
+/// [`Self::terminate`] to observe cleanup failures. [`Self::spawn`] requires a
+/// cleanup policy: synchronous kill/reap or TERM grace with bounded reaping.
 /// Successful signalling is not proof that descendants
 /// have exited or completed external effects. Only the direct child is reaped.
 /// Group signalling can succeed for only some members when credentials differ.
@@ -111,15 +111,7 @@ impl std::error::Error for CleanupError {
 }
 
 impl OwnedChild {
-    /// Spawn once in a new owned process group, preserving caller-configured IO.
-    ///
-    /// # Errors
-    /// Returns the native spawn/setup failure. No retries are performed.
-    pub fn spawn(command: &mut Command) -> io::Result<Self> {
-        Self::spawn_with_cleanup(command, CleanupPolicy::KillAndWait)
-    }
-
-    /// Spawn a new owned group with caller-selected termination timing.
+    /// Spawn once in a new owned group with caller-selected cleanup and IO.
     ///
     /// The policy applies whenever termination is needed, including communication
     /// failures and Drop during unwinding. It does not change natural waiting or
@@ -128,7 +120,7 @@ impl OwnedChild {
     /// ```no_run
     /// use ic_host_process::child::{CleanupPolicy, OwnedChild};
     /// use std::{process::Command, time::Duration};
-    /// let mut child = OwnedChild::spawn_with_cleanup(
+    /// let mut child = OwnedChild::spawn(
     ///     &mut Command::new("caller-selected-tool"),
     ///     CleanupPolicy::TermThenKill {
     ///         grace: Duration::from_secs(5),
@@ -141,7 +133,7 @@ impl OwnedChild {
     /// ```
     /// # Errors
     /// Returns the native spawn/setup failure. No retries are performed.
-    pub fn spawn_with_cleanup(command: &mut Command, cleanup: CleanupPolicy) -> io::Result<Self> {
+    pub fn spawn(command: &mut Command, cleanup: CleanupPolicy) -> io::Result<Self> {
         command.process_group(0);
         Self::spawn_inner(command, true, cleanup)
     }

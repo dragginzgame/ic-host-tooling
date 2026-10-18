@@ -1,5 +1,6 @@
 use super::*;
-use crate::test_support::Fixture;
+use crate::durable::{PublicationMode, WriteOptions, write_bytes};
+use crate::test_support::fixture;
 use std::{
     error::Error as _,
     fs,
@@ -9,11 +10,19 @@ use std::{
 
 #[test]
 fn missing_exact_and_empty_private_reads_do_not_mutate_sources() {
-    let fixture = Fixture::new();
-    let path = fixture.root.join("key");
+    let fixture = fixture();
+    let path = fixture.path().join("key");
     assert!(read_private_bytes::<4>(&path).unwrap().is_none());
     assert!(!path.exists());
-    crate::durable::create_private_bytes_with_parents(&path, b"key!").unwrap();
+    write_bytes(
+        &path,
+        WriteOptions {
+            mode: PublicationMode::CreateNew,
+            permissions: 0o600,
+        },
+        b"key!",
+    )
+    .unwrap();
     assert_eq!(read_private_bytes::<4>(&path).unwrap(), Some(*b"key!"));
     assert_eq!(fs::read(&path).unwrap(), b"key!");
     fs::write(&path, []).unwrap();
@@ -22,21 +31,29 @@ fn missing_exact_and_empty_private_reads_do_not_mutate_sources() {
 
 #[test]
 fn unsafe_private_files_remain_errors_without_regeneration() {
-    let fixture = Fixture::new();
-    let path = fixture.root.join("key");
-    crate::durable::create_private_bytes_with_parents(&path, b"key!").unwrap();
+    let fixture = fixture();
+    let path = fixture.path().join("key");
+    write_bytes(
+        &path,
+        WriteOptions {
+            mode: PublicationMode::CreateNew,
+            permissions: 0o600,
+        },
+        b"key!",
+    )
+    .unwrap();
     fs::set_permissions(&path, fs::Permissions::from_mode(0o640)).unwrap();
     assert!(matches!(
         read_private_bytes::<4>(&path),
         Err(PrivateFileReadError::Permissions { mode: 0o640 })
     ));
     fs::set_permissions(&path, fs::Permissions::from_mode(0o600)).unwrap();
-    fs::hard_link(&path, fixture.root.join("other-name")).unwrap();
+    fs::hard_link(&path, fixture.path().join("other-name")).unwrap();
     assert!(matches!(
         read_private_bytes::<4>(&path),
         Err(PrivateFileReadError::LinkCount { actual: 2 })
     ));
-    fs::remove_file(fixture.root.join("other-name")).unwrap();
+    fs::remove_file(fixture.path().join("other-name")).unwrap();
     for length in [3, 5] {
         fs::write(&path, vec![7; length]).unwrap();
         assert!(matches!(
@@ -46,7 +63,7 @@ fn unsafe_private_files_remain_errors_without_regeneration() {
         assert_eq!(fs::metadata(&path).unwrap().len(), length as u64);
     }
     for (name, target) in [("link", "key"), ("dangling", "missing")] {
-        let link = fixture.root.join(name);
+        let link = fixture.path().join(name);
         symlink(target, &link).unwrap();
         assert!(matches!(
             read_private_bytes::<4>(&link),
@@ -54,9 +71,17 @@ fn unsafe_private_files_remain_errors_without_regeneration() {
         ));
     }
     assert!(matches!(
-        read_private_bytes::<4>(&fixture.root),
+        read_private_bytes::<4>(fixture.path()),
         Err(PrivateFileReadError::Read(ArtifactError::NotRegularFile))
     ));
+    // Model a special descriptor selected after the initial pathname check,
+    // without racing a namespace writer or adding a production test hook.
+    for path in [fixture.path(), Path::new("/dev/null")] {
+        assert!(matches!(
+            read_private_descriptor::<0>(File::open(path).unwrap()),
+            Err(PrivateFileReadError::Read(ArtifactError::NotRegularFile))
+        ));
+    }
 }
 
 #[test]
@@ -78,6 +103,47 @@ fn private_io_errors_preserve_the_original_cause() {
             .downcast_ref::<io::Error>()
             .is_some()
     );
+}
+
+#[test]
+fn private_error_display_and_sources_preserve_the_read_boundary() {
+    let error = PrivateFileReadError::Read(ArtifactError::Io(io::Error::from_raw_os_error(13)));
+    assert_eq!(error.to_string(), "private file read failed");
+    let artifact = error
+        .source()
+        .unwrap()
+        .downcast_ref::<ArtifactError>()
+        .unwrap();
+    assert_eq!(
+        artifact
+            .source()
+            .unwrap()
+            .downcast_ref::<io::Error>()
+            .unwrap()
+            .raw_os_error(),
+        Some(13)
+    );
+    let secret = PrivateFileReadError::Read(ArtifactError::Io(io::Error::other(
+        "private credential bytes",
+    )));
+    assert_eq!(secret.to_string(), "private file read failed");
+    for (error, expected) in [
+        (
+            PrivateFileReadError::Permissions { mode: 0o640 },
+            "private file permissions are 640, expected 600",
+        ),
+        (
+            PrivateFileReadError::LinkCount { actual: 2 },
+            "private file has 2 links, expected one",
+        ),
+        (
+            PrivateFileReadError::Length { expected: 4 },
+            "private file must contain exactly 4 bytes",
+        ),
+    ] {
+        assert_eq!(error.to_string(), expected);
+        assert!(error.source().is_none());
+    }
 }
 
 #[test]

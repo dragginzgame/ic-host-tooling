@@ -25,15 +25,11 @@ export ADAPTER_EVENTS="$fixture/events"
 export RELEASE_SOURCE=0000000000000000000000000000000000000000
 export RELEASE_DATE=2026-10-06 RELEASE_KIND=minor
 adapter_root="$fixture/adapter"
-for input in scripts/release/adapter.sh scripts/release/metadata-version.awk \
-    scripts/ci/read-cargo-workspace-version.sh scripts/ci/check-release-source.sh \
-    scripts/ci/next-release-version.sh scripts/ci/finalize-release-changelog.awk \
-    scripts/ci/validate-release-inputs.pl \
-    scripts/ci/rewrite-local-lock-versions.pl scripts/ci/render-cargo-workspace-version.pl; do
-    mkdir -p "$adapter_root/${input%/*}"
-    cp "$root/$input" "$adapter_root/$input"
-done
+mkdir "$adapter_root"
+bash "$root/scripts/ci/prepare-script-fixture.sh" "$root" "$adapter_root" scripts/release/adapter.sh
 adapter="$adapter_root/scripts/release/adapter.sh"
+if RELEASE_DELIVERY='pr' bash "$adapter" version > "$fixture/unsupported-delivery.log" 2>&1; then exit 1; fi
+[[ ! -e "$ADAPTER_EVENTS" ]] || exit 1
 RELEASE_PREVIOUS="$(cd "$root" && bash scripts/release/adapter.sh version)"
 export RELEASE_PREVIOUS
 RELEASE_VERSION="$(bash "$root/scripts/ci/next-release-version.sh" "$RELEASE_PREVIOUS" "$RELEASE_KIND")"
@@ -59,9 +55,11 @@ jq -r '. as $m | .packages[] |
 # Observe the real workspace through relative and absolute adapter entrypoints
 # in a physical newline-bearing tooling root, with a competing CDPATH lookup.
 tooling="$fixture/tooling"$'\n'
-mkdir -p "$tooling/scripts/release" "$tooling/scripts/ci" "$fixture/decoy/scripts/release"
+mkdir -p "$tooling/scripts/release" "$tooling/scripts/ci" "$tooling/ci" "$fixture/decoy/scripts/release"
 cp "$adapter" "$tooling/scripts/release/"
 cp "$root/scripts/ci/read-cargo-workspace-version.sh" "$tooling/scripts/ci/"
+cp "$root/scripts/ci/check-release-delivery.sh" "$tooling/scripts/ci/"
+cp "$root/ci/release-delivery.txt" "$tooling/ci/"
 (
     cd "$fixture"
     export CDPATH="$fixture/decoy:$fixture"
@@ -73,14 +71,26 @@ printf '# Changelog\n\n## [%s] \t \n\n- Fixture notes.\n' "$RELEASE_VERSION" > "
 printf '\n## [%s]\n\n- Undated imported history.\n\n## [0.0.1] - 2026-10-01\n\n- Dated history.\n' "$RELEASE_PREVIOUS" >> "$fixture/CHANGELOG.md"
 mkdir "$fixture/source" "$fixture/committed"
 cp "$fixture/Cargo.toml" "$fixture/Cargo.lock" "$fixture/CHANGELOG.md" "$fixture/source/"
+# Saved-source projection reads member identity from Git, independently of the
+# current workspace. The Git substitute below serves these immutable inputs.
+jq -r '. as $m | .packages[] |
+    select(.id as $id | $m.workspace_members | index($id)) | .manifest_path' \
+    "$fixture/source-metadata.json" |
+    while IFS= read -r manifest; do
+        relative="${manifest#"$root"/}"
+        mkdir -p "$fixture/source/${relative%/*}"
+        cp "$manifest" "$fixture/source/$relative"
+    done
 export ADAPTER_SOURCE="$fixture/source" ADAPTER_COMMITTED="$fixture/committed"
 export RELEASE_COMMIT=1111111111111111111111111111111111111111
 cat > "$fixture/bin/git" <<'STUB'
 #!/usr/bin/env bash
 set -euo pipefail
+if [[ "${1:-}" == -C ]]; then shift 2; fi
 case "$*" in
     'rev-parse HEAD') echo "${ADAPTER_HEAD:-$RELEASE_SOURCE}" ;;
     'rev-parse --git-path release-state') echo release-state ;;
+    "rev-parse --verify $RELEASE_SOURCE^{commit}") echo "$RELEASE_SOURCE" ;;
     "rev-parse $RELEASE_COMMIT^{commit}") echo "$RELEASE_COMMIT" ;;
     'diff --binary HEAD') ;;
     'hash-object --stdin') cat > /dev/null; echo "$RELEASE_SOURCE" ;;
@@ -116,6 +126,8 @@ case "$*" in
     'metadata --no-deps --format-version 1 --locked --offline')
         "$ADAPTER_REAL_CARGO" "$@"
         exit "${ADAPTER_METADATA_RESULT:-0}" ;;
+    'sort --workspace --grouped --check'|sort\ --grouped\ --check\ *)
+        "$ADAPTER_REAL_CARGO" "$@" ;;
     'fetch --locked'|'fetch --locked --offline')
         if [[ -n "${ADAPTER_CACHE:-}" && ! -e "$ADAPTER_CACHE" ]]; then
             if [[ "$*" == *--offline || "${CARGO_NET_OFFLINE:-}" == true ]]; then
@@ -155,6 +167,10 @@ cat > "$fixture/bin/yq" <<'STUB'
 set -euo pipefail
 "$ADAPTER_REAL_YQ" "$@"
 if [[ "${ADAPTER_FAILED_READER:-}" == lock && "$*" == '-p toml -o json .' ]]; then exit 23; fi
+if [[ "${ADAPTER_FAILED_READER:-}" == member && "${*: -1}" == */member.toml ]]; then exit 23; fi
+if [[ "${ADAPTER_FAILED_READER:-}" == member-stream && "${*: -1}" == */member.toml ]]; then
+    "$ADAPTER_REAL_YQ" "$@" | jq -c '{package: {name: (.package.name + "-extra")}}'
+fi
 STUB
 chmod +x "$fixture/bin/bash" "$fixture/bin/yq"
 export YQ="$fixture/bin/yq"
@@ -245,6 +261,7 @@ cargo locate-project --workspace --message-format plain --manifest-path Cargo.to
 cargo metadata --no-deps --format-version 1 --locked --offline
 make --no-print-directory install-tools
 make --no-print-directory tools-check
+cargo sort --workspace --grouped --check
 make --no-print-directory dependency-pins-check
 cargo fetch --locked
 EVENTS
@@ -253,6 +270,19 @@ cp expected accepted-events
 cmp Cargo.toml source/Cargo.toml
 cmp Cargo.lock "$root/Cargo.lock"
 [[ ! -e release-state ]] || exit 1
+
+# Role comments do not bypass ordering. Reject an unsorted real catalog before
+# fetching or release validation, without repairing either the source or input.
+perl "$root/scripts/ci/prepare-cargo-formatting-fixture.pl" \
+    Cargo.toml workspace.dependencies ic-host-artifacts ic-host-fs > unsorted.toml
+cp unsorted.toml Cargo.toml
+: > "$ADAPTER_EVENTS"
+if bash "$adapter" preflight > unsorted-preflight.log 2>&1; then
+    echo 'Preflight admitted an unsorted catalog' >&2; exit 1
+fi
+if grep -E '^cargo fetch|^make .* (ci|msrv)' "$ADAPTER_EVENTS"; then exit 1; fi
+cmp unsorted.toml Cargo.toml
+cp source/Cargo.toml Cargo.toml
 
 # The executable is part of coordinated releases, while non-workspace local
 # lock entries must not silently become release-owned packages.
@@ -330,6 +360,25 @@ for requirement in "$RELEASE_PREVIOUS" "${RELEASE_PREVIOUS%.*}"; do
     cmp accepted-events "$ADAPTER_EVENTS"
 done
 cp source/Cargo.toml Cargo.toml
+
+# Member admission must retain failures even after plausible TOML/JSON output.
+# Neither a failed Git source read nor a failed member parser can reach setup.
+for reader in git member member-stream read-cargo-source-context.sh; do
+    : > "$ADAPTER_EVENTS"
+    rm -f query-count
+    status=0
+    if [[ "$reader" == git ]]; then
+        ADAPTER_GIT_QUERY="show $RELEASE_SOURCE:crates/ic-host-fs/Cargo.toml" \
+            bash "$adapter" preflight > failed-member-git.log 2>&1 || status=$?
+    else
+        ADAPTER_FAILED_READER="$reader" bash "$adapter" preflight \
+            > "failed-member-$reader.log" 2>&1 || status=$?
+    fi
+    [[ "$status" != 0 ]] || exit 1
+    printf '%s\n' 'cargo locate-project --workspace --message-format plain --manifest-path Cargo.toml' > expected
+    cmp expected "$ADAPTER_EVENTS"
+    cmp source/Cargo.toml Cargo.toml
+done
 
 # A failed Cargo query may print valid metadata: its failure must still stop
 # preflight before any setup or fetch is attempted.
@@ -427,6 +476,7 @@ cat > expected <<'EVENTS'
 cargo locate-project --workspace --message-format plain --manifest-path Cargo.toml
 cargo metadata --no-deps --format-version 1 --locked --offline
 make --no-print-directory tools-check
+cargo sort --workspace --grouped --check
 make --no-print-directory dependency-pins-check
 cargo fetch --locked --offline
 make --no-print-directory ci
@@ -542,7 +592,7 @@ cat > preparation-controls/cp <<'STUB'
 #!/usr/bin/env bash
 set -euo pipefail
 "$ADAPTER_REAL_CP" "$@"
-if [[ "${PREPARATION_CONTROL:-}" == interrupt && "$1" == */candidate.lock ]]; then
+if [[ "${PREPARATION_CONTROL:-}" == interrupt && "$*" == *'/candidate/Cargo.lock '* ]]; then
     kill -TERM "$PPID"
 fi
 STUB
@@ -601,7 +651,10 @@ cmp committed/CHANGELOG.md CHANGELOG.md
 printf '# Newer working notes\n' > CHANGELOG.md
 printf '# Newer working metadata\n' > Cargo.toml
 printf '# Newer working lockfile\n' > Cargo.lock
+# The old member path need not remain present in today's checkout either.
+mv crates/ic-host-fs retained-current-fs
 bash "$adapter" committed-check > committed.log 2>&1
+mv retained-current-fs crates/ic-host-fs
 printf '\nAltered historical notes.\n' >> committed/CHANGELOG.md
 if bash "$adapter" committed-check > rejected-committed.log 2>&1; then
     echo 'Committed check accepted an altered release payload' >&2; exit 1
@@ -633,5 +686,47 @@ bash "$adapter" verify > whitespace-verify.log 2>&1
 bash "$adapter" prepare > whitespace-prepare.log 2>&1
 printf '# Changelog\n\n## [%s] - %s\n\n- Candidate.\n\n## [%s]\n\n- History without final LF.' "$RELEASE_VERSION" "$RELEASE_DATE" "$RELEASE_PREVIOUS" > expected-notes
 cmp expected-notes CHANGELOG.md
+# The actual Host adapter must advance aliased requirements and preserve their
+# operators/precision across a major release, including saved-payload recovery.
+(
+    export RELEASE_KIND=major
+    RELEASE_VERSION="$(bash "$root/scripts/ci/next-release-version.sh" "$RELEASE_PREVIOUS" major)"
+    export RELEASE_VERSION
+    awk -v previous="$RELEASE_PREVIOUS" '
+        { print }
+        /^\[workspace.dependencies\]$/ {
+            print "exact_alias = { package = \"ic-host-fs\", path = \"crates/ic-host-fs\", version = \"=" previous "\" }"
+            sub(/\.[^.]+$/, "", previous)
+            print "short_alias = { package = \"ic-host-fs\", path = \"crates/ic-host-fs\", version = \"~ " previous "\" }"
+        }
+    ' source/Cargo.toml > Cargo.toml
+    # Source/member identities must support ordinary names and spaces in apps/.
+    awk '{ gsub(/crates\/ic-host-fs/, "apps/consumer fs"); print }' Cargo.toml > relocated.toml
+    mv relocated.toml Cargo.toml
+    mkdir -p source/apps
+    mv source/crates/ic-host-fs 'source/apps/consumer fs'
+    mv crates/ic-host-fs 'apps/consumer fs'
+    # Aliases are inserted above solely for this transaction fixture. Prepare
+    # its actual source with the same grouped ordering required in production.
+    "$ADAPTER_REAL_CARGO" sort --workspace --grouped > major-source-format.log
+    cp Cargo.toml source/Cargo.toml
+    cp source/Cargo.lock Cargo.lock
+    printf '# Changelog\n\n## [%s]\n\n- Major fixture.\n' "$RELEASE_VERSION" > CHANGELOG.md
+    bash "$adapter" verify > major-verified.log 2>&1
+    bash "$adapter" prepare > major-prepared.log 2>&1
+    "$ADAPTER_REAL_YQ" -p toml -o json '.' Cargo.toml |
+        jq -e --arg exact "=$RELEASE_VERSION" --arg short "~ ${RELEASE_VERSION%.*}" '
+            .workspace.dependencies.exact_alias.version == $exact and
+            .workspace.dependencies.short_alias.version == $short' > /dev/null
+    cp Cargo.toml Cargo.lock CHANGELOG.md committed/
+    printf '# Current root no longer represents the selected source\n' > Cargo.toml
+    mv 'apps/consumer fs' major-retained-current-fs
+    bash "$adapter" committed-check > major-committed.log 2>&1
+    mv major-retained-current-fs 'apps/consumer fs'
+    printf '\n# Altered selected payload\n' >> committed/Cargo.toml
+    if bash "$adapter" committed-check > major-altered-payload.log 2>&1; then
+        echo 'Committed check accepted altered manifest bytes' >&2; exit 1
+    fi
+)
 echo 'Release adapter checks passed (setup, qualification and Git effects substituted).'
 fixture_complete=true

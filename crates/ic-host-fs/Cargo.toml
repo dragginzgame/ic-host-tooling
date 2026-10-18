@@ -18,9 +18,10 @@ test-support = []
 
 [dependencies]
 ic-host-artifacts.workspace = true
+thiserror.workspace = true
 
 [dev-dependencies]
-ic-host-artifacts = { workspace = true, features = ["archive", "wasm"] }
+ic-host-artifacts = { workspace = true, features = ["gzip"] }
 serde.workspace = true
 serde_json.workspace = true
 

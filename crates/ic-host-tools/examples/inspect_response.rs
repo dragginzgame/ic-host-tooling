@@ -9,15 +9,12 @@ use std::{error::Error, io, path::Path};
 fn main() -> Result<(), Box<dyn Error>> {
     let mut args = std::env::args_os().skip(1);
     let path = args.next().ok_or_else(|| {
-        invalid_argument(
-            "usage: inspect_response PATH json|hex|labeled MAX_INPUT_BYTES MAX_DECODED_BYTES",
-        )
+        invalid_argument("usage: inspect_response PATH json|hex MAX_INPUT_BYTES MAX_DECODED_BYTES")
     })?;
     let format = match args.next().as_deref().and_then(std::ffi::OsStr::to_str) {
         Some("json") => ResponseFormat::Json,
         Some("hex") => ResponseFormat::Hex,
-        Some("labeled") => ResponseFormat::LabeledHex,
-        _ => return Err(invalid_argument("format must be json, hex or labeled").into()),
+        _ => return Err(invalid_argument("format must be json or hex").into()),
     };
     let mut limit = || -> Result<usize, Box<dyn Error>> {
         Ok(args

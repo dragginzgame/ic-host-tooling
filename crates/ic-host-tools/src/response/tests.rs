@@ -31,21 +31,13 @@ fn canic_envelope_returns_opaque_bytes_and_ignores_metadata() {
 }
 
 #[test]
-fn icydb_plain_and_labeled_hex_match_existing_call_fixtures() {
+fn plain_hex_accepts_explicit_ascii_whitespace() {
     assert_eq!(
         bounded(b"4449444c00017f", ResponseFormat::Hex).unwrap(),
         b"DIDL\0\x01\x7f"
     );
     assert_eq!(
-        bounded(b"response (hex): 44 49 44 4c", ResponseFormat::LabeledHex).unwrap(),
-        b"DIDL"
-    );
-    assert_eq!(
-        bounded(
-            b" \tresponse (hex): 4 4\r\n4 9\t4 4\x0c4 C ",
-            ResponseFormat::LabeledHex
-        )
-        .unwrap(),
+        bounded(b" \t4 4\r\n4 9\t4 4\x0c4 C ", ResponseFormat::Hex).unwrap(),
         b"DIDL"
     );
 }
@@ -162,7 +154,7 @@ fn invalid_hex_and_odd_digits_return_typed_failures() {
 }
 
 #[test]
-fn formats_are_explicit_and_labels_cannot_hide_other_output() {
+fn formats_are_explicit_and_text_hex_requires_digits() {
     for input in [
         b"response (hex): 00".as_slice(),
         br#"{"response_bytes":"00"}"#,
@@ -172,35 +164,12 @@ fn formats_are_explicit_and_labels_cannot_hide_other_output() {
             Err(ResponseError::InvalidHex { .. })
         ));
     }
-    for input in [
-        b"00".as_slice(),
-        b"warning\nresponse (hex): 00",
-        b"Response (hex): 00",
-    ] {
-        assert!(matches!(
-            bounded(input, ResponseFormat::LabeledHex),
-            Err(ResponseError::MissingHexLabel)
-        ));
-    }
-    for input in [
-        b"response (hex): 00 response (hex): 01".as_slice(),
-        b"response (hex): 00\nwarning",
-    ] {
-        assert!(matches!(
-            bounded(input, ResponseFormat::LabeledHex),
-            Err(ResponseError::InvalidHex { .. })
-        ));
-    }
     for input in [b"".as_slice(), b" \t\r\n"] {
         assert!(matches!(
             bounded(input, ResponseFormat::Hex),
             Err(ResponseError::EmptyHex)
         ));
     }
-    assert!(matches!(
-        bounded(b"response (hex): \n", ResponseFormat::LabeledHex),
-        Err(ResponseError::EmptyHex)
-    ));
 }
 
 #[test]
@@ -211,7 +180,6 @@ fn limits_cover_complete_metadata_and_exact_decoded_boundaries() {
             ResponseFormat::Json,
         ),
         (b"00 ff \n", ResponseFormat::Hex),
-        (b"response (hex): 00 ff", ResponseFormat::LabeledHex),
     ] {
         assert_eq!(
             decode(
@@ -303,4 +271,19 @@ fn diagnostics_do_not_format_response_values() {
             assert!(!text.contains("private-value"));
         }
     }
+}
+
+#[test]
+fn allocation_failure_retains_its_typed_source() {
+    use std::error::Error as _;
+
+    let source = Vec::<u8>::new().try_reserve(usize::MAX).unwrap_err();
+    let error = ResponseError::Allocation(source);
+    assert!(
+        error
+            .source()
+            .unwrap()
+            .is::<std::collections::TryReserveError>()
+    );
+    assert!(ResponseError::InputLimit { limit: 0 }.source().is_none());
 }

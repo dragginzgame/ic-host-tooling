@@ -1,14 +1,19 @@
 use super::*;
 use ic_host_fs::{
-    durable::{NamedWriteError, write_named_with},
+    durable::{NamedWriteError, PublicationMode, WriteOptions, write_named_with},
     read::read_file_no_follow,
+};
+
+const REPLACE: WriteOptions = WriteOptions {
+    mode: PublicationMode::Replace,
+    permissions: 0o666,
 };
 
 #[test]
 fn named_output_keeps_bounded_capture_and_direct_child_cleanup_evidence() {
     let fixture = Fixture::new();
     let tool = fixture.tool();
-    let output = fixture.root.join("output");
+    let output = fixture.path().join("output");
     fs::write(&output, b"old").unwrap();
     for argument in ["--flood-stdout", "--wait"] {
         let limits = OutputLimits {
@@ -20,7 +25,7 @@ fn named_output_keeps_bounded_capture_and_direct_child_cleanup_evidence() {
                 Duration::from_secs(5)
             }),
         };
-        let result = write_named_with(&output, |_| {
+        let result = write_named_with(&output, REPLACE, |_| {
             tool.run(&[argument.into()], &fixture.context(&[]), limits)
         });
         let NamedWriteError::Producer {
@@ -46,7 +51,7 @@ fn named_output_keeps_bounded_capture_and_direct_child_cleanup_evidence() {
         assert!(failure.evidence.status.is_some());
         assert!(failure.cleanup.is_none());
         assert_eq!(fs::read(&output).unwrap(), b"old");
-        assert_eq!(fs::read_dir(&fixture.root).unwrap().count(), 1);
+        assert_eq!(fs::read_dir(fixture.path()).unwrap().count(), 1);
     }
 }
 
@@ -54,7 +59,7 @@ fn named_output_keeps_bounded_capture_and_direct_child_cleanup_evidence() {
 fn admitted_named_output_preserves_process_evidence_and_validates_before_publication() {
     let fixture = Fixture::new();
     let tool = fixture.tool();
-    let output = fixture.root.join("output with spaces");
+    let output = fixture.path().join("output with spaces");
     fs::write(&output, b"old").unwrap();
     for (payload, exit, valid) in [
         ("partial", "23", false),
@@ -62,7 +67,7 @@ fn admitted_named_output_preserves_process_evidence_and_validates_before_publica
         ("invalid", "0", false),
         ("complete", "0", true),
     ] {
-        let result = write_named_with(&output, |stage| {
+        let result = write_named_with(&output, REPLACE, |stage| {
             let evidence = tool
                 .run(
                     &[
@@ -102,6 +107,6 @@ fn admitted_named_output_preserves_process_evidence_and_validates_before_publica
             }
             assert_eq!(fs::read(&output).unwrap(), b"old");
         }
-        assert_eq!(fs::read_dir(&fixture.root).unwrap().count(), 1);
+        assert_eq!(fs::read_dir(fixture.path()).unwrap().count(), 1);
     }
 }

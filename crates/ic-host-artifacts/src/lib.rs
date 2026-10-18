@@ -1,6 +1,5 @@
-//! Bounded host artifact streams, raw identities, archives and Wasm inspection.
-#[cfg(feature = "archive")]
-pub mod archive;
+//! Bounded host artifact streams, raw identities, gzip and Wasm inspection.
 pub mod artifact;
+pub mod batch;
 #[cfg(feature = "wasm")]
 pub mod wasm;

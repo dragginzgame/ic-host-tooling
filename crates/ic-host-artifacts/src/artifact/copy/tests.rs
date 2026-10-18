@@ -1,5 +1,8 @@
 use super::*;
-use crate::artifact::Sha256Digest;
+use crate::artifact::{
+    Sha256Digest,
+    test_support::{DeniedReader, InvalidReader},
+};
 use std::io::Cursor;
 
 #[test]
@@ -81,12 +84,6 @@ fn overflow_observes_one_extra_byte_and_preserves_only_admitted_output_chunks() 
 
 #[test]
 fn read_errors_stay_distinct_from_sink_errors_and_preserve_partial_effects() {
-    struct BrokenReader;
-    impl Read for BrokenReader {
-        fn read(&mut self, _: &mut [u8]) -> io::Result<usize> {
-            Err(io::ErrorKind::PermissionDenied.into())
-        }
-    }
     struct BrokenWriter(Vec<u8>);
     impl Write for BrokenWriter {
         fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
@@ -101,7 +98,7 @@ fn read_errors_stay_distinct_from_sink_errors_and_preserve_partial_effects() {
         }
     }
     let mut output = b"existing".to_vec();
-    assert!(matches!(copy_reader(BrokenReader, &mut output, 3),
+    assert!(matches!(copy_reader(DeniedReader, &mut output, 3),
         Err(CopyError::Input(ArtifactError::Io(source))) if source.kind() == io::ErrorKind::PermissionDenied));
     assert_eq!(output, b"existing");
     let mut output = BrokenWriter(Vec::new());
@@ -153,12 +150,6 @@ fn interrupted_reads_and_short_writes_complete_without_changing_the_digest() {
 
 #[test]
 fn invalid_read_counts_do_not_reach_the_staging_sink() {
-    struct InvalidReader;
-    impl Read for InvalidReader {
-        fn read(&mut self, buffer: &mut [u8]) -> io::Result<usize> {
-            Ok(buffer.len() + 1)
-        }
-    }
     for limit in [0, 3, 40_000, u64::MAX] {
         let mut output = b"existing".to_vec();
         assert!(matches!(copy_reader(InvalidReader, &mut output, limit),

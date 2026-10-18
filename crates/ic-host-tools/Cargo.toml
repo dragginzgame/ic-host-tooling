@@ -6,45 +6,27 @@ version.workspace = true
 license.workspace = true
 repository.workspace = true
 authors.workspace = true
-description = "Host-side Candid interfaces and extraction, ICP responses and IC resource reports"
+description = "Host-side Candid interfaces, ICP responses and certificate decoding"
 readme = "../../README.md"
 publish = ["crates-io"]
 
-[target.'cfg(unix)'.dev-dependencies]
-rustix.workspace = true
-
 [features]
 default = []
+certificate = ["dep:ciborium", "ic-platform/certification"]
 encoding = []
-candid-extraction = ["dep:ic-host-artifacts", "dep:ic-host-fs", "dep:ic-host-process"]
-candid-service = ["dep:candid_parser", "ic-interface"]
-certificate = ["dep:ciborium", "dep:ic-certification"]
 ic-interface = ["dep:ic-host-artifacts", "ic-host-artifacts/wasm"]
-ic-limits = ["dep:ic-host-artifacts", "ic-host-artifacts/wasm"]
 
 [dependencies]
-candid_parser = { workspace = true, optional = true }
 ciborium = { workspace = true, optional = true }
-ic-certification = { workspace = true, optional = true }
 ic-host-artifacts = { workspace = true, optional = true }
-ic-host-fs = { workspace = true, optional = true }
-ic-host-process = { workspace = true, optional = true }
+ic-platform = { workspace = true, features = ["candid", "candid-parser"] }
 serde.workspace = true
 serde_json.workspace = true
+thiserror.workspace = true
 
 [dev-dependencies]
 ic-host-artifacts.workspace = true
 ic-host-fs = { workspace = true, features = ["test-support"] }
-leb128.workspace = true
 
 [lints]
 workspace = true
-
-# Only Candid extraction requires the process integration feature.
-[[example]]
-name = "extract_candid"
-required-features = ["candid-extraction"]
-
-[[example]]
-name = "inspect_install_limits"
-required-features = ["ic-limits"]

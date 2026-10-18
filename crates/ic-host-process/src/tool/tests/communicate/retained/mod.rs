@@ -3,9 +3,10 @@ use std::io::{BufRead as _, BufReader};
 
 #[test]
 fn buffered_final_frame_and_cached_nonzero_status_are_retained() {
-    let mut child = OwnedChild::spawn(&mut command(
-        "printf 'control\\nfinal\\n'; printf diagnostic >&2; exit 7",
-    ))
+    let mut child = OwnedChild::spawn(
+        &mut command("printf 'control\\nfinal\\n'; printf diagnostic >&2; exit 7"),
+        CleanupPolicy::KillAndWait,
+    )
     .unwrap();
     let mut reader = BufReader::new(child.take_stdout().unwrap());
     child.wait().unwrap();
@@ -23,7 +24,8 @@ fn buffered_final_frame_and_cached_nonzero_status_are_retained() {
 #[test]
 fn prefetched_bytes_share_hard_and_truncating_limits() {
     for stdout in [OutputLimit::Terminate(3), OutputLimit::Truncate(3)] {
-        let mut child = OwnedChild::spawn(&mut command("printf abcdef")).unwrap();
+        let mut child =
+            OwnedChild::spawn(&mut command("printf abcdef"), CleanupPolicy::KillAndWait).unwrap();
         let mut reader = BufReader::new(child.take_stdout().unwrap());
         child.wait().unwrap();
         assert_eq!(reader.fill_buf().unwrap(), b"abcdef");
@@ -48,7 +50,7 @@ fn prefetched_bytes_share_hard_and_truncating_limits() {
 
 #[test]
 fn retained_reader_drains_both_full_pipes_and_cancellation_cleans_child() {
-    let mut child = OwnedChild::spawn(&mut command("n=0; while [ $n -lt 10000 ]; do printf abcdefghijklmnop; printf ponmlkjihgfedcba >&2; n=$((n+1)); done")).unwrap();
+    let mut child = OwnedChild::spawn(&mut command("n=0; while [ $n -lt 10000 ]; do printf abcdefghijklmnop; printf ponmlkjihgfedcba >&2; n=$((n+1)); done"), CleanupPolicy::KillAndWait).unwrap();
     let reader = BufReader::new(child.take_stdout().unwrap());
     let output = drain_child_output(
         &mut child,
@@ -64,7 +66,8 @@ fn retained_reader_drains_both_full_pipes_and_cancellation_cleans_child() {
     assert!(output.status.success());
     assert_eq!(output.stdout.len(), 160_000);
     assert_eq!(output.stderr.len(), 160_000);
-    let mut child = OwnedChild::spawn(&mut command("sleep 30")).unwrap();
+    let mut child =
+        OwnedChild::spawn(&mut command("sleep 30"), CleanupPolicy::KillAndWait).unwrap();
     let reader = BufReader::new(child.take_stdout().unwrap());
     assert!(
         matches!(drain_child_output(&mut child, Some(reader), LIMITS, || true), Err(ToolError::Execution(error)) if matches!(error.failure, ExecutionFailure::Cancelled))
