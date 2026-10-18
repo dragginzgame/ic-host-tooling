@@ -14,6 +14,8 @@ and native Build/Testkit harnesses. `make check-fs-non-unix` compiles the librar
 test-support feature and non-Unix lock admission test without executing them.
 It requires the Wasm standard-library target to be prepared explicitly; MSRV CI
 selects that target during its existing toolchain setup.
+That CI step scopes `RUSTUP_TOOLCHAIN=1.88.0` so Cargo uses the same compiler and
+target installation, rather than the repository's independent development pin.
 
 Select one changed crate with `PACKAGE=<crate>` for `make check`, `make clippy`,
 `make docs-check` or `make test`. Artifact checks use its actual enabled gzip,

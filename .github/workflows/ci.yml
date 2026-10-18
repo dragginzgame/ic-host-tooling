@@ -117,4 +117,4 @@ jobs:
       - name: Check declared MSRV
         run: CARGO_NET_OFFLINE=true make msrv-workspace
       - name: Check non-Unix filesystem compilation
-        run: CARGO_NET_OFFLINE=true make check-fs-non-unix
+        run: CARGO_NET_OFFLINE=true RUSTUP_TOOLCHAIN=1.88.0 make check-fs-non-unix

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.27.7]
+
+- Run the non-Unix compile check with the MSRV toolchain that owns its prepared
+  Wasm target, fixing the CI compiler/target mismatch without changing the
+  development compiler or filesystem support contract.
+  [Details](docs/changelog/0.27.md).
+
 ## [0.27.6] - 2026-10-18
 
 - Share pure ICP call/status command builders and typed installation-state
