@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.27.3]
+## [0.27.3] - 2026-10-18
 
 - Protect caller-selected in-place exports from overwriting protected paths or
   inodes, preserving existing permissions, unrelated symlinks and typed failures
