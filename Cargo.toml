@@ -36,6 +36,8 @@ tokio = { version = "1", features = ["net", "rt", "time"] }
 ic-build = { version = "0.17.2" }
 ic-host-text = { version = "0.27.1", default-features = false }
 ic-testkit = { path = "crates/ic-testkit" }
+ic-wire = "0.4.1"
+ic_testkit_perf_probe = { path = "crates/ic_testkit_perf_probe" }
 
 [workspace.lints.clippy]
 all = { level = "warn", priority = -1 }

@@ -64,7 +64,8 @@ here. Its decoder implementation matches the former local implementation; no
 compatibility crate remains. External consumers must adopt Platform's limits
 and error identities with Testkit 0.54; prior published packages remain available.
 
-The private probe selects Platform's `cdk` feature and entrypoint macros. Its
+The private probe selects Platform's `cdk` feature and entrypoint macros, with
+IC Wire framing and shared private method contracts for its native callers. Its
 direct Candid/CDK declarations and policy exceptions are removed; Platform owns
 the generator and qualified upstream runtime. The locked runtime remains CDK
 0.20.3, executor 2.0.0 and ic0 1.2.0. Candid and CDK remain transitive in the
