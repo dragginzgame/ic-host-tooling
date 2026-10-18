@@ -2,6 +2,11 @@
 
 ## [0.27.7]
 
+- Run the non-Unix compile check with the MSRV toolchain that owns its prepared
+  Wasm target, fixing the CI compiler/target mismatch without changing the
+  development compiler or filesystem support contract.
+  [Details](docs/changelog/0.27.md).
+
 - Qualify Rust 1.99.1 for development and native CI, retaining Rust 1.88 as
   the package minimum and preserving dependency selections.
   [Details](docs/changelog/0.27.md).
