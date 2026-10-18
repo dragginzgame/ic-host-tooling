@@ -1,4 +1,4 @@
-use crate::batch::{BatchLabelError, validate_labels};
+use ic_host_artifacts::batch::{BatchLabelError, validate_labels};
 
 use std::time::{Duration, Instant};
 

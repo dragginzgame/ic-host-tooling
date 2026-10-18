@@ -32,6 +32,9 @@ owners from the historical extraction audit. The [artifact API guide](docs/artif
 owns detailed contracts and upgrade actions; the [current handoff](docs/status/current.md)
 records source-bound qualification and outstanding consumer acceptance.
 
+Batch label errors use `ic_host_artifacts::batch::BatchLabelError` in pending
+0.18; replace imports from the retired `ic_build::batch` module.
+
 ## Use
 
 The current 0.17 API requires Rust 1.91.0 or newer:

@@ -1,5 +1,5 @@
 use super::cache_fs::{CacheRetentionLimits, canonicalize_allow_missing};
-use crate::batch::{BatchLabelError, validate_labels};
+use ic_host_artifacts::batch::{BatchLabelError, validate_labels};
 
 use std::{
     collections::HashSet,

@@ -60,8 +60,9 @@ one `artifacts::WasmBuildPhase`. Replace `WasmBuildProgressPhase` and
 `RustcIdentity`; the timing summary still adds both to `tool_identity`.
 Specification and cleanup retain their own phases.
 
-Artifact batch functions return `ic_build::batch::BatchLabelError` directly;
-remove `ArtifactCacheBatchContractError`. Match `Empty { index }` or
+In 0.18, artifact batch functions return `ic_host_artifacts::batch::BatchLabelError`
+directly; replace imports from the removed `ic_build::batch` module. The earlier
+`ArtifactCacheBatchContractError` is also removed. Match `Empty { index }` or
 `Duplicate { label, first_index, duplicate_index }`. Wasm batch contract errors
 wrap those values in `WasmBuildBatchContractError::Labels`; its error source
 exposes the same typed label failure. Source-lease invalidation and unprepared

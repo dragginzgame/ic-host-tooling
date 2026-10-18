@@ -11,6 +11,12 @@ archive also includes the extracted artifact engine and Cargo grouping API.
   Host retries interrupted reads; callers retain cleanup policy
   ([#45](https://github.com/dragginzgame/ic-build/issues/45)).
 
+- **Breaking:** use Host Artifacts 0.27.4 canonical batch label admission and
+  `ic_host_artifacts::batch::BatchLabelError`. Remove `ic_build::batch` without
+  a compatibility re-export; exact labels, duplicate indices and refusal before
+  command/progress/build effects remain unchanged
+  ([PR #65](https://github.com/dragginzgame/ic-build/pull/65)).
+
 - Render read-only Cargo release candidates with TOML-owned literal spans,
   preserving unrelated bytes and source-qualified dependencies. Expose an
   explicit, bounded CLI with live or saved workspace identity admission.

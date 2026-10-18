@@ -22,7 +22,7 @@ pub mod packages;
 pub mod release_metadata;
 pub mod selection;
 
-use crate::batch::validate_labels;
+use ic_host_artifacts::batch::validate_labels;
 use ic_host_process::tool::OutputLimits;
 use std::{collections::BTreeMap, path::Path, process::Command};
 
