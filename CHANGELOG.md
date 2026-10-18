@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.27.5]
+## [0.27.5] - 2026-10-18
 
 - Adopt Shared's latest committed Platform dependency-boundary rules and extend
   Host's direct-dependency guard to the known external IC package families.
