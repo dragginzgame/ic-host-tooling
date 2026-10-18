@@ -22,6 +22,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Added
 
+- Add opt-in raw reply canister fixtures with caller-selected method and byte
+  budgets, standard Wasm encoding and unchanged query/update reply bytes,
+  including intentionally malformed protocol payloads. Simulator setup,
+  installation and application reply catalogs remain caller-owned.
+
 - Add a private Node fixture-session helper for browser harnesses, with retained
   logs and bounded graceful/TERM/KILL cleanup. Callers keep readiness contracts,
   browser assertions and executable admission

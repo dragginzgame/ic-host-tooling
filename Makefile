@@ -91,7 +91,7 @@ tags:
 
 test: build-server-cli
 	+@server="$$("$(SERVER_CLI)" check)" || exit $$?; \
-		POCKET_IC_BIN="$$server" cargo test -p ic-testkit --features wire --locked && \
+		POCKET_IC_BIN="$$server" cargo test -p ic-testkit --features wire,reply-fixtures --locked && \
 		POCKET_IC_BIN="$$server" cargo test -p ic-testkit-dev --locked && \
 		POCKET_IC_BIN="$$server" cargo test -p ic-testkit --locked --test server_runner real_server_runs_a_separate_process_using_environment_startup -- --ignored --exact
 
@@ -112,22 +112,22 @@ git-hooks-check: format-tools-check
 	bash scripts/ci/check-git-hooks.sh
 
 check:
-	+cargo check -p ic-testkit -p ic-testkit-dev --locked
+	+cargo check -p ic-testkit -p ic-testkit-dev --features ic-testkit/reply-fixtures --locked
 
 check-wasm:
-	+cargo check -p ic-testkit --locked --target wasm32-unknown-unknown
+	+cargo check -p ic-testkit --features reply-fixtures --locked --target wasm32-unknown-unknown
 
 clippy:
-	+cargo clippy -p ic-testkit -p ic-testkit-dev --all-targets --locked -- -D warnings
+	+cargo clippy -p ic-testkit -p ic-testkit-dev --all-targets --features ic-testkit/reply-fixtures --locked -- -D warnings
 
 docs-check:
-	+RUSTDOCFLAGS="-D warnings" cargo doc -p ic-testkit -p ic-testkit-dev --locked --no-deps
+	+RUSTDOCFLAGS="-D warnings" cargo doc -p ic-testkit -p ic-testkit-dev --features ic-testkit/reply-fixtures --locked --no-deps
 
 msrv:
 	rustc +$(MSRV) --version
 	cargo +$(MSRV) --version
-	+cargo +$(MSRV) check --workspace --all-targets --locked
-	+cargo +$(MSRV) check -p ic-testkit --lib --target wasm32-unknown-unknown --locked
+	+cargo +$(MSRV) check --workspace --all-targets --features ic-testkit/reply-fixtures --locked
+	+cargo +$(MSRV) check -p ic-testkit --features reply-fixtures --lib --target wasm32-unknown-unknown --locked
 	+cargo +$(MSRV) check -p ic_testkit_perf_probe --lib --target wasm32-unknown-unknown --locked
 
 installation-check:
