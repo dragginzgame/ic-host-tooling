@@ -23,10 +23,17 @@ admission; IcyDB owns optimizer/interface policy; Testkit owns testing and Pocke
 lifecycle. Build depends on none of those consumers. Shared Tooling owns the
 reviewed development, installation and release helpers used by this checkout.
 
+Pending 0.18 removes `ArtifactStagingDirectory`; use published Host FS 0.27.5
+fresh-directory allocation and `OwnedDirectory` directly for staging. Capture
+records retain their artifact lifetime and explicit cleanup behavior.
+
 The [ownership design](docs/design/build-ownership.md) distinguishes current
 owners from the historical extraction audit. The [artifact API guide](docs/artifacts.md)
 owns detailed contracts and upgrade actions; the [current handoff](docs/status/current.md)
 records source-bound qualification and outstanding consumer acceptance.
+
+Batch label errors use `ic_host_artifacts::batch::BatchLabelError` in pending
+0.18; replace imports from the retired `ic_build::batch` module.
 
 ## Use
 

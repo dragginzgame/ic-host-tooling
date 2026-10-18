@@ -1,6 +1,6 @@
-use crate::batch::BatchLabelError;
 use crate::cargo::selection::CargoSelection;
 use crate::cargo_fixture::spawn_cargo;
+use ic_host_artifacts::batch::BatchLabelError;
 #[cfg(unix)]
 use ic_host_process::testing::write_executable_script;
 

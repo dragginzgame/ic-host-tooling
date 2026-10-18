@@ -15,7 +15,8 @@ acceptance and delivery status.
 
 The current implementation and qualification evidence is recorded in the
 [handoff](../status/current.md); [IC Build #1](https://github.com/dragginzgame/ic-build/issues/1)
-owns extraction acceptance. The generic engine retains Testkit's `v1` stamp
+records completed extraction; [Build #9](https://github.com/dragginzgame/ic-build/issues/9)
+owns remaining consumer acceptance. The generic engine retains Testkit's `v1` stamp
 format and `.ic-testkit` cache/lock namespaces. Release 0.16 changes Wasm recipe
 keys to a typed v2 fingerprint domain. Release 0.17 selects a separate explicit-
 environment recipe domain and clears child inheritance, causing cold builds while preserving
@@ -33,6 +34,17 @@ Native optimizer semantic qualification belongs to Build. Its explicit qualifier
 uses retained transactions and the transferred execution oracle; callers admit
 the optimizer and select Node. Shared Tooling retains archive authentication and
 installation. Product-specific installed-IC qualification stays with consumers.
+
+Published Host Artifacts/FS 0.27.5 own caller-scratch stream visitation and fresh-
+directory allocation. Build retains digest framing, exact-size refusal and its
+capture prefix/permissions/collision policy, using Host OwnedDirectory directly.
+The pending 0.18 cut removes the public staging wrapper; direct staging consumers
+select their allocation policy and guard at the Host boundary.
+
+Published Host Artifacts 0.27.4 owns ordered batch label validation and its error
+identity. The pending 0.18 cut consumes that owner directly and removes Build
+batch admission without an alias. Consumers update their error import paths;
+pre-effect ordering and original label/index evidence are unchanged.
 
 The current manifest depends directly on Host Artifacts, FS and Process, plus
 Cargo's canonical metadata schema. Host Tools and Text are consumer dependencies

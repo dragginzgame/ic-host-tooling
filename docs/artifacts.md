@@ -1,6 +1,6 @@
 # Artifact and Wasm build APIs
 
-Examples target the current 0.17 API. Standalone Wasm acquisition provides two
+Examples target the pending 0.18 API. Standalone Wasm acquisition provides two
 entrypoints: `build_wasm_canisters_cached(&spec, spawn)` for silent execution,
 and `build_wasm_canisters_cached_with_progress(&spec, config, observer, spawn)`
 for observation. Both use the same internal acquisition engine. Progress remains
@@ -60,8 +60,9 @@ one `artifacts::WasmBuildPhase`. Replace `WasmBuildProgressPhase` and
 `RustcIdentity`; the timing summary still adds both to `tool_identity`.
 Specification and cleanup retain their own phases.
 
-Artifact batch functions return `ic_build::batch::BatchLabelError` directly;
-remove `ArtifactCacheBatchContractError`. Match `Empty { index }` or
+In 0.18, artifact batch functions return `ic_host_artifacts::batch::BatchLabelError`
+directly; replace imports from the removed `ic_build::batch` module. The earlier
+`ArtifactCacheBatchContractError` is also removed. Match `Empty { index }` or
 `Duplicate { label, first_index, duplicate_index }`. Wasm batch contract errors
 wrap those values in `WasmBuildBatchContractError::Labels`; its error source
 exposes the same typed label failure. Source-lease invalidation and unprepared
@@ -334,12 +335,14 @@ existing evidence. The log always remains. Callers retain tool/process policy,
 physical path distinctness, parent custody and publication; the helper starts no
 process, selects no deadline and removes no unrelated artifact.
 
-`ArtifactStagingDirectory::new(parent)` allocates one owned child beneath an
-existing caller-selected parent. Callers choose candidate filenames and perform
-their recipe and qualification there before publishing any product files.
-The directory remains alive through its owner; `close()` reports cleanup errors,
-and Drop performs best-effort cleanup of that invocation's child. The caller
-keeps custody of the parent and staging paths against unrelated writers.
+The 0.18 cut removes `ArtifactStagingDirectory`. For direct staging, call
+`ic_host_fs::directory::create_unique_directory` with an existing parent, prefix,
+permissions and collision allowance, then retain the returned path in
+`ic_host_fs::owned_directory::OwnedDirectory`. Callers choose candidate filenames
+and qualify them before publication. Consuming `cleanup()` attempts removal once
+and reports failures; Drop performs best-effort cleanup while armed. Callers keep
+custody of the parent and staging paths against unrelated writers. Build's private
+capture allocation retains mode 0777 reduced by umask and a 64-collision allowance.
 
 `CapturedArtifact::capture(source, parent, maximum_bytes)` copies a completed
 producer output synchronously with the caller's byte budget. Keep the returned
@@ -1114,8 +1117,9 @@ Host 0.24 has removed its extraction module/feature; adopt the new Build owner
 when upgrading that graph ([#51](https://github.com/dragginzgame/ic-build/issues/51)).
 Structural Wasm inspection does not replace PocketIC's runtime validation.
 IC Build currently requires compatible IC Host 0.27 releases at the
-public dependency boundary. Host FS requires at least 0.27.2 for shared lock
-guards, logical directory sizing and cache-directory tags; Cargo.lock records
+public dependency boundary. The pending 0.18 cut requires Host Artifacts/FS
+0.27.5 for stream visitation and fresh-directory allocation; FS also owns shared
+lock guards, logical directory sizing and cache-directory tags. Cargo.lock records
 the selected graph. Host Process requires at least 0.27.3 for cancellable
 process-group probe capture. Build owns record lifetime, pruning policy and tag comments,
 while Host owns these filesystem primitives. Existing valid tags are preserved;

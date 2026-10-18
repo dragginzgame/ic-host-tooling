@@ -1,5 +1,22 @@
 # Current handoff
 
+## Published Host stream/staging cleanup — pending 0.18.0
+
+Issue #45 now consumes published Host Artifacts/FS >=0.27.5, with the coherent
+family locked to 0.27.6. Framed file hashing delegates to the caller-scratch
+visitor, preserving exact-size refusal; capture allocation uses the shared
+allocator and OwnedDirectory directly. The public staging wrapper is removed
+without an alias. Canic artifact_io must select Host allocation/guard APIs when
+adopting; its normal checkout is unchanged.
+
+Actual Rust 1.91 passes twelve digest and eighteen staging/custody cases, six
+Cargo example integrations and all-target/all-feature checking. Strict development
+Clippy, formatting, pins, direct boundaries and links pass. Only the three coherent
+Host lock identities change; no unrelated dependency is upgraded. Existing captures,
+cleanup errors, retained paths and artifact namespaces remain intact. Required
+current-head hosted/native checks gate integration. Own version remains 0.17.6;
+no release or publication is included.
+
 ## Cargo editor contribution refreshed for 0.17.7
 
 PR #56 follows released main `aff79af` (0.17.6), retaining the published Rust

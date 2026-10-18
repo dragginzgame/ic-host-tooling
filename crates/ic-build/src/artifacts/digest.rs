@@ -1,4 +1,4 @@
-use ic_host_artifacts::artifact::Sha256Digest;
+use ic_host_artifacts::artifact::{Sha256Digest, visit_reader};
 use sha2::{Digest, Sha256};
 use std::{
     borrow::Cow,
@@ -6,7 +6,7 @@ use std::{
     ffi::{OsStr, OsString},
     fmt::Write as _,
     fs::{self, File},
-    io::{self, Read as _},
+    io,
     path::{Path, PathBuf},
 };
 
@@ -121,25 +121,31 @@ impl InputHasher {
                 .reserve_exact(buffer_len - self.read_buffer.len());
             self.read_buffer.resize(buffer_len, 0);
         }
-        loop {
-            let read = file.read(&mut self.read_buffer[..buffer_len])?;
-            if read == 0 {
-                break;
-            }
-            actual_len = actual_len
-                .saturating_add(u64::try_from(read).expect("artifact read length must fit in u64"));
-            if actual_len > expected_len {
-                break;
-            }
-            self.state.update(&self.read_buffer[..read]);
-        }
-        if actual_len != expected_len {
-            return Err(io::Error::new(
+        let changed_size = |actual_len| {
+            io::Error::new(
                 io::ErrorKind::InvalidData,
                 format!(
                     "file changed size while hashing: expected {expected_len} bytes, read {actual_len}"
                 ),
-            ));
+            )
+        };
+        visit_reader::<io::Error>(
+            &mut file,
+            &mut self.read_buffer[..buffer_len],
+            u64::MAX,
+            |chunk| {
+                actual_len = actual_len.saturating_add(
+                    u64::try_from(chunk.len()).expect("artifact read length must fit in u64"),
+                );
+                if actual_len > expected_len {
+                    return Err(changed_size(actual_len));
+                }
+                self.state.update(chunk);
+                Ok(())
+            },
+        )?;
+        if actual_len != expected_len {
+            return Err(changed_size(actual_len));
         }
         Ok(actual_len)
     }
