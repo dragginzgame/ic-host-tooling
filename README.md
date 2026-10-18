@@ -234,12 +234,12 @@ and `ic-host-process` dependencies; Testkit does not re-export those crates.
 
 ## Typed Wire calls
 
-Enable the optional native `wire` feature to use `pic::query_wire` and
-`pic::update_wire` for controlled application protocols:
+Enable the optional native `wire` feature on your existing `ic-testkit`
+development dependency to use `pic::query_wire` and `pic::update_wire` for
+controlled application protocols. Add `ic-wire` alongside it:
 
 ```toml
 [dev-dependencies]
-ic-testkit = { version = "0.54", features = ["wire"] }
 ic-wire = "0.4.1"
 ```
 
