@@ -55,6 +55,8 @@ check_graph tools ic-host-tools default '' 'ic-platform candid_parser candid' \
     '^(ic-host-(artifacts|fs|process|text)|wasmparser|ciborium|ic-certification) '
 check_graph tools-no-defaults ic-host-tools none '' 'ic-platform candid_parser candid' \
     '^(ic-host-(artifacts|fs|process|text)|wasmparser|ciborium|ic-certification) '
+check_graph encoding ic-host-tools none encoding 'ic-platform candid_parser candid' \
+    '^(ic-host-(artifacts|fs|process|text)|wasmparser|ciborium|ic-certification|ic-agent|reqwest) '
 check_graph ic-interface ic-host-tools none ic-interface \
     'ic-platform ic-host-artifacts candid_parser wasmparser' '^ic-host-(fs|process|text) '
 check_graph inspection ic-host-wasm-inspect default '' 'ic-host-artifacts ic-host-fs' \

@@ -155,6 +155,10 @@ no longer owns an `ic-limits` profile or a reference-policy CLI example.
   `i64::MAX`. Callers retain clocks, freshness and collection-time interpretation.
   Its `decimal` module owns exact two-place rounding/rendering with explicit
   scaling; consumers retain normalization, units, sentinels and raw report fields.
+  Its `duration` module owns positive whole-second parsing, rounded single-unit
+  display and truncating two-unit display. Clock selection, deadlines, freshness,
+  persisted units and output remain caller-owned. Source and six tests are retained
+  from Host PR #162 at `58e03fbb0b2c2e13816a1c34fb7da6965d68942e`.
   Progress callers retain terminal detection, wrapping limits, output, flushing,
   failure policy and cleanup timing; the helper never selects a sink or writes.
   Escaping borrows unchanged input through `Cow<str>` and owns changed text;
@@ -193,6 +197,11 @@ remain consumer-owned. See the [0.19 hard cut](changelog/0.19.md).
 Linux requires each stat record to fit completely within its allowance before
 parsing; bounded artifact-reader refusals retain their typed cause through
 `SamplingError::Io`, while native disappearance/access skip rules stay intact.
+
+The optional tools `encoding` feature decodes a complete canonical unsigned
+`u64` LEB128 value without allocation or new dependencies. It rejects truncated,
+overflowing, nonminimal and trailing encodings while inspecting at most ten bytes.
+Callers retain field names, semantic limits, transport and trust policy.
 
 The optional tools `certificate` feature owns strict CBOR decoding into owned
 certificate/delegation/hash-tree values supplied by `ic_platform::certification`.

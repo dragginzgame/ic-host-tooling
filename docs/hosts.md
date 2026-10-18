@@ -28,6 +28,8 @@ inspection with the default graph. `make test-tools-interface` adds Wasm export
 interpretation; `make test-tools-certificate` adds strict owned certificate/hash-tree
 decoding. `make test PACKAGE=ic-host-text` checks bounded line normalization,
 escaping, progress frames and Unicode table alignment.
+`make test-tools-encoding` checks canonical unsigned LEB128 admission. The decoder
+adds no dependencies; Tools retains its normal Platform/parser dependency.
 `make tools-features-check` verifies the normal parser dependency, including with
 default features disabled, and the remaining optional owner boundaries. Native
 CI includes these profiles. Tools selects Platform's native Candid parser unconditionally;
