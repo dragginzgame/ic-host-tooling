@@ -109,6 +109,13 @@ nothing: callers retain Agent verification, trust roots, combined evidence
 budgets, witness commitments and application leaf meanings. The feature adds no
 Agent transport, filesystem/process execution or Candid parser.
 
+The optional `ledger-evidence` feature adds `ledger_evidence::BoundedLedgerBlocks`
+for caller-bounded ICRC-3 value admission and exact descending-chain verification.
+Supply a separately authenticated `LedgerTip`; constructing that passive record
+does not establish trust. Block/node/byte/depth budgets, tip authentication and
+transaction interpretation remain caller-owned. This feature performs no IO and
+does not enable certificate decoding or Agent transport.
+
 `ic-host-tools::response::decode` accepts explicitly selected JSON envelopes or
 plain hex. CLI presentation labels, preambles and any broader whitespace policy
 belong to callers; the codec does not infer or strip them. See the

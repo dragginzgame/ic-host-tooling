@@ -16,6 +16,7 @@ certificate = ["dep:ciborium", "ic-platform/certification"]
 encoding = []
 ic-interface = ["dep:ic-host-artifacts", "ic-host-artifacts/wasm"]
 icp-project = ["dep:serde_yaml_ng", "serde/derive"]
+ledger-evidence = ["ic-platform/icrc-ledger-types", "serde/derive"]
 
 [dependencies]
 ciborium = { workspace = true, optional = true }

@@ -9,4 +9,6 @@ pub mod icp;
 #[cfg(feature = "icp-project")]
 pub mod icp_project;
 pub mod interface;
+#[cfg(feature = "ledger-evidence")]
+pub mod ledger_evidence;
 pub mod response;

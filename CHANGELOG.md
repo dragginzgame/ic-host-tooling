@@ -25,6 +25,10 @@
   an optional real parser, leaving configuration resolution and funding to callers.
   [Details](docs/changelog/0.27.md).
 
+- Share opt-in bounded ICRC-3 block admission and contiguous-chain verification,
+  using Platform's upstream types and leaving tip authentication with callers.
+  [Details](docs/changelog/0.27.md).
+
 ## [0.27.6] - 2026-10-18
 
 - Share pure ICP call/status command builders and typed installation-state
