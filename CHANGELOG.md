@@ -2,6 +2,10 @@
 
 ## [0.27.7]
 
+- Add the native `ic-host-file` binary to the existing FS package for bounded
+  hashes, explicit NUL-list batches and private create/replace operations.
+  Consumers retain preparation, limits and recovery. [CLI contract](docs/file-cli.md).
+
 - Add opt-in bounded TCP acceptance and an owned one-request HTTP fixture under
   Process test support, sharing the existing capture engine. Callers retain
   response bytes, request budgets, deadlines and application assertions.

@@ -78,7 +78,8 @@ check_graph tools-all ic-host-tools none agent,certificate,encoding,ic-interface
 check_graph text ic-host-text default '' unicode-width \
     '^(ic-host-(artifacts|fs|process|tools)|ic-platform|candid_parser|ic-agent|ic-certification|ciborium) '
 check_graph artifacts ic-host-artifacts default '' '' '^ic-host-process '
-check_graph filesystem ic-host-fs default '' '' '^ic-host-process '
+check_graph filesystem ic-host-fs default '' ic-host-artifacts \
+    '^(ic-host-(process|tools|text)|ic-platform|candid|candid_parser|ic-agent|ic-certification|ciborium|reqwest) '
 check_graph agent ic-host-tools none agent 'ic-platform candid_parser ic-agent reqwest url' \
     '^(ic-host-(artifacts|fs|process|text)|wasmparser|ciborium) '
 check_graph agent-wasm ic-host-tools none agent 'ic-platform candid' \

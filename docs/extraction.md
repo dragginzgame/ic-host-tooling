@@ -540,6 +540,12 @@ by filesystem publication and Process custody. File-kind admission, locks,
 namespace stability, retention formats and lifetime authority stay with callers;
 the identity neither freezes content nor prevents inode reuse after close.
 
+The FS package also owns the [native file command adapter](file-cli.md), which
+uses its existing no-follow reads and durable writer. It selects no batch limits,
+installation pins, product schemas or recovery policy. Auth retains its browser
+contracts and lockfile adapter; its file commands retire only after published
+consumer qualification.
+
 The exact source revisions, file digests and selected mechanics are recorded in
 [source provenance](../ci/extraction-sources.json). These APIs add no JSON schema,
 cache policy, root confinement, tool pin or process-tree ownership. Backup's private

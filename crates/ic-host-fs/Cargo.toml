@@ -6,7 +6,7 @@ version.workspace = true
 license.workspace = true
 repository.workspace = true
 authors.workspace = true
-description = "Local host filesystem reads, durable publication and file locking"
+description = "Local host filesystem reads, durable publication, file locking and a bounded file CLI"
 readme = "../../README.md"
 publish = ["crates-io"]
 

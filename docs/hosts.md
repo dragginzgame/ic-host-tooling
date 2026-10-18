@@ -1,6 +1,10 @@
 # Host qualification
 
 Required hosts are Linux x86-64 and macOS 15 on Intel and Apple Silicon.
+The FS package also owns the [native file CLI](file-cli.md). Its actual-executable
+fixture uses the focused command in that guide; native CI includes it through
+the existing package gate.
+
 The imported filesystem/process APIs retain their platform gates; unsupported
 platforms receive their existing explicit refusal rather than simulated behavior.
 
@@ -10,7 +14,7 @@ unsupported execution target. Its three regular lock-file openers return
 retain their individual platform gates or native standard-library errors. Unix
 descriptor-only APIs stay Unix-gated. This makes no promise of usable filesystem
 IO in a canister, and downstream Wasm graphs should continue excluding Host FS
-and native Build/Testkit harnesses. `make check-fs-non-unix` compiles the library,
+and native Build/Testkit harnesses. `make check-fs-non-unix` compiles the library, CLI,
 test-support feature and non-Unix lock admission test without executing them.
 It requires the Wasm standard-library target to be prepared explicitly; MSRV CI
 selects that target during its existing toolchain setup.
@@ -175,7 +179,7 @@ are explanatory and are not parsed as an executable exclusion policy.
 The test-only Process alias is graph-checked out of the other production owners;
 the selected Process root is intentionally excluded from that dependency rule.
 There is no canister build or deployment entrypoint in Host. This repository publishes
-libraries and a native CLI. It cannot certify a downstream deployment's features,
+libraries and native CLIs. It cannot certify a downstream deployment's features,
 transitive test-only exclusions or final artifact digest. Deployment owners must
 enforce their own exclusions against their locked target/feature graph and bind
 successful build evidence to the installed artifact. Shared's sorter, pin checker
