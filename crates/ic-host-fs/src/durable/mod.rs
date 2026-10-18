@@ -60,7 +60,7 @@ pub enum RegularFileLockError {
     /// Durable lock-file creation failed, retaining publication and cleanup evidence.
     #[error("durable lock-file creation failed")]
     Publication(#[source] NamedWriteError<io::Error>),
-    #[cfg(windows)]
+    #[cfg(not(unix))]
     /// This operation is unsupported on the selected host.
     #[error("regular file locking is unsupported")]
     UnsupportedPlatform,
@@ -76,7 +76,7 @@ impl From<RegularFileLockError> for io::Error {
             RegularFileLockError::Io(source) => source,
             other @ RegularFileLockError::NotRegular => Self::other(other),
             other @ RegularFileLockError::Publication(_) => Self::other(other),
-            #[cfg(windows)]
+            #[cfg(not(unix))]
             other @ RegularFileLockError::UnsupportedPlatform => Self::other(other),
         }
     }
@@ -177,39 +177,40 @@ pub fn prepare_private_parents(parent: &Path) -> io::Result<()> {
 /// # Errors
 /// Returns typed file admission, creation, sync or unsupported-host failures.
 pub fn open_regular_lock_file_with_parents(path: &Path) -> Result<fs::File, RegularFileLockError> {
-    let metadata = match fs::symlink_metadata(path) {
-        Ok(metadata) => metadata,
-        Err(source) if source.kind() == io::ErrorKind::NotFound => {
-            match write_bytes(
-                path,
-                WriteOptions {
-                    mode: PublicationMode::CreateNew,
-                    permissions: 0o666,
-                },
-                &[],
-            ) {
-                Ok(()) => {}
-                Err(NamedWriteError::BeforePublication {
-                    source,
-                    cleanup_error: None,
-                }) if source.kind() == io::ErrorKind::AlreadyExists => {}
-                Err(source) => return Err(RegularFileLockError::Publication(source)),
-            }
-            fs::symlink_metadata(path).map_err(RegularFileLockError::Io)?
-        }
-        Err(source) => return Err(RegularFileLockError::Io(source)),
-    };
-    if !metadata.file_type().is_file() {
-        return Err(RegularFileLockError::NotRegular);
-    }
-
-    #[cfg(not(windows))]
+    #[cfg(unix)]
     {
+        let metadata = match fs::symlink_metadata(path) {
+            Ok(metadata) => metadata,
+            Err(source) if source.kind() == io::ErrorKind::NotFound => {
+                match write_bytes(
+                    path,
+                    WriteOptions {
+                        mode: PublicationMode::CreateNew,
+                        permissions: 0o666,
+                    },
+                    &[],
+                ) {
+                    Ok(()) => {}
+                    Err(NamedWriteError::BeforePublication {
+                        source,
+                        cleanup_error: None,
+                    }) if source.kind() == io::ErrorKind::AlreadyExists => {}
+                    Err(source) => return Err(RegularFileLockError::Publication(source)),
+                }
+                fs::symlink_metadata(path).map_err(RegularFileLockError::Io)?
+            }
+            Err(source) => return Err(RegularFileLockError::Io(source)),
+        };
+        if !metadata.file_type().is_file() {
+            return Err(RegularFileLockError::NotRegular);
+        }
+
         open_regular_lock_descriptor(path, None)
     }
 
-    #[cfg(windows)]
+    #[cfg(not(unix))]
     {
+        let _ = path;
         Err(RegularFileLockError::UnsupportedPlatform)
     }
 }
@@ -232,7 +233,7 @@ pub fn open_regular_lock_file_with_parents(path: &Path) -> Result<fs::File, Regu
 /// or the original I/O cause for open/metadata failures (including missing parents
 /// and a symlink encountered during open). Unsupported hosts are rejected.
 pub fn open_private_regular_lock_file(path: &Path) -> Result<fs::File, RegularFileLockError> {
-    #[cfg(not(windows))]
+    #[cfg(unix)]
     {
         match fs::symlink_metadata(path) {
             Ok(metadata) if metadata.file_type().is_file() => {}
@@ -242,7 +243,7 @@ pub fn open_private_regular_lock_file(path: &Path) -> Result<fs::File, RegularFi
         }
         open_regular_lock_descriptor(path, Some(rustix::fs::Mode::RUSR | rustix::fs::Mode::WUSR))
     }
-    #[cfg(windows)]
+    #[cfg(not(unix))]
     {
         let _ = path;
         Err(RegularFileLockError::UnsupportedPlatform)
@@ -259,7 +260,7 @@ pub fn open_private_regular_lock_file(path: &Path) -> Result<fs::File, RegularFi
 /// # Errors
 /// Returns typed entry admission, native open/metadata or unsupported-host errors.
 pub fn open_existing_regular_lock_file(path: &Path) -> Result<fs::File, RegularFileLockError> {
-    #[cfg(not(windows))]
+    #[cfg(unix)]
     {
         let metadata = fs::symlink_metadata(path).map_err(RegularFileLockError::Io)?;
         if !metadata.file_type().is_file() {
@@ -267,14 +268,14 @@ pub fn open_existing_regular_lock_file(path: &Path) -> Result<fs::File, RegularF
         }
         open_regular_lock_descriptor(path, None)
     }
-    #[cfg(windows)]
+    #[cfg(not(unix))]
     {
         let _ = path;
         Err(RegularFileLockError::UnsupportedPlatform)
     }
 }
 
-#[cfg(not(windows))]
+#[cfg(unix)]
 fn open_regular_lock_descriptor(
     path: &Path,
     create_permissions: Option<rustix::fs::Mode>,
@@ -296,7 +297,7 @@ fn open_regular_lock_descriptor(
     Ok(fs::File::from(fd))
 }
 
-#[cfg(not(windows))]
+#[cfg(unix)]
 fn errno_to_lock_error(source: rustix::io::Errno) -> RegularFileLockError {
     RegularFileLockError::Io(io::Error::from_raw_os_error(source.raw_os_error()))
 }

@@ -14,6 +14,7 @@ export YQ := $(CURDIR)/.tools/host/bin/yq
 help:
 	@echo 'Selected package: check, clippy, docs-check, test, msrv (PACKAGE=<crate>)'
 	@echo 'Minimal artifact configuration: test-artifacts-minimal'
+	@echo 'Unsupported-target compile contract: check-fs-non-unix (prepared Wasm target required)'
 	@echo 'Tools profiles: test-tools-default, test-tools-interface, test-tools-certificate and tools-features-check'
 	@echo 'Formatting and metadata: fmt, fmt-check, shared-tooling-check, dependency-pins-check, check-doc-links, release-adapter-check'
 	@echo 'Hook qualification: formatting-hook-check (disposable Git fixtures; prepared formatters required)'
@@ -37,6 +38,9 @@ test:
 	+cargo test -p $(PACKAGE) --all-targets --all-features --locked --offline
 test-artifacts-minimal:
 	+cargo test -p ic-host-artifacts --no-default-features --lib --locked --offline
+.PHONY: check-fs-non-unix
+check-fs-non-unix:
+	+cargo check -p ic-host-fs --lib --test unsupported_lock --all-features --target wasm32-unknown-unknown --locked --offline
 test-tools-default:
 	+cargo test -p ic-host-tools --no-default-features --all-targets --locked --offline
 .PHONY: test-tools-interface

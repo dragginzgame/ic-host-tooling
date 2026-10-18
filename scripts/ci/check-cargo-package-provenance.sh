@@ -1,14 +1,11 @@
 #!/usr/bin/env bash
-# Shared companions: docs/publishing.md
+# Shared companions: docs/cargo-publication.md
 set -euo pipefail
 
-# Preserve archive/source admission from Shared PR #269, revision
-# 4eabe7f771907ccebfebceafffe10657b911c0eb; released Shared 0.24.0 omits it.
-# Host owns this adapter until an equivalent canonical helper is available.
 # Check prepared archives and retrieve their exact commit into a fresh store.
 # No Cargo execution, publication, setup, retries or recovery decisions.
 fail() { printf 'package provenance refused: %s\n' "$*" >&2; exit 2; }
-[[ $# -ge 7 ]] || fail 'usage: check-source.sh EVIDENCE ARCHIVES REPOSITORY SOURCE --package NAME@X.Y.Z PATH [...]'
+[[ $# -ge 7 ]] || fail 'usage: check-cargo-package-provenance.sh EVIDENCE ARCHIVES REPOSITORY SOURCE --package NAME@X.Y.Z PATH [...]'
 evidence="$1" archives="$2" repository="$3" source="$4"
 shift 4
 path_ok() { case "$1" in *$'\r'*|*$'\n'*) fail 'paths must not contain CR/LF' ;; esac; }

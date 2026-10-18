@@ -95,7 +95,7 @@ if [[ "$mode" == publish ]]; then
         directory="$(package_path "$package")" || fail "invalid package directory for $package"
         provenance_arguments+=(--package "$package@$version" "$directory")
     done
-    bash "$tooling_root/scripts/publish/check-source.sh" \
+    bash "$tooling_root/scripts/ci/check-cargo-package-provenance.sh" \
         "$attempt/provenance" "$root/target/package" "$repository" "$source" "${provenance_arguments[@]}"
 fi
 observed_source="$(git rev-parse --verify HEAD)" || exit $?

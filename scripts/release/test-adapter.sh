@@ -126,7 +126,7 @@ case "$*" in
     'metadata --no-deps --format-version 1 --locked --offline')
         "$ADAPTER_REAL_CARGO" "$@"
         exit "${ADAPTER_METADATA_RESULT:-0}" ;;
-    'sort --workspace --check'|sort\ --check\ *)
+    'sort --workspace --grouped --check'|sort\ --grouped\ --check\ *)
         "$ADAPTER_REAL_CARGO" "$@" ;;
     'fetch --locked'|'fetch --locked --offline')
         if [[ -n "${ADAPTER_CACHE:-}" && ! -e "$ADAPTER_CACHE" ]]; then
@@ -261,7 +261,7 @@ cargo locate-project --workspace --message-format plain --manifest-path Cargo.to
 cargo metadata --no-deps --format-version 1 --locked --offline
 make --no-print-directory install-tools
 make --no-print-directory tools-check
-cargo sort --workspace --check
+cargo sort --workspace --grouped --check
 make --no-print-directory dependency-pins-check
 cargo fetch --locked
 EVENTS
@@ -363,7 +363,7 @@ cp source/Cargo.toml Cargo.toml
 
 # Member admission must retain failures even after plausible TOML/JSON output.
 # Neither a failed Git source read nor a failed member parser can reach setup.
-for reader in git member member-stream read-source-context.sh; do
+for reader in git member member-stream read-cargo-source-context.sh; do
     : > "$ADAPTER_EVENTS"
     rm -f query-count
     status=0
@@ -476,7 +476,7 @@ cat > expected <<'EVENTS'
 cargo locate-project --workspace --message-format plain --manifest-path Cargo.toml
 cargo metadata --no-deps --format-version 1 --locked --offline
 make --no-print-directory tools-check
-cargo sort --workspace --check
+cargo sort --workspace --grouped --check
 make --no-print-directory dependency-pins-check
 cargo fetch --locked --offline
 make --no-print-directory ci
@@ -707,8 +707,8 @@ cmp expected-notes CHANGELOG.md
     mv source/crates/ic-host-fs 'source/apps/consumer fs'
     mv crates/ic-host-fs 'apps/consumer fs'
     # Aliases are inserted above solely for this transaction fixture. Prepare
-    # its actual source with the same global ordering required in production.
-    "$ADAPTER_REAL_CARGO" sort --workspace > major-source-format.log
+    # its actual source with the same grouped ordering required in production.
+    "$ADAPTER_REAL_CARGO" sort --workspace --grouped > major-source-format.log
     cp Cargo.toml source/Cargo.toml
     cp source/Cargo.lock Cargo.lock
     printf '# Changelog\n\n## [%s]\n\n- Major fixture.\n' "$RELEASE_VERSION" > CHANGELOG.md

@@ -2,232 +2,113 @@
 
 ## Authoritative state
 
-Read the workspace version in [Cargo.toml](../../Cargo.toml), release notes in
-[CHANGELOG.md](../../CHANGELOG.md), and exact release identities from Git tags.
-[AGENTS.md](../../AGENTS.md) and [the snapshot](../../.shared-tooling.snapshot)
-identify the reviewed Shared baseline and exact selected payloads.
-Released Host 0.27.3 is tagged at `70b553e0e8c1c0dcc1db89f67b4172436ef1a42d`.
-The pending [0.27.4 notes](../changelog/0.27.md#0274) describe compatible changes;
-released tree-descriptor and stream-copy interfaces remain supported. Versions,
-Git effects, publication and releases remain user-owned. Siblings are read-only.
+Read [Cargo.toml](../../Cargo.toml), [CHANGELOG.md](../../CHANGELOG.md), Git tags,
+[AGENTS.md](../../AGENTS.md) and the exact [Shared snapshot](../../.shared-tooling.snapshot).
+Released Host 0.27.4 is tagged at `bcc37e7afc1e831e7e8b41e2e11664f3ed873bf3`.
+Pending compatible work belongs to [0.27.5](../changelog/0.27.md#0275);
+package versions, the index, Git delivery and releases remain user-owned.
+Sibling checkouts are read-only. GitHub issues are the sole follow-up tracker.
 
 ## Ownership
 
-The maintainer's 2026-10-18 direction is a single controlled Candid/CDK dependency
-boundary, with IC Wire for owned protocols. The
-[boundary](../extraction.md#fleet-candidcdk-boundary) records the observed owners,
-macro/runtime constraints and migration qualification. Host now selects published
-Platform 0.1.4 for Candid decoding, native parsing and optional certification.
-Its `docs/migration.md` owns the fleet adoption contract. The released Host
-aggregate-byte adapter delegates per-reply decoding and retains its limits,
-typed errors and debit ordering; diagnostics follow Platform's compact policy.
-Host retains strict CBOR admission and service inventory projection. Siblings
-remain read-only; this work does not establish their migration status.
+The [extraction contract](../extraction.md) owns the five library boundaries.
+Artifacts owns bounded bytes, identities, checksum framing, batch admission and
+optional gzip/Wasm facts. FS owns path/descriptor admission, traversal, allocation,
+publication and explicitly selected cleanup custody. Process owns execution,
+child/descriptor custody and native observations. Text owns pure normalization
+and rendering. Tools owns IC format interpretation and its aggregate reply adapter.
+The [Wasm inspector](../../apps/ic-host-wasm-inspect/README.md) composes Artifacts
+and FS and owns its arguments/output; it performs no build or tool installation.
 
-The [extraction contract](../extraction.md) owns the five crate boundaries:
-Artifacts owns bounded byte mechanics, hashing, checksum framing and optional
-Wasm/gzip; FS owns filesystem admission, traversal and durable publication;
-Process owns execution, custody and observations; Text owns pure rendering and
-normalization; Tools owns IC format interpretation, including normal Candid
-parsing. The standalone Wasm inspector composes these libraries.
+Platform 0.1.11 owns the upstream Candid/parser/certification dependency boundary;
+Host retains service projection, aggregate debit ordering and strict CBOR admission.
+Shared owns common development, CI and release mechanics. Host retains package
+eligibility, metadata projection, real integration checks and recovery decisions.
+IC Build owns native Candid extraction and build/cache orchestration; Testkit owns
+PocketIC lifecycle. Consumers retain schemas, tool pins, budgets, credentials,
+targets, retries, authentication and paid-operation recovery.
 
-Shared owns common development, release and CI mechanisms. Host retains package
-selection, metadata rendering and qualification, publication preparation custody,
-runner choices and real integration checks. Release metadata backup, installation,
-caught-failure restoration and receipt archiving use pinned Shared helpers; Host
-retains receipt schemas and recovery decisions. Native-host admission and
-pipe-jobserver observation now call the pinned
-Shared helpers; their synthetic matrices stay with the producer. IC Build owns
-build/cache orchestration and native Candid extractor execution. Testkit owns
-PocketIC setup and lifecycle. Consumers retain budgets, schemas, tool trust,
-credentials, targets, retries, recovery and product lifecycle.
+## Current qualification
 
-Backup's current production adapters already delegate directory hashing to FS,
-exact checksum framing to Artifacts and ordered sync/checksum traversal to FS.
-The audited Backup source is `3317b4e6e49c0fe59e343069f68eb539324c0612`, selecting
-published Host 0.27.1. Its checksum records, expected-identity checks, publication
-hooks and recovery remain consumer integration, not competing generic owners.
+Released 0.27.4 passed Linux x86-64, macOS 15 Intel/Apple Silicon and MSRV in
+[its exact-source CI run](https://github.com/dragginzgame/ic-host-tooling/actions/runs/39125028075).
+Consumer adoption remains distinct from that producer qualification.
 
-The earlier [handoff archive](archive-2026-10-18.md) preserves receipts and source
-identities verbatim, including the superseded claim that Backup adoption was
-pending. Its older 0.28 API migration proposals are not current requirements.
-Historical statements and qualification results apply only to their named source;
-archives link earlier evidence rather than assigning current ownership.
+Pending 0.27.5 has focused Linux evidence, with source-matching native macOS
+qualification still required:
 
-## Qualification and coordination
+- [#194 — Lock platform guards](https://github.com/dragginzgame/ic-host-tooling/issues/194):
+  18 lock cases pass on current Rust and actual 1.88, with directory and fixture
+  cases, strict native Clippy and Rustdoc. The library/test-support/non-Unix test
+  compiles on actual 1.88 for Wasm; this is not Wasm test or filesystem execution.
+  Optional Wasm Clippy reports target-specific uninhabited-File/const lints outside
+  the compile-only gate. Receipt: `/tmp/host-lock-cfg.5k9tgx/`.
+- [PR #135 — Bounded traversal and directory allocation](https://github.com/dragginzgame/ic-host-tooling/pull/135):
+  61 artifact, 15 directory/custody and five fixture cases pass on current Rust
+  and actual 1.88, plus seven integration cases, strict Clippy/Rustdoc and the
+  non-Unix compile gate. The earlier Build rehearsal qualifies only its named
+  source; [Build #45](https://github.com/dragginzgame/ic-build/issues/45) owns adoption.
+  Receipt: `/tmp/host-build-mechanics.8823nY/`.
+- Platform 0.1.11: all 29 Tools cases pass on current Rust and actual 1.88, with
+  strict Clippy, boundary/feature graphs, pins, links and changelog admission.
+  Codec/parser/certification features are unchanged. Receipt:
+  `/tmp/host-platform-011.q74eWi/`. Platform's own CI was still running at review.
 
-PR #184's shared batch-label validator is prepared locally for 0.27.4. Current
-Build Cargo/artifact batches and Testkit diagnostics still own matching loops;
-normal sibling checkouts remain unchanged. [Build PR #65](https://github.com/dragginzgame/ic-build/pull/65)
-prepares the consumer deletion after Host publication. Receipt:
-`/tmp/host-batch-intake.9Ohta6/`, relative to the incoming dirty tree.
-Three batch tests pass on current Rust and actual Rust 1.88, with strict Artifacts
-all-target/all-feature Clippy, warning-denied Rustdoc, formatting, links and
-changelog admission. All 19,608 generated short batches match current Build,
-including exact spelling, first-invalid ordering and duplicate positions.
-Native qualification and publication remain pending. The incoming Platform
-lockfile update, FS/Text work, package versions and real index are preserved.
+Use [the host guide](../hosts.md) and the
+[shared validation policy](../../DRAGGINZGAME.md#validation-and-evidence).
+Focused passing evidence does not claim a full local release gate, publication,
+deployment or native macOS execution of pending bytes.
 
-Issue #138 / PR #139's exact decimal rendering is prepared locally for 0.27.4.
-Query's token and cycle-rate mechanics remain in its normal checkout; adoption
-is tracked in [Query #64](https://github.com/dragginzgame/ic-query/issues/64).
-Receipt: `/tmp/host-decimal-intake.NDtS2E/`, relative to the incoming dirty tree.
-Three focused decimal tests pass on current Rust and actual Rust 1.88, including
-an independent integer-arithmetic oracle. Strict Text Clippy, warning-denied
-Rustdoc, formatting, links and changelog admission pass. A scratch comparison
-matches current Query fixed/compact behavior in 1,536,000 cases across every u8
-scaling exponent and values beyond u128. No dependency or own version changed.
-Native qualification and publication remain pending; prior FS/timestamp work
-and the real index are preserved.
+## Retained integration boundaries
 
-Issue #140 / PR #142's pure canonical UTC timestamp module is prepared locally
-for 0.27.4. Query's current calendar implementation and report callers were
-verified at `8982c2a4a98830d9ec1be771b07d326b483f5a85`; its normal checkout is
-unchanged and adoption remains in
-[Query #66](https://github.com/dragginzgame/ic-query/issues/66).
-Receipt: `/tmp/host-timestamp-intake.hJ0Inj/`, measured against the incoming dirty
-tree so PR #147's work is preserved. Seven focused timestamp cases pass on current
-Rust and actual Rust 1.88, with strict Text Clippy, warning-denied Rustdoc and
-100,000 old/new comparisons over unsigned and signed-range seconds. Formatting,
-links and changelog admission pass. No dependency, package version or Git release
-effects ran; delivery and native qualification of this source remain pending.
+The snapshot selects reviewed Shared main
+`86464be41588182be6c979070a26ea9dfa5aa566` (0.24.3 in its changelog; committed
+`VERSION` and canonical snapshot label remain 0.24.2). Its canonical source helpers
+coexist
+with byte-identical release metadata/receipt custody, resolving
+[#193's supplier prerequisite](https://github.com/dragginzgame/ic-host-tooling/issues/193).
+Both local source-evidence adapters are removed and callers use Shared directly.
+The former contribution PR remains open, but committed source and successful
+Shared 0.24.2 Linux/macOS CI establish helper availability. Formatting/hooks and every release
+manifest check use grouped sorting. No tool version or installed bundle changes.
 
-PR #147's physical-directory validator is prepared locally for 0.27.4 and reused
-by private-parent preparation. Testkit's normal bundle checker remains unchanged;
-its path policy and consumer adoption are separate. Receipt:
-`/tmp/host-physical-intake.0YmqYY/`. No package version or Git release effects ran.
-Ten path tests and the private-parent case pass on current Rust and actual Rust
-1.88, with strict FS Clippy and warning-denied Rustdoc. Native qualification of
-this new source remains separate.
+The latest refresh adopts Shared's external IC dependency rule and extends the
+direct-dependency guard to known Agent, Principal, PocketIC, system, signature,
+ledger/management and storage packages. The finite name policy still needs review
+for new IC package identities and generated imports. Snapshot, pins, Linux/macOS
+feature graphs, links and changelog admission pass; 30 substituted aliased,
+optional/platform normal/dev/build cases reject while a Serde control passes.
+These graphs are not native macOS execution. Shared's exact-revision CI was still
+running at adoption. Receipt: `/tmp/host-shared-adoption.4eu0Td/`. The snapshot's
+executable payloads, tool pins, Host Rust source, manifests and lockfile are
+unchanged by this refresh; Host already uses the shared metadata transaction.
 
-Released 0.27.3's [CI run](https://github.com/dragginzgame/ic-host-tooling/actions/runs/39120529749)
-has passed Linux, macOS 15 Intel, macOS 15 Apple Silicon and MSRV. Completed Host
-producer issues #95, #121, #153 and #191 and superseded PRs #99, #180, #154 and #192
-are closed with that delivery evidence. Consumer adoption remains separate.
-The earlier local-preparation status below is historical.
+The Platform aggregate adapter retains Host's published limits/errors and charges
+admitted malformed replies before decoding; it is not a competing decoder.
+The FS gzip example is an intentional FS/Artifacts integration caller, which
+explains the dev-only gzip feature. Private fixed-size reads retain stack storage
+and permission/link admission. Read-only and ordered-sync tree visitors share a
+checksum collector while preserving different effects. These remain supported.
 
-The preparation receipts below describe changes now included in released 0.27.3,
-not additional pending source. Required delivery CI and consumer adoption are
-separate from their recorded focused local checks.
+## Audit evidence and history
 
-The working tree prepares PR #154's protected in-place export API for
-[#153 — Own non-aliasing in-place export writes](https://github.com/dragginzgame/ic-host-tooling/issues/153),
-using the current path canonicalizer, native identity owner and derived errors.
-Query still owns its normal export implementation and its protected-path policy;
-adoption after Host delivery is tracked in
-[Query #69 — Adopt published Host non-aliasing export writes](https://github.com/dragginzgame/ic-query/issues/69).
-Receipt: `/tmp/host-export-intake.2AGekX/`; incoming work and sibling checkouts remain
-preserved. No package version, commit, merge or publication is implied.
-Eight focused export cases pass on current Rust and actual Rust 1.88, with strict
-FS Clippy, Rustdoc, formatting, links and changelog admission. Combined-source
-native macOS qualification and Query adoption remain separate. PR #100 was closed
-as superseded by canonical Shared integration in the CI-qualified Host 0.27.2.
+The architectural cleanup uses the pinned Shared flow-convergence/module-surface
+methods against `bcc37e7` plus the captured incoming 0.27.5 work. Receipt:
+`/tmp/host-sediment-final.kVbk8M/`. Incoming source, artifacts, manifests' release
+versions, lock selection and index are preserved; changes cover catalog cleanup,
+canonical source-evidence adoption and matching documentation/formatting checks.
+Actual consumers were inspected in available Build, Backup, Query, Testkit and
+Platform siblings; their mutable checkouts are evidence, not published adoption.
+The member/dependency metadata is byte-identical before and after cleanup; the
+lockfile is unchanged. Selected Process/Text/Tools builds, direct/feature boundary
+checks, pins and the 119-file snapshot pass. Real Host release/publication fixtures,
+Make routing, formatting/hook preservation, ShellCheck, links and changelog
+admission pass with substituted Git/upload/setup effects. No release or native
+macOS execution of pending Host bytes ran. Completed 0.27.4 producer issues #138/
+#140 and superseded PRs #139/#142/#147/#184 were closed after direct remote source,
+tag and full native/MSRV CI verification; publication/adoption remain separate.
 
-PR #180's admitted symlink publication is prepared in the 0.27.3 working tree for
-[#121 — Extract retained tool-bundle publication](https://github.com/dragginzgame/ic-host-tooling/issues/121).
-It uses FS's native identity owner and existing publication errors. Five focused
-cases pass on current Rust and actual Rust 1.88, including faults before/after
-rename and observed staging replacement; strict FS Clippy and Rustdoc pass.
-Receipt: `/tmp/host-pr-next.8oT6i9/`. Canic remains unchanged; publication, consumer
-adoption and combined-source native macOS qualification remain separate.
-PRs #173, #174 and #183 were closed as superseded by their released 0.27.2
-implementations and its complete successful required CI matrix.
-
-The 0.27.3 working tree prepares
-[#95 — Expose cancellable group capture](https://github.com/dragginzgame/ic-host-tooling/issues/95)
-from PR #99 on the current child/fixture APIs, and
-[#191 — Keep source-evidence adapters hash-format independent](https://github.com/dragginzgame/ic-host-tooling/issues/191)
-from PR #192. The process engine passes 77 focused tool cases, eight group cases
-on actual Rust 1.88, strict Clippy and warning-denied Rustdoc. Release/publication
-fixtures and real local-Git source-evidence refusals pass on Linux. Receipt:
-`/tmp/host-issue-work.VEZSmz/`. These are local changes over `8b45876`, preserving
-incoming Platform and release-helper work; delivered/native qualification and
-Build/Testkit adoption remain separate. No full local gate or release ran.
-
-Use [host qualification](../hosts.md) for focused checks. Native macOS 15 Intel
-and Apple Silicon execution is separate from Linux and substituted-host tests.
-The architecture cleanup receipt is `/tmp/host-sediment.vSyJrI/`, relative to its
-captured incoming dirty tree at Host `c8cd434`. The current tree includes earlier
-FS, Text and logical-size work; this cleanup preserves that source and the index.
-Validation for this cleanup is recorded in that receipt and the delivery handoff.
-
-The earlier PR intake receipt is `/tmp/host-pr-issues.G75wqr/`, relative to the
-captured incoming working tree at the same Host commit. That batch prepared
-[PR #189 — Bounded Candid reply decoding](https://github.com/dragginzgame/ic-host-tooling/pull/189)
-and [PR #174 — Scoped shared descriptor lock](https://github.com/dragginzgame/ic-host-tooling/pull/174),
-alongside [PR #183 — Cache-directory tag handling](https://github.com/dragginzgame/ic-host-tooling/pull/183).
-Decoder bytes/work and aggregate accounting remain explicit; domain admission
-stays in Canic. The shared-lock guard explicitly unlocks before close; shared
-record lifetimes and cache policy stay in Build. Focused Candid and descriptor-
-lock tests passed on current Rust and actual Rust 1.88, with affected all-target/
-all-feature MSRV checks, strict Clippy and warning-denied Rustdoc. These APIs
-were local preparation at intake and are now recorded in released 0.27.2;
-consumer/native qualification remains separate. PR branch CI applies only to its
-own named head. The real index,
-own versions, dependency selection and normal sibling checkouts are preserved.
-Cache-tag handling retains the existing durable writer's ordinary parent creation,
-which Build cache initialization requires; its original no-parent-creation claim
-is corrected rather than changing that behavior. Native source qualification and
-Build adoption remain separate from the focused producer cases.
-
-Shared 0.24.0 was adopted at published main
-`cab12cd3dfa4fdb34846b25397f0d72881bb9ae0`. The snapshot now selects 117 payloads
-from reviewed contribution `e0b6478a6f0a557b75caeb3e23e34cff6589a9fd` in
-[Shared PR #283 — Share release metadata preparation and retained evidence custody](https://github.com/dragginzgame/shared-tooling/pull/283),
-stacked on [Shared PR #279 — Share atomic release receipt mechanics](https://github.com/dragginzgame/shared-tooling/pull/279).
-Neither PR is treated as a published release. Host keeps its validation receipt
-format and selected-source/commit checks, with no receipt migration. Focused Shared
-receipt/preparation fixtures and Host's release-adapter fixture pass on Linux,
-including caught interruption and failed restoration with retained evidence.
-The preparation helper does not promise multi-file atomicity or crash durability.
-Testkit and Backup retain their existing adapters pending separate qualification.
-Their working trees are currently changing those adapters and their Shared
-baselines. Testkit additionally retains old/new payloads for automatic interrupted
-installation recovery; its receipt adoption must preserve that contract rather
-than replacing it with Host's caught-failure restoration model.
-Shared's initial PR matrix failed in a pre-existing retention fixture that still
-looked for an extracted inline setup step. The contribution now includes Shared's
-prepared composite-action fixture repair; the focused retention suite passes on
-Linux. The release helpers also guard initially empty inventories for Bash 3.2
-strict mode. Their focused Linux fixtures pass; the refreshed hosted matrix and
-native macOS execution remain separate qualification.
-Receipt: `/tmp/host-release-custody.zslFZB/`; incoming Platform work is preserved.
-The additional canonical direct-dependency checker enforces Host's Platform
-boundary through the existing CI/release graph check. The 0.27.3 adoption starts
-from released Host `8b45876`, preserving the incoming removal of the root parser
-declaration. Receipt: `/tmp/host-platform-adoption.ue0cGD/`. Older qualification
-paragraphs below and above apply to their named earlier batches.
-Platform adoption passes all 29 Tools tests on Rust 1.99 and actual 1.88, the
-default-feature tests, strict Clippy and warning-denied Rustdoc. Direct-boundary
-negative fixtures reject renamed Candid edges in normal/dev/build/target tables.
-Transitive graphs pass for Linux and both macOS triples; these are not native
-macOS runs. Formatting, snapshot, declaration pins, ShellCheck and local links
-pass. Only Platform 0.1.4 is added to the lock; existing upstream versions remain.
-Package versions and the real index are unchanged. No full release gate ran.
-Production-role labels retain global formatting and matching source/prepared/
-committed release ordering checks. The normal/build graph checker now selects
-an explicit native target and covers combined Tools features. Host has no
-deployment entrypoint or test-only external catalog; the
-[deployment evidence boundary](../hosts.md#dependency-exclusions-and-deployment-evidence)
-records what these checks do and do not enforce.
-The released Shared baseline does not include the Cargo source-evidence helpers from
-[Shared PR #269 — Share Cargo source evidence](https://github.com/dragginzgame/shared-tooling/pull/269).
-Their reviewed behavior remains in explicit Host release/publication adapters,
-with source provenance in [the publication guide](../publishing.md). The old
-snapshot-owned copies retire through canonical export rather than being edited.
-Common Cargo setup now selects only the two formatters; Host selects no extractor.
-Focused adoption checks pass on Linux: byte-stable catalog formatting, hook
-preservation, source/prepared/committed release fixtures, publication admission,
-Make routing, snapshot/pins/links and ShellCheck. The common PATH was refreshed
-offline from admitted retained binaries, and `tools-check` passes. Graph checks
-pass for Linux x86-64 and both macOS triples; they are not native macOS runs.
-The lockfile, package versions, pending Rust source and real index are preserved.
-No full release gate, release, publication or deployment ran.
-GitHub issues remain the sole follow-up tracker. Consumer adoption is coordinated
-through [Canic #458 — Adopt published IC Host Tooling](https://github.com/dragginzgame/canic/issues/458)
-and [IcyDB #307 — Adopt split Host owners](https://github.com/dragginzgame/icydb/issues/307).
-Strict certificate wire admission remains local pending a contract-preserving
-upstream replacement; see
-[DFINITY #503 — Strict CBOR decoding without byte/array coercions](https://github.com/dfinity/response-verification/issues/503).
-Operational-directory CR/LF admission retains its current contract pending
-[Canic #575 — Own Backup operational path admission](https://github.com/dragginzgame/canic/issues/575).
+The [complete preceding handoff](archive-2026-10-18-02.md) retains every prior
+receipt and source identity verbatim, including completed 0.27.3/0.27.4 preparation
+and earlier qualification observations. It links the older archives. Historical
+0.28 proposals and earlier adoption-pending claims do not change current contracts.

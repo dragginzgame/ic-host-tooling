@@ -1,5 +1,32 @@
 # Changelog
 
+## [0.27.5]
+
+- Adopt Shared's latest committed Platform dependency-boundary rules and extend
+  Host's direct-dependency guard to the known external IC package families.
+  Preserve the canonical snapshot's version label and record its exact revision.
+  [Details](docs/changelog/0.27.md).
+- Adopt Shared Tooling 0.24.2 and replace both local source-evidence adapters with
+  canonical helpers, preserving release custody and matching grouped formatting
+  across hooks and release checks
+  ([#193 — Canonical source-evidence adoption](https://github.com/dragginzgame/ic-host-tooling/issues/193)).
+  [Details](docs/changelog/0.27.md).
+- Remove unused internal dependency aliases and separate current ownership and
+  qualification from historical migration receipts. Preserve public APIs,
+  dependency graphs and release/publication admission.
+  [Details](docs/changelog/0.27.md).
+- Adopt IC Platform 0.1.11 for the existing Candid/parser and optional certification
+  boundary, preserving the selected features and upstream dependency versions.
+  [Details](docs/changelog/0.27.md).
+- Share bounded stream visitation with caller-owned scratch and fresh directory
+  allocation with explicit permissions and collision budgets
+  ([PR #135 — Build traversal and directory allocation](https://github.com/dragginzgame/ic-host-tooling/pull/135)).
+  [Details](docs/changelog/0.27.md).
+- Align lock-file admission with its Unix-only dependency, allowing non-Unix
+  library compilation with explicit unsupported-operation errors
+  ([#194 — Lock platform guards](https://github.com/dragginzgame/ic-host-tooling/issues/194)).
+  [Details](docs/changelog/0.27.md).
+
 ## [0.27.4] - 2026-10-18
 
 - Share ordered empty/duplicate batch-label admission with exact comparisons and

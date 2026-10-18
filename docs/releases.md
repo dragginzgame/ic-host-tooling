@@ -819,7 +819,8 @@ immutable consumer export.
 
 `scripts/ci/cargo-release-metadata.sh prepare|check PRIMARY_PACKAGE` owns
 the reusable Cargo-only metadata flow. Adopt it as a snapshot root; its version
-reader, lock rewriter and changelog finalizer are required companions. It requires
+reader, lock rewriter, changelog finalizer and shared preparation helper are
+required companions. It requires
 root `Cargo.toml`, `Cargo.lock`, `CHANGELOG.md`, workspace-inherited package versions
 and no source-less packages outside the workspace. It admits actual workspace
 and lock identities before mutation; independently versioned packages need their
@@ -829,7 +830,11 @@ The caller supplies `RELEASE_PREVIOUS`, `RELEASE_VERSION`, `RELEASE_DATE`, prepa
 Cargo, Perl, jq and Mike Farah yq. Preparation uses the locked offline graph
 and a literal root-version renderer. It independently parses the candidate before
 installation, preserves manifest layout, file modes and external lock selections,
-restores all three original files on failure and retains failure custody. It does
+uses `release-metadata-transaction.sh` for installation and restoration, and
+retains failure custody. All three candidates must finish rendering before any
+live file is installed; caught installation or validation failures restore the
+original bytes and modes. Failed attempts retain `original/` and `candidate/`
+directories under the printed preparation path. It does
 not run Cargo-edit or Cargo-sort; consumer ordering gates remain separate.
 Catchable INT/TERM interruptions restore the same originals and preserve their
 exit status. Unsupported literal layouts refuse before installation.
@@ -879,8 +884,9 @@ Callbacks must explicitly propagate every failed observation, or execute an
 independent script with its own strict shell settings; do not rely on a caller's
 `errexit` when a function is invoked in a conditional context. The helper admits
 all original files before rendering and all candidate files before installation.
-Nested relative names and spaces are supported; path aliases, links, non-regular
-files and duplicate selections refuse. Existing destination modes are retained.
+Nested relative names and spaces are supported; noncanonical paths, symlink
+traversal, non-regular files and duplicate selections refuse. Existing destination
+modes are retained.
 
 The helper owns backup, installation and caught-failure restoration only. It
 preserves originals/candidates on failure, including failed restoration, and

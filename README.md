@@ -8,13 +8,20 @@ admitted process execution and IC-specific format handling.
 | ic-host-artifacts | Bounded streams and hashing writers, exact byte comparison, SHA-256, gzip encoding/decoding, generic Wasm facts and custom-section encoding |
 | ic-host-fs | Regular/no-follow reads, missing-suffix path resolution, streamed durable publication, private files and observed descriptor locks |
 | ic-host-process | Executable resolution, digest/version admission, bounded capture, explicit child/group cleanup and Git observations |
-| ic-host-text | Bounded line normalization, terminal-safe escaping, Unicode display-width tables and progress frames |
+| ic-host-text | Pure line normalization, decimal/UTC text, terminal-safe rendering, Unicode tables and progress frames |
 | ic-host-tools | Candid service facts, optional IC export facts, ICP response decoding and certificate decoding |
 
 These run locally outside canisters. The ic-host prefix identifies their ecosystem;
 the generic crates have no IC runtime dependency. Gzip and Wasm
 support are optional features of ic-host-artifacts. Filesystem/process consumers
 select the small default artifact dependency.
+
+`ic_host_artifacts::artifact::visit_reader` visits bounded chunks using nonempty
+caller-owned scratch and a typed callback. Framing, callback effects and blocking
+deadlines remain caller-owned. `ic_host_fs::directory::create_unique_directory`
+allocates a fresh child with explicit permissions and collision allowance;
+it preserves parent aliases and existing entries, and supplies no cleanup or sync.
+
 `ic_host_fs::durable::SharedFileLock::acquire(file)` holds a blocking shared
 lock on a caller-opened regular file. Drop explicitly unlocks before close,
 preventing duplicates from extending the guard's lock; independent acquisitions
@@ -57,19 +64,18 @@ encoded indirect calls, including tail calls, and data payload bytes without a
 subprocess. These counts differ from encoded section sizes and need not match
 optimizer reachability metrics. Type/feature validation and report policy remain
 caller-owned; the structural `wasm::inspect` contract is unchanged.
-`ic-host-tools` has no default features. Response decoding is always available
-without artifact/filesystem/process/text dependencies. The Candid parser remains
-a normal capability through `ic-platform` for native service inspection.
+`ic-host-tools` has no default features. Response decoding, Candid service
+inspection and shared method identities are always available; `ic-platform`
+owns the Candid codec and native parser. The optional `ic-interface` feature adds
+export projection over generic Wasm facts for service/export comparisons.
+The default graph has no other Host library dependency; `ic-interface` adds
+Artifacts without introducing filesystem or process execution.
+
 Native Candid extraction belongs to IC Build's `artifacts::candid` module;
 Host Tools no longer supplies an extraction feature or invocation wrapper.
 Consumers select tools, source custody, output limits and optional normalization.
 See the [0.24 migration](docs/changelog/0.24.md) for the required Build release.
-Host Tools includes parser-backed Candid service inspection and shared method
-identities as a normal dependency. The optional `ic-interface` feature adds
-export projection over generic Wasm facts. Enable it to compare Candid services
-with Wasm exports. Neither surface introduces Host filesystem/process dependencies.
-The former `candid-service` feature is retired; remove it from dependency feature
-lists. Disabling default features does not remove the Candid parser.
+
 `ic_host_tools::candid::decode::decode_one` decodes a reply with explicit
 `DecodeLimits` and a mutable aggregate byte allowance. Oversized replies refuse
 without charging; admitted malformed replies consume their bytes. Candid's
@@ -77,11 +83,8 @@ compatibility rules and skipping quotas apply to extra arguments. Callers retain
 authentication, schemas, domain errors and all resource-policy choices.
 Platform owns the bounded codec and its compact diagnostics; Host retains the
 aggregate-accounting adapter and preserves original typed decoder causes.
-See the
-[0.21 feature migration](docs/changelog/0.21.md),
-[0.17 feature migration](docs/changelog/0.17.md),
-[0.16 extraction migration](docs/changelog/0.16.md) and
-[0.15 API usage](docs/changelog/0.15.md).
+Earlier feature/import changes remain in the
+[0.21 migration notes](docs/changelog/0.21.md) and release history.
 Replica install thresholds and their reports belong to the consuming application.
 Canic selects its replica revision and enforces its resource limits; Host Artifacts
 retains generic Wasm inspection. See the [0.25 migration](docs/changelog/0.25.md).

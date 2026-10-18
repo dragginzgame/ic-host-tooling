@@ -4,7 +4,7 @@
 
 The maintainer's 2026-10-18 direction is one controlled dependency boundary for
 Candid and the CDK family, with IC Wire owning controlled application protocols.
-Host now consumes published `ic-platform` 0.1.4 for bounded Candid decoding,
+Host now consumes published `ic-platform` 0.1.11 for bounded Candid decoding,
 native parsing and optional certification types. Platform's `docs/migration.md`
 owns the fleet adoption contract. Host retains service-to-Wasm projections,
 strict certificate CBOR admission and the released aggregate-byte adapter.
@@ -120,10 +120,12 @@ no longer owns an `ic-limits` profile or a reference-policy CLI example.
 - ic-host-artifacts owns pure ordered nonempty/unique batch-label admission,
   declared-file directory checksums, stream identities,
   bounded read/write/copy mechanics,
+  including allocation-free visitation with caller-owned scratch and callbacks,
   optional gzip encoding/decoding, optional Wasm
   structural facts, encoded code/data statistics and bounded custom-section framing.
 - ic-host-fs owns no-follow directory hashing and ordered sync/checksum traversal
   over caller-held descriptors,
+  fresh child-directory allocation with explicit permissions and collision bounds,
   standard cache-directory tag recognition and durable replacement with explicit
   suffix bytes and permissions,
   pathname/descriptor reads, explicit invocation-directory

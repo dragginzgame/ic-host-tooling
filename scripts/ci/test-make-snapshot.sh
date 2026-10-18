@@ -99,7 +99,7 @@ for selection in ordinary environment command nested recursive; do
             > "$fixture/$selection-$target.log" 2>&1
         case "$target" in
             help) : > "$fixture/expected" ;;
-            fmt-check) printf 'sort --workspace --check\nfmt --all -- --check\n' > "$fixture/expected" ;;
+            fmt-check) printf 'sort --workspace --grouped --check\nfmt --all -- --check\n' > "$fixture/expected" ;;
             release-resume) printf 'resume 0.9.5 %s release-review\n' "$remote" > "$fixture/expected" ;;
             install-hooks) printf 'install-git-hooks.sh --consumer %s\n' "$PWD" > "$fixture/expected" ;;
             shared-tooling-check) printf 'verify-shared-tooling-snapshot.sh --consumer %s --manifest .shared-tooling.snapshot\n' "$PWD" > "$fixture/expected" ;;
@@ -217,7 +217,7 @@ jobserver_options=(--no-print-directory -j4)
 if make --help | grep -q -- --jobserver-style; then
     jobserver_options+=(--jobserver-style=pipe)
 fi
-cargo_targets=(check clippy docs-check test test-artifacts-minimal
+cargo_targets=(check clippy docs-check test test-artifacts-minimal check-fs-non-unix
     test-tools-default test-tools-interface
     test-wasm-inspection msrv msrv-workspace)
 helper_targets=(publish publish-check dependency-pins-check

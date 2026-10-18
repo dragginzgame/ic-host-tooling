@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Shared companions: ci/release-delivery.txt scripts/ci/check-release-delivery.sh scripts/ci/read-cargo-workspace-version.sh scripts/ci/check-release-source.sh scripts/ci/next-release-version.sh scripts/ci/finalize-release-changelog.awk scripts/ci/rewrite-local-lock-versions.pl scripts/ci/render-cargo-workspace-version.pl scripts/release/read-source-context.sh scripts/ci/release-receipts.sh scripts/ci/release-metadata-transaction.sh
+# Shared companions: ci/release-delivery.txt scripts/ci/check-release-delivery.sh scripts/ci/read-cargo-workspace-version.sh scripts/ci/check-release-source.sh scripts/ci/next-release-version.sh scripts/ci/finalize-release-changelog.awk scripts/ci/rewrite-local-lock-versions.pl scripts/ci/render-cargo-workspace-version.pl scripts/ci/read-cargo-source-context.sh scripts/ci/release-receipts.sh scripts/ci/release-metadata-transaction.sh
 set -euo pipefail
 
 # Consumer-owned Cargo adapter. Requires Bash 3.2, Git, Make, awk, the selected
@@ -46,7 +46,7 @@ project_manifest() (
     while IFS= read -r -d '' directory; do
         members+=("$directory")
     done < "$temporary/directories"
-    bash "$tooling_root/scripts/release/read-source-context.sh" \
+    bash "$tooling_root/scripts/ci/read-cargo-source-context.sh" \
         . "$RELEASE_SOURCE" "$temporary/manifest.json" "${members[@]}" \
         > "$temporary/context.json" || return
     jq -e --arg packages "$3" '.members | (map(.name) | sort) == ($packages | split(" "))' \
@@ -106,7 +106,7 @@ check_payload() (
     finalize_notes "$notes" | cmp - "$directory/CHANGELOG.md"
     # Only the root manifest changes during release preparation. Check those
     # exact candidate/saved bytes; member formatting was qualified at the source.
-    cargo sort --check "$directory"
+    cargo sort --grouped --check "$directory"
 )
 check_prepared() {
     local observed_version
@@ -187,7 +187,7 @@ case "$operation" in
         CARGO_NET_OFFLINE=true make --no-print-directory tools-check
         # Match the global ordering used by make fmt and fmt-check. Inline role
         # labels need no grouped-mode override and survive this read-only check.
-        cargo sort --workspace --check
+        cargo sort --workspace --grouped --check
         CARGO_NET_OFFLINE=true make --no-print-directory dependency-pins-check
         if [[ "$operation" == preflight ]]; then
             # The selected release prepares its existing graph before validation.

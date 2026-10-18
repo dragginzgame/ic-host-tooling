@@ -71,11 +71,12 @@ pub fn commit_existing_directory_with<E>(
     staging: &Path,
     canonical: &Path,
     prepare: impl FnOnce(&fs::File, &Path) -> Result<(), E>,
-    mut at_step: impl FnMut(DirectoryCommitStep, &Path) -> io::Result<()>,
+    at_step: impl FnMut(DirectoryCommitStep, &Path) -> io::Result<()>,
 ) -> Result<DirectoryCommitOutcome, DirectoryCommitError<E>> {
     let (parent, staging_name, canonical_name) = sibling_paths(staging, canonical)?;
     #[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
     {
+        let mut at_step = at_step;
         let staging_exists =
             exists_without_following(staging).map_err(DirectoryCommitError::BeforePublication)?;
         let canonical_exists =

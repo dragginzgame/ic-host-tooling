@@ -4,6 +4,17 @@ Required hosts are Linux x86-64 and macOS 15 on Intel and Apple Silicon.
 The imported filesystem/process APIs retain their platform gates; unsupported
 platforms receive their existing explicit refusal rather than simulated behavior.
 
+`ic-host-fs` can compile as a library for `wasm32-unknown-unknown`, but this is an
+unsupported execution target. Its three regular lock-file openers return
+`RegularFileLockError::UnsupportedPlatform` before filesystem effects; other APIs
+retain their individual platform gates or native standard-library errors. Unix
+descriptor-only APIs stay Unix-gated. This makes no promise of usable filesystem
+IO in a canister, and downstream Wasm graphs should continue excluding Host FS
+and native Build/Testkit harnesses. `make check-fs-non-unix` compiles the library,
+test-support feature and non-Unix lock admission test without executing them.
+It requires the Wasm standard-library target to be prepared explicitly; MSRV CI
+selects that target during its existing toolchain setup.
+
 Select one changed crate with `PACKAGE=<crate>` for `make check`, `make clippy`,
 `make docs-check` or `make test`. Artifact checks use its actual enabled gzip,
 and Wasm features; production filesystem dependencies select none of them.
@@ -78,9 +89,16 @@ Release preparation uses the shared literal metadata renderers with source-bound
 member identities, with rollback qualification in disposable release fixtures.
 The root catalog uses `Production dependencies`, and all six maintained library/
 CLI members are `Production packages`. Shared test/production dependencies stay
-in the production category. No current external catalog entry is test-only;
-the unused internal Process/Text/Tools aliases remain catalog selections, not
-evidence of a reachable dependency. Inline labels retain global Cargo sorting:
+in the production category. No current external catalog entry is test-only.
+Internal aliases exist only for dependencies inherited by actual members;
+workspace membership does not require a matching catalog dependency.
+Host's direct-dependency guard covers the known external IC package families in
+`ci/cargo-dependency-boundaries.json`, including renamed, development, optional and
+target-specific declarations. The broader Platform boundary also requires review
+of new IC package identities and generated imports; the finite policy does not
+automatically classify every future package. General-purpose dependencies remain
+with their consuming crates. Current Host declarations already satisfy the rule.
+The production section uses the canonical role header and grouped Cargo sorting:
 `fmt`, `fmt-check` and release source qualification use the same ordering.
 Prepared/committed release checks sort-check the exact saved root manifest;
 unchanged member manifests belong to the previously qualified source.

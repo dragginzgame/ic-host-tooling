@@ -1,10 +1,8 @@
 //! Regular descriptor locking, release and wait observations.
 
-use std::{
-    fs::File,
-    io,
-    time::{Duration, Instant},
-};
+#[cfg(unix)]
+use std::time::Instant;
+use std::{fs::File, io, time::Duration};
 
 #[cfg(all(test, unix))]
 mod tests;
