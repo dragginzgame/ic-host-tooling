@@ -36,8 +36,13 @@ exec {quoted_cargo} "$@"
         ),
     )
     .expect("write executable test script");
-    let spec = super::wasm_cache::WasmBuildSpec::new(&root, &root.join("exact"), &["fixture"])
-        .with_isolated_builds()
-        .with_cargo_program(wrapper);
+    let spec = super::wasm_cache::WasmBuildSpec::new(
+        &root,
+        &root.join("exact"),
+        &["fixture"],
+        crate::cargo_fixture::environment(),
+    )
+    .with_isolated_builds()
+    .with_cargo_program(wrapper);
     (root, spec)
 }

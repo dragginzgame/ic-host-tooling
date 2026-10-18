@@ -6,7 +6,7 @@ export YQ := $(CURDIR)/.tools/host/bin/yq
 include make/consumer.mk
 
 .PHONY: help version tasks check ci check-doc-links check-workspace check-pins \
-        check-package clippy docs-check test msrv \
+        check-package check-boundary clippy docs-check test msrv \
         check-release-commands install-validation-tools lint check-shell \
         check-workflows check-secrets release-version release-preflight \
         release-verify release-prepare-version release-prepared-check release-files \
@@ -34,6 +34,7 @@ help:
 	@echo 'fmt / fmt-check: sort Cargo manifests and format/check all workspace Rust source'
 	@echo 'install-hooks: activate the shared repository-local pre-commit formatter'
 	@echo 'check-package / clippy / docs-check / test / msrv: compile, lint, document and qualify the extracted engine'
+	@echo 'check-boundary: reject direct Candid/CDK declarations outside the Platform owner'
 	@echo 'cloc: shared workspace Rust LOC report'
 	@echo 'install-validation-tools: pinned Linux x86-64 ShellCheck, actionlint and Gitleaks'
 	@echo 'lint / check-secrets: shell/workflow lint and history secret scan'
@@ -49,7 +50,7 @@ tasks:
 
 check ci:
 	+@bash scripts/ci/run-validation-targets.sh --fail-fast \
-		shared-tooling-check tools-check check-doc-links check-workspace check-pins \
+		shared-tooling-check tools-check check-doc-links check-workspace check-pins check-boundary \
 		fmt-check check-package clippy docs-check test msrv check-release-commands check-release-adapters
 
 check-doc-links:
@@ -63,6 +64,9 @@ check-workspace:
 
 check-pins:
 	+@bash scripts/ci/check-dependency-pins.sh --consumer "$(CURDIR)" --cargo-inheritance
+
+check-boundary:
+	@bash scripts/ci/check-cargo-dependency-boundaries.sh --consumer "$(CURDIR)"
 
 check-package:
 	+CARGO_NET_OFFLINE=true RUSTUP_AUTO_INSTALL=0 cargo check \

@@ -1,7 +1,7 @@
 //! Caller-selected, verified external transform composed with a retained cache transaction.
 
 use ic_build::artifacts::{
-    ArtifactCacheOutcome, ArtifactCachePreparation, ArtifactCachePrunePolicy, ArtifactCacheSpec,
+    ArtifactCacheOutcome, ArtifactCachePreparation, ArtifactCacheSpec, CacheRetentionLimits,
     prepare_artifact_cache,
 };
 use std::time::Duration;
@@ -60,7 +60,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     .with_arguments(["<input>", "<output>"])
     .with_output("result", &output)
     .with_prune_policy(
-        ArtifactCachePrunePolicy::new()
+        CacheRetentionLimits::new()
             .with_max_age(Duration::from_hours(7 * 24))
             .with_max_size_bytes(2 * 1024 * 1024 * 1024),
     );

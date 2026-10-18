@@ -1,10 +1,11 @@
 //! Standalone filesystem evidence for caller-owned build inventories.
 
+pub(super) mod boundaries;
 mod depfiles;
 #[cfg(test)]
 mod tests;
 
-pub use depfiles::{discover_cargo_depfile_inputs, parse_cargo_depfile, read_cargo_depfile_inputs};
+pub use depfiles::{parse_cargo_depfile, read_cargo_depfile_inputs};
 
 use crate::artifacts::{
     cache_fs::canonicalize_allow_missing,
@@ -51,7 +52,7 @@ pub enum InputEvidenceValue {
     /// Raw SHA-256 of a regular file, without a digest-domain prefix.
     File {
         /// Digest of the complete file bytes.
-        sha256: InputDigest,
+        sha256: Sha256Digest,
     },
 }
 
@@ -113,19 +114,8 @@ impl InputEvidenceSpec {
         self.excluded_names.push(name.into());
         self
     }
-}
-
-impl InputEvidence {
-    /// Capture input authority without building or publishing an artifact cache.
-    ///
-    /// Directories record membership, including empty directories. Missing roots
-    /// are explicit evidence; links and special files refuse. Keep a genuine
-    /// source write-exclusion boundary through capture, work and validation.
-    ///
-    /// # Errors
-    /// Returns non-absolute paths, invalid exclusions, unsupported files or I/O.
-    pub fn capture(spec: &InputEvidenceSpec) -> Result<Self, InputEvidenceError> {
-        let mut spec = spec.clone();
+    fn normalized(&self) -> Result<Self, InputEvidenceError> {
+        let mut spec = self.clone();
         for path in spec.roots.iter().chain(&spec.excluded_roots) {
             if !path.is_absolute() {
                 return Err(input_io(
@@ -159,11 +149,58 @@ impl InputEvidence {
         spec.excluded_roots.dedup();
         spec.excluded_names.sort();
         spec.excluded_names.dedup();
+        Ok(spec)
+    }
+
+    fn observes(&self, path: &Path, value: InputEvidenceValue) -> bool {
+        if self
+            .roots
+            .binary_search_by(|root| root.as_path().cmp(path))
+            .is_ok()
+        {
+            return true;
+        }
+        if value == InputEvidenceValue::Missing {
+            return false;
+        }
+        path.ancestors().skip(1).any(|ancestor| {
+            self.roots
+                .binary_search_by(|root| root.as_path().cmp(ancestor))
+                .is_ok()
+                && path.strip_prefix(ancestor).is_ok_and(|suffix| {
+                    suffix.components().all(|component| {
+                        !self
+                            .excluded_names
+                            .iter()
+                            .any(|name| name == component.as_os_str())
+                    })
+                })
+        })
+    }
+}
+
+impl InputEvidence {
+    /// Capture input authority without building or publishing an artifact cache.
+    ///
+    /// Directories record membership, including empty directories. Missing roots
+    /// are explicit evidence; links and special files refuse. Keep a genuine
+    /// source write-exclusion boundary through capture, work and validation.
+    ///
+    /// # Errors
+    /// Returns non-absolute paths, invalid exclusions, unsupported files or I/O.
+    pub fn capture(spec: &InputEvidenceSpec) -> Result<Self, InputEvidenceError> {
+        let spec = spec.normalized()?;
         let mut entries = BTreeMap::new();
         let mut visited = BTreeSet::new();
         let mut walk =
             InputTreeWalk::evidence(&spec.excluded_roots, &spec.excluded_names, &mut visited);
         for root in &spec.roots {
+            // A previously traversed root or child already has complete facts under
+            // the same exclusions. Explicit roots beneath skipped names remain absent
+            // from the map and are still visited independently.
+            if entries.contains_key(root) {
+                continue;
+            }
             walk.visit(root, root, true, &mut |entry| {
                 let (path, value) = match entry {
                     InputTreeEntry::File { path, .. } => {
@@ -172,7 +209,7 @@ impl InputEvidence {
                         (
                             path,
                             InputEvidenceValue::File {
-                                sha256: InputDigest::from_bytes(*hash.sha256.as_bytes()),
+                                sha256: hash.sha256,
                             },
                         )
                     }
@@ -298,33 +335,39 @@ impl InputEvidence {
         Ok(digest_values(&self.spec.identity, &mut ordered))
     }
 
-    /// Validate an expanded/replaced inventory against pre-work authority.
+    /// Capture and validate a post-work inventory against pre-work authority.
     ///
-    /// Rechecks every original root even when a changed/disappearing depfile no
-    /// longer names it. Late bytes cannot become pre-build authority. A newly
-    /// named missing path is admissible only when a complete earlier directory
-    /// scan proved its first child absent and that child was not excluded.
+    /// Observes the union of original and selected roots once, so disappearing
+    /// depfiles cannot drop old checks. Returns only the selected inventory,
+    /// preserving its digest encoding. Previously observed paths are not rehashed
+    /// when a declared root overlaps a traversed directory. Keep source custody
+    /// through observation and use of the returned evidence.
+    ///
+    /// Late bytes cannot become pre-build authority. A newly selected missing
+    /// path is admitted only when an earlier complete, non-excluded directory
+    /// scan proved its first child absent.
     ///
     /// # Errors
     /// Returns changed identity/policy/inputs, unobserved inputs or I/O failures.
-    pub fn validate_after(&self, after: &Self) -> Result<(), InputEvidenceError> {
-        if self.spec.identity != after.spec.identity {
+    pub fn validate_after(&self, after: &InputEvidenceSpec) -> Result<Self, InputEvidenceError> {
+        let after = after.normalized()?;
+        if self.spec.identity != after.identity {
             return Err(InputEvidenceError::IdentityChanged);
         }
-        if self.spec.excluded_roots != after.spec.excluded_roots
-            || self.spec.excluded_names != after.spec.excluded_names
+        if self.spec.excluded_roots != after.excluded_roots
+            || self.spec.excluded_names != after.excluded_names
         {
             return Err(InputEvidenceError::ExclusionsChanged);
         }
-        let retained = Self::capture(&self.spec)?;
+        let mut combined = after.clone();
+        combined.roots.extend(self.spec.roots.iter().cloned());
+        let mut retained = Self::capture(&combined)?;
         for (path, before) in &self.entries {
-            if retained.entries.get(path) != Some(before)
-                || after.entries.get(path).is_some_and(|value| value != before)
-            {
+            if retained.entries.get(path) != Some(before) {
                 return Err(InputEvidenceError::ChangedInput { path: path.clone() });
             }
         }
-        for (path, value) in retained.entries.iter().chain(&after.entries) {
+        for (path, value) in &retained.entries {
             if self.entries.contains_key(path) {
                 continue;
             }
@@ -336,7 +379,11 @@ impl InputEvidence {
             }
             return Err(InputEvidenceError::UnobservedInput { path: path.clone() });
         }
-        Ok(())
+        retained
+            .entries
+            .retain(|path, value| after.observes(path, *value));
+        retained.spec = after;
+        Ok(retained)
     }
 
     fn observed_absence(&self, path: &Path) -> bool {
@@ -387,7 +434,7 @@ fn digest_values<K: AsRef<str>>(
             InputEvidenceValue::Missing => framed_field(&mut digest, b"absent"),
             InputEvidenceValue::Directory => framed_field(&mut digest, b"directory"),
             InputEvidenceValue::File { sha256 } => {
-                let encoded = Sha256Digest::from_bytes(*sha256.as_bytes()).hex_bytes();
+                let encoded = sha256.hex_bytes();
                 framed_field(&mut digest, &encoded);
             }
         }

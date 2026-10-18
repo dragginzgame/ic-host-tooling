@@ -1,31 +1,33 @@
+use crate::cargo::selection::{CargoFeatureSelection, CargoSelection};
+use crate::cargo_fixture::spawn_cargo;
 use ic_host_fs::owned_directory::OwnedDirectory;
+use ic_host_fs::read::directory_logical_size;
+use ic_host_process::child::OwnedChild;
 #[cfg(unix)]
 use ic_host_process::testing::write_executable_script;
+use ic_host_process::tool::OutputStream;
 
 use super::{
-    MetadataPackage, ProgressReporter, SharedIncrementalTargetMaintenanceConfig,
+    ProgressReporter, SharedIncrementalTargetMaintenanceConfig,
     SharedIncrementalTargetMaintenanceFailureMode, SharedIncrementalTargetMaintenanceOutcome,
-    SharedIncrementalTargetPrunePolicy, WasmBuildBatchInputResolver, WasmBuildError,
-    WasmBuildOutcome, WasmBuildOutputStream, WasmBuildProgressConfig, WasmBuildProgressEvent,
-    WasmBuildProgressPhase, WasmBuildSpec, append_cargo_configuration_inputs, artifact_stamp_path,
-    build_wasm_canisters_cached, build_wasm_canisters_cached_with_progress,
+    WasmBuildBatchInputResolver, WasmBuildError, WasmBuildOutcome, WasmBuildPhase,
+    WasmBuildProgressConfig, WasmBuildProgressEvent, WasmBuildSpec,
+    append_cargo_configuration_inputs, artifact_stamp_path, build_wasm_canisters_cached,
     ensure_cache_directory_tag, finish_fingerprint_build, inspect_shared_incremental_target,
     integrated_shared_maintenance_result, lock_wasm_build_cache,
     lock_wasm_build_cache_with_progress, locked_package_identities,
     maintain_shared_incremental_target, maintain_shared_incremental_target_at_most_every,
     materialize_artifacts, perform_configured_shared_incremental_target_maintenance,
     prune_wasm_build_cache, prune_wasm_build_cache_locked, publish_artifact_stamps,
-    reconstruct_exact_cache_entry, resolve_cargo_build_inputs, run_cargo_build,
-    semantic_package_identity, validate_spec, validated_artifact_set,
+    resolve_cargo_build_inputs, run_cargo_build, semantic_package_identity, validate_spec,
+    validated_artifact_set,
 };
-use crate::artifacts::cache_fs::{
-    ArtifactCachePrunePolicy, CACHE_DIRECTORY_TAG_SIGNATURE, directory_logical_size,
-    write_last_used,
-};
+use crate::artifacts::cache_fs::{CacheRetentionLimits, write_last_used};
 use crate::artifacts::{WasmBuildInputSnapshot, digest::digest_bytes};
 use crate::fs_fixture::unique_temp_directory;
 use std::{
     collections::BTreeSet,
+    ffi::OsStr,
     ffi::OsString,
     fs,
     path::{Path, PathBuf},
@@ -46,13 +48,48 @@ use std::{
     os::unix::fs::{MetadataExt as _, PermissionsExt as _, symlink},
 };
 
+fn artifact_pairs(paths: &[PathBuf]) -> Vec<(PathBuf, PathBuf)> {
+    paths
+        .iter()
+        .map(|path| (path.clone(), path.clone()))
+        .collect()
+}
+
 fn canonical_fixture(path: &Path) -> PathBuf {
     path.canonicalize().expect("canonicalize test fixture path")
 }
 
 #[cfg(unix)]
 #[test]
-fn chained_environment_overrides_reach_build_and_preserve_cache_identity() {
+fn outcome_facts_are_retained_without_additional_identity_probes() {
+    let (root, spec) = fake_wasm_build_spec("outcome-facts");
+    let cargo = root.join("cargo.sh");
+    let log = root.join("cargo-invocations");
+    let script = fs::read_to_string(&cargo).unwrap().replace(
+        "set -eu\n",
+        &format!("set -eu\nprintf '%s\\n' \"$1\" >> '{}'\n", log.display()),
+    );
+    write_executable_script(&cargo, script).unwrap();
+    let cold = build_wasm_canisters_cached(&spec, OwnedChild::spawn_direct).unwrap();
+    let warm = build_wasm_canisters_cached(&spec, OwnedChild::spawn_direct).unwrap();
+    assert!(!cold.is_reused());
+    assert!(warm.is_reused());
+    assert_eq!(cold.record().facts(), warm.record().facts());
+    let before = fs::read(&log).unwrap();
+    fs::remove_file(cargo).unwrap();
+    let cloned = warm.record().clone();
+    assert_eq!(cloned.facts(), cold.record().facts());
+    assert_eq!(fs::read(&log).unwrap(), before);
+    let calls = String::from_utf8(before).unwrap();
+    assert_eq!(calls.lines().filter(|line| *line == "--version").count(), 4);
+    assert_eq!(calls.lines().filter(|line| *line == "metadata").count(), 4);
+    assert_eq!(calls.lines().filter(|line| *line == "build").count(), 1);
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[cfg(unix)]
+#[test]
+fn caller_selected_environment_reaches_build_and_preserves_cache_identity() {
     let (root, spec) = fake_wasm_build_spec("merged-environment");
     let wrapper = root.join("cargo.sh");
     let producer = root.join("producer.sh");
@@ -74,28 +111,36 @@ exec {quoted_producer} "$@"
         ),
     )
     .expect("write environment-checking Cargo wrapper");
-    let chained = spec
-        .clone()
-        .with_extra_env([("LEFT", "left value"), ("DUP", "first value")])
-        .with_extra_env([("RIGHT", "right value"), ("DUP", "last value")])
-        .with_extra_env(std::iter::empty::<(&str, &str)>());
-    let first = build_wasm_canisters_cached(&chained).unwrap();
+    let mut selected =
+        crate::cargo_fixture::environment_with([("LEFT", "left value"), ("DUP", "first value")]);
+    selected.extend([
+        ("RIGHT".into(), "right value".into()),
+        ("DUP".into(), "last value".into()),
+    ]);
+    let chained = spec.clone().with_environment(selected);
+    let first = build_wasm_canisters_cached(&chained, OwnedChild::spawn_direct).unwrap();
     assert!(matches!(first, WasmBuildOutcome::Built { .. }));
     assert_eq!(
         fs::read_to_string(root.join("merged-environment")).unwrap(),
         "left value\nright value\nlast value\n"
     );
-    let combined = spec.with_extra_env([
+    let combined = spec.with_environment(crate::cargo_fixture::environment_with([
         ("LEFT", "left value"),
         ("RIGHT", "right value"),
         ("DUP", "last value"),
-    ]);
-    let reused = build_wasm_canisters_cached(&combined).unwrap();
+    ]));
+    let reused = build_wasm_canisters_cached(&combined, OwnedChild::spawn_direct).unwrap();
     assert!(matches!(reused, WasmBuildOutcome::Reused { .. }));
     assert_eq!(first.record().fingerprint(), reused.record().fingerprint());
-    let changed = resolve_cargo_build_inputs(&chained.with_extra_env([("LEFT", "changed")]))
-        .expect("resolve changed environment identity");
+    assert_eq!(first.record().facts(), reused.record().facts());
+    assert_eq!(first.record().facts().environment, combined.environment);
+    let changed = resolve_cargo_build_inputs(&chained.with_environment(
+        crate::cargo_fixture::environment_with([("LEFT", "changed")]),
+    ))
+    .expect("resolve changed environment identity");
     assert_ne!(first.record().fingerprint(), changed.fingerprint());
+    assert_eq!(first.record().facts().selection, combined.cargo_selection);
+    assert_eq!(first.record().facts().target, combined.target);
     drop((first, reused));
     fs::remove_dir_all(root).unwrap();
 }
@@ -107,24 +152,34 @@ fn shim_compiler_identity_invalidates_exact_cache_and_explicit_rustc_takes_prece
     let compiler = root.join("selected-rustc");
     write_executable_script(&compiler, "#!/bin/sh\nprintf 'selected-compiler-A\\n'\n")
         .expect("write executable test script");
-    let spec = spec.with_rustc_identity_program(compiler.as_os_str());
-    let first = build_wasm_canisters_cached(&spec).unwrap();
+    // The validation adapter may select RUSTC. This case exercises the identity
+    // shim; the explicit-RUSTC precedence case below selects it separately.
+    let mut environment = spec.environment().clone();
+    environment.remove(OsStr::new("RUSTC"));
+    let spec = spec
+        .with_environment(environment)
+        .with_rustc_identity_program(compiler.as_os_str());
+    let first = build_wasm_canisters_cached(&spec, OwnedChild::spawn_direct).unwrap();
     assert!(matches!(first, WasmBuildOutcome::Built { .. }));
     assert!(matches!(
-        build_wasm_canisters_cached(&spec).unwrap(),
+        build_wasm_canisters_cached(&spec, OwnedChild::spawn_direct).unwrap(),
         WasmBuildOutcome::Reused { .. }
     ));
     write_executable_script(&compiler, "#!/bin/sh\nprintf 'selected-compiler-B\\n'\n")
         .expect("write executable test script");
-    let second = build_wasm_canisters_cached(&spec).unwrap();
+    let second = build_wasm_canisters_cached(&spec, OwnedChild::spawn_direct).unwrap();
     assert!(matches!(second, WasmBuildOutcome::Built { .. }));
     assert_ne!(first.record().fingerprint(), second.record().fingerprint());
     let selected_rustc = std::env::var_os("RUSTC").unwrap_or_else(|| "rustc".into());
+    let mut selected = crate::cargo_fixture::environment_with([(
+        "UNRELATED_OVERRIDE",
+        "retained compiler selection",
+    )]);
+    selected.insert("RUSTC".into(), selected_rustc);
     let override_spec = spec
         .with_rustc_identity_program("/missing/identity-probe")
-        .with_extra_env([(OsString::from("RUSTC"), selected_rustc)])
-        .with_extra_env([("UNRELATED_OVERRIDE", "retained compiler selection")]);
-    build_wasm_canisters_cached(&override_spec)
+        .with_environment(selected);
+    build_wasm_canisters_cached(&override_spec, OwnedChild::spawn_direct)
         .expect("explicit RUSTC selects metadata/build environment and identity probe");
     drop((first, second));
     fs::remove_dir_all(root).unwrap();
@@ -134,9 +189,14 @@ fn shim_compiler_identity_invalidates_exact_cache_and_explicit_rustc_takes_prece
 #[cfg(unix)]
 fn default_builds_share_cargo_state_across_fingerprints() {
     let (root, fixture) = fake_wasm_build_spec("default-shared-cargo");
-    let spec = WasmBuildSpec::new(&root, &root.join("exact"), &["fixture"])
-        .with_cargo_program(fixture.cargo_program);
-    let first = build_wasm_canisters_cached(&spec).unwrap();
+    let spec = WasmBuildSpec::new(
+        &root,
+        &root.join("exact"),
+        &["fixture"],
+        crate::cargo_fixture::environment(),
+    )
+    .with_cargo_program(fixture.cargo_program);
+    let first = build_wasm_canisters_cached(&spec, OwnedChild::spawn_direct).unwrap();
     assert!(
         first
             .record()
@@ -146,8 +206,14 @@ fn default_builds_share_cargo_state_across_fingerprints() {
     );
     let target = root.join("target/ic-testkit-incremental");
     fs::write(target.join("retained-cargo-state"), b"retained").unwrap();
-    let second =
-        build_wasm_canisters_cached(&spec.with_extra_env([("BUILD_VARIANT", "second")])).unwrap();
+    let second = build_wasm_canisters_cached(
+        &spec.with_environment(crate::cargo_fixture::environment_with([(
+            "BUILD_VARIANT",
+            "second",
+        )])),
+        OwnedChild::spawn_direct,
+    )
+    .unwrap();
     assert_ne!(first.record().fingerprint(), second.record().fingerprint());
     assert!(
         second
@@ -196,11 +262,16 @@ fn workspace_selection_preserves_membership_ambiguity_and_requested_order() {
         "workspace_root": "/workspace", "target_directory": "/workspace/target",
         "resolve": {"nodes": [], "root": null}, "version": 1,
     });
-    let mut spec = WasmBuildSpec::new(Path::new("/workspace"), Path::new("/target"), &[]);
+    let mut spec = WasmBuildSpec::new(
+        Path::new("/workspace"),
+        Path::new("/target"),
+        &[],
+        crate::cargo_fixture::environment(),
+    );
     // Exercise the selector independently of the builder's canonical ordering.
     spec.packages = vec!["zeta".into(), "alpha".into()];
     let canonical = serde_json::from_value(original.clone()).unwrap();
-    let parsed = super::ParsedCargoMetadata::parse(&canonical, &original).unwrap();
+    let parsed = super::ParsedCargoMetadata::parse(&canonical).unwrap();
     assert_eq!(
         super::selected_package_ids(&spec, &parsed).unwrap(),
         ["z", "a"]
@@ -212,10 +283,10 @@ fn workspace_selection_preserves_membership_ambiguity_and_requested_order() {
             if message == "Cargo workspace contains no package named `missing`"
     ));
 
-    let mut ambiguous = original.clone();
+    let mut ambiguous = original;
     ambiguous["workspace_members"] = serde_json::json!(["a", "z", "other"]);
-    let canonical = serde_json::from_value(ambiguous.clone()).unwrap();
-    let parsed = super::ParsedCargoMetadata::parse(&canonical, &ambiguous).unwrap();
+    let canonical = serde_json::from_value(ambiguous).unwrap();
+    let parsed = super::ParsedCargoMetadata::parse(&canonical).unwrap();
     spec.packages = vec!["alpha".into()];
     assert!(matches!(
         super::selected_package_ids(&spec, &parsed),
@@ -239,8 +310,18 @@ fn package_selection_agrees_across_identity_artifacts_and_cargo_invocation() {
     write_projection_package(&root, "alpha", "");
     write_projection_package(&root, "zeta", "");
     let target = root.join("exact");
-    let ordered = WasmBuildSpec::new(&root, &target, &["alpha", "zeta"]);
-    let redundant = WasmBuildSpec::new(&root, &target, &["zeta", "alpha", "zeta", "alpha"]);
+    let ordered = WasmBuildSpec::new(
+        &root,
+        &target,
+        &["alpha", "zeta"],
+        crate::cargo_fixture::environment(),
+    );
+    let redundant = WasmBuildSpec::new(
+        &root,
+        &target,
+        &["zeta", "alpha", "zeta", "alpha"],
+        crate::cargo_fixture::environment(),
+    );
     assert_eq!(redundant.packages(), ordered.packages());
     assert_eq!(redundant, ordered);
 
@@ -262,20 +343,31 @@ fn package_selection_agrees_across_identity_artifacts_and_cargo_invocation() {
     )
     .unwrap();
     let arguments = root.join("arguments");
-    let spec = redundant
-        .with_cargo_program("/bin/sh")
-        .with_extra_env([("IC_TESTKIT_PACKAGE_ARGUMENTS", arguments.as_os_str())]);
+    let spec = redundant.with_cargo_program("/bin/sh").with_environment(
+        crate::cargo_fixture::environment_with([(
+            "IC_TESTKIT_PACKAGE_ARGUMENTS",
+            arguments.as_os_str(),
+        )]),
+    );
     for observed in [false, true] {
         let mut observer = |_| {};
         let mut progress = if observed {
-            ProgressReporter::observed(
+            ProgressReporter::new(Some((
                 WasmBuildProgressConfig::new().without_heartbeats(),
                 &mut observer,
-            )
+            )))
+            .unwrap()
         } else {
             ProgressReporter::silent()
         };
-        run_cargo_build(&spec, &root.join("cargo-target"), &[], &mut progress).unwrap();
+        run_cargo_build(
+            &spec,
+            &root.join("cargo-target"),
+            &[],
+            &mut progress,
+            &mut (spawn_cargo),
+        )
+        .unwrap();
         assert_eq!(
             fs::read_to_string(&arguments).unwrap(),
             "--message-format=json\n--lib\n--target\nwasm32-unknown-unknown\n-p\nalpha\n-p\nzeta\n",
@@ -283,23 +375,6 @@ fn package_selection_agrees_across_identity_artifacts_and_cargo_invocation() {
         fs::remove_file(&arguments).unwrap();
     }
     fs::remove_dir_all(root).unwrap();
-}
-
-#[test]
-fn metadata_receives_only_resolution_arguments() {
-    let arguments = [
-        OsString::from("--profile"),
-        OsString::from("fast"),
-        OsString::from("--locked"),
-        OsString::from("--features=alpha,beta"),
-    ];
-    assert_eq!(
-        crate::cargo::selection::CargoSelection::parse(arguments.to_vec()).metadata_arguments,
-        [
-            OsString::from("--locked"),
-            OsString::from("--features=alpha,beta"),
-        ]
-    );
 }
 
 #[test]
@@ -311,8 +386,8 @@ fn wasm_stamps_require_exact_identity_and_unmodified_contents() {
     let other_fingerprint = digest_bytes("stamp-fixture-v1", b"second");
     let original = b"\0asm\x01\0\0\0";
     fs::write(&artifact, original).expect("write artifact");
-    assert!(validated_artifact_set(&artifacts, fingerprint).is_none());
-    publish_artifact_stamps(&artifacts, fingerprint).expect("publish stamp");
+    assert!(validated_artifact_set(artifact_pairs(&artifacts), fingerprint).is_none());
+    publish_artifact_stamps(artifact_pairs(&artifacts), fingerprint).expect("publish stamp");
     let stamp_path = artifact_stamp_path(&artifact);
     let stamp = fs::read_to_string(&stamp_path).expect("read stamp");
     let artifact_digest = digest_bytes("wasm-artifact-v1", original);
@@ -322,14 +397,14 @@ fn wasm_stamps_require_exact_identity_and_unmodified_contents() {
             "ic-testkit-wasm-build-v1\nbuild-sha256:{fingerprint}\nartifact-sha256:{artifact_digest}\n"
         ),
     );
-    assert!(validated_artifact_set(&artifacts, fingerprint).is_some());
-    assert!(validated_artifact_set(&artifacts, other_fingerprint).is_none());
+    assert!(validated_artifact_set(artifact_pairs(&artifacts), fingerprint).is_some());
+    assert!(validated_artifact_set(artifact_pairs(&artifacts), other_fingerprint).is_none());
 
     // A correct build header still requires checking the artifact's bytes.
     fs::write(&artifact, b"\0asm\x02\0\0\0").expect("modify same-size artifact");
-    assert!(validated_artifact_set(&artifacts, fingerprint).is_none());
+    assert!(validated_artifact_set(artifact_pairs(&artifacts), fingerprint).is_none());
     fs::write(&artifact, original).expect("restore artifact bytes");
-    assert!(validated_artifact_set(&artifacts, fingerprint).is_some());
+    assert!(validated_artifact_set(artifact_pairs(&artifacts), fingerprint).is_some());
 
     for invalid in [
         stamp.replace("ic-testkit-wasm-build-v1", "invalid-format"),
@@ -339,10 +414,10 @@ fn wasm_stamps_require_exact_identity_and_unmodified_contents() {
         stamp.trim_end().to_owned(),
     ] {
         fs::write(&stamp_path, invalid).expect("write invalid stamp");
-        assert!(validated_artifact_set(&artifacts, fingerprint).is_none());
+        assert!(validated_artifact_set(artifact_pairs(&artifacts), fingerprint).is_none());
     }
     fs::write(&stamp_path, [0xff]).expect("write invalid UTF-8 stamp");
-    assert!(validated_artifact_set(&artifacts, fingerprint).is_none());
+    assert!(validated_artifact_set(artifact_pairs(&artifacts), fingerprint).is_none());
 
     // A matching header must not turn an oversized sidecar into an unbounded read.
     fs::write(&stamp_path, &stamp).expect("write matching stamp prefix");
@@ -352,27 +427,28 @@ fn wasm_stamps_require_exact_identity_and_unmodified_contents() {
         .expect("open oversized stamp")
         .set_len(1024 * 1024 * 1024)
         .expect("extend oversized stamp");
-    assert!(validated_artifact_set(&artifacts, fingerprint).is_none());
-    publish_artifact_stamps(&artifacts, fingerprint).expect("replace oversized stamp");
-    assert!(validated_artifact_set(&artifacts, fingerprint).is_some());
+    assert!(validated_artifact_set(artifact_pairs(&artifacts), fingerprint).is_none());
+    publish_artifact_stamps(artifact_pairs(&artifacts), fingerprint)
+        .expect("replace oversized stamp");
+    assert!(validated_artifact_set(artifact_pairs(&artifacts), fingerprint).is_some());
     for bytes in [[0; 32], [0xff; 32]] {
         let fingerprint = super::InputDigest::from_bytes(bytes);
-        publish_artifact_stamps(&artifacts, fingerprint).unwrap();
+        publish_artifact_stamps(artifact_pairs(&artifacts), fingerprint).unwrap();
         let stamp = fs::read(&stamp_path).unwrap();
         assert_eq!(stamp.len(), 184);
-        assert!(validated_artifact_set(&artifacts, fingerprint).is_some());
+        assert!(validated_artifact_set(artifact_pairs(&artifacts), fingerprint).is_some());
         let mut oversized = stamp.clone();
         oversized.push(b'\n');
         fs::write(&stamp_path, oversized).unwrap();
-        assert!(validated_artifact_set(&artifacts, fingerprint).is_none());
+        assert!(validated_artifact_set(artifact_pairs(&artifacts), fingerprint).is_none());
         fs::write(&stamp_path, &stamp[..stamp.len() - 1]).unwrap();
-        assert!(validated_artifact_set(&artifacts, fingerprint).is_none());
+        assert!(validated_artifact_set(artifact_pairs(&artifacts), fingerprint).is_none());
     }
     fs::remove_dir_all(root).expect("remove stamp fixture");
 }
 
 #[test]
-fn compact_feature_arguments_watch_enabled_optional_dependencies() {
+fn typed_features_watch_enabled_optional_dependencies() {
     let root = unique_temp_directory("compact-feature-inputs");
     fs::write(
         root.join("Cargo.toml"),
@@ -388,19 +464,23 @@ fn compact_feature_arguments_watch_enabled_optional_dependencies() {
     write_projection_package(&root, "optional_dep", "");
     let dependency = root.join("optional_dep");
     let dependency_source = dependency.join("src/lib.rs");
-    let base = WasmBuildSpec::new(&root, &root.join("target"), &["fixture"]);
+    let base = WasmBuildSpec::new(
+        &root,
+        &root.join("target"),
+        &["fixture"],
+        crate::cargo_fixture::environment(),
+    );
 
-    for arguments in [
-        vec!["-Fextra"],
-        vec!["-F=extra"],
-        vec!["-qFextra"],
-        vec!["-qFmap"],
-        vec!["-rF=extra"],
-        vec!["-vF", "extra"],
-    ] {
+    for feature in ["extra", "map"] {
         fs::write(&dependency_source, "pub fn optional_dep() -> u8 { 1 }\n")
             .expect("reset optional dependency source");
-        let spec = base.clone().with_cargo_profile_args(&arguments);
+        let spec = base.clone().with_cargo_selection(CargoSelection {
+            features: CargoFeatureSelection {
+                features: [feature.to_owned()].into(),
+                ..Default::default()
+            },
+            ..Default::default()
+        });
         validate_spec(&spec).expect("accept feature selection without input overrides");
         let snapshot = resolve_cargo_build_inputs(&spec).expect("resolve enabled dependency");
         assert!(
@@ -408,7 +488,7 @@ fn compact_feature_arguments_watch_enabled_optional_dependencies() {
                 .inputs()
                 .iter()
                 .any(|input| input.path() == canonical_fixture(&dependency)),
-            "{arguments:?} must include the enabled optional dependency",
+            "{feature:?} must include the enabled optional dependency",
         );
         assert!(
             snapshot
@@ -434,7 +514,7 @@ fn compact_feature_arguments_watch_enabled_optional_dependencies() {
             !snapshot
                 .is_content_current()
                 .expect("detect dependency change"),
-            "{arguments:?} must watch the enabled optional dependency",
+            "{feature:?} must watch the enabled optional dependency",
         );
     }
     fs::remove_dir_all(root).expect("remove compact feature fixture");
@@ -442,151 +522,56 @@ fn compact_feature_arguments_watch_enabled_optional_dependencies() {
 
 #[test]
 fn builders_preserve_os_native_values() {
-    let spec = WasmBuildSpec::new(Path::new("."), Path::new("target"), &["fixture"])
-        .with_cargo_profile_args([OsString::from("--locked")])
-        .with_extra_env([("MODE", "exact"), ("RUSTFLAGS", "")])
-        .with_inherited_env(["RUSTFLAGS", "PATH", "IC_BUILD_TEST_ABSENT_38D9C64"])
+    let selected = [
+        (OsString::from("MODE"), OsString::from("exact")),
+        ("RUSTFLAGS".into(), "".into()),
+    ];
+    let spec = WasmBuildSpec::new(Path::new("."), Path::new("target"), &["fixture"], selected)
+        .with_cargo_selection(CargoSelection {
+            locked: true,
+            ..Default::default()
+        })
         .with_additional_inputs([PathBuf::from("schema")]);
-
-    assert_eq!(spec.cargo_selection.arguments, [OsString::from("--locked")]);
     assert_eq!(
-        spec.extra_env.get(&OsString::from("MODE")),
-        Some(&OsString::from("exact"))
+        spec.cargo_selection.build_arguments(),
+        [OsString::from("--locked")]
     );
-    assert!(spec.inherited_env.contains(&OsString::from("RUSTFLAGS")));
+    assert_eq!(spec.environment()[OsStr::new("MODE")], "exact");
+    assert_eq!(spec.environment()[OsStr::new("RUSTFLAGS")], "");
+    assert!(!spec.environment().contains_key(OsStr::new("PATH")));
     assert_eq!(spec.additional_inputs, [PathBuf::from("schema")]);
-    let environment = super::effective_environment(&spec);
-    assert_eq!(environment[&OsString::from("MODE")], Some("exact".into()));
-    assert_eq!(environment[&OsString::from("RUSTFLAGS")], Some("".into()));
-    assert_eq!(
-        environment[&OsString::from("PATH")],
-        std::env::var_os("PATH")
-    );
-    assert_eq!(
-        environment[&OsString::from("IC_BUILD_TEST_ABSENT_38D9C64")],
-        None
-    );
-    for name in super::AUTOMATIC_ENVIRONMENT {
-        if *name != "RUSTFLAGS" {
-            assert_eq!(environment[&OsString::from(name)], std::env::var_os(name));
-        }
-    }
+    let replaced = spec.clone().with_environment([("ONLY", "selected")]);
+    assert_eq!(replaced.environment().len(), 1);
+    assert!(!replaced.environment().contains_key(OsStr::new("MODE")));
     #[cfg(unix)]
     {
         use std::os::unix::ffi::OsStringExt as _;
         let name = OsString::from_vec(b"NATIVE_\xff".to_vec());
         let value = OsString::from_vec(b"value_\xff".to_vec());
-        let spec = spec.with_extra_env([(name.clone(), value.clone())]);
-        assert_eq!(super::effective_environment(&spec)[&name], Some(value));
+        let spec = spec.with_environment([(name.clone(), value.clone())]);
+        assert_eq!(spec.environment()[&name], value);
     }
 }
 
 #[test]
 fn cargo_target_overrides_are_rejected_before_acquisition() {
     let root = unique_temp_directory("cargo-target-overrides");
-    let spec = WasmBuildSpec::new(&root, &root.join("exact"), &["fixture"]);
-    for override_spec in [
-        spec.clone().with_extra_env([("CARGO_TARGET_DIR", "other")]),
-        spec.clone()
-            .with_cargo_profile_args(["--target-dir", "other"]),
-        spec.with_cargo_profile_args(["--target-dir=other"]),
-    ] {
-        assert!(matches!(
-            build_wasm_canisters_cached(&override_spec),
-            Err(WasmBuildError::InvalidSpec { .. })
-        ));
-    }
+    let spec = WasmBuildSpec::new(
+        &root,
+        &root.join("exact"),
+        &["fixture"],
+        crate::cargo_fixture::environment(),
+    );
+    let override_spec = spec.with_environment(crate::cargo_fixture::environment_with([(
+        "CARGO_TARGET_DIR",
+        "other",
+    )]));
+    assert!(matches!(
+        build_wasm_canisters_cached(&override_spec, OwnedChild::spawn_direct),
+        Err(WasmBuildError::InvalidSpec { .. })
+    ));
     assert!(!root.join("exact").exists());
     fs::remove_dir_all(root).expect("remove Cargo target override fixture");
-}
-
-#[test]
-#[cfg(unix)]
-fn cargo_non_building_commands_cannot_publish_existing_shared_target_outputs() {
-    // These modes must be rejected before invoking tools or certifying an old output.
-    for arguments in [vec!["--help"], vec!["--unit-graph", "-Zunstable-options"]] {
-        let (root, spec) = fake_wasm_build_spec("cargo-non-build-shared-output");
-        let shared = root.join("incremental");
-        let spec = spec
-            .with_cargo_program(std::env::var_os("CARGO").unwrap_or_else(|| "cargo".into()))
-            .with_cargo_profile_args(&arguments)
-            .with_shared_incremental_target(&shared);
-        let existing = expected_artifacts(&spec, &shared);
-        fs::create_dir_all(existing[0].parent().unwrap()).unwrap();
-        fs::write(&existing[0], b"\0asm\x01\0\0\0").unwrap();
-
-        let result = build_wasm_canisters_cached(&spec);
-        assert!(
-            matches!(result, Err(WasmBuildError::InvalidSpec { .. })),
-            "{arguments:?} must not publish existing output: {result:?}",
-        );
-        assert!(!spec.target_dir.exists());
-        assert_eq!(fs::read(&existing[0]).unwrap(), b"\0asm\x01\0\0\0");
-        fs::remove_dir_all(root).unwrap();
-    }
-}
-
-#[test]
-fn cargo_input_overrides_are_rejected_before_resolution_or_acquisition() {
-    let root = unique_temp_directory("cargo-input-overrides");
-    let spec = WasmBuildSpec::new(&root, &root.join("exact"), &["fixture"])
-        .with_cargo_program(root.join("missing-cargo"));
-    for arguments in [
-        vec!["--manifest-path", "other/Cargo.toml"],
-        vec!["--manifest-path=other/Cargo.toml"],
-        vec!["-m", "other/Cargo.toml"],
-        vec!["-mother/Cargo.toml"],
-        vec!["-qmother/Cargo.toml"],
-        vec!["-C", "other"],
-        vec!["-vCother"],
-        vec!["--target", "other-target"],
-        vec!["--target=other-target"],
-        vec!["--package", "other"],
-        vec!["--package=other"],
-        vec!["-p", "other"],
-        vec!["-pother"],
-        vec!["-qpother"],
-        vec!["--workspace"],
-        vec!["--all"],
-        vec!["--exclude", "fixture"],
-        vec!["--exclude=fixture"],
-        vec!["--config", "other.toml"],
-        vec!["--config=build.rustflags=['--cfg=other']"],
-        vec!["--help"],
-        vec!["-h"],
-        vec!["-qh"],
-        vec!["-rh"],
-        vec!["-vh"],
-        vec!["-vrhFextra"],
-        vec!["--unit-graph"],
-        vec!["--unit-graph", "-Zunstable-options"],
-        vec!["-Zunstable-options", "--unit-graph"],
-    ] {
-        let override_spec = spec.clone().with_cargo_profile_args(&arguments);
-        for result in [
-            resolve_cargo_build_inputs(&override_spec).map(|_| ()),
-            build_wasm_canisters_cached(&override_spec).map(|_| ()),
-        ] {
-            assert!(
-                matches!(result, Err(WasmBuildError::InvalidSpec { .. })),
-                "{arguments:?} must fail before launching Cargo: {result:?}",
-            );
-        }
-    }
-    // Compact feature values containing 'h' are values, not help switches.
-    for arguments in [
-        vec!["-Fh"],
-        vec!["-qFhighlights"],
-        vec!["-rF=highlights"],
-        vec!["-F", "highlights"],
-        vec!["--features=highlights"],
-        vec!["--features", "highlights"],
-    ] {
-        let feature_spec = spec.clone().with_cargo_profile_args(&arguments);
-        super::validate_spec(&feature_spec).expect("accept feature values containing 'h'");
-    }
-    assert!(!root.join("exact").exists());
-    fs::remove_dir_all(root).expect("remove Cargo input override fixture");
 }
 
 #[cfg(unix)]
@@ -609,12 +594,13 @@ fn shared_target_boundaries_preserve_retained_exact_entries() {
     let mut nested = base.clone();
     nested.target_dir = unsafe_shared.join("exact");
     // A retained isolated build already exists before shared maintenance is enabled.
-    let retained = build_wasm_canisters_cached(&nested).expect("build retained exact artifact");
+    let retained = build_wasm_canisters_cached(&nested, OwnedChild::spawn_direct)
+        .expect("build retained exact artifact");
     let artifact = retained.record().artifacts()[0].clone();
     nested = nested.with_shared_incremental_target(&unsafe_shared);
-    let policy = SharedIncrementalTargetPrunePolicy::new().with_max_size_bytes(0);
+    let policy = CacheRetentionLimits::new().with_max_size_bytes(0);
     assert!(matches!(
-        build_wasm_canisters_cached(&nested),
+        build_wasm_canisters_cached(&nested, OwnedChild::spawn_direct),
         Err(WasmBuildError::InvalidSpec { .. })
     ));
     assert!(matches!(
@@ -639,7 +625,8 @@ fn shared_target_boundaries_preserve_retained_exact_entries() {
     let same_root = base
         .clone()
         .with_shared_incremental_target(&base.target_dir);
-    let safe = build_wasm_canisters_cached(&same_root).expect("build with common target container");
+    let safe = build_wasm_canisters_cached(&same_root, OwnedChild::spawn_direct)
+        .expect("build with common target container");
     maintain_shared_incremental_target(&same_root, policy)
         .expect("maintain common target container");
     assert!(safe.record().artifacts()[0].is_file());
@@ -682,10 +669,12 @@ fn relative_exact_target_is_shared_by_cargo_and_cache_operations() {
         .fold(PathBuf::new(), |path, _| path.join(".."))
         .join(root.strip_prefix("/").unwrap())
         .join("exact");
-    let cold = build_wasm_canisters_cached(&spec).expect("build relative exact target");
+    let cold = build_wasm_canisters_cached(&spec, OwnedChild::spawn_direct)
+        .expect("build relative exact target");
     assert!(cold.record().artifacts()[0].is_file());
     assert!(root.join("exact/.ic-testkit/wasm-targets").is_dir());
-    let warm = build_wasm_canisters_cached(&spec).expect("reuse relative exact target");
+    let warm = build_wasm_canisters_cached(&spec, OwnedChild::spawn_direct)
+        .expect("reuse relative exact target");
     assert!(warm.is_reused());
     drop(warm);
     drop(cold);
@@ -700,9 +689,24 @@ fn public_cargo_input_snapshot_detects_local_source_changes() {
         .expect("write fixture workspace manifest");
     crate::cargo_fixture::write_fixture_package(&package, "", "pub fn value() -> u8 { 1 }\n")
         .expect("write fixture package");
-    let spec = WasmBuildSpec::new(&root, &root.join("target"), &["fixture"]);
+    let spec = WasmBuildSpec::new(
+        &root,
+        &root.join("target"),
+        &["fixture"],
+        crate::cargo_fixture::environment(),
+    );
 
     let snapshot = resolve_cargo_build_inputs(&spec).expect("resolve Cargo input snapshot");
+    let facts = snapshot.facts().clone();
+    assert_eq!(facts.selection, spec.cargo_selection);
+    assert_eq!(facts.target, spec.target);
+    assert_eq!(facts.environment, spec.environment);
+    assert_ne!(facts.cargo_identity, [] as [u8; 0]);
+    assert_ne!(facts.rustc_identity, [] as [u8; 0]);
+    assert!(
+        snapshot.artifact_paths().is_err(),
+        "generic non-Wasm input evidence remains usable"
+    );
     assert!(
         snapshot
             .is_current(&spec)
@@ -723,6 +727,7 @@ fn public_cargo_input_snapshot_detects_local_source_changes() {
     fs::write(package.join("src/lib.rs"), "pub fn value() -> u8 { 2 }\n")
         .expect("change fixture source");
     assert!(!snapshot.is_current(&spec).expect("detect changed input"));
+    assert_eq!(snapshot.facts(), &facts);
     assert!(
         !snapshot
             .is_content_current()
@@ -740,7 +745,7 @@ fn public_cargo_input_snapshot_detects_local_source_changes() {
     fs::write(&sentinel, b"preserve").expect("write unsafe maintenance sentinel");
     let maintenance = maintain_shared_incremental_target(
         &unsafe_target,
-        SharedIncrementalTargetPrunePolicy::new().with_max_size_bytes(0),
+        CacheRetentionLimits::new().with_max_size_bytes(0),
     );
     assert!(
         matches!(maintenance, Err(WasmBuildError::InvalidSpec { .. })),
@@ -749,7 +754,7 @@ fn public_cargo_input_snapshot_detects_local_source_changes() {
     assert!(sentinel.is_file());
     let scheduled = maintain_shared_incremental_target_at_most_every(
         &unsafe_target,
-        SharedIncrementalTargetPrunePolicy::new().with_max_size_bytes(0),
+        CacheRetentionLimits::new().with_max_size_bytes(0),
         Duration::from_secs(60),
     );
     assert!(
@@ -764,6 +769,52 @@ fn public_cargo_input_snapshot_detects_local_source_changes() {
         Err(WasmBuildError::InvalidSpec { .. })
     ));
     fs::remove_dir_all(root).expect("remove Cargo input fixture");
+}
+
+#[cfg(unix)]
+#[test]
+fn observed_facts_retain_probe_bytes_without_io_and_redact_debug() {
+    let (root, spec) = fake_wasm_build_spec("observed-build-facts");
+    let cargo = PathBuf::from(&spec.cargo_program);
+    let script = fs::read_to_string(&cargo).unwrap().replace(
+        "set -eu\n",
+        "set -eu\nif [ \"$1\" = --version ]; then printf 'cargo-observed\\n'; printf 'cargo-stderr\\n' >&2; exit 0; fi\n",
+    );
+    write_executable_script(&cargo, script).unwrap();
+    let compiler = root.join("compiler-identity");
+    write_executable_script(
+        &compiler,
+        "#!/bin/sh\nprintf 'compiler-observed\\n'; printf 'compiler-stderr\\n' >&2\n",
+    )
+    .unwrap();
+    let mut environment = spec.environment().clone();
+    environment.remove(OsStr::new("RUSTC"));
+    environment.insert("PROVENANCE_TOKEN".into(), "private-facts-value".into());
+    let spec = spec
+        .with_environment(environment)
+        .with_rustc_identity_program(compiler.as_os_str());
+    let snapshot = resolve_cargo_build_inputs(&spec).unwrap();
+    fs::remove_file(cargo).unwrap();
+    fs::remove_file(compiler).unwrap();
+
+    let facts = snapshot.facts();
+    assert_eq!(facts.cargo_identity, b"cargo-observed\ncargo-stderr\n");
+    assert_eq!(
+        facts.rustc_identity,
+        b"compiler-observed\ncompiler-stderr\n"
+    );
+    assert_eq!(facts.environment, spec.environment);
+    let debug = format!("{snapshot:?}");
+    for private in ["private-facts-value", "cargo-observed", "compiler-observed"] {
+        assert!(!debug.contains(private), "Debug exposed retained facts");
+    }
+    for bytes in [&facts.cargo_identity, &facts.rustc_identity] {
+        assert!(
+            !debug.contains(&format!("{bytes:?}")),
+            "Debug exposed probe bytes"
+        );
+    }
+    fs::remove_dir_all(root).unwrap();
 }
 
 #[test]
@@ -788,7 +839,12 @@ fn semantic_workspace_projection_ignores_unrelated_host_dependency_changes() {
         .expect("write host projection workspace manifest");
     };
     write_workspace("host_dep_a");
-    let spec = WasmBuildSpec::new(&root, &root.join("target"), &["canister"]);
+    let spec = WasmBuildSpec::new(
+        &root,
+        &root.join("target"),
+        &["canister"],
+        crate::cargo_fixture::environment(),
+    );
 
     let before = resolve_cargo_build_inputs(&spec).expect("resolve initial semantic projection");
     write_workspace("host_dep_b");
@@ -827,8 +883,16 @@ fn semantic_workspace_projection_tracks_selected_dependencies_and_profiles() {
         .expect("write selected projection workspace manifest");
     };
     write_workspace("selected_dep_a", "s");
-    let spec = WasmBuildSpec::new(&root, &root.join("target"), &["canister"])
-        .with_cargo_profile_args(["--release"]);
+    let spec = WasmBuildSpec::new(
+        &root,
+        &root.join("target"),
+        &["canister"],
+        crate::cargo_fixture::environment(),
+    )
+    .with_cargo_selection(CargoSelection {
+        profile: Some("release".into()),
+        ..Default::default()
+    });
 
     let initial = resolve_cargo_build_inputs(&spec).expect("resolve selected projection");
     write_workspace("selected_dep_b", "s");
@@ -851,7 +915,45 @@ fn semantic_workspace_projection_tracks_selected_dependencies_and_profiles() {
 }
 
 #[test]
-fn semantic_projection_preserves_v1_raw_metadata_fields() {
+fn explicit_environment_key_separates_retained_keys_and_keeps_stamp_format() {
+    let spec = WasmBuildSpec::new(
+        Path::new("/workspace"),
+        Path::new("/target"),
+        &["fixture"],
+        [
+            "CARGO_BUILD_RUSTC",
+            "CARGO_ENCODED_RUSTFLAGS",
+            "RUSTC",
+            "RUSTC_WRAPPER",
+            "RUSTC_WORKSPACE_WRAPPER",
+            "RUSTFLAGS",
+            "RUSTUP_TOOLCHAIN",
+        ]
+        .map(|name| (name, "selected")),
+    );
+    let fingerprint = super::finish_build_fingerprint(
+        &spec,
+        &super::CargoBuildFacts::observed(&spec, b"cargo".to_vec(), b"rustc".to_vec()),
+        super::InputDigest::from_bytes([7; 32]),
+    );
+    // Independent byte-framing fixtures: every recipe fact is the same, only
+    // the domain differs. This also isolates ambient environment/tool choices.
+    assert_eq!(
+        fingerprint.to_hex(),
+        "a3db61f964cd022bebd7068eba254d93916c18ee8f046d7708083388f7e65f82"
+    );
+    assert_ne!(
+        fingerprint.to_hex(),
+        "18ec3a22f7bf556ef4858afa79aea7df5fd3c18939f7056cc4c481f4d3fefa46"
+    );
+    assert_eq!(
+        super::artifact_stamp_header(fingerprint),
+        format!("ic-testkit-wasm-build-v1\nbuild-sha256:{fingerprint}\n")
+    );
+}
+
+#[test]
+fn semantic_projection_uses_typed_v2_metadata_fields() {
     let id = "path+file:///workspace/member#member@1.2.3";
     let original = serde_json::json!({
         "id": id, "name": "member", "version": "1.2.3",
@@ -860,11 +962,7 @@ fn semantic_projection_preserves_v1_raw_metadata_fields() {
         "metadata": {"z": 7, "a": true}, "description": null,
         "authors": [], "edition": "2024", "rust_version": "1.88",
     });
-    let canonical = serde_json::from_value(original.clone()).unwrap();
-    let package = MetadataPackage {
-        package: &canonical,
-        original: &original,
-    };
+    let package = serde_json::from_value(original.clone()).unwrap();
     let identity = semantic_package_identity(
         &package,
         Path::new("/workspace"),
@@ -876,11 +974,7 @@ fn semantic_projection_preserves_v1_raw_metadata_fields() {
         "deps": [{"name": "self", "pkg": id,
             "dep_kinds": [{"kind": null, "target": null, "future_field": "preserve"}]}],
     });
-    let canonical_node = serde_json::from_value(value.clone()).unwrap();
-    let node = super::MetadataNode {
-        node: &canonical_node,
-        value: &value,
-    };
+    let node = serde_json::from_value(value.clone()).unwrap();
     let projection = super::semantic_package_projection(
         &package,
         &node,
@@ -888,16 +982,102 @@ fn semantic_projection_preserves_v1_raw_metadata_fields() {
     )
     .unwrap();
 
-    // Captured independently from the original v1 implementation. Missing/null
-    // package fields and unknown dependency-kind fields remain hash-significant.
+    // Package identity framing is unchanged; the typed projection starts a new
+    // key domain rather than pretending to preserve the former raw JSON bytes.
     assert_eq!(
         identity.to_hex(),
         "ba511839396518effb69ed5d2aaf730822eb6c49bba88c264799b97b76059adb"
     );
-    assert_eq!(
+    assert_ne!(
         projection.to_hex(),
         "aa1361a94b31abb1e0c59b6b7c90e6e9946d137e357612f80cff3189e0d48b3a"
     );
+    let identities = std::collections::HashMap::from([(id, identity)]);
+    let mut normalized = original.clone();
+    normalized.as_object_mut().unwrap().remove("description");
+    normalized["rust_version"] = serde_json::json!("1.88.0");
+    let normalized = serde_json::from_value(normalized).unwrap();
+    assert_eq!(
+        projection,
+        super::semantic_package_projection(&normalized, &node, &identities).unwrap()
+    );
+    let mut reordered = value.clone();
+    reordered["features"] = serde_json::json!(["a", "z"]);
+    reordered["deps"][0]["dep_kinds"][0]
+        .as_object_mut()
+        .unwrap()
+        .remove("future_field");
+    let reordered = serde_json::from_value(reordered).unwrap();
+    assert_eq!(
+        projection,
+        super::semantic_package_projection(&package, &reordered, &identities).unwrap()
+    );
+    for (field, changed) in [
+        ("description", serde_json::json!("changed")),
+        ("metadata", serde_json::json!({"z": 8, "a": true})),
+        ("edition", serde_json::json!("2021")),
+        ("rust_version", serde_json::json!("1.91")),
+    ] {
+        let mut changed_package = original.clone();
+        changed_package[field] = changed;
+        let changed_package = serde_json::from_value(changed_package).unwrap();
+        assert_ne!(
+            projection,
+            super::semantic_package_projection(&changed_package, &node, &identities).unwrap(),
+            "{field} remains hash-significant"
+        );
+    }
+    for changed in [
+        serde_json::json!({"name":"renamed", "pkg":id, "dep_kinds":[{"kind":null,"target":null}]}),
+        serde_json::json!({"name":"self", "pkg":id, "dep_kinds":[{"kind":"build","target":null}]}),
+        serde_json::json!({"name":"self", "pkg":id, "dep_kinds":[{"kind":null,"target":"cfg(unix)"}]}),
+    ] {
+        let mut changed_node = value.clone();
+        changed_node["deps"][0] = changed;
+        let changed_node = serde_json::from_value(changed_node).unwrap();
+        assert_ne!(
+            projection,
+            super::semantic_package_projection(&package, &changed_node, &identities).unwrap()
+        );
+    }
+    let mut unsupported = value;
+    unsupported["deps"][0]["dep_kinds"][0]["kind"] = serde_json::json!("future-kind");
+    let unsupported = serde_json::from_value(unsupported).unwrap();
+    assert!(matches!(
+        super::semantic_package_projection(&package, &unsupported, &identities),
+        Err(WasmBuildError::InvalidMetadata { message }) if message.contains("unsupported")
+    ));
+}
+
+#[test]
+fn semantic_projection_survives_checkout_relocation() {
+    let projected = ["/original", "/relocated"].map(|root| {
+        let id = format!("path+file://{root}/member#member@1.2.3");
+        let package = serde_json::from_value(serde_json::json!({
+            "id": id, "name": "member", "version": "1.2.3",
+            "manifest_path": format!("{root}/member/Cargo.toml"), "source": null,
+            "dependencies": [], "targets": [], "features": {}, "edition": "2024",
+            "readme": "README.md", "license_file": "LICENSE",
+        }))
+        .unwrap();
+        let node = serde_json::from_value(serde_json::json!({
+            "id": id, "features": ["a"], "dependencies": [],
+            "deps": [{"name": "self", "pkg": id,
+                "dep_kinds": [{"kind": null, "target": null}]}],
+        }))
+        .unwrap();
+        let identity =
+            semantic_package_identity(&package, Path::new(root), &super::LockedPackageIndex::new())
+                .unwrap();
+        let projection = super::semantic_package_projection(
+            &package,
+            &node,
+            &std::collections::HashMap::from([(id.as_str(), identity)]),
+        )
+        .unwrap();
+        (identity, projection)
+    });
+    assert_eq!(projected[0], projected[1]);
 }
 
 #[test]
@@ -910,11 +1090,7 @@ fn semantic_package_identity_uses_selected_registry_lock_checksum() {
         "manifest_path": root.join("registry/dependency/Cargo.toml"),
         "source": source, "dependencies": [], "targets": [], "features": {}, "metadata": null,
     });
-    let canonical = serde_json::from_value(original.clone()).unwrap();
-    let package = MetadataPackage {
-        package: &canonical,
-        original: &original,
-    };
+    let package = serde_json::from_value(original).unwrap();
     let write_lock = |checksum: Option<&str>| {
         let checksum = checksum.map_or_else(String::new, |checksum| {
             format!("checksum = \"{checksum}\"\n")
@@ -992,7 +1168,12 @@ fn semantic_workspace_projection_falls_back_for_workspace_root_packages() {
     .expect("write root package manifest");
     fs::write(root.join("src/lib.rs"), "pub fn root_canister() {}\n")
         .expect("write root package source");
-    let spec = WasmBuildSpec::new(&root, &root.join("target/exact"), &["root_canister"]);
+    let spec = WasmBuildSpec::new(
+        &root,
+        &root.join("target/exact"),
+        &["root_canister"],
+        crate::cargo_fixture::environment(),
+    );
 
     let resolved = resolve_cargo_build_inputs(&spec).expect("resolve fallback projection");
     assert_eq!(resolved.input_digest(), resolved.validation_digest());
@@ -1034,17 +1215,30 @@ fn batch_input_snapshot_reuses_compatible_toolchain_and_metadata_resolution() {
     )
     .expect("write executable test script");
     let target = root.join("exact");
+    let selected = crate::cargo_fixture::environment();
+    let recipe = |package| {
+        WasmBuildSpec::new(&root, &target, &[package], selected.clone())
+            .with_cargo_program(&cargo_wrapper)
+    };
     let specs = [
-        WasmBuildSpec::new(&root, &target, &["fixture_a"]).with_cargo_program(&cargo_wrapper),
-        WasmBuildSpec::new(&root, &target, &["fixture_b"])
-            .with_cargo_program(&cargo_wrapper)
-            .with_cargo_profile_args(["--features=alpha"]),
-        WasmBuildSpec::new(&root, &target, &["fixture_b"]).with_cargo_program(&cargo_wrapper),
-        WasmBuildSpec::new(&root, &target, &["fixture_a"])
-            .with_cargo_program(&cargo_wrapper)
-            .with_cargo_profile_args(["--features=alpha"]),
+        recipe("fixture_a"),
+        recipe("fixture_b").with_cargo_selection(CargoSelection {
+            features: CargoFeatureSelection {
+                features: ["alpha".into()].into(),
+                ..Default::default()
+            },
+            ..Default::default()
+        }),
+        recipe("fixture_b"),
+        recipe("fixture_a").with_cargo_selection(CargoSelection {
+            features: CargoFeatureSelection {
+                features: ["alpha".into()].into(),
+                ..Default::default()
+            },
+            ..Default::default()
+        }),
     ];
-    let mut resolver = WasmBuildBatchInputResolver::new(&specs, None);
+    let mut resolver = WasmBuildBatchInputResolver::new(&specs, None).unwrap();
     let mut progress = ProgressReporter::silent();
 
     let snapshots = (0..specs.len())
@@ -1054,6 +1248,11 @@ fn batch_input_snapshot_reuses_compatible_toolchain_and_metadata_resolution() {
     assert_eq!(resolver.metrics().reuses, 2);
     for (index, inputs) in snapshots.iter().enumerate() {
         assert_eq!(inputs.timings().total() > Duration::ZERO, index < 2);
+        assert_eq!(inputs.facts().selection, specs[index].cargo_selection);
+        assert_eq!(
+            inputs.facts().cargo_identity,
+            snapshots[0].facts().cargo_identity
+        );
     }
 
     let invocations = fs::read_to_string(&invocation_log).expect("read Cargo invocation log");
@@ -1101,9 +1300,17 @@ fn profile_output_directory_is_confined_before_resolution_or_acquisition() {
         "release/nested",
         absolute.to_str().unwrap(),
     ] {
-        let spec = WasmBuildSpec::new(&root, &target, &["fixture"])
-            .with_cargo_profile_args(["--profile", profile])
-            .with_cargo_program(root.join("missing-cargo"));
+        let spec = WasmBuildSpec::new(
+            &root,
+            &target,
+            &["fixture"],
+            crate::cargo_fixture::environment(),
+        )
+        .with_cargo_selection(CargoSelection {
+            profile: Some(profile.into()),
+            ..Default::default()
+        })
+        .with_cargo_program(root.join("missing-cargo"));
         assert!(
             matches!(
                 resolve_cargo_build_inputs(&spec),
@@ -1113,7 +1320,7 @@ fn profile_output_directory_is_confined_before_resolution_or_acquisition() {
         );
         assert!(
             matches!(
-                build_wasm_canisters_cached(&spec),
+                build_wasm_canisters_cached(&spec, OwnedChild::spawn_direct),
                 Err(WasmBuildError::InvalidSpec { .. })
             ),
             "{profile:?} must fail before acquisition",
@@ -1122,8 +1329,16 @@ fn profile_output_directory_is_confined_before_resolution_or_acquisition() {
         assert!(!absolute.exists());
     }
     for profile in ["debug", "release", "fast", "release-with-debug"] {
-        let spec = WasmBuildSpec::new(&root, &target, &["fixture"])
-            .with_cargo_profile_args(["--profile", profile]);
+        let spec = WasmBuildSpec::new(
+            &root,
+            &target,
+            &["fixture"],
+            crate::cargo_fixture::environment(),
+        )
+        .with_cargo_selection(CargoSelection {
+            profile: Some(profile.into()),
+            ..Default::default()
+        });
         validate_spec(&spec).expect("accept a normal profile output directory");
         assert!(expected_artifacts(&spec, &target)[0].starts_with(&target));
     }
@@ -1131,35 +1346,26 @@ fn profile_output_directory_is_confined_before_resolution_or_acquisition() {
 }
 
 #[test]
-fn cargo_profile_arguments_match_output_directories() {
-    for (directory, arguments) in [
-        ("debug", vec![]),
-        ("debug", vec!["--lib"]),
-        ("debug", vec!["--offline"]),
-        ("debug", vec!["--profile", "dev"]),
-        ("debug", vec!["--profile=test"]),
-        ("debug", vec!["--profile=debug"]),
-        ("release", vec!["--release"]),
-        ("release", vec!["-r"]),
-        ("release", vec!["-qr"]),
-        ("release", vec!["-vrFextra"]),
-        ("release", vec!["-rF=extra"]),
-        ("release", vec!["-rF", "extra"]),
-        ("release", vec!["--profile=release"]),
-        ("release", vec!["--profile", "bench"]),
-        ("fast", vec!["--profile", "fast"]),
-        ("fast", vec!["--profile=fast"]),
-        ("debug", vec!["-Fextra"]),
-        ("debug", vec!["-qF=extra"]),
-        ("debug", vec!["-F", "extra"]),
-        ("debug", vec!["--features=release"]),
-        ("debug", vec!["--features", "release"]),
-        ("debug", vec!["-j4"]),
+fn cargo_profiles_match_output_directories() {
+    for (directory, profile) in [
+        ("debug", None),
+        ("debug", Some("dev")),
+        ("debug", Some("test")),
+        ("release", Some("release")),
+        ("release", Some("bench")),
+        ("fast", Some("fast")),
     ] {
-        let spec = WasmBuildSpec::new(Path::new("."), Path::new("target"), &["fixture"])
-            .with_cargo_profile_args(&arguments);
-        validate_spec(&spec)
-            .unwrap_or_else(|error| panic!("{arguments:?} should write to {directory}: {error}"));
+        let spec = WasmBuildSpec::new(
+            Path::new("."),
+            Path::new("target"),
+            &["fixture"],
+            crate::cargo_fixture::environment(),
+        )
+        .with_cargo_selection(CargoSelection {
+            profile: profile.map(str::to_owned),
+            ..Default::default()
+        });
+        validate_spec(&spec).unwrap();
         assert_eq!(
             expected_artifacts(&spec, Path::new("target")),
             [Path::new("target")
@@ -1186,7 +1392,7 @@ fn wasm_output_validation_distinguishes_libraries_from_cdylib_examples() {
     fs::write(&manifest, original.replace("cdylib", "rlib") + example).unwrap();
     resolve_cargo_build_inputs(&spec).expect("generic snapshot with a cdylib example");
     assert!(matches!(
-        super::build_wasm_canisters_cached(&spec),
+        super::build_wasm_canisters_cached(&spec, OwnedChild::spawn_direct),
         Err(WasmBuildError::InvalidSpec { .. })
     ));
     assert!(
@@ -1201,112 +1407,48 @@ fn wasm_output_validation_distinguishes_libraries_from_cdylib_examples() {
         original.replace("[\"cdylib\"]", "[\"rlib\", \"cdylib\"]") + example,
     )
     .unwrap();
-    let built = super::build_wasm_canisters_cached(&spec).expect("library with both crate types");
+    let built = super::build_wasm_canisters_cached(&spec, OwnedChild::spawn_direct)
+        .expect("library with both crate types");
     assert!(matches!(built, WasmBuildOutcome::Built(_)));
     drop(built);
     fs::remove_dir_all(root).unwrap();
 }
 
 #[test]
-fn cargo_target_selectors_fail_before_resolution_or_acquisition() {
-    let root = unique_temp_directory("wasm-target-selectors");
-    let target = root.join("exact");
-    let shared = root.join("shared");
-    for arguments in [
-        vec!["--bin", "helper"],
-        vec!["--bin=helper"],
-        vec!["--bins"],
-        vec!["--example", "helper"],
-        vec!["--example=helper"],
-        vec!["--examples"],
-        vec!["--test", "helper"],
-        vec!["--test=helper"],
-        vec!["--tests"],
-        vec!["--bench", "helper"],
-        vec!["--bench=helper"],
-        vec!["--benches"],
-        vec!["--all-targets"],
-        vec!["--message-format", "human"],
-        vec!["--message-format=json"],
-        vec!["--lib", "--bin=helper"],
-    ] {
-        let spec = WasmBuildSpec::new(&root, &target, &["fixture"])
-            .with_cargo_profile_args(&arguments)
-            .with_cargo_program(root.join("missing-cargo"));
-        for spec in [spec.clone(), spec.with_shared_incremental_target(&shared)] {
-            for result in [
-                resolve_cargo_build_inputs(&spec).map(|_| ()),
-                super::build_wasm_canisters_cached(&spec).map(|_| ()),
-            ] {
-                assert!(
-                    matches!(result, Err(WasmBuildError::InvalidSpec { .. })),
-                    "{arguments:?} must fail before invoking tools: {result:?}",
-                );
-            }
-            assert!(!target.exists());
-            assert!(!shared.exists());
-        }
-    }
-    fs::remove_dir_all(root).unwrap();
-}
-
-#[test]
-fn malformed_cargo_profiles_fail_before_resolution_or_acquisition() {
-    let root = unique_temp_directory("wasm-profile-mismatch");
-    let target = root.join("exact");
-    let shared = root.join("shared");
-    for arguments in [
-        vec!["--profile"],
-        vec!["--profile="],
-        vec!["--release", "--profile=release"],
-        vec!["--profile=dev", "--profile=test"],
-    ] {
-        let spec = WasmBuildSpec::new(&root, &target, &["fixture"])
-            .with_cargo_profile_args(&arguments)
-            .with_cargo_program(root.join("missing-cargo"));
-        for spec in [spec.clone(), spec.with_shared_incremental_target(&shared)] {
-            assert!(
-                matches!(
-                    resolve_cargo_build_inputs(&spec),
-                    Err(WasmBuildError::InvalidSpec { .. })
-                ),
-                "{arguments:?} must fail before resolution",
-            );
-            assert!(
-                matches!(
-                    super::build_wasm_canisters_cached(&spec),
-                    Err(WasmBuildError::InvalidSpec { .. })
-                ),
-                "{arguments:?} must fail before acquisition",
-            );
-            assert!(!target.exists());
-            assert!(!shared.exists());
-        }
-    }
-    fs::remove_dir_all(root).unwrap();
-}
-
-#[test]
 fn build_spec_requires_at_least_one_package() {
-    let zero_messages = WasmBuildSpec::new(Path::new("."), Path::new("target"), &["fixture"])
-        .with_cargo_message_bytes(0);
+    let zero_messages = WasmBuildSpec::new(
+        Path::new("."),
+        Path::new("target"),
+        &["fixture"],
+        crate::cargo_fixture::environment(),
+    )
+    .with_cargo_message_bytes(0);
     assert!(matches!(
         validate_spec(&zero_messages),
         Err(WasmBuildError::InvalidSpec { .. })
     ));
-    let spec = WasmBuildSpec::new(Path::new("."), Path::new("target"), &[]);
+    let spec = WasmBuildSpec::new(
+        Path::new("."),
+        Path::new("target"),
+        &[],
+        crate::cargo_fixture::environment(),
+    );
     assert!(matches!(
         validate_spec(&spec),
         Err(WasmBuildError::InvalidSpec { .. })
     ));
 
-    let isolated_maintenance =
-        WasmBuildSpec::new(Path::new("."), Path::new("target"), &["fixture"])
-            .with_isolated_builds()
-            .with_shared_incremental_target_maintenance_at_most_every(
-                SharedIncrementalTargetPrunePolicy::new(),
-                Duration::from_secs(60),
-            );
+    let isolated_maintenance = WasmBuildSpec::new(
+        Path::new("."),
+        Path::new("target"),
+        &["fixture"],
+        crate::cargo_fixture::environment(),
+    )
+    .with_isolated_builds()
+    .with_shared_incremental_target_maintenance_at_most_every(
+        CacheRetentionLimits::new(),
+        Duration::from_secs(60),
+    );
     assert!(matches!(
         validate_spec(&isolated_maintenance),
         Err(WasmBuildError::InvalidSpec { message }) if message.contains("requires a shared")
@@ -1317,8 +1459,13 @@ fn build_spec_requires_at_least_one_package() {
 fn shared_target_inspection_is_explicit_and_does_not_create_a_missing_target() {
     let root = unique_temp_directory("shared-target-inspection");
     let target = root.join("missing-shared-target");
-    let isolated =
-        WasmBuildSpec::new(&root, &root.join("exact"), &["fixture"]).with_isolated_builds();
+    let isolated = WasmBuildSpec::new(
+        &root,
+        &root.join("exact"),
+        &["fixture"],
+        crate::cargo_fixture::environment(),
+    )
+    .with_isolated_builds();
     assert!(matches!(
         inspect_shared_incremental_target(&isolated),
         Err(WasmBuildError::InvalidSpec { .. })
@@ -1333,7 +1480,7 @@ fn shared_target_inspection_is_explicit_and_does_not_create_a_missing_target() {
     assert!(!target.exists());
     let scheduled = maintain_shared_incremental_target_at_most_every(
         &shared,
-        SharedIncrementalTargetPrunePolicy::new(),
+        CacheRetentionLimits::new(),
         Duration::from_secs(60),
     )
     .expect("schedule missing shared target maintenance");
@@ -1372,12 +1519,17 @@ fn shared_target_maintenance_clears_cargo_state_but_preserves_coordination() {
         .expect("write shared Cargo state");
     fs::write(target.join(".rustc_info.json"), b"rustc state")
         .expect("write shared Cargo metadata");
-    let spec = WasmBuildSpec::new(&root, &root.join("exact"), &["fixture"])
-        .with_shared_incremental_target(&target);
+    let spec = WasmBuildSpec::new(
+        &root,
+        &root.join("exact"),
+        &["fixture"],
+        crate::cargo_fixture::environment(),
+    )
+    .with_shared_incremental_target(&target);
 
     let report = maintain_shared_incremental_target(
         &spec,
-        SharedIncrementalTargetPrunePolicy::new().with_max_size_bytes(0),
+        CacheRetentionLimits::new().with_max_size_bytes(0),
     )
     .expect("maintain shared target")
     .expect("existing shared target report");
@@ -1389,10 +1541,9 @@ fn shared_target_maintenance_clears_cargo_state_but_preserves_coordination() {
     assert!(target.join("CACHEDIR.TAG").is_file());
     assert!(target.join(".ic-testkit/wasm-incremental.lock").is_file());
 
-    let retained =
-        maintain_shared_incremental_target(&spec, SharedIncrementalTargetPrunePolicy::new())
-            .expect("reinspect shared target")
-            .expect("existing shared target report");
+    let retained = maintain_shared_incremental_target(&spec, CacheRetentionLimits::new())
+        .expect("reinspect shared target")
+        .expect("existing shared target report");
     assert!(!retained.was_cleared());
     assert_eq!(
         retained.logical_size_bytes_before(),
@@ -1423,9 +1574,14 @@ fn scheduled_shared_target_maintenance_skips_expensive_work_inside_interval() {
     fs::create_dir_all(target.join("debug/deps")).expect("create scheduled Cargo state");
     fs::write(target.join("debug/deps/object.o"), vec![7_u8; 128])
         .expect("write scheduled Cargo state");
-    let spec = WasmBuildSpec::new(&root, &root.join("exact"), &["fixture"])
-        .with_shared_incremental_target(&target);
-    let policy = SharedIncrementalTargetPrunePolicy::new().with_max_size_bytes(0);
+    let spec = WasmBuildSpec::new(
+        &root,
+        &root.join("exact"),
+        &["fixture"],
+        crate::cargo_fixture::environment(),
+    )
+    .with_shared_incremental_target(&target);
+    let policy = CacheRetentionLimits::new().with_max_size_bytes(0);
     let interval = Duration::from_hours(1);
 
     let first = maintain_shared_incremental_target_at_most_every(&spec, policy, interval)
@@ -1460,7 +1616,7 @@ fn scheduled_shared_target_maintenance_skips_expensive_work_inside_interval() {
         "[workspace]\nmembers = [\"fixture\"]\nresolver = \"2\"\n",
     )
     .expect("restore scheduled fixture workspace");
-    let changed_policy = SharedIncrementalTargetPrunePolicy::new().with_max_size_bytes(u64::MAX);
+    let changed_policy = CacheRetentionLimits::new().with_max_size_bytes(u64::MAX);
     let changed = maintain_shared_incremental_target_at_most_every(&spec, changed_policy, interval)
         .expect("changed policy must make scheduled maintenance due");
     assert!(changed.was_performed());
@@ -1484,19 +1640,26 @@ fn zero_progress_heartbeat_is_rejected_for_a_valid_build() {
     )
     .expect("write heartbeat workspace");
     write_projection_package(&root, "fixture", "[lib]\ncrate-type = [\"cdylib\"]\n");
-    let spec = WasmBuildSpec::new(&root, &root.join("exact"), &["fixture"]);
+    let spec = WasmBuildSpec::new(
+        &root,
+        &root.join("exact"),
+        &["fixture"],
+        crate::cargo_fixture::environment(),
+    );
     validate_spec(&spec).expect("valid heartbeat build spec");
-    let result = build_wasm_canisters_cached_with_progress(
+    let result = crate::artifacts::build_wasm_canisters_cached_with_progress(
         &spec,
         WasmBuildProgressConfig::new().with_heartbeat_interval(Duration::ZERO),
-        |_| {},
+        &mut |_| {},
+        spawn_cargo,
     );
     assert!(matches!(result, Err(WasmBuildError::InvalidSpec { .. })));
     assert!(!root.join("exact").exists());
-    let outcome = build_wasm_canisters_cached_with_progress(
+    let outcome = crate::artifacts::build_wasm_canisters_cached_with_progress(
         &spec,
         WasmBuildProgressConfig::new().with_heartbeat_interval(Duration::from_secs(1)),
-        |_| {},
+        &mut |_| {},
+        spawn_cargo,
     )
     .expect("the same build succeeds with a positive heartbeat interval");
     assert!(outcome.record().artifacts()[0].is_file());
@@ -1506,16 +1669,21 @@ fn zero_progress_heartbeat_is_rejected_for_a_valid_build() {
 
 #[test]
 fn maintenance_configuration_is_readable_and_strict_by_default() {
-    let shared_policy = SharedIncrementalTargetPrunePolicy::new().with_max_size_bytes(1024 * 1024);
+    let shared_policy = CacheRetentionLimits::new().with_max_size_bytes(1024 * 1024);
     let shared_interval = Duration::from_hours(1);
     let shared_config =
         SharedIncrementalTargetMaintenanceConfig::new(shared_policy, shared_interval);
-    let exact_policy = ArtifactCachePrunePolicy::new().with_max_size_bytes(2 * 1024 * 1024);
+    let exact_policy = CacheRetentionLimits::new().with_max_size_bytes(2 * 1024 * 1024);
     let exact_interval = Duration::from_mins(30);
-    let spec = WasmBuildSpec::new(Path::new("."), Path::new("target"), &["fixture"])
-        .with_shared_incremental_target("target/shared")
-        .with_shared_incremental_target_maintenance(shared_config)
-        .with_prune_policy_at_most_every(exact_policy, exact_interval);
+    let spec = WasmBuildSpec::new(
+        Path::new("."),
+        Path::new("target"),
+        &["fixture"],
+        crate::cargo_fixture::environment(),
+    )
+    .with_shared_incremental_target("target/shared")
+    .with_shared_incremental_target_maintenance(shared_config)
+    .with_prune_policy_at_most_every(exact_policy, exact_interval);
 
     assert_eq!(shared_config.policy(), shared_policy);
     assert_eq!(shared_config.minimum_interval(), shared_interval);
@@ -1529,6 +1697,44 @@ fn maintenance_configuration_is_readable_and_strict_by_default() {
     );
     assert_eq!(spec.prune_policy(), Some(exact_policy));
     assert_eq!(spec.prune_interval(), Some(exact_interval));
+    for always in [
+        spec.clone().with_prune_policy(exact_policy),
+        spec.with_prune_policy_at_most_every(exact_policy, Duration::ZERO),
+    ] {
+        assert_eq!(always.prune_policy(), Some(exact_policy));
+        assert_eq!(always.prune_interval(), None);
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn zero_interval_maintenance_ignores_bad_markers_and_keeps_exact_hits() {
+    let (root, spec) = fake_wasm_build_spec("zero-interval-maintenance");
+    let first = build_wasm_canisters_cached(&spec, spawn_cargo).unwrap();
+    assert_eq!(first.record().maintenance(), None);
+    let marker = spec
+        .target_dir()
+        .join(".ic-testkit/wasm-targets")
+        .join(".ic-testkit-last-maintenance");
+    for explicit_zero in [false, true] {
+        let always = if explicit_zero {
+            spec.clone()
+                .with_prune_policy_at_most_every(CacheRetentionLimits::new(), Duration::ZERO)
+        } else {
+            spec.clone().with_prune_policy(CacheRetentionLimits::new())
+        };
+        fs::write(&marker, [0xff]).unwrap();
+        let outcome = build_wasm_canisters_cached(&always, spawn_cargo).unwrap();
+        assert!(outcome.is_reused());
+        assert!(matches!(
+            outcome.record().maintenance(),
+            Some(crate::artifacts::ArtifactCacheMaintenance::Pruned(_))
+        ));
+        assert_eq!(outcome.record().fingerprint(), first.record().fingerprint());
+        assert!(fs::read_to_string(&marker).is_ok());
+    }
+    drop(first);
+    fs::remove_dir_all(root).unwrap();
 }
 
 #[test]
@@ -1540,13 +1746,18 @@ fn best_effort_integrated_maintenance_retains_a_failure_message() {
     fs::write(schedule_root.join(".ic-testkit-last-maintenance"), [0xff])
         .expect("write invalid UTF-8 schedule marker");
     let config = SharedIncrementalTargetMaintenanceConfig::new(
-        SharedIncrementalTargetPrunePolicy::new(),
+        CacheRetentionLimits::new(),
         Duration::from_secs(60),
     )
     .with_failure_mode(SharedIncrementalTargetMaintenanceFailureMode::BestEffort);
-    let spec = WasmBuildSpec::new(&root, &root.join("exact"), &["fixture"])
-        .with_shared_incremental_target(&target)
-        .with_shared_incremental_target_maintenance(config);
+    let spec = WasmBuildSpec::new(
+        &root,
+        &root.join("exact"),
+        &["fixture"],
+        crate::cargo_fixture::environment(),
+    )
+    .with_shared_incremental_target(&target)
+    .with_shared_incremental_target_maintenance(config);
     let lock_wait = Duration::from_millis(7);
     let outcome = perform_configured_shared_incremental_target_maintenance(
         &spec,
@@ -1579,7 +1790,7 @@ fn best_effort_integrated_maintenance_retains_a_failure_message() {
 #[test]
 fn strict_integrated_maintenance_propagates_failure() {
     let config = SharedIncrementalTargetMaintenanceConfig::new(
-        SharedIncrementalTargetPrunePolicy::new(),
+        CacheRetentionLimits::new(),
         Duration::from_secs(60),
     );
     let result = integrated_shared_maintenance_result(
@@ -1606,7 +1817,7 @@ fn observed_phase_emits_phase_aware_heartbeats() {
             if matches!(
                 event,
                 WasmBuildProgressEvent::Heartbeat {
-                    phase: WasmBuildProgressPhase::ContentHashing,
+                    phase: WasmBuildPhase::ContentHashing,
                     ..
                 }
             ) {
@@ -1614,11 +1825,12 @@ fn observed_phase_emits_phase_aware_heartbeats() {
             }
             events.push(event);
         };
-        let mut progress = ProgressReporter::observed(
+        let mut progress = ProgressReporter::new(Some((
             WasmBuildProgressConfig::new().with_heartbeat_interval(Duration::from_millis(5)),
             &mut observer,
-        );
-        progress.run_phase(WasmBuildProgressPhase::ContentHashing, move || {
+        )))
+        .unwrap();
+        progress.run_phase(WasmBuildPhase::ContentHashing, move || {
             released
                 .recv_timeout(Duration::from_secs(10))
                 .expect("observer must release the operation on its heartbeat");
@@ -1630,7 +1842,7 @@ fn observed_phase_emits_phase_aware_heartbeats() {
     assert!(events.iter().any(|event| matches!(
         event,
         WasmBuildProgressEvent::Heartbeat {
-            phase: WasmBuildProgressPhase::ContentHashing,
+            phase: WasmBuildPhase::ContentHashing,
             ..
         }
     )));
@@ -1647,7 +1859,7 @@ fn observer_panic_joins_active_phase_worker() {
             if matches!(
                 event,
                 WasmBuildProgressEvent::Heartbeat {
-                    phase: WasmBuildProgressPhase::InputDiscovery,
+                    phase: WasmBuildPhase::InputDiscovery,
                     ..
                 }
             ) {
@@ -1657,11 +1869,12 @@ fn observer_panic_joins_active_phase_worker() {
                 panic!("synthetic observer panic");
             }
         };
-        let mut progress = ProgressReporter::observed(
+        let mut progress = ProgressReporter::new(Some((
             WasmBuildProgressConfig::new().with_heartbeat_interval(Duration::from_millis(5)),
             &mut observer,
-        );
-        progress.run_phase(WasmBuildProgressPhase::InputDiscovery, move || {
+        )))
+        .unwrap();
+        progress.run_phase(WasmBuildPhase::InputDiscovery, move || {
             assert_eq!(
                 released.recv_timeout(Duration::from_secs(10)),
                 Err(mpsc::RecvTimeoutError::Disconnected),
@@ -1696,7 +1909,7 @@ fn exact_cache_lock_wait_emits_phase_aware_heartbeats() {
             if matches!(
                 &event,
                 WasmBuildProgressEvent::Heartbeat {
-                    phase: WasmBuildProgressPhase::ExactCacheLock,
+                    phase: WasmBuildPhase::ExactCacheCoordination,
                     ..
                 }
             ) {
@@ -1704,10 +1917,11 @@ fn exact_cache_lock_wait_emits_phase_aware_heartbeats() {
             }
             events.push(event);
         };
-        let mut progress = ProgressReporter::observed(
+        let mut progress = ProgressReporter::new(Some((
             WasmBuildProgressConfig::new().with_heartbeat_interval(Duration::from_millis(5)),
             &mut observer,
-        );
+        )))
+        .unwrap();
         let (_lock, wait) = lock_wasm_build_cache_with_progress(&target_dir, &mut progress)
             .expect("acquire observed fixture cache lock");
         assert!(wait >= Duration::from_millis(5));
@@ -1717,7 +1931,7 @@ fn exact_cache_lock_wait_emits_phase_aware_heartbeats() {
     assert!(events.iter().any(|event| matches!(
         event,
         WasmBuildProgressEvent::Heartbeat {
-            phase: WasmBuildProgressPhase::ExactCacheLock,
+            phase: WasmBuildPhase::ExactCacheCoordination,
             ..
         }
     )));
@@ -1751,16 +1965,24 @@ done
 "#,
     )
     .expect("write observed Cargo fixture");
-    let spec = WasmBuildSpec::new(&root, &root.join("exact"), &["fixture"])
-        .with_cargo_program("/bin/sh")
-        .with_extra_env([("IC_TESTKIT_OBSERVED_CARGO_RELEASE", release.as_os_str())]);
+    let spec = WasmBuildSpec::new(
+        &root,
+        &root.join("exact"),
+        &["fixture"],
+        crate::cargo_fixture::environment(),
+    )
+    .with_cargo_program("/bin/sh")
+    .with_environment(crate::cargo_fixture::environment_with([(
+        "IC_TESTKIT_OBSERVED_CARGO_RELEASE",
+        release.as_os_str(),
+    )]));
     let mut events = Vec::new();
     {
         let mut observer = |event| {
             if matches!(
                 &event,
                 WasmBuildProgressEvent::Heartbeat {
-                    phase: WasmBuildProgressPhase::CargoBuild,
+                    phase: WasmBuildPhase::CargoBuild,
                     ..
                 }
             ) {
@@ -1768,13 +1990,20 @@ done
             }
             events.push(event);
         };
-        let mut progress = ProgressReporter::observed(
+        let mut progress = ProgressReporter::new(Some((
             WasmBuildProgressConfig::new().with_heartbeat_interval(Duration::from_millis(10)),
             &mut observer,
-        );
+        )))
+        .unwrap();
 
-        run_cargo_build(&spec, &root.join("cargo-target"), &[], &mut progress)
-            .expect("run observed Cargo fixture");
+        run_cargo_build(
+            &spec,
+            &root.join("cargo-target"),
+            &[],
+            &mut progress,
+            &mut (spawn_cargo),
+        )
+        .expect("run observed Cargo fixture");
     }
 
     let mut stdout = Vec::new();
@@ -1782,8 +2011,8 @@ done
     for event in &events {
         if let WasmBuildProgressEvent::CargoOutput { stream, bytes } = event {
             match stream {
-                WasmBuildOutputStream::Stdout => stdout.extend_from_slice(bytes),
-                WasmBuildOutputStream::Stderr => stderr.extend_from_slice(bytes),
+                OutputStream::Stdout => stdout.extend_from_slice(bytes),
+                OutputStream::Stderr => stderr.extend_from_slice(bytes),
             }
         }
     }
@@ -1792,7 +2021,7 @@ done
     assert!(events.iter().any(|event| matches!(
         event,
         WasmBuildProgressEvent::Heartbeat {
-            phase: WasmBuildProgressPhase::CargoBuild,
+            phase: WasmBuildPhase::CargoBuild,
             ..
         }
     )));
@@ -1819,25 +2048,38 @@ fn observed_cargo_parallel_streams_preserve_raw_bytes() {
         "set -eu\ncat stdout &\ncat stderr >&2 &\nwait\n",
     )
     .unwrap();
-    let spec =
-        WasmBuildSpec::new(&root, &root.join("exact"), &["fixture"]).with_cargo_program("/bin/sh");
+    let spec = WasmBuildSpec::new(
+        &root,
+        &root.join("exact"),
+        &["fixture"],
+        crate::cargo_fixture::environment(),
+    )
+    .with_cargo_program("/bin/sh");
     let mut forwarded_stdout = Vec::new();
     let mut forwarded_stderr = Vec::new();
     let mut observer = |event| {
         if let WasmBuildProgressEvent::CargoOutput { stream, bytes } = event {
             match stream {
-                WasmBuildOutputStream::Stdout => forwarded_stdout.extend(bytes),
-                WasmBuildOutputStream::Stderr => forwarded_stderr.extend(bytes),
+                OutputStream::Stdout => forwarded_stdout.extend(bytes),
+                OutputStream::Stderr => forwarded_stderr.extend(bytes),
             }
         }
     };
-    let mut progress = ProgressReporter::observed(
+    let mut progress = ProgressReporter::new(Some((
         WasmBuildProgressConfig::new()
             .without_heartbeats()
             .with_cargo_output(true),
         &mut observer,
-    );
-    run_cargo_build(&spec, &root.join("cargo-target"), &[], &mut progress).unwrap();
+    )))
+    .unwrap();
+    run_cargo_build(
+        &spec,
+        &root.join("cargo-target"),
+        &[],
+        &mut progress,
+        &mut (spawn_cargo),
+    )
+    .unwrap();
     assert_eq!(forwarded_stdout, stdout);
     assert_eq!(forwarded_stderr, stderr);
     fs::remove_dir_all(root).unwrap();
@@ -1850,28 +2092,41 @@ fn observed_cargo_leader_exit_cleans_descendant_held_pipes_without_eof() {
     let release = root.join("release");
     fs::write(root.join("build"),
         "set -eu\n/bin/sh -c 'while [ ! -f release ]; do sleep 0.01; done' &\nprintf leader-exited\nexit 0\n").unwrap();
-    let spec =
-        WasmBuildSpec::new(&root, &root.join("exact"), &["fixture"]).with_cargo_program("/bin/sh");
+    let spec = WasmBuildSpec::new(
+        &root,
+        &root.join("exact"),
+        &["fixture"],
+        crate::cargo_fixture::environment(),
+    )
+    .with_cargo_program("/bin/sh");
     let (done, completion) = mpsc::channel();
     thread::scope(|scope| {
         scope.spawn(|| {
             let mut output = Vec::new();
             let mut observer = |event| {
                 if let WasmBuildProgressEvent::CargoOutput {
-                    stream: WasmBuildOutputStream::Stdout,
+                    stream: OutputStream::Stdout,
                     bytes,
                 } = event
                 {
                     output.extend(bytes);
                 }
             };
-            let mut progress = ProgressReporter::observed(
+            let mut progress = ProgressReporter::new(Some((
                 WasmBuildProgressConfig::new()
                     .without_heartbeats()
                     .with_cargo_output(true),
                 &mut observer,
-            );
-            run_cargo_build(&spec, &root.join("cargo-target"), &[], &mut progress).unwrap();
+            )))
+            .unwrap();
+            run_cargo_build(
+                &spec,
+                &root.join("cargo-target"),
+                &[],
+                &mut progress,
+                &mut (spawn_cargo),
+            )
+            .unwrap();
             assert_eq!(output, b"leader-exited");
             done.send(()).unwrap();
         });
@@ -1899,23 +2154,35 @@ fn observed_cargo_failure_retains_captured_diagnostics_and_exit_event() {
         "set -eu\ncat stdout\ncat stderr >&2\nexit 23\n",
     )
     .expect("write failing observed Cargo fixture");
-    let spec =
-        WasmBuildSpec::new(&root, &root.join("exact"), &["fixture"]).with_cargo_program("/bin/sh");
+    let spec = WasmBuildSpec::new(
+        &root,
+        &root.join("exact"),
+        &["fixture"],
+        crate::cargo_fixture::environment(),
+    )
+    .with_cargo_program("/bin/sh");
     for emit in [Some(true), Some(false), None] {
         let mut events = Vec::new();
         let error = {
             let mut observer = |event| events.push(event);
             let mut progress = emit.map_or_else(ProgressReporter::silent, |emit| {
-                ProgressReporter::observed(
+                ProgressReporter::new(Some((
                     WasmBuildProgressConfig::new()
                         .without_heartbeats()
                         .with_cargo_output(emit),
                     &mut observer,
-                )
+                )))
+                .unwrap()
             });
 
-            run_cargo_build(&spec, &root.join("cargo-target"), &[], &mut progress)
-                .expect_err("Cargo fixture must fail")
+            run_cargo_build(
+                &spec,
+                &root.join("cargo-target"),
+                &[],
+                &mut progress,
+                &mut (spawn_cargo),
+            )
+            .expect_err("Cargo fixture must fail")
         };
 
         assert!(
@@ -1964,30 +2231,43 @@ fn overflowing_cargo_diagnostics_are_bounded_without_losing_forwarded_output() {
         "cat payload; cat payload >&2; exit 23\n",
     )
     .unwrap();
-    let spec =
-        WasmBuildSpec::new(&root, &root.join("exact"), &["fixture"]).with_cargo_program("/bin/sh");
+    let spec = WasmBuildSpec::new(
+        &root,
+        &root.join("exact"),
+        &["fixture"],
+        crate::cargo_fixture::environment(),
+    )
+    .with_cargo_program("/bin/sh");
     for observed in [false, true] {
         let mut stdout = Vec::new();
         let mut stderr = Vec::new();
         let mut observer = |event| {
             if let WasmBuildProgressEvent::CargoOutput { stream, bytes } = event {
                 match stream {
-                    WasmBuildOutputStream::Stdout => stdout.extend(bytes),
-                    WasmBuildOutputStream::Stderr => stderr.extend(bytes),
+                    OutputStream::Stdout => stdout.extend(bytes),
+                    OutputStream::Stderr => stderr.extend(bytes),
                 }
             }
         };
         let mut progress = if observed {
-            ProgressReporter::observed(
+            ProgressReporter::new(Some((
                 WasmBuildProgressConfig::new()
                     .without_heartbeats()
                     .with_cargo_output(true),
                 &mut observer,
-            )
+            )))
+            .unwrap()
         } else {
             ProgressReporter::silent()
         };
-        let error = run_cargo_build(&spec, &root.join("target"), &[], &mut progress).unwrap_err();
+        let error = run_cargo_build(
+            &spec,
+            &root.join("target"),
+            &[],
+            &mut progress,
+            &mut (spawn_cargo),
+        )
+        .unwrap_err();
         let WasmBuildError::CommandFailed {
             status,
             stdout: diagnostic,
@@ -2050,7 +2330,12 @@ exec {cargo} "$@"
             )
             .unwrap();
             let spec = if phase == "-vV" {
-                original.clone().with_rustc_identity_program(&program)
+                let mut environment = original.environment().clone();
+                environment.remove(OsStr::new("RUSTC"));
+                original
+                    .clone()
+                    .with_environment(environment)
+                    .with_rustc_identity_program(&program)
             } else {
                 original.clone().with_cargo_program(&program)
             };
@@ -2172,8 +2457,13 @@ fn complete_probe_limits_preserve_status_spawn_causes_and_refuse_partial_data() 
     use std::{io, process::Command};
 
     let root = unique_temp_directory("complete-probe-limits");
-    let spec =
-        WasmBuildSpec::new(&root, &root.join("exact"), &["fixture"]).with_cargo_program("/bin/sh");
+    let spec = WasmBuildSpec::new(
+        &root,
+        &root.join("exact"),
+        &["fixture"],
+        crate::cargo_fixture::environment(),
+    )
+    .with_cargo_program("/bin/sh");
     let identity = vec![b'x'; super::TOOL_IDENTITY_BYTES];
     fs::write(root.join("payload"), &identity).unwrap();
     let phase = super::WasmBuildPhase::CargoIdentity;
@@ -2223,10 +2513,10 @@ fn complete_probe_limits_preserve_status_spawn_causes_and_refuse_partial_data() 
     // A valid complete JSON value followed by excess whitespace must not be
     // parsed successfully from a captured prefix.
     fs::write(root.join("metadata"), "cat payload\n").unwrap();
-    let mut metadata = b"{}".to_vec();
+    let mut metadata = br#"{"packages":[],"workspace_members":[],"workspace_root":"/workspace","target_directory":"/target","version":1}"#.to_vec();
     metadata.resize(super::CARGO_METADATA_BYTES, b' ');
     fs::write(root.join("payload"), &metadata).unwrap();
-    assert_eq!(super::cargo_metadata(&spec).unwrap(), serde_json::json!({}));
+    assert_eq!(super::cargo_metadata(&spec).unwrap().packages, []);
     metadata.push(b' ');
     fs::write(root.join("payload"), &metadata).unwrap();
     assert!(matches!(
@@ -2245,7 +2535,7 @@ fn cache_directory_tag_is_created_at_target_root() {
 
     let contents =
         fs::read_to_string(target_dir.join("CACHEDIR.TAG")).expect("read cache directory tag");
-    assert!(contents.starts_with(CACHE_DIRECTORY_TAG_SIGNATURE));
+    assert!(contents.starts_with(ic_host_fs::cache_tag::SIGNATURE));
     fs::remove_dir_all(target_dir).expect("remove tag test directory");
 }
 
@@ -2273,99 +2563,11 @@ fn failed_build_removes_its_incomplete_fingerprint_directory() {
 }
 
 #[test]
-fn reconstructed_wasm_stamps_describe_the_bytes_actually_copied() {
-    let root = unique_temp_directory("reconstructed-wasm-bytes");
-    let source = root.join("public.wasm");
-    fs::write(&source, b"original").unwrap();
-    let sources = [source.clone()];
-    let fingerprint = digest_bytes("wasm-reconstruction-test-v1", b"fixture");
-    publish_artifact_stamps(&sources, fingerprint).unwrap();
-    assert!(validated_artifact_set(&sources, fingerprint).is_some());
-    // The public source is mutable across the verification/copy boundary.
-    fs::write(&source, b"modified").unwrap();
-    let spec = WasmBuildSpec::new(&root, &root.join("target"), &["fixture"]);
-    let entry = root.join("entry");
-    let copied_info = reconstruct_exact_cache_entry(
-        &spec,
-        &sources,
-        &entry,
-        fingerprint,
-        &fixture_targets(&spec),
-        &mut ProgressReporter::silent(),
-    )
-    .unwrap();
-    let cached = expected_artifacts(&spec, &entry);
-    assert_eq!(fs::read(&cached[0]).unwrap(), b"modified");
-    assert_eq!(
-        validated_artifact_set(&cached, fingerprint).unwrap(),
-        copied_info
-    );
-    fs::remove_dir_all(root).unwrap();
-}
-
-#[test]
-fn reconstruction_rejects_empty_copies_and_removes_the_incomplete_entry() {
-    let root = unique_temp_directory("empty-reconstructed-wasm");
-    let sources = [root.join("public.wasm")];
-    fs::write(&sources[0], b"original").unwrap();
-    let fingerprint = digest_bytes("wasm-reconstruction-test-v1", b"fixture");
-    publish_artifact_stamps(&sources, fingerprint).unwrap();
-    fs::write(&sources[0], b"").unwrap();
-    let spec = WasmBuildSpec::new(&root, &root.join("target"), &["fixture"]);
-    let entry = root.join("entry");
-    let cached = expected_artifacts(&spec, &entry);
-    let mut progress = ProgressReporter::silent();
-    let error = reconstruct_exact_cache_entry(
-        &spec,
-        &sources,
-        &entry,
-        fingerprint,
-        &fixture_targets(&spec),
-        &mut progress,
-    )
-    .expect_err("a copied Wasm must remain nonempty");
-    assert!(matches!(error, WasmBuildError::MissingArtifacts { paths } if paths == cached));
-    assert!(progress.failure_timings.cleanup().is_some());
-    assert!(!entry.exists());
-    fs::remove_dir_all(root).unwrap();
-}
-
-#[test]
-fn failed_exact_entry_reconstruction_removes_partial_outputs() {
-    let root = unique_temp_directory("failed-exact-entry-reconstruction");
-    let entry = root.join("cache-entry");
-    let sources = [root.join("first.wasm"), root.join("missing.wasm")];
-    fs::write(&sources[0], b"\0asm\x01\0\0\0").expect("write first source artifact");
-    let spec = WasmBuildSpec::new(&root, &root.join("target"), &["first", "missing"]);
-    let mut progress = ProgressReporter::silent();
-    let error = reconstruct_exact_cache_entry(
-        &spec,
-        &sources,
-        &entry,
-        digest_bytes("wasm-artifact-v1", b"reconstruction-fixture"),
-        &fixture_targets(&spec),
-        &mut progress,
-    )
-    .expect_err("a missing second source must fail after the first copy");
-
-    assert!(matches!(
-        error,
-        WasmBuildError::Io { path, source, .. }
-            if path.ends_with("missing.wasm") && source.kind() == std::io::ErrorKind::NotFound
-    ));
-    assert!(progress.failure_timings.cleanup().is_some());
-    assert!(
-        !entry.exists(),
-        "failed reconstruction must remove its partial entry"
-    );
-    fs::remove_dir_all(root).expect("remove failed reconstruction fixture");
-}
-
-#[test]
 #[cfg(unix)]
-fn oversized_wasm_cache_stamp_recovers_from_verified_public_outputs() {
+fn oversized_wasm_cache_stamp_requires_a_rebuild() {
     let (root, spec) = fake_wasm_build_spec("oversized-wasm-cache-stamp");
-    let cold = build_wasm_canisters_cached(&spec).expect("build cold artifact");
+    let cold =
+        build_wasm_canisters_cached(&spec, OwnedChild::spawn_direct).expect("build cold artifact");
     let fingerprint = cold.record().fingerprint();
     let cached = cold.record().artifacts()[0].clone();
     let original = fs::read(&cached).expect("read original artifact");
@@ -2382,14 +2584,18 @@ fn oversized_wasm_cache_stamp_recovers_from_verified_public_outputs() {
         .set_len(1024 * 1024 * 1024)
         .expect("extend oversized stamp");
 
-    let recovered = build_wasm_canisters_cached(&spec).expect("recover from public artifacts");
-    assert!(recovered.is_reused());
-    assert!(recovered.record().timings().cargo_build().is_none());
+    let recovered = build_wasm_canisters_cached(&spec, OwnedChild::spawn_direct)
+        .expect("rebuild invalid exact entry");
+    assert!(!recovered.is_reused());
+    assert!(recovered.record().timings().cargo_build().is_some());
     assert_eq!(
         fs::read(&recovered.record().artifacts()[0]).unwrap(),
         original
     );
-    assert!(validated_artifact_set(recovered.record().artifacts(), fingerprint).is_some());
+    assert!(
+        validated_artifact_set(artifact_pairs(recovered.record().artifacts()), fingerprint)
+            .is_some()
+    );
     drop(recovered);
     fs::remove_dir_all(root).expect("remove recovery fixture");
 }
@@ -2404,7 +2610,7 @@ fn warm_wasm_outputs_follow_retained_entry_and_preserve_matching_files() {
         }
         if mode == "scheduled" {
             spec = spec.with_shared_incremental_target_maintenance_at_most_every(
-                SharedIncrementalTargetPrunePolicy::new(),
+                CacheRetentionLimits::new(),
                 Duration::from_secs(60),
             );
         }
@@ -2413,14 +2619,14 @@ fn warm_wasm_outputs_follow_retained_entry_and_preserve_matching_files() {
         let original = b"\0asm\x01\0\0\0";
         fs::write(&public[0], original).unwrap();
         let before_cold = fs::metadata(&public[0]).unwrap().ino();
-        let cold = build_wasm_canisters_cached(&spec).unwrap();
+        let cold = build_wasm_canisters_cached(&spec, OwnedChild::spawn_direct).unwrap();
         assert!(!cold.is_reused());
         assert_ne!(before_cold, fs::metadata(&public[0]).unwrap().ino());
 
         // Both stamps are valid for this fingerprint, but their bytes differ.
         fs::write(&public[0], b"stamped!").unwrap();
-        publish_artifact_stamps(&public, cold.record().fingerprint()).unwrap();
-        let reused = build_wasm_canisters_cached(&spec).unwrap();
+        publish_artifact_stamps(artifact_pairs(&public), cold.record().fingerprint()).unwrap();
+        let reused = build_wasm_canisters_cached(&spec, OwnedChild::spawn_direct).unwrap();
         assert!(reused.is_reused());
         assert!(reused.record().timings().cargo_build().is_none());
         assert_eq!(fs::read(&public[0]).unwrap(), original, "{mode}");
@@ -2435,7 +2641,11 @@ fn warm_wasm_outputs_follow_retained_entry_and_preserve_matching_files() {
             } else {
                 fs::remove_file(&stamp).unwrap();
             }
-            assert!(build_wasm_canisters_cached(&spec).unwrap().is_reused());
+            assert!(
+                build_wasm_canisters_cached(&spec, OwnedChild::spawn_direct)
+                    .unwrap()
+                    .is_reused()
+            );
             assert_eq!(fs::metadata(&public[0]).unwrap().ino(), file_identity);
             assert_eq!(fs::read(&stamp).unwrap(), expected_stamp);
         }
@@ -2448,14 +2658,22 @@ fn warm_wasm_outputs_follow_retained_entry_and_preserve_matching_files() {
                 .unwrap();
         }
         let stamp_identity = fs::metadata(&stamp).unwrap().ino();
-        assert!(build_wasm_canisters_cached(&spec).unwrap().is_reused());
+        assert!(
+            build_wasm_canisters_cached(&spec, OwnedChild::spawn_direct)
+                .unwrap()
+                .is_reused()
+        );
         assert_eq!(fs::metadata(&public[0]).unwrap().ino(), file_identity);
         assert_eq!(fs::metadata(&public[0]).unwrap().modified().unwrap(), time);
         assert_eq!(fs::metadata(&stamp).unwrap().ino(), stamp_identity);
         assert_eq!(fs::metadata(&stamp).unwrap().modified().unwrap(), time);
 
         fs::remove_file(&public[0]).unwrap();
-        assert!(build_wasm_canisters_cached(&spec).unwrap().is_reused());
+        assert!(
+            build_wasm_canisters_cached(&spec, OwnedChild::spawn_direct)
+                .unwrap()
+                .is_reused()
+        );
         assert_eq!(fs::read(&public[0]).unwrap(), original);
         assert_eq!(fs::metadata(&stamp).unwrap().ino(), stamp_identity);
         drop(reused);
@@ -2468,7 +2686,7 @@ fn warm_wasm_outputs_follow_retained_entry_and_preserve_matching_files() {
 #[cfg(unix)]
 fn warm_wasm_publication_detaches_linked_or_restricted_outputs_and_stamps() {
     let (root, spec) = fake_wasm_build_spec("warm-wasm-ownership");
-    let cold = build_wasm_canisters_cached(&spec).unwrap();
+    let cold = build_wasm_canisters_cached(&spec, OwnedChild::spawn_direct).unwrap();
     let public = expected_artifacts(&spec, &spec.target_dir);
     let cached = &cold.record().artifacts()[0];
     let public_stamp = artifact_stamp_path(&public[0]);
@@ -2488,7 +2706,11 @@ fn warm_wasm_publication_detaches_linked_or_restricted_outputs_and_stamps() {
                 }
             }
         }
-        assert!(build_wasm_canisters_cached(&spec).unwrap().is_reused());
+        assert!(
+            build_wasm_canisters_cached(&spec, OwnedChild::spawn_direct)
+                .unwrap()
+                .is_reused()
+        );
         for destination in [&public[0], &public_stamp] {
             let metadata = fs::symlink_metadata(destination).unwrap();
             assert!(metadata.is_file(), "{case}");
@@ -2515,14 +2737,19 @@ fn warm_wasm_materialization_repairs_only_changed_members() {
     fs::write(&cached[0], b"first").unwrap();
     fs::write(&cached[1], b"second").unwrap();
     let fingerprint = digest_bytes("wasm-materialization-test-v1", b"fixture");
-    let info = publish_artifact_stamps(&cached, fingerprint).unwrap();
     let public = [
         root.join("public-first.wasm"),
         root.join("public-second.wasm"),
     ];
+    let paths = cached
+        .iter()
+        .cloned()
+        .zip(public.iter().cloned())
+        .collect::<Vec<_>>();
+    let info = publish_artifact_stamps(paths.clone(), fingerprint).unwrap();
     fs::write(&public[0], b"first").unwrap();
     fs::write(&public[1], b"wrong!").unwrap();
-    publish_artifact_stamps(&public, fingerprint).unwrap();
+    publish_artifact_stamps(artifact_pairs(&public), fingerprint).unwrap();
     let stamp = artifact_stamp_path(&public[0]);
     let time = UNIX_EPOCH + Duration::from_secs(3600);
     let identities = [&public[0], &stamp].map(|path| {
@@ -2533,11 +2760,21 @@ fn warm_wasm_materialization_repairs_only_changed_members() {
         fs::metadata(path).unwrap().ino()
     });
 
-    materialize_artifacts(&cached, &public, fingerprint, &info, true).unwrap();
+    materialize_artifacts(&info, fingerprint, true).unwrap();
 
     assert_eq!(fs::read(&public[0]).unwrap(), b"first");
     assert_eq!(fs::read(&public[1]).unwrap(), b"second");
-    assert_eq!(validated_artifact_set(&public, fingerprint).unwrap(), info);
+    assert_eq!(validated_artifact_set(paths, fingerprint).unwrap(), info);
+    let published = validated_artifact_set(artifact_pairs(&public), fingerprint).unwrap();
+    assert_eq!(
+        published
+            .iter()
+            .map(|artifact| artifact.info)
+            .collect::<Vec<_>>(),
+        info.iter()
+            .map(|artifact| artifact.info)
+            .collect::<Vec<_>>()
+    );
     for (path, identity) in [&public[0], &stamp].into_iter().zip(identities) {
         assert_eq!(fs::metadata(path).unwrap().ino(), identity);
         assert_eq!(fs::metadata(path).unwrap().modified().unwrap(), time);
@@ -2553,14 +2790,15 @@ fn failed_wasm_materialization_does_not_stamp_a_partial_public_set() {
         fs::write(path, b"wasm").unwrap();
     }
     let fingerprint = digest_bytes("wasm-materialization-test-v1", b"fixture");
-    let info = publish_artifact_stamps(&cached, fingerprint).unwrap();
     fs::write(root.join("blocked"), b"file").unwrap();
     let public = [
         root.join("public/first.wasm"),
         root.join("blocked/second.wasm"),
     ];
+    let paths = cached.into_iter().zip(public.iter().cloned()).collect();
+    let info = publish_artifact_stamps(paths, fingerprint).unwrap();
     for preserve_matching in [false, true] {
-        let error = materialize_artifacts(&cached, &public, fingerprint, &info, preserve_matching)
+        let error = materialize_artifacts(&info, fingerprint, preserve_matching)
             .expect_err("second destination must fail before any stamp is published");
         assert!(matches!(
             error,
@@ -2577,47 +2815,65 @@ fn failed_wasm_materialization_does_not_stamp_a_partial_public_set() {
 
 #[test]
 #[cfg(unix)]
-fn warm_caller_artifacts_reconstruct_a_missing_exact_entry() {
-    let (root, spec) = fake_wasm_build_spec("reconstruct-exact-entry");
-    let built = build_wasm_canisters_cached(&spec).expect("build initial exact entry");
-    let entry = built.record().exact_cache_path().to_owned();
-    let expected = fs::read(&built.record().artifacts()[0]).expect("read initial Wasm");
-    drop(built);
-    fs::remove_dir_all(&entry).expect("remove exact entry while keeping caller artifacts");
-
-    let reused = build_wasm_canisters_cached(&spec).expect("reconstruct from caller artifacts");
-    assert!(reused.is_reused());
-    assert!(reused.record().timings().cargo_build().is_none());
-    assert_eq!(reused.record().exact_cache_path(), entry);
-    assert_eq!(fs::read(&reused.record().artifacts()[0]).unwrap(), expected);
-    fs::write(&reused.record().artifacts()[0], b"corrupt").unwrap();
-    let error = build_wasm_canisters_cached(&spec)
-        .expect_err("an invalid retained entry must not be replaced from public artifacts");
-    assert!(matches!(
-        error,
-        WasmBuildError::Io {
-            operation: "replace retained cache entry",
-            ..
+fn warm_caller_artifacts_do_not_replace_missing_or_retained_invalid_exact_entries() {
+    for mode in ["isolated", "shared", "scheduled"] {
+        let (root, mut spec) = fake_wasm_build_spec("missing-exact-entry");
+        if mode != "isolated" {
+            spec = spec.with_shared_incremental_target(root.join("incremental"));
         }
-    ));
-    assert_eq!(
-        fs::read(&expected_artifacts(&spec, &spec.target_dir)[0]).unwrap(),
-        expected
-    );
-    drop(reused);
-    let recovered = build_wasm_canisters_cached(&spec)
-        .expect("recover the invalid entry once its consumer releases it");
-    assert!(recovered.is_reused());
-    assert_eq!(
-        fs::read(&recovered.record().artifacts()[0]).unwrap(),
-        expected
-    );
-    drop(recovered);
-    assert!(
-        entry.is_dir(),
-        "successful reconstruction must survive record drop"
-    );
-    fs::remove_dir_all(root).expect("remove reconstruction fixture");
+        if mode == "scheduled" {
+            spec = spec.with_shared_incremental_target_maintenance_at_most_every(
+                CacheRetentionLimits::new(),
+                Duration::from_secs(60),
+            );
+        }
+        let built = build_wasm_canisters_cached(&spec, OwnedChild::spawn_direct)
+            .expect("build initial exact entry");
+        let entry = built.record().exact_cache_path().to_owned();
+        let expected = fs::read(&built.record().artifacts()[0]).expect("read initial Wasm");
+        let public = expected_artifacts(&spec, &spec.target_dir);
+        // Even a completely stamped public set cannot supply a replacement entry.
+        fs::write(&public[0], b"public replacement").unwrap();
+        publish_artifact_stamps(artifact_pairs(&public), built.record().fingerprint()).unwrap();
+        drop(built);
+        fs::remove_dir_all(&entry).expect("remove exact entry while keeping caller artifacts");
+
+        let rebuilt = build_wasm_canisters_cached(&spec, OwnedChild::spawn_direct)
+            .expect("rebuild missing exact entry");
+        assert!(!rebuilt.is_reused());
+        assert!(rebuilt.record().timings().cargo_build().is_some());
+        assert_eq!(rebuilt.record().exact_cache_path(), entry);
+        assert_eq!(
+            fs::read(&rebuilt.record().artifacts()[0]).unwrap(),
+            expected
+        );
+        fs::write(&rebuilt.record().artifacts()[0], b"corrupt").unwrap();
+        let error = build_wasm_canisters_cached(&spec, OwnedChild::spawn_direct)
+            .expect_err("an invalid retained entry must not be replaced");
+        assert!(matches!(
+            error,
+            WasmBuildError::Io {
+                operation: "replace retained cache entry",
+                ..
+            }
+        ));
+        assert_eq!(fs::read(&public[0]).unwrap(), expected);
+        drop(rebuilt);
+        let recovered = build_wasm_canisters_cached(&spec, OwnedChild::spawn_direct)
+            .expect("rebuild the invalid entry once its consumer releases it");
+        assert!(!recovered.is_reused());
+        assert!(recovered.record().timings().cargo_build().is_some());
+        assert_eq!(
+            fs::read(&recovered.record().artifacts()[0]).unwrap(),
+            expected
+        );
+        drop(recovered);
+        assert!(
+            entry.is_dir(),
+            "rebuilt exact entry must survive record drop"
+        );
+        fs::remove_dir_all(root).expect("remove rebuild fixture");
+    }
 }
 
 #[test]
@@ -2631,7 +2887,7 @@ fn age_pruning_removes_only_stale_fingerprint_directories() {
 
     let report = prune_wasm_build_cache(
         &target_dir,
-        ArtifactCachePrunePolicy::new()
+        CacheRetentionLimits::new()
             .with_max_age(Duration::from_secs(60))
             .with_max_size_bytes(u64::MAX),
     )
@@ -2662,7 +2918,7 @@ fn size_pruning_removes_least_recently_used_entries_first() {
     for limit in [all_bytes, all_bytes + 1] {
         let report = prune_wasm_build_cache(
             &target_dir,
-            ArtifactCachePrunePolicy::new().with_max_size_bytes(limit),
+            CacheRetentionLimits::new().with_max_size_bytes(limit),
         )
         .expect("retain entries within the size budget");
         assert_eq!(report.entries_scanned(), 3);
@@ -2674,7 +2930,7 @@ fn size_pruning_removes_least_recently_used_entries_first() {
 
     let report = prune_wasm_build_cache(
         &target_dir,
-        ArtifactCachePrunePolicy::new().with_max_size_bytes(newest_bytes),
+        CacheRetentionLimits::new().with_max_size_bytes(newest_bytes),
     )
     .expect("prune cache to size");
 
@@ -2697,7 +2953,7 @@ fn in_build_pruning_protects_the_active_fingerprint() {
 
     let report = prune_wasm_build_cache_locked(
         &target_dir,
-        ArtifactCachePrunePolicy::new()
+        CacheRetentionLimits::new()
             .with_max_age(Duration::ZERO)
             .with_max_size_bytes(0),
         Some(&active),
@@ -2752,8 +3008,16 @@ fn cargo_configuration_discovery_matches_cargo_search_and_include_rules() {
         .expect("write Cargo-home config");
 
     let cargo_home_text = cargo_home.to_str().expect("temporary path is UTF-8");
-    let spec = WasmBuildSpec::new(&workspace, &root.join("target"), &["fixture"])
-        .with_extra_env([("CARGO_HOME", cargo_home_text)]);
+    let spec = WasmBuildSpec::new(
+        &workspace,
+        &root.join("target"),
+        &["fixture"],
+        crate::cargo_fixture::environment(),
+    )
+    .with_environment(crate::cargo_fixture::environment_with([(
+        "CARGO_HOME",
+        cargo_home_text,
+    )]));
     let mut inputs = Vec::new();
     append_cargo_configuration_inputs(&mut inputs, &spec, &workspace)
         .expect("discover effective Cargo configuration");
@@ -2807,8 +3071,16 @@ fn cargo_configuration_symlinks_preserve_include_locations_and_mutation_guards()
     // the wrong input instead of failing on a missing include.
     let decoy = external.join("fragment.toml");
     fs::write(&decoy, "[build]\nrustflags = []\n").unwrap();
-    let spec = WasmBuildSpec::new(&workspace, &root.join("exact"), &["fixture"])
-        .with_extra_env([("CARGO_HOME", &ancestor_cargo)]);
+    let spec = WasmBuildSpec::new(
+        &workspace,
+        &root.join("exact"),
+        &["fixture"],
+        crate::cargo_fixture::environment(),
+    )
+    .with_environment(crate::cargo_fixture::environment_with([(
+        "CARGO_HOME",
+        &ancestor_cargo,
+    )]));
     let snapshot = resolve_cargo_build_inputs(&spec).expect("resolve symlinked Cargo configs");
     assert_eq!(
         snapshot
@@ -2876,8 +3148,16 @@ fn cargo_configuration_guards_follow_each_directory_alias() {
     symlink(&original, cargo_dir.join("first")).unwrap();
     let second = cargo_dir.join("second");
     symlink(&original, &second).unwrap();
-    let spec = WasmBuildSpec::new(&workspace, &root.join("exact"), &["fixture"])
-        .with_extra_env([("CARGO_HOME", root.join("cargo-home"))]);
+    let spec = WasmBuildSpec::new(
+        &workspace,
+        &root.join("exact"),
+        &["fixture"],
+        crate::cargo_fixture::environment(),
+    )
+    .with_environment(crate::cargo_fixture::environment_with([(
+        "CARGO_HOME",
+        root.join("cargo-home"),
+    )]));
     let snapshot = resolve_cargo_build_inputs(&spec).unwrap();
     assert!(snapshot.is_content_current().unwrap());
     fs::write(
@@ -2918,8 +3198,16 @@ fn required_cargo_configuration_include_is_an_exact_input() {
     .expect("write Cargo config");
     let isolated_home = root.join("isolated-cargo-home");
     let isolated_home_text = isolated_home.to_str().expect("temporary path is UTF-8");
-    let spec = WasmBuildSpec::new(&workspace, &root.join("target"), &["fixture"])
-        .with_extra_env([("CARGO_HOME", isolated_home_text)]);
+    let spec = WasmBuildSpec::new(
+        &workspace,
+        &root.join("target"),
+        &["fixture"],
+        crate::cargo_fixture::environment(),
+    )
+    .with_environment(crate::cargo_fixture::environment_with([(
+        "CARGO_HOME",
+        isolated_home_text,
+    )]));
 
     let error = append_cargo_configuration_inputs(&mut Vec::new(), &spec, &workspace)
         .expect_err("required missing include must fail input discovery");
@@ -2952,13 +3240,14 @@ fn warm_hits_reject_source_mutation_for_active_and_materialized_artifacts() {
             }
             if mode == "scheduled" {
                 spec = spec.with_shared_incremental_target_maintenance_at_most_every(
-                    SharedIncrementalTargetPrunePolicy::new(),
+                    CacheRetentionLimits::new(),
                     Duration::from_secs(60),
                 );
             }
-            let cold = build_wasm_canisters_cached(&spec).expect("build initial artifacts");
+            let cold = build_wasm_canisters_cached(&spec, OwnedChild::spawn_direct)
+                .expect("build initial artifacts");
             assert!(
-                build_wasm_canisters_cached(&spec)
+                build_wasm_canisters_cached(&spec, OwnedChild::spawn_direct)
                     .expect("unchanged hit")
                     .is_reused()
             );
@@ -2967,10 +3256,10 @@ fn warm_hits_reject_source_mutation_for_active_and_materialized_artifacts() {
                     .expect("remove caller artifact");
             }
             let mut mutated = false;
-            let result = build_wasm_canisters_cached_with_progress(
+            let result = crate::artifacts::build_wasm_canisters_cached_with_progress(
                 &spec,
                 WasmBuildProgressConfig::new(),
-                |event| {
+                &mut |event| {
                     if !mutated && matches!(event, WasmBuildProgressEvent::InputsResolved { .. }) {
                         fs::write(
                             root.join("fixture/src/lib.rs"),
@@ -2980,6 +3269,7 @@ fn warm_hits_reject_source_mutation_for_active_and_materialized_artifacts() {
                         mutated = true;
                     }
                 },
+                spawn_cargo,
             );
             assert!(mutated);
             assert!(
@@ -3005,19 +3295,32 @@ fn observed_cargo_panic_stops_compiler_descendants() {
         "set -eu\nsleep 30 &\nprintf '%s %s' \"$$\" \"$!\" > pids\nprintf ready\nwait\n",
     )
     .unwrap();
-    let spec =
-        WasmBuildSpec::new(&root, &root.join("exact"), &["fixture"]).with_cargo_program("/bin/sh");
+    let spec = WasmBuildSpec::new(
+        &root,
+        &root.join("exact"),
+        &["fixture"],
+        crate::cargo_fixture::environment(),
+    )
+    .with_cargo_program("/bin/sh");
     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         let mut observer = |event| {
             if matches!(event, WasmBuildProgressEvent::CargoOutput { .. }) {
                 panic!("synthetic Cargo observer panic");
             }
         };
-        let mut progress = ProgressReporter::observed(
+        let mut progress = ProgressReporter::new(Some((
             WasmBuildProgressConfig::new().with_cargo_output(true),
             &mut observer,
-        );
-        run_cargo_build(&spec, &root.join("cargo-target"), &[], &mut progress).unwrap();
+        )))
+        .unwrap();
+        run_cargo_build(
+            &spec,
+            &root.join("cargo-target"),
+            &[],
+            &mut progress,
+            &mut (spawn_cargo),
+        )
+        .unwrap();
     }));
     assert!(result.is_err(), "observer must panic");
     for pid in fs::read_to_string(pids).unwrap().split_whitespace() {
@@ -3113,9 +3416,10 @@ fn cargo_artifact_protocol_refuses_bad_evidence_after_child_completion() {
             .unwrap();
         let changed = match case {
             "missing" => original.replace(record, ""),
-            "package" => {
-                original.replace(&resolved.wasm_targets[0].package_id, "unrelated-package")
-            }
+            "package" => original.replace(
+                &resolved.wasm_outputs().unwrap().targets[0].package_id,
+                "unrelated-package",
+            ),
             "kind" => original.replace("\"kind\":[\"cdylib\"]", "\"kind\":[\"lib\"]"),
             "relative" => original.replace("'\"$target\"'", "relative"),
             "duplicate" => original.replace(record, &format!("{record}\n{record}")),
@@ -3136,7 +3440,7 @@ fn cargo_artifact_protocol_refuses_bad_evidence_after_child_completion() {
         if matches!(case, "oversized" | "failed") {
             spec = spec.with_cargo_message_bytes(8);
         }
-        let error = build_wasm_canisters_cached(&spec).unwrap_err();
+        let error = build_wasm_canisters_cached(&spec, OwnedChild::spawn_direct).unwrap_err();
         match case {
             "missing" | "package" | "kind" => assert!(
                 matches!(error, WasmBuildError::MissingArtifacts { .. }),
@@ -3200,14 +3504,20 @@ fn expected_artifacts(spec: &WasmBuildSpec, target_dir: &Path) -> Vec<PathBuf> {
 fn prepared_reader_counts_are_concurrent_saturating_and_only_for_matches() {
     let (root, spec) = fake_wasm_build_spec("reader-counter");
     let state = super::WasmBuildInputSnapshotState::prepare(std::slice::from_ref(&spec)).unwrap();
-    let unknown = spec.clone().with_extra_env([("OTHER_RECIPE", "yes")]);
-    assert!(state.reuse(&unknown).is_none());
+    let unknown = spec
+        .clone()
+        .with_environment(crate::cargo_fixture::environment_with([(
+            "OTHER_RECIPE",
+            "yes",
+        )]));
+    assert!(state.admit(&[&unknown]).is_err());
+    assert_eq!(state.admit(&[&spec, &unknown]).unwrap_err(), 1);
     assert_eq!(state.reader_reuses(), 0);
     thread::scope(|scope| {
         for _ in 0..8 {
             scope.spawn(|| {
                 for _ in 0..32 {
-                    assert!(state.reuse(&spec).is_some());
+                    assert!(state.admit(&[&spec]).is_ok());
                 }
             });
         }
@@ -3216,11 +3526,216 @@ fn prepared_reader_counts_are_concurrent_saturating_and_only_for_matches() {
     state.reader_reuses.store(usize::MAX - 1, Ordering::Relaxed);
     thread::scope(|scope| {
         for _ in 0..8 {
-            scope.spawn(|| assert!(state.reuse(&spec).is_some()));
+            scope.spawn(|| assert!(state.admit(&[&spec]).is_ok()));
         }
     });
     assert_eq!(state.reader_reuses(), usize::MAX);
-    assert!(state.reuse(&unknown).is_none());
+    assert!(state.admit(&[&unknown]).is_err());
     assert_eq!(state.reader_reuses(), usize::MAX);
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn separate_tool_phases_keep_aggregate_identity_timings() {
+    let mut progress = ProgressReporter::silent();
+    progress.record_phase(WasmBuildPhase::CargoIdentity, Duration::from_secs(2));
+    progress.record_phase(WasmBuildPhase::RustcIdentity, Duration::from_secs(3));
+    assert_eq!(
+        progress.failure_timings.input_resolution().tool_identity(),
+        Duration::from_secs(5)
+    );
+    assert_eq!(
+        progress.failure_timings.input_resolution().total(),
+        Duration::from_secs(5)
+    );
+    let error = WasmBuildError::CommandSpawn {
+        phase: WasmBuildPhase::RustcIdentity,
+        program: "missing-rustc".into(),
+        source: std::io::ErrorKind::NotFound.into(),
+    };
+    assert_eq!(
+        progress
+            .failure_details(&error, Duration::from_secs(7))
+            .phase(),
+        WasmBuildPhase::RustcIdentity
+    );
+    assert_eq!(
+        ProgressReporter::silent()
+            .failure_details(&error, Duration::ZERO)
+            .phase(),
+        WasmBuildPhase::RustcIdentity
+    );
+}
+
+#[test]
+#[cfg(unix)]
+fn cargo_spawn_custody_and_stdin_do_not_depend_on_progress() {
+    use std::process::{Command, Stdio};
+    for grouped in [false, true] {
+        for observed in [false, true] {
+            let root = unique_temp_directory("cargo-explicit-spawn");
+            fs::write(root.join("stdin"), b"caller input\n").unwrap();
+            fs::write(root.join("build"), "set -eu\nps -o pgid= -p $$ > group\nIFS= read -r line\nprintf '%s' \"$line\" > input\n").unwrap();
+            let spec = WasmBuildSpec::new(
+                &root,
+                &root.join("exact"),
+                &["fixture"],
+                crate::cargo_fixture::environment(),
+            )
+            .with_cargo_program("/bin/sh");
+            let mut observer = |_| {};
+            let mut progress = if observed {
+                ProgressReporter::new(Some((
+                    WasmBuildProgressConfig::new().without_heartbeats(),
+                    &mut observer,
+                )))
+                .unwrap()
+            } else {
+                ProgressReporter::silent()
+            };
+            let mut child_pid = 0;
+            let mut spawn = |command: &mut Command| {
+                command.stdin(Stdio::from(fs::File::open(root.join("stdin"))?));
+                let child = if grouped {
+                    OwnedChild::spawn(command, ic_host_process::child::CleanupPolicy::KillAndWait)?
+                } else {
+                    OwnedChild::spawn_direct(command)?
+                };
+                child_pid = child.id();
+                Ok(child)
+            };
+            run_cargo_build(
+                &spec,
+                &root.join("cargo-target"),
+                &[],
+                &mut progress,
+                &mut spawn,
+            )
+            .unwrap();
+            let group = fs::read_to_string(root.join("group"))
+                .unwrap()
+                .trim()
+                .parse::<u32>()
+                .unwrap();
+            let parent = Command::new("ps")
+                .args(["-o", "pgid=", "-p", &std::process::id().to_string()])
+                .output()
+                .unwrap();
+            assert!(parent.status.success());
+            let parent_group = String::from_utf8(parent.stdout)
+                .unwrap()
+                .trim()
+                .parse::<u32>()
+                .unwrap();
+            assert_eq!(group, if grouped { child_pid } else { parent_group });
+            assert_eq!(fs::read(root.join("input")).unwrap(), b"caller input");
+            fs::remove_dir_all(root).unwrap();
+        }
+    }
+}
+
+#[test]
+#[cfg(unix)]
+fn explicit_environment_is_shared_by_probes_metadata_and_build_without_inheritance() {
+    let (root, spec) = fake_wasm_build_spec("explicit-environment");
+    assert!(std::env::var_os("HOME").is_some());
+    let cargo = std::env::var_os("CARGO").unwrap_or_else(|| "cargo".into());
+    let metadata = std::process::Command::new(cargo)
+        .current_dir(&root)
+        .args(["metadata", "--offline", "--format-version", "1"])
+        .output()
+        .unwrap();
+    assert!(metadata.status.success());
+    fs::write(root.join("metadata.json"), metadata.stdout).unwrap();
+    let wrapper = root.join("cargo.sh");
+    let record = crate::cargo_fixture::wasm_artifact_message_script(&root, "target");
+    write_executable_script(
+        &wrapper,
+        format!(
+            r#"#!/bin/sh
+set -eu
+test -z "${{HOME+x}}"
+test "$ONLY" = 'selected recipe value'
+printf '%s\n' "$1" >> calls
+case "$1" in
+  --version|-vV) printf 'fixture tool\n' ;;
+  metadata) /bin/cat metadata.json ;;
+  build)
+    target="$CARGO_TARGET_DIR"
+    mkdir -p "$target/wasm32-unknown-unknown/debug"
+    printf '\000asm\001\000\000\000' > "$target/wasm32-unknown-unknown/debug/fixture.wasm"
+    {record}
+    ;;
+  *) exit 19 ;;
+esac
+"#
+        ),
+    )
+    .unwrap();
+    let selected = [("PATH", "/usr/bin:/bin"), ("ONLY", "selected recipe value")];
+    let spec = spec
+        .with_rustc_identity_program(&wrapper)
+        .with_environment(selected);
+    assert!(!format!("{spec:?}").contains("selected recipe value"));
+    let first = build_wasm_canisters_cached(&spec, OwnedChild::spawn_direct).unwrap();
+    let warm = build_wasm_canisters_cached(&spec, OwnedChild::spawn_direct).unwrap();
+    assert!(warm.is_reused());
+    assert_eq!(first.record().fingerprint(), warm.record().fingerprint());
+    let calls = fs::read_to_string(root.join("calls")).unwrap();
+    for expected in ["--version", "-vV", "metadata", "build"] {
+        assert!(calls.lines().any(|line| line == expected), "{calls}");
+    }
+    assert_eq!(calls.lines().filter(|line| *line == "build").count(), 1);
+    drop((first, warm));
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn invalid_environment_is_rejected_before_commands_or_cache_creation() {
+    let root = unique_temp_directory("invalid-child-environment");
+    for (name, value) in [
+        ("", "value"),
+        ("BAD=NAME", "value"),
+        ("BAD\0NAME", "value"),
+        ("NAME", "bad\0value"),
+    ] {
+        let spec = WasmBuildSpec::new(&root, &root.join("exact"), &["fixture"], [(name, value)])
+            .with_cargo_program("/missing/must-not-run");
+        assert!(matches!(
+            build_wasm_canisters_cached(&spec, |_| panic!("must not spawn")),
+            Err(WasmBuildError::InvalidSpec { .. })
+        ));
+        assert!(!root.join("exact").exists());
+    }
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn mismatched_cargo_artifact_count_refuses_before_copy_and_can_recover() {
+    let root = unique_temp_directory("wasm-copy-inventory");
+    let source = root.join("source.wasm");
+    let cached = root.join("cache.wasm");
+    let public = root.join("public.wasm");
+    fs::write(&source, b"new wasm").unwrap();
+    fs::write(&cached, b"retained wasm").unwrap();
+    let paths = vec![(cached.clone(), public.clone())];
+    for sources in [vec![], vec![source.clone(), source.clone()]] {
+        assert!(matches!(
+            super::copy_wasm_artifacts(&sources, &paths),
+            Err(WasmBuildError::InvalidMetadata { .. })
+        ));
+        assert_eq!(fs::read(&cached).unwrap(), b"retained wasm");
+        assert!(!artifact_stamp_path(&cached).exists());
+        assert!(!public.exists());
+    }
+    super::copy_wasm_artifacts(&[source], &paths).unwrap();
+    let fingerprint = digest_bytes("wasm-copy-inventory-test", b"fixture");
+    let verified = publish_artifact_stamps(paths.clone(), fingerprint).unwrap();
+    materialize_artifacts(&verified, fingerprint, false).unwrap();
+    assert_eq!(fs::read(public).unwrap(), b"new wasm");
+    assert_eq!(
+        validated_artifact_set(paths, fingerprint).unwrap(),
+        verified
+    );
     fs::remove_dir_all(root).unwrap();
 }

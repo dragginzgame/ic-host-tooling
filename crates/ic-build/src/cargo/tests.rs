@@ -1,4 +1,5 @@
 use super::*;
+use crate::batch::BatchLabelError;
 use ic_host_process::tool::OutputLimit;
 
 #[test]
@@ -11,11 +12,15 @@ fn invalid_package_inputs_reject_before_command_effects() {
     for (packages, expected) in [
         (
             vec!["left", "", "right"],
-            "empty Cargo package input at index 1",
+            BatchLabelError::Empty { index: 1 },
         ),
         (
             vec!["left", "right", "left"],
-            "duplicate Cargo package input \"left\" at indices 0 and 2",
+            BatchLabelError::Duplicate {
+                label: "left".into(),
+                first_index: 0,
+                duplicate_index: 2,
+            },
         ),
     ] {
         let packages = packages.into_iter().map(str::to_string).collect::<Vec<_>>();
@@ -23,16 +28,18 @@ fn invalid_package_inputs_reject_before_command_effects() {
             Path::new("."),
             &packages,
             "wasm32-unknown-unknown",
+            &selection::CargoSelection::default(),
             limits,
             || panic!("invalid package inputs must not invoke the command factory"),
         )
         .unwrap_err();
-        assert_eq!(error.to_string(), expected);
+        assert_eq!(error.downcast_ref::<BatchLabelError>(), Some(&expected));
     }
     let groups = compatible_package_groups(
         Path::new("."),
         &[],
         "wasm32-unknown-unknown",
+        &selection::CargoSelection::default(),
         limits,
         || panic!("an empty plan must not invoke the command factory"),
     )
@@ -54,6 +61,7 @@ fn unsuccessful_tree_commands_preserve_status_and_bounded_diagnostics() {
             Path::new("."),
             &["role".to_string()],
             "wasm32-unknown-unknown",
+            &selection::CargoSelection::default(),
             limits,
             || {
                 let mut command = Command::new("/bin/sh");
@@ -84,6 +92,7 @@ fn unsuccessful_tree_commands_preserve_status_and_bounded_diagnostics() {
         Path::new("."),
         &["role".to_string()],
         "wasm32-unknown-unknown",
+        &selection::CargoSelection::default(),
         limits,
         || {
             let mut command = Command::new("/bin/sh");
@@ -109,23 +118,33 @@ fn incomplete_tree_capture_and_spawn_failures_preserve_typed_host_errors() {
         stderr: OutputLimit::Terminate(4096),
         timeout: None,
     };
-    let truncated =
-        compatible_package_groups(&root, &packages, "wasm32-unknown-unknown", limits, || {
+    let truncated = compatible_package_groups(
+        &root,
+        &packages,
+        "wasm32-unknown-unknown",
+        &selection::CargoSelection::default(),
+        limits,
+        || {
             let mut command = Command::new("/bin/sh");
             command.args(["-c", "printf '0role v0.1.0\\t\\n1shared v0.1.0\\tbase\\n'"]);
             command
-        })
-        .unwrap_err();
+        },
+    )
+    .unwrap_err();
     assert!(
         truncated
             .downcast_ref::<ic_host_process::tool::ToolError>()
             .is_some()
     );
-    let missing =
-        compatible_package_groups(&root, &packages, "wasm32-unknown-unknown", limits, || {
-            Command::new(root.join("missing-cargo"))
-        })
-        .unwrap_err();
+    let missing = compatible_package_groups(
+        &root,
+        &packages,
+        "wasm32-unknown-unknown",
+        &selection::CargoSelection::default(),
+        limits,
+        || Command::new(root.join("missing-cargo")),
+    )
+    .unwrap_err();
     assert!(
         missing
             .downcast_ref::<ic_host_process::tool::ToolError>()
@@ -146,10 +165,13 @@ fn real_cargo_resolution_batches_peers_and_splits_feature_growth() {
             "[features]\ndefault=[\"base\"]\nbase=[]\nextra=[]\n",
         ),
         ("exclusive", ""),
-        ("left", "[dependencies]\nshared={path=\"../shared\"}\n"),
+        (
+            "left",
+            "[features]\nextra=[\"shared/extra\"]\n[dependencies]\nshared={path=\"../shared\"}\n",
+        ),
         (
             "peer",
-            "[dependencies]\nshared={path=\"../shared\"}\nexclusive={path=\"../exclusive\"}\n",
+            "[features]\nextra=[\"shared/extra\"]\n[dependencies]\nshared={path=\"../shared\"}\nexclusive={path=\"../exclusive\"}\n",
         ),
         (
             "right",
@@ -180,16 +202,36 @@ fn real_cargo_resolution_batches_peers_and_splits_feature_growth() {
         timeout: None,
     };
     let packages = ["left", "peer", "right"].map(str::to_string);
-    let groups =
-        compatible_package_groups(&root, &packages, "wasm32-unknown-unknown", limits, || {
-            let mut command = Command::new(&cargo);
-            command
-                .env("RUSTUP_AUTO_INSTALL", "0")
-                .env("CARGO_NET_OFFLINE", "true");
-            command
-        })
+    for (all_features, expected) in [
+        (false, vec![vec!["left", "peer"], vec!["right"]]),
+        (true, vec![vec!["left", "peer", "right"]]),
+    ] {
+        let selection = selection::CargoSelection {
+            locked: true,
+            offline: true,
+            features: selection::CargoFeatureSelection {
+                all_features,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let groups = compatible_package_groups(
+            &root,
+            &packages,
+            "wasm32-unknown-unknown",
+            &selection,
+            limits,
+            || {
+                let mut command = Command::new(&cargo);
+                command
+                    .env("RUSTUP_AUTO_INSTALL", "0")
+                    .env("CARGO_NET_OFFLINE", "true");
+                command
+            },
+        )
         .unwrap();
-    assert_eq!(groups, [vec!["left", "peer"], vec!["right"]]);
+        assert_eq!(groups, expected);
+    }
     fs::remove_dir_all(root).unwrap();
 }
 
@@ -223,4 +265,67 @@ fn feature_assignment_order_is_retained_for_host_and_wasm_instances() {
         &swapped,
         &["role".to_string()]
     ));
+}
+
+#[test]
+#[cfg(unix)]
+fn grouping_forwards_recipe_graph_choices_to_every_observation() {
+    use selection::{CargoFeatureSelection, CargoSelection};
+    let root = crate::fs_fixture::unique_temp_directory("grouping-selection");
+    let selection = CargoSelection {
+        profile: Some("release".into()),
+        features: CargoFeatureSelection {
+            default_features: false,
+            features: ["selected".into()].into(),
+            all_features: false,
+        },
+        locked: true,
+        offline: true,
+    };
+    let limits = OutputLimits {
+        stdout: OutputLimit::Terminate(4096),
+        stderr: OutputLimit::Terminate(4096),
+        timeout: None,
+    };
+    let mut observations = 0;
+    let groups = compatible_package_groups(
+        &root,
+        &["left".into(), "right".into()],
+        "wasm32-unknown-unknown",
+        &selection,
+        limits,
+        || {
+            observations += 1;
+            let mut command = Command::new("/bin/sh");
+            command.args([
+                "-c",
+                r#"
+locked=0 offline=0 defaults=0 features=0
+for arg in "$@"; do
+    case "$arg" in
+        --locked) locked=1;;
+        --offline) offline=1;;
+        --no-default-features) defaults=1;;
+        --features=selected) features=1;;
+        --release|--profile=*) exit 24;;
+    esac
+done
+[ "$locked$offline$defaults$features" = 1111 ] || exit 23
+while [ "$#" -gt 0 ]; do
+    if [ "$1" = --package ]; then
+        shift
+        printf '0%s v0.1.0\t\n' "$1"
+    fi
+    shift
+done
+"#,
+                "tree-fixture",
+            ]);
+            command
+        },
+    )
+    .unwrap();
+    assert_eq!(groups, [vec!["left", "right"]]);
+    assert_eq!(observations, 3);
+    fs::remove_dir_all(root).unwrap();
 }

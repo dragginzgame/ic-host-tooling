@@ -8,7 +8,7 @@ use std::{
     borrow::Cow,
     collections::BTreeSet,
     ffi::OsStr,
-    fmt, fs, io,
+    fs, io,
     path::{Path, PathBuf},
 };
 use toml::Value;
@@ -22,15 +22,16 @@ pub struct ConfigurationFile {
     /// Canonical containing directory plus the original file name, for stable labels.
     pub location: PathBuf,
     /// SHA-256 of the same UTF-8 bytes parsed during this observation.
-    pub sha256: [u8; 32],
+    pub sha256: Sha256Digest,
     /// Present build compiler/wrapper fields, in canonical field order.
     pub compiler_overrides: Vec<&'static str>,
 }
 
 /// Configuration observation failure; diagnostics exclude configuration contents.
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum ConfigurationError {
     /// Original filesystem failure at its selected lookup path.
+    #[error("{operation} {}: {source}", path.display())]
     Io {
         /// Failed read or location operation.
         operation: &'static str,
@@ -40,38 +41,13 @@ pub enum ConfigurationError {
         source: io::Error,
     },
     /// Invalid TOML or include structure, without embedding source text.
+    #[error("invalid Cargo configuration {}: {message}", path.display())]
     Invalid {
         /// Selected configuration path.
         path: PathBuf,
         /// Structural reason, excluding configuration values.
         message: String,
     },
-}
-
-impl fmt::Display for ConfigurationError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Io {
-                operation,
-                path,
-                source,
-            } => write!(f, "{operation} {}: {source}", path.display()),
-            Self::Invalid { path, message } => write!(
-                f,
-                "invalid Cargo configuration {}: {message}",
-                path.display()
-            ),
-        }
-    }
-}
-
-impl std::error::Error for ConfigurationError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Self::Io { source, .. } => Some(source),
-            Self::Invalid { .. } => None,
-        }
-    }
 }
 
 /// Enumerate invocation ancestors' `.cargo` directories and the caller-selected Cargo home.
@@ -236,7 +212,7 @@ fn append_configuration(
     files.push(ConfigurationFile {
         path: config.to_owned(),
         location: location.clone(),
-        sha256: *Sha256Digest::compute(contents.as_bytes()).as_bytes(),
+        sha256: Sha256Digest::compute(contents.as_bytes()),
         compiler_overrides,
     });
     if let Some(include) = configuration.get("include") {

@@ -7,7 +7,9 @@
 #[cfg(test)]
 mod tests;
 
+pub mod diagnostics;
 pub mod environment;
+pub mod execution;
 pub mod flags;
 pub mod lock_projection;
 pub(crate) mod lockfile;
@@ -17,16 +19,19 @@ pub mod native;
 pub mod observation;
 pub mod packages;
 pub mod release_metadata;
-pub(crate) mod selection;
+pub mod selection;
 
-use crate::batch::{BatchLabelError, validate_labels};
+use crate::batch::validate_labels;
 use ic_host_process::tool::OutputLimits;
 use std::{collections::BTreeMap, path::Path, process::Command};
 
 /// Partition packages without changing their resolved normal/build dependency trees.
 ///
-/// The caller supplies the selected Cargo command, complete environment, target,
-/// source custody and output/deadline policy. This does not publish artifacts or
+/// The caller supplies the recipe's Cargo selection, selected command, complete
+/// environment, target, source custody and output/deadline policy. Every isolated
+/// and combined observation uses that selection's features, lock and network
+/// choices. Profiles do not affect Cargo tree and are not rendered here.
+/// This does not publish artifacts or
 /// establish a consumer's release validity.
 /// Package names must be nonempty and unique; invalid inputs are rejected before
 /// invoking the command factory, with zero-based indices in the error. An empty
@@ -39,17 +44,11 @@ pub fn compatible_package_groups(
     workspace: &Path,
     packages: &[String],
     target: &str,
+    selection: &selection::CargoSelection,
     limits: OutputLimits,
     mut cargo_command: impl FnMut() -> Command,
 ) -> Result<Vec<Vec<String>>, Box<dyn std::error::Error>> {
-    validate_labels(packages.iter().map(String::as_str)).map_err(|error| match error {
-        BatchLabelError::Empty { index } => {
-            format!("empty Cargo package input at index {index}")
-        }
-        BatchLabelError::Duplicate { label, first_index, duplicate_index } => {
-            format!("duplicate Cargo package input {label:?} at indices {first_index} and {duplicate_index}")
-        }
-    })?;
+    validate_labels(packages.iter().map(String::as_str))?;
     let mut isolated = BTreeMap::new();
     let mut groups: Vec<Vec<String>> = Vec::new();
     for package in packages {
@@ -57,6 +56,7 @@ pub fn compatible_package_groups(
             workspace,
             &[package.as_str()],
             target,
+            selection,
             limits,
             &mut cargo_command,
         )?;
@@ -74,8 +74,14 @@ pub fn compatible_package_groups(
                 .map(String::as_str)
                 .chain(std::iter::once(package.as_str()))
                 .collect::<Vec<_>>();
-            let combined =
-                resolved_trees(workspace, &candidate, target, limits, &mut cargo_command)?;
+            let combined = resolved_trees(
+                workspace,
+                &candidate,
+                target,
+                selection,
+                limits,
+                &mut cargo_command,
+            )?;
             if preserves_individual_trees(&isolated, &combined, &candidate) {
                 selected_group = Some(index);
                 break;
@@ -94,11 +100,11 @@ fn resolved_trees(
     workspace: &Path,
     packages: &[&str],
     target: &str,
+    selection: &selection::CargoSelection,
     limits: OutputLimits,
     cargo_command: &mut impl FnMut() -> Command,
 ) -> Result<BTreeMap<String, String>, Box<dyn std::error::Error>> {
     let manifest = workspace.join("Cargo.toml");
-    let features = observation::CargoFeatureSelection::default();
     let tree = observation::observe_tree(
         &observation::CargoTreeSpec {
             manifest_path: &manifest,
@@ -106,9 +112,9 @@ fn resolved_trees(
             target,
             edges: "normal,build",
             format: "{p}\t{f}",
-            locked: true,
-            offline: false,
-            features: &features,
+            locked: selection.locked,
+            offline: selection.offline,
+            features: &selection.features,
         },
         limits,
         cargo_command(),

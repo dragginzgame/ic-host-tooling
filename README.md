@@ -1,147 +1,75 @@
 # IC Build
 
-IC Build provides common Cargo/Wasm builds and retained artifact caches, moved
-from IC Testkit, and feature-safe Cargo grouping from Canic.
-The [published 0.12 family is available on crates.io](https://crates.io/crates/ic-build/0.12.0).
-The owning
-[extraction issue](https://github.com/dragginzgame/ic-build/issues/1) tracks
-producer and consumer acceptance.
+IC Build owns generic host-side Cargo/Wasm builds and retained artifact caches.
+Consumers supply recipes, tools, complete environments, output budgets, source
+custody and maintenance policy. Build never installs tools, starts PocketIC or
+admits an application release.
 
-`ic_build::artifacts` owns exact Cargo input resolution, transactional artifact
-publication, retained records, Wasm caches, sessions, batch results and explicit
-maintenance. `ic_build::cargo` groups packages only when their resolved normal
-and build dependency trees match isolated resolution. Consumers own recipes,
-tools, output budgets, source custody, release identities and lifecycle.
-PocketIC stays in Testkit; complete-release admission stays in Canic.
+The public entry points are:
 
-Build 0.12 moves native Candid extraction from Host Tools into Unix-only
-`artifacts::candid::extract`, over the registry Host 0.24 family. It retains raw
-bounded process evidence and source/tool identities; callers own tool admission,
-limits, environment, normalization, grammar and publication. Before/after hashes
-cannot detect transient writes: callers must retain their source lease. See
-[#51](https://github.com/dragginzgame/ic-build/issues/51) and
-[PR #52](https://github.com/dragginzgame/ic-build/pull/52).
+- `ic_build::artifacts`: exact Cargo input resolution, Wasm acquisition,
+  transactional artifact publication, retained records, staging/capture,
+  prepared snapshots, batches, explicit maintenance and native Candid extraction.
+- `ic_build::cargo`: typed selections, configuration/metadata observations,
+  feature-safe package grouping, Cargo communication and exact artifact selection,
+  native executable builds, package qualification and lock projection.
+- `ic_build::batch`: labels shared by Build's batch and grouping APIs.
 
-Start with [Build ownership and extraction](docs/design/build-ownership.md).
-It records the inspected build paths, duplicated responsibilities, intended
-owners, retained safety boundaries and extraction sequence. Read the
-[current handoff](docs/status/current.md) before implementation.
-The [artifact API guide](docs/artifacts.md) covers recipes, retained records,
-freshness, batching and explicit maintenance.
-Pending 0.12.1 exposes `cargo::packages::verify_external_lock_subset` for bounded
-in-memory admission of already selected external package identities
-([API guide](docs/artifacts.md#external-lock-selection-admission)). It shares
-archive qualification's reader/comparison without adopting its nonempty-graph
-policy or executing Cargo; callers retain local package, feature and release checks.
-Version 0.1.3 also provides temporary staging and bounded capture of producer
-outputs, with caller-owned qualification and publication.
+The dependency direction is consumer adapters → IC Build → Host Artifacts,
+FS and Process. Host owns byte/hash primitives, filesystem admission/durable
+writes/locks and child execution/framing/cleanup. Build composes those capabilities
+with build and cache policy. Canic owns recipes, transforms and complete-release
+admission; IcyDB owns optimizer/interface policy; Testkit owns testing and PocketIC
+lifecycle. Build depends on none of those consumers. Shared Tooling owns the
+reviewed development, installation and release helpers used by this checkout.
 
-The dependency direction is application adapters → IC Build → IC Host
-Tooling. IC Build must not depend on Canic, IcyDB, PocketIC or IC Testkit.
+The [ownership design](docs/design/build-ownership.md) distinguishes current
+owners from the historical extraction audit. The [artifact API guide](docs/artifacts.md)
+owns detailed contracts and upgrade actions; the [current handoff](docs/status/current.md)
+records source-bound qualification and outstanding consumer acceptance.
 
 ## Use
 
-The examples below use the published 0.12 API. Add the registry dependency to
-your host-side package:
+The current 0.17 API requires Rust 1.91.0 or newer:
 
 ```toml
 [dependencies]
-ic-build = "0.12"
+ic-build = "0.17.3"
+# Add matching direct Host dependencies when passing Host values through Build.
+ic-host-process = { version = "0.27", default-features = false }
 ```
 
-Rust 1.91.0 or newer is required. Import the engine directly and keep the returned
-record alive while using its artifacts. With a prepared Cargo/Wasm toolchain and a
-caller-held source lease:
+The examples use the current API and are compiled as Cargo example targets.
+Wasm specifications require the complete environment at construction and an
+explicit spawner at acquisition. See the [artifact guide](docs/artifacts.md) for
+contracts and upgrade actions from earlier versions.
 
-```rust,no_run
-use ic_build::artifacts::{WasmBuildSpec, build_wasm_canisters_cached};
-use std::path::Path;
+With the toolchain prepared and source writers excluded for the whole invocation:
 
-fn build(workspace: &Path) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-    let target = workspace.join("target/canister-builds");
-    let spec = WasmBuildSpec::new(workspace, &target, &["counter_canister"])
-        .with_cargo_profile_args(["--release", "--locked"]);
-    let outcome = build_wasm_canisters_cached(&spec)?;
-    let wasm = std::fs::read(&outcome.record().artifacts()[0])?;
-    Ok(wasm)
-}
+```text
+cargo run --locked --example wasm_build -- /checkout package
+cargo run --locked --example native_executable -- /checkout package example-name
 ```
 
-Consumers select packages, profiles, environment and maintenance policy.
-IC Build 0.10 and newer select Wasm through Cargo's exact package/target messages,
-including custom cdylib names. Existing recipes keep their cache paths and keys.
-The engine owns `--message-format=json`; wrappers must report artifact records.
-`with_cargo_message_bytes` adjusts the default 16 MiB per-message allowance.
-Overflow refuses publication after Cargo completes while diagnostics keep flowing.
-This adds no elapsed-time deadline. Metadata-derived declared paths remain
-available for caller-owned external builds.
-To adopt 0.9, remove the fourth argument from `WasmBuildSpec::new` and retain
-profile selection through `with_cargo_profile_args`. Output directories follow
-those arguments automatically, including when a later call replaces them.
-Published 0.6.1 adds `ic_build::cargo::environment` for read-only configuration
-discovery, include traversal, raw-byte digests and compiler-override facts. Consumers select
-effective or conservative input paths and retain compiler admission, receipt
-framing and source custody. Configuration contents are excluded from returned
-facts and failure diagnostics. Observation executes no Cargo commands and does
-not establish build or release validity.
+The [Wasm example](crates/ic-build/examples/wasm_build.rs) supplies an explicit
+consumer-selected environment and keeps the returned record through byte
+consumption. Paths alone do not retain cache entries. The
+[native example](crates/ic-build/examples/native_executable.rs) selects a package
+and example structurally, streams diagnostics and reports Cargo's executable path;
+mutable target custody remains with the caller. Both select their Host spawner
+explicitly and add no elapsed-time deadline. Applications supply their own
+cancellation, process-group custody and source admission where required.
 
-IC Build 0.12 uses the registry IC Host 0.24 family at the public grouping,
-probe, capture and Candid boundary; release 0.12.0 selects Host 0.24.0. Align direct
-Host dependencies before passing `OutputLimits`, `CleanupPolicy` or typed Host
-failures across that boundary. Upgrading Build alone while retaining a different
-Host minor family leaves nominally incompatible Rust types.
+Align direct Host dependencies with the 0.27 family when exchanging Host values.
+Cargo owns compiler freshness; Build admits exact artifacts from Cargo messages
+without filename inference. Native Candid extraction uses an admitted tool and
+retains raw bounded evidence; consumers own normalization, grammar and publication.
 The [deployable-Wasm LTO guidance](docs/artifacts.md#deployable-wasm-lto) records
-whole-canister measurements and shows how a common adapter can apply full LTO
-through the existing API, with complete-application qualification before adopting
-a shared release default.
-The [0.12.0 release CI](https://github.com/dragginzgame/ic-build/actions/runs/38947150972)
-passes Linux and native macOS 15 Intel/Apple Silicon. These producer results do
-not establish consumer adoption or application qualification;
-[#1](https://github.com/dragginzgame/ic-build/issues/1) tracks remaining acceptance
-and Canic production convergence. See the artifact guide for source custody and
-retained-cache contracts.
-
-## Native executables
-
-IC Build 0.10 and newer provide `cargo::native::build_native_executable` on Unix.
-The example below uses the pending 0.13 caller-selected process policy.
-It builds an explicit package's binary or example and returns Cargo's reported
-executable and target root, without reconstructing paths for custom profiles or
-target directories.
-The caller supplies its Cargo command factory, profile/features, diagnostics writer
-and per-message JSON allowance. Set shared manifest/configuration/target paths in
-the factory so metadata and build use the same recipe; build-only selection and
-path overrides are refused. Compiler diagnostics stream without a default deadline.
-
-```rust,no_run
-use ic_build::cargo::native::{NativeExecutableSpec, build_native_executable};
-use ic_host_process::child::OwnedChild;
-use std::process::Command;
-
-let spec = NativeExecutableSpec {
-    package: "my-package",
-    target_name: "worker",
-    target_kind: "example",
-    build_args: &[],
-    max_message_bytes: 16 * 1024 * 1024,
-};
-let built = build_native_executable(&spec, || {
-    let mut cargo = Command::new("cargo");
-    cargo.current_dir("/checkout");
-    cargo
-}, std::io::stderr(), || Ok(()), OwnedChild::spawn_direct, || false)?;
-# Ok::<(), Box<dyn std::error::Error + Send + Sync>>(())
-```
-
-Admission runs before each dispatch. The caller selects child/group custody and
-cleanup with the spawning callback; the interruption callback is polled during
-metadata and compilation. Signal handlers, source/configuration/tool exclusion
-and artifact lifetime stay with the caller. This result does not establish
-immutable artifact custody or release admission.
+measurements without imposing a shared application optimization profile.
 
 ## Development
 
-Shared Tooling 0.15.2 is pinned in
+Shared Tooling 0.24.0 is pinned in
 [.shared-tooling.snapshot](.shared-tooling.snapshot); commands use this reviewed
 local snapshot. The [Make interface](docs/make-interface.md) owns common setup,
 formatting, hook installation and release entrypoints.
@@ -176,7 +104,10 @@ prerequisites.
 [rust-toolchain.toml](rust-toolchain.toml) selects the existing Rust 1.99.0
 development compiler, rustfmt, Clippy and its Wasm target independently of the qualified Linux
 library MSRV. Explicit setup reads that target from the toolchain file. The complete
-common toolset is prepared and checked on Linux x86-64. Interactive shells use
+common host/Cargo toolset is prepared and checked on Linux x86-64. This repo has
+no installed IC-executable caller; IC setup remains an explicit opt-in through
+the shared ordered local target lists when such a caller is added. Existing IC
+installations remain retained. Interactive shells use
 the PATH selection in [local developer setup](docs/local-setup.md).
 Fetch the selected workspace dependencies before the offline validation gate;
 installing developer tools does not populate this project cache. CI performs the
@@ -190,7 +121,7 @@ use the prepared compiler even outside this repository's toolchain selection.
 | `make help` | List the repository commands. |
 | `make version` | Read the current workspace version. |
 | `make tasks` | Read the shared maintenance catalog; scheduling remains explicit. |
-| `make tools-check` | Verify all 12 common tools offline. |
+| `make tools-check` | Verify the seven common host/Cargo tools offline. |
 | `make fmt` / `make fmt-check` | Sort Cargo manifests and format / check all workspace Rust source. |
 | `make install-hooks` | Activate the shared pre-commit formatter for selected staged files. |
 | `make check-package` / `make docs-check` | Compile the engine and build rustdoc with warnings denied. |
@@ -201,6 +132,7 @@ use the prepared compiler even outside this repository's toolchain selection.
 | `make install-validation-tools` | Prepare pinned Linux x86-64 ShellCheck, actionlint and Gitleaks. |
 | `make lint check-secrets` | Check shell/workflow sources and scan committed history for secrets. |
 | `make check-release-adapters` | Test release metadata, recovery and publication routing in isolated fixtures. |
+| `make check-boundary` | Enforce the direct Candid/CDK dependency ownership policy. |
 | `make release-patch` / `make release-minor` / `make release-major` | Validate and deliver the selected release through Shared Tooling. |
 | `make publish-check` / `make publish` | Dry-run / upload the clean, tagged release to crates.io. |
 
@@ -208,27 +140,50 @@ The full local delivery suite is `make ci` plus `make lint check-secrets` on
 Linux after explicit tool setup. [CI](.github/workflows/ci.yml) runs lint/security
 on Linux and the package gate on Linux x86-64, macOS 15 Apple Silicon and
 macOS 15 Intel. It explicitly prepares the minimum compiler from Cargo.toml.
-Failed native jobs use the shared evidence action. The exact 0.12.0 release source
-passes all three hosts and lint/security in the release CI linked above; unpublished
-changes still require their own checks.
+Failed native jobs use the shared evidence action. Native qualification is bound
+to its exact source and graph; the handoff records that evidence separately from
+local candidate checks.
 
 Keep Cargo.lock tracked: the full shared pin checker enforces lockfile custody
 as well as root/member dependency inheritance. Each dependency graph is checked
 with its selected lockfile; validation never changes package versions.
 
+The catalog labels production dependencies and test/tooling-only uses under
+[Shared Tooling's role rules](rules/cargo-dependencies.md#dependency-roles-and-deployment-checks).
+`ic-build` is the sole production package; every root dependency is used by its
+normal or Unix-specific normal code. Development edges add Host `test-support`
+features. Global `cargo sort --workspace` ordering applies in formatting hooks,
+CI and release metadata checks, including checks of selected committed source.
+The pin checker enforces selections and inheritance, not transitive role exclusions.
+This repository publishes a host library and has no deployable canister or
+deployment admission gate. Deployment consumers must check their own target/feature
+graphs and exclude Build and other host/test tooling from canister artifacts.
+
+IC Platform is the boundary for any Candid/CDK library capability. The published
+0.1.3 archive is the reviewed baseline; Build currently uses none of its APIs and
+adds no unused platform dependency. `artifacts::candid` runs a caller-admitted
+extractor and retains opaque output; it does not parse or decode Candid or run a
+CDK executor. Application protocols stay with IC Wire. `make check-boundary`,
+also in CI/release validation, uses the shared checker and
+[local policy](ci/cargo-dependency-boundaries.json) to reject named direct
+Candid/parser/CDK dependencies, including aliases and normal/build/dev/target
+declarations regardless of feature activation. The checker covers this workspace,
+not transitive reachability, future unlisted family names or deployed Wasm bytes.
+Inspect resolved graphs separately when dependencies or supported targets change.
+
 `make cloc` reports workspace Rust LOC. The transferred tests execute real
 filesystem and process boundaries, Cargo metadata and Wasm compilation, alongside
-synthetic producer fixtures for failure and concurrency cases. The 0.12.0 release
-gate passes on Linux and both required native macOS hosts. The
+synthetic producer fixtures for failure and concurrency cases. The
 [release and publication guide](docs/publishing.md) describes the consumer
 adapters, exact tagged-source admission and retained recovery evidence.
 The adapter fixtures qualify command behavior; they do not establish publication
 or native macOS support. Published-version custody is recorded in the handoff.
 
-Existing Testkit v1 stamp bytes, digest domains and `.ic-testkit` cache/lock names
-are retained unchanged during the ownership move. There is one reader and no
-automatic cache migration or cleanup. Returned records must remain alive until
-their artifact paths have finished being consumed.
+The extracted v1 stamp format and `.ic-testkit` cache/lock names remain intact.
+The 0.17 explicit-environment fingerprint domain causes cold builds when upgrading
+from inherited-environment execution. Old retained entries remain available to their
+owners; no migration reader or automatic cleanup is added. Returned records must
+remain alive until their artifact paths have finished being consumed.
 
 The [transactional transform example](crates/ic-build/examples/transactional_artifact_cache.rs)
 composes a caller-selected, admitted tool with the generic cache; it chooses its
@@ -240,8 +195,9 @@ design for further convergence of Canic's complete-build mechanics.
 The design owns architectural decisions, not issue status. GitHub issues in the
 owning [GitHub repository](https://github.com/dragginzgame/ic-build) remain the
 sole follow-up tracker.
-Changes in Canic, Testkit, IcyDB or Shared Tooling require authorization for that
-repository. Consumer migrations and cleanup require their own scoped authorization.
+Consumer acceptance remains separate from producer delivery. Follow the adopted
+[contribution rules](rules/contributions.md) for isolated cross-repository work;
+explicit task limits still apply.
 
 The read-only [Cargo release candidate editor](docs/cargo-release-candidates.md)
 provides `ic-build-release-metadata` and pure manifest/lock renderers. Consumers

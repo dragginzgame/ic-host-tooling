@@ -1,13 +1,15 @@
 use std::{
     fs::{self, File},
-    io::{self, Read as _},
+    io,
     path::{Path, PathBuf},
     sync::Arc,
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 
 use super::digest::read_stamp_with_limit;
-use ic_host_fs::owned_directory::remove_path_if_present;
+use ic_host_fs::{
+    durable::SharedFileLock, owned_directory::remove_path_if_present, read::directory_logical_size,
+};
 
 /// Resolve existing components through symlinks and normalize a missing suffix.
 /// Parent traversal can return from a missing suffix to existing components.
@@ -20,11 +22,9 @@ pub(super) fn canonicalize_allow_missing(path: &Path) -> io::Result<PathBuf> {
     ic_host_fs::path::canonicalize_allow_missing(path, &base, usize::MAX)
 }
 
-const CACHE_DIRECTORY_TAG: &str = "Signature: 8a477f597d28d172789f06886806bc55\n\
-# This file is a cache directory tag created by ic-testkit.\n\
+const CACHE_DIRECTORY_TAG_SUFFIX: &str = "\n\
+# This file is a cache directory tag created by ic-build.\n\
 # For information about cache directory tags see https://bford.info/cachedir/\n";
-pub(super) const CACHE_DIRECTORY_TAG_SIGNATURE: &str =
-    "Signature: 8a477f597d28d172789f06886806bc55";
 pub(super) const LAST_USED_FILE: &str = ".ic-testkit-last-used";
 const LAST_MAINTENANCE_FILE: &str = ".ic-testkit-last-maintenance";
 // Nanoseconds are written as decimal u128 values, which need at most 39 bytes.
@@ -36,20 +36,7 @@ pub(super) const RETENTION_LOCK_FILE: &str = ".ic-testkit-retention-v1";
 #[derive(Clone, Debug)]
 pub(super) struct RetainedCacheEntry {
     path: PathBuf,
-    _lock: Arc<RetentionLock>,
-}
-
-#[derive(Debug)]
-struct RetentionLock(File);
-
-impl Drop for RetentionLock {
-    fn drop(&mut self) {
-        // Closing alone can leave a flock held by a descriptor inherited during
-        // a concurrent spawn before exec. Release it when the final record owner
-        // drops, rather than waiting for unrelated child descriptors to close.
-        // If unlocking fails, closing the owned file remains the fallback.
-        let _ = ic_host_fs::durable::unlock(&self.0);
-    }
+    _lock: Arc<SharedFileLock>,
 }
 
 impl PartialEq for RetainedCacheEntry {
@@ -67,14 +54,14 @@ impl RetainedCacheEntry {
 
     pub(super) fn acquire(path: &Path) -> Result<Self, CacheFsError> {
         let file = open_cache_lock_file(&path.join(RETENTION_LOCK_FILE))?;
-        ic_host_fs::durable::lock_shared(&file).map_err(|source| CacheFsError {
+        let lock = SharedFileLock::acquire(file).map_err(|source| CacheFsError {
             operation: "retain cache entry",
             path: path.to_owned(),
             source,
         })?;
         Ok(Self {
             path: path.to_owned(),
-            _lock: Arc::new(RetentionLock(file)),
+            _lock: Arc::new(lock),
         })
     }
 }
@@ -115,15 +102,17 @@ pub(super) fn remove_unretained_entry(path: &Path) -> Result<(), CacheFsError> {
     })
 }
 
-/// Caller-selected retention limits for content-addressed artifact entries.
+/// Caller-selected age and logical-size thresholds for cache maintenance.
 ///
-/// Age pruning runs before size pruning. A policy without either limit scans
-/// the selected cache namespace and updates its cache metadata without
-/// removing entries. Entries retained by live acquisition records are skipped,
-/// even when this temporarily exceeds the limits. They become eligible for the
-/// next maintenance pass after their final owner drops or its process exits.
+/// Thresholds do not select a cleanup algorithm or schedule maintenance.
+/// Exact-entry pruning removes expired and then least-recently-used entries,
+/// skipping live retained records. Shared-target maintenance clears the entire
+/// mutable Cargo state when either threshold is exceeded. It preserves only
+/// the target root and IC Build's coordination metadata; do not colocate unrelated
+/// data there. Without thresholds, no committed entry or shared compiler state
+/// is removed. Explicit transaction maintenance may still clear abandoned staging.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
-pub struct ArtifactCachePrunePolicy {
+pub struct CacheRetentionLimits {
     max_age: Option<Duration>,
     max_size_bytes: Option<u64>,
 }
@@ -152,8 +141,8 @@ pub enum ArtifactCacheMaintenance {
     },
 }
 
-impl ArtifactCachePrunePolicy {
-    /// Create a policy that records cache metadata without removing entries.
+impl CacheRetentionLimits {
+    /// Create explicit limits without an age or size threshold.
     #[must_use]
     pub const fn new() -> Self {
         Self {
@@ -162,14 +151,14 @@ impl ArtifactCachePrunePolicy {
         }
     }
 
-    /// Remove entries older than `max_age` before applying the size limit.
+    /// Set the maximum time since recorded cache use.
     #[must_use]
     pub const fn with_max_age(mut self, max_age: Duration) -> Self {
         self.max_age = Some(max_age);
         self
     }
 
-    /// Remove least-recently-used entries until retained logical size is at most `bytes`.
+    /// Set the maximum logical cache size.
     #[must_use]
     pub const fn with_max_size_bytes(mut self, bytes: u64) -> Self {
         self.max_size_bytes = Some(bytes);
@@ -280,31 +269,13 @@ pub(super) struct CacheFsError {
 }
 
 pub(super) fn ensure_cache_directory_tag(cache_root: &Path) -> Result<(), CacheFsError> {
-    let path = cache_root.join("CACHEDIR.TAG");
-    // The standard recognizes the first 43 bytes, without requiring a newline
-    // or interpreting the remaining text. Symlinks are not valid tag files.
-    let mut signature = [0_u8; CACHE_DIRECTORY_TAG_SIGNATURE.len()];
-    if fs::symlink_metadata(&path).is_ok_and(|metadata| metadata.file_type().is_file())
-        && File::open(&path)
-            .and_then(|mut file| file.read_exact(&mut signature))
-            .is_ok()
-        && signature == CACHE_DIRECTORY_TAG_SIGNATURE.as_bytes()
-    {
-        return Ok(());
-    }
-    ic_host_fs::durable::write_bytes(
-        &path,
-        ic_host_fs::durable::WriteOptions {
-            mode: ic_host_fs::durable::PublicationMode::Replace,
-            permissions: 0o666,
+    ic_host_fs::cache_tag::ensure(cache_root, CACHE_DIRECTORY_TAG_SUFFIX.as_bytes(), 0o666).map_err(
+        |source| CacheFsError {
+            operation: "write cache directory tag",
+            path: cache_root.join("CACHEDIR.TAG"),
+            source: io::Error::other(source),
         },
-        CACHE_DIRECTORY_TAG.as_bytes(),
     )
-    .map_err(|source| CacheFsError {
-        operation: "write cache directory tag",
-        path,
-        source: io::Error::other(source),
-    })
 }
 
 pub(super) fn lock_cache_file(path: &Path) -> Result<(File, Duration), CacheFsError> {
@@ -371,12 +342,12 @@ pub(super) fn record_cache_entry_use(path: &Path) -> Result<(), CacheFsError> {
 
 pub(super) fn cache_maintenance_due(
     path: &Path,
-    minimum_interval: Option<Duration>,
+    minimum_interval: Duration,
     maintenance_identity: &str,
 ) -> Result<bool, CacheFsError> {
-    let Some(minimum_interval) = minimum_interval else {
+    if minimum_interval.is_zero() {
         return Ok(true);
-    };
+    }
     let marker = path.join(LAST_MAINTENANCE_FILE);
     // Allow both LF and CRLF for the timestamp and policy-identity lines.
     let maximum_len = MAX_TIMESTAMP_BYTES + maintenance_identity.len() + 4;
@@ -428,7 +399,7 @@ pub(super) fn record_cache_maintenance(
 
 pub(super) fn perform_scheduled_cache_maintenance(
     path: &Path,
-    minimum_interval: Option<Duration>,
+    minimum_interval: Duration,
     maintenance_identity: &str,
     maintenance: impl FnOnce() -> Result<ArtifactCachePruneReport, String>,
 ) -> (Option<ArtifactCacheMaintenance>, Option<Duration>) {
@@ -508,7 +479,7 @@ fn decode_system_time(contents: &str) -> Option<SystemTime> {
 
 pub(super) fn prune_direct_child_directories(
     cache_root: &Path,
-    policy: ArtifactCachePrunePolicy,
+    policy: CacheRetentionLimits,
     protected_entry: Option<&Path>,
     is_eligible: impl Fn(&Path) -> bool,
 ) -> Result<ArtifactCachePruneReport, CacheFsError> {
@@ -555,28 +526,6 @@ pub(super) fn prune_direct_child_directories(
     }
 
     Ok(report)
-}
-
-pub(super) fn directory_logical_size(path: &Path) -> io::Result<u64> {
-    let mut total = 0_u64;
-    let mut pending = vec![path.to_owned()];
-    while let Some(current) = pending.pop() {
-        let metadata = fs::symlink_metadata(&current)?;
-        if metadata.is_dir() {
-            for entry in fs::read_dir(&current)? {
-                let path = entry?.path();
-                let metadata = fs::symlink_metadata(&path)?;
-                if metadata.is_dir() {
-                    pending.push(path);
-                } else {
-                    total = total.saturating_add(metadata.len());
-                }
-            }
-        } else {
-            total = total.saturating_add(metadata.len());
-        }
-    }
-    Ok(total)
 }
 
 pub(super) fn is_sha256_directory(path: &Path) -> bool {
@@ -695,7 +644,6 @@ fn remove_cache_entry(
 
 #[cfg(test)]
 mod tests {
-    use super::directory_logical_size;
     use crate::fs_fixture::unique_temp_directory;
     use std::{
         fs,
@@ -820,7 +768,7 @@ mod tests {
             clippy::used_underscore_binding,
             reason = "inspect the RAII guard to verify inherited-descriptor retention"
         )]
-        let inherited = retained._lock.0.try_clone().unwrap();
+        let inherited = retained._lock.file().try_clone().unwrap();
         let clone = retained.clone();
         let independently_retained = super::RetainedCacheEntry::acquire(&root).unwrap();
         let lock_path = root.join(super::RETENTION_LOCK_FILE);
@@ -878,14 +826,14 @@ mod tests {
     fn maintenance_markers_preserve_policy_intervals_and_read_errors() {
         let root = unique_temp_directory("bounded-maintenance-marker");
         let marker = root.join(super::LAST_MAINTENANCE_FILE);
-        let identity = super::ArtifactCachePrunePolicy::new().maintenance_identity();
-        let interval = Some(Duration::from_secs(3600));
+        let identity = super::CacheRetentionLimits::new().maintenance_identity();
+        let interval = Duration::from_secs(3600);
         let due = || super::cache_maintenance_due(&root, interval, &identity).unwrap();
         assert!(due());
         super::record_cache_maintenance(&root, &identity).unwrap();
         assert!(!due());
         assert!(super::cache_maintenance_due(&root, interval, "other-policy").unwrap());
-        assert!(super::cache_maintenance_due(&root, Some(Duration::ZERO), &identity).unwrap());
+        assert!(super::cache_maintenance_due(&root, Duration::ZERO, &identity).unwrap());
 
         let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
         for suffix in ["", "\r\n"] {
@@ -910,6 +858,7 @@ mod tests {
         assert!(due());
 
         fs::write(&marker, [0xff]).unwrap();
+        assert!(super::cache_maintenance_due(&root, Duration::ZERO, &identity).unwrap());
         let error = super::cache_maintenance_due(&root, interval, &identity).unwrap_err();
         assert_eq!(error.operation, "read cache maintenance time");
         assert_eq!(error.path, marker);
@@ -917,7 +866,7 @@ mod tests {
         fs::remove_file(&marker).unwrap();
         fs::create_dir(&marker).unwrap();
         assert!(super::cache_maintenance_due(&root, interval, &identity).is_err());
-        assert!(super::cache_maintenance_due(&root, None, &identity).unwrap());
+        assert!(super::cache_maintenance_due(&root, Duration::ZERO, &identity).unwrap());
         fs::remove_dir_all(root).unwrap();
     }
 
@@ -925,7 +874,7 @@ mod tests {
     fn cache_directory_tags_preserve_valid_standard_signatures() {
         let root = unique_temp_directory("cache-tag-signatures");
         let tag = root.join("CACHEDIR.TAG");
-        let signature = "Signature: 8a477f597d28d172789f06886806bc55";
+        let signature = ic_host_fs::cache_tag::SIGNATURE;
         for contents in [
             signature.to_owned(),
             format!("{signature}\r\n# Created by another application\r\n"),
@@ -940,7 +889,7 @@ mod tests {
             super::ensure_cache_directory_tag(&root).unwrap();
             assert_eq!(
                 fs::read_to_string(&tag).unwrap(),
-                super::CACHE_DIRECTORY_TAG
+                format!("{signature}{}", super::CACHE_DIRECTORY_TAG_SUFFIX)
             );
         }
         fs::remove_dir_all(root).unwrap();
@@ -960,7 +909,11 @@ mod tests {
         assert_eq!(fs::read_to_string(&referent).unwrap(), contents);
         assert_eq!(
             fs::read_to_string(&tag).unwrap(),
-            super::CACHE_DIRECTORY_TAG
+            format!(
+                "{}{}",
+                ic_host_fs::cache_tag::SIGNATURE,
+                super::CACHE_DIRECTORY_TAG_SUFFIX
+            )
         );
 
         fs::remove_file(&tag).unwrap();
@@ -979,64 +932,8 @@ mod tests {
             }
         ));
         assert_eq!(error.operation, "write cache directory tag");
+        assert_eq!(error.path, tag);
         assert!(tag.is_dir());
-        fs::remove_dir_all(root).unwrap();
-    }
-
-    #[test]
-    fn directory_size_sums_wide_and_nested_files() {
-        let root = unique_temp_directory("directory-logical-size");
-        assert_eq!(directory_logical_size(&root).unwrap(), 0);
-        fs::create_dir_all(root.join("wide")).unwrap();
-        fs::create_dir_all(root.join("nested/deep/empty")).unwrap();
-        let mut expected = 0;
-        for index in 0..128 {
-            let bytes = vec![42; index % 13];
-            fs::write(root.join("wide").join(index.to_string()), &bytes).unwrap();
-            expected += bytes.len() as u64;
-        }
-        let sparse = root.join("nested/deep/sparse");
-        fs::File::create(&sparse)
-            .unwrap()
-            .set_len(1024 * 1024)
-            .unwrap();
-        assert_eq!(directory_logical_size(&sparse).unwrap(), 1024 * 1024);
-        assert_eq!(
-            directory_logical_size(&root).unwrap(),
-            expected + 1024 * 1024
-        );
-        assert_eq!(
-            directory_logical_size(&root.join("missing"))
-                .unwrap_err()
-                .kind(),
-            std::io::ErrorKind::NotFound,
-        );
-        fs::remove_dir_all(root).unwrap();
-    }
-
-    #[test]
-    #[cfg(unix)]
-    fn directory_size_counts_symlinks_without_following_them() {
-        let root = unique_temp_directory("directory-size-symlinks");
-        let walked = root.join("walked");
-        fs::create_dir_all(&walked).unwrap();
-        fs::create_dir_all(root.join("external")).unwrap();
-        fs::write(root.join("external/payload"), vec![42; 4096]).unwrap();
-        fs::write(root.join("outside-file"), vec![42; 4096]).unwrap();
-        fs::write(walked.join("payload"), b"abc").unwrap();
-        let targets = ["../external", "../outside-file", "missing", "."];
-        for (index, target) in targets.iter().enumerate() {
-            std::os::unix::fs::symlink(target, walked.join(index.to_string())).unwrap();
-        }
-        let expected = 3 + targets
-            .iter()
-            .map(|target| target.len() as u64)
-            .sum::<u64>();
-        assert_eq!(directory_logical_size(&walked).unwrap(), expected);
-        assert_eq!(
-            directory_logical_size(&walked.join("0")).unwrap(),
-            targets[0].len() as u64,
-        );
         fs::remove_dir_all(root).unwrap();
     }
 }

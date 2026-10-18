@@ -7,13 +7,16 @@ repository.workspace = true
 description.workspace = true
 readme.workspace = true
 license.workspace = true
+exclude = ["target/"]
 publish = true
 
 [target.'cfg(unix)'.dependencies]
+# Production dependencies
 libc.workspace = true
 rustix.workspace = true
 
 [dependencies]
+# Production dependencies
 cargo_metadata.workspace = true
 ic-host-artifacts.workspace = true
 ic-host-fs.workspace = true
@@ -21,13 +24,16 @@ ic-host-process.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 sha2.workspace = true
+thiserror.workspace = true
 toml.workspace = true
 toml_edit.workspace = true
 
 [dev-dependencies]
+# Tests and tooling only: enable fixture support on shared production dependencies.
 ic-host-fs = { workspace = true, features = ["test-support"] }
 
 [target.'cfg(unix)'.dev-dependencies]
+# Tests and tooling only
 ic-host-process = { workspace = true, features = ["test-support"] }
 
 [lints]

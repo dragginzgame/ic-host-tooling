@@ -72,7 +72,7 @@ fn observations_bind_raw_bytes_overrides_and_include_trees() {
         vec![&config, &included, &shadowed]
     );
     assert_eq!(
-        observed[0].sha256,
+        *observed[0].sha256.as_bytes(),
         <[u8; 32]>::from(Sha256::digest(source.as_bytes()))
     );
     assert_eq!(observed[0].compiler_overrides, ["rustc", "rustdoc"]);
@@ -161,4 +161,35 @@ fn required_and_malformed_configuration_fail_without_source_text_in_diagnostics(
             if message == "Cargo configuration include table requires a string `path`"
     ));
     fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn configuration_error_preserves_io_source_and_path_context() {
+    use std::error::Error as _;
+    let source = std::io::Error::from_raw_os_error(2);
+    let expected = format!("read Cargo configuration /selected/config.toml: {source}");
+    let error = ConfigurationError::Io {
+        operation: "read Cargo configuration",
+        path: PathBuf::from("/selected/config.toml"),
+        source,
+    };
+    assert_eq!(error.to_string(), expected);
+    assert_eq!(
+        error
+            .source()
+            .unwrap()
+            .downcast_ref::<std::io::Error>()
+            .unwrap()
+            .raw_os_error(),
+        Some(2)
+    );
+    let invalid = ConfigurationError::Invalid {
+        path: PathBuf::from("/selected/config.toml"),
+        message: "invalid include structure".into(),
+    };
+    assert_eq!(
+        invalid.to_string(),
+        "invalid Cargo configuration /selected/config.toml: invalid include structure"
+    );
+    assert!(invalid.source().is_none());
 }

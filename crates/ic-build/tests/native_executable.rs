@@ -1,9 +1,11 @@
 //! Real native Cargo selection, environment preservation and failed-build evidence.
 #![cfg(unix)]
 
+use ic_build::cargo::selection::CargoSelection;
+
 mod support;
 
-use ic_build::cargo::native::{NativeExecutableSpec, build_native_executable};
+use ic_build::cargo::native::{NativeExecutableSpec, NativeTargetKind, build_native_executable};
 use ic_host_process::{child::OwnedChild, tool::ToolError};
 use std::{cell::Cell, ffi::OsString, fs, process::Command};
 
@@ -16,12 +18,15 @@ fn actual_cargo_reports_custom_profile_executable_and_streams_failed_build_diagn
         calls.set(calls.get() + 1);
         command(&cargo_program, &root, &target)
     };
-    let args = [OsString::from("--profile"), OsString::from("custom")];
     let spec = NativeExecutableSpec {
         package: "native-fixture",
         target_name: "worker",
-        target_kind: "example",
-        build_args: &args,
+        target_kind: NativeTargetKind::Example,
+        selection: CargoSelection {
+            profile: Some("custom".into()),
+            locked: true,
+            ..Default::default()
+        },
         max_message_bytes: 1024 * 1024,
     };
     let mut diagnostics = Vec::new();
@@ -44,8 +49,8 @@ fn actual_cargo_reports_custom_profile_executable_and_streams_failed_build_diagn
     );
     let binary = NativeExecutableSpec {
         target_name: "native-fixture",
-        target_kind: "bin",
-        ..spec
+        target_kind: NativeTargetKind::Binary,
+        ..spec.clone()
     };
     let built = build_native_executable(
         &binary,
@@ -80,10 +85,8 @@ fn actual_cargo_reports_custom_profile_executable_and_streams_failed_build_diagn
         || false,
     )
     .unwrap_err();
-    assert_eq!(
-        error.downcast_ref::<std::io::Error>().unwrap().kind(),
-        std::io::ErrorKind::Interrupted
-    );
+    let failure = error.downcast_ref::<std::io::Error>().unwrap();
+    assert_eq!(failure.kind(), std::io::ErrorKind::Interrupted);
     assert_eq!(calls.get(), 1);
     fs::write(
         root.join("examples/worker.rs"),
@@ -103,10 +106,8 @@ fn actual_cargo_reports_custom_profile_executable_and_streams_failed_build_diagn
     let execution = error
         .downcast_ref::<ToolError>()
         .expect("original Host failure stays typed");
-    assert_eq!(
-        execution.evidence().unwrap().status.unwrap().code(),
-        Some(101)
-    );
+    let status = execution.evidence().unwrap().status.unwrap();
+    assert_eq!(status.code(), Some(101));
     assert!(String::from_utf8_lossy(&diagnostics).contains("this_does_not_compile"));
     fs::remove_dir_all(root).expect("remove native fixture");
 }

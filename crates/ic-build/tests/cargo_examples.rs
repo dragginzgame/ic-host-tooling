@@ -1,5 +1,9 @@
 //! Named examples share Cargo identity/output selection while callers own execution.
 
+use ic_build::cargo::selection::{CargoFeatureSelection, CargoSelection};
+use ic_host_process::child::OwnedChild;
+use support::cargo::spawn_cargo;
+
 mod support;
 
 #[cfg(unix)]
@@ -8,7 +12,7 @@ use ic_host_process::testing::write_executable_script;
 use ic_build::artifacts::{
     CapturedArtifact, CargoInputProbePolicy, InputEvidence, InputEvidenceError, InputEvidenceSpec,
     ResolvedCargoBuildInputs, WasmBuildError, WasmBuildSpec, build_wasm_canisters_cached,
-    discover_cargo_depfile_inputs, resolve_cargo_build_inputs,
+    read_cargo_depfile_inputs, resolve_cargo_build_inputs,
     resolve_cargo_build_inputs_with_probe_policy,
 };
 use ic_host_process::tool::{OutputLimit, OutputLimits, capture_command};
@@ -69,9 +73,18 @@ fn recipe(root: &Path) -> WasmBuildSpec {
         &workspace,
         &workspace.join("target/cargo"),
         &["example-fixture"],
+        support::cargo::environment(),
     )
     .with_example("probe")
-    .with_cargo_profile_args(["--features", "probe", "--locked", "--offline"])
+    .with_cargo_selection(CargoSelection {
+        features: CargoFeatureSelection {
+            features: ["probe".into()].into(),
+            ..Default::default()
+        },
+        locked: true,
+        offline: true,
+        ..Default::default()
+    })
 }
 
 fn evidence(inputs: &ResolvedCargoBuildInputs) -> InputEvidenceSpec {
@@ -119,22 +132,39 @@ fn named_examples_build_and_reuse_without_aliasing_library_or_other_example() {
                 )
             ]
         );
-        let first = build_wasm_canisters_cached(&spec).unwrap();
+        let first = build_wasm_canisters_cached(&spec, OwnedChild::spawn_direct).unwrap();
         let bytes = fs::read(&first.record().artifacts()[0]).unwrap();
         assert!(bytes.starts_with(b"\0asm"));
         assert!(first.record().artifacts()[0].ends_with("debug/examples/probe.wasm"));
-        assert!(build_wasm_canisters_cached(&spec).unwrap().is_reused());
-        let other = build_wasm_canisters_cached(&spec.clone().with_example("other-probe")).unwrap();
+        assert!(
+            build_wasm_canisters_cached(&spec, OwnedChild::spawn_direct)
+                .unwrap()
+                .is_reused()
+        );
+        let other = build_wasm_canisters_cached(
+            &spec.clone().with_example("other-probe"),
+            OwnedChild::spawn_direct,
+        )
+        .unwrap();
         assert_ne!(first.record().fingerprint(), other.record().fingerprint());
         assert!(other.record().artifacts()[0].ends_with("debug/examples/other_probe.wasm"));
         let library = WasmBuildSpec::new(
             &root.join("workspace"),
             &root.join("workspace/target/cargo"),
             &["example-fixture"],
+            support::cargo::environment(),
         )
-        .with_cargo_profile_args(["--features", "probe", "--locked", "--offline"])
+        .with_cargo_selection(CargoSelection {
+            features: CargoFeatureSelection {
+                features: ["probe".into()].into(),
+                ..Default::default()
+            },
+            locked: true,
+            offline: true,
+            ..Default::default()
+        })
         .with_isolated_builds();
-        let library = build_wasm_canisters_cached(&library).unwrap();
+        let library = build_wasm_canisters_cached(&library, OwnedChild::spawn_direct).unwrap();
         assert_ne!(first.record().fingerprint(), library.record().fingerprint());
         let manifest = root.join("workspace/Cargo.toml");
         let original = fs::read_to_string(&manifest).unwrap();
@@ -153,7 +183,7 @@ fn named_examples_build_and_reuse_without_aliasing_library_or_other_example() {
                 .is_err()
         );
         assert!(matches!(
-            build_wasm_canisters_cached(&spec),
+            build_wasm_canisters_cached(&spec, OwnedChild::spawn_direct),
             Err(WasmBuildError::InvalidSpec { .. })
         ));
         assert_eq!(fs::read(&first.record().artifacts()[0]).unwrap(), bytes);
@@ -187,10 +217,8 @@ fn external_example_execution_rechecks_inputs_before_capturing_exact_bytes() {
             .is_current_with_probe_policy(&spec, &mut policy)
             .unwrap()
     );
-    let after = InputEvidence::capture(&evidence(
-        &resolve_cargo_build_inputs_with_probe_policy(&spec, &mut policy).unwrap(),
-    ))
-    .unwrap();
+    let after =
+        evidence(&resolve_cargo_build_inputs_with_probe_policy(&spec, &mut policy).unwrap());
     before.validate_after(&after).unwrap();
     let output = &inputs.artifact_paths().unwrap()[0];
     let bytes = fs::read(output).unwrap();
@@ -202,7 +230,7 @@ fn external_example_execution_rechecks_inputs_before_capturing_exact_bytes() {
     assert!(!root.join("workspace/configured").exists());
     fs::write(root.join("workspace/examples/probe.rs"), "changed source").unwrap();
     assert!(!inputs.is_content_current().unwrap());
-    let after = InputEvidence::capture(&evidence(&inputs)).unwrap();
+    let after = evidence(&inputs);
     assert!(matches!(
         before.validate_after(&after),
         Err(InputEvidenceError::ChangedInput { .. })
@@ -234,9 +262,9 @@ fn late_example_depfile_inputs_require_prebuild_authority() {
         let before = InputEvidence::capture(&evidence(&inputs)).unwrap();
         execute(&spec);
         let target = root.join("workspace/target/cargo");
-        let paths = discover_cargo_depfile_inputs(
+        let paths = read_cargo_depfile_inputs(
             &root.join("workspace"),
-            &[target.join("wasm32-unknown-unknown/debug/examples")],
+            &target.join("wasm32-unknown-unknown/debug/examples/probe.d"),
             std::slice::from_ref(&target),
             64 * 1024,
         )
@@ -245,7 +273,7 @@ fn late_example_depfile_inputs_require_prebuild_authority() {
         let after_spec = paths
             .iter()
             .fold(evidence(&inputs), InputEvidenceSpec::with_input);
-        let after = InputEvidence::capture(&after_spec).unwrap();
+        let after = after_spec;
         if predeclared {
             before.validate_after(&after).unwrap();
             fs::remove_file(&external).unwrap();
@@ -271,22 +299,11 @@ fn unsafe_or_conflicting_example_selectors_fail_before_dispatch() {
                 .is_err()
         );
     }
-    for arguments in [
-        vec!["--lib"],
-        vec!["--example", "other"],
-        vec!["--bin=probe"],
-    ] {
-        assert!(
-            spec.clone()
-                .with_cargo_profile_args(arguments)
-                .cargo_build_command()
-                .is_err()
-        );
-    }
     let multi = WasmBuildSpec::new(
         &root.join("workspace"),
         &root.join("target"),
         &["one", "two"],
+        support::cargo::environment(),
     )
     .with_example("probe");
     assert!(multi.cargo_build_command().is_err());
@@ -383,7 +400,7 @@ fn prepared_metadata_sharing_preserves_distinct_example_selections() {
         LabeledWasmBuildSpec::new("other", second),
     ];
     let cold = snapshot
-        .build_batch(&recipes, WasmBuildBatchConfig::new())
+        .build_batch(&recipes, WasmBuildBatchConfig::new(), None, spawn_cargo)
         .unwrap();
     assert!(cold.is_success());
     let identities: Vec<_> = cold
@@ -392,7 +409,7 @@ fn prepared_metadata_sharing_preserves_distinct_example_selections() {
         .collect();
     assert_ne!(identities[0], identities[1]);
     let warm = snapshot
-        .build_batch(&recipes, WasmBuildBatchConfig::new())
+        .build_batch(&recipes, WasmBuildBatchConfig::new(), None, spawn_cargo)
         .unwrap();
     assert!(
         warm.outcomes()
@@ -404,7 +421,7 @@ fn prepared_metadata_sharing_preserves_distinct_example_selections() {
     )];
     assert!(
         snapshot
-            .build_batch(&unprepared, WasmBuildBatchConfig::new())
+            .build_batch(&unprepared, WasmBuildBatchConfig::new(), None, spawn_cargo,)
             .is_err()
     );
     drop((cold, warm, snapshot));

@@ -13,17 +13,18 @@ use std::{
 
 use ic_host_artifacts::artifact::MatchingWriter;
 use ic_host_fs::owned_directory::{OwnedDirectory, remove_path_if_present};
+use ic_host_fs::read::directory_logical_size;
 
 mod boundaries;
-use boundaries::CargoInputBoundaries;
+use super::inputs::boundaries::CargoInputBoundaries;
 
 use super::{
     cache_fs::{
-        ArtifactCacheMaintenance, ArtifactCachePrunePolicy, ArtifactCachePruneReport, CacheFsError,
-        LAST_USED_FILE, RetainedCacheEntry, canonicalize_allow_missing, directory_logical_size,
-        ensure_cache_directory_tag, is_sha256_directory, lock_cache_file,
-        perform_scheduled_cache_maintenance, prune_direct_child_directories,
-        record_cache_entry_use, remove_unretained_entry, try_lock_cache_file,
+        ArtifactCacheMaintenance, ArtifactCachePruneReport, CacheFsError, CacheRetentionLimits,
+        LAST_USED_FILE, RetainedCacheEntry, canonicalize_allow_missing, ensure_cache_directory_tag,
+        is_sha256_directory, lock_cache_file, perform_scheduled_cache_maintenance,
+        prune_direct_child_directories, record_cache_entry_use, remove_unretained_entry,
+        try_lock_cache_file,
     },
     digest::{
         FileDigest, InputDigest, InputHasher, copy_file_atomic, digest_bytes, digest_file,
@@ -37,7 +38,6 @@ use super::{
 const ARTIFACT_CACHE_FORMAT: &str = "ic-testkit-artifact-set-v1";
 const MANIFEST_FILE: &str = "manifest.ic-testkit";
 const OUTPUT_FILE_SUFFIX: &str = ".artifact";
-const MAX_PREPARATION_RETRIES: usize = 3;
 static STAGING_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
 /// Built-in validation applied to one transactional artifact output.
@@ -71,8 +71,7 @@ pub struct ArtifactCacheSpec {
     identities: Vec<LabeledIdentity>,
     cargo_build_inputs: Vec<CargoBuildInputSet>,
     outputs: Vec<OutputSpec>,
-    prune_policy: Option<ArtifactCachePrunePolicy>,
-    prune_interval: Option<Duration>,
+    pruning: Option<(CacheRetentionLimits, Duration)>,
 }
 
 /// Result of preparing a transactional artifact-set acquisition.
@@ -159,7 +158,7 @@ pub enum ArtifactCacheError {
         /// Original underlying error, including its typed failure evidence.
         source: io::Error,
     },
-    /// Inputs repeatedly changed while preparing a stable cache acquisition.
+    /// Inputs changed while preparing a stable cache acquisition.
     InputsChangedDuringPreparation {
         /// Input identity captured before the operation.
         before: InputDigest,
@@ -262,8 +261,7 @@ impl ArtifactCacheSpec {
             identities: Vec::new(),
             cargo_build_inputs: Vec::new(),
             outputs: Vec::new(),
-            prune_policy: None,
-            prune_interval: None,
+            pruning: None,
         }
     }
 
@@ -406,9 +404,8 @@ impl ArtifactCacheSpec {
 
     /// Apply best-effort retention while protecting the acquired entry.
     #[must_use]
-    pub const fn with_prune_policy(mut self, policy: ArtifactCachePrunePolicy) -> Self {
-        self.prune_policy = Some(policy);
-        self.prune_interval = None;
+    pub const fn with_prune_policy(mut self, policy: CacheRetentionLimits) -> Self {
+        self.pruning = Some((policy, Duration::ZERO));
         self
     }
 
@@ -422,11 +419,10 @@ impl ArtifactCacheSpec {
     #[must_use]
     pub const fn with_prune_policy_at_most_every(
         mut self,
-        policy: ArtifactCachePrunePolicy,
+        policy: CacheRetentionLimits,
         minimum_interval: Duration,
     ) -> Self {
-        self.prune_policy = Some(policy);
-        self.prune_interval = Some(minimum_interval);
+        self.pruning = Some((policy, minimum_interval));
         self
     }
 
@@ -490,8 +486,7 @@ impl std::fmt::Debug for ArtifactCacheSpec {
                 ),
             )
             .field("outputs", &self.outputs)
-            .field("prune_policy", &self.prune_policy)
-            .field("prune_interval", &self.prune_interval)
+            .field("pruning", &self.pruning)
             .finish()
     }
 }
@@ -877,9 +872,7 @@ impl ArtifactBuildTransaction {
 /// # Errors
 /// Returns invalid specification/boundary, Cargo input revalidation, input-change,
 /// lock, input-read or cache acquisition/materialization errors.
-///
-/// # Panics
-/// Panics if internal preparation retries exhaust without recording an input change.
+/// Input changes refuse immediately; retry decisions remain caller-owned.
 pub fn prepare_artifact_cache(
     spec: &ArtifactCacheSpec,
 ) -> Result<ArtifactCachePreparation, ArtifactCacheError> {
@@ -898,92 +891,87 @@ pub fn prepare_artifact_cache(
     let initial_cargo_started = Instant::now();
     revalidate_cargo_build_input_fingerprints(spec)?;
     timings.input_capture = initial_cargo_started.elapsed();
-    let mut last_change = None;
 
-    for _ in 0..MAX_PREPARATION_RETRIES {
-        let capture_started = Instant::now();
-        let resolved = resolve_key(spec)?;
-        timings.input_capture = timings
-            .input_capture
-            .saturating_add(capture_started.elapsed());
+    let capture_started = Instant::now();
+    let resolved = resolve_key(spec)?;
+    timings.input_capture = timings
+        .input_capture
+        .saturating_add(capture_started.elapsed());
 
-        let content_lock_path = content_lock_path(spec, resolved.key);
-        let (content_lock, content_wait) =
-            lock_cache_file(&content_lock_path).map_err(artifact_cache_fs_error)?;
-        timings.content_lock_wait = timings.content_lock_wait.saturating_add(content_wait);
+    let content_lock_path = content_lock_path(spec, resolved.key);
+    let (content_lock, content_wait) =
+        lock_cache_file(&content_lock_path).map_err(artifact_cache_fs_error)?;
+    timings.content_lock_wait = timings.content_lock_wait.saturating_add(content_wait);
 
-        let verification_started = Instant::now();
-        let verified = resolve_key(spec)?;
-        timings.input_capture = timings
-            .input_capture
-            .saturating_add(verification_started.elapsed());
-        if resolved.input_digest != verified.input_digest {
-            last_change = Some((resolved.input_digest, verified.input_digest));
-            drop(content_lock);
-            continue;
-        }
-
-        let entry_directory = entry_directory(&namespace_directory, resolved.key);
-        let namespace_lock_path = namespace_lock_path(spec);
-        let (namespace_lock, namespace_wait) =
-            lock_cache_file(&namespace_lock_path).map_err(artifact_cache_fs_error)?;
-        timings.namespace_lock_wait = timings.namespace_lock_wait.saturating_add(namespace_wait);
-        let lookup_started = Instant::now();
-        let verified_outputs = validated_cache_outputs(spec, resolved.key, &entry_directory)?;
-        timings.cache_lookup = timings
-            .cache_lookup
-            .saturating_add(lookup_started.elapsed());
-
-        if let Some(output_info) = verified_outputs {
-            let materialization_started = Instant::now();
-            materialize_outputs(spec, &entry_directory, Some(&output_info))?;
-            timings.materialization = timings
-                .materialization
-                .saturating_add(materialization_started.elapsed());
-            let after_started = Instant::now();
-            revalidate_cargo_build_input_fingerprints(spec)?;
-            let after = resolve_key(spec)?;
-            timings.input_capture = timings
-                .input_capture
-                .saturating_add(after_started.elapsed());
-            if after.input_digest != resolved.input_digest {
-                last_change = Some((resolved.input_digest, after.input_digest));
-                drop(namespace_lock);
-                drop(content_lock);
-                continue;
-            }
-            record_cache_entry_use(&entry_directory).map_err(artifact_cache_fs_error)?;
-            let (maintenance, maintenance_timing) =
-                perform_maintenance_locked(spec, &namespace_directory, &entry_directory);
-            timings.maintenance = maintenance_timing;
-            timings.total = total_started.elapsed();
-            return Ok(ArtifactCachePreparation::Reused(cache_record(
-                spec,
-                resolved,
-                timings,
-                maintenance,
-            )?));
-        }
-
-        remove_unretained_entry(&entry_directory).map_err(artifact_cache_fs_error)?;
-        let staging_directory = create_staging_directory(&namespace_directory, resolved.key)?;
-        drop(namespace_lock);
-        return Ok(ArtifactCachePreparation::Build(ArtifactBuildTransaction {
-            spec: Box::new(spec.clone()),
-            resolved,
-            staging_directory: OwnedDirectory::new(staging_directory),
-            entry_directory,
-            namespace_directory,
-            _coordination_lock: coordination_lock,
-            _content_lock: content_lock,
-            timings,
-            total_started,
-            caller_build_started: Instant::now(),
-        }));
+    let verification_started = Instant::now();
+    let verified = resolve_key(spec)?;
+    timings.input_capture = timings
+        .input_capture
+        .saturating_add(verification_started.elapsed());
+    if resolved.input_digest != verified.input_digest {
+        return Err(ArtifactCacheError::InputsChangedDuringPreparation {
+            before: resolved.input_digest,
+            after: verified.input_digest,
+        });
     }
 
-    let (before, after) = last_change.expect("preparation retries require a recorded input change");
-    Err(ArtifactCacheError::InputsChangedDuringPreparation { before, after })
+    let entry_directory = entry_directory(&namespace_directory, resolved.key);
+    let namespace_lock_path = namespace_lock_path(spec);
+    let (namespace_lock, namespace_wait) =
+        lock_cache_file(&namespace_lock_path).map_err(artifact_cache_fs_error)?;
+    timings.namespace_lock_wait = timings.namespace_lock_wait.saturating_add(namespace_wait);
+    let lookup_started = Instant::now();
+    let verified_outputs = validated_cache_outputs(spec, resolved.key, &entry_directory)?;
+    timings.cache_lookup = timings
+        .cache_lookup
+        .saturating_add(lookup_started.elapsed());
+
+    if let Some(output_info) = verified_outputs {
+        let materialization_started = Instant::now();
+        materialize_outputs(spec, &entry_directory, Some(&output_info))?;
+        timings.materialization = timings
+            .materialization
+            .saturating_add(materialization_started.elapsed());
+        let after_started = Instant::now();
+        revalidate_cargo_build_input_fingerprints(spec)?;
+        let after = resolve_key(spec)?;
+        timings.input_capture = timings
+            .input_capture
+            .saturating_add(after_started.elapsed());
+        if after.input_digest != resolved.input_digest {
+            return Err(ArtifactCacheError::InputsChangedDuringPreparation {
+                before: resolved.input_digest,
+                after: after.input_digest,
+            });
+        }
+        record_cache_entry_use(&entry_directory).map_err(artifact_cache_fs_error)?;
+        let (maintenance, maintenance_timing) =
+            perform_maintenance_locked(spec, &namespace_directory, &entry_directory);
+        timings.maintenance = maintenance_timing;
+        timings.total = total_started.elapsed();
+        return Ok(ArtifactCachePreparation::Reused(cache_record(
+            spec,
+            resolved,
+            timings,
+            maintenance,
+        )?));
+    }
+
+    remove_unretained_entry(&entry_directory).map_err(artifact_cache_fs_error)?;
+    let staging_directory = create_staging_directory(&namespace_directory, resolved.key)?;
+    drop(namespace_lock);
+    Ok(ArtifactCachePreparation::Build(ArtifactBuildTransaction {
+        spec: Box::new(spec.clone()),
+        resolved,
+        staging_directory: OwnedDirectory::new(staging_directory),
+        entry_directory,
+        namespace_directory,
+        _coordination_lock: coordination_lock,
+        _content_lock: content_lock,
+        timings,
+        total_started,
+        caller_build_started: Instant::now(),
+    }))
 }
 
 fn revalidate_cargo_build_input_fingerprints(
@@ -1032,7 +1020,7 @@ fn revalidate_cargo_build_input_fingerprints(
 pub fn prune_artifact_cache(
     cache_root: &Path,
     namespace: &str,
-    policy: ArtifactCachePrunePolicy,
+    policy: CacheRetentionLimits,
 ) -> Result<ArtifactCachePruneReport, ArtifactCacheError> {
     validate_identifier("namespace", namespace)?;
     if cache_root.as_os_str().is_empty() {
@@ -1718,9 +1706,9 @@ fn perform_maintenance_locked(
     namespace: &Path,
     protected_entry: &Path,
 ) -> (Option<ArtifactCacheMaintenance>, Option<Duration>) {
-    spec.prune_policy.map_or((None, None), |policy| {
+    spec.pruning.map_or((None, None), |(policy, interval)| {
         let identity = policy.maintenance_identity();
-        perform_scheduled_cache_maintenance(namespace, spec.prune_interval, &identity, || {
+        perform_scheduled_cache_maintenance(namespace, interval, &identity, || {
             prune_artifact_namespace_locked(
                 &spec.cache_root,
                 namespace,
@@ -1735,7 +1723,7 @@ fn perform_maintenance_locked(
 fn prune_artifact_namespace_locked(
     cache_root: &Path,
     namespace: &Path,
-    policy: ArtifactCachePrunePolicy,
+    policy: CacheRetentionLimits,
     protected_entry: Option<&Path>,
 ) -> Result<ArtifactCachePruneReport, ArtifactCacheError> {
     let mut report = prune_direct_child_directories(
@@ -1980,7 +1968,7 @@ impl std::fmt::Display for ArtifactCacheError {
             ),
             Self::InputsChangedDuringPreparation { before, after } => write!(
                 formatter,
-                "artifact inputs repeatedly changed during cache preparation: {before} -> {after}",
+                "artifact inputs changed during cache preparation: {before} -> {after}",
             ),
             Self::InputsChangedDuringAcquisition { before, after } => write!(
                 formatter,

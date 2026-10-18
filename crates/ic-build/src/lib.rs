@@ -8,7 +8,7 @@
 pub mod artifacts;
 pub mod cargo;
 
-mod batch;
+pub mod batch;
 
 #[cfg(test)]
 #[path = "../test-support/cargo/mod.rs"]

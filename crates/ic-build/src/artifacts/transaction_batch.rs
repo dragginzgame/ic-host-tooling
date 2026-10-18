@@ -33,37 +33,6 @@ pub struct ArtifactCacheBatchEntry<E> {
     entry_elapsed: Duration,
 }
 
-/// Structural error that prevents a labeled artifact batch from starting.
-#[non_exhaustive]
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum ArtifactCacheBatchContractError {
-    /// An entry label was empty.
-    EmptyLabel {
-        /// Zero-based position of the invalid entry.
-        index: usize,
-    },
-    /// Two entries used the same label.
-    DuplicateLabel {
-        /// Duplicated caller label.
-        label: String,
-        /// Position where the label first appeared.
-        first_index: usize,
-        /// Position where the label was repeated.
-        duplicate_index: usize,
-    },
-}
-
-/// Primary phase in which a generic artifact batch entry failed.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum ArtifactCacheBatchFailurePhase {
-    /// Cache preparation failed before the population callback ran.
-    Preparation,
-    /// The caller's population callback failed.
-    Callback,
-    /// Transaction commit failed after successful population.
-    Commit,
-}
-
 /// Partial phase timings retained for one failed artifact batch entry.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct ArtifactCacheBatchFailureTimings {
@@ -77,17 +46,22 @@ pub struct ArtifactCacheBatchFailureTimings {
 /// Failure from one entry in a collect-all artifact transaction batch.
 #[derive(Debug)]
 pub enum ArtifactCacheBatchFailure<E> {
-    /// Cache preparation or commit failed.
-    Cache {
-        /// Failed cache phase.
-        phase: ArtifactCacheBatchFailurePhase,
-        /// Cache preparation or commit failure.
+    /// Cache preparation failed before the population callback ran.
+    Preparation {
+        /// Cache preparation failure.
+        source: Box<ArtifactCacheError>,
+        /// Phase timings completed before the failure returned.
+        timings: ArtifactCacheBatchFailureTimings,
+    },
+    /// Transaction commit failed after successful population.
+    Commit {
+        /// Cache commit failure.
         source: Box<ArtifactCacheError>,
         /// Phase timings completed before the failure returned.
         timings: ArtifactCacheBatchFailureTimings,
     },
     /// The caller's population callback failed.
-    Build {
+    Callback {
         /// Caller population failure.
         source: Box<E>,
         /// Failure from synchronously aborting the active transaction.
@@ -256,20 +230,13 @@ impl<E> ArtifactCacheBatchEntry<E> {
 }
 
 impl<E> ArtifactCacheBatchFailure<E> {
-    /// Primary phase in which this entry failed.
-    #[must_use]
-    pub const fn phase(&self) -> ArtifactCacheBatchFailurePhase {
-        match self {
-            Self::Cache { phase, .. } => *phase,
-            Self::Build { .. } => ArtifactCacheBatchFailurePhase::Callback,
-        }
-    }
-
     /// Partial phase timings completed before the failure returned.
     #[must_use]
     pub const fn timings(&self) -> ArtifactCacheBatchFailureTimings {
         match self {
-            Self::Cache { timings, .. } | Self::Build { timings, .. } => *timings,
+            Self::Preparation { timings, .. }
+            | Self::Commit { timings, .. }
+            | Self::Callback { timings, .. } => *timings,
         }
     }
 
@@ -277,8 +244,8 @@ impl<E> ArtifactCacheBatchFailure<E> {
     #[must_use]
     pub fn cleanup_error(&self) -> Option<&ArtifactCacheError> {
         match self {
-            Self::Build { cleanup_error, .. } => cleanup_error.as_deref(),
-            Self::Cache { .. } => None,
+            Self::Callback { cleanup_error, .. } => cleanup_error.as_deref(),
+            Self::Preparation { .. } | Self::Commit { .. } => None,
         }
     }
 }
@@ -395,11 +362,11 @@ impl<E> std::fmt::Display for ArtifactCacheBatchReport<E> {
 pub fn build_artifact_caches_batch<E, F>(
     specs: &[LabeledArtifactCacheSpec],
     mut populate: F,
-) -> Result<ArtifactCacheBatchReport<E>, ArtifactCacheBatchContractError>
+) -> Result<ArtifactCacheBatchReport<E>, BatchLabelError>
 where
     F: FnMut(&str, &ArtifactBuildTransaction) -> Result<(), E>,
 {
-    validate_batch_labels(specs)?;
+    validate_labels(specs.iter().map(LabeledArtifactCacheSpec::label))?;
     let started = Instant::now();
     let mut entries = Vec::with_capacity(specs.len());
     for (index, labeled) in specs.iter().enumerate() {
@@ -422,16 +389,16 @@ fn build_artifact_cache_entry<E>(
         let preparation_started = Instant::now();
         let preparation = prepare_artifact_cache(&labeled.spec);
         timings.preparation = preparation_started.elapsed();
-        let transaction = match preparation.map_err(|source| ArtifactCacheBatchFailure::Cache {
-            phase: ArtifactCacheBatchFailurePhase::Preparation,
-            source: Box::new(source),
-            timings,
-        })? {
-            ArtifactCachePreparation::Reused(record) => {
-                return Ok(ArtifactCacheOutcome::Reused(record));
-            }
-            ArtifactCachePreparation::Build(transaction) => transaction,
-        };
+        let transaction =
+            match preparation.map_err(|source| ArtifactCacheBatchFailure::Preparation {
+                source: Box::new(source),
+                timings,
+            })? {
+                ArtifactCachePreparation::Reused(record) => {
+                    return Ok(ArtifactCacheOutcome::Reused(record));
+                }
+                ArtifactCachePreparation::Build(transaction) => transaction,
+            };
 
         let callback_started = Instant::now();
         let callback_result = populate(&labeled.label, &transaction);
@@ -440,7 +407,7 @@ fn build_artifact_cache_entry<E>(
             let cleanup_started = Instant::now();
             let cleanup_error = transaction.abort().err().map(Box::new);
             timings.cleanup = Some(cleanup_started.elapsed());
-            return Err(ArtifactCacheBatchFailure::Build {
+            return Err(ArtifactCacheBatchFailure::Callback {
                 source: Box::new(source),
                 cleanup_error,
                 timings,
@@ -450,16 +417,16 @@ fn build_artifact_cache_entry<E>(
         let commit_started = Instant::now();
         let committed = transaction.commit();
         timings.commit = Some(commit_started.elapsed());
-        committed.map_err(|source| ArtifactCacheBatchFailure::Cache {
-            phase: ArtifactCacheBatchFailurePhase::Commit,
+        committed.map_err(|source| ArtifactCacheBatchFailure::Commit {
             source: Box::new(source),
             timings,
         })
     })();
     let entry_elapsed = entry_started.elapsed();
     if let Err(
-        ArtifactCacheBatchFailure::Cache { timings, .. }
-        | ArtifactCacheBatchFailure::Build { timings, .. },
+        ArtifactCacheBatchFailure::Preparation { timings, .. }
+        | ArtifactCacheBatchFailure::Commit { timings, .. }
+        | ArtifactCacheBatchFailure::Callback { timings, .. },
     ) = &mut result
     {
         timings.total = entry_elapsed;
@@ -469,54 +436,6 @@ fn build_artifact_cache_entry<E>(
         label: labeled.label.clone(),
         result,
         entry_elapsed,
-    }
-}
-
-fn validate_batch_labels(
-    specs: &[LabeledArtifactCacheSpec],
-) -> Result<(), ArtifactCacheBatchContractError> {
-    validate_labels(specs.iter().map(|labeled| labeled.label.as_str())).map_err(|error| match error
-    {
-        BatchLabelError::Empty { index } => ArtifactCacheBatchContractError::EmptyLabel { index },
-        BatchLabelError::Duplicate {
-            label,
-            first_index,
-            duplicate_index,
-        } => ArtifactCacheBatchContractError::DuplicateLabel {
-            label,
-            first_index,
-            duplicate_index,
-        },
-    })
-}
-
-impl std::fmt::Display for ArtifactCacheBatchContractError {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::EmptyLabel { index } => {
-                write!(formatter, "artifact batch label at index {index} is empty")
-            }
-            Self::DuplicateLabel {
-                label,
-                first_index,
-                duplicate_index,
-            } => write!(
-                formatter,
-                "artifact batch label {label:?} at index {duplicate_index} duplicates index {first_index}",
-            ),
-        }
-    }
-}
-
-impl std::error::Error for ArtifactCacheBatchContractError {}
-
-impl std::fmt::Display for ArtifactCacheBatchFailurePhase {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.write_str(match self {
-            Self::Preparation => "preparation",
-            Self::Callback => "callback",
-            Self::Commit => "commit",
-        })
     }
 }
 
@@ -533,15 +452,15 @@ impl std::fmt::Display for ArtifactCacheBatchFailureTimings {
 impl<E: std::fmt::Display> std::fmt::Display for ArtifactCacheBatchFailure<E> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Cache {
-                phase,
-                source,
-                timings,
-            } => write!(
+            Self::Preparation { source, timings } => write!(
                 formatter,
-                "artifact cache {phase} failed: {source}; timings=({timings})",
+                "artifact cache preparation failed: {source}; timings=({timings})",
             ),
-            Self::Build {
+            Self::Commit { source, timings } => write!(
+                formatter,
+                "artifact cache commit failed: {source}; timings=({timings})",
+            ),
+            Self::Callback {
                 source,
                 cleanup_error,
                 timings,
@@ -565,8 +484,8 @@ where
 {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Self::Cache { source, .. } => Some(source.as_ref()),
-            Self::Build { source, .. } => Some(source.as_ref()),
+            Self::Preparation { source, .. } | Self::Commit { source, .. } => Some(source.as_ref()),
+            Self::Callback { source, .. } => Some(source.as_ref()),
         }
     }
 }

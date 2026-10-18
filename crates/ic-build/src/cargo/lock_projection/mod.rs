@@ -1,6 +1,6 @@
 //! Strict semantic lockfile comparison after caller-selected workspace version changes.
 
-use std::{collections::HashMap, fmt};
+use std::collections::HashMap;
 
 /// One unsourced workspace package whose version may change; all other parsed
 /// lockfile content must remain identical. Release version policy is caller-owned.
@@ -15,12 +15,14 @@ pub struct WorkspaceVersionProjection<'a> {
 }
 
 /// Strict version projection failed without changing either input.
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum LockProjectionError {
     /// No changes selected, or a name/version is empty or a name repeated.
+    #[error("invalid workspace version selection")]
     InvalidSelection,
     /// One selected input is not valid TOML.
+    #[error("invalid {input} lockfile: {source}")]
     Parse {
         /// `before` or `after` input role.
         input: &'static str,
@@ -28,8 +30,10 @@ pub enum LockProjectionError {
         source: toml::de::Error,
     },
     /// The saved lockfile has no package array.
+    #[error("lockfile has no package array")]
     MissingPackages,
     /// A name must identify exactly one unsourced package.
+    #[error("workspace package {package} has {matches} unsourced records; expected one")]
     PackageSelection {
         /// Requested workspace package.
         package: String,
@@ -37,40 +41,14 @@ pub enum LockProjectionError {
         matches: usize,
     },
     /// The saved selected package does not have its expected prior version.
+    #[error("unexpected previous workspace version for {package}")]
     PreviousVersion {
         /// Requested workspace package.
         package: String,
     },
     /// The after input differs from the exact permitted projection.
+    #[error("lockfile differs from the selected workspace version projection")]
     ChangedInputs,
-}
-
-impl fmt::Display for LockProjectionError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::InvalidSelection => f.write_str("invalid workspace version selection"),
-            Self::Parse { input, source } => write!(f, "invalid {input} lockfile: {source}"),
-            Self::MissingPackages => f.write_str("lockfile has no package array"),
-            Self::PackageSelection { package, matches } => write!(
-                f,
-                "workspace package {package} has {matches} unsourced records; expected one"
-            ),
-            Self::PreviousVersion { package } => {
-                write!(f, "unexpected previous workspace version for {package}")
-            }
-            Self::ChangedInputs => {
-                f.write_str("lockfile differs from the selected workspace version projection")
-            }
-        }
-    }
-}
-impl std::error::Error for LockProjectionError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Self::Parse { source, .. } => Some(source),
-            _ => None,
-        }
-    }
 }
 
 /// Verify that only explicitly selected unsourced package versions changed.

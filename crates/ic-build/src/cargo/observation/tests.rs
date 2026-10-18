@@ -1,7 +1,7 @@
 use super::*;
 use crate::fs_fixture::unique_temp_directory;
 use ic_host_process::tool::{ExecutionFailure, OutputLimit, ToolError};
-use std::{fs, path::PathBuf};
+use std::{collections::BTreeSet, fs, path::PathBuf};
 
 fn limits() -> OutputLimits {
     OutputLimits {
@@ -49,6 +49,7 @@ fn actual_catalog_and_resolved_graph_preserve_ids_aliases_and_feature_selection(
     let features = CargoFeatureSelection {
         features: BTreeSet::new(),
         default_features: false,
+        all_features: false,
     };
     let mut spec = CargoMetadataSpec {
         manifest_path: &manifest,
@@ -80,49 +81,58 @@ fn actual_catalog_and_resolved_graph_preserve_ids_aliases_and_feature_selection(
         .unwrap();
     assert_eq!(app_node.deps, []);
 
-    let mut enabled_features = features.clone();
-    enabled_features.features.insert("on".into());
-    spec.features = &enabled_features;
-    let enabled = observe_metadata(&spec, limits(), selected_cargo()).unwrap();
-    let graph = enabled.resolve.unwrap();
-    let app_node = graph.nodes.iter().find(|n| n.id == id).unwrap();
-    assert_eq!(app_node.deps[0].name, "renamed");
-    let domain_node = graph
-        .nodes
-        .iter()
-        .find(|n| n.id == app_node.deps[0].pkg)
-        .unwrap();
-    assert!(domain_node.features.iter().any(|f| f.as_str() == "special"));
-    assert_eq!(
-        domain_node.id,
-        catalog
-            .packages
-            .iter()
-            .find(|p| p.name == "observer-domain")
-            .unwrap()
-            .id
-    );
-
-    let tree = observe_tree(
-        &CargoTreeSpec {
-            manifest_path: &manifest,
-            packages: &[&id.repr],
-            target: "wasm32-unknown-unknown",
-            edges: "normal",
-            format: "{p}\t{lib}\t{f}",
-            locked: true,
-            offline: true,
+    let mut explicit = features.clone();
+    explicit.features.insert("on".into());
+    let all = CargoFeatureSelection {
+        all_features: true,
+        ..features.clone()
+    };
+    for enabled_features in [explicit, all] {
+        let selected = CargoMetadataSpec {
             features: &enabled_features,
-        },
-        limits(),
-        selected_cargo(),
-    )
-    .unwrap();
-    assert!(tree.lines().next().unwrap().starts_with("0observer-app "));
-    assert!(
-        tree.lines()
-            .any(|line| line.starts_with("1observer-domain ") && line.ends_with("\tspecial"))
-    );
+            ..spec
+        };
+        let enabled = observe_metadata(&selected, limits(), selected_cargo()).unwrap();
+        let graph = enabled.resolve.unwrap();
+        let app_node = graph.nodes.iter().find(|n| n.id == id).unwrap();
+        assert_eq!(app_node.deps[0].name, "renamed");
+        let domain_node = graph
+            .nodes
+            .iter()
+            .find(|n| n.id == app_node.deps[0].pkg)
+            .unwrap();
+        assert!(domain_node.features.iter().any(|f| f.as_str() == "special"));
+        assert_eq!(
+            domain_node.id,
+            catalog
+                .packages
+                .iter()
+                .find(|p| p.name == "observer-domain")
+                .unwrap()
+                .id
+        );
+
+        let tree = observe_tree(
+            &CargoTreeSpec {
+                manifest_path: &manifest,
+                packages: &[&id.repr],
+                target: "wasm32-unknown-unknown",
+                edges: "normal",
+                format: "{p}\t{lib}\t{f}",
+                locked: true,
+                offline: true,
+                features: &enabled_features,
+            },
+            limits(),
+            selected_cargo(),
+        )
+        .unwrap();
+        assert!(tree.lines().next().unwrap().starts_with("0observer-app "));
+        assert!(
+            tree.lines()
+                .any(|line| line.starts_with("1observer-domain ") && line.ends_with("\tspecial"))
+        );
+    }
     fs::remove_dir_all(root).unwrap();
 }
 
@@ -137,7 +147,7 @@ fn actual_build_script_messages_distinguish_same_name_workspaces_and_cached_expo
             root.join("build.rs"),
             format!(
                 "fn main() {{ let root = {root:?}; \
-             println!(\"cargo::rustc-env=OBSERVED_EXTERNAL={{root}}/external.txt\"); \
+             println!(\"cargo::rustc-env=OBSERVED_EXTERNAL={{}}/external.txt\", root); \
              println!(\"cargo::rerun-if-changed=build.rs\"); }}\n"
             ),
         )
@@ -214,20 +224,21 @@ fn caller_command_and_environment_are_preserved() {
         (vec![], vec!["--no-default-features"]),
         (
             vec!["z", "a", "a"],
-            vec!["--no-default-features", "--features", "a,z"],
+            vec!["--no-default-features", "--features=a,z"],
         ),
         (
             vec!["a", ""],
-            vec!["--no-default-features", "--features", ",a"],
+            vec!["--no-default-features", "--features=,a"],
         ),
-        (vec![""], vec!["--no-default-features", "--features", ""]),
+        (vec![""], vec!["--no-default-features", "--features="]),
     ] {
         let selection = CargoFeatureSelection {
             features: names.into_iter().map(str::to_owned).collect(),
             default_features: false,
+            all_features: false,
         };
         let mut command = Command::new("unused");
-        selection.configure(&mut command);
+        command.args(selection.arguments());
         assert_eq!(command.get_args().collect::<Vec<_>>(), expected);
     }
     let root = fixture();

@@ -4,15 +4,17 @@
 
 mod support;
 
+use ic_host_process::child::OwnedChild;
 #[cfg(unix)]
 use ic_host_process::testing::write_executable_script;
+use support::cargo::spawn_cargo;
 
 use ic_build::artifacts::{
-    ArtifactCacheOutcome, ArtifactCachePreparation, ArtifactCachePrunePolicy, ArtifactCacheSpec,
-    LabeledArtifactCacheSpec, LabeledWasmBuildSpec, SharedIncrementalTargetPrunePolicy,
-    WasmBuildSpec, build_artifact_caches_batch, build_wasm_canisters_cached,
-    build_wasm_canisters_cached_batch, maintain_shared_incremental_target, prepare_artifact_cache,
-    prune_artifact_cache, prune_wasm_build_cache,
+    ArtifactCacheOutcome, ArtifactCachePreparation, ArtifactCacheSpec, CacheRetentionLimits,
+    LabeledArtifactCacheSpec, LabeledWasmBuildSpec, WasmBuildSpec, build_artifact_caches_batch,
+    build_wasm_canisters_cached, build_wasm_canisters_cached_batch,
+    maintain_shared_incremental_target, prepare_artifact_cache, prune_artifact_cache,
+    prune_wasm_build_cache,
 };
 use std::{
     fs,
@@ -46,16 +48,21 @@ printf '%s' "$VARIANT" > "$output/wasm32-unknown-unknown/debug/fixture.wasm"
 }
 
 fn isolated_wasm_spec(root: &Path, variant: &str) -> WasmBuildSpec {
-    WasmBuildSpec::new(&root.join("workspace"), &root.join("wasm"), &["fixture"])
-        .with_cargo_program(root.join("cargo.sh"))
-        .with_extra_env([
-            (
-                "REAL_CARGO",
-                std::env::var("CARGO").unwrap_or_else(|_| "cargo".into()),
-            ),
-            ("VARIANT", variant.to_owned()),
-        ])
-        .with_prune_policy(ArtifactCachePrunePolicy::new().with_max_size_bytes(0))
+    WasmBuildSpec::new(
+        &root.join("workspace"),
+        &root.join("wasm"),
+        &["fixture"],
+        support::cargo::environment(),
+    )
+    .with_cargo_program(root.join("cargo.sh"))
+    .with_environment(support::cargo::environment_with([
+        (
+            "REAL_CARGO",
+            std::env::var("CARGO").unwrap_or_else(|_| "cargo".into()),
+        ),
+        ("VARIANT", variant.to_owned()),
+    ]))
+    .with_prune_policy(CacheRetentionLimits::new().with_max_size_bytes(0))
 }
 
 fn wasm_spec(root: &Path, variant: &str) -> WasmBuildSpec {
@@ -65,13 +72,19 @@ fn wasm_spec(root: &Path, variant: &str) -> WasmBuildSpec {
 #[test]
 fn isolated_build_records_retain_cold_and_warm_artifacts() {
     let root = fixture();
-    let first = build_wasm_canisters_cached(&isolated_wasm_spec(&root, "A")).unwrap();
+    let first =
+        build_wasm_canisters_cached(&isolated_wasm_spec(&root, "A"), OwnedChild::spawn_direct)
+            .unwrap();
     assert!(!first.is_reused());
     let entry = first.record().exact_cache_path().to_owned();
     assert!(first.record().artifacts()[0].starts_with(&entry));
-    let other = build_wasm_canisters_cached(&isolated_wasm_spec(&root, "B")).unwrap();
+    let other =
+        build_wasm_canisters_cached(&isolated_wasm_spec(&root, "B"), OwnedChild::spawn_direct)
+            .unwrap();
     assert_ne!(other.record().exact_cache_path(), entry);
-    let reused = build_wasm_canisters_cached(&isolated_wasm_spec(&root, "A")).unwrap();
+    let reused =
+        build_wasm_canisters_cached(&isolated_wasm_spec(&root, "A"), OwnedChild::spawn_direct)
+            .unwrap();
     assert!(reused.is_reused());
     let record = reused.record().clone();
     assert_eq!(&record, reused.record());
@@ -83,7 +96,7 @@ fn isolated_build_records_retain_cold_and_warm_artifacts() {
     drop(reused);
     prune_wasm_build_cache(
         &root.join("wasm"),
-        ArtifactCachePrunePolicy::new().with_max_size_bytes(0),
+        CacheRetentionLimits::new().with_max_size_bytes(0),
     )
     .unwrap();
     assert_eq!(fs::read(&path).unwrap(), b"A");
@@ -91,7 +104,7 @@ fn isolated_build_records_retain_cold_and_warm_artifacts() {
     drop(record);
     prune_wasm_build_cache(
         &root.join("wasm"),
-        ArtifactCachePrunePolicy::new().with_max_size_bytes(0),
+        CacheRetentionLimits::new().with_max_size_bytes(0),
     )
     .unwrap();
     assert!(!path.exists());
@@ -104,7 +117,7 @@ fn post_spec(root: &Path, input: &Path) -> ArtifactCacheSpec {
     ArtifactCacheSpec::new(&root.join("post"), "handoff", "post-link/v1")
         .with_input("wasm", input)
         .with_output("deploy", &root.join("deploy.wasm"))
-        .with_prune_policy(ArtifactCachePrunePolicy::new().with_max_size_bytes(0))
+        .with_prune_policy(CacheRetentionLimits::new().with_max_size_bytes(0))
 }
 
 fn post_link(spec: &ArtifactCacheSpec, input: &Path) -> ArtifactCacheOutcome {
@@ -117,7 +130,7 @@ fn post_link(spec: &ArtifactCacheSpec, input: &Path) -> ArtifactCacheOutcome {
     }
 }
 
-fn prune(root: &Path, policy: ArtifactCachePrunePolicy) {
+fn prune(root: &Path, policy: CacheRetentionLimits) {
     prune_wasm_build_cache(&root.join("wasm"), policy).unwrap();
     prune_artifact_cache(&root.join("post"), "handoff", policy).unwrap();
 }
@@ -179,14 +192,15 @@ fn terminated_consumer_releases_retention_without_stale_pins() {
 fn exercise_process_handoff(warm: bool, terminate: bool) {
     let root = fixture();
     if warm {
-        let seed = build_wasm_canisters_cached(&wasm_spec(&root, "A")).unwrap();
+        let seed =
+            build_wasm_canisters_cached(&wasm_spec(&root, "A"), OwnedChild::spawn_direct).unwrap();
         let input = &seed.record().artifacts()[0];
         drop(post_link(&post_spec(&root, input), input));
         drop(seed);
         // Force the worker's warm hit to rematerialize A, not just reuse an
         // already matching public output. Do not prune A during this setup.
-        let alternate = wasm_spec(&root, "B").with_prune_policy(ArtifactCachePrunePolicy::new());
-        drop(build_wasm_canisters_cached(&alternate).unwrap());
+        let alternate = wasm_spec(&root, "B").with_prune_policy(CacheRetentionLimits::new());
+        drop(build_wasm_canisters_cached(&alternate, OwnedChild::spawn_direct).unwrap());
         fs::write(root.join("deploy.wasm"), b"B").unwrap();
     }
     let mut worker = Worker(
@@ -209,7 +223,8 @@ fn exercise_process_handoff(warm: bool, terminate: bool) {
         writer: Box::new(worker.0.stdin.take().unwrap()),
     };
     let wasm_path = receive(&mut stream);
-    let other = build_wasm_canisters_cached(&wasm_spec(&root, "B")).unwrap();
+    let other =
+        build_wasm_canisters_cached(&wasm_spec(&root, "B"), OwnedChild::spawn_direct).unwrap();
     let other_path = &other.record().artifacts()[0];
     assert_eq!(fs::read(other_path).unwrap(), b"B");
     assert_eq!(
@@ -218,12 +233,12 @@ fn exercise_process_handoff(warm: bool, terminate: bool) {
     );
     maintain_shared_incremental_target(
         &wasm_spec(&root, "B"),
-        SharedIncrementalTargetPrunePolicy::new().with_max_size_bytes(0),
+        CacheRetentionLimits::new().with_max_size_bytes(0),
     )
     .unwrap();
     for policy in [
-        ArtifactCachePrunePolicy::new().with_max_age(Duration::ZERO),
-        ArtifactCachePrunePolicy::new().with_max_size_bytes(0),
+        CacheRetentionLimits::new().with_max_age(Duration::ZERO),
+        CacheRetentionLimits::new().with_max_size_bytes(0),
     ] {
         prune_wasm_build_cache(&root.join("wasm"), policy).unwrap();
         assert_eq!(fs::read(&wasm_path).unwrap(), b"A");
@@ -232,10 +247,7 @@ fn exercise_process_handoff(warm: bool, terminate: bool) {
     let post_path = receive(&mut stream);
     let other_post = post_link(&post_spec(&root, other_path), other_path);
     assert_eq!(fs::read(root.join("deploy.wasm")).unwrap(), b"B");
-    prune(
-        &root,
-        ArtifactCachePrunePolicy::new().with_max_size_bytes(0),
-    );
+    prune(&root, CacheRetentionLimits::new().with_max_size_bytes(0));
     assert_eq!(fs::read(&post_path).unwrap(), b"A");
     if terminate {
         worker.0.kill().unwrap();
@@ -244,10 +256,7 @@ fn exercise_process_handoff(warm: bool, terminate: bool) {
         release(&mut stream);
         assert!(worker.0.wait().unwrap().success());
     }
-    prune(
-        &root,
-        ArtifactCachePrunePolicy::new().with_max_size_bytes(0),
-    );
+    prune(&root, CacheRetentionLimits::new().with_max_size_bytes(0));
     assert!(!wasm_path.exists());
     assert!(!post_path.exists());
     assert_eq!(
@@ -256,10 +265,7 @@ fn exercise_process_handoff(warm: bool, terminate: bool) {
     );
     drop(other_post);
     drop(other);
-    prune(
-        &root,
-        ArtifactCachePrunePolicy::new().with_max_size_bytes(0),
-    );
+    prune(&root, CacheRetentionLimits::new().with_max_size_bytes(0));
     fs::remove_dir_all(root).unwrap();
 }
 
@@ -271,7 +277,8 @@ fn retained_handoff_worker() {
         reader: Box::new(BufReader::new(std::io::stdin())),
         writer: Box::new(std::io::stdout()),
     };
-    let outcome = build_wasm_canisters_cached(&wasm_spec(&root, "A")).unwrap();
+    let outcome =
+        build_wasm_canisters_cached(&wasm_spec(&root, "A"), OwnedChild::spawn_direct).unwrap();
     assert_eq!(
         outcome.is_reused(),
         std::env::var("IC_TESTKIT_HANDOFF_WARM").unwrap() == "yes"
@@ -298,7 +305,13 @@ fn batches_retain_distinct_successes_through_later_failure() {
     let root = fixture();
     let specs = ["A", "B", "failure"]
         .map(|variant| LabeledWasmBuildSpec::new(variant, wasm_spec(&root, variant)));
-    let report = build_wasm_canisters_cached_batch(&specs).unwrap();
+    let report = build_wasm_canisters_cached_batch(
+        &specs,
+        ic_build::artifacts::WasmBuildBatchConfig::new(),
+        None,
+        spawn_cargo,
+    )
+    .unwrap();
     assert_eq!(report.failures().count(), 1, "{report:?}");
     let records: Vec<_> = report
         .outcomes()
@@ -344,10 +357,7 @@ fn batches_retain_distinct_successes_through_later_failure() {
             })
             .collect();
         drop(report);
-        prune(
-            &root,
-            ArtifactCachePrunePolicy::new().with_max_size_bytes(0),
-        );
+        prune(&root, CacheRetentionLimits::new().with_max_size_bytes(0));
         for (record, expected) in retained.iter().zip([b"A", b"B"]) {
             assert_eq!(fs::read(record.artifacts()[0].path()).unwrap(), expected);
         }
@@ -363,10 +373,7 @@ fn batches_retain_distinct_successes_through_later_failure() {
         .map(|record| record.artifacts()[0].clone())
         .collect();
     drop(records);
-    prune(
-        &root,
-        ArtifactCachePrunePolicy::new().with_max_size_bytes(0),
-    );
+    prune(&root, CacheRetentionLimits::new().with_max_size_bytes(0));
     assert!(paths.iter().chain(&post_paths).all(|path| !path.exists()));
     fs::remove_dir_all(root).unwrap();
 }
