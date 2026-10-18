@@ -358,6 +358,9 @@ failures. Select mode and permissions explicitly; see the
 expected digest admission before publication. Callers select paths, the byte
 allowance and `WriteOptions`; source symlinks are followed. Existing destination
 bytes survive digest, source and limit failures.
+`durable::write_retained_at_with` creates and syncs a caller-named entry before
+production, then syncs its file and directory on success. Errors and panics retain
+partial evidence; callers own schemas, byte bounds and recovery decisions.
 `durable::copy_from` consumes an already-selected reader from its current
 position. Callers retain input admission, byte/time bounds and choose `WriteOptions`.
 Optional exact permissions are applied after copying; otherwise the creation

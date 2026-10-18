@@ -37,6 +37,10 @@
   preserving protocol tags and caller-owned budgets, certification and replay.
   [Details](docs/changelog/0.27.md).
 
+- Complete retained writes and shell-status
+  projection, preserving caller-owned publication, cleanup and recovery policy.
+  Document direct managed Wasm-inspector use. [Details](docs/changelog/0.27.md).
+
 ## [0.27.6] - 2026-10-18
 
 - Share pure ICP call/status command builders and typed installation-state

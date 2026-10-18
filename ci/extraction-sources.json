@@ -139,22 +139,6 @@
       ]
     },
     {
-      "repository": "https://github.com/dragginzgame/ic-backup",
-      "revision": "53d840bddb3de8680c4ab35a3c008c57ed61a244",
-      "files": [
-        {
-          "path": "crates/ic-backup/src/ops/persistence/command_lifetime_lock/mod.rs",
-          "sha256": "71b7a10597412e7d057d8fc6b642fd263af6bd67d8312c5fa6eac2b0652e62ca",
-          "selection": "Inherited descriptor custody, one-spawn consumption, exact existing-sidecar quiescence and native owner/descendant failure requirements; adapted to Host FS locks, caller-selected paths/environment/waits, passive native identity and Rust subprocess fixtures. Backup retains journal schemas, operation binding, paid spending and reference-release policy. MIT source notices retained."
-        },
-        {
-          "path": "crates/ic-backup/src/ops/persistence/command_lifetime_lock/tests/mod.rs",
-          "sha256": "8738cc00d9dd5485bdda50aac6e1bb22e1be5122c27c9ec3ca9cb152b9b23118",
-          "selection": "Inherited descriptor custody, one-spawn consumption, exact existing-sidecar quiescence and native owner/descendant failure requirements; adapted to Host FS locks, caller-selected paths/environment/waits, passive native identity and Rust subprocess fixtures. Backup retains journal schemas, operation binding, paid spending and reference-release policy. MIT source notices retained."
-        }
-      ]
-    },
-    {
       "repository": "https://github.com/dragginzgame/canic",
       "revision": "bc238ac363ea1dd51440057c625186e112c657c6",
       "files": [

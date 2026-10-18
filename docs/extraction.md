@@ -299,6 +299,9 @@ clean, hash or traverse that tree. The verification callback owns complete
 child/root synchronization and exact retained-byte comparison before the rename;
 the consumer owns namespace exclusion, recovery meaning and retry authority.
 Post-rename failures are explicitly distinct from before-publication failures.
+`durable::write_retained_at_with` completes create/produce/sync for a caller-named
+entry without unlink, rename or retry. Typed phase failures and panics preserve
+the original entry, including partial evidence whose durability is unconfirmed.
 `try_lock_exclusive` makes one nonblocking attempt on a caller-owned regular
 descriptor; contention retains native `WouldBlock`. Blocking callers use
 `lock_exclusive` on that descriptor. Observed waits compose the opener with
