@@ -5,6 +5,9 @@ archive also includes the extracted artifact engine and Cargo grouping API.
 
 ## [0.17.0]
 
+- Keep the synthetic compiler-invalidation fixture independent of the validation
+  adapter's explicit `RUSTC`, preserving compiler and optimizer cache assertions.
+
 - Retain fingerprinted tool identities, Cargo selection and the complete selected
   environment on resolved inputs for provenance consumers, without new probes.
   Debug omits environment values and probe bytes; consumers own execution binding

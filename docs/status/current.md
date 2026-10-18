@@ -1,5 +1,16 @@
 # Current handoff
 
+## Post-link fixture compiler selection — pending 0.17
+
+The reported host-composition failure reproduces on `aa0ff08` with the validation
+adapter's explicit RUSTC: it overrides the identity-only shim, so changing the
+unused shim correctly leaves both caches warm. The synthetic fixture now omits
+RUSTC from its complete environment to exercise its selected shim. Production
+precedence and all compiler/optimizer invalidation assertions remain unchanged.
+All three Host composition tests pass with explicitly selected Rust 1.99 and
+1.91; the independent explicit-RUSTC precedence control also passes on 1.91.
+Before-images and logs: `/tmp/ic-build-post-link-fixture-20261018/`.
+
 ## Observed provenance facts and tracker reconciliation — pending 0.17
 
 Issue #71 / PR #73's producer proposal is adapted locally to the incoming 0.17
