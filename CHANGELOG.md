@@ -3,6 +3,52 @@
 The 0.1.0 section preserves the original bootstrap notes. The published 0.1.0
 archive also includes the extracted artifact engine and Cargo grouping API.
 
+## [0.17.0]
+
+- Retain fingerprinted tool identities, Cargo selection and the complete selected
+  environment on resolved inputs for provenance consumers, without new probes.
+  Debug omits environment values and probe bytes; consumers own execution binding
+  and publication redaction. Existing fingerprint bytes and admission are unchanged
+  ([#71 — Retain observed build facts](https://github.com/dragginzgame/ic-build/issues/71)).
+
+- Replace drifting README snippets with compiled Cargo examples and correct
+  current ownership/upgrade guidance. Staging close delegates one-attempt cleanup
+  to Host; retained artifacts, recovery policy and public contracts are unchanged.
+- Exclude package target directories from publication and future Git additions,
+  preserving the existing cache tag and lock files on disk.
+
+- **Breaking:** `cargo::compatible_package_groups` requires the recipe's
+  `CargoSelection` after `target`. Isolated and combined probes use its features,
+  locked and offline choices; profiles remain build-only.
+- Carry cache paths, public paths and verified digests together during Wasm
+  publication. Preserve copy-before-stamp ordering and selective warm repairs;
+  refuse mismatched Cargo output counts before copying.
+- Derive configuration and lock-projection error contracts through `thiserror`,
+  preserving variants, messages, redaction and original sources
+  ([#74 — Verified Wasm outputs and recipe selections](https://github.com/dragginzgame/ic-build/issues/74)).
+
+- **Breaking:** Wasm specifications require the complete environment at construction.
+  Probes and builds clear inheritance; replace inherited-name/override builders
+  with a caller-selected map. Environment replacement is complete, and explicit
+  Cargo/Rustc selection remains available. New recipe keys preserve old retained
+  entries and stamp formats without reuse under changed execution semantics.
+- Prepared batches bind requested snapshots once before reuse accounting or
+  progress, preserving rejection order and source-lease invalidation
+  ([#72 — Make Wasm environments explicit and bind prepared inputs once](https://github.com/dragginzgame/ic-build/issues/72)).
+
+- Retain the released silent/progress entrypoints and five-part Wasm batch
+  consumption, while sharing private dispatch and failure storage.
+- **Breaking:** remove mutable `WasmBuildSession` reuse and its metrics. Prepare
+  the complete specification set with `WasmBuildInputSnapshot` under the existing
+  source lease. Independent batches retain within-batch input-resolution sharing.
+- Share Cargo child communication and canonical message observation through
+  `cargo::execution`, including exact manifest-bound cdylib selection. Build uses
+  this path; Canic's isolated adapter is qualified separately
+  ([#75 — Shared execution and one prepared reuse lifecycle](https://github.com/dragginzgame/ic-build/issues/75)).
+- Delegate Cargo newline framing to Host Process while preserving JSON/text
+  interpretation, per-record limits, EOF-tail acceptance and original sink errors
+  ([#47 — Consolidate boundary observations, lock decoding and native stream framing](https://github.com/dragginzgame/ic-build/issues/47)).
+
 ## [0.16.0] - 2026-10-17
 
 - **Breaking:** align exposed Host types with the registry Host 0.27 family.

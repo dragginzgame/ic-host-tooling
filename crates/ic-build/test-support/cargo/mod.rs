@@ -90,3 +90,47 @@ pub fn spawn_cargo(
         ic_host_process::child::CleanupPolicy::KillAndWait,
     )
 }
+
+/// This test adapter selects the toolchain/runtime inputs needed by its Cargo fixtures.
+pub fn environment() -> std::collections::BTreeMap<std::ffi::OsString, std::ffi::OsString> {
+    [
+        "PATH",
+        "HOME",
+        "USERPROFILE",
+        "CARGO",
+        "RUSTC",
+        "CARGO_HOME",
+        "RUSTUP_HOME",
+        "RUSTUP_TOOLCHAIN",
+        "RUSTC_WRAPPER",
+        "RUSTC_WORKSPACE_WRAPPER",
+        "CARGO_BUILD_RUSTC",
+        "RUSTFLAGS",
+        "CARGO_ENCODED_RUSTFLAGS",
+        "CARGO_NET_OFFLINE",
+        "TMPDIR",
+        "LD_LIBRARY_PATH",
+        "DYLD_LIBRARY_PATH",
+    ]
+    .into_iter()
+    .filter_map(|name| std::env::var_os(name).map(|value| (name.into(), value)))
+    .collect()
+}
+
+/// Build one complete fixture environment with caller-selected replacements.
+pub fn environment_with<I, K, V>(
+    extra: I,
+) -> std::collections::BTreeMap<std::ffi::OsString, std::ffi::OsString>
+where
+    I: IntoIterator<Item = (K, V)>,
+    K: Into<std::ffi::OsString>,
+    V: Into<std::ffi::OsString>,
+{
+    let mut selected = environment();
+    selected.extend(
+        extra
+            .into_iter()
+            .map(|(key, value)| (key.into(), value.into())),
+    );
+    selected
+}

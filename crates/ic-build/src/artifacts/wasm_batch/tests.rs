@@ -17,7 +17,7 @@ use std::{path::Path, time::Duration};
 
 #[cfg(unix)]
 use crate::artifacts::{
-    SharedIncrementalTargetMaintenanceOutcome, WasmBuildInputSnapshot, WasmBuildSession,
+    SharedIncrementalTargetMaintenanceOutcome, WasmBuildInputSnapshot,
     test_support::fake_wasm_build_spec,
 };
 use crate::fs_fixture::unique_temp_directory;
@@ -41,7 +41,7 @@ fn empty_independent_batch_succeeds_without_work() {
 
 #[cfg(unix)]
 #[test]
-fn library_output_validation_survives_batch_session_and_prepared_resolution() {
+fn library_output_validation_survives_batch_and_prepared_resolution() {
     let (root, valid) = fake_wasm_build_spec("batch-library-output-validation");
     fs::create_dir_all(root.join("ordinary/src")).unwrap();
     fs::write(
@@ -55,8 +55,13 @@ fn library_output_validation_survives_batch_session_and_prepared_resolution() {
         "[workspace]\nmembers = [\"fixture\", \"ordinary\"]\nresolver = \"2\"\n",
     )
     .unwrap();
-    let invalid = WasmBuildSpec::new(&root, &root.join("exact"), &["ordinary"])
-        .with_cargo_program(root.join("cargo.sh"));
+    let invalid = WasmBuildSpec::new(
+        &root,
+        &root.join("exact"),
+        &["ordinary"],
+        crate::cargo_fixture::environment(),
+    )
+    .with_cargo_program(root.join("cargo.sh"));
     let specs = [
         LabeledWasmBuildSpec::new("ordinary", invalid.clone()),
         LabeledWasmBuildSpec::new("canister", valid.clone()),
@@ -95,14 +100,6 @@ fn library_output_validation_survives_batch_session_and_prepared_resolution() {
 
     let source_lock = Mutex::new(());
     let source_guard = source_lock.lock().unwrap();
-    let mut session = WasmBuildSession::assume_sources_immutable(&source_guard);
-    for _ in 0..2 {
-        check(
-            session
-                .build_batch(&specs, WasmBuildBatchConfig::new(), None, spawn_cargo)
-                .unwrap(),
-        );
-    }
     let snapshot = WasmBuildInputSnapshot::prepare_assuming_sources_immutable(
         &source_guard,
         &[invalid, valid],
@@ -114,7 +111,6 @@ fn library_output_validation_survives_batch_session_and_prepared_resolution() {
             .unwrap(),
     );
     drop(snapshot);
-    drop(session);
     drop(source_guard);
     fs::remove_dir_all(root).unwrap();
 }
@@ -127,16 +123,22 @@ fn batch_retains_every_indexed_failure() {
     let specs = [
         LabeledWasmBuildSpec::new(
             "root",
-            WasmBuildSpec::new(&root, &target, &[]).with_cargo_program(&cargo),
+            WasmBuildSpec::new(&root, &target, &[], crate::cargo_fixture::environment())
+                .with_cargo_program(&cargo),
         ),
         LabeledWasmBuildSpec::new(
             "worker",
-            WasmBuildSpec::new(&root, &target, &["fixture"])
-                .with_cargo_selection(CargoSelection {
-                    profile: Some(String::new()),
-                    ..Default::default()
-                })
-                .with_cargo_program(&cargo),
+            WasmBuildSpec::new(
+                &root,
+                &target,
+                &["fixture"],
+                crate::cargo_fixture::environment(),
+            )
+            .with_cargo_selection(CargoSelection {
+                profile: Some(String::new()),
+                ..Default::default()
+            })
+            .with_cargo_program(&cargo),
         ),
     ];
 
@@ -187,7 +189,13 @@ fn batch_failure_retains_partial_metadata_timing() {
     .expect("write executable test script");
     let specs = [LabeledWasmBuildSpec::new(
         "metadata-failure",
-        WasmBuildSpec::new(&root, &root.join("target"), &["fixture"]).with_cargo_program(&cargo),
+        WasmBuildSpec::new(
+            &root,
+            &root.join("target"),
+            &["fixture"],
+            crate::cargo_fixture::environment(),
+        )
+        .with_cargo_program(&cargo),
     )];
 
     let report =
@@ -272,7 +280,12 @@ fn malformed_shared_metadata_is_reported_for_every_entry() {
 
 #[test]
 fn batch_rejects_invalid_labels_before_progress_or_build_work() {
-    let invalid = WasmBuildSpec::new(Path::new("."), Path::new("target"), &[]);
+    let invalid = WasmBuildSpec::new(
+        Path::new("."),
+        Path::new("target"),
+        &[],
+        crate::cargo_fixture::environment(),
+    );
     let empty = [LabeledWasmBuildSpec::new("", invalid.clone())];
     let mut progress_events = 0;
     let empty_error = build_wasm_canisters_cached_batch(
@@ -320,7 +333,12 @@ fn batch_rejects_invalid_labels_before_progress_or_build_work() {
 fn batch_progress_retains_the_caller_label() {
     let specs = [LabeledWasmBuildSpec::new(
         "root",
-        WasmBuildSpec::new(Path::new("."), Path::new("target"), &[]),
+        WasmBuildSpec::new(
+            Path::new("."),
+            Path::new("target"),
+            &[],
+            crate::cargo_fixture::environment(),
+        ),
     )];
     let mut labels = Vec::new();
 
@@ -350,14 +368,34 @@ fn batch_maintenance_configures_each_shared_target_once() {
     .with_failure_mode(SharedIncrementalTargetMaintenanceFailureMode::BestEffort);
     let batch = WasmBuildBatchConfig::new().with_shared_incremental_target_maintenance(maintenance);
     let mut tracker = BatchMaintenanceTracker::new(batch.shared_incremental_target_maintenance());
-    let first = WasmBuildSpec::new(Path::new("."), Path::new("exact-a"), &["a"])
-        .with_shared_incremental_target("shared-a");
-    let second = WasmBuildSpec::new(Path::new("."), Path::new("exact-b"), &["b"])
-        .with_shared_incremental_target("shared-a");
-    let other = WasmBuildSpec::new(Path::new("."), Path::new("exact-c"), &["c"])
-        .with_shared_incremental_target("shared-b");
-    let isolated =
-        WasmBuildSpec::new(Path::new("."), Path::new("exact-d"), &["d"]).with_isolated_builds();
+    let first = WasmBuildSpec::new(
+        Path::new("."),
+        Path::new("exact-a"),
+        &["a"],
+        crate::cargo_fixture::environment(),
+    )
+    .with_shared_incremental_target("shared-a");
+    let second = WasmBuildSpec::new(
+        Path::new("."),
+        Path::new("exact-b"),
+        &["b"],
+        crate::cargo_fixture::environment(),
+    )
+    .with_shared_incremental_target("shared-a");
+    let other = WasmBuildSpec::new(
+        Path::new("."),
+        Path::new("exact-c"),
+        &["c"],
+        crate::cargo_fixture::environment(),
+    )
+    .with_shared_incremental_target("shared-b");
+    let isolated = WasmBuildSpec::new(
+        Path::new("."),
+        Path::new("exact-d"),
+        &["d"],
+        crate::cargo_fixture::environment(),
+    )
+    .with_isolated_builds();
 
     let prepared_first = tracker
         .prepare_spec(&first)
@@ -434,9 +472,14 @@ fn batch_maintenance_rejects_per_spec_policy_ownership() {
     );
     let spec = LabeledWasmBuildSpec::new(
         "fixture",
-        WasmBuildSpec::new(Path::new("."), Path::new("exact"), &["fixture"])
-            .with_shared_incremental_target("shared")
-            .with_shared_incremental_target_maintenance(maintenance),
+        WasmBuildSpec::new(
+            Path::new("."),
+            Path::new("exact"),
+            &["fixture"],
+            crate::cargo_fixture::environment(),
+        )
+        .with_shared_incremental_target("shared")
+        .with_shared_incremental_target_maintenance(maintenance),
     );
     let batch = WasmBuildBatchConfig::new().with_shared_incremental_target_maintenance(maintenance);
 
@@ -553,7 +596,11 @@ fn a_missing_input_does_not_fail_other_compatible_batch_entries() {
                 assert_eq!(entry.failure_details().is_some(), failed);
                 let (_, label, result, details, _) = entry.into_parts();
                 assert_eq!(result.is_err(), label == "bad");
-                assert_eq!(details.is_some(), result.is_err());
+                if let Err(error) = result {
+                    let details = details.unwrap();
+                    assert!(matches!(error, WasmBuildError::Io { .. }));
+                    assert_eq!(details.phase(), WasmBuildPhase::ContentHashing);
+                }
             }
             std::fs::remove_dir_all(root).expect("remove batch hashing fixture");
         }
@@ -571,7 +618,10 @@ fn missing_tools_keep_their_phase_in_silent_and_observed_batches() {
             WasmBuildPhase::CargoIdentity,
         ),
         (
-            spec.with_extra_env([("RUSTC", missing.as_os_str())]),
+            spec.with_environment(crate::cargo_fixture::environment_with([(
+                "RUSTC",
+                missing.as_os_str(),
+            )])),
             WasmBuildPhase::RustcIdentity,
         ),
     ] {

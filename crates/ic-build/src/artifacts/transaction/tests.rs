@@ -161,7 +161,12 @@ fn cargo_snapshot_keys_semantic_identity_and_guards_raw_workspace_inputs() {
         .expect("write Cargo snapshot workspace manifest");
     };
     write_workspace("host_dep_a");
-    let build_spec = WasmBuildSpec::new(&root, &root.join("target"), &["canister"]);
+    let build_spec = WasmBuildSpec::new(
+        &root,
+        &root.join("target"),
+        &["canister"],
+        crate::cargo_fixture::environment(),
+    );
     let before = resolve_cargo_build_inputs(&build_spec).expect("resolve first Cargo snapshot");
     let artifact_spec = |resolved| {
         ArtifactCacheSpec::new(&root.join("cache"), "post-link", "recipe/v1")

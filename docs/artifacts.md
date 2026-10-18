@@ -1,6 +1,33 @@
 # Artifact and Wasm build APIs
 
-Examples target pending 0.16. Native `target_kind` takes
+Examples target pending 0.17. Standalone Wasm acquisition retains the released
+entrypoints: `build_wasm_canisters_cached(&spec, spawn)` for silent execution,
+and `build_wasm_canisters_cached_with_progress(&spec, config, observer, spawn)`
+for observation. Both use the same internal acquisition engine. Progress remains
+independent of the explicit spawner's custody and stdin policy.
+
+`WasmBuildSpec::new(workspace, target, packages, environment)` requires the
+complete child environment. Consumers capture and select PATH, HOME/CARGO_HOME,
+Rustup settings, compiler/wrapper variables, flags and application build inputs
+before construction. Probes, metadata and builds clear inheritance and use that
+same map. Omitted variables stay absent. `with_environment` replaces the whole
+map; `with_extra_env` and `with_inherited_env` are removed without aliases.
+Recapture at the consumer when ambient changes should select a different recipe.
+The constructor selects initial Cargo/Rustc programs from the supplied CARGO/RUSTC
+values, or literal cargo/rustc defaults; explicit tool builders remain available.
+Keep CARGO_TARGET_DIR absent: Build supplies its selected output directory after
+applying the recipe environment. Debug output lists environment names only.
+
+Pending 0.17 uses the `ic-build-explicit-environment-fingerprint` domain so
+old inherited execution cannot authorize a cleared-environment cache hit.
+Recipes build under new keys; retained entries, stamp formats and namespaces
+stay intact without a migration reader or automatic cleanup.
+
+Consuming a Wasm batch entry retains `(index, label, result, failure_details, elapsed)`.
+Failure details remain paired internally and are exposed separately by this
+released projection. No tuple migration is required in 0.17.
+
+Native `target_kind` takes
 `cargo::native::NativeTargetKind::Binary` or `NativeTargetKind::Example`, replacing
 string selectors without an adapter. Replace raw Cargo recipe arguments with
 `cargo::selection::CargoSelection` and `with_cargo_selection`; native
@@ -10,9 +37,8 @@ The feature value owns `all_features`, explicit feature names and default-featur
 policy. The old `cargo::observation::CargoFeatureSelection` path is removed;
 observations and builds use the same encoder, preserving typed recipe argument
 fingerprint bytes.
-Pending 0.16 moves Wasm recipe keys to a v2 fingerprint domain and projects
-semantic package fields from Cargo's typed schema. Recipes rebuild once under
-new keys, including those using conservative whole-workspace inputs. The old
+Cargo input resolution projects semantic package fields from Cargo's typed
+schema, including conservative whole-workspace recipes. The old
 raw/typed JSON pairing is removed: schema defaults and version normalization
 apply, while unknown dependency-kind fields are no longer retained in identity.
 Unsupported dependency-kind values refuse instead of sharing a normalized key.
@@ -43,7 +69,7 @@ specification failures remain distinct. Label rejection still precedes callbacks
 progress events, source validation and command effects. Cargo grouping returns
 the same downcastable label error; its diagnostic wording now uses shared label
 terms. Individual build, cleanup and publication failures remain in their entries.
-Pending 0.16 artifact failures use `ArtifactCacheBatchFailure::Preparation`,
+Release 0.16 artifact failures use `ArtifactCacheBatchFailure::Preparation`,
 `Callback` or `Commit` directly. Replace `Cache { phase, .. }`/`Build` matches and
 remove `ArtifactCacheBatchFailurePhase`/`phase()` usage. `Callback` retains its
 primary error and optional abort-cleanup failure; timing and error-source access
@@ -62,7 +88,15 @@ The existing v1 retained formats and namespaces are unchanged.
 
 ## Cargo observations
 
-Wasm builds, batches, sessions and prepared readers take a final Host spawner
+`cargo::execution::communicate_cargo` drains caller-owned Cargo children, decodes
+stdout once and forwards canonical messages. Check both original execution
+status and protocol evidence before admitting artifacts. Protocol refusal drains
+the child; output-sink failure uses Host cleanup. Limits, cancellation, source
+custody and build-script interpretation remain caller-owned.
+`select_cdylib_wasm` selects only reported outputs for the admitted manifest;
+capture or retain those bytes before another build can replace them.
+
+Wasm builds, batches and prepared readers take a final Host spawner
 argument. Pass `ic_host_process::child::OwnedChild::spawn_direct` for direct-child
 ownership, or a closure calling `OwnedChild::spawn(command, cleanup)` for an owned
 process group and explicit cleanup. Progress never chooses custody or cleanup.
@@ -79,10 +113,21 @@ or union graph does not prove role-specific dependency activation.
 `observe_tree` uses the same complete-output capture with caller-selected package
 ID specifications, target, edge kinds, format and features. It returns depth-
 prefixed, non-deduplicated UTF-8 text; consumers own alias/role correlation.
-Feature-safe grouping also uses this observer. Both observations retain typed Host
+Feature-safe grouping also uses this observer. Pass the recipe's existing
+`CargoSelection` after `target` to `cargo::compatible_package_groups`. Every
+isolated and combined probe uses its features, locked and offline choices;
+the profile is not a Cargo tree argument. Canic's grouping adapter must pass
+the same graph selection that its compilation recipe uses when adopting 0.17.
+Both observations retain typed Host
 spawn, capture and unsuccessful-exit errors, including bounded diagnostic and
 truncation evidence. Successful truncated output is rejected before parsing.
 There is no default elapsed-time deadline; callers select any timeout in the limits.
+
+Wasm publication carries each cache path, public path and verified digest together.
+All public copies finish before public stamps are written, including failure
+paths. Warm repair preserves matching ordinary outputs and stamps. Cargo output
+counts are admitted before any cache copy; this does not change stamp bytes,
+cache keys, namespaces or retained-artifact lifetime.
 
 `cargo::observation::schema` exposes the upstream `cargo_metadata` representation
 and build-message types. Consumers use those types directly rather than retaining
@@ -106,26 +151,28 @@ for every application to maintain a separate manifest edit.
 The existing API can apply a shared release selection explicitly:
 
 ```rust,no_run
+# let environment = std::collections::BTreeMap::<std::ffi::OsString, std::ffi::OsString>::new();
 use ic_build::artifacts::WasmBuildSpec;
 use ic_build::cargo::selection::CargoSelection;
 use std::path::Path;
 
 let workspace = Path::new("/application/workspace");
 let target = workspace.join("target/canister-builds");
-let spec = WasmBuildSpec::new(workspace, &target, &["application_canister"])
+let mut environment = environment;
+environment.insert("CARGO_PROFILE_RELEASE_LTO".into(), "fat".into());
+let spec = WasmBuildSpec::new(workspace, &target, &["application_canister"], environment.clone())
     .with_cargo_selection(CargoSelection {
         profile: Some("release".into()),
         locked: true,
         offline: true,
         ..Default::default()
-    })
-    .with_extra_env([("CARGO_PROFILE_RELEASE_LTO", "fat")]);
+    });
 ```
 
 For a custom profile, select its matching output directory and Cargo argument,
 and use its corresponding `CARGO_PROFILE_<NAME>_LTO` variable. Keep other explicit
-overrides in chained `with_extra_env` calls; each call merges into the existing
-map. Later values win for duplicate names, and empty calls preserve prior values.
+selections in the caller-owned map before construction. `with_environment`
+replaces that complete map; it does not merge or read ambient values.
 [Cargo's profile environment configuration](https://doc.rust-lang.org/cargo/reference/config.html#profilenamelto)
 overrides the manifest. IC Build fingerprints explicit child environment and
 workspace profiles, so thin and fat selections have distinct cache identities.
@@ -176,6 +223,16 @@ framework or public configuration type is needed for this initial qualification.
 
 ## Standalone input evidence and depfiles
 
+`ResolvedCargoBuildInputs::facts()` borrows the `CargoBuildFacts` already used by
+the Cargo input fingerprint: typed selection, target, complete selected environment
+before Build adds its target directory, and successful Cargo/compiler identity
+probe bytes (stdout followed by stderr). It performs no new probes or ambient
+reads. Clones and prepared snapshots retain these immutable observations after
+sources or tools change. They describe admitted inputs, not successful compilation;
+consumers must bind them to the execution and retain source/target custody.
+Debug omits environment values and probe bytes. Explicit access still exposes
+potentially sensitive data; provenance publication and redaction belong to callers.
+
 `InputEvidenceSpec` declares absolute file/directory/missing roots, an opaque
 caller-derived non-file identity, generated-root exclusions and optional exact
 child-name exclusions. It selects no recipes, tools, output roots or time limits.
@@ -186,7 +243,7 @@ custody must cover sources and parent directories through capture, work and
 validation; evidence does not provide a lock or release admission.
 
 `entries()` supplies per-path `Missing`, `Directory`, or raw SHA-256 `File` facts
-for consumer-owned records. The pending 0.15 API stores file hashes as Host's
+for consumer-owned records. File hashes use Host's
 `ic_host_artifacts::artifact::Sha256Digest`; use `Display`/`to_string()` for lowercase
 hex text. `InputDigest` remains the derived inventory/cache identity.
 `digest()` retains the existing consumer encoding:
@@ -227,7 +284,7 @@ to the explicit working directory. Existing aliases resolve before output
 exclusion; missing paths containing parent traversal remain conservative external
 inputs. The record itself is not a source input: Cargo may replace it during work.
 Consumers select records from their own Cargo graph, combine their input sets,
-and decide whether `NotFound` permits a cold-build inventory. Pending 0.16 removes
+and decide whether `NotFound` permits a cold-build inventory. Release 0.16 removes
 directory-wide discovery; migrate callers to exact record selection. This
 selection never grants pre-build authority to newly named source bytes; capture
 and validate the resulting inventory through `InputEvidence` as above.
@@ -242,7 +299,7 @@ do not invoke Cargo, create another artifact cache or manage maintenance.
 
 ## Temporary staging and captured outputs
 
-Pending 0.13 adds `artifacts::produce_and_retain_artifact` for a caller-executed
+`artifacts::produce_and_retain_artifact` handles a caller-executed
 transform with explicit producer, log and retained-destination paths and a byte
 allowance. Build creates producer/log exclusively, passes the owned log to the
 callback, then captures/retains successful output before removing the producer.
@@ -337,7 +394,7 @@ establish Query adoption or native smoke qualification.
 
 ## External lock selection admission
 
-Pending IC Build 0.12.1 provides the pure
+IC Build provides the pure
 `ic_build::cargo::packages::verify_external_lock_subset(original, candidate, max_bytes)`
 API for callers that need the archive engine's external-selection check without
 running a package/test workflow. Both byte slices must fit the explicit
@@ -387,7 +444,7 @@ that broader transformation is deliberately refused by this strict contract.
 
 ## Inherited Cargo Rust flags
 
-Pending 0.16 uses `cargo::flags::combined_encoded_rustflags(encoded, ordinary, &extra_flags)`.
+Release 0.16 uses `cargo::flags::combined_encoded_rustflags(encoded, ordinary, &extra_flags)`.
 Pass each additional argument as a separate `String`; when it returns `Some`,
 set that value as `CARGO_ENCODED_RUSTFLAGS` on the Cargo command. An empty slice
 returns `None`, so leave the command's inherited flags unchanged.
@@ -409,7 +466,7 @@ and the explicitly supplied Cargo home without reading ambient environment.
 `preferred_configuration` selects `config` before `config.toml`;
 `observe_configurations` follows selected include trees and returns lookup paths,
 stable locations, raw SHA-256 identities and compiler-override field names.
-Pending 0.16 stores `ConfigurationFile.sha256` as Host's `Sha256Digest`;
+Release 0.16 stores `ConfigurationFile.sha256` as Host's `Sha256Digest`;
 use `as_bytes()` for its unchanged raw bytes or `Display` for hexadecimal text.
 Within one call, recorded lookup paths are not read or expanded again; distinct
 aliases retain their own include lookup directories. A new call observes fresh
@@ -443,6 +500,7 @@ shared-target maintenance builders. Existing isolated build directories are
 preserved and need explicit maintenance if no longer wanted.
 
 ```rust,no_run
+# let environment = std::collections::BTreeMap::<std::ffi::OsString, std::ffi::OsString>::new();
 use ic_host_process::child::OwnedChild;
 use ic_build::artifacts::{
     CacheRetentionLimits, WasmBuildOutcome, WasmBuildSpec,
@@ -467,14 +525,12 @@ let target = workspace.join("target").join("pic-wasm");
 let spec = WasmBuildSpec::new(
     &workspace,
     &target,
-    &["counter_canister"],
-)
+    &["counter_canister"], environment.clone())
 .with_cargo_selection(CargoSelection {
     profile: Some("release".into()),
     locked: true,
     ..Default::default()
 })
-.with_inherited_env(["COUNTER_SCHEMA_MODE"])
 .with_additional_inputs(["config/counter-schema.json"])
 .with_prune_policy(
     CacheRetentionLimits::new()
@@ -516,7 +572,7 @@ enabled features, exact external source/checksum/revision identities, local
 dependency sources, relevant inherited package fields, workspace profiles,
 resolver and lint settings, Cargo configuration, Rust toolchain files, target
 and profile arguments, Cargo and rustc identities, explicit child environment,
-selected inherited environment, and caller-declared additional inputs. This
+the complete explicit environment, and caller-declared additional inputs. This
 validated semantic workspace projection lets an unrelated host-only workspace
 dependency or lockfile change retain the same exact Wasm key.
 
@@ -524,7 +580,7 @@ For a Cargo shim that selects another compiler, pair `with_cargo_program(shim)`
 with `with_rustc_identity_program(actual_compiler)` so the `-vV` probe fingerprints that
 compiler. The latter selects identity only; it does not configure the shim's
 build. When Cargo should use a selected compiler, use
-`with_extra_env([("RUSTC", actual_compiler)])`, which also takes precedence for
+`RUSTC` in the complete environment, which also takes precedence for
 the identity probe. Keep the selected compiler consistent with the build command.
 The [compiled post-link recipe](../crates/ic-build/src/artifacts/mod.rs) combines
 this spec with `ArtifactCacheSpec::with_cargo_build_inputs`, declared input/tool
@@ -607,7 +663,7 @@ identity, Cargo metadata, input discovery, content hashing, and total timing.
 Relative exact target paths use the caller's working directory, matching cache
 filesystem operations. Relative shared targets use the workspace root. Select
 these paths through `WasmBuildSpec`; overriding `CARGO_TARGET_DIR` through
-`with_extra_env` returns `InvalidSpec` before acquisition.
+the complete environment returns `InvalidSpec` before acquisition.
 
 The profile output directory follows `CargoSelection::profile`: default builds,
 `dev` and `test` use `debug`; `release` and `bench` use `release`;
@@ -645,6 +701,7 @@ Suites can override the default workspace shared Cargo target while retaining
 exact immutable final Wasm entries:
 
 ```rust,no_run
+# let environment = std::collections::BTreeMap::<std::ffi::OsString, std::ffi::OsString>::new();
 use ic_host_process::child::OwnedChild;
 use ic_build::artifacts::{
     CacheRetentionLimits, WasmBuildSpec, build_wasm_canisters_cached,
@@ -657,8 +714,7 @@ let shared_incremental = workspace.join("target/pic-wasm-incremental");
 let spec = WasmBuildSpec::new(
     &workspace,
     &exact_cache,
-    &["counter_canister"],
-)
+    &["counter_canister"], environment.clone())
 .with_shared_incremental_target(&shared_incremental)
 .with_shared_incremental_target_maintenance_at_most_every(
     CacheRetentionLimits::new()
@@ -712,6 +768,7 @@ default. Consumers that prefer a usable Wasm acquisition over successful
 retention can supply an explicit best-effort configuration:
 
 ```rust,no_run
+# let environment = std::collections::BTreeMap::<std::ffi::OsString, std::ffi::OsString>::new();
 use ic_build::artifacts::{
     SharedIncrementalTargetMaintenanceConfig,
     SharedIncrementalTargetMaintenanceFailureMode,
@@ -729,8 +786,7 @@ let maintenance = SharedIncrementalTargetMaintenanceConfig::new(
 let spec = WasmBuildSpec::new(
     &workspace,
     &target,
-    &["counter_canister"],
-)
+    &["counter_canister"], environment.clone())
 .with_shared_incremental_target(target.join("shared"))
 .with_shared_incremental_target_maintenance(maintenance);
 # let _ = spec;
@@ -747,10 +803,11 @@ publication can expose synchronous structured progress without changing the
 existing silent API:
 
 ```rust,no_run
+# let environment = std::collections::BTreeMap::<std::ffi::OsString, std::ffi::OsString>::new();
 use ic_host_process::child::{CleanupPolicy, OwnedChild};
 use ic_build::artifacts::{
     WasmBuildProgressConfig, WasmBuildProgressEvent, WasmBuildSpec,
-    build_wasm_canisters_cached_with_progress,
+    build_wasm_canisters_cached,
 };
 use std::time::Duration;
 
@@ -758,20 +815,18 @@ use std::time::Duration;
 let spec = WasmBuildSpec::new(
     &workspace,
     &workspace.join("target/pic-wasm"),
-    &["counter_canister"],
-);
-let outcome = build_wasm_canisters_cached_with_progress(
+    &["counter_canister"], environment.clone());
+let outcome = ic_build::artifacts::build_wasm_canisters_cached_with_progress(
     &spec,
-    WasmBuildProgressConfig::new()
-        .with_heartbeat_interval(Duration::from_secs(15))
-        .with_cargo_output(false),
-    |event| {
-        if let WasmBuildProgressEvent::Heartbeat { phase, elapsed } = event {
-            eprintln!("{phase} is still active after {elapsed:?}");
-        }
-    },
-    |command| OwnedChild::spawn(command, CleanupPolicy::KillAndWait),
-)?;
+        WasmBuildProgressConfig::new()
+            .with_heartbeat_interval(Duration::from_secs(15))
+            .with_cargo_output(false),
+        &mut |event| {
+            if let WasmBuildProgressEvent::Heartbeat { phase, elapsed } = event {
+                eprintln!("{phase} is still active after {elapsed:?}");
+            }
+        },
+    |command| OwnedChild::spawn(command, CleanupPolicy::KillAndWait))?;
 eprintln!("{outcome}");
 # Ok::<(), Box<dyn std::error::Error>>(())
 ```
@@ -782,7 +837,7 @@ Raw output events preserve non-UTF-8 bytes; output is still captured in
 phase work, terminates and waits for a running Cargo build, and then performs
 normal lock and incomplete-entry cleanup.
 
-Independent batches, sessions and prepared snapshots each expose one batch
+Independent batches and prepared snapshots each expose one batch
 entrypoint. Pass batch configuration explicitly and `None` for silent execution,
 or `Some((progress_config, &mut observer))` for progress reporting. The former
 `_with_config`, `_with_progress` and combined variants have no aliases.
@@ -791,6 +846,7 @@ Suites that require standalone feature resolution for several variants can
 batch independent specs without changing Cargo feature semantics:
 
 ```rust,no_run
+# let environment = std::collections::BTreeMap::<std::ffi::OsString, std::ffi::OsString>::new();
 use ic_host_process::child::{CleanupPolicy, OwnedChild};
 use ic_build::artifacts::{
     LabeledWasmBuildSpec, WasmBuildBatchConfig, WasmBuildSpec,
@@ -802,11 +858,11 @@ use ic_build::artifacts::{
 let specs = [
     LabeledWasmBuildSpec::new(
         "role-a",
-        WasmBuildSpec::new(&workspace, &target, &["role_a"]),
+        WasmBuildSpec::new(&workspace, &target, &["role_a"], environment.clone()),
     ),
     LabeledWasmBuildSpec::new(
         "role-b",
-        WasmBuildSpec::new(&workspace, &target, &["role_b"]),
+        WasmBuildSpec::new(&workspace, &target, &["role_b"], environment.clone()),
     ),
 ];
 let batch = build_wasm_canisters_cached_batch(&specs, WasmBuildBatchConfig::new(), None, |command: &mut std::process::Command| OwnedChild::spawn(command, CleanupPolicy::KillAndWait))?;
@@ -860,49 +916,19 @@ feature semantics remain intact.
 counts; input-resolution runs and compatible-snapshot reuses; and summed
 successful acquisition timings. The structured input-resolution total makes
 distinct feature-resolution costs visible while reused snapshots remain
-counted explicitly, including reuse from an explicit session or prepared
-concurrent snapshot. `entry_elapsed` retains wall time for every ordered entry,
+counted explicitly, including reuse from a prepared concurrent snapshot. `entry_elapsed` retains wall time for every ordered entry,
 including failures; `failures` returns structured entries that bundle the
 label, index, error, primary failed phase, partial phase timings, and elapsed
 time. Successful entries continue to expose detailed phase timings through
 their build records.
 
-### Source immutability for sessions
+### Prepared source immutability
 
-Repeated batches can reuse exact input snapshots when the caller owns a real
-write-exclusion boundary for every build input:
-
-```rust,no_run
-use ic_host_process::child::{CleanupPolicy, OwnedChild};
-use ic_build::artifacts::{
-    LabeledWasmBuildSpec, WasmBuildBatchConfig, WasmBuildSession,
-};
-use std::sync::Mutex;
-
-# let specs: Vec<LabeledWasmBuildSpec> = Vec::new();
-// Every source/config/tool/environment writer must coordinate on this lock.
-let source_write_exclusion = Mutex::new(());
-let source_guard = source_write_exclusion.lock().expect("acquire source lease");
-let mut session = WasmBuildSession::assume_sources_immutable(&source_guard);
-let first = session.build_batch(&specs, WasmBuildBatchConfig::new(), None, |command: &mut std::process::Command| OwnedChild::spawn(command, CleanupPolicy::KillAndWait))?;
-let second = session.build_batch(&specs, WasmBuildBatchConfig::new(), None, |command: &mut std::process::Command| OwnedChild::spawn(command, CleanupPolicy::KillAndWait))?;
-eprintln!("first={first}; second={second}; session={:?}", session.metrics());
-# Ok::<(), Box<dyn std::error::Error>>(())
-```
-
-The `assume_sources_immutable` name is an explicit caller assertion. The
-borrowed guard is only a lifetime boundary, not filesystem locking or guard
-provenance validation performed by IC Build; supplying an unrelated value
-violates the contract and can reuse stale inputs. The lease covers Cargo and
-rustc executables, manifests, Cargo configuration, discovered sources,
-declared additional inputs, and relevant environment values. A detected input
-race permanently invalidates the session, clears pending snapshots, and makes
-later calls return
-`SourceLeaseInvalidated`. Ordinary batch functions still resolve current inputs
-per call, and there is no silent process-global cache. This guide and
-[IC Build's public session documentation](../crates/ic-build/src/artifacts/wasm_batch.rs)
-describe the supported contract. The earlier Testkit design is preserved below
-as a historical reference.
+Mutable `WasmBuildSession` reuse is removed in 0.17. Prepare the complete recipe
+set through `WasmBuildInputSnapshot` under a genuine source write-exclusion lease.
+The lease covers tools, manifests, configuration, sources and selected environment;
+the guard's provenance remains the caller's responsibility. Ordinary batches
+resolve current inputs each time and retain within-batch sharing.
 
 When independent callers need the same resolution concurrently, prepare their
 complete exact specification set before starting readers:
@@ -1056,8 +1082,8 @@ text/grammar separately; before/after digests cannot rule out transient writes.
 Host 0.24 has removed its extraction module/feature; adopt the new Build owner
 when upgrading that graph ([#51](https://github.com/dragginzgame/ic-build/issues/51)).
 Structural Wasm inspection does not replace PocketIC's runtime validation.
-IC Build 0.12 requires compatible IC Host 0.24 releases at the
-public dependency boundary; release 0.12.0 selects Host 0.24.0.
+IC Build currently requires compatible IC Host 0.27 releases at the
+public dependency boundary; the lockfile selects Host 0.27.1.
 Retained staging still uses checked native permission conversion on macOS. Align direct Host
 dependencies when passing `OutputLimits`, `CleanupPolicy` or matching typed Host
 failures across the engine boundary. Different Host minor families have distinct Rust crate identities even
@@ -1066,8 +1092,7 @@ when their fields match. The earlier IC Build 0.2.0 boundary also means an
 results even for nonzero exits: call `require_success()` before admitting or
 publishing producer output, and return `io::Result<()>` from output observers.
 Durable writers retain typed publication phase and cleanup evidence. Gzip
-encoding accepts numeric levels 0–9. Testkit's earlier Host/PocketIC migration
-records remain historical references below; PocketIC startup remains Testkit-owned.
+encoding accepts numeric levels 0–9. PocketIC startup remains Testkit-owned.
 
 The `transactional_artifact_cache` example uses shared digest/version admission
 and bounded execution for its transformer. Supply a reviewed raw executable
@@ -1228,7 +1253,7 @@ grant no admission through these APIs. ICP readiness policy belongs to consumers
 The cache intentionally contains no Binaryen, `icp build`, package-name, or
 PocketIC policy. This guide and [IC Build's public cache documentation](../crates/ic-build/src/artifacts/transaction.rs)
 describe the supported transactional contract. Shared-target maintenance and
-session reuse likewise remain IC Build contracts with caller-owned policy.
+prepared reuse likewise remain IC Build contracts with caller-owned policy.
 
 ## Historical extraction references
 
@@ -1241,19 +1266,7 @@ guide or IC Build's public API documentation.
 - [0.6 shared-incremental Wasm design](https://github.com/dragginzgame/ic-testkit/blob/b906b1a44f8f5f0f2f23d2413a76103d99e4fbb3/docs/design/0.6-shared-incremental-wasm/0.6-design.md).
 - [0.7 artifact orchestration design](https://github.com/dragginzgame/ic-testkit/blob/b906b1a44f8f5f0f2f23d2413a76103d99e4fbb3/docs/design/0.7-artifact-orchestration/0.7-design.md).
 
-The [Host 0.14 migration guide](https://github.com/dragginzgame/ic-testkit/blob/b906b1a44f8f5f0f2f23d2413a76103d99e4fbb3/crates/ic-testkit/CHANGELOG.md#0340) covers the
-completed-result and failure types. Descriptor-based locking replaced the pathname
-progress-lock helper in the [Host 0.13 upgrade](https://github.com/dragginzgame/ic-testkit/blob/b906b1a44f8f5f0f2f23d2413a76103d99e4fbb3/crates/ic-testkit/CHANGELOG.md#0334).
-Durable writers retain typed publication phase and cleanup evidence; the
-[0.28 migration guide](https://github.com/dragginzgame/ic-testkit/blob/b906b1a44f8f5f0f2f23d2413a76103d99e4fbb3/crates/ic-testkit/CHANGELOG.md#0280) covers those earlier
-writer changes.
-Gzip encoding accepts numeric levels 0–9. When upgrading from 0.21, update Wasm
-fact literals and exhaustive inspection
-error matches as described in the [0.22 migration guide](https://github.com/dragginzgame/ic-testkit/blob/b906b1a44f8f5f0f2f23d2413a76103d99e4fbb3/crates/ic-testkit/CHANGELOG.md#0220).
-The [0.23 migration guide](https://github.com/dragginzgame/ic-testkit/blob/b906b1a44f8f5f0f2f23d2413a76103d99e4fbb3/crates/ic-testkit/CHANGELOG.md#0230) covers Host's
-new `ExecutionError::group_error` and the expanded PocketIC startup errors.
-Startup errors retain their original cause and append secondary cleanup failures
-when displayed; builder failures also retain bounded server stdout/stderr.
-The [0.24 migration guide](https://github.com/dragginzgame/ic-testkit/blob/b906b1a44f8f5f0f2f23d2413a76103d99e4fbb3/crates/ic-testkit/CHANGELOG.md#0240) covers Host's
-changed execution failure categories and replacing `read_wasm` with `read_file`.
-
+Current Host contracts belong to [IC Host Tooling](https://github.com/dragginzgame/ic-host-tooling);
+PocketIC upgrade and startup guidance belongs to IC Testkit. The pinned designs
+above preserve extraction history without maintaining another Host/PocketIC
+migration guide here.

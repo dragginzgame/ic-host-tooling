@@ -22,3 +22,8 @@ pub fn write_workspace(root: &Path) -> io::Result<()> {
     }
     Ok(())
 }
+
+/// Construct a real-Wasm test recipe with this fixture adapter's selected environment.
+pub fn spec(root: &Path, target: &Path, packages: &[&str]) -> ic_build::artifacts::WasmBuildSpec {
+    ic_build::artifacts::WasmBuildSpec::new(root, target, packages, super::cargo::environment())
+}

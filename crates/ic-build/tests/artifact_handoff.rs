@@ -48,16 +48,21 @@ printf '%s' "$VARIANT" > "$output/wasm32-unknown-unknown/debug/fixture.wasm"
 }
 
 fn isolated_wasm_spec(root: &Path, variant: &str) -> WasmBuildSpec {
-    WasmBuildSpec::new(&root.join("workspace"), &root.join("wasm"), &["fixture"])
-        .with_cargo_program(root.join("cargo.sh"))
-        .with_extra_env([
-            (
-                "REAL_CARGO",
-                std::env::var("CARGO").unwrap_or_else(|_| "cargo".into()),
-            ),
-            ("VARIANT", variant.to_owned()),
-        ])
-        .with_prune_policy(CacheRetentionLimits::new().with_max_size_bytes(0))
+    WasmBuildSpec::new(
+        &root.join("workspace"),
+        &root.join("wasm"),
+        &["fixture"],
+        support::cargo::environment(),
+    )
+    .with_cargo_program(root.join("cargo.sh"))
+    .with_environment(support::cargo::environment_with([
+        (
+            "REAL_CARGO",
+            std::env::var("CARGO").unwrap_or_else(|_| "cargo".into()),
+        ),
+        ("VARIANT", variant.to_owned()),
+    ]))
+    .with_prune_policy(CacheRetentionLimits::new().with_max_size_bytes(0))
 }
 
 fn wasm_spec(root: &Path, variant: &str) -> WasmBuildSpec {

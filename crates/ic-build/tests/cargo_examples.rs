@@ -73,6 +73,7 @@ fn recipe(root: &Path) -> WasmBuildSpec {
         &workspace,
         &workspace.join("target/cargo"),
         &["example-fixture"],
+        support::cargo::environment(),
     )
     .with_example("probe")
     .with_cargo_selection(CargoSelection {
@@ -136,7 +137,7 @@ fn named_examples_build_and_reuse_without_aliasing_library_or_other_example() {
         assert!(bytes.starts_with(b"\0asm"));
         assert!(first.record().artifacts()[0].ends_with("debug/examples/probe.wasm"));
         assert!(
-            build_wasm_canisters_cached(&spec, OwnedChild::spawn_direct,)
+            build_wasm_canisters_cached(&spec, OwnedChild::spawn_direct)
                 .unwrap()
                 .is_reused()
         );
@@ -151,6 +152,7 @@ fn named_examples_build_and_reuse_without_aliasing_library_or_other_example() {
             &root.join("workspace"),
             &root.join("workspace/target/cargo"),
             &["example-fixture"],
+            support::cargo::environment(),
         )
         .with_cargo_selection(CargoSelection {
             features: CargoFeatureSelection {
@@ -181,7 +183,7 @@ fn named_examples_build_and_reuse_without_aliasing_library_or_other_example() {
                 .is_err()
         );
         assert!(matches!(
-            build_wasm_canisters_cached(&spec, OwnedChild::spawn_direct,),
+            build_wasm_canisters_cached(&spec, OwnedChild::spawn_direct),
             Err(WasmBuildError::InvalidSpec { .. })
         ));
         assert_eq!(fs::read(&first.record().artifacts()[0]).unwrap(), bytes);
@@ -301,6 +303,7 @@ fn unsafe_or_conflicting_example_selectors_fail_before_dispatch() {
         &root.join("workspace"),
         &root.join("target"),
         &["one", "two"],
+        support::cargo::environment(),
     )
     .with_example("probe");
     assert!(multi.cargo_build_command().is_err());

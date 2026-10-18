@@ -129,10 +129,11 @@ fn shared_incremental_process_worker() {
         &workspace,
         &root.join(format!("cache-{worker}")),
         &["fixture"],
+        support::cargo::environment(),
     )
     .with_shared_incremental_target(root.join("shared-target"))
     .with_cargo_program(root.join("cargo-wrapper.sh"))
-    .with_extra_env([
+    .with_environment(support::cargo::environment_with([
         (OsString::from("REAL_CARGO"), real_cargo),
         (
             OsString::from("IC_TESTKIT_ACTIVE_BUILD"),
@@ -150,7 +151,7 @@ fn shared_incremental_process_worker() {
             OsString::from("IC_TESTKIT_WORKER_VARIANT"),
             OsString::from(worker),
         ),
-    ]);
+    ]));
 
     let outcome = build_wasm_canisters_cached(&spec, OwnedChild::spawn_direct)
         .expect("run shared-target worker build");
@@ -177,6 +178,7 @@ fn scheduled_shared_target_maintenance_process_worker() {
         &workspace,
         &root.join(format!("cache-{worker}")),
         &["fixture"],
+        support::cargo::environment(),
     )
     .with_shared_incremental_target(root.join("shared-target"));
     let outcome = maintain_shared_incremental_target_at_most_every(

@@ -2,10 +2,9 @@
 //!
 //! These functions keep integration-test artifacts in caller-selected target
 //! directories and contain no application-specific package or profile policy.
-//! Independent Wasm batches remain sequential; [`WasmBuildSession`] adds
-//! explicit cross-call resolution reuse, while [`WasmBuildInputSnapshot`]
-//! prepares a fixed specification set for concurrent readers. Both require a
-//! caller-held source lease.
+//! Independent Wasm batches remain sequential; [`WasmBuildInputSnapshot`]
+//! prepares a fixed specification set for concurrent readers under a caller-held
+//! source lease. Independent batches resolve current inputs on each call.
 //!
 //! Successful Wasm and generic artifact records retain their read-only exact
 //! paths against cache replacement and pruning. Retain the record (or a clone)
@@ -100,11 +99,10 @@ pub use transaction_batch::{
 pub use wasm_batch::{
     LabeledWasmBuildSpec, WasmBuildBatchConfig, WasmBuildBatchContractError, WasmBuildBatchEntry,
     WasmBuildBatchMetrics, WasmBuildBatchProgressEvent, WasmBuildBatchReport,
-    WasmBuildInputSnapshot, WasmBuildInputSnapshotMetrics, WasmBuildSession,
-    WasmBuildSessionMetrics, build_wasm_canisters_cached_batch,
+    WasmBuildInputSnapshot, WasmBuildInputSnapshotMetrics, build_wasm_canisters_cached_batch,
 };
 pub use wasm_cache::{
-    CargoBuildInput, CargoInputProbePolicy, ResolvedCargoBuildInputs,
+    CargoBuildFacts, CargoBuildInput, CargoInputProbePolicy, ResolvedCargoBuildInputs,
     SharedIncrementalTargetInspection, SharedIncrementalTargetMaintenance,
     SharedIncrementalTargetMaintenanceConfig, SharedIncrementalTargetMaintenanceFailureMode,
     SharedIncrementalTargetMaintenanceOutcome, WasmBuildCacheMode, WasmBuildError,

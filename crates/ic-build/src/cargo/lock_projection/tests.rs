@@ -230,3 +230,52 @@ fn cargo_generated_workspace_update_preserves_external_selections() {
     ));
     fs::remove_dir_all(root).unwrap();
 }
+
+#[test]
+fn parse_error_preserves_role_message_and_original_parser_source() {
+    use std::error::Error as _;
+    let source = toml::from_str::<toml::Value>("[broken").unwrap_err();
+    let expected = format!("invalid before lockfile: {source}");
+    let error = LockProjectionError::Parse {
+        input: "before",
+        source,
+    };
+    assert_eq!(error.to_string(), expected);
+    assert!(
+        error
+            .source()
+            .unwrap()
+            .downcast_ref::<toml::de::Error>()
+            .is_some()
+    );
+    for (error, expected) in [
+        (
+            LockProjectionError::InvalidSelection,
+            "invalid workspace version selection",
+        ),
+        (
+            LockProjectionError::MissingPackages,
+            "lockfile has no package array",
+        ),
+        (
+            LockProjectionError::PackageSelection {
+                package: "fixture".into(),
+                matches: 2,
+            },
+            "workspace package fixture has 2 unsourced records; expected one",
+        ),
+        (
+            LockProjectionError::PreviousVersion {
+                package: "fixture".into(),
+            },
+            "unexpected previous workspace version for fixture",
+        ),
+        (
+            LockProjectionError::ChangedInputs,
+            "lockfile differs from the selected workspace version projection",
+        ),
+    ] {
+        assert_eq!(error.to_string(), expected);
+        assert!(error.source().is_none());
+    }
+}

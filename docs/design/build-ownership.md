@@ -16,15 +16,26 @@ acceptance and delivery status.
 The current implementation and qualification evidence is recorded in the
 [handoff](../status/current.md); [IC Build #1](https://github.com/dragginzgame/ic-build/issues/1)
 owns extraction acceptance. The generic engine retains Testkit's `v1` stamp
-format and `.ic-testkit` cache/lock namespaces. Pending 0.16 changes Wasm recipe
-keys to a typed v2 fingerprint domain, causing cold builds while preserving
+format and `.ic-testkit` cache/lock namespaces. Release 0.16 changes Wasm recipe
+keys to a typed v2 fingerprint domain. Pending 0.17 selects a separate explicit-
+environment recipe domain and clears child inheritance, causing cold builds while preserving
 retained entries and conservative raw-input mutation checks. No migration reader or
 automatic cleanup is introduced. Canic's feature-equivalent Cargo grouping moved
-to IC Build with caller-supplied environment and output policy; complete-release
-reuse/finalization remains Canic-owned until its additional invariants can be
-preserved through a shared execution path.
+to IC Build with caller-supplied environment and output policy. Pending 0.17
+also requires the recipe's `CargoSelection` for isolated and combined grouping
+probes, leaving feature, lock and network choices with the consumer. Complete-release
+reuse/finalization remains Canic-owned. Shared execution does not admit Canic
+roles, release identities or manifests.
 
 ## Implemented ownership
+
+The current manifest depends directly on Host Artifacts, FS and Process, plus
+Cargo's canonical metadata schema. Host Tools and Text are consumer dependencies
+where interpretation or normalization is needed; Build does not depend on them.
+Build's `cargo::execution` composes Host communication with Cargo decoding and
+exact artifact selection. `cargo::native` keeps immediate protocol-refusal cleanup;
+the Wasm path instead drains diagnostics after protocol refusal. These distinct
+contracts share decoding, not one imposed failure policy.
 
 Build 0.12's Unix `artifacts::candid` moves native extraction
 orchestration out of Host Tools, over Host hashing and admitted execution.
@@ -92,8 +103,8 @@ have a separate implementation with additional release-specific guarantees.
 | Toko application configuration | Toko Miner, delegating deployable builds to Canic |
 | Product qualification and published report schemas | Each product, consuming shared facts and build results |
 
-The dependency direction is application/test adapters → IC Build → the four Host
-crates. IC Build must not depend on Canic, IcyDB, PocketIC or IC Testkit. Avoid
+The dependency direction is application/test adapters → IC Build → Host Artifacts,
+FS and Process. IC Build must not depend on Canic, IcyDB, PocketIC or IC Testkit. Avoid
 introducing a generic scheduler, plugin system or installation store to perform
 this extraction. Existing proven mechanisms are the starting point.
 
@@ -249,7 +260,7 @@ build directories.
 - Preserve original process failures, diagnostic bounds, observer failures and
   cleanup evidence. Canic's current command-output capture and Testkit's observed
   process execution are not automatically interchangeable.
-- A source snapshot/session is valid only under its documented source-custody
+- A prepared source snapshot is valid only under its documented source-custody
   contract. A build lock does not automatically exclude arbitrary source writers.
 - Reject source/environment/tool changes before publishing reusable evidence.
   Preserve external inputs, generated inputs and Cargo configuration selection.
