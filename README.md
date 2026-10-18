@@ -103,7 +103,7 @@ Host-side test crates normally add:
 
 ```toml
 [dev-dependencies]
-ic-testkit = "0.53"
+ic-testkit = "0.54"
 ic-platform = { version = "0.1.8", default-features = false, features = ["candid"] }
 ```
 

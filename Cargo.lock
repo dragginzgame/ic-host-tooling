@@ -949,7 +949,7 @@ dependencies = [
 
 [[package]]
 name = "ic-testkit"
-version = "0.53.0"
+version = "0.54.0"
 dependencies = [
  "ic-host-artifacts",
  "ic-host-fs",
@@ -966,7 +966,7 @@ dependencies = [
 
 [[package]]
 name = "ic-testkit-dev"
-version = "0.53.0"
+version = "0.54.0"
 dependencies = [
  "derive_more",
  "ic-build",
@@ -1021,7 +1021,7 @@ dependencies = [
 
 [[package]]
 name = "ic_testkit_perf_probe"
-version = "0.53.0"
+version = "0.54.0"
 dependencies = [
  "candid",
  "ic-cdk",
