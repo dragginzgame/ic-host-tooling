@@ -5,20 +5,11 @@ repo_root="${BASH_SOURCE[0]}"
 [[ "$repo_root" == /* ]] || repo_root="$PWD/$repo_root"
 repo_root="$(cd -P "${repo_root%/*}/../.." && printf '%s/.' "$PWD")"
 repo_root="${repo_root%/.}"
-work_dir="$(mktemp -d "${TMPDIR:-/tmp}/ic-testkit-publish-guards.XXXXXX")"
+# shellcheck source=scripts/ci/fixture-lifecycle.sh
+source "$repo_root/scripts/ci/fixture-lifecycle.sh"
+work_dir="$(fixture_create "${TMPDIR:-/tmp}/ic-testkit-publish-guards.XXXXXX")"
 fixture_complete=false
-cleanup() {
-  local status=$?
-  [[ "$fixture_complete" == true || "$status" != 0 ]] || status=1
-  if [[ "$status" == 0 ]]; then rm -rf "$work_dir";
-  else echo "Failed publication qualification retained at $work_dir" >&2; fi
-  exit "$status"
-}
-trap cleanup EXIT
-# Child helpers change directory; keep scratch paths and TMPDIR physical.
-[[ "$work_dir" == /* ]] || work_dir="$PWD/$work_dir"
-work_dir="$(cd -P "$work_dir" && printf '%s/.' "$PWD")"
-work_dir="${work_dir%/.}"
+trap 'fixture_finish "$?" "$work_dir" "Failed publication qualification retained"' EXIT
 export TMPDIR="${work_dir%/*}"
 
 fail() { echo "publication qualification failed: $*" >&2; exit 1; }
@@ -26,12 +17,10 @@ mkdir -p "$work_dir/bin" "$work_dir/state"
 export QUALIFICATION_CARGO
 QUALIFICATION_CARGO="$(command -v cargo)"
 version="$(bash "$repo_root/scripts/ci/read-cargo-workspace-version.sh" --stable "$repo_root/Cargo.toml")"
-registry_event="registry https://crates.io/api/v1/crates/ic-testkit-candid/$version"
 main_registry_event="registry https://crates.io/api/v1/crates/ic-testkit/$version"
-codec_upload=$'cargo publish --locked --registry crates-io -p ic-testkit-candid\n'
-main_upload=$'cargo publish --locked --registry crates-io -p ic-testkit\n'
-native_event="registry https://crates.io/api/v1/crates/ic-testkit-native/$version"
+native_registry_event="registry https://crates.io/api/v1/crates/ic-testkit-native/$version"
 native_upload=$'cargo publish --locked --registry crates-io -p ic-testkit-native\n'
+main_upload=$'cargo publish --locked --registry crates-io -p ic-testkit\n'
 cat > "$work_dir/bin/curl" <<'STUB'
 #!/usr/bin/env bash
 set -euo pipefail
@@ -39,7 +28,7 @@ set -euo pipefail
 url="${!#}"
 package="${url%/*}"
 package="${package##*/}"
-case "$package" in ic-testkit|ic-testkit-candid|ic-testkit-native) ;; *) exit 98 ;; esac
+case "$package" in ic-testkit|ic-testkit-native) ;; *) exit 98 ;; esac
 [[ "$url" == "https://crates.io/api/v1/crates/$package/$EXPECTED_VERSION" ]] || exit 98
 printf 'registry %s\n' "$url" >> "$TRACE_FILE"
 if [[ -e "$STATE_DIR/$package" ]]; then selected=200; else selected=404; fi
@@ -54,7 +43,7 @@ cat > "$work_dir/bin/cargo" <<'STUB'
 set -euo pipefail
 if [[ "${1:-}" == locate-project ]]; then exec "$QUALIFICATION_CARGO" "$@"; fi
 case "$*" in
-  'publish --locked --registry crates-io -p ic-testkit'|'publish --locked --registry crates-io -p ic-testkit-candid'|'publish --locked --registry crates-io -p ic-testkit-native') ;;
+  'publish --locked --registry crates-io -p ic-testkit'|'publish --locked --registry crates-io -p ic-testkit-native') ;;
   *) exit 98 ;;
 esac
 package="${!#}"
@@ -76,18 +65,18 @@ expect_trace() {
 }
 : > "$work_dir/trace"
 run_publish > "$work_dir/first.log"
-expect_trace "$registry_event"$'\n'"$codec_upload$main_registry_event"$'\n'"$main_upload""$native_event"$'\n'"$native_upload"
+expect_trace "$native_registry_event"$'\n'"$native_upload$main_registry_event"$'\n'"$main_upload"
 [[ -f "$work_dir/state/ic-testkit" ]] || fail 'publication did not reach Cargo'
 : > "$work_dir/trace"
 run_publish > "$work_dir/retry.log"
-expect_trace "$registry_event"$'\n'"$main_registry_event"$'\n'"$native_event"$'\n'
-rm "$work_dir/state/ic-testkit" "$work_dir/state/ic-testkit-candid" "$work_dir/state/ic-testkit-native"
+expect_trace "$native_registry_event"$'\n'"$main_registry_event"$'\n'
+rm "$work_dir/state/ic-testkit" "$work_dir/state/ic-testkit-native"
 for http in 429 500 503 000 malformed ''; do
   : > "$work_dir/trace"
   status=0
   HTTP_STATUS="$http" run_publish > "$work_dir/http-${http:-empty}.log" 2>&1 || status=$?
   [[ "$status" == 2 ]] || fail "HTTP '$http' was not unavailable"
-  expect_trace "$registry_event"$'\n'
+  expect_trace "$native_registry_event"$'\n'
   [[ ! -e "$work_dir/state/ic-testkit" ]] || fail 'unavailable lookup reached publication'
 done
 # Complete status output cannot hide a failed transport, including apparent absence.
@@ -96,7 +85,7 @@ for http in 200 404; do
   status=0
   HTTP_STATUS="$http" LOOKUP_STATUS=28 run_publish > "$work_dir/transport-$http.log" 2>&1 || status=$?
   [[ "$status" == 2 ]] || fail 'transport failure was not unavailable'
-  expect_trace "$registry_event"$'\n'
+  expect_trace "$native_registry_event"$'\n'
 done
 : > "$work_dir/trace"
 status=0
@@ -107,47 +96,13 @@ expect_trace ''
 status=0
 PUBLISH_STATUS=47 run_publish > "$work_dir/publication-failure.log" 2>&1 || status=$?
 [[ "$status" == 47 ]] || fail 'Cargo publication failure was not preserved'
-expect_trace "$registry_event"$'\n'"$codec_upload"
+expect_trace "$native_registry_event"$'\n'"$native_upload"
 [[ ! -e "$work_dir/state/ic-testkit" ]] || fail 'failed publication was recorded as complete'
-# A second-package upload failure preserves the successful codec publication.
+# Retry after a failed upload re-observes the registry before dispatch.
 : > "$work_dir/trace"
-status=0
-PUBLISH_FAIL_PACKAGE=ic-testkit PUBLISH_STATUS=47 run_publish > "$work_dir/partial.log" 2>&1 || status=$?
-[[ "$status" == 47 && -e "$work_dir/state/ic-testkit-candid" && ! -e "$work_dir/state/ic-testkit" ]] || fail 'partial publication state lost'
-expect_trace "$registry_event"$'\n'"$codec_upload$main_registry_event"$'\n'"$main_upload"
-: > "$work_dir/trace"
-run_publish > "$work_dir/partial-retry.log"
-expect_trace "$registry_event"$'\n'"$main_registry_event"$'\n'"$main_upload""$native_event"$'\n'"$native_upload"
-rm "$work_dir/state/ic-testkit" "$work_dir/state/ic-testkit-candid" "$work_dir/state/ic-testkit-native"
-# Uncertainty observing the second package also preserves the first upload.
-: > "$work_dir/trace"
-status=0
-LOOKUP_FAIL_PACKAGE=ic-testkit HTTP_STATUS=503 run_publish > "$work_dir/partial-observation.log" 2>&1 || status=$?
-[[ "$status" == 2 && -e "$work_dir/state/ic-testkit-candid" && ! -e "$work_dir/state/ic-testkit" ]] || fail 'uncertain observation reached second upload'
-expect_trace "$registry_event"$'\n'"$codec_upload$main_registry_event"$'\n'
-: > "$work_dir/trace"
-run_publish > "$work_dir/observation-retry.log"
-expect_trace "$registry_event"$'\n'"$main_registry_event"$'\n'"$main_upload""$native_event"$'\n'"$native_upload"
-rm "$work_dir/state/ic-testkit" "$work_dir/state/ic-testkit-candid" "$work_dir/state/ic-testkit-native"
-# A failure at the last package preserves both earlier publications.
-: > "$work_dir/trace"
-status=0
-PUBLISH_FAIL_PACKAGE=ic-testkit-native PUBLISH_STATUS=47 run_publish > "$work_dir/native-partial.log" 2>&1 || status=$?
-[[ "$status" == 47 && -e "$work_dir/state/ic-testkit-candid" && -e "$work_dir/state/ic-testkit" && ! -e "$work_dir/state/ic-testkit-native" ]] || fail 'native partial publication state lost'
-expect_trace "$registry_event"$'\n'"$codec_upload$main_registry_event"$'\n'"$main_upload$native_event"$'\n'"$native_upload"
-: > "$work_dir/trace"
-run_publish > "$work_dir/native-retry.log"
-expect_trace "$registry_event"$'\n'"$main_registry_event"$'\n'"$native_event"$'\n'"$native_upload"
-rm "$work_dir/state/ic-testkit-native"
-: > "$work_dir/trace"
-status=0
-LOOKUP_FAIL_PACKAGE=ic-testkit-native HTTP_STATUS=503 run_publish > "$work_dir/native-observation.log" 2>&1 || status=$?
-[[ "$status" == 2 && ! -e "$work_dir/state/ic-testkit-native" ]] || fail 'uncertain native observation reached upload'
-expect_trace "$registry_event"$'\n'"$main_registry_event"$'\n'"$native_event"$'\n'
-: > "$work_dir/trace"
-run_publish > "$work_dir/native-observation-retry.log"
-expect_trace "$registry_event"$'\n'"$main_registry_event"$'\n'"$native_event"$'\n'"$native_upload"
-rm "$work_dir/state/ic-testkit" "$work_dir/state/ic-testkit-candid" "$work_dir/state/ic-testkit-native"
+run_publish > "$work_dir/failure-retry.log"
+expect_trace "$native_registry_event"$'\n'"$native_upload$main_registry_event"$'\n'"$main_upload"
+rm "$work_dir/state/ic-testkit" "$work_dir/state/ic-testkit-native"
 echo 'Publication admission, retry and failure checks passed'
 
 real_make="$(command -v make)"
@@ -173,6 +128,26 @@ case "$*" in
 esac
 STUB
 chmod +x "$work_dir/bin/git"
+# A second upload failure or unavailable observation preserves the first package.
+for failure in upload observation; do
+  : > "$work_dir/trace"
+  status=0
+  if [[ "$failure" == upload ]]; then
+    PUBLISH_FAIL_PACKAGE=ic-testkit PUBLISH_STATUS=47 run_publish > "$work_dir/partial-$failure.log" 2>&1 || status=$?
+    [[ "$status" == 47 ]] || fail 'second upload failure was not preserved'
+    expect_trace "$native_registry_event"$'\n'"$native_upload$main_registry_event"$'\n'"$main_upload"
+  else
+    LOOKUP_FAIL_PACKAGE=ic-testkit HTTP_STATUS=503 run_publish > "$work_dir/partial-$failure.log" 2>&1 || status=$?
+    [[ "$status" == 2 ]] || fail 'uncertain second observation was not refused'
+    expect_trace "$native_registry_event"$'\n'"$native_upload$main_registry_event"$'\n'
+  fi
+  [[ -f "$work_dir/state/ic-testkit-native" && ! -e "$work_dir/state/ic-testkit" ]] || fail 'partial publication state lost'
+  : > "$work_dir/trace"
+  run_publish > "$work_dir/partial-$failure-retry.log"
+  expect_trace "$native_registry_event"$'\n'"$main_registry_event"$'\n'"$main_upload"
+  rm "$work_dir/state/ic-testkit" "$work_dir/state/ic-testkit-native"
+done
+
 run_admitted_publish() (
   cd "$repo_root" || exit 1
   PATH="$work_dir/bin:$PATH" TRACE_FILE="$work_dir/trace" \
@@ -183,8 +158,8 @@ run_admitted_publish() (
 )
 : > "$work_dir/trace"
 run_admitted_publish > "$work_dir/annotated-tag.log" 2>&1
-expect_trace "$registry_event"$'\n'"$codec_upload$main_registry_event"$'\n'"$main_upload""$native_event"$'\n'"$native_upload"
-rm "$work_dir/state/ic-testkit" "$work_dir/state/ic-testkit-candid" "$work_dir/state/ic-testkit-native"
+expect_trace "$native_registry_event"$'\n'"$native_upload$main_registry_event"$'\n'"$main_upload"
+rm "$work_dir/state/ic-testkit" "$work_dir/state/ic-testkit-native"
 for invalid in lightweight missing wrong-commit invalid-head failed-head failed-type failed-tag; do
   : > "$work_dir/trace"
   status=0

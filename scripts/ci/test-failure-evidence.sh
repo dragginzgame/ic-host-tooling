@@ -4,19 +4,11 @@ root="$0"
 [[ "$root" == /* ]] || root="$PWD/$root"
 root="$(cd -P "${root%/*}/../.." && printf '%s/.' "$PWD")"
 root="${root%/.}"
-fixture="$(mktemp -d "${TMPDIR:-/tmp}/ic-testkit-evidence-test.XXXXXX")"
+# shellcheck source=scripts/ci/fixture-lifecycle.sh
+source "$root/scripts/ci/fixture-lifecycle.sh"
+fixture="$(fixture_create "${TMPDIR:-/tmp}/ic-testkit-evidence-test.XXXXXX")"
 fixture_complete=false
-cleanup() {
-    local status=$?
-    [[ "$fixture_complete" == true || "$status" != 0 ]] || status=1
-    if [[ "$status" == 0 ]]; then rm -rf "$fixture"
-    else echo "Evidence fixture retained: $fixture" >&2; fi
-    exit "$status"
-}
-trap cleanup EXIT
-[[ "$fixture" == /* ]] || fixture="$PWD/$fixture"
-fixture="$(cd -P "$fixture" && printf '%s/.' "$PWD")"
-fixture="${fixture%/.}"
+trap 'fixture_finish "$?" "$fixture" "Evidence fixture retained"' EXIT
 
 # The consumer's own upload/download boundary must retain the exact identity and
 # verify the uploaded digest and exact-ID readback. Common retry behavior is qualified
@@ -196,10 +188,10 @@ printf 'qualification download' > "$RUNNER_TEMP/ic-testkit-archive-downloaded/ev
 mv "$GITHUB_WORKSPACE" "$fixture/workspace"
 export GITHUB_WORKSPACE="$fixture/workspace"
 case "$(uname -s):$(uname -m)" in
-    Linux:x86_64|Linux:amd64) host=LINUX_AMD64; target=x86_64-unknown-linux-musl ;;
-    Linux:aarch64|Linux:arm64) host=LINUX_ARM64; target=aarch64-unknown-linux-musl ;;
-    Darwin:x86_64) host=DARWIN_AMD64; target=x86_64-apple-darwin ;;
-    Darwin:arm64|Darwin:aarch64) host=DARWIN_ARM64; target=aarch64-apple-darwin ;;
+    Linux:x86_64|Linux:amd64) target=x86_64-unknown-linux-musl ;;
+    Linux:aarch64|Linux:arm64) target=aarch64-unknown-linux-musl ;;
+    Darwin:x86_64) target=x86_64-apple-darwin ;;
+    Darwin:arm64|Darwin:aarch64) target=aarch64-apple-darwin ;;
     *) echo 'unsupported evidence fixture host' >&2; exit 1 ;;
 esac
 mkdir -p "$fixture/assets" "$fixture/bin" "$GITHUB_WORKSPACE/ci" "$fixture/ripgrep-1.0.0-$target"
@@ -225,8 +217,13 @@ for tool in JQ YQ RIPGREP CLOC; do
         CLOC) input="$fixture/assets/cloc" ;;
     esac
     digest="$(bash "$root/scripts/ci/verify-file-checksum.sh" --print sha256 "$input")"
-    suffix="_$host"; [[ "$tool" != CLOC ]] || suffix=''
-    printf 'export SHARED_TOOLING_%s_SHA256%s=%s\n' "$tool" "$suffix" "$digest" >> "$pins"
+    # Admit the complete catalog; transport serves only this native host's
+    # synthetic payloads. Unselected rows are never installed or executed.
+    suffixes=(_LINUX_AMD64 _LINUX_ARM64 _DARWIN_AMD64 _DARWIN_ARM64)
+    [[ "$tool" != CLOC ]] || suffixes=('')
+    for suffix in "${suffixes[@]}"; do
+        printf 'export SHARED_TOOLING_%s_SHA256%s=%s\n' "$tool" "$suffix" "$digest" >> "$pins"
+    done
 done
 # Substitute transport only; the canonical installer owns slots and references.
 cat > "$fixture/bin/curl" <<'CURL'

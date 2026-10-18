@@ -8,16 +8,709 @@ This file ships in the crate archive so upgrades can be completed without the
 repository checkout. The complete historical changelog remains at
 <https://github.com/dragginzgame/ic-testkit/blob/main/CHANGELOG.md>.
 
-## [0.46.1]
+## [0.54.2]
+
+### Changed
+
+- Use published Host command execution for cancellable server downloads and
+  benchmark preparation, retaining explicit deadlines, output bounds and cleanup.
+  Cargo commands keep inherited progress output and no elapsed-time ceiling
+  ([#85 — Adopt published Host cancellable capture](https://github.com/dragginzgame/ic-testkit/issues/85)).
 
 ### Added
 
-- Add the dependency-free `ic-testkit-native` package for native allocation
-  measurement. Callers retain workloads, reports and exact assertions.
-  [#86 — Own lightweight native allocation measurement](https://github.com/dragginzgame/ic-testkit/issues/86).
-- Include the independent native package in existing test, lint, documentation,
-  compiler-floor, package and family-publication checks. Publication retries skip
-  every already-published package while preserving registry uncertainty refusal.
+- Add a private Node fixture-session helper for browser harnesses, with retained
+  logs and bounded graceful/TERM/KILL cleanup. Callers keep readiness contracts,
+  browser assertions and executable admission
+  ([#120 — Own Node browser fixture session lifecycle](https://github.com/dragginzgame/ic-testkit/issues/120)).
+
+- Explicit panic-safe diagnostic reporting accepts a caller-selected writer,
+  preserving exact senders and log limits while keeping secondary reporting
+  failures separate from the original operation failure.
+
+- Add dependency-free `ic-testkit-native` allocation measurements with caller-owned
+  allocator selection, thread-local scopes, nesting refusal and unwind cleanup.
+  Workloads and report policy remain with consumers
+  ([#86 — Own lightweight native allocation measurement](https://github.com/dragginzgame/ic-testkit/issues/86)).
+
+## [0.54.1] - 2026-10-18
+
+### Changed
+
+- Consolidate fixture-driver error handling onto the existing `thiserror`
+  dependency, preserving diagnostic messages and directly inspectable causes.
+- Complete the tooling ownership cleanup: retire unused generic regression
+  fixtures from the snapshot and select Testkit's real check, hook, cache and
+  evidence helpers directly. Shared Tooling retains the producer suites; consumer
+  qualification and the reviewed Shared revision are unchanged.
+- Adopt published Platform 0.1.11 and its probe entrypoint generator, removing
+  the final direct Candid/CDK dependencies and their policy exceptions. Existing
+  runtime identities, reply formats, explicit limits and trap behavior remain
+  unchanged ([Platform #1 — CDK call and entrypoint boundary](https://github.com/dragginzgame/ic-platform/issues/1)).
+- Select Rust 1.99.1 for contributor checks and CI, retaining Rust 1.91 as the
+  library compiler floor ([#126 — Qualify Rust 1.99.1 as the development compiler](https://github.com/dragginzgame/ic-testkit/issues/126)).
+- Fixture benchmark provenance uses IC Build's retained compiler and profile
+  facts, avoiding a separate compiler probe after a build or cache hit
+  ([PR #127 — Project fixture provenance from retained build facts](https://github.com/dragginzgame/ic-testkit/pull/127)).
+
+## [0.54.0] - 2026-10-18
+
+### Breaking
+
+- Candid calls now accept `ic_platform::candid::DecodeLimits` and retain
+  Platform's typed `DecodeError` sources. Add `ic-platform` 0.1.8 with its
+  `candid` feature and replace `ic_testkit_candid` imports. The local decoder
+  package is retired; wire arity, explicit quotas and compact diagnostics remain
+  unchanged. This prepares the producer change tracked in
+  [#2 — Coordinate published Testkit limits identity](https://github.com/dragginzgame/ic-platform/issues/2); external consumers still need the new Testkit release.
+- Platform owns Principal and supported Candid dependencies. The private probe
+  retains CDK and macro-required Candid until
+  [#1 — Support the CDK call and entrypoint boundary](https://github.com/dragginzgame/ic-platform/issues/1) is resolved.
+
+### Changed
+
+- MSRV checks cover all native workspace targets and the supported Wasm library
+  and probe, excluding the native development harness from cross-compilation.
+
+- Complete-sample statistics now belong to the private fixture reporter, removing
+  its direct Metrics dependency. Count, mean, p50/p95 and typed failures remain
+  unchanged ([PR #125 — Own complete sample statistics in the private report package](https://github.com/dragginzgame/ic-testkit/pull/125)).
+
+- The fixture benchmark supplies its inherited build environment explicitly to
+  IC Build 0.17, preserving the selected compiler override.
+
+- Adopt Shared Tooling 0.24.0 and explicit dependency-role labels, retaining
+  matching grouped manifest ordering in formatting hooks and release checks.
+  Common Cargo setup now installs only the formatter tools.
+
+- Platform 0.1.8 supplies Wasm execution counters, stable-page counts, marker
+  logging and the probe's raw trap. The direct `ic0` dependency is removed via
+  [#11 — Expose debug_print for Testkit benchmark marker emission](https://github.com/dragginzgame/ic-platform/issues/11).
+  The library's canister graph remains free of CDK and Candid. Deterministic
+  principals use the same `ic_principal` type and retain their existing features;
+  counter selection, page-to-byte conversion and marker output remain unchanged.
+
+- Native Testkit selects Host's gzip support for server provisioning without
+  enabling Wasm inspection. IC Build selects that capability for development
+  builds; supported Testkit APIs and server admission remain unchanged.
+- Current ownership and qualification guidance names the extracted owners and
+  supported call/startup interfaces. Historical migration and qualification
+  records remain evidence rather than active build instructions.
+- Portable CI checks Testkit's actual prepared tools and dependency selections
+  instead of replaying Shared Tooling's complete synthetic regression suites.
+  Product, release-adapter, hook and failure-evidence qualification remain in place.
+
+## [0.53.0] - 2026-10-17
+
+### Breaking
+
+- Native tool failures use Host 0.27 types. Align directly used Host dependencies
+  before passing values through Testkit or IC Build; this batch selects Host
+  0.27.1 and the aligned Build 0.16 release.
+
+- Candid calls use only `query_candid_args` and `update_candid_args`. Remove
+  `CandidCallExt` imports and method calls; decode `(T,)` for one reply, `()`
+  for no replies, `((),)` for one unit and `((T, U),)` for one tuple-valued reply.
+  Explicit callers, decode budgets, original rejections and unrelated panic
+  propagation retain their contracts. No compatibility forwarding methods remain.
+
+- Reset coverage uses fixed `ResetPolicies` fields in distinct requirements and
+  receipts. Replace domain-list constructors and accessors with field construction
+  and reads; recipes still report their achieved policies independently. Missing
+  coverage and policy mismatches refuse reuse before a warm lease is returned.
+
+### Changed
+
+- Adopt Shared Tooling 0.23.0, including validated tool catalog selections,
+  normalized host detection and the pinned 7.0.2 evidence uploader.
+
+- PocketIC provisioning streams authenticated gzip payloads through Host's bounded
+  writer, removing the complete decoded executable buffer and separate hash pass.
+  Integrity, executable admission and retained failure evidence remain in place
+  ([#116](https://github.com/dragginzgame/ic-testkit/issues/116)).
+
+- Private development commands belong to `ic-testkit-dev`, replacing the
+  benchmark-only package name. Benchmark executable names remain unchanged.
+- Coordinated package qualification delegates archive, graph, lock and source
+  integrity checks to IC Build. Per-attempt evidence and verification build
+  artifacts stay under `target/`; normal publish dry runs retain Cargo registry
+  admission without verification-only overrides.
+
+### Fixed
+
+- Package qualification passes the offline-verified PocketIC binary to archived
+  tests, so `make package` works without a manually exported `POCKET_IC_BIN`.
+
+- Complete the synthetic host catalog used by CI evidence qualification so
+  archive retention checks reach their normal and rejected-selection cases
+  ([#122](https://github.com/dragginzgame/ic-testkit/issues/122)).
+
+### Migration
+
+Construct `ResetRequirements { funding, policies }` and return
+`ResetReceipt { policies }` from the completed reset. The shared `ResetPolicies`
+record has optional `pocket_ic_time`, `extra_canisters`, `pending_messages`,
+`subnet_state` and `external_resources` fields. `None` makes no claim; explicit
+`IrrelevantByRecipeContract` remains a reported policy. Use field reads instead
+of `get`/`iter`/`funding()`, and `ResetReceipt::default()` for no achievements.
+Duplicate-domain construction and its error are gone. `ResetPolicyMismatch`
+identifies the first mismatched domain and carries both complete policy records.
+
+## [0.52.0] - 2026-10-17
+
+### Breaking
+
+- Native tool failures use Host 0.26 types. Align directly used Host dependencies
+  before constructing or downcasting the exposed tool errors.
+
+- Diagnostic report, batch-entry and batch-report outputs expose public fields.
+  Replace forwarding getters and tuple-unpacking methods with field access or
+  record destructuring; bounded log internals and collect-all behavior remain.
+
+- Remove pool recipe identifiers; each pool already owns one recipe. Remove
+  `FixtureRecipeId`, recipe `id()` implementations and pool `recipe_id()` calls.
+  `StandaloneCanisterRecipe::new` now takes only funding and its builder.
+- Remove `try_create_and_install_many`. Map an ordered iterator through
+  `try_create_and_install` and collect its results to preserve stop-on-error
+  behavior and ownership of already created canisters.
+
+- Startup uses explicit `PocketIcStartupConfig::Spawn` and `Connect` variants.
+  The spawn variant owns binary, hard/idle TTLs and output paths; connect owns
+  only the borrowed URL and timeout. Spawn-only options cannot accompany a URL.
+
+- Baseline pools own canonical snapshot restoration. Successful restoration
+  returns unit; funding is selected once in reset requirements. Caller reset,
+  readiness and final invariant checks retain their ordering and errors.
+
+### Migration
+
+Replace startup constructors and fluent configuration with variant literals:
+
+```rust
+use ic_testkit::pic::PocketIcStartupConfig;
+use std::time::Duration;
+
+let config = PocketIcStartupConfig::Spawn {
+    server_binary: "/prepared/pocket-ic".into(),
+    timeout: Duration::from_secs(30),
+    server_hard_ttl: None,
+    server_idle_ttl: Some(Duration::from_secs(120)),
+    server_output_files: None,
+};
+let borrowed = PocketIcStartupConfig::Connect {
+    server_url: "http://127.0.0.1:8080/".into(),
+    timeout: Duration::from_secs(30),
+};
+```
+
+Match variants to read configuration fields. `from_env(timeout)` still selects
+an explicit URL before a binary, refuses invalid selected values and qualifies
+binary versions. `timeout()` projects the deadline for either variant. Hard TTL
+`None` remains opt-in; idle TTL `None` uses PocketIC's own default. Selected TTLs
+must contain at least one whole second. Output files are new, private files in
+caller-controlled existing parent directories; created files survive errors and
+teardown. Instance/server drop order, bounded excerpts and exact cleanup remain.
+
+Recipe migration: pass `SnapshotRestoreFunding::Preserve` or `TopUpTo { ... }`
+to `ResetRequirements::try_new(funding, domains)` instead of `CycleResetPolicy`.
+Remove forwarding `restore_canisters` implementations. If a recipe must check
+state before restoration (for example, cycle balances before restore charges),
+implement `prepare_restore(&self, baseline) -> Result<(), Self::Error>`; its default
+is successful admission. It cannot skip or substitute the captured snapshot set.
+Use real guards or select fresh construction for guarantees beyond preservation
+or minimum top-up; do not replace prior exact-cycle guarantees with a fabricated
+receipt. Non-snapshot reset coverage is still checked after readiness.
+
+`classify_failure` now accepts `&(dyn std::error::Error + 'static)` so it can
+classify both recipe and canonical snapshot failures. Downcast to your recipe
+error when needed. `BaselinePoolPreparationError::Restore` retains the original
+`ControllerSnapshotError`, exact sender and rejection/transport cause. Recovery
+still rebuilds at most once and retains both errors when rebuilding also fails.
+`CachedPocketIcBaseline::restore` returns `Result<(), ControllerSnapshotError>`.
+Remove `CanisterRestoreReceipt` imports and destructuring of its old payload.
+Inspect captured IDs through `baseline.snapshot_canister_ids()` and funding
+through `reset_requirements().funding()`. `PreparedBaseline::Restored { reset }`
+retains the verified non-snapshot receipt.
+Pool instances are process-local; this API change resets or converts no retained
+installation, snapshot store or external resource.
+
+Diagnostic outputs use `report.request`, `report.status`, `report.logs`,
+`entry.label`, `entry.report`, `entry.entry_elapsed`, `batch.entries` and
+`batch.total`. Use `report.status.as_ref()` / `report.logs.as_ref()` to borrow
+errors and destructure records to move their outcomes. `is_success()` and
+`failures()` retain their semantic projections. Log records and raw-byte totals
+remain privately constructed so their bounding/truncation invariants hold.
+
+### Changed
+
+- Standalone pool recovery qualification checks canonical snapshot errors
+  directly while retaining failed-phase timing and subsequent rebuild checks.
+
+- Fixture benchmark programs and their live marker test belong to the private
+  `ic-testkit-bench` workspace package. Run the driver with
+  `cargo run -p ic-testkit-bench --bin fixture_reuse_benchmark_driver -- ...`;
+  shared protocol/report code is compiled once, while workers remain separate
+  processes. Existing Make/CI checks include the new package; locked archive
+  verification excludes its development-only dependency graph.
+- Benchmark reports retain typed fresh/pooled modes through JSON admission.
+  Existing valid report bytes remain compatible; wrong requested modes and
+  unknown serialized modes are rejected independently.
+- Startup, snapshot and polling errors derive formatting and source chains,
+  retaining their public variants, original causes and cleanup diagnostics.
+
+
+- Benchmark report publication delegates existing-parent path admission to
+  Host, preserving private staging, cancellation, complete replacement and
+  before/after-publication error handling. Directory-required output paths
+  ending in `/` or `/.` now return Host's `InvalidInput` error before staging.
+
+- Contributor setup adopts Shared Tooling 0.20.0. Common checks cover host/Cargo
+  tools and PocketIC; generic IC executables are an explicit optional install.
+
+- Asset setup uses Host's existing directory commit engine instead of a local
+  rename/sync sequence. Fresh publication requires the originally held staging
+  directory; an occupied destination preserves both trees. Reuse authenticates
+  the installed bundle before confirming parent durability. Publication failures
+  retain Host's typed phase distinction. No retained installation is reset,
+  converted or removed; archive digests, version checks and v1 names are unchanged.
+  Explicit Host write options preserve diagnostic permissions and publication
+  modes; archive features select gzip and Wasm
+  ([#107 — Adopt Host explicit byte options and replace retired archive feature](https://github.com/dragginzgame/ic-testkit/issues/107)).
+
+- The fixture benchmark's native worker build delegates to Build 0.14 and uses
+  Cargo's reported executable/target root. Metadata and JSON messages have a
+  finite per-document allowance; build duration and total diagnostic output have
+  no default ceiling. The selected Cargo/RUSTC, offline lock, process-group
+  cleanup and live cancellation remain caller-owned
+  ([#94 — Adopt native Cargo executable selection](https://github.com/dragginzgame/ic-testkit/issues/94)).
+
+Follow-up: wide numeric accumulation is prepared against
+[Metrics PR #92 — Checked wide measurement accumulation](https://github.com/dragginzgame/ic-metrics/pull/92)
+and awaits a supplying published release. Marker parsing, attribution, report
+layouts and the current published benchmark arithmetic remain in Testkit until
+normal adoption; no path override ships in this batch.
+
+## [0.51.0] - 2026-10-17
+
+### Breaking
+
+- Adopt Host 0.25's public error types. The library compiler floor remains
+  Rust 1.91.
+
+- Pool readiness and validation hooks return `Result<(), E>`. Named receipts and
+  the repeated validation recipe identity are removed; reset/canister coverage,
+  actual invariant checks, failure stages and acquisition timings remain.
+- Benchmark markers contain prefix, label and three measured counters:
+  instructions, Wasm heap bytes and stable-memory bytes. The reserved allocation
+  field is removed from public counters, averages, overflow variants and reports.
+
+- Benchmark report data no longer embeds a run metadata record, and the report
+  module no longer reads or writes metadata sidecars. Applications own run
+  identities, provenance, command recording and previous-run selection.
+
+- Diagnostic input requests, labeled requests and render limits expose public
+  fields instead of infallible constructors, builders and input accessors.
+  Collection retains label validation, bounded rendering and independent senders.
+
+- Installation, retry and snapshot-target inputs use public-field records.
+  Typed query/update calls require an explicit principal; use
+  `Principal::anonymous()` when appropriate.
+- Native CSV/Markdown directory output and its report-bundling record move to
+  the repository's `benchmark_report` example. Library parsing and arithmetic
+  remain available; applications own file layout and output policy.
+
+### Migration
+
+Select `ic-host-process` 0.25 when naming `ToolError` from
+`PocketIcStartupFailure::ServerVersionProbe` or `CleanupError` returned by
+`PocketIcStartupError::command_cleanup` / `server_cleanup`. Their Rust type
+identities follow the adopted Host family; Testkit adds no compatibility aliases.
+Build 0.12.1 is contributor benchmark tooling and still exposes Host 0.24 types.
+Benchmark examples and the canister benchmark test await an aligned Build release
+before their Host 0.25 output-limit inputs can compile.
+
+Construct `CanisterDiagnosticsRequest { canister_id, status_sender, log_sender,
+log_limits: CanisterLogRenderLimits::default() }` directly. Select custom limits
+with `CanisterLogRenderLimits { record_limit, byte_limit }`, and label a request
+with `LabeledCanisterDiagnosticsRequest { label: label.into(), request }`.
+Read input fields directly. Zero render limits remain valid; empty or duplicate
+batch labels are still rejected before diagnostic effects. Report/output record
+accessors and the original installation failure remain unchanged.
+
+Construct `InstallSpec { wasm, init_bytes, cycles, install_sender, label }`,
+`RetryPolicy { max_attempts, cooldown }` and
+`CanisterSnapshotTarget { canister_id, sender }` directly. Optional installation
+fields use explicit `None`/`Some`; retry counts retain `NonZeroUsize`. Replace
+input getter calls with field access. Installation ordering, rate-limit handling,
+exact snapshot senders and rollback are unchanged.
+
+Rename `update_candid_as` / `query_candid_as` to `update_candid` / `query_candid`.
+Their explicit-caller signatures are retained. Existing anonymous calls add
+`Principal::anonymous()` after the canister ID. Single-value and top-level reply
+argument decoding retain their distinct entry points and explicit limits.
+
+Replace `benchmark::report::write_benchmark_report_dir` and library
+`BenchmarkRunReport` construction with application-owned reporting, or run
+`cargo run -p ic-testkit --locked --example benchmark_report -- INPUT OUTPUT_DIRECTORY [PREVIOUS_INPUT]`
+from this repository. The example preserves the existing nine CSV/Markdown file
+layouts and scale-one comparisons. Existing files are historical evidence; the
+move reads, rewrites and retires no retained report directory automatically.
+
+Change recipe `drive_to_readiness` and `validate` implementations to return
+`Result<(), Self::Error>`. Keep their real readiness and invariant checks, then
+return `Ok(())`; final validation runs against the recipe owned by the pool.
+`PreparedBaseline::Restored` contains only canister and reset receipts.
+
+Build marker producers and consumers from the same release. The current shape is
+`ICTK|label:start-or-end|instructions|heap_bytes|memory_bytes`. Update custom
+producers and CSV/Markdown consumers for three counters. Before adopting this
+layout, explicitly retire older marker logs and report directories from active
+comparison inputs, keeping them as historical evidence. Generate fresh baselines
+and use fresh output directories; do not overwrite or reinterpret retained reports.
+The library selects no retained installation and supplies no old-layout reader.
+Remove `metadata` from `BenchmarkRunReport` construction and replace
+`BenchmarkRunMetadata` / `read_benchmark_run_metadata` with your application's
+provenance record and reader. Testkit writes measurement CSV/Markdown only;
+callers select and write any sidecar themselves. Existing metadata files remain
+historical evidence and are not read, migrated or deleted by Testkit. Choose a
+fresh output directory before using the current report contract. Fixture-reuse
+worker/driver JSON remains owned by its example and is unchanged.
+
+### Added
+
+Unix Rust fixtures can call `pic::server_assets::check(&directory)` to authenticate
+an existing reviewed bundle offline and pass its absolute executable path to
+managed startup. `server_assets::setup(&directory, interrupted)` explicitly
+provisions an absent bundle, with caller-owned cancellation. The CLI delegates
+to this same owner. The library installs no signal handlers, and callers retain
+physical-root custody and prevent namespace replacement before launch.
+
+### Changed
+
+- Candid reply decoders select compact diagnostics on native and Wasm hosts,
+  avoiding full large-input dumps while preserving typed causes and caller limits.
+  Compact diagnostics can include small inputs; callers still own disclosure.
+
+- Git provenance uses Host's observed-version admission instead of capturing and
+  admitting the version separately. Executable/output budgets, explicit environment,
+  cancellation checks and typed Git/tool causes remain selected by the driver
+  ([#112 — Single-probe Host observed-version admission](https://github.com/dragginzgame/ic-testkit/issues/112)).
+- Startup log reading shares Host's prefix operation, retaining the 16 KiB cap,
+  lossy UTF-8 decoding, omitted-byte count and nonblocking special-file refusal.
+- Snapshot funding is selected and calculated once before restore. Preserve mode
+  performs no balance read, and an already satisfied top-up minimum adds no
+  cycles. The live restore case covers preserve, needed and satisfied funding.
+- Testkit's direct JSON dependency and Serde derives are limited to native
+  tests/examples; native Candid calls retain their deserialization dependency.
+
+- Release preparation uses the reviewed shared Cargo metadata helper in a retained
+  private workspace; local exact-byte recovery and additional release views remain.
+
+### Testing
+
+- Asset fixtures re-exec before writing executables so unrelated library forks
+  cannot inherit their writable handles. Production admission and no-retry
+  behavior are unchanged
+  ([#115 — Isolate server-asset fixtures from parallel process tests](https://github.com/dragginzgame/ic-testkit/issues/115)).
+
+- Qualify exact Git status bytes with portable control/quote filenames on macOS
+  and Linux; retain invalid UTF-8 directory-entry coverage on Linux
+  ([#111 — Portable Git dirty-path byte qualification](https://github.com/dragginzgame/ic-testkit/issues/111)).
+- Keep the output-limit producer alive until capture terminates and reaps it,
+  removing the natural-exit/signalling race from cleanup qualification
+  ([#114 — Deterministic live-producer cleanup qualification](https://github.com/dragginzgame/ic-testkit/issues/114)).
+
+## [0.50.0] - 2026-10-16
+
+### Breaking
+
+- Snapshot capture and restore failures carry `source: Box<PocketIcCallFailure>`;
+  cleanup failures use the same source in one contextual record. Match rejection
+  or operation failure through that source. Snapshot errors no longer implement
+  `Clone`, `Eq` or `PartialEq`; exact senders and rollback evidence remain available.
+
+- All typed PocketIC query/update helpers require a final
+  `ic_testkit_candid::DecodeLimits` argument and use that crate's bounded decoder.
+  `CandidCallError::Decode` retains a boxed `DecodeError` in `source` instead of
+  a message string; `CandidCallError` no longer implements `Clone`, `Eq` or
+  `PartialEq`. Top-level reply-argument helpers share the same decoding owner.
+
+- Remove `ic_testkit::testing` and its duplicate HTTP request readers. Native
+  fixture callers use `ic_host_process::testing::http` with `test-support`;
+  response policy and PocketIC lifecycle stay with their callers.
+- Benchmark metadata rejects duplicate declared fields rather than silently
+  accepting the last value. Object-only input and optional-field rules remain;
+  metadata now deserializes directly without an intermediate JSON tree.
+- Adopt Host 0.23's exposed types. Process creation selects the previous cleanup
+  policy explicitly, and setup retains descriptor-based locking and archive
+  authentication through the current Host APIs.
+
+### Migration
+
+Match `ControllerSnapshotError::CaptureFailed` or `::RestoreFailed` for either
+rejection or panic, then inspect `source.as_ref()` as
+`PocketIcCallFailure::{Rejected, Operation}`. These variants both retain the
+selected `sender`; capture failures also retain all rollback failures.
+`SnapshotCleanupFailure` is a record with public `canister_id`, `sender` and
+boxed `source` fields instead of separate rejection/panic variants. Use the typed
+source or `Error::source()` to retain transport classification, rather than
+parsing error text. Snapshot errors no longer supply cloning or equality traits.
+
+Add `ic-testkit-candid` as a direct dependency and supply caller-selected
+`DecodeLimits` after the Candid argument tuple in `query_candid`,
+`update_candid`, their `_as` variants and the `query_candid_args` /
+`update_candid_args` free functions. Select wire and work limits for the expected
+reply shape; the library supplies no universal default. These limits govern
+reply decoding and do not impose a build or transport deadline.
+Match `CandidCallError::Decode { source, .. }` or downcast `Error::source()` to
+`ic_testkit_candid::DecodeError` for wire-admission and original decoder causes.
+Use `ic_testkit_candid::decode_args` when decoding top-level reply arguments
+outside PocketIC; `(T, U)` denotes two arguments and `(T,)` denotes one.
+
+
+Select `ic-host-process` directly with its `test-support` feature for synthetic
+HTTP peers. Replace `testing::read_http_request` with
+`testing::http::capture_http_request(..., HttpContentLength::Optional).into_result()`.
+Import phased `read_http_request_line` and `read_http_request_with_line` from
+Host's `testing::http` module. Keep each peer's existing deadline and byte limits.
+
+Metadata files keep their current object layout and optional fields. Remove
+ambiguous duplicate declared keys before reading; existing files are neither
+rewritten nor reinterpreted under another format. Output remains unchanged.
+
+### Development
+
+Benchmark aggregation borrows suite identities while grouping and allocates
+owned names only for completed rows or errors. Suite/label sorting, the distinct
+cross-suite scope and transactional overflow rejection remain unchanged.
+
+Package checks and publication dry runs build the exact coordinated archives
+using the selected lockfile and a temporary dependency on the packaged Candid
+source. This avoids checking against an older published copy with the current
+workspace version. The verification override is confined to a disposable tree;
+archives retain registry dependency declarations. Release preparation uses
+Shared Tooling's renderer to advance the internal requirement with the workspace
+version; package versions remain maintainer-owned.
+
+## [0.49.0] - 2026-10-16
+
+### Breaking
+
+- Startup builder panic failures carry `source: PocketIcOperationError` instead
+  of a message string, preserving the typed cause through `Error::source()`.
+  Synchronous and asynchronous construction share operation panic capture;
+  startup deadlines, cancellation and owned-server cleanup remain unchanged.
+
+- Diagnostics expose `PocketIcCallFailure::{Rejected, Operation}` in place of
+  `CanisterDiagnosticFailure`. Diagnostics and snapshot capture share rejection
+  and panic translation; snapshot context, rollback and original causes remain
+  available through their existing outer reports and errors.
+
+- Pool acquisitions return common `slot` and `timings` fields with a
+  `disposition: BaselinePoolDisposition`. Match `Built`, `Restored` or
+  `Rebuilt(reason)` through that field; read timings and slot directly instead
+  of calling their former accessors.
+
+- `CandidCallError::Transport` carries `source: PocketIcOperationError` instead
+  of a message string. Inspect the typed source directly or through
+  `Error::source()`; unrelated application panics still resume unchanged.
+- Invalid benchmark spans retain both original events without an owned `reason`
+  field. The report writer emits the existing counter-decrease explanation.
+
+- Benchmark aggregation and comparison return row vectors directly. Read and
+  populate `BenchmarkRunReport::aggregates` and `::comparison` without `.rows`;
+  replace the removed report wrapper types with `Vec<BenchmarkAggregateRow>`
+  and `Vec<BenchmarkComparisonRow>`. Report files and arithmetic stay unchanged.
+
+### Changed
+
+- Release and evidence fixtures reuse Shared Tooling's physical-directory
+  allocation, completion admission and failure-preserving cleanup.
+
+- The benchmark driver delegates preparation commands to Host for cancellation,
+  child cleanup and typed execution failures. Cargo builds keep inherited output
+  and no elapsed-time deadline; version/platform stdout capture is limited to
+  64 KiB. Interrupted preparation still exits with status 130, while worker
+  interruption continues to wait for the workload's server cleanup.
+
+- Hook qualification uses the reviewed Shared Tooling checker with Testkit's
+  actual workspace inputs, including manifest sorting and preservation checks.
+- Environment-selected PocketIC URLs use the same parser and typed errors as
+  explicit startup configuration, preserving validation before server effects.
+
+### Fixed
+
+- Teardown integration tests use Host's bounded HTTP capture directly, removing
+  their dependency on Testkit's synthetic-request helper export.
+
+- Align benchmark tooling on Build 0.10 and Host 0.22 so workspace discovery
+  and metadata observation accept the same output-limit types. The fake Cargo
+  fixture emits artifact messages required by Build's current Wasm discovery.
+
+- Keep PocketIC setup and failure-evidence recording compatible with Host 0.22's
+  explicit byte-write options, preserving replacement and permission choices.
+  Enable the separate gzip feature used to authenticate and decode server bundles.
+
+## [0.48.0] - 2026-10-16
+
+### Breaking
+
+- Diagnostic operation failures retain `PocketIcOperationError` directly in
+  `CanisterDiagnosticFailure::Operation`; inspect its cause and transport flag.
+- Remove `BenchmarkSpan::start`, retaining end counters, checked deltas and
+  source lines. Invalid spans still retain both original events.
+
+- Match installation error variants for their original cause and label; funding
+  and installation failures carry a required canister ID. Remove the separate
+  phase enum and optional-field accessors.
+- Benchmark events retain `span_label` and `kind` without a duplicate `label`
+  string. CSV output reconstructs the existing label and retains its columns.
+
+- Match `SnapshotCleanupFailure::Rejected` or `::Panicked` for exact sender and
+  cause details. Panic cleanup failures retain the original operation error and
+  transport classification; remove the optional-field accessors.
+- Read unpaired benchmark events directly from
+  `BenchmarkSpanReport::unpaired_markers`. Remove the duplicate marker wrapper
+  and kind enum; event order and report CSV columns remain unchanged.
+- Installation helpers return structured failures without fetching diagnostics
+  or printing to stderr. Fixture callers choose diagnostic requests and output,
+  retaining the original installation error if diagnostic collection fails.
+- Read comparison sides through `current` and `previous`, each containing its
+  run count and average together. Missing measurements remain distinct from zero.
+- Format diagnostic reports with `Display` or `to_string()` instead of
+  `render_compact()`; bounded output and retained labels are unchanged.
+
+### Migration
+
+Replace diagnostic `InstanceUnavailable`/`Panicked` message matches with
+`CanisterDiagnosticFailure::Operation(source)`. Read `source.message()` and
+`source.is_transport()`; the same typed cause is exposed through the standard
+error source chain. Rejections remain distinct, status/log outcomes remain
+independent, and the bounded diagnostic display is unchanged.
+
+Valid benchmark spans retain `end` and `delta` instead of a third starting-counter
+copy. Use the original parsed event identified by `start_line` when raw starting
+counters are needed. Pairing still rejects subtraction underflow before creating
+a span; invalid spans retain both raw events. CSV layouts are unchanged and no
+retained report reset is needed.
+
+Match `CanisterInstallError::CreateCanister { label, source }`,
+`::AddCycles { canister_id, label, source }` or
+`::InstallCode { canister_id, label, source }` instead of reading `phase()` and
+unwrapping an optional ID. The latter two variants always retain the created
+ID. Inspect `source.message()` or `source.is_transport()` directly; the standard
+error source chain and standalone instance ownership remain intact.
+
+Raw benchmark event labels are formed as `span_label` plus `:start` or `:end`
+according to `kind`. Native report output reconstructs and escapes those labels
+without changing raw-event or unpaired-marker CSV layouts. Retained reports
+need no reset.
+
+`BenchmarkComparisonRow::current` and `::previous` are each an
+`Option<BenchmarkMeasurement>`. Read `side.runs` and `side.average` after matching
+the side once, replacing the independent optional run-count and average fields.
+The comparison CSV retains its existing columns, ordering and blank cells for
+missing measurements; zero measurements still render as zero. Retained reports
+need no reset.
+
+Use `format!("{report}")`, `report.to_string()` or direct formatting of a single
+or batch diagnostics report. Both use the existing bounded `Display` output.
+
+### Changed
+
+- Benchmark summaries traverse the samples retained in each run directly, without
+  staging a second vector of references. Sample ordering, missing-phase handling,
+  numeric checks and published summary fields remain unchanged.
+- Contributor fixtures and benchmarks use published Build 0.8 so its exposed
+  Host types match the selected Host 0.21 family. This is a development dependency
+  alignment; the library's consumer compiler floor and package version are unchanged.
+
+- Baseline-pool invalidation records the caller-selected reason in the invalid
+  slot itself. Repeated invalidation retains the latest reason; unwinding still
+  takes precedence and invalidated instances remain owned until safe teardown.
+
+### Other migration details
+
+Replace cleanup accessor calls with variant matches. A `Panicked` variant
+carries `source: PocketIcOperationError`, so callers can inspect the original
+message and transport classification without reparsing formatted text.
+
+Unpaired entries are now `RawBenchmarkEvent` values: use `entry.kind` and
+`entry.source_line` directly rather than `entry.event`. CSV layouts stay v1
+with their existing columns and start/end values; no retained report reset is
+required.
+
+After installation fails, callers can match the error variant for its ID and
+use the retained instance to collect `CanisterDiagnosticsRequest` with their selected
+status/log senders. Standalone failures retain the same instance/server record.
+Keep diagnostic failures subordinate to the original install error, including
+when diagnostic output fails. No new diagnostic mode or installation retry is
+introduced.
+
+## [0.47.0] - 2026-10-15
+
+### Breaking
+
+- Return `CanisterRestoreReceipt` directly from cached baseline restores and
+  reject empty cached captures before effects. Return that receipt from ordinary
+  recipe hooks; custom restore contracts still use `try_new`.
+- Match `CandidCallError` variants for context and rejection details. Remove
+  `CandidCallErrorKind`, duplicated formatted messages and constructor wrappers;
+  contextual codec/transport text and complete rejections remain available.
+
+- Remove `BenchmarkRunDirectory`, `benchmark_run_directory_name`,
+  `next_benchmark_run_directory` and `find_latest_previous_run`. Benchmark
+  commands now own naming, allocation and previous-run selection; report
+  rendering and metadata IO remain available.
+- Build the fixture benchmark worker and driver together: they now exchange one
+  complete typed report, requiring startup, cold-preparation and teardown fields
+  and rejecting unknown fields. Retained report files are left unchanged.
+
+- Require Rust 1.91 for both published packages, matching the selected Metrics
+  0.11 dependency and the workspace's coordinated compiler floor.
+
+### Added
+
+- Share `pic::advance_and_tick` for caller-selected time advancement and exact
+  tick batches. Zero duration skips time reads/writes; zero ticks permits
+  advancement alone. Polling and install cooldowns reuse the same operation.
+  [#98 — Share caller-selected simulated-time and tick batches](https://github.com/dragginzgame/ic-testkit/issues/98).
+
+### Changed
+
+- Use Host 0.20's explicit trusted-digest admission and borrowed Git observations,
+  preserving authenticated offline server checks and byte-safe provenance.
+
+- Capture benchmark Git provenance through Host's existing admitted observation
+  API, with 16 MiB stdout and 64 KiB stderr limits per command and no deadline.
+  Include untracked files and all submodule changes explicitly, preserve native
+  pathname bytes, and retain typed Git/tool failure evidence.
+
+- Use published Metrics 0.11.1 for sample mean, median and nearest-rank statistics,
+  removing the driver's private calculation. Preserve count/mean/p50/p95 report
+  fields; numeric failures retain their original cause and refuse publication.
+  [#103 — Adopt published Metrics sample statistics](https://github.com/dragginzgame/ic-testkit/issues/103).
+
+- Keep one worker report for admission, summaries and output, removing the raw
+  JSON duplicate and the worker-only outer report type. Preserve all lifecycle
+  measurements and driver-owned RSS fields.
+
+- Observe the benchmark driver's Cargo catalog through IC Build's typed API,
+  retaining selected tools, locked/offline policy, complete bounded output and
+  original command/schema failures. Cargo builds retain unlimited duration.
+
+For Candid failures, replace `error.kind` and optional field checks with variant
+matches such as `CandidCallError::CanisterReject { context, response }`.
+Use `error.to_string()` for rendered context; `message` in codec/transport
+variants is the original failure text. The enum retains `Clone` and equality.
+Harness failures unrelated to a Candid operation should use the harness's error
+rather than the removed unclassified constructor.
+
+Cached `baseline.restore(funding)` now returns the receipt after every snapshot
+restores successfully. Empty inputs to cached capture return
+`ControllerSnapshotError::EmptyCanisterSet`; low-level snapshot capture retains
+its empty-set semantics. Custom recipes reporting stricter cycle guarantees must
+still construct their own exact receipt after establishing those guarantees.
 
 ## [0.46.0] - 2026-10-15
 

@@ -3,7 +3,7 @@
 //! The normal pipeline is [`parse_benchmark_events`],
 //! [`pair_benchmark_spans`], [`aggregate_benchmark_spans`], and optionally
 //! [`compare_benchmark_aggregates`]. Native report output lives in
-//! `benchmark::report`. Marker
+//! the repository's `benchmark_report` example. Marker
 //! producers can use [`format_marker`] on the host or
 //! `ic_testkit::performance::Performance` in canister code.
 //!
@@ -15,9 +15,6 @@
 use std::collections::{BTreeMap, btree_map::Entry};
 
 use ic_metrics::{MeasurementRatioError, checked_scaled_ratio};
-
-#[cfg(not(target_arch = "wasm32"))]
-pub mod report;
 
 /// Default prefix for benchmark marker lines.
 pub const DEFAULT_PREFIX: &str = "ICTK";
@@ -102,7 +99,6 @@ pub struct BenchmarkCounters {
     pub instructions: u128,
     pub heap_bytes: u128,
     pub memory_bytes: u128,
-    pub total_allocation: u128,
 }
 
 impl BenchmarkCounters {
@@ -111,7 +107,6 @@ impl BenchmarkCounters {
             instructions: self.instructions.checked_sub(start.instructions)?,
             heap_bytes: self.heap_bytes.checked_sub(start.heap_bytes)?,
             memory_bytes: self.memory_bytes.checked_sub(start.memory_bytes)?,
-            total_allocation: self.total_allocation.checked_sub(start.total_allocation)?,
         })
     }
 
@@ -129,10 +124,6 @@ impl BenchmarkCounters {
                 .memory_bytes
                 .checked_add(other.memory_bytes)
                 .ok_or(BenchmarkCounter::MemoryBytes)?,
-            total_allocation: self
-                .total_allocation
-                .checked_add(other.total_allocation)
-                .ok_or(BenchmarkCounter::TotalAllocation)?,
         })
     }
 
@@ -140,21 +131,18 @@ impl BenchmarkCounters {
         self.instructions = self.instructions.min(other.instructions);
         self.heap_bytes = self.heap_bytes.min(other.heap_bytes);
         self.memory_bytes = self.memory_bytes.min(other.memory_bytes);
-        self.total_allocation = self.total_allocation.min(other.total_allocation);
     }
 
     fn max_assign(&mut self, other: Self) {
         self.instructions = self.instructions.max(other.instructions);
         self.heap_bytes = self.heap_bytes.max(other.heap_bytes);
         self.memory_bytes = self.memory_bytes.max(other.memory_bytes);
-        self.total_allocation = self.total_allocation.max(other.total_allocation);
     }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct RawBenchmarkEvent {
     pub prefix: String,
-    pub label: String,
     pub suite: String,
     pub span_label: String,
     pub kind: BenchmarkEventKind,
@@ -184,34 +172,20 @@ pub struct BenchmarkSpan {
     pub span_label: String,
     pub start_line: usize,
     pub end_line: usize,
-    pub start: BenchmarkCounters,
     pub end: BenchmarkCounters,
     pub delta: BenchmarkCounters,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum UnpairedBenchmarkMarkerKind {
-    Start,
-    End,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct UnpairedBenchmarkMarker {
-    pub event: RawBenchmarkEvent,
-    pub kind: UnpairedBenchmarkMarkerKind,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct InvalidBenchmarkSpan {
     pub start: RawBenchmarkEvent,
     pub end: RawBenchmarkEvent,
-    pub reason: String,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct BenchmarkSpanReport {
     pub spans: Vec<BenchmarkSpan>,
-    pub unpaired_markers: Vec<UnpairedBenchmarkMarker>,
+    pub unpaired_markers: Vec<RawBenchmarkEvent>,
     pub invalid_spans: Vec<InvalidBenchmarkSpan>,
 }
 
@@ -237,12 +211,6 @@ pub struct BenchmarkAverages {
     pub instructions: u128,
     pub heap_bytes: u128,
     pub memory_bytes: u128,
-    pub total_allocation: u128,
-}
-
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
-pub struct BenchmarkAggregateReport {
-    pub rows: Vec<BenchmarkAggregateRow>,
 }
 
 /// Counter whose aggregate cannot be represented.
@@ -252,7 +220,6 @@ pub enum BenchmarkCounter {
     Instructions,
     HeapBytes,
     MemoryBytes,
-    TotalAllocation,
 }
 
 /// Overflow rejects the complete aggregation, without returning partial totals.
@@ -276,14 +243,19 @@ impl std::fmt::Display for BenchmarkAggregateError {
 
 impl std::error::Error for BenchmarkAggregateError {}
 
-/// Current and previous scaled means, preserving missing rows and measured zero.
+/// Run count and scaled means for one present comparison side.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct BenchmarkMeasurement {
+    pub runs: u64,
+    pub average: BenchmarkAverages,
+}
+
+/// Current and previous measurements, preserving missing rows and measured zero.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct BenchmarkComparisonRow {
     pub span_label: String,
-    pub current_runs: Option<u64>,
-    pub previous_runs: Option<u64>,
-    pub current_average: Option<BenchmarkAverages>,
-    pub previous_average: Option<BenchmarkAverages>,
+    pub current: Option<BenchmarkMeasurement>,
+    pub previous: Option<BenchmarkMeasurement>,
     /// Suite identity or the cross-suite aggregate.
     pub scope: BenchmarkScope,
 }
@@ -297,49 +269,15 @@ impl BenchmarkAggregateRow {
             instructions: checked_scaled_ratio(self.total.instructions, self.runs, scale)?,
             heap_bytes: checked_scaled_ratio(self.total.heap_bytes, self.runs, scale)?,
             memory_bytes: checked_scaled_ratio(self.total.memory_bytes, self.runs, scale)?,
-            total_allocation: checked_scaled_ratio(self.total.total_allocation, self.runs, scale)?,
         })
     }
-}
-
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
-pub struct BenchmarkComparisonReport {
-    pub rows: Vec<BenchmarkComparisonRow>,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct BenchmarkRunMetadata {
-    pub timestamp: String,
-    pub run_directory_name: String,
-    pub run_index: u32,
-    pub git_commit_hash: Option<String>,
-    pub git_commit_short_hash: Option<String>,
-    pub ic_testkit_version: String,
-    pub pocket_ic_version: String,
-    pub rustc_version: String,
-    pub benchmark_command: Option<String>,
-    pub selected_previous_run: Option<String>,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct BenchmarkRunReport {
-    pub parse: BenchmarkParseReport,
-    pub spans: BenchmarkSpanReport,
-    pub aggregates: BenchmarkAggregateReport,
-    pub comparison: Option<BenchmarkComparisonReport>,
-    pub metadata: BenchmarkRunMetadata,
 }
 
 #[must_use]
 pub fn format_marker(prefix: &str, label: &str, counters: BenchmarkCounters) -> String {
     format!(
-        "{}|{}|{}|{}|{}|{}",
-        prefix,
-        label,
-        counters.instructions,
-        counters.heap_bytes,
-        counters.memory_bytes,
-        counters.total_allocation
+        "{}|{}|{}|{}|{}",
+        prefix, label, counters.instructions, counters.heap_bytes, counters.memory_bytes
     )
 }
 
@@ -425,20 +363,14 @@ pub fn pair_benchmark_spans(events: &[RawBenchmarkEvent]) -> BenchmarkSpanReport
                     }
                     push_paired_span(&mut report, start, event);
                 }
-                Entry::Vacant(_) => report.unpaired_markers.push(UnpairedBenchmarkMarker {
-                    event: event.clone(),
-                    kind: UnpairedBenchmarkMarkerKind::End,
-                }),
+                Entry::Vacant(_) => report.unpaired_markers.push(event.clone()),
             },
         }
     }
 
     for starts in open_starts.into_values() {
         for event in starts {
-            report.unpaired_markers.push(UnpairedBenchmarkMarker {
-                event: event.clone(),
-                kind: UnpairedBenchmarkMarkerKind::Start,
-            });
+            report.unpaired_markers.push(event.clone());
         }
     }
 
@@ -451,20 +383,20 @@ pub fn pair_benchmark_spans(events: &[RawBenchmarkEvent]) -> BenchmarkSpanReport
 /// report is returned, and totals are never wrapped or saturated.
 pub fn aggregate_benchmark_spans(
     spans: &[BenchmarkSpan],
-) -> Result<BenchmarkAggregateReport, BenchmarkAggregateError> {
-    let mut rows: BTreeMap<(BenchmarkScope, &str), AggregateBuilder> = BTreeMap::new();
+) -> Result<Vec<BenchmarkAggregateRow>, BenchmarkAggregateError> {
+    let mut rows = BTreeMap::new();
 
     for span in spans {
-        add_span_to_aggregate(&mut rows, BenchmarkScope::Suite(span.suite.clone()), span)?;
-        add_span_to_aggregate(&mut rows, BenchmarkScope::All, span)?;
+        add_span_to_aggregate(&mut rows, AggregateScope::Suite(&span.suite), span)?;
+        add_span_to_aggregate(&mut rows, AggregateScope::All, span)?;
     }
 
-    Ok(BenchmarkAggregateReport {
-        rows: rows
-            .into_iter()
-            .map(|((scope, span_label), builder)| builder.finish(scope, span_label.to_owned()))
-            .collect(),
-    })
+    Ok(rows
+        .into_iter()
+        .map(|((scope, span_label), builder)| {
+            builder.finish(scope.into_owned(), span_label.to_owned())
+        })
+        .collect())
 }
 
 /// Pair current and previous means at the same caller-selected scale.
@@ -473,7 +405,7 @@ pub fn compare_benchmark_aggregates(
     current: &[BenchmarkAggregateRow],
     previous: &[BenchmarkAggregateRow],
     scale: u64,
-) -> Result<BenchmarkComparisonReport, MeasurementRatioError> {
+) -> Result<Vec<BenchmarkComparisonRow>, MeasurementRatioError> {
     let mut rows = BTreeMap::new();
     for row in current {
         rows.insert((&row.scope, row.span_label.as_str()), (Some(row), None));
@@ -483,22 +415,23 @@ pub fn compare_benchmark_aggregates(
             .or_insert((None, None))
             .1 = Some(row);
     }
+    let measurement = |row: &BenchmarkAggregateRow| -> Result<_, MeasurementRatioError> {
+        Ok(BenchmarkMeasurement {
+            runs: row.runs,
+            average: row.average(scale)?,
+        })
+    };
 
-    Ok(BenchmarkComparisonReport {
-        rows: rows
-            .into_iter()
-            .map(|((scope, span_label), (current_row, previous_row))| {
-                Ok(BenchmarkComparisonRow {
-                    span_label: span_label.to_owned(),
-                    current_runs: current_row.map(|row| row.runs),
-                    previous_runs: previous_row.map(|row| row.runs),
-                    current_average: current_row.map(|row| row.average(scale)).transpose()?,
-                    previous_average: previous_row.map(|row| row.average(scale)).transpose()?,
-                    scope: scope.clone(),
-                })
+    rows.into_iter()
+        .map(|((scope, span_label), (current_row, previous_row))| {
+            Ok(BenchmarkComparisonRow {
+                span_label: span_label.to_owned(),
+                current: current_row.map(measurement).transpose()?,
+                previous: previous_row.map(measurement).transpose()?,
+                scope: scope.clone(),
             })
-            .collect::<Result<_, MeasurementRatioError>>()?,
-    })
+        })
+        .collect()
 }
 
 fn parse_marker_line(
@@ -508,16 +441,15 @@ fn parse_marker_line(
     config: &BenchmarkParserConfig,
 ) -> Result<RawBenchmarkEvent, MalformedBenchmarkMarker> {
     let mut parts = line.split('|');
-    // Six fields and an absent seventh establish the complete marker shape
+    // Five fields and an absent sixth establish the complete marker shape
     // without collecting an arbitrary number of columns from malformed logs.
-    let columns: [Option<&str>; 7] = std::array::from_fn(|_| parts.next());
+    let columns: [Option<&str>; 6] = std::array::from_fn(|_| parts.next());
     let [
         Some(prefix),
         Some(label),
         Some(instructions),
         Some(heap_bytes),
         Some(memory_bytes),
-        Some(total_allocation),
         None,
     ] = columns
     else {
@@ -525,7 +457,7 @@ fn parse_marker_line(
             source_line,
             source,
             line,
-            "expected six pipe-separated columns",
+            "expected five pipe-separated columns",
         ));
     };
 
@@ -555,19 +487,11 @@ fn parse_marker_line(
         instructions: parse_counter(instructions, source_line, source, line, "instructions")?,
         heap_bytes: parse_counter(heap_bytes, source_line, source, line, "heap_bytes")?,
         memory_bytes: parse_counter(memory_bytes, source_line, source, line, "memory_bytes")?,
-        total_allocation: parse_counter(
-            total_allocation,
-            source_line,
-            source,
-            line,
-            "total_allocation",
-        )?,
     };
     let suite = config.suite_derivation.derive_suite(span_label);
 
     Ok(RawBenchmarkEvent {
         prefix: prefix.to_string(),
-        label: label.to_string(),
         suite,
         span_label: span_label.to_string(),
         kind,
@@ -589,7 +513,7 @@ fn parse_counter(
             source_line,
             source,
             line,
-            &format!("{name} counter is empty"),
+            format!("{name} counter is empty"),
         ));
     }
 
@@ -598,7 +522,7 @@ fn parse_counter(
             source_line,
             source,
             line,
-            &format!("{name} counter is not an unsigned integer"),
+            format!("{name} counter is not an unsigned integer"),
         )
     })
 }
@@ -629,13 +553,13 @@ fn malformed(
     source_line: usize,
     source: BenchmarkEventSource,
     line: &str,
-    reason: &str,
+    reason: impl Into<String>,
 ) -> MalformedBenchmarkMarker {
     MalformedBenchmarkMarker {
         source_line,
         source,
         line: line.to_string(),
-        reason: reason.to_string(),
+        reason: reason.into(),
     }
 }
 
@@ -650,7 +574,6 @@ fn push_paired_span(
             span_label: start.span_label.clone(),
             start_line: start.source_line,
             end_line: end.source_line,
-            start: start.counters,
             end: end.counters,
             delta,
         });
@@ -658,8 +581,24 @@ fn push_paired_span(
         report.invalid_spans.push(InvalidBenchmarkSpan {
             start: start.clone(),
             end: end.clone(),
-            reason: "end counter is lower than start counter".to_string(),
         });
+    }
+}
+
+// Borrow grouping identities until a row or error must own them. Keep the same
+// suite-before-all ordering as the public report scope.
+#[derive(Clone, Copy, Eq, Ord, PartialEq, PartialOrd)]
+enum AggregateScope<'a> {
+    Suite(&'a str),
+    All,
+}
+
+impl AggregateScope<'_> {
+    fn into_owned(self) -> BenchmarkScope {
+        match self {
+            Self::Suite(suite) => BenchmarkScope::Suite(suite.to_owned()),
+            Self::All => BenchmarkScope::All,
+        }
     }
 }
 
@@ -708,8 +647,8 @@ impl AggregateBuilder {
 }
 
 fn add_span_to_aggregate<'a>(
-    rows: &mut BTreeMap<(BenchmarkScope, &'a str), AggregateBuilder>,
-    scope: BenchmarkScope,
+    rows: &mut BTreeMap<(AggregateScope<'a>, &'a str), AggregateBuilder>,
+    scope: AggregateScope<'a>,
     span: &'a BenchmarkSpan,
 ) -> Result<(), BenchmarkAggregateError> {
     match rows.entry((scope, span.span_label.as_str())) {
@@ -718,7 +657,7 @@ fn add_span_to_aggregate<'a>(
             BenchmarkAggregateError {
                 span_label: (*span_label).to_owned(),
                 counter,
-                scope: scope.clone(),
+                scope: scope.into_owned(),
             }
         }),
         Entry::Vacant(entry) => {
@@ -739,7 +678,6 @@ mod tests {
             span_label: "probe/run".into(),
             start_line: 1,
             end_line: 2,
-            start: BenchmarkCounters::default(),
             end: BenchmarkCounters::default(),
             delta: BenchmarkCounters::default(),
         };

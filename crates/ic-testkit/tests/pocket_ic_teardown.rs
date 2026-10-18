@@ -1,12 +1,15 @@
 //! Controlled reproduction of PocketIC's synchronous instance-deletion wait.
 //! The parent owns a synthetic HTTP peer and can always kill/reap the probe.
 
-use candid::Principal;
+mod support;
+
+use ic_host_process::testing::http::{HttpContentLength, capture_http_request};
+use ic_platform::Principal;
 use ic_testkit::pic::{
-    CandidCallErrorKind, CandidCallExt, CanisterDiagnosticFailure, CanisterDiagnosticsRequest,
-    CanisterInstallPhase, InstallSpec, PocketIc, PocketIcBuilder, PocketIcDiagnosticsExt,
+    CandidCallError, CanisterDiagnosticsRequest, CanisterInstallError, CanisterLogRenderLimits,
+    InstallSpec, PocketIc, PocketIcBuilder, PocketIcCallFailure, PocketIcDiagnosticsExt,
     PocketIcInstance, PocketIcStartupConfig, StandaloneCanisterFixture,
-    is_dead_pocket_ic_transport_error,
+    is_dead_pocket_ic_transport_error, query_candid_args,
 };
 use ic_testkit::pocket_ic::common::rest::{CreateInstanceResponse, RawCanisterId, Topology};
 #[cfg(unix)]
@@ -182,27 +185,34 @@ fn refused_instance_request_probe() {
     std::io::stdin()
         .read_exact(&mut [0])
         .expect("parent releases refused call");
-    let error = pic
-        .query_candid::<u64, _>(Principal::anonymous(), "get", ())
-        .expect_err("peer is gone");
-    assert_eq!(error.kind, CandidCallErrorKind::Transport);
+    let error = query_candid_args::<(u64,), _>(
+        pic,
+        Principal::anonymous(),
+        ic_platform::Principal::anonymous(),
+        "get",
+        (),
+        support::REPLY_LIMITS,
+    )
+    .expect_err("peer is gone");
+    assert!(matches!(error, CandidCallError::Transport { .. }));
     assert!(is_dead_pocket_ic_transport_error(&error));
     let error = std::io::Error::other(error);
     assert!(is_dead_pocket_ic_transport_error(&error));
 
-    let request = CanisterDiagnosticsRequest::new(
-        Principal::anonymous(),
-        Principal::anonymous(),
-        Principal::anonymous(),
-    );
-    let (_, status, logs) = pic.collect_canister_diagnostics(request).into_parts();
+    let request = CanisterDiagnosticsRequest {
+        canister_id: Principal::anonymous(),
+        status_sender: Principal::anonymous(),
+        log_sender: Principal::anonymous(),
+        log_limits: CanisterLogRenderLimits::default(),
+    };
+    let report = pic.collect_canister_diagnostics(request);
     for error in [
-        status.expect_err("status peer is gone"),
-        logs.expect_err("log peer is gone"),
+        report.status.expect_err("status peer is gone"),
+        report.logs.expect_err("log peer is gone"),
     ] {
         assert!(matches!(
-            error,
-            CanisterDiagnosticFailure::InstanceUnavailable { .. }
+            &error,
+            PocketIcCallFailure::Operation(source) if source.is_transport()
         ));
         assert!(is_dead_pocket_ic_transport_error(&error));
         let error = std::io::Error::other(error);
@@ -221,32 +231,40 @@ fn refused_creation_probe() {
         .expect("parent releases refused creation");
     let error = StandaloneCanisterFixture::try_install(
         pic,
-        InstallSpec::new(vec![], vec![], 1).label("unreachable-fixture"),
+        InstallSpec {
+            wasm: vec![],
+            init_bytes: vec![],
+            cycles: 1,
+            install_sender: None,
+            label: Some("unreachable-fixture".into()),
+        },
     )
     .err()
     .expect("creation should return an error");
-    assert_eq!(
-        error.install_error().phase(),
-        CanisterInstallPhase::CreateCanister
+    assert!(
+        matches!(error.install_error(), CanisterInstallError::CreateCanister { label: Some(label), .. } if label == "unreachable-fixture")
     );
-    assert_eq!(error.install_error().canister_id(), None);
-    assert_eq!(error.install_error().label(), Some("unreachable-fixture"));
     assert!(is_dead_pocket_ic_transport_error(&error));
     let (pic, install_error) = error.into_parts();
     assert_eq!(pic.instance.instance_id(), instance_id);
-    assert!(install_error.operation_error().is_transport());
+    assert!(
+        matches!(install_error, CanisterInstallError::CreateCanister { source, .. } if source.is_transport())
+    );
     drop(pic);
 }
 
 fn synthetic_instance() -> PocketIcInstance<PocketIc> {
     let url = std::env::var(PROBE_URL_ENV).expect("parent supplies synthetic peer URL");
-    PocketIcStartupConfig::connect(url, DEADLOCK_ESCAPE)
-        .build_instance(
-            PocketIcBuilder::new()
-                .with_application_subnet()
-                .with_max_request_time_ms(Some(1)),
-        )
-        .expect("construct synthetic instance through bounded startup")
+    PocketIcStartupConfig::Connect {
+        server_url: url,
+        timeout: DEADLOCK_ESCAPE,
+    }
+    .build_instance(
+        PocketIcBuilder::new()
+            .with_application_subnet()
+            .with_max_request_time_ms(Some(1)),
+    )
+    .expect("construct synthetic instance through bounded startup")
 }
 
 fn spawn_probe(listener: &TcpListener, name: &str) -> Probe {
@@ -302,9 +320,15 @@ fn read_request(mut stream: TcpStream) -> (TcpStream, String) {
     stream
         .set_write_timeout(Some(DEADLOCK_ESCAPE))
         .expect("bound response write");
-    let bytes =
-        ic_testkit::testing::read_http_request(&mut stream, DEADLOCK_ESCAPE, 65_536, 65_536)
-            .expect("capture complete synthetic request");
+    let bytes = capture_http_request(
+        &mut stream,
+        DEADLOCK_ESCAPE,
+        65_536,
+        65_536,
+        HttpContentLength::Optional,
+    )
+    .into_result()
+    .expect("capture complete synthetic request");
     let line = std::str::from_utf8(bytes.split(|byte| *byte == b'\r').next().unwrap())
         .expect("HTTP request line")
         .to_owned();

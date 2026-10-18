@@ -1,9 +1,9 @@
 use std::collections::BTreeMap;
 
-use candid::Principal;
+use ic_platform::Principal;
 use pocket_ic::{PocketIc, RejectResponse};
 
-use super::{PocketIcOperationError, transport};
+use super::{PocketIcCallFailure, transport};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct ControllerSnapshot {
@@ -18,17 +18,22 @@ pub struct ControllerSnapshots(BTreeMap<Principal, ControllerSnapshot>);
 /// One canister and exact management-call sender used for snapshot capture.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct CanisterSnapshotTarget {
-    canister_id: Principal,
-    sender: Option<Principal>,
+    /// Canister whose snapshot will be captured.
+    pub canister_id: Principal,
+    /// Exact management-call sender; None selects PocketIC's default.
+    pub sender: Option<Principal>,
 }
 
 /// Failure to remove a snapshot while rolling back a partial capture.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+#[derive(Debug)]
 pub struct SnapshotCleanupFailure {
-    canister_id: Principal,
-    sender: Option<Principal>,
-    response: Option<Box<RejectResponse>>,
-    panic_message: Option<String>,
+    /// Canister whose snapshot could not be removed.
+    pub canister_id: Principal,
+    /// Exact sender selected for cleanup.
+    pub sender: Option<Principal>,
+    /// Complete rejection or operation failure, retaining transport classification.
+    pub source: Box<PocketIcCallFailure>,
 }
 
 /// Caller-selected cycle funding applied immediately before snapshot restore.
@@ -46,54 +51,39 @@ pub enum SnapshotRestoreFunding {
 
 /// Structured controller-snapshot failure.
 #[non_exhaustive]
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Debug, thiserror::Error)]
 pub enum ControllerSnapshotError {
+    /// A cached baseline requires at least one canister.
+    #[error("a cached baseline requires at least one canister")]
+    EmptyCanisterSet,
     /// Input contained the same canister more than once.
+    #[error("duplicate canister id in snapshot set: {canister_id}")]
     DuplicateCanisterId {
         /// Repeated canister id.
         canister_id: Principal,
     },
-    /// PocketIC rejected the exact sender selected for capture.
+    /// Snapshot capture failed with the exact selected sender.
+    #[error("failed to capture snapshot for {canister_id} with sender {sender:?}: {source}; {} partial snapshots could not be cleaned up", .cleanup_failures.len())]
     CaptureFailed {
         /// Canister whose capture failed.
         canister_id: Principal,
-        /// Exact sender used for the rejected call.
+        /// Exact sender selected for capture.
         sender: Option<Principal>,
-        /// Complete upstream rejection.
-        response: Box<RejectResponse>,
+        /// Complete rejection or operation failure.
+        source: Box<PocketIcCallFailure>,
         /// Failures while deleting snapshots captured earlier in the set.
         cleanup_failures: Vec<SnapshotCleanupFailure>,
     },
-    /// PocketIC panicked while capturing a snapshot.
-    CapturePanicked {
-        /// Canister whose capture panicked.
-        canister_id: Principal,
-        /// Original operation failure and transport classification.
-        source: PocketIcOperationError,
-        /// Failures while deleting snapshots captured earlier in the set.
-        cleanup_failures: Vec<SnapshotCleanupFailure>,
-    },
-    /// PocketIC rejected the retained capture sender during restore.
+    /// Snapshot restore failed with the retained capture sender.
+    #[error("failed to restore snapshot for {canister_id} with sender {sender:?}: {source}")]
     RestoreFailed {
         /// Canister whose restore failed.
         canister_id: Principal,
-        /// Exact sender used for the rejected call.
+        /// Exact sender selected for restore.
         sender: Option<Principal>,
-        /// Complete upstream rejection.
-        response: Box<RejectResponse>,
+        /// Complete rejection or operation failure.
+        source: Box<PocketIcCallFailure>,
     },
-    /// PocketIC panicked while restoring a snapshot.
-    RestorePanicked {
-        /// Canister whose restore panicked.
-        canister_id: Principal,
-        /// Original operation failure and transport classification.
-        source: PocketIcOperationError,
-    },
-}
-
-enum SnapshotCaptureFailure {
-    Rejected(RejectResponse),
-    Panicked(PocketIcOperationError),
 }
 
 /// Exact-sender capture and restore of related canister snapshots.
@@ -145,29 +135,6 @@ impl PocketIcSnapshotExt for PocketIc {
     }
 }
 
-impl CanisterSnapshotTarget {
-    /// Select one canister and exact sender for snapshot capture.
-    #[must_use]
-    pub const fn new(canister_id: Principal, sender: Option<Principal>) -> Self {
-        Self {
-            canister_id,
-            sender,
-        }
-    }
-
-    /// Canister whose snapshot will be captured.
-    #[must_use]
-    pub const fn canister_id(self) -> Principal {
-        self.canister_id
-    }
-
-    /// Exact management-call sender, including `None` for the default sender.
-    #[must_use]
-    pub const fn sender(self) -> Option<Principal> {
-        self.sender
-    }
-}
-
 fn capture_snapshot_set<I>(
     pocket_ic: &PocketIc,
     targets: I,
@@ -197,19 +164,15 @@ where
             }
             Err(failure) => failure,
         };
-        let cleanup_failures = cleanup_captured_snapshots(pocket_ic, snapshots);
-        return Err(match failure {
-            SnapshotCaptureFailure::Rejected(response) => ControllerSnapshotError::CaptureFailed {
-                canister_id,
-                sender,
-                response: Box::new(response),
-                cleanup_failures,
-            },
-            SnapshotCaptureFailure::Panicked(source) => ControllerSnapshotError::CapturePanicked {
-                canister_id,
-                source,
-                cleanup_failures,
-            },
+        let cleanup_failures =
+            cleanup_captured_snapshots(snapshots, |canister_id, sender, snapshot_id| {
+                pocket_ic.delete_canister_snapshot(canister_id, sender, snapshot_id)
+            });
+        return Err(ControllerSnapshotError::CaptureFailed {
+            canister_id,
+            sender,
+            source: Box::new(failure),
+            cleanup_failures,
         });
     }
     Ok(ControllerSnapshots(snapshots))
@@ -244,94 +207,13 @@ impl ControllerSnapshots {
     }
 }
 
-impl SnapshotCleanupFailure {
-    /// Read the canister whose captured snapshot could not be removed.
-    #[must_use]
-    pub const fn canister_id(&self) -> Principal {
-        self.canister_id
-    }
-
-    /// Read the sender used for the rejected cleanup.
-    #[must_use]
-    pub const fn sender(&self) -> Option<Principal> {
-        self.sender
-    }
-
-    /// Read PocketIC's structured rejection.
-    #[must_use]
-    pub fn response(&self) -> Option<&RejectResponse> {
-        self.response.as_deref()
-    }
-
-    /// Read a captured PocketIC panic message, when cleanup did not return a rejection.
-    #[must_use]
-    pub fn panic_message(&self) -> Option<&str> {
-        self.panic_message.as_deref()
-    }
-}
-
-impl std::fmt::Display for ControllerSnapshotError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::DuplicateCanisterId { canister_id } => {
-                write!(f, "duplicate canister id in snapshot set: {canister_id}")
-            }
-            Self::CaptureFailed {
-                canister_id,
-                sender,
-                response,
-                cleanup_failures,
-            } => write!(
-                f,
-                "failed to capture snapshot for {canister_id} with sender {sender:?}: {response:?}; {} partial snapshots could not be cleaned up",
-                cleanup_failures.len()
-            ),
-            Self::CapturePanicked {
-                canister_id,
-                source,
-                cleanup_failures,
-            } => write!(
-                f,
-                "snapshot capture panicked for {canister_id}: {source}; {} partial snapshots could not be cleaned up",
-                cleanup_failures.len()
-            ),
-            Self::RestoreFailed {
-                canister_id,
-                sender,
-                response,
-            } => write!(
-                f,
-                "failed to restore snapshot for {canister_id} with sender {sender:?}: {response:?}",
-            ),
-            Self::RestorePanicked {
-                canister_id,
-                source,
-            } => write!(f, "snapshot restore panicked for {canister_id}: {source}"),
-        }
-    }
-}
-
-impl std::error::Error for ControllerSnapshotError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Self::CapturePanicked { source, .. } | Self::RestorePanicked { source, .. } => {
-                Some(source)
-            }
-            _ => None,
-        }
-    }
-}
-
 fn try_take_snapshot(
     pocket_ic: &PocketIc,
     canister_id: Principal,
     sender: Option<Principal>,
-) -> Result<ControllerSnapshot, SnapshotCaptureFailure> {
-    let snapshot = transport::capture_operation(|| {
-        pocket_ic.take_canister_snapshot(canister_id, sender, None)
-    })
-    .map_err(SnapshotCaptureFailure::Panicked)?
-    .map_err(SnapshotCaptureFailure::Rejected)?;
+) -> Result<ControllerSnapshot, PocketIcCallFailure> {
+    let snapshot =
+        transport::capture_call(|| pocket_ic.take_canister_snapshot(canister_id, sender, None))?;
     Ok(ControllerSnapshot {
         snapshot_id: snapshot.id,
         sender,
@@ -339,28 +221,19 @@ fn try_take_snapshot(
 }
 
 fn cleanup_captured_snapshots(
-    pocket_ic: &PocketIc,
     snapshots: BTreeMap<Principal, ControllerSnapshot>,
+    mut remove: impl FnMut(Principal, Option<Principal>, Vec<u8>) -> Result<(), RejectResponse>,
 ) -> Vec<SnapshotCleanupFailure> {
     let mut failures = Vec::new();
     for (canister_id, snapshot) in snapshots {
-        let cleanup = transport::capture_operation(|| {
-            pocket_ic.delete_canister_snapshot(canister_id, snapshot.sender, snapshot.snapshot_id)
-        });
-        match cleanup {
-            Ok(Ok(())) => {}
-            Ok(Err(response)) => failures.push(SnapshotCleanupFailure {
+        let cleanup =
+            transport::capture_call(|| remove(canister_id, snapshot.sender, snapshot.snapshot_id));
+        if let Err(source) = cleanup {
+            failures.push(SnapshotCleanupFailure {
                 canister_id,
                 sender: snapshot.sender,
-                response: Some(Box::new(response)),
-                panic_message: None,
-            }),
-            Err(source) => failures.push(SnapshotCleanupFailure {
-                canister_id,
-                sender: snapshot.sender,
-                response: None,
-                panic_message: Some(source.to_string()),
-            }),
+                source: Box::new(source),
+            });
         }
     }
     failures
@@ -373,18 +246,14 @@ fn restore_controller_snapshot(
     funding: SnapshotRestoreFunding,
     sender: Option<Principal>,
 ) -> Result<(), ControllerSnapshotError> {
-    transport::capture_operation(|| {
+    transport::capture_call(|| {
         apply_snapshot_restore_funding(pocket_ic, canister_id, funding);
         pocket_ic.load_canister_snapshot(canister_id, sender, snapshot_id.to_vec())
     })
-    .map_err(|source| ControllerSnapshotError::RestorePanicked {
-        canister_id,
-        source,
-    })?
-    .map_err(|response| ControllerSnapshotError::RestoreFailed {
+    .map_err(|source| ControllerSnapshotError::RestoreFailed {
         canister_id,
         sender,
-        response: Box::new(response),
+        source: Box::new(source),
     })
 }
 
@@ -393,43 +262,89 @@ fn apply_snapshot_restore_funding(
     canister_id: Principal,
     funding: SnapshotRestoreFunding,
 ) {
-    if funding == SnapshotRestoreFunding::Preserve {
-        return;
-    }
-
-    let balance = pocket_ic.cycle_balance(canister_id);
-    let top_up = snapshot_restore_top_up(balance, funding);
-    if top_up > 0 {
-        let _ = pocket_ic.add_cycles(canister_id, top_up);
-    }
-}
-
-const fn snapshot_restore_top_up(balance: u128, funding: SnapshotRestoreFunding) -> u128 {
     match funding {
-        SnapshotRestoreFunding::Preserve => 0,
+        SnapshotRestoreFunding::Preserve => {}
         SnapshotRestoreFunding::TopUpTo { minimum_cycles } => {
-            minimum_cycles.saturating_sub(balance)
+            let top_up = minimum_cycles.saturating_sub(pocket_ic.cycle_balance(canister_id));
+            if top_up > 0 {
+                let _ = pocket_ic.add_cycles(canister_id, top_up);
+            }
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{SnapshotRestoreFunding, snapshot_restore_top_up};
-
     #[test]
-    fn snapshot_restore_funding_is_explicit() {
-        assert_eq!(
-            snapshot_restore_top_up(10, SnapshotRestoreFunding::Preserve),
-            0
-        );
-        assert_eq!(
-            snapshot_restore_top_up(10, SnapshotRestoreFunding::TopUpTo { minimum_cycles: 25 }),
-            15
-        );
-        assert_eq!(
-            snapshot_restore_top_up(30, SnapshotRestoreFunding::TopUpTo { minimum_cycles: 25 }),
-            0
-        );
+    fn cleanup_preserves_causes_and_senders_and_continues_after_each_failure() {
+        use super::{
+            ControllerSnapshot, PocketIcCallFailure, SnapshotCleanupFailure,
+            cleanup_captured_snapshots,
+        };
+        use ic_platform::Principal;
+        use pocket_ic::{ErrorCode, RejectCode, RejectResponse};
+
+        let ids = [1, 2, 3, 4].map(|byte| Principal::from_slice(&[byte]));
+        let sender = Some(Principal::anonymous());
+        let snapshots = ids
+            .map(|id| {
+                (
+                    id,
+                    ControllerSnapshot {
+                        snapshot_id: vec![7],
+                        sender,
+                    },
+                )
+            })
+            .into_iter()
+            .collect();
+        let rejection = RejectResponse {
+            reject_code: RejectCode::CanisterReject,
+            reject_message: "cleanup rejected".into(),
+            error_code: ErrorCode::CanisterCalledTrap,
+            certified: false,
+        };
+        let transport = "reqwest::Error { kind: Request, url: \"http://127.0.0.1:1234/instances/0/update/delete_canister_snapshot\", source: hyper::Error(IncompleteMessage) }";
+        let mut calls = Vec::new();
+        let failures = cleanup_captured_snapshots(snapshots, |id, selected_sender, snapshot_id| {
+            assert_eq!(snapshot_id, [7]);
+            calls.push((id, selected_sender));
+            if id == ids[1] {
+                return Err(rejection.clone());
+            }
+            if id == ids[2] {
+                std::panic::panic_any(transport.to_owned());
+            }
+            Ok(())
+        });
+        assert_eq!(calls, ids.map(|id| (id, sender)));
+        let [
+            SnapshotCleanupFailure {
+                canister_id: rejected_id,
+                sender: rejected_sender,
+                source: rejected,
+            },
+            SnapshotCleanupFailure {
+                canister_id: panicked_id,
+                sender: panicked_sender,
+                source: panicked,
+            },
+        ] = failures.as_slice()
+        else {
+            panic!("expected both cleanup failures: {failures:?}");
+        };
+        assert_eq!(*rejected_id, ids[1]);
+        assert_eq!(*rejected_sender, sender);
+        let PocketIcCallFailure::Rejected(response) = rejected.as_ref() else {
+            panic!("expected rejection: {rejected:?}");
+        };
+        assert_eq!(response, &rejection);
+        assert_eq!(*panicked_id, ids[2]);
+        assert_eq!(*panicked_sender, sender);
+        let PocketIcCallFailure::Operation(source) = panicked.as_ref() else {
+            panic!("expected operation failure: {panicked:?}");
+        };
+        assert!(source.is_transport());
+        assert_eq!(source.message(), transport);
     }
 }

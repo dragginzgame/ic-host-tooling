@@ -1,13 +1,16 @@
 use std::{
     collections::HashMap,
-    fmt,
+    fmt, io,
     time::{Duration, Instant},
 };
 
-use candid::Principal;
-use pocket_ic::{CanisterLogRecord, CanisterStatusResult, PocketIc, RejectResponse};
+use ic_platform::Principal;
+use pocket_ic::{CanisterLogRecord, CanisterStatusResult, PocketIc};
 
-use super::transport;
+use super::{
+    PocketIcCallFailure,
+    transport::{self, capture_call},
+};
 
 /// Default maximum number of canister-log records retained in diagnostics.
 pub const DEFAULT_CANISTER_LOG_RECORD_LIMIT: usize = 32;
@@ -18,105 +21,41 @@ pub const DEFAULT_CANISTER_LOG_BYTE_LIMIT: usize = 16 * 1024;
 /// Explicit bounds applied when canister logs are converted to diagnostic text.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct CanisterLogRenderLimits {
-    record_limit: usize,
-    byte_limit: usize,
-}
-
-impl CanisterLogRenderLimits {
-    /// Set exact record and aggregate raw-content byte limits.
-    ///
-    /// Zero is valid for either limit and retains no content in that dimension.
-    #[must_use]
-    pub const fn new(record_limit: usize, byte_limit: usize) -> Self {
-        Self {
-            record_limit,
-            byte_limit,
-        }
-    }
-
-    /// Maximum number of retained records.
-    #[must_use]
-    pub const fn record_limit(self) -> usize {
-        self.record_limit
-    }
-
-    /// Maximum aggregate number of retained raw content bytes.
-    #[must_use]
-    pub const fn byte_limit(self) -> usize {
-        self.byte_limit
-    }
+    /// Maximum retained records; zero retains none.
+    pub record_limit: usize,
+    /// Maximum retained raw-content bytes; zero retains none.
+    pub byte_limit: usize,
 }
 
 impl Default for CanisterLogRenderLimits {
     fn default() -> Self {
-        Self::new(
-            DEFAULT_CANISTER_LOG_RECORD_LIMIT,
-            DEFAULT_CANISTER_LOG_BYTE_LIMIT,
-        )
+        Self {
+            record_limit: DEFAULT_CANISTER_LOG_RECORD_LIMIT,
+            byte_limit: DEFAULT_CANISTER_LOG_BYTE_LIMIT,
+        }
     }
 }
 
 /// Exact controller-aware inputs for one best-effort diagnostic collection.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct CanisterDiagnosticsRequest {
-    canister_id: Principal,
-    status_sender: Principal,
-    log_sender: Principal,
-    log_limits: CanisterLogRenderLimits,
-}
-
-impl CanisterDiagnosticsRequest {
-    /// Create a request with independent, exact status and log senders.
-    ///
-    /// Anonymous access remains available only by explicitly supplying
-    /// [`Principal::anonymous`] for the corresponding operation.
-    #[must_use]
-    pub fn new(canister_id: Principal, status_sender: Principal, log_sender: Principal) -> Self {
-        Self {
-            canister_id,
-            status_sender,
-            log_sender,
-            log_limits: CanisterLogRenderLimits::default(),
-        }
-    }
-
-    /// Override the bounds used to retain and render fetched log content.
-    #[must_use]
-    pub const fn with_log_limits(mut self, limits: CanisterLogRenderLimits) -> Self {
-        self.log_limits = limits;
-        self
-    }
-
-    /// Target canister.
-    #[must_use]
-    pub const fn canister_id(self) -> Principal {
-        self.canister_id
-    }
-
-    /// Exact sender supplied to `canister_status`.
-    #[must_use]
-    pub const fn status_sender(self) -> Principal {
-        self.status_sender
-    }
-
-    /// Exact sender supplied to `fetch_canister_logs`.
-    #[must_use]
-    pub const fn log_sender(self) -> Principal {
-        self.log_sender
-    }
-
-    /// Log rendering bounds.
-    #[must_use]
-    pub const fn log_limits(self) -> CanisterLogRenderLimits {
-        self.log_limits
-    }
+    /// Canister to inspect.
+    pub canister_id: Principal,
+    /// Exact sender for the status request.
+    pub status_sender: Principal,
+    /// Exact sender for the log request.
+    pub log_sender: Principal,
+    /// Caller-selected log rendering bounds.
+    pub log_limits: CanisterLogRenderLimits,
 }
 
 /// One caller-labeled exact diagnostic request in a collect-all batch.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct LabeledCanisterDiagnosticsRequest {
-    label: String,
-    request: CanisterDiagnosticsRequest,
+    /// Caller label, checked for emptiness and uniqueness before collection.
+    pub label: String,
+    /// Exact controller-aware diagnostic inputs.
+    pub request: CanisterDiagnosticsRequest,
 }
 
 /// Structural error that prevents a diagnostics batch from starting.
@@ -138,67 +77,6 @@ pub enum CanisterDiagnosticsBatchContractError {
         duplicate_index: usize,
     },
 }
-
-impl LabeledCanisterDiagnosticsRequest {
-    /// Attach a stable caller-facing label to an exact diagnostic request.
-    #[must_use]
-    pub fn new(label: impl Into<String>, request: CanisterDiagnosticsRequest) -> Self {
-        Self {
-            label: label.into(),
-            request,
-        }
-    }
-
-    /// Caller-supplied label retained in the batch report.
-    #[must_use]
-    pub fn label(&self) -> &str {
-        &self.label
-    }
-
-    /// Exact controller-aware request.
-    #[must_use]
-    pub const fn request(&self) -> CanisterDiagnosticsRequest {
-        self.request
-    }
-
-    /// Consume the labeled request into its caller label and exact request.
-    #[must_use]
-    pub fn into_parts(self) -> (String, CanisterDiagnosticsRequest) {
-        (self.label, self.request)
-    }
-}
-
-/// A failed best-effort PocketIC diagnostic call.
-#[non_exhaustive]
-#[derive(Debug)]
-pub enum CanisterDiagnosticFailure {
-    /// PocketIC returned a structured management-canister rejection.
-    Rejected(RejectResponse),
-    /// The PocketIC instance was no longer reachable.
-    InstanceUnavailable {
-        /// Captured transport or panic message.
-        message: String,
-    },
-    /// PocketIC panicked for a reason other than a dead instance.
-    Panicked {
-        /// Captured panic message.
-        message: String,
-    },
-}
-
-impl fmt::Display for CanisterDiagnosticFailure {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Rejected(response) => write!(formatter, "rejected: {response:?}"),
-            Self::InstanceUnavailable { message } => {
-                write!(formatter, "PocketIC instance unavailable: {message}")
-            }
-            Self::Panicked { message } => write!(formatter, "panicked: {message}"),
-        }
-    }
-}
-
-impl std::error::Error for CanisterDiagnosticFailure {}
 
 /// One canister-log record retained as bounded lossy UTF-8 text.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -337,106 +215,51 @@ impl fmt::Display for CanisterDiagnosticLogs {
 /// Independent status and log outcomes for one diagnostic collection.
 #[derive(Debug)]
 pub struct CanisterDiagnosticsReport {
-    request: CanisterDiagnosticsRequest,
-    status: Result<CanisterStatusResult, CanisterDiagnosticFailure>,
-    logs: Result<CanisterDiagnosticLogs, CanisterDiagnosticFailure>,
+    /// Exact request used for this report.
+    pub request: CanisterDiagnosticsRequest,
+    /// Status result, independent of log retrieval.
+    pub status: Result<CanisterStatusResult, PocketIcCallFailure>,
+    /// Log result, independent of status retrieval.
+    pub logs: Result<CanisterDiagnosticLogs, PocketIcCallFailure>,
 }
 
 impl CanisterDiagnosticsReport {
-    /// Exact request used for this report.
-    #[must_use]
-    pub const fn request(&self) -> CanisterDiagnosticsRequest {
-        self.request
-    }
-
-    /// Status result, independent of log retrieval.
-    pub const fn status(&self) -> Result<&CanisterStatusResult, &CanisterDiagnosticFailure> {
-        self.status.as_ref()
-    }
-
-    /// Log result, independent of status retrieval.
-    pub const fn logs(&self) -> Result<&CanisterDiagnosticLogs, &CanisterDiagnosticFailure> {
-        self.logs.as_ref()
-    }
-
     /// Whether both status and log collection succeeded.
     #[must_use]
     pub const fn is_success(&self) -> bool {
         self.status.is_ok() && self.logs.is_ok()
-    }
-
-    /// Consume the report into its exact request and independent outcomes.
-    pub fn into_parts(
-        self,
-    ) -> (
-        CanisterDiagnosticsRequest,
-        Result<CanisterStatusResult, CanisterDiagnosticFailure>,
-        Result<CanisterDiagnosticLogs, CanisterDiagnosticFailure>,
-    ) {
-        (self.request, self.status, self.logs)
-    }
-
-    /// Render a compact, bounded diagnostic line suitable for failure output.
-    #[must_use]
-    pub fn render_compact(&self) -> String {
-        self.to_string()
     }
 }
 
 /// One ordered labeled entry in a collect-all diagnostics batch.
 #[derive(Debug)]
 pub struct CanisterDiagnosticsBatchEntry {
-    label: String,
-    report: CanisterDiagnosticsReport,
-    entry_elapsed: Duration,
+    /// Caller-supplied label.
+    pub label: String,
+    /// Structured status and log outcomes for this entry.
+    pub report: CanisterDiagnosticsReport,
+    /// Complete wall-clock time for this target's diagnostic collection.
+    pub entry_elapsed: Duration,
 }
 
 impl CanisterDiagnosticsBatchEntry {
-    /// Caller-supplied label.
-    #[must_use]
-    pub fn label(&self) -> &str {
-        &self.label
-    }
-
-    /// Structured status and log outcomes for this entry.
-    #[must_use]
-    pub const fn report(&self) -> &CanisterDiagnosticsReport {
-        &self.report
-    }
-
     /// Whether both status and log collection succeeded for this entry.
     #[must_use]
     pub const fn is_success(&self) -> bool {
         self.report.is_success()
-    }
-
-    /// Complete wall-clock time for this target's diagnostic collection.
-    #[must_use]
-    pub const fn entry_elapsed(&self) -> Duration {
-        self.entry_elapsed
-    }
-
-    /// Consume the entry into its label, structured report, and wall time.
-    #[must_use]
-    pub fn into_parts(self) -> (String, CanisterDiagnosticsReport, Duration) {
-        (self.label, self.report, self.entry_elapsed)
     }
 }
 
 /// Ordered entries from a sequential collect-all diagnostics batch.
 #[derive(Debug, Default)]
 pub struct CanisterDiagnosticsBatchReport {
-    entries: Vec<CanisterDiagnosticsBatchEntry>,
-    total: Duration,
+    /// Entries in the supplied request order.
+    pub entries: Vec<CanisterDiagnosticsBatchEntry>,
+    /// Complete wall-clock time for the sequential collect-all batch.
+    pub total: Duration,
 }
 
 impl CanisterDiagnosticsBatchReport {
-    /// Entries in the supplied request order.
-    #[must_use]
-    pub fn entries(&self) -> &[CanisterDiagnosticsBatchEntry] {
-        &self.entries
-    }
-
     /// Entries with at least one failed status or log operation.
     pub fn failures(&self) -> impl Iterator<Item = &CanisterDiagnosticsBatchEntry> {
         self.entries.iter().filter(|entry| !entry.is_success())
@@ -448,24 +271,6 @@ impl CanisterDiagnosticsBatchReport {
         self.entries
             .iter()
             .all(CanisterDiagnosticsBatchEntry::is_success)
-    }
-
-    /// Complete wall-clock time for the sequential collect-all batch.
-    #[must_use]
-    pub const fn total(&self) -> Duration {
-        self.total
-    }
-
-    /// Consume the report into its ordered entries.
-    #[must_use]
-    pub fn into_entries(self) -> Vec<CanisterDiagnosticsBatchEntry> {
-        self.entries
-    }
-
-    /// Render compact bounded diagnostics with retained caller labels.
-    #[must_use]
-    pub fn render_compact(&self) -> String {
-        self.to_string()
     }
 }
 
@@ -528,6 +333,28 @@ pub trait PocketIcDiagnosticsExt {
         request: CanisterDiagnosticsRequest,
     ) -> CanisterDiagnosticsReport;
 
+    /// Explicitly collect and write one contextual diagnostic report.
+    ///
+    /// Uses the request's exact senders and log limits, with no retry or output
+    /// destination selected implicitly. Collection, formatting and writer panics
+    /// are captured as an IO error retaining [`super::PocketIcOperationError`].
+    /// Ordinary writer errors are returned unchanged. Status/log failures remain
+    /// in the written report; successful output does not mean those calls passed.
+    /// Callers keep their primary failure authoritative and decide whether to
+    /// retain or ignore this secondary reporting result.
+    fn write_canister_diagnostics(
+        &self,
+        request: CanisterDiagnosticsRequest,
+        context: &str,
+        writer: &mut dyn io::Write,
+    ) -> io::Result<()> {
+        transport::capture_operation(|| {
+            let report = self.collect_canister_diagnostics(request);
+            writeln!(writer, "{context}: {report}")
+        })
+        .map_err(io::Error::other)?
+    }
+
     /// Collect every labeled request sequentially in its supplied order.
     ///
     /// Every target is attempted even when an earlier entry fails or panics.
@@ -548,8 +375,8 @@ pub trait PocketIcDiagnosticsExt {
                     transport::capture_operation(|| self.collect_canister_diagnostics(request))
                         .unwrap_or_else(|source| CanisterDiagnosticsReport {
                             request,
-                            status: Err(diagnostic_panic_failure(source.clone())),
-                            logs: Err(diagnostic_panic_failure(source)),
+                            status: Err(PocketIcCallFailure::Operation(source.clone())),
+                            logs: Err(PocketIcCallFailure::Operation(source)),
                         });
                 CanisterDiagnosticsBatchEntry {
                     label: labeled.label.clone(),
@@ -613,40 +440,17 @@ impl PocketIcDiagnosticsExt for PocketIc {
         &self,
         request: CanisterDiagnosticsRequest,
     ) -> CanisterDiagnosticsReport {
-        let status = capture_diagnostic_call(|| {
-            self.canister_status(request.canister_id, Some(request.status_sender))
-        });
-        let logs = capture_diagnostic_call(|| {
-            self.fetch_canister_logs(request.canister_id, request.log_sender)
-        })
-        .map(|records| render_log_records(records, request.log_limits));
+        let status =
+            capture_call(|| self.canister_status(request.canister_id, Some(request.status_sender)));
+        let logs =
+            capture_call(|| self.fetch_canister_logs(request.canister_id, request.log_sender))
+                .map(|records| render_log_records(records, request.log_limits));
 
         CanisterDiagnosticsReport {
             request,
             status,
             logs,
         }
-    }
-}
-
-fn capture_diagnostic_call<T>(
-    call: impl FnOnce() -> Result<T, RejectResponse>,
-) -> Result<T, CanisterDiagnosticFailure> {
-    match transport::capture_operation(call) {
-        Ok(Ok(value)) => Ok(value),
-        Ok(Err(response)) => Err(CanisterDiagnosticFailure::Rejected(response)),
-        Err(source) => Err(diagnostic_panic_failure(source)),
-    }
-}
-
-fn diagnostic_panic_failure(
-    source: transport::PocketIcOperationError,
-) -> CanisterDiagnosticFailure {
-    let message = source.to_string();
-    if source.is_transport() {
-        CanisterDiagnosticFailure::InstanceUnavailable { message }
-    } else {
-        CanisterDiagnosticFailure::Panicked { message }
     }
 }
 
@@ -694,14 +498,13 @@ fn render_log_records(
 mod tests {
     use std::cell::Cell;
 
-    use candid::Principal;
+    use ic_platform::Principal;
     use pocket_ic::CanisterLogRecord;
 
     use super::{
-        CanisterDiagnosticFailure, CanisterDiagnosticsBatchContractError,
-        CanisterDiagnosticsReport, CanisterDiagnosticsRequest, CanisterLogRenderLimits,
-        LabeledCanisterDiagnosticsRequest, PocketIcDiagnosticsExt, capture_diagnostic_call,
-        render_log_records,
+        CanisterDiagnosticsBatchContractError, CanisterDiagnosticsReport,
+        CanisterDiagnosticsRequest, CanisterLogRenderLimits, LabeledCanisterDiagnosticsRequest,
+        PocketIcCallFailure, PocketIcDiagnosticsExt, capture_call, render_log_records,
     };
 
     #[test]
@@ -709,16 +512,18 @@ mod tests {
         const REFUSED: &str = "HTTP failure: reqwest::Error { kind: Request, url: \"http://127.0.0.1:1234/instances/0/read/get_time\", source: ConnectError(\"tcp connect error\", Os { code: 111, kind: ConnectionRefused, message: \"Connection refused\" }) }";
         const RESET: &str = "HTTP failure: reqwest::Error { kind: Request, url: \"http://127.0.0.1:49238/instances/0/read/get_time\", source: hyper_util::client::legacy::Error(SendRequest, hyper::Error(Io, Os { code: 54, kind: ConnectionReset, message: \"Connection reset by peer\" })) }";
         for message in [REFUSED, RESET, "application worker channel closed"] {
-            let error = capture_diagnostic_call::<()>(|| panic!("{message}"))
+            let error = capture_call::<()>(|| panic!("{message}"))
                 .expect_err("diagnostic operation should capture the panic");
             let expected = message != "application worker channel closed";
-            assert_eq!(
-                matches!(
-                    &error,
-                    CanisterDiagnosticFailure::InstanceUnavailable { .. }
-                ),
-                expected,
-            );
+            let PocketIcCallFailure::Operation(source) = &error else {
+                panic!("expected the original operation error");
+            };
+            assert_eq!(source.message(), message);
+            assert_eq!(source.is_transport(), expected);
+            let chained = std::error::Error::source(&error)
+                .and_then(|cause| cause.downcast_ref::<super::super::PocketIcOperationError>())
+                .expect("diagnostic error exposes its original typed cause");
+            assert_eq!(chained, source);
             assert_eq!(
                 super::super::is_dead_pocket_ic_transport_error(&error),
                 expected,
@@ -733,6 +538,7 @@ mod tests {
 
     struct PanickingThenReporting {
         calls: Cell<usize>,
+        request: Cell<Option<CanisterDiagnosticsRequest>>,
     }
 
     impl PocketIcDiagnosticsExt for PanickingThenReporting {
@@ -742,56 +548,141 @@ mod tests {
         ) -> CanisterDiagnosticsReport {
             let call = self.calls.get();
             self.calls.set(call + 1);
+            self.request.set(Some(request));
             assert_ne!(call, 0, "synthetic first-entry diagnostic panic");
             CanisterDiagnosticsReport {
                 request,
-                status: Err(CanisterDiagnosticFailure::Panicked {
-                    message: "synthetic status failure".to_owned(),
-                }),
-                logs: Err(CanisterDiagnosticFailure::Panicked {
-                    message: "synthetic log failure".to_owned(),
-                }),
+                status: Err(PocketIcCallFailure::Operation(
+                    super::super::PocketIcOperationError::new("synthetic status failure"),
+                )),
+                logs: Err(PocketIcCallFailure::Operation(
+                    super::super::PocketIcOperationError::new("synthetic log failure"),
+                )),
             }
         }
+    }
+
+    struct PanickingWriter;
+
+    impl std::io::Write for PanickingWriter {
+        fn write(&mut self, _: &[u8]) -> std::io::Result<usize> {
+            panic!("synthetic writer panic");
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn explicit_reporting_preserves_requests_and_contains_secondary_failures() {
+        let collector = PanickingThenReporting {
+            calls: Cell::new(0),
+            request: Cell::new(None),
+        };
+        let request = CanisterDiagnosticsRequest {
+            canister_id: Principal::from_slice(&[1]),
+            status_sender: Principal::from_slice(&[2]),
+            log_sender: Principal::from_slice(&[3]),
+            log_limits: CanisterLogRenderLimits::default(),
+        };
+        let mut output = Vec::new();
+        let error = collector
+            .write_canister_diagnostics(request, "install", &mut output)
+            .expect_err("collection panic becomes secondary error");
+        assert_eq!(output, [] as [u8; 0]);
+        assert_eq!(collector.calls.get(), 1);
+        assert_eq!(collector.request.get(), Some(request));
+        assert!(
+            error
+                .get_ref()
+                .unwrap()
+                .downcast_ref::<super::super::PocketIcOperationError>()
+                .unwrap()
+                .message()
+                .contains("synthetic first-entry diagnostic panic")
+        );
+
+        collector
+            .write_canister_diagnostics(request, "install", &mut output)
+            .unwrap();
+        let text = String::from_utf8(output).unwrap();
+        assert!(text.starts_with("install: "));
+        assert!(
+            text.contains("synthetic status failure") && text.contains("synthetic log failure")
+        );
+        assert_eq!(collector.calls.get(), 2);
+        assert_eq!(collector.request.get(), Some(request));
+
+        let mut full_writer = std::io::Cursor::new([0_u8; 0]);
+        let error = collector
+            .write_canister_diagnostics(request, "install", &mut full_writer)
+            .expect_err("ordinary writer failure is retained");
+        assert_eq!(error.kind(), std::io::ErrorKind::WriteZero);
+        let error = collector
+            .write_canister_diagnostics(request, "install", &mut PanickingWriter)
+            .expect_err("writer panic becomes secondary error");
+        assert!(
+            error
+                .get_ref()
+                .unwrap()
+                .downcast_ref::<super::super::PocketIcOperationError>()
+                .unwrap()
+                .message()
+                .contains("synthetic writer panic")
+        );
+        assert_eq!(
+            collector.calls.get(),
+            4,
+            "one explicit collection per call, with no retries"
+        );
     }
 
     #[test]
     fn labeled_batch_retains_order_and_continues_after_entry_panic() {
         let collector = PanickingThenReporting {
             calls: Cell::new(0),
+            request: Cell::new(None),
         };
-        let first = CanisterDiagnosticsRequest::new(
-            Principal::from_slice(&[1]),
-            Principal::from_slice(&[2]),
-            Principal::from_slice(&[3]),
-        );
-        let second = CanisterDiagnosticsRequest::new(
-            Principal::from_slice(&[4]),
-            Principal::from_slice(&[5]),
-            Principal::from_slice(&[6]),
-        );
+        let first = CanisterDiagnosticsRequest {
+            canister_id: Principal::from_slice(&[1]),
+            status_sender: Principal::from_slice(&[2]),
+            log_sender: Principal::from_slice(&[3]),
+            log_limits: CanisterLogRenderLimits::default(),
+        };
+        let second = CanisterDiagnosticsRequest {
+            canister_id: Principal::from_slice(&[4]),
+            status_sender: Principal::from_slice(&[5]),
+            log_sender: Principal::from_slice(&[6]),
+            log_limits: CanisterLogRenderLimits::default(),
+        };
         let report = collector
             .collect_canister_diagnostics_batch(&[
-                LabeledCanisterDiagnosticsRequest::new("root", first),
-                LabeledCanisterDiagnosticsRequest::new("worker", second),
+                LabeledCanisterDiagnosticsRequest {
+                    label: "root".into(),
+                    request: first,
+                },
+                LabeledCanisterDiagnosticsRequest {
+                    label: "worker".into(),
+                    request: second,
+                },
             ])
             .expect("valid labeled diagnostics batch");
 
         assert_eq!(collector.calls.get(), 2);
-        assert_eq!(report.entries().len(), 2);
-        assert_eq!(report.entries()[0].label(), "root");
-        assert_eq!(report.entries()[0].report().request(), first);
-        assert_eq!(report.entries()[1].label(), "worker");
-        assert_eq!(report.entries()[1].report().request(), second);
+        assert_eq!(report.entries.len(), 2);
+        assert_eq!(report.entries[0].label, "root");
+        assert_eq!(report.entries[0].report.request, first);
+        assert_eq!(report.entries[1].label, "worker");
+        assert_eq!(report.entries[1].report.request, second);
         assert!(
             report
-                .entries()
+                .entries
                 .iter()
-                .all(|entry| entry.entry_elapsed() <= report.total())
+                .all(|entry| entry.entry_elapsed <= report.total)
         );
         assert_eq!(report.failures().count(), 2);
         assert!(!report.is_success());
-        let compact = report.render_compact();
+        let compact = report.to_string();
         assert!(compact.contains("label=\"root\""));
         assert!(compact.contains("label=\"worker\""));
         assert!(compact.contains("synthetic first-entry diagnostic panic"));
@@ -801,16 +692,19 @@ mod tests {
     fn diagnostic_batch_rejects_invalid_labels_before_collection() {
         let collector = PanickingThenReporting {
             calls: Cell::new(0),
+            request: Cell::new(None),
         };
-        let request = CanisterDiagnosticsRequest::new(
-            Principal::from_slice(&[1]),
-            Principal::from_slice(&[2]),
-            Principal::from_slice(&[3]),
-        );
+        let request = CanisterDiagnosticsRequest {
+            canister_id: Principal::from_slice(&[1]),
+            status_sender: Principal::from_slice(&[2]),
+            log_sender: Principal::from_slice(&[3]),
+            log_limits: CanisterLogRenderLimits::default(),
+        };
         let empty = collector
-            .collect_canister_diagnostics_batch(&[LabeledCanisterDiagnosticsRequest::new(
-                "", request,
-            )])
+            .collect_canister_diagnostics_batch(&[LabeledCanisterDiagnosticsRequest {
+                label: String::new(),
+                request,
+            }])
             .expect_err("empty label must reject diagnostics batch");
         assert_eq!(
             empty,
@@ -820,8 +714,14 @@ mod tests {
 
         let duplicate = collector
             .collect_canister_diagnostics_batch(&[
-                LabeledCanisterDiagnosticsRequest::new("same", request),
-                LabeledCanisterDiagnosticsRequest::new("same", request),
+                LabeledCanisterDiagnosticsRequest {
+                    label: "same".into(),
+                    request,
+                },
+                LabeledCanisterDiagnosticsRequest {
+                    label: "same".into(),
+                    request,
+                },
             ])
             .expect_err("duplicate labels must reject diagnostics batch");
         assert_eq!(
@@ -850,7 +750,10 @@ mod tests {
                     content: b"bar".to_vec(),
                 },
             ],
-            CanisterLogRenderLimits::new(1, 2),
+            CanisterLogRenderLimits {
+                record_limit: 1,
+                byte_limit: 2,
+            },
         );
 
         assert_eq!(logs.total_records(), 2);
@@ -877,7 +780,10 @@ mod tests {
                     timestamp_nanos: 2,
                     content: b"hello".to_vec(),
                 }],
-                CanisterLogRenderLimits::new(record_limit, byte_limit),
+                CanisterLogRenderLimits {
+                    record_limit,
+                    byte_limit,
+                },
             );
 
             assert_eq!(logs.records(), []);
@@ -895,7 +801,10 @@ mod tests {
 
     #[test]
     fn logs_within_bounds_preserve_empty_records_and_raw_byte_totals() {
-        let limits = CanisterLogRenderLimits::new(3, 3);
+        let limits = CanisterLogRenderLimits {
+            record_limit: 3,
+            byte_limit: 3,
+        };
         let empty = render_log_records(vec![], limits);
         assert_eq!(empty.total_records(), 0);
         assert_eq!(empty.total_content_bytes(), 0);

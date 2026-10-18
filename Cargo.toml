@@ -1,7 +1,9 @@
 [workspace]
+# Production packages: ic-testkit and ic-testkit-native.
+# Tests and tooling packages: ic-testkit-dev and ic_testkit_perf_probe.
 members = [
     "crates/ic-testkit",
-    "crates/ic-testkit-candid",
+    "crates/ic-testkit-dev",
     "crates/ic-testkit-native",
     "crates/ic_testkit_perf_probe",
 ]
@@ -9,8 +11,8 @@ resolver = "2"
 
 [workspace.package]
 edition = "2024"
-rust-version = "1.88.0"
-version = "0.46.0"
+rust-version = "1.91.0"
+version = "0.54.1"
 license = "MIT"
 authors = ["borovan <84897664+borovan@users.noreply.github.com>"]
 description = "PocketIC-oriented test utilities for IC canister tests"
@@ -21,21 +23,24 @@ categories = ["development-tools::testing", "wasm"]
 readme = "README.md"
 
 [workspace.dependencies]
-candid = { version = "0.10", default-features = false }
-ic-build = { version = "0.6" }
-ic-cdk = "0.20.2"
-ic-host-artifacts = { version = "0.19", features = ["archive", "wasm"] }
-ic-host-fs = "0.19"
-ic-host-process = "0.19"
-ic-host-text = { version = "0.19", default-features = false }
-ic-metrics = "0.10"
-ic-testkit = { path = "crates/ic-testkit" }
+# Production dependencies
+ic-host-artifacts = "0.27.1"
+ic-host-fs = "0.27.1"
+ic-host-process = "0.27.6"
+ic-metrics = "0.14"
+ic-platform = { version = "0.1.11", default-features = false }
 libc = "0.2"
 pocket-ic = "16.1"
 serde = { version = "1.0", default-features = false }
 serde_json = "1.0"
 tempfile = "3"
+thiserror = "2.0"
 tokio = { version = "1", features = ["net", "rt", "time"] }
+
+# Tests and tooling only
+ic-build = { version = "0.17.2" }
+ic-host-text = { version = "0.27.1", default-features = false }
+ic-testkit = { path = "crates/ic-testkit" }
 
 [workspace.lints.clippy]
 all = { level = "warn", priority = -1 }

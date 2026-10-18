@@ -31,8 +31,11 @@ fn async_configuration_failures_are_typed_without_server_effects() {
     ] {
         let error = runtime
             .block_on(
-                PocketIcStartupConfig::connect(url, timeout)
-                    .build_instance_async(PocketIcBuilder::new()),
+                PocketIcStartupConfig::Connect {
+                    server_url: url.into(),
+                    timeout,
+                }
+                .build_instance_async(PocketIcBuilder::new()),
             )
             .err()
             .unwrap();
@@ -58,8 +61,13 @@ fn async_readiness_timeout_and_cancellation_reap_the_exact_server() {
         );
         let stdout = script.path().with_extension("stdout");
         let stderr = script.path().with_extension("stderr");
-        let config = PocketIcStartupConfig::spawn(script.path(), Duration::from_secs(2))
-            .with_server_output_files(&stdout, &stderr);
+        let config = PocketIcStartupConfig::Spawn {
+            server_binary: script.path(),
+            timeout: Duration::from_secs(2),
+            server_hard_ttl: None,
+            server_idle_ttl: None,
+            server_output_files: Some(((&stdout).into(), (&stderr).into())),
+        };
         runtime.block_on(async {
             let mut construction = Box::pin(config.build_instance_async(PocketIcBuilder::new()));
             if cancel {
@@ -124,8 +132,7 @@ fn async_instance_wait_timeout_exit_and_cancellation_keep_ownership() {
         let stdout = script.path().with_extension("stdout");
         runtime.block_on(async {
             let mut construction = Box::pin(
-                PocketIcStartupConfig::spawn(script.path(), Duration::from_secs(2))
-                    .with_server_output_files(&stdout, &stderr)
+                PocketIcStartupConfig::Spawn { server_binary: script.path(), timeout: Duration::from_secs(2), server_hard_ttl: None, server_idle_ttl: None, server_output_files: Some(((&stdout).into(), (&stderr).into())) }
                     .build_instance_async(PocketIcBuilder::new().with_application_subnet()));
             if mode == "cancel" {
                 let deadline = Instant::now() + Duration::from_secs(2);
@@ -172,10 +179,10 @@ fn async_borrowed_failure_leaves_server_authority_with_the_caller() {
     let runtime = test_runtime();
     let error = runtime
         .block_on(
-            PocketIcStartupConfig::connect(
-                format!("http://127.0.0.1:{}/", http.port),
-                Duration::from_secs(2),
-            )
+            PocketIcStartupConfig::Connect {
+                server_url: format!("http://127.0.0.1:{}/", http.port),
+                timeout: Duration::from_secs(2),
+            }
             .build_instance_async(PocketIcBuilder::new().with_application_subnet()),
         )
         .err()
@@ -215,12 +222,14 @@ impl PendingHttpServer {
             while !stop_worker.load(Ordering::Acquire) {
                 match listener.accept() {
                     Ok((mut stream, _)) => {
-                        if crate::testing::read_http_request(
+                        if ic_host_process::testing::http::capture_http_request(
                             &mut stream,
                             Duration::from_secs(1),
                             65_536,
                             65_536,
+                            ic_host_process::testing::http::HttpContentLength::Optional,
                         )
+                        .into_result()
                         .is_err()
                         {
                             continue;
@@ -266,7 +275,13 @@ impl Drop for PendingHttpServer {
 #[ignore = "requires POCKET_IC_BIN=<caller-provided PocketIC server binary>"]
 fn owned_sync_instance_preserves_topology_and_scoped_server_lifetime() {
     let binary = std::env::var_os("POCKET_IC_BIN").unwrap();
-    let config = PocketIcStartupConfig::spawn(PathBuf::from(binary), Duration::from_secs(30));
+    let config = PocketIcStartupConfig::Spawn {
+        server_binary: PathBuf::from(binary),
+        timeout: Duration::from_secs(30),
+        server_hard_ttl: None,
+        server_idle_ttl: None,
+        server_output_files: None,
+    };
     let owned = config
         .build_instance(
             PocketIcBuilder::new()
@@ -281,9 +296,12 @@ fn owned_sync_instance_preserves_topology_and_scoped_server_lifetime() {
     assert!(process_state(pid).is_some());
     let canister = owned.instance.create_canister();
     assert!(owned.instance.canister_exists(canister));
-    let borrowed = PocketIcStartupConfig::connect(server.url(), Duration::from_secs(30))
-        .build_instance(PocketIcBuilder::new().with_application_subnet())
-        .unwrap();
+    let borrowed = PocketIcStartupConfig::Connect {
+        server_url: (server.url()).into(),
+        timeout: Duration::from_secs(30),
+    }
+    .build_instance(PocketIcBuilder::new().with_application_subnet())
+    .unwrap();
     assert!(borrowed.server.is_none());
     drop(borrowed);
     assert!(owned.instance.canister_exists(canister));
@@ -299,24 +317,33 @@ fn owned_async_instance_and_borrowed_connections_preserve_lifetimes() {
     let binary = PathBuf::from(std::env::var_os("POCKET_IC_BIN").unwrap());
     let runtime = test_runtime();
     runtime.block_on(async {
-        let owned = PocketIcStartupConfig::spawn(&binary, Duration::from_secs(30))
-            .build_instance_async(
-                PocketIcBuilder::new()
-                    .with_application_subnet()
-                    .with_nns_subnet(),
-            )
-            .await
-            .unwrap();
+        let owned = PocketIcStartupConfig::Spawn {
+            server_binary: (&binary).into(),
+            timeout: Duration::from_secs(30),
+            server_hard_ttl: None,
+            server_idle_ttl: None,
+            server_output_files: None,
+        }
+        .build_instance_async(
+            PocketIcBuilder::new()
+                .with_application_subnet()
+                .with_nns_subnet(),
+        )
+        .await
+        .unwrap();
         let server = owned.server.as_ref().unwrap();
         let pid = server.process_id();
         let directory = server.server.files._directory.path().to_path_buf();
         assert!(owned.instance.topology().await.get_nns().is_some());
         let canister = owned.instance.create_canister().await;
         assert!(owned.instance.canister_exists(canister).await);
-        let borrowed = PocketIcStartupConfig::connect(server.url(), Duration::from_secs(30))
-            .build_instance_async(PocketIcBuilder::new().with_application_subnet())
-            .await
-            .unwrap();
+        let borrowed = PocketIcStartupConfig::Connect {
+            server_url: (server.url()).into(),
+            timeout: Duration::from_secs(30),
+        }
+        .build_instance_async(PocketIcBuilder::new().with_application_subnet())
+        .await
+        .unwrap();
         assert!(borrowed.server.is_none());
         borrowed.instance.drop().await;
         assert!(owned.instance.canister_exists(canister).await);
@@ -333,36 +360,45 @@ fn owned_async_instance_and_borrowed_connections_preserve_lifetimes() {
 #[ignore = "requires POCKET_IC_BIN=<caller-provided PocketIC server binary>"]
 fn install_errors_fixtures_and_baselines_retain_the_owned_server() {
     use crate::pic::{
-        CachedPocketIcBaseline, CanisterInstallPhase, InstallSpec, StandaloneCanisterFixture,
+        CachedPocketIcBaseline, CanisterInstallError, InstallSpec, StandaloneCanisterFixture,
     };
-    use candid::Principal;
-
     let binary = PathBuf::from(std::env::var_os("POCKET_IC_BIN").unwrap());
-    let owned = PocketIcStartupConfig::spawn(&binary, Duration::from_secs(30))
-        .build_instance(PocketIcBuilder::new().with_application_subnet())
-        .unwrap();
+    let owned = PocketIcStartupConfig::Spawn {
+        server_binary: (&binary).into(),
+        timeout: Duration::from_secs(30),
+        server_hard_ttl: None,
+        server_idle_ttl: None,
+        server_output_files: None,
+    }
+    .build_instance(PocketIcBuilder::new().with_application_subnet())
+    .unwrap();
     let pid = owned.server.as_ref().unwrap().process_id();
     let instance_id = owned.instance.instance_id();
     let error = StandaloneCanisterFixture::try_install(
         owned,
-        InstallSpec::new(vec![0xde, 0xad], vec![], 5_000_000_000_000).label("invalid-owned-wasm"),
+        InstallSpec {
+            wasm: vec![0xde, 0xad],
+            init_bytes: vec![],
+            cycles: 5_000_000_000_000,
+            install_sender: None,
+            label: Some("invalid-owned-wasm".into()),
+        },
     )
     .err()
     .expect("invalid Wasm must fail installation");
-    assert_eq!(
-        error.install_error().phase(),
-        CanisterInstallPhase::InstallCode
-    );
-    assert_eq!(error.install_error().label(), Some("invalid-owned-wasm"));
-    assert!(
-        error
-            .install_error()
-            .message()
-            .contains("CanisterInvalidWasm")
-    );
+    let CanisterInstallError::InstallCode {
+        canister_id,
+        label,
+        source,
+    } = error.install_error()
+    else {
+        panic!("invalid Wasm must fail at installation: {error}");
+    };
+    assert_eq!(label.as_deref(), Some("invalid-owned-wasm"));
+    assert!(source.message().contains("CanisterInvalidWasm"));
     error
         .pocket_ic()
-        .canister_status(error.install_error().canister_id().unwrap(), None)
+        .canister_status(*canister_id, None)
         .expect("retained server must permit inspecting the failed canister");
     let (owned, _) = error.into_parts();
     assert_eq!(owned.instance.instance_id(), instance_id);
@@ -371,14 +407,23 @@ fn install_errors_fixtures_and_baselines_retain_the_owned_server() {
 
     let fixture = StandaloneCanisterFixture::try_install(
         owned,
-        InstallSpec::new(b"\0asm\x01\0\0\0".to_vec(), vec![], 5_000_000_000_000),
+        InstallSpec {
+            wasm: b"\0asm\x01\0\0\0".to_vec(),
+            init_bytes: vec![],
+            cycles: 5_000_000_000_000,
+            install_sender: None,
+            label: None,
+        },
     )
     .expect("install standalone fixture");
     let (owned, canister) = fixture.into_parts();
     assert_eq!(owned.server.as_ref().unwrap().process_id(), pid);
     let baseline = CachedPocketIcBaseline::capture(
         owned,
-        [crate::pic::CanisterSnapshotTarget::new(canister, None)],
+        [crate::pic::CanisterSnapshotTarget {
+            canister_id: canister,
+            sender: None,
+        }],
         (),
     )
     .unwrap();
@@ -404,17 +449,32 @@ fn install_errors_fixtures_and_baselines_retain_the_owned_server() {
         None,
         "baseline drop must reap its server"
     );
+}
 
-    let owned = PocketIcStartupConfig::spawn(binary, Duration::from_secs(30))
-        .build_instance(PocketIcBuilder::new().with_application_subnet())
-        .unwrap();
+#[cfg(unix)]
+#[test]
+#[ignore = "requires POCKET_IC_BIN=<caller-provided PocketIC server binary>"]
+fn failed_baseline_capture_reaps_the_owned_server() {
+    use crate::pic::CachedPocketIcBaseline;
+    use ic_platform::Principal;
+
+    let binary = PathBuf::from(std::env::var_os("POCKET_IC_BIN").unwrap());
+    let owned = PocketIcStartupConfig::Spawn {
+        server_binary: binary,
+        timeout: Duration::from_secs(30),
+        server_hard_ttl: None,
+        server_idle_ttl: None,
+        server_output_files: None,
+    }
+    .build_instance(PocketIcBuilder::new().with_application_subnet())
+    .unwrap();
     let pid = owned.server.as_ref().unwrap().process_id();
     let capture = CachedPocketIcBaseline::capture(
         owned,
-        [crate::pic::CanisterSnapshotTarget::new(
-            Principal::anonymous(),
-            None,
-        )],
+        [crate::pic::CanisterSnapshotTarget {
+            canister_id: Principal::anonymous(),
+            sender: None,
+        }],
         (),
     );
     assert!(

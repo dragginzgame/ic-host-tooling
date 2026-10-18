@@ -2,8 +2,8 @@
 //!
 //! `ic-testkit` keeps PocketIC itself visible: `pocket_ic` re-exports the
 //! complete upstream crate, while `pic` retains convenient runtime type
-//! re-exports and adds extension traits for typed Candid calls, generic
-//! installation, diagnostics, snapshots, startup errors, caller-owned
+//! re-exports and adds bounded Candid call functions, extension traits for
+//! installation, diagnostics and snapshots, startup errors, caller-owned
 //! managed-server startup and bounded readiness polling. It does not provide a
 //! simulator wrapper or a host-wide runtime lock.
 //!
@@ -25,13 +25,10 @@ pub use pocket_ic;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod pic;
 
-#[cfg(not(target_arch = "wasm32"))]
-pub mod testing;
-
 #[cfg(target_arch = "wasm32")]
 pub mod performance;
 
-use candid::Principal;
+use ic_platform::Principal;
 
 /// Deterministic principal generator for tests.
 ///

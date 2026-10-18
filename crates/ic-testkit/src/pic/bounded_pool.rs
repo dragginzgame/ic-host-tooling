@@ -5,13 +5,13 @@ use std::{
     time::{Duration, Instant},
 };
 
-pub(super) struct BoundedSlotPool<T> {
+pub(super) struct BoundedSlotPool<T, R> {
     capacity: NonZeroUsize,
-    state: OnceLock<PoolState<T>>,
+    state: OnceLock<PoolState<T, R>>,
 }
 
-struct PoolState<T> {
-    slots: Box<[Mutex<Slot<T>>]>,
+struct PoolState<T, R> {
+    slots: Box<[Mutex<Slot<T, R>>]>,
     coordinator: Mutex<Coordinator>,
     slot_available: Condvar,
 }
@@ -22,38 +22,38 @@ struct Coordinator {
     next_ticket: u64,
 }
 
-enum Slot<T> {
+enum Slot<T, R> {
     Empty,
     Reusable(T),
-    Invalidated(T),
+    Invalidated { value: T, reason: R },
     // A build can unwind before populating the slot. Retain that cause even
     // without a value so the next acquisition still reports an unwind rebuild.
     Unwound(Option<T>),
 }
 
-impl<T> Slot<T> {
+impl<T, R> Slot<T, R> {
     fn into_value(self) -> Option<T> {
         match self {
             Self::Empty => None,
-            Self::Reusable(value) | Self::Invalidated(value) => Some(value),
+            Self::Reusable(value) | Self::Invalidated { value, .. } => Some(value),
             Self::Unwound(value) => value,
         }
     }
 }
 
-pub(super) struct BoundedSlotLease<'a, T> {
-    pool: &'a PoolState<T>,
+pub(super) struct BoundedSlotLease<'a, T, R> {
+    pool: &'a PoolState<T, R>,
     slot_index: usize,
-    slot: Option<MutexGuard<'a, Slot<T>>>,
+    slot: Option<MutexGuard<'a, Slot<T, R>>>,
     wait: Duration,
 }
 
-struct WaitTicket<'a, T> {
-    pool: &'a PoolState<T>,
+struct WaitTicket<'a, T, R> {
+    pool: &'a PoolState<T, R>,
     ticket: Option<u64>,
 }
 
-impl<T> BoundedSlotPool<T> {
+impl<T, R> BoundedSlotPool<T, R> {
     pub(super) const fn new(capacity: NonZeroUsize) -> Self {
         Self {
             capacity,
@@ -61,7 +61,7 @@ impl<T> BoundedSlotPool<T> {
         }
     }
 
-    pub(super) fn acquire(&self) -> BoundedSlotLease<'_, T> {
+    pub(super) fn acquire(&self) -> BoundedSlotLease<'_, T, R> {
         // First-use slot allocation is setup, not capacity-queue wait.
         let pool = self.state();
         let started = Instant::now();
@@ -111,7 +111,7 @@ impl<T> BoundedSlotPool<T> {
         self.capacity
     }
 
-    fn state(&self) -> &PoolState<T> {
+    fn state(&self) -> &PoolState<T, R> {
         self.state.get_or_init(|| PoolState {
             slots: (0..self.capacity.get())
                 .map(|_| Mutex::new(Slot::Empty))
@@ -137,7 +137,7 @@ impl<T> BoundedSlotPool<T> {
     }
 }
 
-impl<T> BoundedSlotLease<'_, T> {
+impl<T, R> BoundedSlotLease<'_, T, R> {
     pub(super) const fn slot_index(&self) -> usize {
         self.slot_index
     }
@@ -161,16 +161,15 @@ impl<T> BoundedSlotLease<'_, T> {
     pub(super) fn get(&self) -> Option<&T> {
         match self.slot() {
             Slot::Empty => None,
-            Slot::Reusable(value) | Slot::Invalidated(value) => Some(value),
+            Slot::Reusable(value) | Slot::Invalidated { value, .. } => Some(value),
             Slot::Unwound(value) => value.as_ref(),
         }
     }
 
-    pub(super) fn get_mut(&mut self) -> Option<&mut T> {
-        match self.slot_mut() {
-            Slot::Empty => None,
-            Slot::Reusable(value) | Slot::Invalidated(value) => Some(value),
-            Slot::Unwound(value) => value.as_mut(),
+    pub(super) fn invalidation_reason(&self) -> Option<&R> {
+        match self.slot() {
+            Slot::Invalidated { reason, .. } => Some(reason),
+            Slot::Empty | Slot::Reusable(_) | Slot::Unwound(_) => None,
         }
     }
 
@@ -182,29 +181,31 @@ impl<T> BoundedSlotLease<'_, T> {
         std::mem::replace(self.slot_mut(), Slot::Empty).into_value()
     }
 
-    pub(super) fn invalidate(&mut self) {
+    pub(super) fn invalidate(&mut self, reason: R) {
         let slot = self.slot_mut();
         let state = std::mem::replace(slot, Slot::Empty);
         *slot = match state {
-            Slot::Reusable(value) => Slot::Invalidated(value),
+            Slot::Reusable(value) | Slot::Invalidated { value, .. } => {
+                Slot::Invalidated { value, reason }
+            }
             other => other,
         };
     }
 
-    fn slot(&self) -> &Slot<T> {
+    fn slot(&self) -> &Slot<T, R> {
         self.slot
             .as_deref()
             .expect("bounded slot lease must retain its slot")
     }
 
-    fn slot_mut(&mut self) -> &mut Slot<T> {
+    fn slot_mut(&mut self) -> &mut Slot<T, R> {
         self.slot
             .as_deref_mut()
             .expect("bounded slot lease must retain its slot")
     }
 }
 
-impl<T> Drop for BoundedSlotLease<'_, T> {
+impl<T, R> Drop for BoundedSlotLease<'_, T, R> {
     fn drop(&mut self) {
         if std::thread::panicking() {
             let value = self.take();
@@ -222,7 +223,7 @@ impl<T> Drop for BoundedSlotLease<'_, T> {
     }
 }
 
-impl<T> Drop for WaitTicket<'_, T> {
+impl<T, R> Drop for WaitTicket<'_, T, R> {
     fn drop(&mut self) {
         let Some(ticket) = self.ticket else {
             return;
@@ -259,7 +260,7 @@ mod tests {
     #[test]
     fn concurrent_first_acquisitions_share_one_lazy_capacity() {
         let capacity = NonZeroUsize::new(4).unwrap();
-        let pool = Arc::new(BoundedSlotPool::<usize>::new(capacity));
+        let pool = Arc::new(BoundedSlotPool::<usize, ()>::new(capacity));
         assert_eq!(pool.capacity(), capacity);
         assert!(pool.state.get().is_none());
 
@@ -291,7 +292,7 @@ mod tests {
 
     #[test]
     fn capacity_allows_independent_leases() {
-        let pool = BoundedSlotPool::<usize>::new(NonZeroUsize::new(2).unwrap());
+        let pool = BoundedSlotPool::<usize, ()>::new(NonZeroUsize::new(2).unwrap());
         let first = pool.acquire();
         let second = pool.acquire();
 
@@ -300,7 +301,9 @@ mod tests {
 
     #[test]
     fn exhausted_capacity_waits_until_release() {
-        let pool = Arc::new(BoundedSlotPool::<usize>::new(NonZeroUsize::new(1).unwrap()));
+        let pool = Arc::new(BoundedSlotPool::<usize, ()>::new(
+            NonZeroUsize::new(1).unwrap(),
+        ));
         let first = pool.acquire();
         let worker_pool = Arc::clone(&pool);
         let (acquired_tx, acquired_rx) = mpsc::channel();
@@ -326,7 +329,9 @@ mod tests {
 
     #[test]
     fn waiter_tickets_are_served_in_fifo_order() {
-        let pool = Arc::new(BoundedSlotPool::<usize>::new(NonZeroUsize::new(1).unwrap()));
+        let pool = Arc::new(BoundedSlotPool::<usize, ()>::new(
+            NonZeroUsize::new(1).unwrap(),
+        ));
         let held = pool.acquire();
         let (order_tx, order_rx) = mpsc::channel();
 
@@ -355,7 +360,9 @@ mod tests {
 
     #[test]
     fn cancelling_the_head_waiter_wakes_the_next_waiter() {
-        let pool = Arc::new(BoundedSlotPool::<usize>::new(NonZeroUsize::new(1).unwrap()));
+        let pool = Arc::new(BoundedSlotPool::<usize, ()>::new(
+            NonZeroUsize::new(1).unwrap(),
+        ));
         // Represent an interrupted acquisition at the head of the queue. A
         // slot is available, so cancellation must itself wake the next caller.
         let cancelled = {
@@ -382,14 +389,36 @@ mod tests {
     }
 
     #[test]
+    fn explicit_invalidation_retains_latest_reason_and_value_until_replacement() {
+        let pool = BoundedSlotPool::new(NonZeroUsize::new(1).unwrap());
+        let mut lease = pool.acquire();
+        lease.replace(42);
+        lease.invalidate("first");
+        lease.invalidate("latest");
+        drop(lease);
+
+        let mut lease = pool.acquire();
+        assert!(!lease.is_reusable());
+        assert!(!lease.invalidated_by_unwind());
+        assert_eq!(lease.get(), Some(&42));
+        assert_eq!(lease.invalidation_reason(), Some(&"latest"));
+        assert_eq!(lease.replace(7), Some(42));
+        assert!(lease.is_reusable());
+        assert_eq!(lease.invalidation_reason(), None);
+    }
+
+    #[test]
     fn unwind_invalidates_but_preserves_slot_value_for_safe_teardown() {
-        for value in [None, Some(42)] {
-            let pool = BoundedSlotPool::new(NonZeroUsize::new(1).unwrap());
+        for (value, invalidate) in [(None, false), (Some(42), false), (Some(42), true)] {
+            let pool = BoundedSlotPool::<_, ()>::new(NonZeroUsize::new(1).unwrap());
 
             let panic = catch_unwind(AssertUnwindSafe(|| {
                 let mut lease = pool.acquire();
                 if let Some(value) = value {
                     lease.replace(value);
+                    if invalidate {
+                        lease.invalidate(());
+                    }
                 }
                 panic!("synthetic leased-test panic");
             }));
@@ -399,6 +428,7 @@ mod tests {
             assert!(!lease.is_reusable());
             assert_eq!(lease.is_populated(), value.is_some());
             assert!(lease.invalidated_by_unwind());
+            assert_eq!(lease.invalidation_reason(), None);
             assert_eq!(lease.get(), value.as_ref());
             assert_eq!(lease.replace(7), value);
             drop(lease);
@@ -410,7 +440,7 @@ mod tests {
         }
     }
 
-    fn wait_for_waiters<T>(pool: &BoundedSlotPool<T>, expected: usize) {
+    fn wait_for_waiters<T, R>(pool: &BoundedSlotPool<T, R>, expected: usize) {
         let started = Instant::now();
         while pool.waiting_count() < expected {
             assert!(started.elapsed() < TIMEOUT, "waiter did not enter queue");

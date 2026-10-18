@@ -1,8 +1,9 @@
 mod support;
 
-use candid::Principal;
+use ic_platform::Principal;
 use ic_testkit::pic::{
-    CanisterSnapshotTarget, ControllerSnapshotError, PocketIcSnapshotExt, SnapshotRestoreFunding,
+    CanisterSnapshotTarget, ControllerSnapshotError, PocketIcCallFailure, PocketIcSnapshotExt,
+    SnapshotRestoreFunding,
 };
 use pocket_ic::CanisterSettings;
 
@@ -30,30 +31,39 @@ fn explicit_snapshot_senders_support_mixed_controller_sets_without_fallback() {
     }
 
     let error = pocket_ic
-        .capture_snapshots([CanisterSnapshotTarget::new(explicit_canister, None)])
+        .capture_snapshots([CanisterSnapshotTarget {
+            canister_id: explicit_canister,
+            sender: None,
+        }])
         .expect_err("incorrect explicit sender must fail without fallback");
     match error {
         ControllerSnapshotError::CaptureFailed {
             canister_id,
             sender,
-            response,
+            source,
             cleanup_failures,
         } => {
             assert_eq!(canister_id, explicit_canister);
             assert_eq!(sender, None);
+            let PocketIcCallFailure::Rejected(response) = *source else {
+                panic!("expected a complete rejection");
+            };
             assert_ne!(response.reject_message, "");
-            assert_eq!(
-                cleanup_failures,
-                [] as [ic_testkit::pic::SnapshotCleanupFailure; 0],
-            );
+            assert_eq!(cleanup_failures.len(), 0);
         }
         other => panic!("unexpected snapshot error: {other}"),
     }
 
     let snapshots = pocket_ic
         .capture_snapshots([
-            CanisterSnapshotTarget::new(explicit_canister, Some(explicit_controller)),
-            CanisterSnapshotTarget::new(anonymous_canister, None),
+            CanisterSnapshotTarget {
+                canister_id: explicit_canister,
+                sender: Some(explicit_controller),
+            },
+            CanisterSnapshotTarget {
+                canister_id: anonymous_canister,
+                sender: None,
+            },
         ])
         .expect("capture mixed-controller snapshots with exact senders");
 
@@ -79,10 +89,13 @@ fn explicit_snapshot_senders_support_mixed_controller_sets_without_fallback() {
         ControllerSnapshotError::RestoreFailed {
             canister_id,
             sender,
-            response,
+            source,
         } => {
             assert_eq!(canister_id, explicit_canister);
             assert_eq!(sender, Some(explicit_controller));
+            let PocketIcCallFailure::Rejected(response) = *source else {
+                panic!("expected a complete rejection");
+            };
             assert_ne!(response.reject_message, "");
         }
         other => panic!("unexpected restore failure: {other}"),
@@ -100,16 +113,22 @@ fn duplicate_snapshot_inputs_are_rejected_before_any_capture() {
 
     let error = pocket_ic
         .capture_snapshots([
-            CanisterSnapshotTarget::new(canister_id, None),
-            CanisterSnapshotTarget::new(duplicate, None),
-            CanisterSnapshotTarget::new(duplicate, Some(Principal::anonymous())),
+            CanisterSnapshotTarget {
+                canister_id,
+                sender: None,
+            },
+            CanisterSnapshotTarget {
+                canister_id: duplicate,
+                sender: None,
+            },
+            CanisterSnapshotTarget {
+                canister_id: duplicate,
+                sender: Some(Principal::anonymous()),
+            },
         ])
         .unwrap_err();
-    assert_eq!(
-        error,
-        ControllerSnapshotError::DuplicateCanisterId {
-            canister_id: duplicate
-        }
+    assert!(
+        matches!(error, ControllerSnapshotError::DuplicateCanisterId { canister_id } if canister_id == duplicate)
     );
     assert!(
         pocket_ic
@@ -132,7 +151,10 @@ fn snapshot_capture_reports_first_failure_in_canister_order() {
     missing.sort();
     let reversed = [missing[1], missing[0]];
     let error = pocket_ic
-        .capture_snapshots(reversed.map(|id| CanisterSnapshotTarget::new(id, None)))
+        .capture_snapshots(reversed.map(|id| CanisterSnapshotTarget {
+            canister_id: id,
+            sender: None,
+        }))
         .unwrap_err();
     match error {
         ControllerSnapshotError::CaptureFailed { canister_id, .. } => {
@@ -163,7 +185,10 @@ fn failed_snapshot_set_capture_cleans_up_earlier_snapshots() {
 
     let error = pocket_ic
         .capture_snapshots(
-            [captured_first, missing_canister].map(|id| CanisterSnapshotTarget::new(id, None)),
+            [captured_first, missing_canister].map(|id| CanisterSnapshotTarget {
+                canister_id: id,
+                sender: None,
+            }),
         )
         .expect_err("missing canister should fail the snapshot set");
 
@@ -171,16 +196,16 @@ fn failed_snapshot_set_capture_cleans_up_earlier_snapshots() {
         ControllerSnapshotError::CaptureFailed {
             canister_id,
             sender,
-            response,
+            source,
             cleanup_failures,
         } => {
             assert_eq!(canister_id, missing_canister);
             assert_eq!(sender, None);
+            let PocketIcCallFailure::Rejected(response) = *source else {
+                panic!("expected a complete rejection");
+            };
             assert_ne!(response.reject_message, "");
-            assert_eq!(
-                cleanup_failures,
-                [] as [ic_testkit::pic::SnapshotCleanupFailure; 0]
-            );
+            assert_eq!(cleanup_failures.len(), 0);
         }
         other => panic!("unexpected snapshot error: {other}"),
     }
@@ -202,7 +227,10 @@ fn snapshot_restore_only_adds_cycles_when_explicitly_requested() {
         .expect("stop canister before snapshot capture");
 
     let snapshots = pocket_ic
-        .capture_snapshots([CanisterSnapshotTarget::new(canister_id, None)])
+        .capture_snapshots([CanisterSnapshotTarget {
+            canister_id,
+            sender: None,
+        }])
         .expect("capture snapshot set");
     let balance_before_restore = pocket_ic.cycle_balance(canister_id);
 
@@ -225,5 +253,17 @@ fn snapshot_restore_only_adds_cycles_when_explicitly_requested() {
     assert!(
         pocket_ic.cycle_balance(canister_id) > balance_after_preserved_restore,
         "explicit top-up should increase the post-restore balance"
+    );
+
+    let balance_before_satisfied_restore = pocket_ic.cycle_balance(canister_id);
+    pocket_ic
+        .restore_snapshots(
+            &snapshots,
+            SnapshotRestoreFunding::TopUpTo { minimum_cycles: 0 },
+        )
+        .expect("restore with an already satisfied funding minimum");
+    assert!(
+        pocket_ic.cycle_balance(canister_id) <= balance_before_satisfied_restore,
+        "an already satisfied funding minimum must not add cycles"
     );
 }

@@ -7,9 +7,7 @@ use std::{
     time::Duration,
 };
 
-use ic_testkit::pic::PocketIcStartupConfig;
-
-mod provisioning;
+use ic_testkit::pic::{PocketIcStartupConfig, server_assets};
 
 static INTERRUPTED: AtomicI32 = AtomicI32::new(0);
 const USAGE: &str = "usage: ic-testkit-server setup|check [--directory DIRECTORY]\n       ic-testkit-server run [--directory DIRECTORY] [--ttl SECONDS] [--idle-ttl SECONDS] [--startup-timeout SECONDS] [--server-stdout NEW-FILE --server-stderr NEW-FILE] -- COMMAND [ARG...]";
@@ -80,7 +78,7 @@ fn parse(mut arguments: impl Iterator<Item = OsString>) -> Result<Arguments, Str
     let action = arguments.next().ok_or(USAGE)?;
     if action == "setup" || action == "check" {
         let directory = match arguments.next() {
-            None => PathBuf::from(provisioning::DEFAULT_DIRECTORY),
+            None => PathBuf::from(server_assets::DEFAULT_DIRECTORY),
             Some(flag) if flag == "--directory" => path_argument(&mut arguments)?,
             _ => return Err(USAGE.to_owned()),
         };
@@ -182,11 +180,15 @@ pub fn main() -> ExitCode {
     let arguments = match arguments {
         Arguments::Setup(directory) => {
             return match Signals::install() {
-                Ok(_signals) => report_provisioning(provisioning::setup(&directory)),
+                Ok(_signals) => report_provisioning(server_assets::setup(&directory, || {
+                    INTERRUPTED.load(Ordering::Relaxed) != 0
+                })),
                 Err(error) => report_provisioning(Err(error.into())),
             };
         }
-        Arguments::Check(directory) => return report_provisioning(provisioning::check(&directory)),
+        Arguments::Check(directory) => {
+            return report_provisioning(server_assets::check(&directory));
+        }
         Arguments::Run(arguments) => arguments,
     };
     let RunArguments {
@@ -207,25 +209,36 @@ pub fn main() -> ExitCode {
                     "--directory conflicts with an explicit server URL or POCKET_IC_BIN".into(),
                 );
             }
-            let binary = provisioning::check(
-                &directory.unwrap_or_else(|| PathBuf::from(provisioning::DEFAULT_DIRECTORY)),
+            let binary = server_assets::check(
+                &directory.unwrap_or_else(|| PathBuf::from(server_assets::DEFAULT_DIRECTORY)),
             )?;
             command.env("POCKET_IC_BIN", &binary);
-            PocketIcStartupConfig::spawn(binary, timeout)
+            PocketIcStartupConfig::Spawn {
+                server_binary: binary,
+                timeout,
+                server_hard_ttl: None,
+                server_idle_ttl: None,
+                server_output_files: None,
+            }
         } else {
             PocketIcStartupConfig::from_env(timeout)?
         };
-        if let Some(ttl) = ttl {
-            if config.server_url().is_some() {
-                return Err("--ttl requires an owned server".into());
+        match &mut config {
+            PocketIcStartupConfig::Spawn {
+                server_hard_ttl,
+                server_idle_ttl,
+                server_output_files,
+                ..
+            } => {
+                *server_hard_ttl = ttl;
+                *server_idle_ttl = idle_ttl;
+                *server_output_files = output_files;
             }
-            config = config.with_server_hard_ttl(ttl);
-        }
-        if let Some(idle_ttl) = idle_ttl {
-            config = config.with_server_idle_ttl(idle_ttl);
-        }
-        if let Some((stdout, stderr)) = output_files {
-            config = config.with_server_output_files(stdout, stderr);
+            PocketIcStartupConfig::Connect { .. } => {
+                if ttl.is_some() || idle_ttl.is_some() || output_files.is_some() {
+                    return Err("--ttl, --idle-ttl and output files require an owned server".into());
+                }
+            }
         }
         Ok::<_, Box<dyn std::error::Error>>(
             config.run_command(&mut command, || INTERRUPTED.load(Ordering::Relaxed) != 0)?,
@@ -303,13 +316,23 @@ fn failure_exit_code(failure: &ic_testkit::pic::PocketIcStartupFailure) -> ExitC
 
 #[cfg(test)]
 mod tests {
-    use super::{ExitCode, failure_exit_code};
+    use super::{ExitCode, command_exit_code, failure_exit_code};
     use ic_testkit::pic::PocketIcStartupFailure;
     use std::os::unix::process::ExitStatusExt as _;
 
     #[test]
     fn secondary_server_cleanup_preserves_failed_command_status() {
-        for (raw_status, expected) in [(0, 1), (23 << 8, 23), (15, 143)] {
+        for (raw_status, expected) in [
+            (0, 1),
+            (23 << 8, 23),
+            (255 << 8, 255),
+            (15, 143),
+            ((19 << 8) | 0x7f, 129),
+        ] {
+            assert_eq!(
+                command_exit_code(std::process::ExitStatus::from_raw(raw_status)),
+                ExitCode::from(if raw_status == 0 { 0 } else { expected })
+            );
             let failure = PocketIcStartupFailure::ServerCleanup {
                 command_status: std::process::ExitStatus::from_raw(raw_status),
             };

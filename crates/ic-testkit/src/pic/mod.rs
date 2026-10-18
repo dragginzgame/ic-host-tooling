@@ -5,14 +5,15 @@
 //! extension traits and policy types.
 //!
 //! Construct and own [`PocketIc`] instances normally, then import individual
-//! extension traits or [`prelude`] for Candid calls, installation, diagnostics,
-//! snapshots, fallible startup, bounded predicate polling. Native
-//! simulator operations remain upstream inherent methods.
+//! extension traits or [`prelude`] for installation, diagnostics and snapshots.
+//! Import the call functions, startup configuration and polling helpers explicitly.
+//! Native simulator operations remain upstream inherent methods.
 //!
 //! [`PocketIcManagedServer`] can explicitly own one exact caller-selected
 //! server child for a serial suite. No type serializes independent instances or
-//! downloads a server implicitly. Explicit provisioning is owned by the
-//! published `ic-testkit-server setup` / `check` commands.
+//! downloads a server implicitly. On Unix, `server_assets` owns explicit
+//! authenticated provisioning and admission; the published
+//! `ic-testkit-server setup` / `check` commands delegate to that implementation.
 
 pub use pocket_ic::{
     CanisterStatusResult, ErrorCode, LATEST_SERVER_VERSION, PocketIc, PocketIcBuilder, RejectCode,
@@ -21,6 +22,8 @@ pub use pocket_ic::{
 
 mod server;
 pub use server::{POCKET_IC_SERVER_VERSION, supports_pocket_ic_server};
+#[cfg(unix)]
+pub mod server_assets;
 
 mod baseline;
 mod baseline_pool;
@@ -38,25 +41,21 @@ mod transport;
 
 pub use baseline::CachedPocketIcBaseline;
 pub use baseline_pool::{
-    BaselinePoolContractError, BaselinePoolError, BaselinePoolOutcome,
+    BaselinePoolContractError, BaselinePoolDisposition, BaselinePoolError, BaselinePoolOutcome,
     BaselinePoolPreparationError, BaselinePoolTimings, BaselinePreparationStage,
-    CachedPocketIcBaselinePool, CachedPocketIcBaselinePoolGuard, CanisterRestoreReceipt,
-    CycleResetPolicy, ExtraCanisterPolicy, FailureDisposition, FixtureRecipeId,
-    PocketIcBaselineRecipe, PreparedBaseline, ReadinessReceipt, RebuildReason, ResetDomainKind,
-    ResetDomainPolicy, ResetReceipt, ResetRequirements, StateResetPolicy, TimeResetPolicy,
-    ValidationReceipt,
+    CachedPocketIcBaselinePool, CachedPocketIcBaselinePoolGuard, ExtraCanisterPolicy,
+    FailureDisposition, PocketIcBaselineRecipe, PreparedBaseline, RebuildReason, ResetDomainKind,
+    ResetPolicies, ResetReceipt, ResetRequirements, StateResetPolicy, TimeResetPolicy,
 };
-pub use calls::{CandidCallExt, query_candid_args, update_candid_args};
+pub use calls::{query_candid_args, update_candid_args};
 pub use diagnostics::{
-    CanisterDiagnosticFailure, CanisterDiagnosticLogRecord, CanisterDiagnosticLogs,
-    CanisterDiagnosticsBatchContractError, CanisterDiagnosticsBatchEntry,
-    CanisterDiagnosticsBatchReport, CanisterDiagnosticsReport, CanisterDiagnosticsRequest,
-    CanisterLogRenderLimits, DEFAULT_CANISTER_LOG_BYTE_LIMIT, DEFAULT_CANISTER_LOG_RECORD_LIMIT,
-    LabeledCanisterDiagnosticsRequest, PocketIcDiagnosticsExt,
+    CanisterDiagnosticLogRecord, CanisterDiagnosticLogs, CanisterDiagnosticsBatchContractError,
+    CanisterDiagnosticsBatchEntry, CanisterDiagnosticsBatchReport, CanisterDiagnosticsReport,
+    CanisterDiagnosticsRequest, CanisterLogRenderLimits, DEFAULT_CANISTER_LOG_BYTE_LIMIT,
+    DEFAULT_CANISTER_LOG_RECORD_LIMIT, LabeledCanisterDiagnosticsRequest, PocketIcDiagnosticsExt,
 };
 pub use errors::{
-    CandidCallContext, CandidCallError, CandidCallErrorKind, CanisterInstallError,
-    CanisterInstallPhase, StandaloneCanisterInstallError,
+    CandidCallContext, CandidCallError, CanisterInstallError, StandaloneCanisterInstallError,
 };
 pub use lifecycle::{CanisterInstallExt, InstallSpec, RetryPolicy};
 pub use snapshot::{
@@ -69,15 +68,15 @@ pub use startup::{
     PocketIcInstance, PocketIcManagedServer, PocketIcManagedServerOutput, PocketIcStartupConfig,
     PocketIcStartupError, PocketIcStartupFailure,
 };
-pub use time::{TickUntilError, tick_until};
-pub use transport::{PocketIcOperationError, is_dead_pocket_ic_transport_error};
+pub use time::{TickUntilError, advance_and_tick, tick_until};
+pub use transport::{
+    PocketIcCallFailure, PocketIcOperationError, is_dead_pocket_ic_transport_error,
+};
 
 /// All PocketIC extension traits, and no data types.
 ///
 /// Importing this module keeps policy/data types explicit while avoiding
 /// repeated trait lists across a large integration-test crate.
 pub mod prelude {
-    pub use super::{
-        CandidCallExt, CanisterInstallExt, PocketIcDiagnosticsExt, PocketIcSnapshotExt,
-    };
+    pub use super::{CanisterInstallExt, PocketIcDiagnosticsExt, PocketIcSnapshotExt};
 }

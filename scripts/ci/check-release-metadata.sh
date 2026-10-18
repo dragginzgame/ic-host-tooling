@@ -5,23 +5,11 @@ repo_root="${BASH_SOURCE[0]}"
 [[ "$repo_root" == /* ]] || repo_root="$PWD/$repo_root"
 repo_root="$(cd -P "${repo_root%/*}/../.." && printf '%s/.' "$PWD")"
 repo_root="${repo_root%/.}"
-work_dir="$(mktemp -d "${TMPDIR:-/tmp}/ic-testkit-release-metadata.XXXXXX")"
+# shellcheck source=scripts/ci/fixture-lifecycle.sh
+source "$repo_root/scripts/ci/fixture-lifecycle.sh"
+work_dir="$(fixture_create "${TMPDIR:-/tmp}/ic-testkit-release-metadata.XXXXXX")"
 fixture_complete=false
-cleanup() {
-  local status=$?
-  [[ "$fixture_complete" == true || "$status" != 0 ]] || status=1
-  if [[ "$status" -eq 0 ]]; then
-    rm -rf "$work_dir"
-  else
-    echo "Failed metadata qualification retained at $work_dir" >&2
-  fi
-  exit "$status"
-}
-trap cleanup EXIT
-# Child helpers change directory; keep scratch paths and TMPDIR physical.
-[[ "$work_dir" == /* ]] || work_dir="$PWD/$work_dir"
-work_dir="$(cd -P "$work_dir" && printf '%s/.' "$PWD")"
-work_dir="${work_dir%/.}"
+trap 'fixture_finish "$?" "$work_dir" "Failed metadata qualification retained"' EXIT
 export TMPDIR="${work_dir%/*}"
 
 fail() { echo "metadata qualification failed: $*" >&2; exit 1; }
@@ -162,7 +150,7 @@ new_fixture() {
   # inputs. Only the complete validation gate and Git effects are substituted.
   mkdir -p scripts/release scripts/ci ci
   cp "$repo_root/scripts/release/metadata.sh" scripts/release/
-  for helper in check-release-source.sh read-cargo-workspace-version.sh next-release-version.sh validate-release-inputs.pl check-format-tools.sh check-installation-version.sh finalize-release-changelog.awk render-cargo-workspace-version.pl rewrite-local-lock-versions.pl; do
+  for helper in StableVersion.pm cargo-release-metadata.sh cargo-workspace-members.jq compare-stable-versions.pl check-release-source.sh read-cargo-workspace-version.sh next-release-version.sh validate-release-inputs.pl check-format-tools.sh check-installation-version.sh finalize-release-changelog.awk render-cargo-workspace-version.pl rewrite-local-lock-versions.pl; do
     cp "$repo_root/scripts/ci/$helper" scripts/ci/
   done
   cp "$repo_root/ci/tool-versions.env" ci/
@@ -170,7 +158,7 @@ new_fixture() {
     mkdir -p "$(dirname "$file")"
     cp "$repo_root/$file" "$file"
   done
-  for member in crates/ic-testkit crates/ic-testkit-candid crates/ic-testkit-native crates/ic_testkit_perf_probe; do
+  for member in crates/ic-testkit crates/ic-testkit-dev crates/ic-testkit-native crates/ic_testkit_perf_probe; do
     mkdir -p "$member/src"
     cp "$repo_root/$member/Cargo.toml" "$member/Cargo.toml"
     : > "$member/src/lib.rs"
@@ -440,7 +428,7 @@ printf '/.release-state/\n' > .git/info/exclude
 "$REAL_GIT" add -- .gitignore Cargo.toml Cargo.lock CHANGELOG.md \
   crates/ic-testkit/CHANGELOG.md README.md crates/ic-testkit/README.md \
   rust-toolchain.toml crates/ic-testkit/Cargo.toml crates/ic-testkit/src/lib.rs \
-  crates/ic-testkit-candid/Cargo.toml crates/ic-testkit-candid/src/lib.rs \
+  crates/ic-testkit-dev/Cargo.toml crates/ic-testkit-dev/src/lib.rs \
   crates/ic-testkit-native/Cargo.toml crates/ic-testkit-native/src/lib.rs \
   crates/ic_testkit_perf_probe/Cargo.toml crates/ic_testkit_perf_probe/src/lib.rs \
   artifact gate-trace gate-environment tool-trace preparation-trace rejected.log scripts ci

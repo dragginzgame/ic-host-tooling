@@ -150,7 +150,8 @@ fn external_server_precedence_borrows_ownership_and_rejects_owned_ttl() {
         .output()
         .unwrap();
     assert!(!output.status.success());
-    assert!(String::from_utf8_lossy(&output.stderr).contains("--ttl requires an owned server"));
+    assert_eq!(output.status.code(), Some(1));
+    assert!(!fixture.0.path().join("server.pid").exists());
     let output = fixture
         .runner()
         .env("IC_TESTKIT_POCKET_IC_URL", "http://127.0.0.1:45678/")
@@ -282,7 +283,7 @@ fn server_exit_returns_diagnostics_and_stops_the_pending_command_group() {
         "#!/bin/sh\nprintf '%s' \"$$\" > \"$0.pid\"\nprintf '34567\\n' > \"$2\"\nwhile [ ! -s \"$0.descendant.pid\" ]; do sleep 0.02; done\nprintf 'server stopped\\n'\nprintf 'failure detail\\n' >&2\nexit 42\n",
     ).expect("write executable test script");
     let started = Instant::now();
-    let error = PocketIcStartupConfig::spawn(&binary, Duration::from_secs(2))
+    let error = PocketIcStartupConfig::Spawn { server_binary: (&binary).into(), timeout: Duration::from_secs(2), server_hard_ttl: None, server_idle_ttl: None, server_output_files: None }
         .run_command(
             Command::new("/bin/sh")
                 .env("SERVER_SCRIPT", &binary)
@@ -569,6 +570,10 @@ fn failed_download_retains_partial_archive_and_original_process_failure() {
                     assert!(attempt.join("download.stderr").is_dir());
                     let record_error = ic_host_fs::durable::write_bytes(
                         &attempt.join("download.stderr"),
+                        ic_host_fs::durable::WriteOptions {
+                            mode: ic_host_fs::durable::PublicationMode::Replace,
+                            permissions: 0o666,
+                        },
                         b"download diagnostic",
                     )
                     .unwrap_err();
@@ -615,9 +620,15 @@ fn successful_download_stops_when_stderr_cannot_be_recorded() {
     assert_eq!(attempts.len(), 1);
     let attempt = &attempts[0];
     assert_eq!(fs::read(attempt.join("archive.gz")).unwrap(), b"partial");
-    let expected =
-        ic_host_fs::durable::write_bytes(&attempt.join("download.stderr"), b"download diagnostic")
-            .unwrap_err();
+    let expected = ic_host_fs::durable::write_bytes(
+        &attempt.join("download.stderr"),
+        ic_host_fs::durable::WriteOptions {
+            mode: ic_host_fs::durable::PublicationMode::Replace,
+            permissions: 0o666,
+        },
+        b"download diagnostic",
+    )
+    .unwrap_err();
     assert_eq!(
         fs::read_to_string(attempt.join("failure.txt")).unwrap(),
         expected.to_string()

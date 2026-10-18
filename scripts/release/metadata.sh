@@ -79,20 +79,18 @@ check_recovery() {
 }
 check_prepared() {
   check_saved_metadata
-  local file digest expected_digest observed_version
+  local file digest expected_digest
   for file in "${files[@]}"; do
     digest="$(hash_file "$file")"
     expected_digest="$(hash_file "$prepared/new/$file")"
     [[ "$digest" == "$expected_digest" ]] \
       || fail "release payload changed: $file"
   done
-  observed_version="$(bash "$script_dir/../ci/read-cargo-workspace-version.sh" --stable Cargo.toml)" \
-    || fail "cannot read prepared version"
-  [[ "$observed_version" == "$RELEASE_VERSION" ]] \
-    || fail "prepared version mismatch"
   bash "$script_dir/../ci/check-format-tools.sh" "$SHARED_TOOLING_CARGO_SORT_VERSION"
-  cargo sort --workspace --check
-  cargo metadata --locked --offline --format-version 1 --no-deps >/dev/null
+  # Prepared checks inspect this working payload; committed checks below bind
+  # the selected release tree separately through its exact admitted file set.
+  RELEASE_COMMIT='' bash "$script_dir/../ci/cargo-release-metadata.sh" \
+    check ic-testkit --manifest-order-grouped
   bash "$script_dir/../ci/check-installation-version.sh"
 }
 check_committed() {
@@ -141,7 +139,7 @@ case "$mode" in
     cache_manifest=Cargo.toml
     if [[ -e "$prepared/ready" ]]; then
       check_recovery
-      for member in crates/ic-testkit crates/ic-testkit-candid crates/ic-testkit-native crates/ic_testkit_perf_probe; do
+      for member in crates/ic-testkit crates/ic-testkit-dev crates/ic-testkit-native crates/ic_testkit_perf_probe; do
         cmp "$member/Cargo.toml" "$prepared/new/$member/Cargo.toml" \
           || fail "saved member manifest changed: $member"
       done
@@ -194,34 +192,34 @@ case "$mode" in
       done
       # Retain a consistent saved manifest workspace for interrupted-release
       # cache preparation, independent of partially installed live metadata.
-      for member in crates/ic-testkit crates/ic-testkit-candid crates/ic-testkit-native crates/ic_testkit_perf_probe; do
-        mkdir -p "$prepared/new/$member/src"
-        cp "$member/Cargo.toml" "$prepared/new/$member/Cargo.toml"
-        : > "$prepared/new/$member/src/lib.rs"
+      for member in crates/ic-testkit crates/ic-testkit-dev crates/ic-testkit-native crates/ic_testkit_perf_probe; do
+        for selection in old new; do
+          mkdir -p "$prepared/$selection/$member/src"
+          cp "$member/Cargo.toml" "$prepared/$selection/$member/Cargo.toml"
+          : > "$prepared/$selection/$member/src/lib.rs"
+        done
       done
       cp rust-toolchain.toml "$prepared/new/rust-toolchain.toml"
-      perl "$script_dir/../ci/render-cargo-workspace-version.pl" \
-        "$prepared/old/Cargo.toml" "$RELEASE_PREVIOUS" "$RELEASE_VERSION" \
-        > "$prepared/new/Cargo.toml"
+      # Shared Cargo admission/rendering runs only in the retained private
+      # workspace. Live files remain unchanged until every extra view is ready.
+      (
+        cd "$prepared/new" || fail "cannot enter saved Cargo workspace"
+        bash "$script_dir/../ci/cargo-release-metadata.sh" prepare ic-testkit \
+          || fail "cannot prepare saved Cargo metadata"
+      ) || fail "saved Cargo preparation failed"
       bash "$script_dir/../ci/check-format-tools.sh" "$SHARED_TOOLING_CARGO_SORT_VERSION"
-      cargo sort --workspace "$prepared/new"
+      cargo sort --workspace --grouped "$prepared/new"
       # Member manifests are already sorted inputs, outside the release file
       # set. Formatting must not introduce an unstaged change to those inputs.
-      for member in crates/ic-testkit crates/ic-testkit-candid crates/ic-testkit-native crates/ic_testkit_perf_probe; do
+      for member in crates/ic-testkit crates/ic-testkit-dev crates/ic-testkit-native crates/ic_testkit_perf_probe; do
         cmp "$member/Cargo.toml" "$prepared/new/$member/Cargo.toml" \
           || fail "member manifest requires formatting before release: $member"
       done
-      # Project only admitted workspace versions; external records and edges
-      # remain byte-identical, without resolving the graph again.
-      perl "$script_dir/../ci/rewrite-local-lock-versions.pl" \
-        "$prepared/old/Cargo.lock" "$RELEASE_PREVIOUS" "$RELEASE_VERSION" \
-        ic-testkit ic-testkit-candid ic-testkit-native ic_testkit_perf_probe > "$prepared/new/Cargo.lock"
-      for file in CHANGELOG.md crates/ic-testkit/CHANGELOG.md; do
-        awk -v version="$RELEASE_VERSION" -v previous="$RELEASE_PREVIOUS" \
-          -v date="$RELEASE_DATE" \
-          -f "$script_dir/../ci/finalize-release-changelog.awk" "$prepared/old/$file" \
-          > "$prepared/new/$file"
-      done
+      awk -v version="$RELEASE_VERSION" -v previous="$RELEASE_PREVIOUS" \
+        -v date="$RELEASE_DATE" \
+        -f "$script_dir/../ci/finalize-release-changelog.awk" \
+        "$prepared/old/crates/ic-testkit/CHANGELOG.md" \
+        > "$prepared/new/crates/ic-testkit/CHANGELOG.md"
       (
         # Bash 3.2 does not stop the parent on a failed subshell. Check every
         # command explicitly before publishing the readiness record or files.

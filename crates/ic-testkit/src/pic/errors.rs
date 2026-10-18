@@ -1,36 +1,44 @@
-use candid::Principal;
+use ic_platform::Principal;
 use pocket_ic::{PocketIc, RejectResponse};
 
 use super::{PocketIcInstance, PocketIcOperationError};
 
-/// Structured failure from a [`super::CandidCallExt`] operation.
+/// Structured failure from a bounded [`super::query_candid_args`] or update operation.
+///
+/// Match the variant to inspect its required context and original failure details.
 #[non_exhaustive]
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct CandidCallError {
-    /// Human-readable error with available call context.
-    pub message: String,
-    /// Stable high-level failure classification.
-    pub kind: CandidCallErrorKind,
-    /// Target, caller, method, and raw PocketIC operation when available.
-    pub context: Option<Box<CandidCallContext>>,
-    /// Complete upstream rejection for [`CandidCallErrorKind::CanisterReject`].
-    pub reject_response: Option<Box<RejectResponse>>,
-}
-
-/// High-level Candid call failure classification.
-#[non_exhaustive]
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum CandidCallErrorKind {
+#[derive(Debug)]
+pub enum CandidCallError {
     /// Arguments could not be Candid-encoded.
-    Encode,
+    Encode {
+        /// Target, caller, method and raw PocketIC operation.
+        context: Box<CandidCallContext>,
+        /// Original codec failure text.
+        message: String,
+    },
     /// Successful response bytes could not be Candid-decoded.
-    Decode,
+    Decode {
+        /// Target, caller, method and raw PocketIC operation.
+        context: Box<CandidCallContext>,
+        /// Number of reply bytes presented to the decoder.
+        bytes: usize,
+        /// Original bounded decoder failure.
+        source: Box<ic_platform::candid::DecodeError>,
+    },
     /// PocketIC returned a structured canister rejection.
-    CanisterReject,
+    CanisterReject {
+        /// Target, caller, method and raw PocketIC operation.
+        context: Box<CandidCallContext>,
+        /// Complete upstream rejection.
+        response: Box<RejectResponse>,
+    },
     /// The PocketIC instance became unreachable.
-    Transport,
-    /// A harness failure without a narrower stable classification.
-    Other,
+    Transport {
+        /// Target, caller, method and raw PocketIC operation.
+        context: Box<CandidCallContext>,
+        /// Original upstream operation failure and transport classification.
+        source: PocketIcOperationError,
+    },
 }
 
 /// Stable call metadata attached to a contextual call failure.
@@ -47,36 +55,35 @@ pub struct CandidCallContext {
     pub method: String,
 }
 
-/// Stage at which a canister creation and installation failed.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum CanisterInstallPhase {
-    /// PocketIC could not create the canister.
-    CreateCanister,
-    /// PocketIC could not add the requested cycles.
-    AddCycles,
-    /// PocketIC could not install the Wasm module.
-    InstallCode,
-}
-
-impl CanisterInstallPhase {
-    /// Upstream operation attempted at this stage.
-    #[must_use]
-    pub const fn operation(self) -> &'static str {
-        match self {
-            Self::CreateCanister => "create_canister",
-            Self::AddCycles => "add_cycles",
-            Self::InstallCode => "install_canister",
-        }
-    }
-}
-
 /// Failed creation, funding, or installation with its original operation error.
+#[non_exhaustive]
 #[derive(Debug, Eq, PartialEq)]
-pub struct CanisterInstallError {
-    phase: CanisterInstallPhase,
-    canister_id: Option<Principal>,
-    label: Option<String>,
-    source: PocketIcOperationError,
+pub enum CanisterInstallError {
+    /// Canister creation failed before an id was returned.
+    CreateCanister {
+        /// Optional caller-provided install label.
+        label: Option<String>,
+        /// Original upstream operation failure.
+        source: PocketIcOperationError,
+    },
+    /// Cycle funding failed for the created canister.
+    AddCycles {
+        /// Created canister, retained for caller inspection.
+        canister_id: Principal,
+        /// Optional caller-provided install label.
+        label: Option<String>,
+        /// Original upstream operation failure.
+        source: PocketIcOperationError,
+    },
+    /// Wasm installation failed for the created canister.
+    InstallCode {
+        /// Created canister, retained for caller inspection.
+        canister_id: Principal,
+        /// Optional caller-provided install label.
+        label: Option<String>,
+        /// Original upstream operation failure.
+        source: PocketIcOperationError,
+    },
 }
 
 /// Failed standalone install retaining the caller-created instance and optional server.
@@ -103,159 +110,84 @@ impl CandidCallContext {
     }
 }
 
-impl CandidCallError {
-    /// Capture one PocketIC call/codec failure.
-    #[must_use]
-    pub fn new(message: impl Into<String>) -> Self {
-        Self {
-            message: message.into(),
-            kind: CandidCallErrorKind::Other,
-            context: None,
-            reject_response: None,
-        }
-    }
-
-    /// Capture one contextual Candid encode failure.
-    #[must_use]
-    pub fn encode(context: CandidCallContext, source: impl std::fmt::Display) -> Self {
-        let message = format!(
-            "candid encode_args failed (operation={}, canister={}, caller={}, method={}): {source}",
-            context.operation, context.canister_id, context.caller, context.method
-        );
-
-        Self {
-            message,
-            kind: CandidCallErrorKind::Encode,
-            context: Some(Box::new(context)),
-            reject_response: None,
-        }
-    }
-
-    /// Capture one contextual Candid decode failure.
-    #[must_use]
-    pub fn decode(
-        context: CandidCallContext,
-        bytes: usize,
-        source: impl std::fmt::Display,
-    ) -> Self {
-        let message = format!(
-            "candid decode failed (operation={}, canister={}, caller={}, method={}, bytes={}): {source}",
-            context.operation, context.canister_id, context.caller, context.method, bytes
-        );
-
-        Self {
-            message,
-            kind: CandidCallErrorKind::Decode,
-            context: Some(Box::new(context)),
-            reject_response: None,
-        }
-    }
-
-    /// Capture one structured rejection returned by PocketIC.
-    #[must_use]
-    pub fn canister_reject(context: CandidCallContext, response: RejectResponse) -> Self {
-        let message = format!(
-            "pocket_ic {} was rejected (canister={}, caller={}, method={}): {response}",
-            context.operation, context.canister_id, context.caller, context.method
-        );
-
-        Self {
-            message,
-            kind: CandidCallErrorKind::CanisterReject,
-            context: Some(Box::new(context)),
-            reject_response: Some(Box::new(response)),
-        }
-    }
-
-    /// Capture one contextual PocketIC transport failure.
-    #[must_use]
-    pub fn transport(context: CandidCallContext, source: impl std::fmt::Display) -> Self {
-        let message = format!(
-            "pocket_ic {} failed (canister={}, caller={}, method={}): {source}",
-            context.operation, context.canister_id, context.caller, context.method
-        );
-
-        Self {
-            message,
-            kind: CandidCallErrorKind::Transport,
-            context: Some(Box::new(context)),
-            reject_response: None,
-        }
-    }
-}
-
 impl std::fmt::Display for CandidCallError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&self.message)
+        let context = match self {
+            Self::Encode { context, message } => {
+                write!(f, "candid encode_args failed: {message}")?;
+                context
+            }
+            Self::Decode {
+                context,
+                bytes,
+                source,
+            } => {
+                write!(f, "candid decode failed (bytes={bytes}): {source}")?;
+                context
+            }
+            Self::CanisterReject { context, response } => {
+                write!(
+                    f,
+                    "pocket_ic {} was rejected: {response}",
+                    context.operation
+                )?;
+                context
+            }
+            Self::Transport { context, source } => {
+                write!(f, "pocket_ic {} failed: {source}", context.operation)?;
+                context
+            }
+        };
+        write!(
+            f,
+            " (operation={}, canister={}, caller={}, method={})",
+            context.operation, context.canister_id, context.caller, context.method
+        )
     }
 }
 
-impl std::error::Error for CandidCallError {}
-
-impl CanisterInstallError {
-    /// Capture an operation failure and all context available at that stage.
-    #[must_use]
-    pub const fn new(
-        phase: CanisterInstallPhase,
-        canister_id: Option<Principal>,
-        label: Option<String>,
-        source: PocketIcOperationError,
-    ) -> Self {
-        Self {
-            phase,
-            canister_id,
-            label,
-            source,
+impl std::error::Error for CandidCallError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Transport { source, .. } => Some(source),
+            Self::Decode { source, .. } => Some(source.as_ref()),
+            _ => None,
         }
-    }
-
-    /// Read the failed stage.
-    #[must_use]
-    pub const fn phase(&self) -> CanisterInstallPhase {
-        self.phase
-    }
-
-    /// Read the created canister id, absent when creation failed.
-    #[must_use]
-    pub const fn canister_id(&self) -> Option<Principal> {
-        self.canister_id
-    }
-
-    /// Read the original upstream panic message.
-    #[must_use]
-    pub fn message(&self) -> &str {
-        self.source.message()
-    }
-
-    /// Inspect the original operation failure and its transport classification.
-    #[must_use]
-    pub const fn operation_error(&self) -> &PocketIcOperationError {
-        &self.source
-    }
-
-    /// Read the optional caller-provided install label.
-    #[must_use]
-    pub fn label(&self) -> Option<&str> {
-        self.label.as_deref()
     }
 }
 
 impl std::fmt::Display for CanisterInstallError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{} failed", self.phase.operation())?;
-        if let Some(canister_id) = self.canister_id {
+        let (operation, canister_id, label, source) = match self {
+            Self::CreateCanister { label, source } => ("create_canister", None, label, source),
+            Self::AddCycles {
+                canister_id,
+                label,
+                source,
+            } => ("add_cycles", Some(canister_id), label, source),
+            Self::InstallCode {
+                canister_id,
+                label,
+                source,
+            } => ("install_canister", Some(canister_id), label, source),
+        };
+        write!(f, "{operation} failed")?;
+        if let Some(canister_id) = canister_id {
             write!(f, " for canister {canister_id}")?;
         }
-        if let Some(label) = &self.label {
+        if let Some(label) = label {
             write!(f, " ({label})")?;
         }
-        write!(f, ": {}", self.source)
+        write!(f, ": {source}")
     }
 }
 
 impl std::error::Error for CanisterInstallError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        Some(&self.source)
+        let (Self::CreateCanister { source, .. }
+        | Self::AddCycles { source, .. }
+        | Self::InstallCode { source, .. }) = self;
+        Some(source)
     }
 }
 
@@ -310,43 +242,17 @@ impl std::error::Error for StandaloneCanisterInstallError {
 
 #[cfg(test)]
 mod tests {
-    use candid::Principal;
-    use pocket_ic::{ErrorCode, RejectCode, RejectResponse};
+    use ic_platform::Principal;
 
-    use super::{CandidCallContext, CandidCallError, CandidCallErrorKind, CanisterInstallError};
+    use super::CanisterInstallError;
 
     #[test]
     fn labeled_install_error_display_includes_label() {
-        let err = CanisterInstallError::new(
-            super::CanisterInstallPhase::InstallCode,
-            Some(Principal::anonymous()),
-            Some("authority".into()),
-            super::PocketIcOperationError::new("trap"),
-        );
-
-        assert_eq!(err.label(), Some("authority"));
-        assert!(err.to_string().contains("(authority): trap"));
-    }
-
-    #[test]
-    fn canister_reject_preserves_the_upstream_response() {
-        let response = RejectResponse {
-            reject_code: RejectCode::DestinationInvalid,
-            reject_message: "missing canister".to_string(),
-            error_code: ErrorCode::CanisterNotFound,
-            certified: true,
+        let err = CanisterInstallError::InstallCode {
+            canister_id: Principal::anonymous(),
+            label: Some("authority".into()),
+            source: super::PocketIcOperationError::new("trap"),
         };
-        let error = CandidCallError::canister_reject(
-            CandidCallContext::new(
-                "query_call",
-                Principal::anonymous(),
-                Principal::management_canister(),
-                "get",
-            ),
-            response.clone(),
-        );
-
-        assert_eq!(error.kind, CandidCallErrorKind::CanisterReject);
-        assert_eq!(error.reject_response.as_deref(), Some(&response));
+        assert!(err.to_string().contains("(authority): trap"));
     }
 }

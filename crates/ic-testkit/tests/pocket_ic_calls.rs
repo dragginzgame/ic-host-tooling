@@ -1,9 +1,8 @@
 mod support;
 
-use candid::Principal;
+use ic_platform::Principal;
 use ic_testkit::pic::{
-    CandidCallErrorKind, CandidCallExt, ErrorCode, RejectCode, query_candid_args,
-    update_candid_args,
+    CandidCallError, ErrorCode, RejectCode, query_candid_args, update_candid_args,
 };
 
 #[test]
@@ -21,42 +20,64 @@ fn candid_call_errors_preserve_live_pocket_ic_rejections() {
     let sender = Principal::management_canister();
     for (result, operation, caller) in [
         (
-            pocket_ic.query_candid::<(), _>(removed_canister, "missing", ()),
+            query_candid_args::<(), _>(
+                pocket_ic,
+                removed_canister,
+                Principal::anonymous(),
+                "missing",
+                (),
+                support::REPLY_LIMITS,
+            ),
             "query_call",
             Principal::anonymous(),
         ),
         (
-            pocket_ic.update_candid::<(), _>(removed_canister, "missing", ()),
+            update_candid_args::<(), _>(
+                pocket_ic,
+                removed_canister,
+                Principal::anonymous(),
+                "missing",
+                (),
+                support::REPLY_LIMITS,
+            ),
             "update_call",
             Principal::anonymous(),
         ),
         (
-            pocket_ic.query_candid_as::<(), _>(removed_canister, sender, "missing", ()),
+            query_candid_args::<(), _>(
+                pocket_ic,
+                removed_canister,
+                sender,
+                "missing",
+                (),
+                support::REPLY_LIMITS,
+            ),
             "query_call",
             sender,
         ),
         (
-            pocket_ic.update_candid_as::<(), _>(removed_canister, sender, "missing", ()),
-            "update_call",
-            sender,
-        ),
-        (
-            query_candid_args::<(), _>(pocket_ic, removed_canister, sender, "missing", ()),
-            "query_call",
-            sender,
-        ),
-        (
-            update_candid_args::<(), _>(pocket_ic, removed_canister, sender, "missing", ()),
+            update_candid_args::<(), _>(
+                pocket_ic,
+                removed_canister,
+                sender,
+                "missing",
+                (),
+                support::REPLY_LIMITS,
+            ),
             "update_call",
             sender,
         ),
     ] {
         let error = result.expect_err("a deleted canister must reject the call");
-        let rejection = error.reject_response.as_deref().unwrap();
-        assert_eq!(error.kind, CandidCallErrorKind::CanisterReject);
+        let CandidCallError::CanisterReject {
+            context,
+            response: rejection,
+        } = error
+        else {
+            panic!("expected canister rejection: {error}");
+        };
         assert_eq!(rejection.reject_code, RejectCode::DestinationInvalid);
         assert_eq!(rejection.error_code, ErrorCode::CanisterNotFound);
-        let context = error.context.as_deref().unwrap();
         assert_eq!(context.operation, operation);
         assert_eq!(context.canister_id, removed_canister);
         assert_eq!(context.caller, caller);

@@ -2,7 +2,7 @@ use super::{
     CanisterSnapshotTarget, ControllerSnapshotError, ControllerSnapshots, PocketIcInstance,
     PocketIcSnapshotExt, SnapshotRestoreFunding,
 };
-use candid::Principal;
+use ic_platform::Principal;
 use pocket_ic::PocketIc;
 
 /// One owned PocketIC instance/server record with snapshots and caller metadata.
@@ -18,7 +18,7 @@ pub struct CachedPocketIcBaseline<T> {
 impl<T> CachedPocketIcBaseline<T> {
     /// Capture a cached baseline with an explicit sender for every canister.
     ///
-    /// Capture is ordered and transactional as documented by
+    /// Empty inputs are rejected before capture. Capture is ordered and transactional as documented by
     /// [`PocketIcSnapshotExt::capture_snapshots`]. No sender fallback is performed.
     pub fn capture<I>(
         instance: PocketIcInstance<PocketIc>,
@@ -28,6 +28,10 @@ impl<T> CachedPocketIcBaseline<T> {
     where
         I: IntoIterator<Item = CanisterSnapshotTarget>,
     {
+        let mut targets = targets.into_iter().peekable();
+        if targets.peek().is_none() {
+            return Err(ControllerSnapshotError::EmptyCanisterSet);
+        }
         let snapshots = instance.instance.capture_snapshots(targets)?;
         Ok(Self {
             instance,
@@ -37,6 +41,7 @@ impl<T> CachedPocketIcBaseline<T> {
     }
 
     /// Restore with exactly the captured senders and selected cycle funding.
+    /// Success means the complete captured set was restored.
     pub fn restore(&self, funding: SnapshotRestoreFunding) -> Result<(), ControllerSnapshotError> {
         self.instance
             .instance
