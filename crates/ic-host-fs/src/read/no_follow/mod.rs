@@ -3,9 +3,9 @@
 #[cfg(test)]
 mod tests;
 
-use super::{ArtifactError, ArtifactIdentity, check_metadata, hash_reader, read_opened_file};
+use super::{ArtifactError, ArtifactIdentity, admit_file, hash_reader, read_opened_file};
 use std::{
-    fs::{self, File},
+    fs::{self, File, Metadata},
     io,
     path::Path,
 };
@@ -47,9 +47,25 @@ pub fn read_file_no_follow(path: &Path, max_bytes: usize) -> Result<Vec<u8>, Art
 /// Returns [`ArtifactError::Io`] with the original open/metadata/read cause,
 /// including final-symlink rejection, or typed non-regular-file/byte-limit errors.
 pub fn hash_file_no_follow(path: &Path, max_bytes: u64) -> Result<ArtifactIdentity, ArtifactError> {
+    hash_file_no_follow_with_metadata(path, max_bytes).map(|(identity, _)| identity)
+}
+
+/// Hash a final-component no-follow file and retain its descriptor metadata.
+///
+/// Shares [`hash_file_no_follow`]'s opening, regular-file and byte admission.
+/// Metadata is observed before the bounded hash, without another pathname lookup.
+/// Ancestors are followed; callers retain namespace/writer exclusion, permission
+/// and digest policy. This establishes neither immutable bytes nor atomic execution.
+///
+/// # Errors
+/// Returns the same open, metadata, type, byte-limit and read failures as [`hash_file_no_follow`].
+pub fn hash_file_no_follow_with_metadata(
+    path: &Path,
+    max_bytes: u64,
+) -> Result<(ArtifactIdentity, Metadata), ArtifactError> {
     let file = open_no_follow(path)?;
-    check_metadata(&file.metadata()?, max_bytes)?;
-    hash_reader(file, max_bytes)
+    let metadata = admit_file(&file, max_bytes)?;
+    Ok((hash_reader(file, max_bytes)?, metadata))
 }
 
 /// Read an optional bounded regular file, rejecting final-component symlinks.

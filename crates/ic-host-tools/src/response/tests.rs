@@ -272,3 +272,18 @@ fn diagnostics_do_not_format_response_values() {
         }
     }
 }
+
+#[test]
+fn allocation_failure_retains_its_typed_source() {
+    use std::error::Error as _;
+
+    let source = Vec::<u8>::new().try_reserve(usize::MAX).unwrap_err();
+    let error = ResponseError::Allocation(source);
+    assert!(
+        error
+            .source()
+            .unwrap()
+            .is::<std::collections::TryReserveError>()
+    );
+    assert!(ResponseError::InputLimit { limit: 0 }.source().is_none());
+}

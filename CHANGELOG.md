@@ -1,35 +1,287 @@
 # Changelog
 
-## [0.25.0]
+## [0.27.7]
 
-### Breaking
+- Complete retained writes, descriptor-based create-new copying and shell-status
+  projection, preserving caller-owned publication, cleanup and recovery policy.
+  Document direct managed Wasm-inspector use. [Details](docs/changelog/0.27.md).
 
-- Require explicit result admission for existing-parent and descriptor-relative
-  durable publication. Replace `write_existing_parent_with` and `write_at_with`
-  with `write_existing_parent_validated_with` and `write_at_validated_with`,
-  supplying `|_| Ok(())` when successful production already admits the result.
-  Publication ordering, directory custody and typed recovery evidence are unchanged.
-  [Migration guidance](README.md),
-  [#168 — Explicit durable result admission](https://github.com/dragginzgame/ic-host-tooling/issues/168).
+- Run the non-Unix compile check with the MSRV toolchain that owns its prepared
+  Wasm target, fixing the CI compiler/target mismatch without changing the
+  development compiler or filesystem support contract.
+  [Details](docs/changelog/0.27.md).
+
+## [0.27.6] - 2026-10-18
+
+- Share pure ICP call/status command builders and typed installation-state
+  projection for Canic and IcyDB, preserving native arguments and caller-owned
+  context, execution, budgets and lifecycle
+  ([#97 — ICP command facts](https://github.com/dragginzgame/ic-host-tooling/issues/97)).
+  [Details](docs/changelog/0.27.md).
+
+## [0.27.5] - 2026-10-18
+
+- Adopt Shared's latest committed Platform dependency-boundary rules and extend
+  Host's direct-dependency guard to the known external IC package families.
+  Preserve the canonical snapshot's version label and record its exact revision.
+  [Details](docs/changelog/0.27.md).
+- Adopt Shared Tooling 0.24.2 and replace both local source-evidence adapters with
+  canonical helpers, preserving release custody and matching grouped formatting
+  across hooks and release checks
+  ([#193 — Canonical source-evidence adoption](https://github.com/dragginzgame/ic-host-tooling/issues/193)).
+  [Details](docs/changelog/0.27.md).
+- Remove unused internal dependency aliases and separate current ownership and
+  qualification from historical migration receipts. Preserve public APIs,
+  dependency graphs and release/publication admission.
+  [Details](docs/changelog/0.27.md).
+- Adopt IC Platform 0.1.11 for the existing Candid/parser and optional certification
+  boundary, preserving the selected features and upstream dependency versions.
+  [Details](docs/changelog/0.27.md).
+- Share bounded stream visitation with caller-owned scratch and fresh directory
+  allocation with explicit permissions and collision budgets
+  ([PR #135 — Build traversal and directory allocation](https://github.com/dragginzgame/ic-host-tooling/pull/135)).
+  [Details](docs/changelog/0.27.md).
+- Align lock-file admission with its Unix-only dependency, allowing non-Unix
+  library compilation with explicit unsupported-operation errors
+  ([#194 — Lock platform guards](https://github.com/dragginzgame/ic-host-tooling/issues/194)).
+  [Details](docs/changelog/0.27.md).
+
+## [0.27.4] - 2026-10-18
+
+- Share ordered empty/duplicate batch-label admission with exact comparisons and
+  typed occurrence positions; callers retain batch execution and failure policy
+  ([PR #184 — Batch label admission](https://github.com/dragginzgame/ic-host-tooling/pull/184)).
+  [Details](docs/changelog/0.27.md).
+- Share exact fixed/compact two-place decimal rendering with explicit scaling
+  and half-up rounding, without floating point or new dependencies
+  ([#138 — Exact decimal text](https://github.com/dragginzgame/ic-host-tooling/issues/138)).
+  [Details](docs/changelog/0.27.md).
+- Share canonical UTC second parsing and formatting, preserving expanded years
+  and strict calendar admission without clocks or new dependencies
+  ([#140 — Canonical UTC text](https://github.com/dragginzgame/ic-host-tooling/issues/140)).
+  [Details](docs/changelog/0.27.md).
+- Share read-only physical-directory validation with private-parent creation,
+  keeping symlink, non-directory and parent-traversal checks in one place
+  ([PR #147 — Share read-only physical directory validation](https://github.com/dragginzgame/ic-host-tooling/pull/147)).
+  [Details](docs/changelog/0.27.md).
+
+## [0.27.3] - 2026-10-18
+
+- Protect caller-selected in-place exports from overwriting protected paths or
+  inodes, preserving existing permissions, unrelated symlinks and typed failures
+  ([#153 — Own non-aliasing in-place export writes](https://github.com/dragginzgame/ic-host-tooling/issues/153)).
+  [Details](docs/changelog/0.27.md).
+- Publish admitted symlink selections with explicit before/after-publication
+  errors, preserving immutable bundles when final synchronization fails
+  ([#121 — Extract retained tool-bundle publication](https://github.com/dragginzgame/ic-host-tooling/issues/121)).
+  [Details](docs/changelog/0.27.md).
+- Share cancellable process-group capture and configured-IO execution through the
+  existing process engine. Callers retain cleanup, optional deadlines and inherited
+  build output; no finite deadline is added
+  ([#95 — Expose cancellable group capture](https://github.com/dragginzgame/ic-host-tooling/issues/95)).
+  [Details](docs/changelog/0.27.md).
+- Keep publication source retrieval independent of Git's default hash format and
+  reject ambiguous saved-source member observations before release setup
+  ([#191 — Keep source-evidence adapters hash-format independent](https://github.com/dragginzgame/ic-host-tooling/issues/191)).
+  [Details](docs/changelog/0.27.md).
+- Delegate release metadata backup, installation, caught-failure restoration and
+  receipt archiving to pinned Shared helpers. Retain Host's rendering, source-bound
+  validation and receipt format. [Details](docs/changelog/0.27.md).
+- Route Candid parsing, reply decoding and certification types through published
+  IC Platform 0.1.4. Preserve service/certificate admission and aggregate reply
+  accounting; decoder diagnostics now use Platform's compact format while
+  retaining typed causes. Enforce the direct-dependency boundary in CI and release
+  graph checks. [Details](docs/changelog/0.27.md).
+
+## [0.27.2] - 2026-10-18
+
+### Changed
+
+- Adopt Shared Tooling 0.24.0 with production-role labels, matching release
+  formatting checks and target-specific normal/build dependency exclusions.
+  Common Cargo setup now selects only the two formatters; source-provenance
+  protections remain intact. [Details](docs/changelog/0.27.md).
+- Use Shared's pinned native-host and pipe-jobserver observers in CI and Make
+  integration checks, retaining Host's platform selection and command routing.
+- Share checksum collection between read-only and ordered-sync traversal,
+  preserving file-before-hash and post-order directory synchronization.
+- Render bordered tables without allocating an all-left alignment vector;
+  escaping, widths, padding and plain-table alignment remain unchanged.
+- Share opened-file metadata admission across regular and no-follow reads and
+  hashes, preserving opening policy and refusal ordering. Released tree-descriptor
+  and stream-copy interfaces remain supported. [Details](docs/changelog/0.27.md).
 
 ### Added
 
-- Stream bounded gzip payloads into caller-owned sinks while returning decoded
-  byte identity; authentication, staging and publication stay caller-owned
-  ([PR #171](https://github.com/dragginzgame/ic-host-tooling/pull/171)).
-- Share verified durable copying, descriptor tree copying and retained writes;
-  callers retain bounds, publication and recovery policy
-  ([PR #104](https://github.com/dragginzgame/ic-host-tooling/pull/104),
-  [PR #165](https://github.com/dragginzgame/ic-host-tooling/pull/165),
-  [PR #132](https://github.com/dragginzgame/ic-host-tooling/pull/132)).
-- Add bounded newline framing and explicit shell-style status projection,
-  keeping schemas, EOF acceptance and process lifecycle caller-owned
-  ([PR #128](https://github.com/dragginzgame/ic-host-tooling/pull/128),
-  [PR #133](https://github.com/dragginzgame/ic-host-tooling/pull/133)).
-- Document direct managed inspector setup, offline checking and execution
-  ([PR #156](https://github.com/dragginzgame/ic-host-tooling/pull/156)).
+- Preserve standard cache-directory tags and durably replace invalid entries,
+  with caller-selected trailing bytes and permissions
+  ([PR #183 — Own cache-directory tag recognition and durable replacement](https://github.com/dragginzgame/ic-host-tooling/pull/183)).
+- Hold a shared descriptor lock with explicit unlock on guard drop, so duplicated
+  descriptors cannot prolong it; independently opened holders remain separate
+  ([PR #174 — Extract scoped shared descriptor lock](https://github.com/dragginzgame/ic-host-tooling/pull/174)).
+- Decode Candid replies with caller-selected byte/work limits and aggregate byte
+  accounting, retaining domain interpretation with consumers
+  ([#188 — Centralize bounded Candid reply decoding](https://github.com/dragginzgame/ic-host-tooling/issues/188)).
+- Observe metadata-only logical directory sizes through Host FS, preserving
+  symlink and sparse-file lengths while consumers retain traversal and cache
+  policy ([PR #173 — Extract logical directory-size observation](https://github.com/dragginzgame/ic-host-tooling/pull/173)).
 
-[Detailed notes](docs/changelog/0.25.md).
+## [0.27.1] - 2026-10-17
+
+### Added
+
+- Include canonical directory checksums, no-follow tree hashing and ordered
+  tree synchronization from the 0.26 release line.
+
+## [0.27.0] - 2026-10-17
+
+### Breaking
+
+- Use the same Unicode scalar-column accounting for tables, clipping and
+  progress erasure. Table padding for emoji sequences and ligatures can change.
+- Move native file identity to `ic_host_fs::identity::FileIdentity`. Import it
+  from FS when using Process custody; no compatibility reexport remains.
+  [Migration notes](docs/changelog/0.27.md).
+
+### Changed
+
+- Prepare Make fixtures through Shared's declared companion closure, retiring
+  Host's selection of the separate Make-fixture copier.
+- Include every minor-line migration document in link validation automatically.
+- Share native device/inode observations across FS publication and Process
+  custody, retaining file-kind admission and namespace policy with their callers.
+- Derive directory-publication error traits while preserving generic formatting,
+  original causes and failures before or after publication.
+- Prepare release fixtures from declared script dependencies using Shared's
+  canonical fixture copier.
+- Use the hashed executable descriptor's metadata for permission admission,
+  preserving size/digest refusal before permission policy. Private-file errors
+  retain their messages and original causes through derived error traits.
+- Test fixtures borrow their cleanup guard's path instead of storing another
+  copy; successful cleanup and panic retention remain unchanged.
+- Adopt Shared Tooling 0.23.0 with common host observation, validated Rust-tool
+  records and shared transient retries for CI binary installation. Retain both
+  Cargo source-evidence helpers through their refreshed Shared contribution.
+- Share saved Cargo member-source context with Shared Tooling while retaining
+  local package selection and release recovery.
+- Consolidate durable writer dispatch while preserving admission ordering and
+  publication errors.
+- Build progress frames without temporary padding strings, preserving escaping,
+  width accounting and rendered output.
+
+### Added
+
+- Render dynamic ASCII-bordered tables through `ic_host_text::table::render_bordered`,
+  sharing escaping and width accounting with plain tables. Ragged rows receive
+  empty cells or unnamed columns; values, budgets and output stay caller-owned
+  ([PR #129 — Dynamic bordered tables](https://github.com/dragginzgame/ic-host-tooling/pull/129)).
+- Retain descriptor metadata alongside bounded file hashes through following
+  and final-component no-follow reads. Metadata is an observation rather than
+  immutable content, pathname custody or atomic execution authority.
+- Share bounded newline framing for buffered readers and incremental process
+  output, preserving queued messages, refused prefixes and original I/O causes.
+  Schemas, deadlines, EOF-tail acceptance and recovery remain caller-owned
+  ([#126 — Share bounded newline framing](https://github.com/dragginzgame/ic-host-tooling/issues/126)).
+- Copy caller-selected streams through durable publication with optional exact
+  output permissions. Failed reads preserve prior output and cleanup evidence;
+  source admission, budgets and reuse remain caller-owned
+  ([#92 — Share durable stream copying](https://github.com/dragginzgame/ic-host-tooling/issues/92)).
+## [0.26.2] - 2026-10-17
+
+### Added
+
+- Synchronize and hash an existing caller-held directory with ordered pre-sync
+  hooks through FS `durable::tree::sync_checksum_directory_at`. Files sync before
+  hashing; directories sync after children. Callers retain total-tree budgets,
+  expected-checksum admission, publication and recovery policy.
+
+## [0.26.1] - 2026-10-17
+
+### Added
+
+- Compose exact directory identities from canonical relative paths and SHA-256
+  digests in Artifacts, and hash no-follow directory trees in FS with explicit
+  per-file byte limits. Preserve Backup's component ordering and path/NUL/hex/newline
+  framing; callers retain tree budgets, custody, synchronization and publication.
+
+## [0.26.0] - 2026-10-17
+
+### Breaking
+
+- Consuming `OwnedDirectory::cleanup()` attempts removal once, including on
+  failure. Capture the path before consuming and own any retry or recovery;
+  borrowed `try_cleanup()` and ordinary armed Drop retain their contracts.
+  [Migration notes](docs/changelog/0.26.md).
+
+### Changed
+
+- Adopt Shared Tooling 0.21.0 with direct validated host-tool records and the
+  ICP CLI 1.7.0 catalog. Preserve the provenance helper through its refreshed
+  Shared contribution; publication policy and explicit IC-tool setup stay local.
+- Share prepared package provenance and exact remote source retrieval with
+  Shared Tooling. Host retains eligibility, licenses, packaging and recovery.
+- Derive filesystem error formatting and source chains with `thiserror`,
+  preserving public variants, sanitized messages and native I/O causes.
+  Retain the [PocketIC-compatible dependency floor](docs/changelog/0.26.md#dependency-compatibility).
+
+### Added
+
+- Copy a bounded regular artifact through durable publication with an expected
+  digest checked before replacement. Preserve prior output and typed cleanup
+  evidence on refusal; paths, reuse and recovery remain caller-owned
+  ([#102 — Own digest-verified durable artifact copying](https://github.com/dragginzgame/ic-host-tooling/issues/102)).
+- Stream one bounded gzip member into a caller-owned sink while identifying its
+  decoded bytes. Integrity and framing checks precede success; errors can retain
+  partial output, so staging and publication remain caller-owned
+  ([#170 — Stream bounded gzip payloads into caller-owned sinks](https://github.com/dragginzgame/ic-host-tooling/issues/170)).
+- Create private invocation files through `ic_host_fs::scratch::create_private_bytes`,
+  with explicit collision attempts, close-before-return and separately retained
+  write/cleanup failures. Callers own byte budgets, successful cleanup and recovery
+  ([#122 — Share private non-durable invocation scratch-file creation](https://github.com/dragginzgame/ic-host-tooling/issues/122)).
+
+## [0.25.1] - 2026-10-17
+
+### Added
+
+- Inspect `HashingWriter`'s sink and snapshot the identity of accepted bytes
+  without finalizing or flushing it. Producer success, aliased writes and
+  durability remain caller-owned
+  ([PR #175 — Inspect hashing-writer sinks and identities](https://github.com/dragginzgame/ic-host-tooling/pull/175)).
+
+### Fixed
+
+- Accept the staged HTTP fixture connection before selecting nonblocking reads,
+  avoiding the macOS Intel `WouldBlock` setup race while preserving the header gate
+  ([PR #176 — Accept staged HTTP connections before nonblocking reads](https://github.com/dragginzgame/ic-host-tooling/pull/176)).
+
+## [0.25.0] - 2026-10-17
+
+### Breaking
+
+- Retire `write_at_with` and `write_existing_parent_with`. Use their validated
+  counterparts with explicit result admission, preserving publication modes,
+  permissions and recovery. [Migration notes](docs/changelog/0.25.md).
+- Include Candid service inspection in Host Tools unconditionally. Retire the
+  `candid-service` feature; remove it from consumer feature lists. Disabling
+  defaults no longer excludes `candid_parser` and its `candid` dependency.
+- Share one `VersionSpec` across tool observation and verification. Verifying
+  entrypoints require the exact version as a separate argument; digest pins
+  remain mandatory for pinned admission. Remove `VersionObservationSpec`.
+- Remove Host Tools' replica-limit reports, `ic-limits` feature and resource-report
+  example. Consumers own replica revision selection and enforcement, using Host
+  Artifacts for generic Wasm facts. Canic must adopt its local policy before
+  upgrading. [Migration notes](docs/changelog/0.25.md).
+
+### Changed
+
+- Adopt Shared Tooling 0.20.0. Common setup and CI prepare host/Cargo tools;
+  IC executables require explicit setup. Preserve tool pins, literal catalogs,
+  shared version admission and per-path Rust LOC counts. One delivery-policy
+  file now supplies Host's direct-only release admission to Make and its adapter.
+- Share test-directory cleanup through an opt-in fixture guard that retains
+  failed-test evidence during panic; production directory custody is unchanged.
+- Derive response and certificate error formatting/source chains through
+  `thiserror`, preserving public error variants and sanitized diagnostics.
 
 ## [0.24.0] - 2026-10-16
 

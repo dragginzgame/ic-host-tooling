@@ -1,7 +1,14 @@
-//! Bounded regular-file reads; callers own path confinement and concurrent writers.
+//! File reads and metadata observations; callers own bounds and namespace custody.
 
 use ic_host_artifacts::artifact::{ArtifactError, ArtifactIdentity, hash_reader, read_reader};
-use std::{fs::File, io::Read as _, path::Path};
+use std::{
+    fs::{File, Metadata},
+    io::Read as _,
+    path::Path,
+};
+
+mod size;
+pub use size::directory_logical_size;
 
 #[cfg(unix)]
 mod beneath;
@@ -18,11 +25,11 @@ mod no_follow;
 #[cfg(unix)]
 pub mod tree;
 #[cfg(unix)]
-pub use no_follow::hash_file_no_follow;
-#[cfg(unix)]
 pub use no_follow::read_file_no_follow;
 #[cfg(unix)]
 pub use no_follow::read_optional_file_no_follow;
+#[cfg(unix)]
+pub use no_follow::{hash_file_no_follow, hash_file_no_follow_with_metadata};
 #[cfg(unix)]
 mod private;
 #[cfg(unix)]
@@ -40,7 +47,24 @@ mod tests;
 /// # Errors
 /// Returns filesystem, non-regular-file, or byte-limit failures.
 pub fn hash_file(path: &Path, max_bytes: u64) -> Result<ArtifactIdentity, ArtifactError> {
-    hash_reader(open_file(path, max_bytes)?.0, max_bytes)
+    hash_file_with_metadata(path, max_bytes).map(|(identity, _)| identity)
+}
+
+/// Hash a regular file and retain metadata from the same opened descriptor.
+///
+/// Follows symlinks with [`hash_file`]'s admission and byte bounds. Metadata is
+/// observed before hashing; it neither freezes permissions/contents nor proves
+/// that the pathname still names this inode. Callers own namespace and writer
+/// exclusion, permission/digest policy and any later execution or publication.
+///
+/// # Errors
+/// Returns the same open, metadata, type, byte-limit and read failures as [`hash_file`].
+pub fn hash_file_with_metadata(
+    path: &Path,
+    max_bytes: u64,
+) -> Result<(ArtifactIdentity, Metadata), ArtifactError> {
+    let (file, metadata) = open_file(path, max_bytes)?;
+    Ok((hash_reader(file, max_bytes)?, metadata))
 }
 
 /// Read a regular artifact into bounded, fallibly allocated storage.
@@ -70,9 +94,9 @@ pub fn read_file(path: &Path, max_bytes: usize) -> Result<Vec<u8>, ArtifactError
 /// # Errors
 /// Returns filesystem, non-regular-file, read or allocation failures.
 pub fn read_file_prefix(path: &Path, max_bytes: usize) -> Result<(Vec<u8>, u64), ArtifactError> {
-    let (file, observed_length) = open_file(path, u64::MAX)?;
+    let (file, metadata) = open_file(path, u64::MAX)?;
     let bytes = read_reader(file.take(max_bytes as u64), max_bytes)?;
-    Ok((bytes, observed_length))
+    Ok((bytes, metadata.len()))
 }
 
 /// Validate an already-open regular file and read it into bounded storage.
@@ -91,7 +115,7 @@ pub fn read_file_prefix(path: &Path, max_bytes: usize) -> Result<(Vec<u8>, u64),
 /// # Errors
 /// Returns metadata, non-regular-file, byte-limit, read or allocation failures.
 pub fn read_opened_file(file: File, max_bytes: usize) -> Result<Vec<u8>, ArtifactError> {
-    check_metadata(&file.metadata()?, max_bytes as u64)?;
+    admit_file(&file, max_bytes as u64)?;
     read_reader(file, max_bytes)
 }
 
@@ -110,14 +134,13 @@ pub fn open_regular_file(path: &Path) -> Result<File, ArtifactError> {
     Ok(open_file(path, u64::MAX)?.0)
 }
 
-fn open_file(path: &Path, limit: u64) -> Result<(File, u64), ArtifactError> {
+fn open_file(path: &Path, limit: u64) -> Result<(File, Metadata), ArtifactError> {
     #[cfg(unix)]
     let file = open_read_only(path, false)?;
     #[cfg(not(unix))]
     let file = File::open(path)?;
-    let metadata = file.metadata()?;
-    check_metadata(&metadata, limit)?;
-    Ok((file, metadata.len()))
+    let metadata = admit_file(&file, limit)?;
+    Ok((file, metadata))
 }
 
 #[cfg(unix)]
@@ -132,12 +155,13 @@ fn open_read_only(path: &Path, no_follow: bool) -> Result<File, ArtifactError> {
     ))
 }
 
-fn check_metadata(metadata: &std::fs::Metadata, limit: u64) -> Result<(), ArtifactError> {
+fn admit_file(file: &File, limit: u64) -> Result<Metadata, ArtifactError> {
+    let metadata = file.metadata()?;
     if !metadata.is_file() {
         return Err(ArtifactError::NotRegularFile);
     }
     if metadata.len() > limit {
         return Err(ArtifactError::LimitExceeded { limit });
     }
-    Ok(())
+    Ok(metadata)
 }

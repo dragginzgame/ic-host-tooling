@@ -4,7 +4,7 @@ use crate::{
         supported::{FileCommitStep, WriterCustody, commit_path_with_options},
         tests::REPLACE_OPTIONS,
     },
-    test_support::Fixture,
+    test_support::fixture,
 };
 use std::{
     fs,
@@ -13,8 +13,8 @@ use std::{
 
 #[test]
 fn absolute_spaced_stage_publishes_validated_output_and_returns_value() {
-    let fixture = Fixture::new();
-    let output = fixture.root.join("parent with spaces/output file");
+    let fixture = fixture();
+    let output = fixture.path().join("parent with spaces/output file");
     let value = write_named_with(&output, REPLACE_OPTIONS, |stage| -> io::Result<_> {
         assert!(stage.is_absolute());
         assert_eq!(stage.parent(), output.parent());
@@ -34,8 +34,8 @@ fn absolute_spaced_stage_publishes_validated_output_and_returns_value() {
 #[test]
 fn named_create_only_uses_selected_permissions_and_preserves_a_competing_entry() {
     use crate::durable::PublicationMode;
-    let fixture = Fixture::new();
-    let output = fixture.root.join("output");
+    let fixture = fixture();
+    let output = fixture.path().join("output");
     let options = WriteOptions {
         mode: PublicationMode::CreateNew,
         permissions: 0o600,
@@ -57,14 +57,14 @@ fn named_create_only_uses_selected_permissions_and_preserves_a_competing_entry()
         Err(NamedWriteError::BeforePublication { source, cleanup_error: None })
         if source.kind() == io::ErrorKind::AlreadyExists));
     assert_eq!(fs::read(&output).unwrap(), b"competing entry");
-    assert_eq!(fs::read_dir(&fixture.root).unwrap().count(), 1);
+    assert_eq!(fs::read_dir(fixture.path()).unwrap().count(), 1);
 }
 
 #[test]
 fn named_invalid_permissions_refuse_before_parent_creation_or_production() {
     use crate::durable::PublicationMode;
-    let fixture = Fixture::new();
-    let output = fixture.root.join("missing/nested/output");
+    let fixture = fixture();
+    let output = fixture.path().join("missing/nested/output");
     let result = write_named_with(
         &output,
         WriteOptions {
@@ -76,13 +76,13 @@ fn named_invalid_permissions_refuse_before_parent_creation_or_production() {
     assert!(matches!(result,
         Err(NamedWriteError::BeforePublication { source, cleanup_error: None })
         if source.kind() == io::ErrorKind::InvalidInput));
-    assert_eq!(fs::read_dir(&fixture.root).unwrap().count(), 0);
+    assert_eq!(fs::read_dir(fixture.path()).unwrap().count(), 0);
 }
 
 #[test]
 fn producer_and_validation_errors_preserve_original_and_remove_owned_stage() {
-    let fixture = Fixture::new();
-    let output = fixture.root.join("output");
+    let fixture = fixture();
+    let output = fixture.path().join("output");
     fs::write(&output, b"old").unwrap();
     for bytes in [b"".as_slice(), b"invalid", b"partial"] {
         let error = write_named_with(&output, REPLACE_OPTIONS, |stage| {
@@ -94,13 +94,13 @@ fn producer_and_validation_errors_preserve_original_and_remove_owned_stage() {
             matches!(error, NamedWriteError::Producer { source, cleanup_error: None } if source == [1, 2, 3])
         );
         assert_eq!(fs::read(&output).unwrap(), b"old");
-        assert_eq!(fs::read_dir(&fixture.root).unwrap().count(), 1);
+        assert_eq!(fs::read_dir(fixture.path()).unwrap().count(), 1);
     }
 }
 
 #[test]
 fn replaced_missing_or_linked_staging_is_never_published_or_blindly_removed() {
-    let fixture = Fixture::new();
+    let fixture = fixture();
     for substitution in [
         "missing",
         "file",
@@ -109,7 +109,7 @@ fn replaced_missing_or_linked_staging_is_never_published_or_blindly_removed() {
         "fifo",
         "hardlink",
     ] {
-        let parent = fixture.root.join(substitution);
+        let parent = fixture.path().join(substitution);
         fs::create_dir(&parent).unwrap();
         let output = parent.join("output");
         let other = parent.join("other");
@@ -160,9 +160,9 @@ fn replaced_missing_or_linked_staging_is_never_published_or_blindly_removed() {
 
 #[test]
 fn parent_replacement_is_rejected_and_cleanup_uses_original_directory() {
-    let fixture = Fixture::new();
-    let parent = fixture.root.join("parent");
-    let moved = fixture.root.join("moved");
+    let fixture = fixture();
+    let parent = fixture.path().join("parent");
+    let moved = fixture.path().join("moved");
     fs::create_dir(&parent).unwrap();
     let output = parent.join("output");
     fs::write(&output, b"old").unwrap();
@@ -187,8 +187,8 @@ fn parent_replacement_is_rejected_and_cleanup_uses_original_directory() {
 
 #[test]
 fn sync_errors_have_correct_publication_state() {
-    let fixture = Fixture::new();
-    let output = fixture.root.join("output");
+    let fixture = fixture();
+    let output = fixture.path().join("output");
     fs::write(&output, b"old").unwrap();
     let result = commit_path_with_options(
         &output,
@@ -210,7 +210,7 @@ fn sync_errors_have_correct_publication_state() {
         matches!(result, Err(NamedWriteError::BeforePublication { source, cleanup_error: None }) if source.raw_os_error() == Some(5))
     );
     assert_eq!(fs::read(&output).unwrap(), b"old");
-    assert_eq!(fs::read_dir(&fixture.root).unwrap().count(), 1);
+    assert_eq!(fs::read_dir(fixture.path()).unwrap().count(), 1);
 
     let result = commit_path_with_options(
         &output,
@@ -232,7 +232,7 @@ fn sync_errors_have_correct_publication_state() {
         matches!(result, Err(NamedWriteError::AfterPublication { source }) if source.raw_os_error() == Some(5))
     );
     assert_eq!(fs::read(&output).unwrap(), b"new");
-    assert_eq!(fs::read_dir(&fixture.root).unwrap().count(), 1);
+    assert_eq!(fs::read_dir(fixture.path()).unwrap().count(), 1);
 }
 
 #[test]
@@ -249,8 +249,8 @@ fn failed_publication_cleans_staging_before_dropping_the_produced_value() {
         }
     }
 
-    let fixture = Fixture::new();
-    let output = fixture.root.join("output");
+    let fixture = fixture();
+    let output = fixture.path().join("output");
     for step in [
         FileCommitStep::TemporaryFileSync,
         FileCommitStep::Publication,
@@ -288,8 +288,8 @@ fn failed_publication_cleans_staging_before_dropping_the_produced_value() {
 #[test]
 fn replacement_after_sync_is_rejected_before_rename() {
     use std::cell::RefCell;
-    let fixture = Fixture::new();
-    let output = fixture.root.join("output");
+    let fixture = fixture();
+    let output = fixture.path().join("output");
     fs::write(&output, b"old").unwrap();
     let staged_path = RefCell::new(None);
     let result = commit_path_with_options(
@@ -328,8 +328,8 @@ fn replacement_after_sync_is_rejected_before_rename() {
 #[test]
 fn producer_error_retains_cleanup_rejection_and_error_source() {
     use std::error::Error as _;
-    let fixture = Fixture::new();
-    let output = fixture.root.join("output");
+    let fixture = fixture();
+    let output = fixture.path().join("output");
     let error = write_named_with(&output, REPLACE_OPTIONS, |stage| {
         fs::remove_file(stage).unwrap();
         fs::write(stage, b"foreign").unwrap();
@@ -350,7 +350,7 @@ fn producer_error_retains_cleanup_rejection_and_error_source() {
         if source.raw_os_error() == Some(13) && cleanup.kind() == io::ErrorKind::InvalidData)
     );
     assert!(!output.exists());
-    assert_eq!(fs::read_dir(&fixture.root).unwrap().count(), 1);
+    assert_eq!(fs::read_dir(fixture.path()).unwrap().count(), 1);
 }
 
 #[test]

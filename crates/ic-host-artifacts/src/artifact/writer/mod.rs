@@ -89,6 +89,10 @@ impl<W> BoundedWriter<W> {
         self.exceeded
     }
 
+    pub(super) const fn get_ref(&self) -> &W {
+        &self.inner
+    }
+
     /// Recover the original sink, including any partial output after failure.
     ///
     /// Does not flush, synchronize, retry, publish or discard output. Callers

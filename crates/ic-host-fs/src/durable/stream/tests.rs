@@ -2,7 +2,7 @@ use super::*;
 mod existing_parent;
 use crate::{
     durable::supported::{FileCommitStep, commit_at_with_hook, native_permissions},
-    test_support::Fixture,
+    test_support::fixture,
 };
 use std::{
     ffi::{OsStr, OsString},
@@ -27,9 +27,9 @@ const CREATE: WriteOptions = WriteOptions {
 
 #[test]
 fn descriptor_admission_keeps_typed_rejection_and_previous_output() {
-    let fixture = Fixture::new();
-    let parent = fs::File::open(&fixture.root).unwrap();
-    let output = fixture.root.join("report");
+    let fixture = fixture();
+    let parent = fs::File::open(fixture.path()).unwrap();
+    let output = fixture.path().join("report");
     fs::write(&output, b"previous").unwrap();
     for accepted in [false, true] {
         let result = write_at_validated_with(
@@ -63,14 +63,14 @@ fn descriptor_admission_keeps_typed_rejection_and_previous_output() {
                 if source.kind() == io::ErrorKind::Interrupted));
             assert_eq!(fs::read(&output).unwrap(), b"previous");
         }
-        assert_eq!(fs::read_dir(&fixture.root).unwrap().count(), 1);
+        assert_eq!(fs::read_dir(fixture.path()).unwrap().count(), 1);
     }
 }
 
 #[test]
 fn descriptor_value_admission_accepts_write_only_staging() {
-    let fixture = Fixture::new();
-    let parent = fs::File::open(&fixture.root).unwrap();
+    let fixture = fixture();
+    let parent = fs::File::open(fixture.path()).unwrap();
     let result = write_at_validated_with(
         parent.as_fd(),
         OsStr::new("report"),
@@ -89,15 +89,15 @@ fn descriptor_value_admission_accepts_write_only_staging() {
     )
     .unwrap();
     assert_eq!(result, 42);
-    let metadata = fs::metadata(fixture.root.join("report")).unwrap();
+    let metadata = fs::metadata(fixture.path().join("report")).unwrap();
     assert_eq!(metadata.len(), 8);
     assert_eq!(metadata.permissions().mode() & 0o777, 0o200);
 }
 
 #[test]
 fn descriptor_producer_rejection_never_dispatches_admission() {
-    let fixture = Fixture::new();
-    let parent = fs::File::open(&fixture.root).unwrap();
+    let fixture = fixture();
+    let parent = fs::File::open(fixture.path()).unwrap();
     let result = write_at_validated_with(
         parent.as_fd(),
         OsStr::new("report"),
@@ -111,7 +111,7 @@ fn descriptor_producer_rejection_never_dispatches_admission() {
     assert!(matches!(result,
         Err(NamedWriteError::Producer { source, cleanup_error: None })
         if source.kind() == io::ErrorKind::StorageFull));
-    assert_eq!(fs::read_dir(&fixture.root).unwrap().count(), 0);
+    assert_eq!(fs::read_dir(fixture.path()).unwrap().count(), 0);
 }
 
 #[test]
@@ -122,8 +122,8 @@ fn typed_serialization_preserves_errors_limits_and_previous_output() {
             Err(serde::ser::Error::custom("invalid fixture value"))
         }
     }
-    let fixture = Fixture::new();
-    let path = fixture.root.join("nested/output");
+    let fixture = fixture();
+    let path = fixture.path().join("nested/output");
     write_with(&path, REPLACE, |file| -> io::Result<_> {
         file.write_all(b"old")?;
         Ok(42)
@@ -163,8 +163,8 @@ fn typed_serialization_preserves_errors_limits_and_previous_output() {
 
 #[test]
 fn create_only_refuses_existing_entries_and_a_competing_publication() {
-    let fixture = Fixture::new();
-    let path = fixture.root.join("output");
+    let fixture = fixture();
+    let path = fixture.path().join("output");
     let error = write_with(&path, CREATE, |file| -> io::Result<()> {
         file.write_all(b"ours")?;
         fs::write(&path, b"winner")
@@ -174,11 +174,11 @@ fn create_only_refuses_existing_entries_and_a_competing_publication() {
         matches!(error, NamedWriteError::BeforePublication { source, cleanup_error: None } if source.kind() == io::ErrorKind::AlreadyExists)
     );
     assert_eq!(fs::read(&path).unwrap(), b"winner");
-    assert_eq!(fs::read_dir(&fixture.root).unwrap().count(), 1);
-    let fresh = fixture.root.join("fresh");
+    assert_eq!(fs::read_dir(fixture.path()).unwrap().count(), 1);
+    let fresh = fixture.path().join("fresh");
     write_with(&fresh, CREATE, |file| file.write_all(b"new")).unwrap();
     assert_eq!(fs::read(fresh).unwrap(), b"new");
-    let link = fixture.root.join("link");
+    let link = fixture.path().join("link");
     symlink(&path, &link).unwrap();
     assert!(
         matches!(write_with(&link, CREATE, |file| file.write_all(b"blocked")),
@@ -190,7 +190,7 @@ fn create_only_refuses_existing_entries_and_a_competing_publication() {
             .file_type()
             .is_symlink()
     );
-    let dir = fixture.root.join("directory");
+    let dir = fixture.path().join("directory");
     fs::create_dir(&dir).unwrap();
     assert!(write_with(&dir, CREATE, |file| file.write_all(b"blocked")).is_err());
     assert!(dir.is_dir());
@@ -198,9 +198,9 @@ fn create_only_refuses_existing_entries_and_a_competing_publication() {
 
 #[test]
 fn held_directory_survives_parent_rename_and_replacement() {
-    let fixture = Fixture::new();
-    let original = fixture.root.join("original parent");
-    let moved = fixture.root.join("moved parent");
+    let fixture = fixture();
+    let original = fixture.path().join("original parent");
+    let moved = fixture.path().join("moved parent");
     fs::create_dir(&original).unwrap();
     let directory = fs::File::open(&original).unwrap();
     let result = write_at_validated_with(
@@ -214,10 +214,7 @@ fn held_directory_survives_parent_rename_and_replacement() {
             file.write_all(b"held directory")?;
             Ok(73)
         },
-        |value| {
-            assert_eq!(*value, 73);
-            Ok(())
-        },
+        |_| Ok(()),
     )
     .unwrap();
     assert_eq!(result, 73);
@@ -243,22 +240,22 @@ fn held_directory_survives_parent_rename_and_replacement() {
 
 #[test]
 fn filename_and_descriptor_admission_precedes_any_producer_or_stage() {
-    let fixture = Fixture::new();
-    let directory = fs::File::open(&fixture.root).unwrap();
+    let fixture = fixture();
+    let directory = fs::File::open(fixture.path()).unwrap();
     for name in ["", ".", "..", "a/b", "a/", "/absolute", "a\0b"] {
         let error = write_at_validated_with(
             directory.as_fd(),
             OsStr::new(name),
             REPLACE,
             |_| -> io::Result<()> { panic!("invalid name dispatched") },
-            |()| panic!("invalid name ran admission"),
+            |()| Ok(()),
         )
         .unwrap_err();
         assert!(
             matches!(error, NamedWriteError::BeforePublication { source, .. } if source.kind() == io::ErrorKind::InvalidInput)
         );
     }
-    let path = fixture.root.join("must not create/output");
+    let path = fixture.path().join("must not create/output");
     for permissions in [0o1000, 0o4600, 0x1_0000 | 0o600, u32::MAX] {
         let options = WriteOptions {
             permissions,
@@ -279,7 +276,7 @@ fn filename_and_descriptor_admission_precedes_any_producer_or_stage() {
             &path,
             options,
             |_| -> io::Result<()> { panic!("invalid existing-parent mode dispatched") },
-            |()| panic!("invalid existing-parent mode ran admission"),
+            |()| Ok(()),
         )
         .unwrap_err();
         assert!(
@@ -290,21 +287,21 @@ fn filename_and_descriptor_admission_precedes_any_producer_or_stage() {
             OsStr::new("output"),
             options,
             |_| -> io::Result<()> { panic!("invalid descriptor mode dispatched") },
-            |()| panic!("invalid descriptor mode ran admission"),
+            |()| Ok(()),
         )
         .unwrap_err();
         assert!(
             matches!(error, NamedWriteError::BeforePublication { source, cleanup_error: None } if source.kind() == io::ErrorKind::InvalidInput)
         );
     }
-    assert_eq!(fs::read_dir(&fixture.root).unwrap().count(), 0);
-    let regular = fs::File::create(fixture.root.join("file")).unwrap();
+    assert_eq!(fs::read_dir(fixture.path()).unwrap().count(), 0);
+    let regular = fs::File::create(fixture.path().join("file")).unwrap();
     let error = write_at_validated_with(
         regular.as_fd(),
         OsStr::new("output"),
         REPLACE,
         |_| -> io::Result<()> { panic!("non-directory dispatched") },
-        |()| panic!("non-directory ran admission"),
+        |()| Ok(()),
     )
     .unwrap_err();
     assert!(
@@ -315,11 +312,11 @@ fn filename_and_descriptor_admission_precedes_any_producer_or_stage() {
 #[test]
 fn non_utf8_publication_matches_native_filesystem_admission() {
     for options in [REPLACE, CREATE] {
-        let fixture = Fixture::new();
-        let directory = fs::File::open(&fixture.root).unwrap();
+        let fixture = fixture();
+        let directory = fs::File::open(fixture.path()).unwrap();
         let name = OsString::from_vec(vec![0xff, b'x']);
-        let destination = fixture.root.join(&name);
-        let native_stage = fixture.root.join("native-stage");
+        let destination = fixture.path().join(&name);
+        let native_stage = fixture.path().join("native-stage");
         fs::write(&native_stage, b"native").unwrap();
         // Observe this filesystem's destination admission independently. Darwin
         // filesystems can reject these bytes; a Unix OsString alone admits them.
@@ -353,7 +350,7 @@ fn non_utf8_publication_matches_native_filesystem_admission() {
             Ok(()) => {
                 result.unwrap();
                 assert_eq!(fs::read(&destination).unwrap(), b"non-UTF-8");
-                let names: Vec<_> = fs::read_dir(&fixture.root)
+                let names: Vec<_> = fs::read_dir(fixture.path())
                     .unwrap()
                     .map(|entry| entry.unwrap().file_name())
                     .collect();
@@ -370,7 +367,7 @@ fn non_utf8_publication_matches_native_filesystem_admission() {
                         if source.raw_os_error() == native_error.raw_os_error()
                 ));
                 // Enumerate instead of looking up a name rejected by this FS.
-                assert_eq!(fs::read_dir(&fixture.root).unwrap().count(), 0);
+                assert_eq!(fs::read_dir(fixture.path()).unwrap().count(), 0);
             }
         }
     }
@@ -378,11 +375,11 @@ fn non_utf8_publication_matches_native_filesystem_admission() {
 
 #[test]
 fn replace_does_not_follow_a_final_symlink_and_refuses_a_directory() {
-    let fixture = Fixture::new();
-    let directory = fs::File::open(&fixture.root).unwrap();
-    let target = fixture.root.join("target");
+    let fixture = fixture();
+    let directory = fs::File::open(fixture.path()).unwrap();
+    let target = fixture.path().join("target");
     fs::write(&target, b"retained").unwrap();
-    symlink(&target, fixture.root.join("link")).unwrap();
+    symlink(&target, fixture.path().join("link")).unwrap();
     write_at_validated_with(
         directory.as_fd(),
         OsStr::new("link"),
@@ -393,12 +390,12 @@ fn replace_does_not_follow_a_final_symlink_and_refuses_a_directory() {
     .unwrap();
     assert_eq!(fs::read(target).unwrap(), b"retained");
     assert!(
-        !fs::symlink_metadata(fixture.root.join("link"))
+        !fs::symlink_metadata(fixture.path().join("link"))
             .unwrap()
             .file_type()
             .is_symlink()
     );
-    fs::create_dir(fixture.root.join("dir")).unwrap();
+    fs::create_dir(fixture.path().join("dir")).unwrap();
     assert!(matches!(
         write_at_validated_with(
             directory.as_fd(),
@@ -412,14 +409,14 @@ fn replace_does_not_follow_a_final_symlink_and_refuses_a_directory() {
             ..
         })
     ));
-    assert_eq!(fs::read_dir(&fixture.root).unwrap().count(), 3);
+    assert_eq!(fs::read_dir(fixture.path()).unwrap().count(), 3);
 }
 
 #[test]
 fn descriptor_publication_preserves_sync_state_and_foreign_stage_cleanup_evidence() {
-    let fixture = Fixture::new();
-    let directory = fs::File::open(&fixture.root).unwrap();
-    let target = fixture.root.join("output");
+    let fixture = fixture();
+    let directory = fs::File::open(fixture.path()).unwrap();
+    let target = fixture.path().join("output");
     for step in [
         FileCommitStep::TemporaryFileSync,
         FileCommitStep::Publication,
@@ -456,7 +453,7 @@ fn descriptor_publication_preserves_sync_state_and_foreign_stage_cleanup_evidenc
             );
             assert_eq!(fs::read(&target).unwrap(), b"old");
         }
-        assert_eq!(fs::read_dir(&fixture.root).unwrap().count(), 1);
+        assert_eq!(fs::read_dir(fixture.path()).unwrap().count(), 1);
     }
     let error = commit_at_with_hook(
         directory.as_fd(),
@@ -467,8 +464,8 @@ fn descriptor_publication_preserves_sync_state_and_foreign_stage_cleanup_evidenc
             native_permissions(REPLACE.permissions).unwrap(),
         ),
         |stage, _| -> Result<(), &'static str> {
-            fs::remove_file(fixture.root.join(stage)).unwrap();
-            fs::write(fixture.root.join(stage), b"foreign").unwrap();
+            fs::remove_file(fixture.path().join(stage)).unwrap();
+            fs::write(fixture.path().join(stage), b"foreign").unwrap();
             Err("producer evidence")
         },
         (WriterCustody::Writable, |_, ()| Ok(())),
@@ -478,7 +475,7 @@ fn descriptor_publication_preserves_sync_state_and_foreign_stage_cleanup_evidenc
     assert!(
         matches!(error, NamedWriteError::Producer { source: "producer evidence", cleanup_error: Some(source) } if source.kind() == io::ErrorKind::InvalidData)
     );
-    assert_eq!(fs::read_dir(&fixture.root).unwrap().count(), 2);
+    assert_eq!(fs::read_dir(fixture.path()).unwrap().count(), 2);
 }
 
 #[test]
@@ -503,8 +500,8 @@ fn closed_writer_admission_executes_before_replacing_the_destination() {
         );
         return;
     }
-    let fixture = Fixture::new();
-    let output = fixture.root.join("executable with spaces");
+    let fixture = fixture();
+    let output = fixture.path().join("executable with spaces");
     fs::write(&output, b"old").unwrap();
     let value = write_validated_with(
         &output,
@@ -539,13 +536,13 @@ fn closed_writer_admission_executes_before_replacing_the_destination() {
             .unwrap()
             .success()
     );
-    assert_eq!(fs::read_dir(&fixture.root).unwrap().count(), 1);
+    assert_eq!(fs::read_dir(fixture.path()).unwrap().count(), 1);
 }
 
 #[test]
 fn admission_rejection_and_identity_replacement_preserve_previous_output() {
-    let fixture = Fixture::new();
-    let output = fixture.root.join("output");
+    let fixture = fixture();
+    let output = fixture.path().join("output");
     for replace in [false, true] {
         fs::write(&output, b"old").unwrap();
         let mut stage_path = None;
@@ -581,8 +578,8 @@ fn admission_rejection_and_identity_replacement_preserve_previous_output() {
 
 #[test]
 fn validated_publication_retains_sync_and_publication_failure_phases() {
-    let fixture = Fixture::new();
-    let output = fixture.root.join("output");
+    let fixture = fixture();
+    let output = fixture.path().join("output");
     for step in [
         FileCommitStep::TemporaryFileSync,
         FileCommitStep::Publication,
@@ -622,14 +619,14 @@ fn validated_publication_retains_sync_and_publication_failure_phases() {
             );
             assert_eq!(fs::read(&output).unwrap(), b"old");
         }
-        assert_eq!(fs::read_dir(&fixture.root).unwrap().count(), 1);
+        assert_eq!(fs::read_dir(fixture.path()).unwrap().count(), 1);
     }
 }
 
 #[test]
 fn validated_create_new_preserves_an_admission_race_winner() {
-    let fixture = Fixture::new();
-    let output = fixture.root.join("output");
+    let fixture = fixture();
+    let output = fixture.path().join("output");
     let result = write_validated_with(
         &output,
         CREATE,
@@ -640,15 +637,15 @@ fn validated_create_new_preserves_an_admission_race_winner() {
         matches!(result, Err(NamedWriteError::BeforePublication { source, cleanup_error: None }) if source.kind() == io::ErrorKind::AlreadyExists)
     );
     assert_eq!(fs::read(output).unwrap(), b"winner");
-    assert_eq!(fs::read_dir(&fixture.root).unwrap().count(), 1);
+    assert_eq!(fs::read_dir(fixture.path()).unwrap().count(), 1);
 }
 
 #[test]
 fn link_fallback_cleanup_failure_reports_already_published_output() {
-    let fixture = Fixture::new();
-    let directory = fs::File::open(&fixture.root).unwrap();
+    let fixture = fixture();
+    let directory = fs::File::open(fixture.path()).unwrap();
     let stage = OsStr::new("stage");
-    fs::write(fixture.root.join(stage), b"complete").unwrap();
+    fs::write(fixture.path().join(stage), b"complete").unwrap();
     let error = super::super::supported::finish_create_new_publication::<io::Error>(
         &directory,
         stage,
@@ -660,17 +657,20 @@ fn link_fallback_cleanup_failure_reports_already_published_output() {
     assert!(
         matches!(error, NamedWriteError::AfterPublication { source } if source.raw_os_error() == Some(13))
     );
-    assert_eq!(fs::read(fixture.root.join("output")).unwrap(), b"complete");
-    assert_eq!(fs::read(fixture.root.join(stage)).unwrap(), b"complete");
+    assert_eq!(
+        fs::read(fixture.path().join("output")).unwrap(),
+        b"complete"
+    );
+    assert_eq!(fs::read(fixture.path().join(stage)).unwrap(), b"complete");
 }
 
 #[test]
 fn pathname_writers_reject_nul_before_creating_parents() {
     use crate::durable::{write_bytes, write_named_with};
 
-    let fixture = Fixture::new();
+    let fixture = fixture();
     for name in ["invalid\0name", "invalid\0parent/output", "invalid/child\0"] {
-        let path = fixture.root.join("missing/nested").join(name);
+        let path = fixture.path().join("missing/nested").join(name);
         for writer in 0..7 {
             let error = match writer {
                 0 => write_bytes(&path, REPLACE, b"contents"),
@@ -704,7 +704,7 @@ fn pathname_writers_reject_nul_before_creating_parents() {
                 matches!(error, NamedWriteError::BeforePublication { source, cleanup_error: None }
                 if source.kind() == io::ErrorKind::InvalidInput)
             );
-            assert_eq!(fs::read_dir(&fixture.root).unwrap().count(), 0);
+            assert_eq!(fs::read_dir(fixture.path()).unwrap().count(), 0);
         }
     }
 }
@@ -714,8 +714,8 @@ fn pathname_writers_reject_directory_suffixes_before_any_effect() {
     use crate::durable::{write_bytes, write_named_with};
     use std::path::PathBuf;
 
-    let fixture = Fixture::new();
-    let existing = fixture.root.join("existing");
+    let fixture = fixture();
+    let existing = fixture.path().join("existing");
     fs::write(&existing, b"preserved").unwrap();
     // Exercise relative spellings without changing the process-wide working directory.
     let cwd = std::env::current_dir().unwrap();
@@ -723,8 +723,8 @@ fn pathname_writers_reject_directory_suffixes_before_any_effect() {
     for _ in cwd.components().skip(1) {
         relative_root.push("..");
     }
-    relative_root.push(fixture.root.strip_prefix("/").unwrap());
-    for root in [&fixture.root, &relative_root] {
+    relative_root.push(fixture.path().strip_prefix("/").unwrap());
+    for root in [fixture.path(), &relative_root] {
         for name in ["existing", "absent", "missing/child"] {
             for suffix in ["/", "//", "/.", "/./.", "/.//"] {
                 let mut raw = root.join(name).into_os_string();
@@ -764,12 +764,12 @@ fn pathname_writers_reject_directory_suffixes_before_any_effect() {
                         if source.kind() == io::ErrorKind::InvalidInput)
                     );
                     assert_eq!(fs::read(&existing).unwrap(), b"preserved");
-                    assert_eq!(fs::read_dir(&fixture.root).unwrap().count(), 1);
+                    assert_eq!(fs::read_dir(fixture.path()).unwrap().count(), 1);
                 }
             }
         }
     }
     // Ordinary current-directory components in the parent remain valid.
-    write_bytes(&fixture.root.join("./existing"), REPLACE, b"updated").unwrap();
+    write_bytes(&fixture.path().join("./existing"), REPLACE, b"updated").unwrap();
     assert_eq!(fs::read(&existing).unwrap(), b"updated");
 }

@@ -113,8 +113,8 @@ fn absent_input_closes_piped_stdin_and_caller_io_is_preserved() {
         );
         child.wait().unwrap();
     }
-    let input_path = fixture.root.join("input");
-    let output_path = fixture.root.join("output");
+    let input_path = fixture.path().join("input");
+    let output_path = fixture.path().join("output");
     fs::write(&input_path, b"caller-selected input").unwrap();
     let mut command = command("cat >&2");
     command
@@ -172,9 +172,9 @@ fn early_stdin_close_preserves_command_status_and_diagnostics() {
 #[test]
 fn cancellation_interrupts_blocked_input_and_reaps_the_group() {
     let fixture = Fixture::new();
-    let ready = fixture.root.join("ready");
-    let go = fixture.root.join("go");
-    let late = fixture.root.join("late");
+    let ready = fixture.path().join("ready");
+    let go = fixture.path().join("go");
+    let late = fixture.path().join("late");
     let mut command = command(
         "(printf ready > \"$READY\"; while ! test -f \"$GO\"; do sleep 0.01; done; \
          printf late > \"$LATE\") & wait",
@@ -207,9 +207,9 @@ fn cancellation_interrupts_blocked_input_and_reaps_the_group() {
 fn successful_background_handoff_requires_explicit_post_io_admission() {
     let fixture = Fixture::new();
     for handoff in [false, true] {
-        let ready = fixture.root.join(format!("ready-{handoff}"));
-        let go = fixture.root.join(format!("go-{handoff}"));
-        let late = fixture.root.join(format!("late-{handoff}"));
+        let ready = fixture.path().join(format!("ready-{handoff}"));
+        let go = fixture.path().join(format!("go-{handoff}"));
+        let late = fixture.path().join(format!("late-{handoff}"));
         let mut command = command(
             "(printf ready > \"$READY\"; while ! test -f \"$GO\"; do sleep 0.01; done; \
              printf late > \"$LATE\") >/dev/null 2>&1 & \
@@ -374,7 +374,7 @@ fn cancellation_is_checked_again_before_returning_reserved_success() {
 fn communication_uses_owned_term_grace_with_blocked_input_and_held_pipes() {
     let fixture = Fixture::new();
     for mode in ["timeout", "cancel", "exited-leader"] {
-        let ready = fixture.root.join(mode);
+        let ready = fixture.path().join(mode);
         let mut command = command(
             "trap 'exit 0' TERM; \
              sh -c 'trap \"\" TERM; printf ready > \"$READY\"; exec sleep 30' & \

@@ -25,9 +25,9 @@ use std::{
 #[test]
 fn caller_command_keeps_arguments_environment_and_directory_without_a_version_probe() {
     let fixture = Fixture::new();
-    let directory = fixture.root.join("working directory");
+    let directory = fixture.path().join("working directory");
     fs::create_dir(&directory).unwrap();
-    let marker = fixture.root.join("invocations");
+    let marker = fixture.path().join("invocations");
     let mut command = Command::new(tool_path());
     command
         .current_dir(&directory)
@@ -106,7 +106,7 @@ fn caller_command_keeps_arguments_environment_and_directory_without_a_version_pr
 #[test]
 fn caller_capture_retains_bounded_failures_and_runs_only_once() {
     let fixture = Fixture::new();
-    let marker = fixture.root.join("invocations");
+    let marker = fixture.path().join("invocations");
     let mut command = Command::new(tool_path());
     command.arg("--fail").env("FIXTURE_MARKER", &marker);
     let completed = capture_command(&mut command, LIMITS).unwrap();
@@ -172,7 +172,7 @@ fn caller_deadlines_reap_children_and_do_not_wait_for_descendant_pipe_eof() {
 #[test]
 fn caller_validation_and_failed_spawn_preserve_their_distinct_evidence() {
     let fixture = Fixture::new();
-    let marker = fixture.root.join("invocations");
+    let marker = fixture.path().join("invocations");
     let mut command = Command::new(tool_path());
     command.arg("--version").env("FIXTURE_MARKER", &marker);
     for timeout in [Duration::ZERO, Duration::MAX] {
@@ -191,7 +191,7 @@ fn caller_validation_and_failed_spawn_preserve_their_distinct_evidence() {
         assert!(error.evidence().is_none());
         assert!(!marker.exists());
     }
-    let mut command = Command::new(fixture.root.join("not installed"));
+    let mut command = Command::new(fixture.path().join("not installed"));
     let error = capture_command(&mut command, LIMITS).unwrap_err();
     assert!(matches!(&error.execution_error().unwrap().failure,
         ExecutionFailure::Io { operation: ExecutionOperation::Spawn, source }

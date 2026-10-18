@@ -37,7 +37,16 @@ fn io_failures_keep_the_original_source() {
     assert!(
         matches!(&error, FrameReadError::Io(source) if source.kind() == io::ErrorKind::PermissionDenied)
     );
-    assert!(std::error::Error::source(&error).is_some());
+    let FrameReadError::Io(original) = &error else {
+        panic!("expected original I/O cause");
+    };
+    let retained = std::error::Error::source(&error)
+        .unwrap()
+        .downcast_ref::<io::Error>()
+        .unwrap();
+    assert!(std::ptr::eq(original, retained));
+    assert_eq!(retained.to_string(), "secret frame body");
+    assert!(!error.to_string().contains("secret"));
 }
 
 struct Failing;
@@ -45,7 +54,7 @@ impl io::Read for Failing {
     fn read(&mut self, _: &mut [u8]) -> io::Result<usize> {
         Err(io::Error::new(
             io::ErrorKind::PermissionDenied,
-            "reader refused",
+            "secret frame body",
         ))
     }
 }

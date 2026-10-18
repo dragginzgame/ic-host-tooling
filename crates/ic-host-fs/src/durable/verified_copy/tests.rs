@@ -4,9 +4,9 @@ use std::fs;
 
 #[test]
 fn verified_copy_preserves_prior_bytes_on_digest_limit_and_source_refusal() {
-    let fixture = crate::test_support::Fixture::new();
-    let source = fixture.root.join("source");
-    let output = fixture.root.join("output");
+    let fixture = crate::test_support::fixture();
+    let source = fixture.path().join("source");
+    let output = fixture.path().join("output");
     fs::write(&source, b"complete").unwrap();
     fs::write(&output, b"prior").unwrap();
     let options = WriteOptions {
@@ -40,7 +40,7 @@ fn verified_copy_preserves_prior_bytes_on_digest_limit_and_source_refusal() {
     assert_eq!(fs::read(&output).unwrap(), b"prior");
     assert!(
         copy_verified(
-            &fixture.root,
+            fixture.path(),
             &output,
             Sha256Digest::compute(b""),
             8,
@@ -75,27 +75,21 @@ fn verified_copy_preserves_prior_bytes_on_digest_limit_and_source_refusal() {
         0
     );
     assert_eq!(fs::read(&output).unwrap(), [] as [u8; 0]);
-    assert_eq!(fs::read_dir(&fixture.root).unwrap().count(), 2);
+    assert_eq!(fs::read_dir(fixture.path()).unwrap().count(), 2);
 }
 
 #[cfg(unix)]
 #[test]
 fn verified_copy_refuses_fifo_without_a_writer_and_follows_selected_symlinks() {
     use std::os::unix::fs::symlink;
-    let fixture = crate::test_support::Fixture::new();
-    let source = fixture.root.join("source");
-    let alias = fixture.root.join("alias");
-    let fifo = fixture.root.join("fifo");
-    let output = fixture.root.join("output");
+    let fixture = crate::test_support::fixture();
+    let source = fixture.path().join("source");
+    let alias = fixture.path().join("alias");
+    let fifo = fixture.path().join("fifo");
+    let output = fixture.path().join("output");
     fs::write(&source, b"bytes").unwrap();
     symlink(&source, &alias).unwrap();
-    assert!(
-        std::process::Command::new("/usr/bin/mkfifo")
-            .arg(&fifo)
-            .status()
-            .unwrap()
-            .success()
-    );
+    crate::test_support::create_fifo(&fifo, None).unwrap();
     let options = WriteOptions {
         mode: super::super::PublicationMode::Replace,
         permissions: 0o600,

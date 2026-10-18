@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Cargo workspace publication admission. Requires prepared Cargo 1.99, Git,
-# jq and tar; Shared Tooling owns attempt recording and Cargo/tee dispatch.
+# jq and tar; Host admits archive/source proof, Shared owns attempt/Cargo/tee dispatch.
 # Cargo owns packaging, dependency ordering, verification, upload
 # and index waiting. The caller owns credentials and partial-upload recovery.
 mode="${1:-}"
@@ -90,24 +90,13 @@ if [[ "$mode" == publish ]]; then
         --registry crates-io --all-features --locked --no-verify --target-dir "$root/target")
     printf '%s\0' "${package_arguments[@]}" > "$attempt/package-arguments"
     cargo "${package_arguments[@]}" > "$attempt/package.log" 2>&1 || fail 'package preparation failed; no upload attempted'
+    provenance_arguments=()
     for package in "${packages[@]}"; do
-        archive="target/package/$package-$version.crate"
-        [[ -f "$archive" && ! -L "$archive" ]] || fail "missing regular package archive for $package"
-        tar -xOf "$archive" "$package-$version/.cargo_vcs_info.json" \
-            > "$attempt/$package-vcs.json" 2> "$attempt/$package-vcs.log" || fail "missing package provenance for $package"
-        jq -e --arg source "$source" --arg path "$(package_path "$package")" \
-            '.git.sha1 == $source and (.git.dirty // false) == false and .path_in_vcs == $path' \
-            "$attempt/$package-vcs.json" > /dev/null || fail "package source identity differs for $package"
+        directory="$(package_path "$package")" || fail "invalid package directory for $package"
+        provenance_arguments+=(--package "$package@$version" "$directory")
     done
-    # An empty object store establishes remote retrieval rather than merely
-    # finding an object already present in this checkout. Retain it as evidence.
-    printf '%s\n' "$repository" "$source" > "$attempt/source-request"
-    git init --bare "$attempt/source.git" > "$attempt/source-init.log" 2>&1 || fail 'cannot prepare source evidence'
-    GIT_TERMINAL_PROMPT=0 git -C "$attempt/source.git" fetch --no-tags --depth=1 \
-        "$repository" "$source" > "$attempt/source-fetch.log" 2>&1 || fail 'packaged source is not retrievable from the declared repository'
-    retrieved="$(git -C "$attempt/source.git" rev-parse --verify 'FETCH_HEAD^{commit}')" || fail 'retrieved source is not a commit'
-    [[ "$retrieved" == "$source" ]] || fail 'retrieved source differs from package provenance'
-    printf '%s\n' "$retrieved" > "$attempt/source-verified"
+    bash "$tooling_root/scripts/ci/check-cargo-package-provenance.sh" \
+        "$attempt/provenance" "$root/target/package" "$repository" "$source" "${provenance_arguments[@]}"
 fi
 observed_source="$(git rev-parse --verify HEAD)" || exit $?
 observed_dirty="$(git status --porcelain --untracked-files=all)" || exit $?

@@ -49,7 +49,7 @@ fn direct_spawn_preserves_inherited_group_context_and_io() {
     let fixture = Fixture::new();
     let mut command = command("read value; printf '%s|%s|%s' \"$value\" \"$SELECTED\" \"$PWD\"");
     command
-        .current_dir(&fixture.root)
+        .current_dir(fixture.path())
         .env_clear()
         .env("SELECTED", "direct")
         .stdin(Stdio::piped())
@@ -75,7 +75,7 @@ fn direct_spawn_preserves_inherited_group_context_and_io() {
     .unwrap();
     assert_eq!(
         observed,
-        format!("input|direct|{}", fixture.root.display()).as_bytes()
+        format!("input|direct|{}", fixture.path().display()).as_bytes()
     );
     assert_eq!(evidence.stdout, observed);
     assert!(evidence.status.success());

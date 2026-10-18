@@ -23,28 +23,28 @@ fn executable(path: &Path) {
 #[test]
 fn explicit_absolute_and_relative_paths_ignore_the_search_list() {
     let fixture = Fixture::new();
-    let local = fixture.root.join("selected");
+    let local = fixture.path().join("selected");
     executable(&local);
-    let other = fixture.root.join("other");
+    let other = fixture.path().join("other");
     fs::create_dir(&other).unwrap();
     executable(&other.join("selected"));
     let directories = [other];
     let expected = local.canonicalize().unwrap();
     assert_eq!(
-        resolve_executable(&local, &fixture.root, &directories).unwrap(),
+        resolve_executable(&local, fixture.path(), &directories).unwrap(),
         expected
     );
     assert_eq!(
-        resolve_executable(Path::new("./selected"), &fixture.root, &directories).unwrap(),
+        resolve_executable(Path::new("./selected"), fixture.path(), &directories).unwrap(),
         expected
     );
     assert_ne!(
-        resolve_executable(Path::new("selected"), &fixture.root, &directories).unwrap(),
+        resolve_executable(Path::new("selected"), fixture.path(), &directories).unwrap(),
         expected
     );
     // An explicit missing path cannot fall back to the same name in the list.
     assert!(
-        matches!(resolve_executable(Path::new("./absent/selected"), &fixture.root, &directories),
+        matches!(resolve_executable(Path::new("./absent/selected"), fixture.path(), &directories),
         Err(ResolutionError::Io { directory: None, source }) if source.kind() == io::ErrorKind::NotFound)
     );
 }
@@ -52,10 +52,10 @@ fn explicit_absolute_and_relative_paths_ignore_the_search_list() {
 #[test]
 fn search_order_skips_missing_nonregular_and_nonexecutable_candidates() {
     let fixture = Fixture::new();
-    let missing = fixture.root.join("missing");
-    let directory = fixture.root.join("directory");
+    let missing = fixture.path().join("missing");
+    let directory = fixture.path().join("directory");
     fs::create_dir_all(directory.join("tool")).unwrap();
-    let nonexecutable = fixture.root.join("nonexecutable");
+    let nonexecutable = fixture.path().join("nonexecutable");
     fs::create_dir(&nonexecutable).unwrap();
     fs::write(nonexecutable.join("tool"), b"not executable").unwrap();
     fs::set_permissions(
@@ -63,11 +63,11 @@ fn search_order_skips_missing_nonregular_and_nonexecutable_candidates() {
         fs::Permissions::from_mode(0o644),
     )
     .unwrap();
-    let dangling = fixture.root.join("dangling");
+    let dangling = fixture.path().join("dangling");
     fs::create_dir(&dangling).unwrap();
     symlink("absent", dangling.join("tool")).unwrap();
-    let first = fixture.root.join("first");
-    let second = fixture.root.join("second");
+    let first = fixture.path().join("first");
+    let second = fixture.path().join("second");
     fs::create_dir(&first).unwrap();
     fs::create_dir(&second).unwrap();
     executable(&first.join("tool"));
@@ -81,7 +81,7 @@ fn search_order_skips_missing_nonregular_and_nonexecutable_candidates() {
         second,
     ];
     assert_eq!(
-        resolve_executable(Path::new("tool"), &fixture.root, &directories).unwrap(),
+        resolve_executable(Path::new("tool"), fixture.path(), &directories).unwrap(),
         first.join("tool").canonicalize().unwrap()
     );
 }
@@ -89,24 +89,24 @@ fn search_order_skips_missing_nonregular_and_nonexecutable_candidates() {
 #[test]
 fn relative_and_empty_search_entries_use_only_the_explicit_working_directory() {
     let fixture = Fixture::new();
-    executable(&fixture.root.join("tool"));
-    let nested = fixture.root.join("bin");
+    executable(&fixture.path().join("tool"));
+    let nested = fixture.path().join("bin");
     fs::create_dir(&nested).unwrap();
     executable(&nested.join("tool"));
     assert!(matches!(
-        resolve_executable(Path::new("tool"), &fixture.root, &[]),
+        resolve_executable(Path::new("tool"), fixture.path(), &[]),
         Err(ResolutionError::NotFound)
     ));
     assert_eq!(
-        resolve_executable(Path::new("tool"), &fixture.root, &[PathBuf::new()]).unwrap(),
-        fixture.root.join("tool")
+        resolve_executable(Path::new("tool"), fixture.path(), &[PathBuf::new()]).unwrap(),
+        fixture.path().join("tool")
     );
     assert_eq!(
-        resolve_executable(Path::new("tool"), &fixture.root, &[PathBuf::from("bin")]).unwrap(),
+        resolve_executable(Path::new("tool"), fixture.path(), &[PathBuf::from("bin")]).unwrap(),
         nested.join("tool")
     );
     assert!(matches!(
-        resolve_executable(Path::new("sh"), &fixture.root, &[]),
+        resolve_executable(Path::new("sh"), fixture.path(), &[]),
         Err(ResolutionError::NotFound)
     ));
 }
@@ -114,19 +114,19 @@ fn relative_and_empty_search_entries_use_only_the_explicit_working_directory() {
 #[test]
 fn symlinks_and_parent_components_follow_filesystem_semantics() {
     let fixture = Fixture::new();
-    let real = fixture.root.join("real");
+    let real = fixture.path().join("real");
     let inner = real.join("inner");
     fs::create_dir_all(&inner).unwrap();
     executable(&real.join("tool"));
-    executable(&fixture.root.join("tool"));
-    symlink("real/inner", fixture.root.join("alias")).unwrap();
+    executable(&fixture.path().join("tool"));
+    symlink("real/inner", fixture.path().join("alias")).unwrap();
     assert_eq!(
-        resolve_executable(Path::new("alias/../tool"), &fixture.root, &[]).unwrap(),
+        resolve_executable(Path::new("alias/../tool"), fixture.path(), &[]).unwrap(),
         real.join("tool")
     );
-    symlink("real/tool", fixture.root.join("symlink-tool")).unwrap();
+    symlink("real/tool", fixture.path().join("symlink-tool")).unwrap();
     assert_eq!(
-        resolve_executable(Path::new("./symlink-tool"), &fixture.root, &[]).unwrap(),
+        resolve_executable(Path::new("./symlink-tool"), fixture.path(), &[]).unwrap(),
         real.join("tool")
     );
 }
@@ -135,14 +135,14 @@ fn symlinks_and_parent_components_follow_filesystem_semantics() {
 fn literal_unicode_spaces_and_shell_characters_are_not_expanded() {
     let fixture = Fixture::new();
     let name = Path::new("tool $(must-not-execute) space ☃");
-    executable(&fixture.root.join(name));
+    executable(&fixture.path().join(name));
     assert_eq!(
-        resolve_executable(name, &fixture.root, &[PathBuf::new()]).unwrap(),
-        fixture.root.join(name)
+        resolve_executable(name, fixture.path(), &[PathBuf::new()]).unwrap(),
+        fixture.path().join(name)
     );
-    assert!(!fixture.root.join("must-not-execute").exists());
+    assert!(!fixture.path().join("must-not-execute").exists());
     assert!(
-        matches!(resolve_executable(Path::new("~/tool"), &fixture.root, &[]),
+        matches!(resolve_executable(Path::new("~/tool"), fixture.path(), &[]),
         Err(ResolutionError::Io { source, .. }) if source.kind() == io::ErrorKind::NotFound)
     );
 }
@@ -157,7 +157,7 @@ fn invalid_inputs_are_typed_and_unused_directories_are_not_consulted() {
         Path::new("tool\0name"),
     ] {
         assert!(matches!(
-            resolve_executable(name, &fixture.root, &[]),
+            resolve_executable(name, fixture.path(), &[]),
             Err(ResolutionError::InvalidRequest)
         ));
     }
@@ -167,21 +167,21 @@ fn invalid_inputs_are_typed_and_unused_directories_are_not_consulted() {
             Err(ResolutionError::InvalidWorkingDirectory)
         ));
     }
-    let path = fixture.root.join("tool");
+    let path = fixture.path().join("tool");
     executable(&path);
     let directories = [PathBuf::new(), PathBuf::from("invalid\0directory")];
     assert!(matches!(
-        resolve_executable(Path::new("tool"), &fixture.root, &directories),
+        resolve_executable(Path::new("tool"), fixture.path(), &directories),
         Err(ResolutionError::InvalidSearchDirectory { index: 1 })
     ));
     assert_eq!(
-        resolve_executable(&path, &fixture.root, &directories).unwrap(),
+        resolve_executable(&path, fixture.path(), &directories).unwrap(),
         path
     );
     // Non-UTF-8 bytes are not converted to lossy text or confused with NUL.
     let name = PathBuf::from(OsString::from_vec(vec![b't', 0xff]));
     assert!(matches!(
-        resolve_executable(&name, &fixture.root, &[]),
+        resolve_executable(&name, fixture.path(), &[]),
         Err(ResolutionError::NotFound)
     ));
 }
@@ -190,18 +190,18 @@ fn invalid_inputs_are_typed_and_unused_directories_are_not_consulted() {
 fn explicit_paths_preserve_nonregular_permission_and_missing_failures() {
     let fixture = Fixture::new();
     assert!(matches!(
-        resolve_executable(&fixture.root, &fixture.root, &[]),
+        resolve_executable(fixture.path(), fixture.path(), &[]),
         Err(ResolutionError::NotRegularFile)
     ));
-    let path = fixture.root.join("data");
+    let path = fixture.path().join("data");
     fs::write(&path, b"data").unwrap();
     fs::set_permissions(&path, fs::Permissions::from_mode(0o644)).unwrap();
     assert!(matches!(
-        resolve_executable(&path, &fixture.root, &[]),
+        resolve_executable(&path, fixture.path(), &[]),
         Err(ResolutionError::NotExecutable)
     ));
     assert!(
-        matches!(resolve_executable(&fixture.root.join("absent"), &fixture.root, &[]),
+        matches!(resolve_executable(&fixture.path().join("absent"), fixture.path(), &[]),
         Err(ResolutionError::Io { directory: None, source }) if source.kind() == io::ErrorKind::NotFound)
     );
 }
@@ -209,20 +209,20 @@ fn explicit_paths_preserve_nonregular_permission_and_missing_failures() {
 #[test]
 fn search_stops_on_filesystem_errors_instead_of_selecting_a_later_tool() {
     let fixture = Fixture::new();
-    let first = fixture.root.join("first");
-    let later = fixture.root.join("later");
+    let first = fixture.path().join("first");
+    let later = fixture.path().join("later");
     fs::create_dir(&first).unwrap();
     fs::create_dir(&later).unwrap();
     symlink("tool", first.join("tool")).unwrap();
     executable(&later.join("tool"));
     assert!(
-        matches!(resolve_executable(Path::new("tool"), &fixture.root, &[first, later.clone()]),
+        matches!(resolve_executable(Path::new("tool"), fixture.path(), &[first, later.clone()]),
         Err(ResolutionError::Io { directory: Some(0), source }) if source.raw_os_error() == Some(rustix::io::Errno::LOOP.raw_os_error()))
     );
-    let file = fixture.root.join("not-a-directory");
+    let file = fixture.path().join("not-a-directory");
     executable(&file);
     assert!(
-        matches!(resolve_executable(Path::new("tool"), &fixture.root, &[file, later]),
+        matches!(resolve_executable(Path::new("tool"), fixture.path(), &[file, later]),
         Err(ResolutionError::Io { directory: Some(0), source }) if source.raw_os_error() == Some(rustix::io::Errno::NOTDIR.raw_os_error()))
     );
 }
@@ -230,32 +230,32 @@ fn search_stops_on_filesystem_errors_instead_of_selecting_a_later_tool() {
 #[test]
 fn selected_candidate_must_be_admitted_without_falling_back_after_digest_failure() {
     let fixture = Fixture::new();
-    let first = fixture.root.join("first");
-    let later = fixture.root.join("later");
+    let first = fixture.path().join("first");
+    let later = fixture.path().join("later");
     fs::create_dir(&first).unwrap();
     fs::create_dir(&later).unwrap();
     crate::testing::write_executable_script(&first.join("tool"), fs::read(tool_path()).unwrap())
         .unwrap();
     crate::testing::write_executable_script(&later.join("tool"), fs::read(tool_path()).unwrap())
         .unwrap();
-    let marker = fixture.root.join("invocations");
+    let marker = fixture.path().join("invocations");
     let environment = [(
         OsString::from("FIXTURE_MARKER"),
         marker.as_os_str().to_owned(),
     )];
     let selected =
-        resolve_executable(Path::new("tool"), &fixture.root, &[first.clone(), later]).unwrap();
+        resolve_executable(Path::new("tool"), fixture.path(), &[first.clone(), later]).unwrap();
     assert_eq!(selected, first.join("tool"));
     let spec = VersionSpec {
         executable: &selected,
         executable_bytes: 1024 * 1024,
         version_arguments: &[OsString::from("--version")],
-        version_identity: VERSION,
     };
     assert!(matches!(
         AdmittedTool::admit(
             &spec,
             Sha256Digest::compute(b"wrong authority"),
+            VERSION,
             &fixture.context(&environment),
             LIMITS
         ),

@@ -61,7 +61,7 @@ pub enum GzipError {
         /// Maximum input bytes permitted by the caller.
         limit: usize,
     },
-    /// Payload decoding, integrity, decoded/raw size, allocation or sink IO failed.
+    /// Payload decoding, integrity, decoded size, allocation or sink IO failed.
     Decode(ArtifactError),
     /// Bytes follow the first member, including another gzip member.
     TrailingData,
@@ -184,9 +184,12 @@ pub fn gzip_matches(
 ) -> Result<bool, GzipError> {
     with_decoder(bytes, max_compressed_bytes, |decoder| {
         let mut matching = MatchingWriter::new(expected);
-        visit_reader::<ArtifactError>(decoder, expected.len() as u64, |chunk| {
-            matching.write_all(chunk).map_err(ArtifactError::Io)
-        })?;
+        visit_reader::<ArtifactError>(
+            decoder,
+            &mut [0; 16 * 1024],
+            expected.len() as u64,
+            |chunk| matching.write_all(chunk).map_err(ArtifactError::Io),
+        )?;
         Ok(matching.is_complete_match())
     })
 }

@@ -22,7 +22,7 @@ fn fixture_tool() -> std::path::PathBuf {
 #[test]
 fn captures_raw_evidence_and_explicit_status_scope() {
     let fixture = Fixture::new();
-    let marker = fixture.root.join("queries");
+    let marker = fixture.path().join("queries");
     let environment = [("FIXTURE_MARKER".into(), marker.as_os_str().to_owned())];
     let context = fixture.context(&environment);
     let git = admit(&fixture_tool(), &context, VERSION).unwrap();
@@ -91,7 +91,7 @@ fn accepts_empty_status_and_both_git_object_formats() {
 #[test]
 fn rejects_malformed_successful_output_without_losing_evidence() {
     let fixture = Fixture::new();
-    let marker = fixture.root.join("queries");
+    let marker = fixture.path().join("queries");
     for (mode, query, captures) in [
         ("invalid-id", GitQuery::Revision, 1),
         ("uppercase-id", GitQuery::Revision, 1),
@@ -128,7 +128,7 @@ fn rejects_malformed_successful_output_without_losing_evidence() {
 #[test]
 fn retains_prior_captures_on_process_failure_and_bounds_output() {
     let fixture = Fixture::new();
-    let marker = fixture.root.join("queries");
+    let marker = fixture.path().join("queries");
     for (mode, query, queries, diagnostic) in [
         (
             "fail-tree",

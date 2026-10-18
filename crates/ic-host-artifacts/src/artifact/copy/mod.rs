@@ -86,7 +86,7 @@ pub fn copy_reader(
     max_bytes: u64,
 ) -> Result<ArtifactIdentity, CopyError> {
     let mut writer = HashingWriter::new(writer, max_bytes);
-    visit_reader::<CopyError>(&mut reader, max_bytes, |chunk| {
+    visit_reader::<CopyError>(&mut reader, &mut [0; 16 * 1024], max_bytes, |chunk| {
         writer.write_all(chunk).map_err(CopyError::Output)
     })?;
     Ok(writer.into_parts().1)

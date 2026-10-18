@@ -23,7 +23,7 @@ fn copy_identifies_empty_and_multichunk_payloads_with_exact_limits() {
 }
 
 #[test]
-fn copy_rejects_limits_integrity_truncation_and_trailing_members() {
+fn copy_rejects_compressed_and_decoded_limits_before_overflowing_output() {
     let payload = vec![0x5a; 131_073];
     let compressed = gzip(&payload);
     let mut output = Vec::new();
@@ -42,23 +42,6 @@ fn copy_rejects_limits_integrity_truncation_and_trailing_members() {
         Err(GzipError::Decode(ArtifactError::LimitExceeded { .. }))
     ));
     assert!(output.len() < payload.len());
-
-    let mut corrupt = compressed.clone();
-    let trailer = corrupt.len() - 8;
-    corrupt[trailer] ^= 1;
-    let mut trailing = compressed.clone();
-    trailing.push(0);
-    let mut concatenated = compressed.clone();
-    concatenated.extend(gzip(b"second member"));
-    for invalid in [
-        &corrupt[..],
-        &compressed[..compressed.len() - 1],
-        &trailing,
-        &concatenated,
-    ] {
-        output.clear();
-        assert!(copy_gzip(invalid, &mut output, invalid.len(), u64::MAX).is_err());
-    }
 }
 
 #[test]
@@ -73,8 +56,11 @@ fn copy_retries_short_interrupted_writes_and_preserves_sink_failures() {
             if std::mem::take(&mut self.interrupt) {
                 return Err(std::io::ErrorKind::Interrupted.into());
             }
-            if self.fail {
-                return Err(std::io::ErrorKind::PermissionDenied.into());
+            if self.fail && !self.bytes.is_empty() {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::PermissionDenied,
+                    "original sink failure",
+                ));
             }
             let accepted = bytes.len().min(3);
             self.bytes.extend_from_slice(&bytes[..accepted]);
@@ -92,12 +78,15 @@ fn copy_retries_short_interrupted_writes_and_preserves_sink_failures() {
     };
     copy_gzip(&compressed, &mut sink, compressed.len(), 16).unwrap();
     assert_eq!(sink.bytes, b"streamed payload");
+    sink.bytes.clear();
     sink.fail = true;
     let error = copy_gzip(&compressed, &mut sink, compressed.len(), 16).unwrap_err();
     let GzipError::Decode(ArtifactError::Io(source)) = error else {
         panic!("expected native sink IO cause: {error:?}");
     };
     assert_eq!(source.kind(), std::io::ErrorKind::PermissionDenied);
+    assert_eq!(source.to_string(), "original sink failure");
+    assert_eq!(sink.bytes, b"str");
 }
 
 fn gzip(bytes: &[u8]) -> Vec<u8> {
@@ -368,6 +357,7 @@ fn streamed_operations_refuse_truncation_integrity_failure_and_trailing_data() {
         let different = vec![0; raw.len()];
         assert!(gzip_matches(input, &different, input.len()).is_err());
         assert!(hash_gzip(input, input.len(), raw.len() as u64).is_err());
+        assert!(copy_gzip(input, &mut Vec::new(), input.len(), raw.len() as u64).is_err());
     };
     for end in 0..compressed.len() {
         check(&compressed[..end]);
@@ -386,6 +376,10 @@ fn streamed_operations_refuse_truncation_integrity_failure_and_trailing_data() {
         ));
         assert!(matches!(
             gzip_matches(&joined, raw, joined.len()),
+            Err(GzipError::TrailingData)
+        ));
+        assert!(matches!(
+            copy_gzip(&joined, &mut Vec::new(), joined.len(), raw.len() as u64),
             Err(GzipError::TrailingData)
         ));
         check(&joined);

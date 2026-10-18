@@ -14,14 +14,14 @@ pub use diagnostics::format_failure_evidence;
 pub use resolution::{ResolutionError, resolve_executable};
 
 use ic_host_artifacts::artifact::{ArtifactError, ArtifactIdentity, Sha256Digest};
-use ic_host_fs::read::{hash_file, hash_file_no_follow};
+use ic_host_fs::read::{hash_file_no_follow_with_metadata, hash_file_with_metadata};
 use std::{
     ffi::OsString,
     fmt, fs, io,
     os::unix::{ffi::OsStrExt as _, fs::PermissionsExt as _},
     path::{Path, PathBuf},
     process::{Command, ExitStatus},
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 /// Retention and overflow behavior for one output stream.
@@ -76,28 +76,13 @@ pub struct ExecutionContext<'a> {
     pub environment: &'a [(OsString, OsString)],
 }
 
-/// Executable and exact version authority selected by a consumer.
+/// Executable and version-probe configuration selected by a consumer.
 ///
-/// [`AdmittedTool::admit`] and [`AdmittedTool::admit_no_follow`] require a
-/// separate trusted digest. [`AdmittedTool::admit_version`] instead records
-/// caller-trusted installed bytes; a matching version does not authenticate
-/// those bytes. Consumers own installation provenance.
+/// Verifying operations require a separate exact version authority. Pinned
+/// admission additionally requires a trusted digest. Observation executes a
+/// caller-trusted installation without an independently selected version.
+/// Consumers own installation provenance; a version does not authenticate bytes.
 pub struct VersionSpec<'a> {
-    /// Absolute path in a caller-controlled filesystem; no PATH search occurs.
-    pub executable: &'a Path,
-    /// Maximum executable bytes read during admission and every later run.
-    pub executable_bytes: u64,
-    /// Exact argument vector used to observe version identity.
-    pub version_arguments: &'a [OsString],
-    /// Required UTF-8 stdout after Unicode whitespace is trimmed at both ends.
-    pub version_identity: &'a str,
-}
-
-/// Caller-trusted installation whose version is to be observed, not pinned.
-///
-/// Admission executes these installed bytes. An observed version is provenance,
-/// not installation authenticity or an independently selected version authority.
-pub struct VersionObservationSpec<'a> {
     /// Absolute path in a caller-controlled filesystem; no PATH search occurs.
     pub executable: &'a Path,
     /// Maximum executable bytes read during admission and every later run.
@@ -466,8 +451,14 @@ pub fn capture_command(
     limits: OutputLimits,
 ) -> Result<CompletedExecution, ToolError> {
     validate_limits(limits)?;
-    process::capture_command(command, limits, process::CleanupScope::DirectChild)
-        .map_err(|source| ToolError::Execution(Box::new(source)))
+    process::capture_command(
+        command,
+        limits,
+        process::CleanupScope::DirectChild,
+        true,
+        || false,
+    )
+    .map_err(|source| ToolError::Execution(Box::new(source)))
 }
 
 /// Capture one caller-configured command in a newly owned process group.
@@ -493,8 +484,83 @@ pub fn capture_group_command(
     limits: OutputLimits,
 ) -> Result<CompletedExecution, ToolError> {
     validate_limits(limits)?;
-    process::capture_command(command, limits, process::CleanupScope::ProcessGroup)
-        .map_err(|source| ToolError::Execution(Box::new(source)))
+    process::capture_command(
+        command,
+        limits,
+        process::CleanupScope::ProcessGroup {
+            cleanup: crate::child::CleanupPolicy::KillAndWait,
+            deadline: None,
+        },
+        true,
+        || false,
+    )
+    .map_err(|source| ToolError::Execution(Box::new(source)))
+}
+
+/// Capture a command with caller-selected group cleanup, deadline and cancellation.
+///
+/// Shares [`capture_group_command`]'s IO, bounds, exit and cleanup contract.
+/// The callback runs before command modification/spawn and during communication;
+/// it must return promptly. A true value refuses startup or cleans up the owned
+/// group, retaining output and cleanup evidence. An expired absolute deadline
+/// refuses before command effects; a live deadline is shared across calls without
+/// restarting its allowance. If `limits.timeout` is also set, the earlier bound
+/// applies. Both bounds include callback/spawn time, but synchronous spawning and
+/// cleanup may exceed them. `None` adds no deadline. No signal handler, retry or
+/// admission policy is installed. Cleanup and limits remain caller-selected.
+///
+/// # Errors
+/// Invalid limits refuse before the callback or command effects. Cancellation,
+/// spawn and communication failures retain the existing typed execution evidence.
+pub fn capture_group_command_with_cancellation(
+    command: &mut Command,
+    limits: OutputLimits,
+    cleanup: crate::child::CleanupPolicy,
+    deadline: Option<Instant>,
+    cancelled: impl FnMut() -> bool,
+) -> Result<CompletedExecution, ToolError> {
+    validate_limits(limits)?;
+    process::capture_command(
+        command,
+        limits,
+        process::CleanupScope::ProcessGroup { cleanup, deadline },
+        true,
+        cancelled,
+    )
+    .map_err(|source| ToolError::Execution(Box::new(source)))
+}
+
+/// Run one caller-configured command in an owned process group.
+///
+/// Preserves the caller's stdin/stdout/stderr selection, including inherited
+/// progress output and file-backed streams. Only piped output is captured and
+/// bounded. Any piped stdin is closed; this entry point sends no input bytes.
+/// Group selection is replaced with a new owned group. This shares
+/// [`capture_group_command_with_cancellation`]'s pre-spawn validation,
+/// cancellation, absolute/relative deadlines and typed cleanup evidence.
+/// The caller selects budgets, cleanup and cancellation; `None` adds no deadline.
+/// Ordinary nonzero/signalled exits return [`CompletedExecution`]; callers
+/// choose [`CompletedExecution::require_success`]. There is no admission or retry.
+///
+/// # Errors
+/// Invalid limits, initial cancellation and expired deadlines refuse before
+/// modifying/spawning the command. Later failures clean up the owned group.
+pub fn run_group_command(
+    command: &mut Command,
+    limits: OutputLimits,
+    cleanup: crate::child::CleanupPolicy,
+    deadline: Option<Instant>,
+    cancelled: impl FnMut() -> bool,
+) -> Result<CompletedExecution, ToolError> {
+    validate_limits(limits)?;
+    process::capture_command(
+        command,
+        limits,
+        process::CleanupScope::ProcessGroup { cleanup, deadline },
+        false,
+        cancelled,
+    )
+    .map_err(|source| ToolError::Execution(Box::new(source)))
 }
 
 /// Successful leader disposition during [`communicate_child`].
@@ -681,7 +747,9 @@ pub struct AdmittedTool {
 }
 
 impl AdmittedTool {
-    /// Admit exact executable bytes before invoking the selected version command.
+    /// Admit exact executable bytes and require the selected version identity.
+    ///
+    /// `expected_version` is exact UTF-8 stdout after Unicode whitespace trimming.
     ///
     /// # Errors
     /// Rejects invalid inputs, non-executable files, digest/size mismatch, process
@@ -689,10 +757,18 @@ impl AdmittedTool {
     pub fn admit(
         spec: &VersionSpec<'_>,
         expected: Sha256Digest,
+        expected_version: &str,
         context: &ExecutionContext<'_>,
         limits: OutputLimits,
     ) -> Result<Self, ToolError> {
-        Self::admit_with_digest(spec, Some(expected), context, limits, false)
+        Self::admit_observation(
+            spec,
+            Some(expected),
+            Some(expected_version),
+            context,
+            limits,
+            false,
+        )
     }
 
     /// Admit exact bytes without following the executable's final-component symlink.
@@ -707,13 +783,23 @@ impl AdmittedTool {
     pub fn admit_no_follow(
         spec: &VersionSpec<'_>,
         expected: Sha256Digest,
+        expected_version: &str,
         context: &ExecutionContext<'_>,
         limits: OutputLimits,
     ) -> Result<Self, ToolError> {
-        Self::admit_with_digest(spec, Some(expected), context, limits, true)
+        Self::admit_observation(
+            spec,
+            Some(expected),
+            Some(expected_version),
+            context,
+            limits,
+            true,
+        )
     }
 
     /// Admit an exact version and record the caller-trusted installed bytes.
+    ///
+    /// `expected_version` is exact UTF-8 stdout after Unicode whitespace trimming.
     ///
     /// For tools built locally, no portable published digest may exist. This
     /// entry hashes the executable within the supplied budget before running
@@ -731,10 +817,11 @@ impl AdmittedTool {
     /// failures, non-UTF-8 stdout and a different successful version identity.
     pub fn admit_version(
         spec: &VersionSpec<'_>,
+        expected_version: &str,
         context: &ExecutionContext<'_>,
         limits: OutputLimits,
     ) -> Result<Self, ToolError> {
-        Self::admit_with_digest(spec, None, context, limits, false)
+        Self::admit_observation(spec, None, Some(expected_version), context, limits, false)
     }
 
     /// Record installed bytes and their version with one version invocation.
@@ -752,36 +839,15 @@ impl AdmittedTool {
     /// An empty observation returns [`ToolError::VersionMismatch`] with the
     /// original capture, just as an unmatched expected version does.
     pub fn observe_version(
-        spec: &VersionObservationSpec<'_>,
+        spec: &VersionSpec<'_>,
         context: &ExecutionContext<'_>,
         limits: OutputLimits,
     ) -> Result<Self, ToolError> {
         Self::admit_observation(spec, None, None, context, limits, false)
     }
 
-    fn admit_with_digest(
-        spec: &VersionSpec<'_>,
-        expected: Option<Sha256Digest>,
-        context: &ExecutionContext<'_>,
-        limits: OutputLimits,
-        no_follow: bool,
-    ) -> Result<Self, ToolError> {
-        Self::admit_observation(
-            &VersionObservationSpec {
-                executable: spec.executable,
-                executable_bytes: spec.executable_bytes,
-                version_arguments: spec.version_arguments,
-            },
-            expected,
-            Some(spec.version_identity),
-            context,
-            limits,
-            no_follow,
-        )
-    }
-
     fn admit_observation(
-        spec: &VersionObservationSpec<'_>,
+        spec: &VersionSpec<'_>,
         expected: Option<Sha256Digest>,
         expected_version: Option<&str>,
         context: &ExecutionContext<'_>,
@@ -891,22 +957,16 @@ fn verify_executable(
     expected: Option<Sha256Digest>,
     no_follow: bool,
 ) -> Result<ArtifactIdentity, ToolError> {
-    let actual = if no_follow {
-        hash_file_no_follow(path, limit)
+    let (actual, metadata) = if no_follow {
+        hash_file_no_follow_with_metadata(path, limit)
     } else {
-        hash_file(path, limit)
+        hash_file_with_metadata(path, limit)
     }
     .map_err(ToolError::Artifact)?;
     if let Some(expected) = expected {
         actual.verify(expected).map_err(ToolError::Artifact)?;
     }
-    if fs::metadata(path)
-        .map_err(ToolError::Io)?
-        .permissions()
-        .mode()
-        & 0o111
-        == 0
-    {
+    if metadata.permissions().mode() & 0o111 == 0 {
         return Err(ToolError::NotExecutable);
     }
     Ok(actual)

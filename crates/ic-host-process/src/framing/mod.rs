@@ -13,7 +13,7 @@ pub enum FrameReadError {
     TooLarge(Vec<u8>),
     /// The stream ended with a partial frame and no newline.
     Unterminated(Vec<u8>),
-    /// The underlying reader failed.
+    /// Reading, allocation, frame delivery or post-refusal admission failed.
     Io(io::Error),
 }
 
@@ -34,7 +34,7 @@ impl fmt::Display for FrameReadError {
             Self::EndOfStream => formatter.write_str("frame stream closed"),
             Self::TooLarge(_) => formatter.write_str("frame exceeds caller byte limit"),
             Self::Unterminated(_) => formatter.write_str("frame is missing its newline"),
-            Self::Io(error) => write!(formatter, "frame read failed: {error}"),
+            Self::Io(_) => formatter.write_str("frame read failed"),
         }
     }
 }

@@ -47,19 +47,22 @@ pub enum JsonErrorKind {
 }
 
 /// Response decoding failed. Formatting never includes response contents.
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum ResponseError {
     /// Complete input exceeds its allowance, before any parsing.
+    #[error("response input exceeds {limit} bytes")]
     InputLimit {
         /// Caller-selected input allowance.
         limit: usize,
     },
     /// JSON input contains invalid UTF-8, including in ignored metadata.
+    #[error("response JSON is not UTF-8 at byte {offset}")]
     InvalidUtf8 {
         /// First invalid byte offset in the complete input.
         offset: usize,
     },
     /// JSON could not be decoded as the canonical envelope.
+    #[error("response JSON failed ({kind:?}) at {line}:{column}")]
     Json {
         /// Structured parser category.
         kind: JsonErrorKind,
@@ -69,53 +72,30 @@ pub enum ResponseError {
         column: usize,
     },
     /// The top-level response field is absent or null.
+    #[error("response JSON lacks response_bytes")]
     MissingResponseBytes,
     /// The selected text hex format contains no digits.
+    #[error("response hex is empty")]
     EmptyHex,
     /// A byte is not a hex digit or permitted whitespace.
+    #[error("invalid response hex at byte {offset}")]
     InvalidHex {
         /// Byte offset within the hex portion (within the decoded JSON string
         /// for JSON input), not necessarily an offset in the original input.
         offset: usize,
     },
     /// The hex portion contains an odd number of digits.
+    #[error("response hex has an odd digit count")]
     OddHexLength,
     /// Valid hex would exceed the decoded byte allowance.
+    #[error("decoded response exceeds {limit} bytes")]
     DecodedLimit {
         /// Caller-selected decoded allowance.
         limit: usize,
     },
     /// Storage could not be reserved for decoded bytes.
-    Allocation(TryReserveError),
-}
-
-impl fmt::Display for ResponseError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::InputLimit { limit } => write!(f, "response input exceeds {limit} bytes"),
-            Self::InvalidUtf8 { offset } => {
-                write!(f, "response JSON is not UTF-8 at byte {offset}")
-            }
-            Self::Json { kind, line, column } => {
-                write!(f, "response JSON failed ({kind:?}) at {line}:{column}")
-            }
-            Self::MissingResponseBytes => f.write_str("response JSON lacks response_bytes"),
-            Self::EmptyHex => f.write_str("response hex is empty"),
-            Self::InvalidHex { offset } => write!(f, "invalid response hex at byte {offset}"),
-            Self::OddHexLength => f.write_str("response hex has an odd digit count"),
-            Self::DecodedLimit { limit } => write!(f, "decoded response exceeds {limit} bytes"),
-            Self::Allocation(source) => write!(f, "response allocation failed: {source}"),
-        }
-    }
-}
-
-impl std::error::Error for ResponseError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Self::Allocation(source) => Some(source),
-            _ => None,
-        }
-    }
+    #[error("response allocation failed: {0}")]
+    Allocation(#[source] TryReserveError),
 }
 
 /// Decode one complete response without dispatching a command or retrying it.

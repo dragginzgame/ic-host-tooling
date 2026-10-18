@@ -1,7 +1,7 @@
 use super::*;
 use crate::{
     read::open_directory_no_follow,
-    test_support::{Fixture, create_fifo},
+    test_support::{create_fifo, fixture},
 };
 use ic_host_artifacts::artifact::hash_reader;
 use std::{
@@ -16,12 +16,12 @@ use std::{
 
 #[test]
 fn regular_copy_preserves_offset_bytes_identity_and_private_create_new_output() {
-    let fixture = Fixture::new();
-    let input = fixture.root.join("input");
+    let fixture = fixture();
+    let input = fixture.path().join("input");
     fs::write(&input, b"skip exact payload").unwrap();
     let mut source = File::open(&input).unwrap();
     source.seek(SeekFrom::Start(5)).unwrap();
-    let output = fixture.root.join("output");
+    let output = fixture.path().join("output");
     let identity = copy_file(&source, &output, 13).unwrap();
     assert_eq!(fs::read(&output).unwrap(), b"exact payload");
     assert_eq!(
@@ -38,35 +38,35 @@ fn regular_copy_preserves_offset_bytes_identity_and_private_create_new_output() 
         io::ErrorKind::AlreadyExists
     );
     assert_eq!(fs::read(&output).unwrap(), b"exact payload");
-    let link = fixture.root.join("link");
+    let link = fixture.path().join("link");
     symlink(&input, &link).unwrap();
     assert_eq!(
         copy_file(&source, &link, 13).unwrap_err().kind(),
         io::ErrorKind::AlreadyExists
     );
     assert_eq!(fs::read(&input).unwrap(), b"skip exact payload");
-    let directory = open_directory_no_follow(&fixture.root).unwrap();
+    let directory = open_directory_no_follow(fixture.path()).unwrap();
     assert_eq!(
-        copy_file(&directory, &fixture.root.join("invalid"), 13)
+        copy_file(&directory, &fixture.path().join("invalid"), 13)
             .unwrap_err()
             .kind(),
         io::ErrorKind::InvalidInput
     );
-    assert!(!fixture.root.join("invalid").exists());
+    assert!(!fixture.path().join("invalid").exists());
 }
 
 #[test]
 fn held_tree_copy_retains_empty_directories_and_exact_relative_file_identities() {
-    let fixture = Fixture::new();
-    let source = fixture.root.join("source");
+    let fixture = fixture();
+    let source = fixture.path().join("source");
     fs::create_dir_all(source.join("nested/empty")).unwrap();
     fs::write(source.join("a"), b"alpha").unwrap();
     fs::write(source.join("nested/b"), b"beta").unwrap();
     let held: OwnedFd = open_directory_no_follow(&source).unwrap().into();
-    fs::rename(&source, fixture.root.join("retained-source")).unwrap();
+    fs::rename(&source, fixture.path().join("retained-source")).unwrap();
     fs::create_dir(&source).unwrap();
     fs::write(source.join("a"), b"replacement").unwrap();
-    let output = fixture.root.join("output");
+    let output = fixture.path().join("output");
     let mut files = copy_directory(&held, &output, &source, 5).unwrap();
     files.sort_by(|a, b| a.0.cmp(&b.0));
     assert_eq!(
@@ -106,10 +106,10 @@ fn rejected_entries_and_byte_limits_retain_output_without_following_or_cleanup()
         .into_iter()
         .chain(cfg!(target_os = "linux").then_some("non-utf8"))
     {
-        let fixture = Fixture::new();
-        let source = fixture.root.join("source");
+        let fixture = fixture();
+        let source = fixture.path().join("source");
         fs::create_dir(&source).unwrap();
-        let target = fixture.root.join("target");
+        let target = fixture.path().join("target");
         fs::write(&target, b"must remain").unwrap();
         match entry {
             "link" => symlink(&target, source.join("entry")).unwrap(),
@@ -118,7 +118,7 @@ fn rejected_entries_and_byte_limits_retain_output_without_following_or_cleanup()
             _ => fs::write(source.join("entry"), b"too large").unwrap(),
         }
         let held: OwnedFd = open_directory_no_follow(&source).unwrap().into();
-        let output = fixture.root.join("output");
+        let output = fixture.path().join("output");
         let error = copy_directory(&held, &output, Path::new("display"), 1).unwrap_err();
         match entry {
             "link" | "fifo" => assert!(
@@ -147,10 +147,10 @@ fn rejected_entries_and_byte_limits_retain_output_without_following_or_cleanup()
 
 #[test]
 fn non_utf8_projection_preserves_exact_display_path() {
-    let fixture = Fixture::new();
-    let path = fixture.root.join(OsStr::from_bytes(b"\xff"));
+    let fixture = fixture();
+    let path = fixture.path().join(OsStr::from_bytes(b"\xff"));
     let visitor = CopyVisitor {
-        destination: &fixture.root,
+        destination: fixture.path(),
         max_file_bytes: 1,
         files: Vec::new(),
     };
