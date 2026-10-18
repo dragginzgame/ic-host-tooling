@@ -55,6 +55,14 @@ feature and use `testing::http::{capture_http_request, read_http_request_line,
 read_http_request_with_line}`. Whole capture retains partial bytes and typed
 failures; callers select required or optional Content-Length and own responses,
 byte budgets, deadlines and evidence files.
+`testing::net::accept_tcp_until` bounds acceptance on caller-owned listeners
+without consuming a queued connection after an elapsed deadline.
+`testing::http::HttpFixture` owns a single loopback HTTP 200 exchange with
+caller-selected body, Content-Type, request budgets and total deadline.
+Finishing returns the original request; dropping interrupts socket IO and joins
+the worker. Both use the same accept loop, and the fixture uses the existing
+request-capture engine. Application protocols, client deadlines and assertions
+remain caller-owned; no simulator is provisioned.
 With `wasm`, `wasm::encode_custom_section(CustomSection { name, data }, max_bytes)`
 encodes one complete custom section with an explicit output-byte allowance.
 Callers supply exact names/data and own module assembly, aggregate budgets,

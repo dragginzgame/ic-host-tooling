@@ -2,6 +2,11 @@
 
 ## [0.27.7]
 
+- Add opt-in bounded TCP acceptance and an owned one-request HTTP fixture under
+  Process test support, sharing the existing capture engine. Callers retain
+  response bytes, request budgets, deadlines and application assertions.
+  [Details](docs/changelog/0.27.md).
+
 - Run the non-Unix compile check with the MSRV toolchain that owns its prepared
   Wasm target, fixing the CI compiler/target mismatch without changing the
   development compiler or filesystem support contract.
