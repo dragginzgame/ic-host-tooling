@@ -1,29 +1,23 @@
 //! Retained private directory creation and pathname admission.
-use std::{fmt, fs::File, io, path::Path};
+use std::{fs::File, io, path::Path};
+
+mod publish;
+
+pub use publish::{
+    DirectoryCommitError, DirectoryCommitOutcome, DirectoryCommitStep,
+    commit_existing_directory_with,
+};
 
 /// Creation failure distinguishes a refused claim from a possibly visible directory.
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum DirectoryCreationError {
     /// No directory was created by this call (including an occupied name).
-    BeforeCreation(io::Error),
+    #[error("private directory creation refused")]
+    BeforeCreation(#[source] io::Error),
     /// The directory was created; admission or durability could not be confirmed.
     /// Retain and reconcile the original name rather than automatically retrying.
-    AfterCreation(io::Error),
-}
-
-impl fmt::Display for DirectoryCreationError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::BeforeCreation(_) => f.write_str("private directory creation refused"),
-            Self::AfterCreation(_) => f.write_str("created private directory admission failed"),
-        }
-    }
-}
-impl std::error::Error for DirectoryCreationError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        let (Self::BeforeCreation(error) | Self::AfterCreation(error)) = self;
-        Some(error)
-    }
+    #[error("created private directory admission failed")]
+    AfterCreation(#[source] io::Error),
 }
 
 /// Create one owner-only directory, synchronize its parent link and retain its descriptor.
@@ -97,13 +91,12 @@ pub fn create_private_directory(path: &Path) -> Result<File, DirectoryCreationEr
 pub fn admit_directory(path: &Path, directory: &File) -> io::Result<()> {
     #[cfg(unix)]
     {
-        use std::os::unix::fs::MetadataExt as _;
+        use crate::identity::FileIdentity;
         let current = std::fs::symlink_metadata(path)?;
         let held = directory.metadata()?;
         if !current.is_dir()
             || !held.is_dir()
-            || current.dev() != held.dev()
-            || current.ino() != held.ino()
+            || FileIdentity::from_metadata(&current) != FileIdentity::from_metadata(&held)
         {
             return Err(io::ErrorKind::InvalidInput.into());
         }

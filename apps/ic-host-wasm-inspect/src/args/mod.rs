@@ -2,18 +2,19 @@
 
 use std::{ffi::OsString, num::ParseIntError, path::PathBuf, str::FromStr};
 
-use ic_host_artifacts::wasm::InspectionLimits;
+use ic_host_artifacts::{artifact::Sha256Digest, wasm::InspectionLimits};
 
 use crate::Error;
 
-pub const USAGE: &str =
-    "usage: ic-host-wasm-inspect PATH MAX_BYTES MAX_SECTIONS MAX_EXPORTS MAX_CUSTOM_SECTIONS";
+pub const USAGE: &str = "usage: ic-host-wasm-inspect PATH MAX_BYTES MAX_SECTIONS MAX_EXPORTS MAX_CUSTOM_SECTIONS [--expect-sha256 SHA256] [--details]";
 
 pub enum Command {
     Help,
     Inspect {
         path: PathBuf,
         limits: InspectionLimits,
+        expected: Option<Sha256Digest>,
+        details: bool,
     },
 }
 
@@ -32,12 +33,29 @@ pub fn parse(mut args: impl Iterator<Item = OsString>) -> Result<Command, Error>
         exports: number(args.next(), "MAX_EXPORTS")?,
         custom_sections: number(args.next(), "MAX_CUSTOM_SECTIONS")?,
     };
-    if args.next().is_some() {
-        return Err(Error::ExtraArgument);
+    let mut expected = None;
+    let mut details = false;
+    while let Some(option) = args.next() {
+        if option == "--details" && !details {
+            details = true;
+        } else if option == "--expect-sha256" && expected.is_none() {
+            let digest = args.next().ok_or(Error::MissingArgument("SHA256"))?;
+            expected = Some(
+                digest
+                    .to_str()
+                    .ok_or(Error::NonUtf8Digest)?
+                    .parse()
+                    .map_err(Error::InvalidDigest)?,
+            );
+        } else {
+            return Err(Error::ExtraArgument);
+        }
     }
     Ok(Command::Inspect {
         path: path.into(),
         limits,
+        expected,
+        details,
     })
 }
 
@@ -62,14 +80,20 @@ mod tests {
 
     #[test]
     fn exact_budgets_and_input_are_required() {
-        let Command::Inspect { path, limits } =
-            parse(arguments(&["input.wasm", "100", "20", "0", "0"])).unwrap()
+        let Command::Inspect {
+            path,
+            limits,
+            expected,
+            details,
+        } = parse(arguments(&["input.wasm", "100", "20", "0", "0"])).unwrap()
         else {
             panic!("expected inspection");
         };
         assert_eq!(path, PathBuf::from("input.wasm"));
         assert_eq!(limits.module_bytes, 100);
         assert_eq!(limits.exports, 0);
+        assert_eq!(expected, None);
+        assert!(!details);
         assert!(matches!(
             parse(arguments(&[])),
             Err(Error::MissingArgument("PATH"))

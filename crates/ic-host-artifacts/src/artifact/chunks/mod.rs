@@ -3,7 +3,7 @@
 #[cfg(test)]
 mod tests;
 
-use super::{ArtifactError, ArtifactIdentity, Sha256Digest, reserve_bounded, visit_reader};
+use super::{ArtifactError, ArtifactIdentity, Sha256Digest, buffer::reserve_bounded, visit_reader};
 use sha2::{Digest, Sha256};
 use std::{collections::TryReserveError, fmt, io::Read, num::NonZeroUsize};
 
@@ -78,27 +78,32 @@ pub fn chunk_digests(
     let mut whole = Sha256::new();
     let mut chunk = Sha256::new();
     let mut filled = 0;
-    let bytes = visit_reader::<ChunkDigestError>(&mut reader, max_bytes, |mut buffer| {
-        whole.update(buffer);
-        while !buffer.is_empty() {
-            if filled == 0 {
-                if digests.len() == max_chunks {
-                    return Err(ChunkDigestError::ChunkLimit { limit: max_chunks });
+    let bytes = visit_reader::<ChunkDigestError>(
+        &mut reader,
+        &mut [0; 16 * 1024],
+        max_bytes,
+        |mut buffer| {
+            whole.update(buffer);
+            while !buffer.is_empty() {
+                if filled == 0 {
+                    if digests.len() == max_chunks {
+                        return Err(ChunkDigestError::ChunkLimit { limit: max_chunks });
+                    }
+                    reserve_bounded(&mut digests, 1, max_chunks)
+                        .map_err(ChunkDigestError::Allocation)?;
                 }
-                reserve_bounded(&mut digests, 1, max_chunks)
-                    .map_err(ChunkDigestError::Allocation)?;
+                let count = buffer.len().min(chunk_bytes.get() - filled);
+                chunk.update(&buffer[..count]);
+                filled += count;
+                buffer = &buffer[count..];
+                if filled == chunk_bytes.get() {
+                    digests.push(Sha256Digest::from_bytes(chunk.finalize_reset().into()));
+                    filled = 0;
+                }
             }
-            let count = buffer.len().min(chunk_bytes.get() - filled);
-            chunk.update(&buffer[..count]);
-            filled += count;
-            buffer = &buffer[count..];
-            if filled == chunk_bytes.get() {
-                digests.push(Sha256Digest::from_bytes(chunk.finalize_reset().into()));
-                filled = 0;
-            }
-        }
-        Ok(())
-    })?;
+            Ok(())
+        },
+    )?;
     if filled != 0 {
         // Capacity was reserved before accepting the partial chunk's first byte.
         digests.push(Sha256Digest::from_bytes(chunk.finalize().into()));

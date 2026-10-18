@@ -3,6 +3,9 @@
 use super::NamedWriteError;
 use std::{fs, path::Path};
 
+#[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
+use super::supported::WriterCustody;
+
 /// How complete staging becomes the selected directory entry.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PublicationMode {
@@ -58,7 +61,7 @@ pub fn write_with<T, E>(
             path,
             options,
             |_, file| produce(file),
-            None::<(bool, fn(&Path, &T) -> Result<(), E>)>,
+            (WriterCustody::Writable, |_, _| Ok(())),
             |_, _| Ok(()),
         )
     }
@@ -72,49 +75,49 @@ pub fn write_with<T, E>(
     }
 }
 
-/// Publish beneath an already-admitted directory descriptor without reopening its path.
+/// Stream through an existing parent, admitting the result after file sync.
 ///
-/// `name` must be one nonempty filename component, excluding `.`, `..`, slash and
-/// NUL. The borrowed descriptor must refer to a directory open for synchronization.
-/// Staging, identity checks, cleanup, publication and parent sync remain relative
-/// to that held directory even if its original pathname is renamed or replaced.
-/// No parent is created or ambient/display path consulted.
+/// Missing parents are never created. Opens the selected parent once as a
+/// directory, following parent aliases; all staging/publication then uses its held
+/// descriptor, even after a rename. This is pathname convenience, not root
+/// confinement or private-parent admission. The final entry uses the selected
+/// publication mode and is never followed.
 ///
-/// The caller owns root confinement, directory admission/custody and final-target
-/// link/type/mode policy. Validate those before calling and exclude concurrent
-/// namespace mutation. Replace mode replaces the entry itself, including a final
-/// symlink; it does not follow it. Create-new mode atomically refuses every existing
-/// entry. Neither mode is compare-and-swap against a hostile directory writer.
-/// The callback and interruption obligations of [`write_with`] also apply.
+/// Shares [`write_at_validated_with`]'s producer, permissions, custody, admission,
+/// cleanup and before/after-publication contracts. Admission runs after file sync
+/// and before publication. Use `|_| Ok(())` when no additional admission is needed.
+/// Callers retain concurrency, cancellation, validation and retry policy.
 ///
 /// # Errors
-/// Rejects invalid filename components/permissions and non-directory descriptors before staging
-/// or producer invocation. Retains typed producer, cleanup and publication-state
-/// errors through the same engine and [`NamedWriteError`] as pathname publication.
-/// Name validation checks components, not filesystem-specific byte encoding:
-/// the filesystem may reject a name at publication after the producer runs.
-#[cfg(unix)]
-pub fn write_at_with<T, E>(
-    parent: std::os::fd::BorrowedFd<'_>,
-    name: &std::ffi::OsStr,
+/// Missing/special-file parents and invalid paths/permissions refuse before
+/// production. Retains typed producer/admission and independent cleanup failures;
+/// filesystem syscall latency remains unbounded. Reconcile published failures.
+pub fn write_existing_parent_validated_with<T, E>(
+    path: &Path,
     options: WriteOptions,
     produce: impl FnOnce(&mut fs::File) -> Result<T, E>,
+    admit: impl FnOnce(&T) -> Result<(), E>,
 ) -> Result<T, NamedWriteError<E>> {
     #[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
     {
-        super::supported::commit_at_with_hook(
+        use rustix::fs::{Mode, OFlags, open};
+        use std::os::fd::AsFd as _;
+        // Preserve permission refusal before attempting to open the parent.
+        super::supported::native_permissions(options.permissions)
+            .map_err(NamedWriteError::before)?;
+        let (parent, name) =
+            super::supported::split_target(path).map_err(NamedWriteError::before)?;
+        let parent = open(
             parent,
-            None,
-            name,
-            options,
-            |_, file| produce(file),
-            None::<(bool, fn(&Path, &T) -> Result<(), E>)>,
-            |_, _| Ok(()),
+            OFlags::RDONLY | OFlags::DIRECTORY | OFlags::NONBLOCK | OFlags::CLOEXEC,
+            Mode::empty(),
         )
+        .map_err(|source| NamedWriteError::before(source.into()))?;
+        write_at_validated_with(parent.as_fd(), name, options, produce, admit)
     }
     #[cfg(not(any(target_os = "linux", target_os = "android", target_vendor = "apple")))]
     {
-        let _ = (parent, name, options, produce);
+        let _ = (path, options, produce, admit);
         Err(NamedWriteError::before(std::io::Error::new(
             std::io::ErrorKind::Unsupported,
             "durable atomic file publication is unsupported",
@@ -122,23 +125,29 @@ pub fn write_at_with<T, E>(
     }
 }
 
-/// Stream beneath an admitted directory and check the result after file sync, before publication.
+/// Stream beneath an admitted directory, then admit the result before publication.
 ///
-/// Shares [`write_at_with`]'s staging, permissions, descriptor custody and
-/// before/after-publication errors. No parent is created or reopened by pathname.
-/// After production and file synchronization, `admit` receives the
-/// producer's value. It can reject cancellation or consumer validation while
-/// the previous destination remains untouched. It does not receive a pathname
-/// or choose content, lifecycle or retry policy.
+/// `name` is one nonempty filename component excluding dot, dot-dot, slash and
+/// NUL. The held parent descriptor must name a directory open for synchronization.
+/// Staging, identity checks, cleanup, publication and parent sync remain relative
+/// to it across namespace renames. No parent is created or pathname reopened.
 ///
-/// All writable clones and external producers must finish before production
-/// returns. Admission must not modify staging. The caller retains exclusive
-/// directory custody throughout the call, as required by [`write_at_with`].
+/// Caller-selected options control replace/create-only publication and permissions.
+/// Replace affects the final entry itself, including symlinks; create-only refuses
+/// an occupied name. This is neither root confinement nor a compare-and-swap.
+/// After production and file sync, `admit` receives the result and may reject it
+/// while the old destination remains untouched. Use `|_| Ok(())` for no additional
+/// admission. It must not mutate staging or issue publication effects.
+///
+/// Callers retain directory/namespace custody, target policy, output limits,
+/// cancellation and retry policy. Finish all writable handles/external producers
+/// before returning. The callback/interruption obligations of [`write_with`] apply.
 ///
 /// # Errors
-/// Producer/admission rejection retains `E` and independent cleanup failures.
-/// Filesystem errors retain their before/after-publication state; reconcile
-/// already-published results before retrying.
+/// Invalid names/permissions or non-directory descriptors refuse before production.
+/// Filesystem-specific name encoding may still refuse at publication. Retains
+/// typed producer/admission, cleanup and before/after-publication failures;
+/// reconcile already-published results before retrying.
 #[cfg(unix)]
 pub fn write_at_validated_with<T, E>(
     parent: std::os::fd::BorrowedFd<'_>,
@@ -149,13 +158,15 @@ pub fn write_at_validated_with<T, E>(
 ) -> Result<T, NamedWriteError<E>> {
     #[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
     {
+        let permissions = super::supported::native_permissions(options.permissions)
+            .map_err(NamedWriteError::before)?;
         super::supported::commit_at_with_hook(
             parent,
             None,
             name,
-            options,
+            (options.mode, permissions),
             |_, file| produce(file),
-            Some((false, |_: &Path, value: &T| admit(value))),
+            (WriterCustody::Writable, |_, value| admit(value)),
             |_, _| Ok(()),
         )
     }
@@ -204,7 +215,7 @@ pub fn write_validated_with<T, E>(
             &absolute,
             options,
             |_, file| produce(file),
-            Some((true, admit)),
+            (WriterCustody::ReadOnly, admit),
             |_, _| Ok(()),
         )
     }

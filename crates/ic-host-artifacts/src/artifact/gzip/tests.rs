@@ -2,6 +2,93 @@ use super::*;
 use flate2::{Compression, GzBuilder};
 use std::io::Write as _;
 
+#[test]
+fn copy_identifies_empty_and_multichunk_payloads_with_exact_limits() {
+    for payload in [vec![], vec![0x5a; 131_073]] {
+        let compressed = gzip(&payload);
+        let mut output = Vec::new();
+        let identity = copy_gzip(
+            &compressed,
+            &mut output,
+            compressed.len(),
+            payload.len() as u64,
+        )
+        .unwrap();
+        assert_eq!(output, payload);
+        assert_eq!(
+            identity,
+            hash_reader(payload.as_slice(), payload.len() as u64).unwrap()
+        );
+    }
+}
+
+#[test]
+fn copy_rejects_compressed_and_decoded_limits_before_overflowing_output() {
+    let payload = vec![0x5a; 131_073];
+    let compressed = gzip(&payload);
+    let mut output = Vec::new();
+    assert!(matches!(
+        copy_gzip(&compressed, &mut output, compressed.len() - 1, u64::MAX),
+        Err(GzipError::InputLimit { .. })
+    ));
+    assert_eq!(output, [] as [u8; 0]);
+    assert!(matches!(
+        copy_gzip(
+            &compressed,
+            &mut output,
+            compressed.len(),
+            payload.len() as u64 - 1
+        ),
+        Err(GzipError::Decode(ArtifactError::LimitExceeded { .. }))
+    ));
+    assert!(output.len() < payload.len());
+}
+
+#[test]
+fn copy_retries_short_interrupted_writes_and_preserves_sink_failures() {
+    struct Sink {
+        bytes: Vec<u8>,
+        interrupt: bool,
+        fail: bool,
+    }
+    impl std::io::Write for Sink {
+        fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+            if std::mem::take(&mut self.interrupt) {
+                return Err(std::io::ErrorKind::Interrupted.into());
+            }
+            if self.fail && !self.bytes.is_empty() {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::PermissionDenied,
+                    "original sink failure",
+                ));
+            }
+            let accepted = bytes.len().min(3);
+            self.bytes.extend_from_slice(&bytes[..accepted]);
+            Ok(accepted)
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            panic!("copy must not flush")
+        }
+    }
+    let compressed = gzip(b"streamed payload");
+    let mut sink = Sink {
+        bytes: vec![],
+        interrupt: true,
+        fail: false,
+    };
+    copy_gzip(&compressed, &mut sink, compressed.len(), 16).unwrap();
+    assert_eq!(sink.bytes, b"streamed payload");
+    sink.bytes.clear();
+    sink.fail = true;
+    let error = copy_gzip(&compressed, &mut sink, compressed.len(), 16).unwrap_err();
+    let GzipError::Decode(ArtifactError::Io(source)) = error else {
+        panic!("expected native sink IO cause: {error:?}");
+    };
+    assert_eq!(source.kind(), std::io::ErrorKind::PermissionDenied);
+    assert_eq!(source.to_string(), "original sink failure");
+    assert_eq!(sink.bytes, b"str");
+}
+
 fn gzip(bytes: &[u8]) -> Vec<u8> {
     let mut encoder = GzBuilder::new()
         .mtime(0)
@@ -204,7 +291,7 @@ fn optional_header_fields_count_against_the_complete_input_allowance() {
 }
 
 #[test]
-fn streamed_hashes_identify_payloads_and_enforce_both_representation_budgets() {
+fn streamed_hashes_identify_payloads_and_enforce_compressed_and_payload_budgets() {
     for raw in [vec![], b"\0asm\x01\0\0\0".to_vec(), vec![42; 100_003]] {
         let compressed = gzip(&raw);
         let expected = super::super::ArtifactIdentity {
@@ -215,36 +302,26 @@ fn streamed_hashes_identify_payloads_and_enforce_both_representation_budgets() {
             hash_gzip(&compressed, compressed.len(), expected.bytes).unwrap(),
             expected
         );
-        for input in [&raw, &compressed] {
-            assert_eq!(
-                hash_gzip_or_raw(input, input.len(), expected.bytes).unwrap(),
-                expected
-            );
-            if !input.is_empty() {
-                assert!(matches!(
-                    hash_gzip_or_raw(input, input.len() - 1, expected.bytes),
-                    Err(GzipError::InputLimit { .. })
-                ));
-            }
-            if expected.bytes != 0 {
-                assert!(matches!(
-                    hash_gzip_or_raw(input, input.len(), expected.bytes - 1),
-                    Err(GzipError::Decode(ArtifactError::LimitExceeded { .. }))
-                ));
-            }
+        assert!(matches!(
+            hash_gzip(&compressed, compressed.len() - 1, expected.bytes),
+            Err(GzipError::InputLimit { .. })
+        ));
+        if expected.bytes != 0 {
+            assert!(matches!(
+                hash_gzip(&compressed, compressed.len(), expected.bytes - 1),
+                Err(GzipError::Decode(ArtifactError::LimitExceeded { .. }))
+            ));
         }
     }
-    // Only a complete magic prefix selects gzip; no Wasm interpretation is made.
-    for raw in [b"\x1f".as_slice(), b"\x1f\x00", b"ordinary data"] {
-        assert_eq!(
-            hash_gzip_or_raw(raw, raw.len(), raw.len() as u64)
-                .unwrap()
-                .sha256,
-            super::super::Sha256Digest::compute(raw)
-        );
+    for raw in [
+        b"".as_slice(),
+        b"\x1f",
+        b"\x1f\x00",
+        b"\x1f\x8b",
+        b"ordinary data",
+    ] {
         assert!(hash_gzip(raw, raw.len(), raw.len() as u64).is_err());
     }
-    assert!(hash_gzip_or_raw(b"\x1f\x8b", 2, 2).is_err());
 }
 
 #[test]
@@ -280,9 +357,7 @@ fn streamed_operations_refuse_truncation_integrity_failure_and_trailing_data() {
         let different = vec![0; raw.len()];
         assert!(gzip_matches(input, &different, input.len()).is_err());
         assert!(hash_gzip(input, input.len(), raw.len() as u64).is_err());
-        if input.starts_with(&[0x1f, 0x8b]) {
-            assert!(hash_gzip_or_raw(input, input.len(), raw.len() as u64).is_err());
-        }
+        assert!(copy_gzip(input, &mut Vec::new(), input.len(), raw.len() as u64).is_err());
     };
     for end in 0..compressed.len() {
         check(&compressed[..end]);
@@ -301,6 +376,10 @@ fn streamed_operations_refuse_truncation_integrity_failure_and_trailing_data() {
         ));
         assert!(matches!(
             gzip_matches(&joined, raw, joined.len()),
+            Err(GzipError::TrailingData)
+        ));
+        assert!(matches!(
+            copy_gzip(&joined, &mut Vec::new(), joined.len(), raw.len() as u64),
             Err(GzipError::TrailingData)
         ));
         check(&joined);

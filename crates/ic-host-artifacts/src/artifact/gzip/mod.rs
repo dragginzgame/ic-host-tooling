@@ -4,8 +4,8 @@
 mod tests;
 
 use super::{
-    ArtifactError, ArtifactIdentity, BoundedWriter, MatchingWriter, Sha256Digest, hash_reader,
-    read_reader, visit_reader,
+    ArtifactError, ArtifactIdentity, BoundedWriter, CopyError, MatchingWriter, copy_reader,
+    hash_reader, read_reader, visit_reader,
 };
 use std::{
     fmt,
@@ -61,7 +61,7 @@ pub enum GzipError {
         /// Maximum input bytes permitted by the caller.
         limit: usize,
     },
-    /// Payload decoding, integrity, decoded/raw size or allocation failed.
+    /// Payload decoding, integrity, decoded size, allocation or sink IO failed.
     Decode(ArtifactError),
     /// Bytes follow the first member, including another gzip member.
     TrailingData,
@@ -98,7 +98,7 @@ impl std::error::Error for GzipError {
 /// Compressed and decoded bytes may be resident together. Callers own limits,
 /// digest admission and payload interpretation: decoding establishes neither
 /// Wasm validity nor an admitted executable identity. Verify downloaded archive
-/// digests before decoding, as `archive::extract_tar_gz` (when the archive feature is enabled) does.
+/// digests before decoding when a trusted compressed-input digest is required.
 ///
 /// # Errors
 /// Returns typed input overflow, gzip/read/integrity, decoded overflow,
@@ -110,6 +110,38 @@ pub fn decode_gzip(
 ) -> Result<Vec<u8>, GzipError> {
     with_decoder(bytes, max_compressed_bytes, |decoder| {
         read_reader(decoder, max_decoded_bytes)
+    })
+}
+
+/// Decode one complete gzip member to a caller-owned sink and identify its bytes.
+///
+/// Applies all [`decode_gzip`] input, integrity and single-member framing checks
+/// with fixed-size traversal storage plus the decoder's working memory. The
+/// returned identity describes decoded bytes. Compressed input remains borrowed;
+/// no complete decoded payload is allocated by this operation.
+///
+/// Verify trusted archive digests before decoding. Output may contain partial
+/// bytes on any error, including invalid CRC or trailing data after a payload
+/// has reached the sink. Use private staging and publish only after success and
+/// caller-owned admission. This operation never opens, flushes, synchronizes or
+/// publishes files; reader/writer deadlines remain caller-owned.
+///
+/// # Errors
+/// Returns [`GzipError`] for input/decoded limits, malformed or incomplete gzip,
+/// integrity, sink IO or trailing data. Sink IO retains its original cause in
+/// [`GzipError::Decode`] as [`ArtifactError::Io`]; that variant does not distinguish
+/// read and write failures. No complete identity is returned on failure.
+pub fn copy_gzip(
+    bytes: &[u8],
+    writer: &mut impl Write,
+    max_compressed_bytes: usize,
+    max_decoded_bytes: u64,
+) -> Result<ArtifactIdentity, GzipError> {
+    with_decoder(bytes, max_compressed_bytes, |decoder| {
+        copy_reader(decoder, writer, max_decoded_bytes).map_err(|error| match error {
+            CopyError::Input(source) => source,
+            CopyError::Output(source) => ArtifactError::Io(source),
+        })
     })
 }
 
@@ -134,44 +166,6 @@ pub fn hash_gzip(
     })
 }
 
-/// Identify raw bytes or the decoded payload of a single gzip member.
-///
-/// Exactly the leading bytes `1f 8b` select gzip; malformed gzip never falls
-/// back to raw hashing. All other inputs, including empty or one-byte inputs,
-/// are raw. Both representations must fit `max_input_bytes`; the decoded or
-/// raw payload must independently fit `max_payload_bytes`. Returns the same
-/// identity for a raw payload and its valid gzip representation.
-///
-/// This is representation handling, not Wasm validation or IC install policy.
-/// A caller comparing a canister module hash must independently admit Wasm and
-/// select its limits. The complete supplied input is already resident; no
-/// decoded payload buffer is allocated. Multi-member gzip is rejected.
-///
-/// # Errors
-/// Returns the same errors as [`hash_gzip`]; raw payload-limit failures use
-/// [`GzipError::Decode`]. No partial identity is returned.
-pub fn hash_gzip_or_raw(
-    bytes: &[u8],
-    max_input_bytes: usize,
-    max_payload_bytes: u64,
-) -> Result<ArtifactIdentity, GzipError> {
-    if bytes.starts_with(&[0x1f, 0x8b]) {
-        hash_gzip(bytes, max_input_bytes, max_payload_bytes)
-    } else {
-        check_input_limit(bytes, max_input_bytes)?;
-        let length = bytes.len() as u64;
-        if length > max_payload_bytes {
-            return Err(GzipError::Decode(ArtifactError::LimitExceeded {
-                limit: max_payload_bytes,
-            }));
-        }
-        Ok(ArtifactIdentity {
-            bytes: length,
-            sha256: Sha256Digest::compute(bytes),
-        })
-    }
-}
-
 /// Compare one complete gzip payload with borrowed expected bytes, without a copy.
 ///
 /// Uses exact byte equality, not digest equality. `expected.len()` is also the
@@ -190,9 +184,12 @@ pub fn gzip_matches(
 ) -> Result<bool, GzipError> {
     with_decoder(bytes, max_compressed_bytes, |decoder| {
         let mut matching = MatchingWriter::new(expected);
-        visit_reader::<ArtifactError>(decoder, expected.len() as u64, |chunk| {
-            matching.write_all(chunk).map_err(ArtifactError::Io)
-        })?;
+        visit_reader::<ArtifactError>(
+            decoder,
+            &mut [0; 16 * 1024],
+            expected.len() as u64,
+            |chunk| matching.write_all(chunk).map_err(ArtifactError::Io),
+        )?;
         Ok(matching.is_complete_match())
     })
 }

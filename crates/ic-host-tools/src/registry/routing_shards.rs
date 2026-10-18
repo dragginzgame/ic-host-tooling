@@ -1,7 +1,7 @@
 //! Interpret Registry canister-range shard keys and explicit interval bounds.
 
 use super::proto::{CanisterId, RoutingTable};
-use candid::Principal;
+use ic_platform::Principal;
 
 /// Decode one nonempty lowercase-hex key suffix into a routable canister principal.
 ///

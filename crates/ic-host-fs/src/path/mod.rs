@@ -15,6 +15,47 @@ enum ResolutionStep {
     RequireDirectory,
 }
 
+/// Check that every existing path component is a physical directory.
+///
+/// Missing components are permitted, but no directories are created. Symlinks
+/// (including dangling links), non-directories and parent traversal (`..`) reject.
+/// Relative paths use the current working directory; callers own empty-path,
+/// pathname-content and absolute-path policy. This is a point-in-time check,
+/// not root confinement or a held directory capability. Callers retain exclusion
+/// of concurrent namespace mutation through subsequent filesystem operations.
+///
+/// # Errors
+/// Returns [`io::ErrorKind::InvalidInput`] for parent traversal,
+/// [`io::ErrorKind::NotADirectory`] for symlinks/non-directories, or the original
+/// filesystem error other than a permitted not-found result.
+pub fn validate_physical_directory_allow_missing(path: &Path) -> io::Result<()> {
+    let mut current = PathBuf::new();
+    for component in path.components() {
+        if component == Component::ParentDir {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "physical directory path may not contain '..'",
+            ));
+        }
+        current.push(component.as_os_str());
+        match fs::symlink_metadata(&current) {
+            Ok(metadata) if metadata.is_dir() => {}
+            Ok(_) => {
+                return Err(io::Error::new(
+                    io::ErrorKind::NotADirectory,
+                    format!(
+                        "path component is not a physical directory: {}",
+                        current.display()
+                    ),
+                ));
+            }
+            Err(error) if error.kind() == io::ErrorKind::NotFound => {}
+            Err(error) => return Err(error),
+        }
+    }
+    Ok(())
+}
+
 /// Resolve existing symlinks and normalize a missing suffix against an explicit base.
 ///
 /// Relative paths require an absolute `base`; absolute paths ignore it. Dangling
@@ -26,14 +67,6 @@ enum ResolutionStep {
 /// not root confinement or immutable selection; ancestors and concurrent writers
 /// remain caller-owned. No files are created or removed.
 ///
-/// # Errors
-/// Returns invalid relative bases or filesystem resolution failures.
-pub fn canonicalize_allow_missing(path: &Path, base: &Path) -> io::Result<PathBuf> {
-    canonicalize_allow_missing_with_symlink_limit(path, base, usize::MAX)
-}
-
-/// Resolve the same paths with a caller-selected missing-target symlink depth bound.
-///
 /// `max_symlink_depth` bounds simultaneously active dangling-target expansions,
 /// including targets reached after missing-suffix normalization. Completed
 /// expansions do not charge later independent links. Zero rejects any such
@@ -41,13 +74,13 @@ pub fn canonicalize_allow_missing(path: &Path, base: &Path) -> io::Result<PathBu
 /// retains the native filesystem's symlink limits and errors. This does not
 /// bound path length, filesystem latency or all filesystem operations.
 ///
-/// Opening, confinement and identity guarantees are the same as
-/// [`canonicalize_allow_missing`]; the caller owns the chosen depth allowance.
+/// Select `usize::MAX` explicitly when no additional missing-target depth bound
+/// is needed. Opening, confinement and the chosen depth allowance remain caller-owned.
 ///
 /// # Errors
 /// Returns path/base errors or [`io::ErrorKind::InvalidInput`] on a missing-target
 /// cycle or exhausted depth allowance. No path is returned on failure.
-pub fn canonicalize_allow_missing_with_symlink_limit(
+pub fn canonicalize_allow_missing(
     path: &Path,
     base: &Path,
     max_symlink_depth: usize,

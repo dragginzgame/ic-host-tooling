@@ -3,6 +3,7 @@
 //! This boundary returns opaque bytes. Consumers own Candid decoding, canister
 //! rejection semantics, CLI version admission, capture limits and replay policy.
 //! No command is executed and no output format is inferred.
+//! Presentation labels, preambles and broader whitespace normalization stay with callers.
 
 #[cfg(test)]
 mod tests;
@@ -21,16 +22,12 @@ pub enum ResponseFormat {
     /// Nonempty hex, permitting ASCII space, tab, CR, LF and form feed between
     /// any two digits (Rust's `is_ascii_whitespace` set).
     Hex,
-    /// An exact `response (hex):` prefix followed by nonempty whitespace-tolerant
-    /// hex. Leading ASCII whitespace is permitted; preambles and repeated labels
-    /// are rejected rather than discarded.
-    LabeledHex,
 }
 
 /// Caller-owned bounds for input parsing and decoded byte allocation.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct ResponseLimits {
-    /// Maximum complete input length, including JSON metadata or the hex label.
+    /// Maximum complete input length, including JSON metadata or hex whitespace.
     pub input_bytes: usize,
     /// Maximum decoded byte length, independent of the input allowance.
     pub decoded_bytes: usize,
@@ -50,19 +47,22 @@ pub enum JsonErrorKind {
 }
 
 /// Response decoding failed. Formatting never includes response contents.
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum ResponseError {
     /// Complete input exceeds its allowance, before any parsing.
+    #[error("response input exceeds {limit} bytes")]
     InputLimit {
         /// Caller-selected input allowance.
         limit: usize,
     },
     /// JSON input contains invalid UTF-8, including in ignored metadata.
+    #[error("response JSON is not UTF-8 at byte {offset}")]
     InvalidUtf8 {
         /// First invalid byte offset in the complete input.
         offset: usize,
     },
     /// JSON could not be decoded as the canonical envelope.
+    #[error("response JSON failed ({kind:?}) at {line}:{column}")]
     Json {
         /// Structured parser category.
         kind: JsonErrorKind,
@@ -72,56 +72,30 @@ pub enum ResponseError {
         column: usize,
     },
     /// The top-level response field is absent or null.
+    #[error("response JSON lacks response_bytes")]
     MissingResponseBytes,
-    /// Labeled hex does not begin with the exact admitted label.
-    MissingHexLabel,
     /// The selected text hex format contains no digits.
+    #[error("response hex is empty")]
     EmptyHex,
     /// A byte is not a hex digit or permitted whitespace.
+    #[error("invalid response hex at byte {offset}")]
     InvalidHex {
         /// Byte offset within the hex portion (within the decoded JSON string
         /// for JSON input), not necessarily an offset in the original input.
         offset: usize,
     },
     /// The hex portion contains an odd number of digits.
+    #[error("response hex has an odd digit count")]
     OddHexLength,
     /// Valid hex would exceed the decoded byte allowance.
+    #[error("decoded response exceeds {limit} bytes")]
     DecodedLimit {
         /// Caller-selected decoded allowance.
         limit: usize,
     },
     /// Storage could not be reserved for decoded bytes.
-    Allocation(TryReserveError),
-}
-
-impl fmt::Display for ResponseError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::InputLimit { limit } => write!(f, "response input exceeds {limit} bytes"),
-            Self::InvalidUtf8 { offset } => {
-                write!(f, "response JSON is not UTF-8 at byte {offset}")
-            }
-            Self::Json { kind, line, column } => {
-                write!(f, "response JSON failed ({kind:?}) at {line}:{column}")
-            }
-            Self::MissingResponseBytes => f.write_str("response JSON lacks response_bytes"),
-            Self::MissingHexLabel => f.write_str("response hex label is missing"),
-            Self::EmptyHex => f.write_str("response hex is empty"),
-            Self::InvalidHex { offset } => write!(f, "invalid response hex at byte {offset}"),
-            Self::OddHexLength => f.write_str("response hex has an odd digit count"),
-            Self::DecodedLimit { limit } => write!(f, "decoded response exceeds {limit} bytes"),
-            Self::Allocation(source) => write!(f, "response allocation failed: {source}"),
-        }
-    }
-}
-
-impl std::error::Error for ResponseError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Self::Allocation(source) => Some(source),
-            _ => None,
-        }
-    }
+    #[error("response allocation failed: {0}")]
+    Allocation(#[source] TryReserveError),
 }
 
 /// Decode one complete response without dispatching a command or retrying it.
@@ -157,13 +131,6 @@ pub fn decode(
             decode_hex(hex.as_bytes(), false, limits.decoded_bytes)
         }
         ResponseFormat::Hex => decode_hex(input, true, limits.decoded_bytes),
-        ResponseFormat::LabeledHex => {
-            let input = input.trim_ascii_start();
-            let hex = input
-                .strip_prefix(b"response (hex):")
-                .ok_or(ResponseError::MissingHexLabel)?;
-            decode_hex(hex, true, limits.decoded_bytes)
-        }
     }
 }
 

@@ -2,7 +2,7 @@ use super::{
     proto::*,
     routing_shards::{canister_range_start_from_key, validate_routing_table_shard_bounds},
 };
-use candid::Principal;
+use ic_platform::Principal;
 use prost::Message;
 
 fn canister(value: u64) -> CanisterId {

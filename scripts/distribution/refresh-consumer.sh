@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
+# Shared companions: scripts/ci/shared-companions.sh
 set -euo pipefail
 
 SCRIPT_ROOT="${BASH_SOURCE[0]}"
 [[ "$SCRIPT_ROOT" == /* ]] || SCRIPT_ROOT="$PWD/$SCRIPT_ROOT"
 SCRIPT_ROOT="$(cd -P "${SCRIPT_ROOT%/*}/../.." && printf '%s/.' "$PWD")"
 SCRIPT_ROOT="${SCRIPT_ROOT%/.}"
+# shellcheck source=scripts/ci/shared-companions.sh
+source "$SCRIPT_ROOT/scripts/ci/shared-companions.sh"
 SOURCE_ROOT="$SCRIPT_ROOT"
 CONSUMER_ROOT=""
 MANIFEST_PATH=".shared-tooling.snapshot"
@@ -13,10 +16,16 @@ replacement=""
 preview=false
 requested_files=()
 added_files=()
+takeover_roots=()
+takeover_manifests=()
+takeover_paths=()
+takeover_states=()
+takeover_payload_paths=()
+takeover_payload_states=()
 
 usage() {
     cat >&2 <<'USAGE'
-usage: refresh-consumer.sh [--preview] [--source <shared-tooling-checkout>] --consumer <repository> [--manifest <relative-path>] [--entrypoint <relative-path>]... [--add-entrypoint <relative-path>]...
+usage: refresh-consumer.sh [--preview] [--source <shared-tooling-checkout>] --consumer <repository> [--manifest <relative-path>] [--entrypoint <relative-path>]... [--add-entrypoint <relative-path>]... [--takeover-snapshot <relative-root|.> <relative-manifest>]...
 
 Use --entrypoint to select the complete set of roots, initially or on refresh.
 Otherwise refresh reuses the manifest's recorded entrypoints. --add-entrypoint
@@ -103,16 +112,20 @@ consumer_state() {
 
 committed_mode() {
     local revision="$1" path="$2" tree_entry tree_metadata entry_mode entry_type mode=""
-    while IFS= read -r -d '' tree_entry; do
-        [[ "${tree_entry#*$'\t'}" == "$path" ]] || continue
-        tree_metadata="${tree_entry%%$'\t'*}"
-        read -r entry_mode entry_type _ <<<"$tree_metadata"
-        [[ "$entry_type" == blob && "$entry_mode" =~ ^100(644|755)$ ]] ||
-            fail "source revision does not contain a regular file: $path"
-        mode="$entry_mode"
-    done < <(git -C "$SOURCE_ROOT" ls-tree -z "$revision" -- "$path")
-    [[ -n "$mode" ]] || fail "source file is not recorded in revision $revision: $path"
-    printf '%s\n' "$mode"
+    # pipefail carries a failed Git observation even after a complete row. A
+    # process substitution hides that status, and Bash 3.2 cannot wait for it.
+    git -C "$SOURCE_ROOT" ls-tree -z "$revision" -- "$path" | {
+        while IFS= read -r -d '' tree_entry; do
+            [[ "${tree_entry#*$'\t'}" == "$path" ]] || continue
+            tree_metadata="${tree_entry%%$'\t'*}"
+            read -r entry_mode entry_type _ <<<"$tree_metadata"
+            [[ "$entry_type" == blob && "$entry_mode" =~ ^100(644|755)$ ]] ||
+                fail "source revision does not contain a regular file: $path"
+            mode="$entry_mode"
+        done
+        [[ -n "$mode" ]] || fail "source file is not recorded in revision $revision: $path"
+        printf '%s\n' "$mode"
+    }
 }
 
 check_consumer_unchanged() {
@@ -124,12 +137,16 @@ check_consumer_unchanged() {
 # The manifest alone cannot authorize replacing or retiring consumer bytes.
 # Resolve its ownership claim against the exact earlier source for both paths.
 export_previous_payload() {
-    local index="$1" output="$2" path mode executable=-
-    path="${previous_files[$index]}"
-    mode="$(committed_mode "$manifest_revision" "$path")" || fail "previous snapshot source is unavailable: $path"
+    local index="$1" output="$2" path mode revision_kind executable=-
+    path="${previous_sources[$index]}"
+    local revision="${previous_revisions[$index]}"
+    revision_kind="$(git -C "$SOURCE_ROOT" cat-file -t "$revision")" ||
+        fail "cannot inspect previous snapshot revision"
+    [[ "$revision_kind" == commit ]] || fail "previous snapshot revision is not an available commit"
+    mode="$(committed_mode "$revision" "$path")" || fail "previous snapshot source is unavailable: $path"
     [[ "$mode" != 100755 ]] || executable=x
     [[ "$executable" == "${previous_modes[$index]}" ]] || fail "previous snapshot mode disagrees with its source: $path"
-    git -C "$SOURCE_ROOT" cat-file blob "$manifest_revision:$path" > "$output" ||
+    git -C "$SOURCE_ROOT" cat-file blob "$revision:$path" > "$output" ||
         fail "cannot export previous snapshot source: $path"
     bash "$SCRIPT_ROOT/scripts/ci/verify-file-checksum.sh" sha256 "${previous_digests[$index]}" "$output" ||
         fail "previous snapshot digest disagrees with its source: $path"
@@ -138,9 +155,16 @@ export_previous_payload() {
 
 check_index_unchanged() {
     local index="$1" path="$2"
-    git -C "$CONSUMER_ROOT" --literal-pathspecs ls-files --stage -z -- "$path" > "$STAGING_DIR/current-index" ||
+    local recorded="$STAGING_DIR/index-$index" observed="$STAGING_DIR/current-index"
+    git -C "$CONSUMER_ROOT" --literal-pathspecs ls-files --stage -z -- "$path" > "$observed" ||
         fail "cannot inspect consumer index: $path"
-    cmp -s "$STAGING_DIR/index-$index" "$STAGING_DIR/current-index" ||
+    # Reobserve Git on every check. Two readable, regular empty records already
+    # prove equality; retain byte comparison for all other index observations.
+    if [[ -f "$recorded" && -r "$recorded" && ! -s "$recorded" &&
+          -f "$observed" && -r "$observed" && ! -s "$observed" ]]; then
+        return 0
+    fi
+    cmp -s "$recorded" "$observed" ||
         fail "consumer index changed during refresh: $path"
 }
 
@@ -175,6 +199,12 @@ while [[ $# -gt 0 ]]; do
         [[ $# -ge 2 ]] || { usage; exit 2; }
         added_files[${#added_files[@]}]="$2"
         shift 2
+        ;;
+    --takeover-snapshot)
+        [[ $# -ge 3 ]] || { usage; exit 2; }
+        takeover_roots+=("$2")
+        takeover_manifests+=("$3")
+        shift 3
         ;;
     -h | --help)
         usage
@@ -249,6 +279,8 @@ entrypoints=()
 previous_files=()
 previous_digests=()
 previous_modes=()
+previous_sources=()
+previous_revisions=()
 
 if [[ -e "$manifest" ]]; then
     [[ -f "$manifest" && ! -L "$manifest" ]] || fail "consumer manifest must be a regular file"
@@ -269,7 +301,9 @@ if [[ -e "$manifest" ]]; then
                 [[ "$third" != "$MANIFEST_PATH" ]] || fail "manifest may not include itself"
                 previous_digests[${#previous_files[@]}]="$first"
                 previous_modes[${#previous_files[@]}]="$second"
-                previous_files+=("$third") ;;
+                previous_files+=("$third")
+                previous_sources+=("$third")
+                previous_revisions+=("$manifest_revision") ;;
         esac
     done < "$STAGING_DIR/previous-records"
     [[ "$manifest_source" == "$source_remote" ]] ||
@@ -277,6 +311,71 @@ if [[ -e "$manifest" ]]; then
 else
     [[ ${#added_files[@]} -eq 0 ]] || fail "--add-entrypoint requires an existing snapshot"
 fi
+
+for takeover_index in "${!takeover_roots[@]}"; do
+    relative_root="${takeover_roots[$takeover_index]}"
+    prior_manifest="${takeover_manifests[$takeover_index]}"
+    [[ "$relative_root" == . ]] || validate_relative_path "$relative_root"
+    validate_relative_path "$prior_manifest"
+    prefix="${relative_root}/"
+    [[ "$relative_root" != . ]] || prefix=''
+    prior_path="$prefix$prior_manifest"
+    [[ "$prior_path" != "$MANIFEST_PATH" ]] || fail "cannot take over the destination manifest"
+    for existing in ${takeover_paths[@]+"${takeover_paths[@]}"}; do
+        [[ "$existing" != "$prior_path" ]] || fail "duplicate takeover manifest"
+    done
+    prior_state="$(consumer_state "$prior_path")" || fail "cannot inspect takeover manifest"
+    [[ -f "$CONSUMER_ROOT/$prior_path" ]] || fail "takeover manifest is missing: $prior_path"
+    git -C "$CONSUMER_ROOT" --literal-pathspecs diff --cached --quiet -- "$prior_path" ||
+        fail "takeover manifest has staged changes: $prior_path"
+    cp -p "$CONSUMER_ROOT/$prior_path" "$STAGING_DIR/takeover-$takeover_index"
+    git -C "$CONSUMER_ROOT" --literal-pathspecs ls-files --stage -z -- "$prior_path" > "$STAGING_DIR/index-takeover-$takeover_index"
+    takeover_paths+=("$prior_path")
+    takeover_states+=("$prior_state")
+    bash "$SCRIPT_ROOT/scripts/ci/verify-shared-tooling-snapshot.sh" \
+        --read-manifest "$STAGING_DIR/takeover-$takeover_index" > "$STAGING_DIR/takeover-records" ||
+        fail "takeover manifest is malformed"
+    prior_revision='' prior_remote=''
+    while IFS=$'\t' read -r record first second third; do
+        case "$record" in
+            source) prior_remote="$first" ;;
+            revision) prior_revision="$first" ;;
+        esac
+    done < "$STAGING_DIR/takeover-records"
+    [[ "$prior_remote" == "$source_remote" ]] || fail "takeover source remote differs"
+    while IFS=$'\t' read -r record first second third; do
+        case "$record" in
+            '# entrypoint')
+                selected=false
+                for existing in ${entrypoints[@]+"${entrypoints[@]}"}; do
+                    [[ "$existing" != "$first" ]] || selected=true
+                done
+                [[ "$selected" == true ]] || entrypoints+=("$first") ;;
+            file)
+                [[ "$third" != "$prior_manifest" ]] || fail "takeover manifest includes itself"
+                physical_path="$prefix$third"
+                index=${#previous_files[@]}
+                previous_files+=("$physical_path")
+                previous_sources+=("$third")
+                previous_revisions+=("$prior_revision")
+                previous_digests+=("$first")
+                previous_modes+=("$second")
+                export_previous_payload "$index" "$STAGING_DIR/takeover-payload" || fail "unproved takeover payload"
+                takeover_payload_paths+=("$physical_path")
+                takeover_payload_states+=("$(consumer_state "$physical_path")")
+                git -C "$CONSUMER_ROOT" --literal-pathspecs diff --cached --quiet -- "$physical_path" ||
+                    fail "takeover payload has staged changes: $physical_path"
+                if [[ -f "$CONSUMER_ROOT/$physical_path" ]]; then
+                    cmp -s "$STAGING_DIR/takeover-payload" "$CONSUMER_ROOT/$physical_path" || fail "takeover payload has local changes: $physical_path"
+                    if { [[ -x "$STAGING_DIR/takeover-payload" ]] && [[ ! -x "$CONSUMER_ROOT/$physical_path" ]]; } ||
+                        { [[ ! -x "$STAGING_DIR/takeover-payload" ]] && [[ -x "$CONSUMER_ROOT/$physical_path" ]]; }; then
+                        fail "takeover payload has local mode changes: $physical_path"
+                    fi
+                fi
+                ;;
+        esac
+    done < "$STAGING_DIR/takeover-records"
+done
 
 if [[ ${#requested_files[@]} -gt 0 ]]; then entrypoints=("${requested_files[@]}"); fi
 [[ ${#entrypoints[@]} -gt 0 ]] || fail "select the complete --entrypoint set; this manifest has no recorded entrypoints"
@@ -317,19 +416,22 @@ done
 # Follow the selected revision's explicit companion graph, including cycles,
 # without executing inspected files. The committed closure is the payload owner.
 proposed=("${files[@]}")
+source_modes=()
+staged_files="$STAGING_DIR/files"
+mkdir -p "$staged_files"
 cursor=0
 while [[ "$cursor" -lt "${#proposed[@]}" ]]; do
     path="${proposed[$cursor]}"
     validate_relative_path "$path"
-    committed_mode "$source_revision" "$path" > /dev/null || fail "cannot read committed companion source: $path"
-    git -C "$SOURCE_ROOT" cat-file blob "$source_revision:$path" > "$STAGING_DIR/companion-source" || fail "cannot inspect companions: $path"
-    declaration="$(sed -n '2s/^# Shared companions: //p' "$STAGING_DIR/companion-source")"
-    if [[ "$path" == *.md && -z "$declaration" ]]; then
-        declaration="$(sed -n '2s/^<!-- Shared companions: \(.*\) -->$/\1/p' "$STAGING_DIR/companion-source")"
-    fi
-    companions=()
-    read -r -a companions <<< "$declaration"
-    for companion in ${companions[@]+"${companions[@]}"}; do
+    # These observations belong to the immutable selected revision. Retain them
+    # for export; mutable checkout and consumer admission still run below.
+    source_modes[cursor]="$(committed_mode "$source_revision" "$path")" || fail "cannot read committed companion source: $path"
+    staged_parent="$staged_files"
+    if [[ "$path" == */* ]]; then staged_parent+="/${path%/*}"; fi
+    [[ -d "$staged_parent" ]] || mkdir -p "$staged_parent"
+    git -C "$SOURCE_ROOT" cat-file blob "$source_revision:$path" > "$staged_files/$path" || fail "cannot inspect companions: $path"
+    read_shared_companions "$staged_files/$path" "$path"
+    for companion in ${shared_companions[@]+"${shared_companions[@]}"}; do
         validate_relative_path "$companion"
         selected=false
         for existing in "${proposed[@]}"; do
@@ -345,7 +447,6 @@ files=("${proposed[@]}")
 
 checksum_tool_declared=false
 snapshot_verifier_declared=false
-source_modes=()
 for index in "${!files[@]}"; do
     path="${files[$index]}"
     validate_relative_path "$path"
@@ -358,7 +459,6 @@ for index in "${!files[@]}"; do
     "$SOURCE_ROOT/"*) ;;
     *) fail "source file escapes the source checkout: $path" ;;
     esac
-    source_modes[index]="$(committed_mode "$source_revision" "$path")" || fail "cannot read committed mode: $path"
     if [[ "$index" -ge "$selected_count" ]]; then
         consumer_states[index]="$(consumer_state "$path")" || fail "cannot inspect consumer input: $path"
         git -C "$CONSUMER_ROOT" --literal-pathspecs ls-files --stage -z -- "$path" > "$STAGING_DIR/index-$index" ||
@@ -376,14 +476,8 @@ done
 [[ "$checksum_tool_declared" == "true" ]] || fail "snapshot must include the checksum verifier"
 [[ "$snapshot_verifier_declared" == "true" ]] || fail "snapshot must include the snapshot verifier"
 
-staged_files="$STAGING_DIR/files"
-mkdir -p "$staged_files"
-
 for index in "${!files[@]}"; do
     path="${files[$index]}"
-    mkdir -p "$staged_files/$(dirname "$path")"
-    git -C "$SOURCE_ROOT" cat-file blob "$source_revision:$path" >"$staged_files/$path" ||
-        fail "cannot export committed source file: $path"
     chmod "${source_modes[$index]#100}" "$staged_files/$path"
 done
 
@@ -438,8 +532,6 @@ for index in "${!files[@]}"; do
         { [[ ! -x "$STAGING_DIR/previous-file" ]] && [[ -x "$destination" ]]; }; then
         fail "consumer destination has local changes; preserve or reconcile them before refreshing: $path"
     fi
-    [[ "$(git -C "$SOURCE_ROOT" cat-file -t "$manifest_revision")" == commit ]] ||
-        fail "previous snapshot revision is not an available commit"
 done
 
 # Retire stale payloads automatically. Prove ownership against
@@ -453,6 +545,9 @@ for previous_index in "${!previous_files[@]}"; do
     selected=false
     for existing in "${files[@]}"; do [[ "$existing" != "$path" ]] || selected=true; done
     [[ "$selected" == false ]] || continue
+    duplicate=false
+    for existing in ${obsolete[@]+"${obsolete[@]}"}; do [[ "$existing" != "$path" ]] || duplicate=true; done
+    [[ "$duplicate" == false ]] || continue
     index=${#obsolete[@]}
     obsolete+=("$path")
     retirement_states[index]="$(consumer_state "$path")" || fail "cannot inspect retirement: $path"
@@ -460,8 +555,6 @@ for previous_index in "${!previous_files[@]}"; do
         fail "cannot inspect retirement index: $path"
     git -C "$CONSUMER_ROOT" --literal-pathspecs diff --cached --quiet -- "$path" ||
         fail "retirement has staged changes: $path"
-    [[ "$(git -C "$SOURCE_ROOT" cat-file -t "$manifest_revision")" == commit ]] ||
-        fail "previous snapshot revision is not an available commit"
     export_previous_payload "$previous_index" "$STAGING_DIR/retire-$index"
     destination="$CONSUMER_ROOT/$path"
     if [[ -e "$destination" ]]; then
@@ -471,6 +564,19 @@ for previous_index in "${!previous_files[@]}"; do
             fail "retirement has local mode changes: $path"
         fi
     fi
+done
+
+for index in "${!takeover_paths[@]}"; do
+    path="${takeover_paths[$index]}"
+    for existing in "${files[@]}" "${previous_files[@]}"; do
+        [[ "$existing" != "$path" ]] || fail "takeover manifest collides with a payload: $path"
+    done
+    check_consumer_unchanged "$path" "${takeover_states[$index]}"
+    check_index_unchanged "takeover-$index" "$path"
+done
+
+for index in "${!takeover_payload_paths[@]}"; do
+    check_consumer_unchanged "${takeover_payload_paths[$index]}" "${takeover_payload_states[$index]}"
 done
 
 # Detect changes made while committed payloads and companions were prepared,
@@ -506,20 +612,25 @@ if [[ "$preview" == true ]]; then
     for path in ${obsolete[@]+"${obsolete[@]}"}; do
         printf 'REMOVE\tobsolete\t%s\n' "$path"
     done
+    for path in ${takeover_paths[@]+"${takeover_paths[@]}"}; do
+        printf 'REMOVE\ttakeover-manifest\t%s\n' "$path"
+    done
     exit 0
 fi
 
 # Prepare a custom manifest's parent before replacing any consumer files.
-mkdir -p "$(dirname "$manifest")" || fail "cannot create consumer manifest directory"
+mkdir -p "${manifest%/*}" || fail "cannot create consumer manifest directory"
 
 for index in "${!files[@]}"; do
     path="${files[$index]}"
     check_consumer_unchanged "$path" "${consumer_states[$index]}"
     check_index_unchanged "$index" "$path"
-    mkdir -p "$CONSUMER_ROOT/$(dirname "$path")"
+    destination_parent="$CONSUMER_ROOT"
+    if [[ "$path" == */* ]]; then destination_parent+="/${path%/*}"; fi
+    [[ -d "$destination_parent" ]] || mkdir -p "$destination_parent"
     # Copy beside the destination so even a mounted subtree gets an atomic
     # rename. A failed/interrupted copy must leave the admitted old bytes intact.
-    replacement="$(mktemp "$CONSUMER_ROOT/$(dirname "$path")/.shared-tooling-payload.XXXXXX")"
+    replacement="$(mktemp "$destination_parent/.shared-tooling-payload.XXXXXX")"
     cp -p "$staged_files/$path" "$replacement"
     check_consumer_unchanged "$path" "${consumer_states[$index]}"
     check_index_unchanged "$index" "$path"
@@ -533,6 +644,10 @@ for index in "${!obsolete[@]}"; do
     check_index_unchanged "retire-$index" "$path"
     if [[ -e "$CONSUMER_ROOT/$path" ]]; then rm -- "$CONSUMER_ROOT/$path"; fi
 done
+for index in "${!takeover_paths[@]}"; do
+    check_consumer_unchanged "${takeover_paths[$index]}" "${takeover_states[$index]}"
+    check_index_unchanged "takeover-$index" "${takeover_paths[$index]}"
+done
 check_consumer_unchanged "$MANIFEST_PATH" "$manifest_state"
 check_index_unchanged manifest "$MANIFEST_PATH"
 mv "$staged_manifest" "$manifest"
@@ -540,5 +655,12 @@ mv "$staged_manifest" "$manifest"
 bash "$staged_files/scripts/ci/verify-shared-tooling-snapshot.sh" \
     --consumer "$CONSUMER_ROOT" \
     --manifest "$MANIFEST_PATH"
+
+# Retire receipts only after the new authoritative manifest and bytes verify.
+for index in "${!takeover_paths[@]}"; do
+    check_consumer_unchanged "${takeover_paths[$index]}" "${takeover_states[$index]}"
+    check_index_unchanged "takeover-$index" "${takeover_paths[$index]}"
+    rm -- "$CONSUMER_ROOT/${takeover_paths[$index]}"
+done
 
 echo "shared-tooling snapshot refreshed: ${#files[@]} file(s) from $source_version ($source_revision)"
