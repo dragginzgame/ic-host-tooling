@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.27.4]
+## [0.27.4] - 2026-10-18
 
 - Share ordered empty/duplicate batch-label admission with exact comparisons and
   typed occurrence positions; callers retain batch execution and failure policy
