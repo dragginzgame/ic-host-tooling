@@ -21,7 +21,7 @@ description = "Host-side artifact, filesystem, process and IC tooling"
 [workspace.dependencies]
 # Registry versions are compatible ranges; Cargo.lock records exact build selections.
 # Production dependencies
-# No catalog dependency is used exclusively by tests or development tooling.
+# Shared production/test dependencies stay in this section.
 ciborium = "0.2.2"
 command-fds = "0.3.3"
 flate2 = { version = "1.1.10", default-features = false, features = ["rust_backend"] }

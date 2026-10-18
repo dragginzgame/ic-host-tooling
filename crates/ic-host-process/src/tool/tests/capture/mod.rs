@@ -163,9 +163,8 @@ fn caller_deadlines_reap_children_and_do_not_wait_for_descendant_pipe_eof() {
         assert!(matches!(execution.failure, ExecutionFailure::TimedOut));
         assert!(execution.evidence.status.is_some());
         assert!(execution.cleanup.is_none());
-        if argument == "--descendant" {
-            assert!(execution.evidence.status.unwrap().success());
-        }
+        // The deadline may expire before the shell exits, especially on a busy
+        // host. The held-pipe test separately establishes leader exit first.
     }
 }
 
