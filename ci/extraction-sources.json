@@ -139,22 +139,6 @@
       ]
     },
     {
-      "repository": "https://github.com/dragginzgame/ic-backup",
-      "revision": "53d840bddb3de8680c4ab35a3c008c57ed61a244",
-      "files": [
-        {
-          "path": "crates/ic-backup/src/ops/persistence/command_lifetime_lock/mod.rs",
-          "sha256": "71b7a10597412e7d057d8fc6b642fd263af6bd67d8312c5fa6eac2b0652e62ca",
-          "selection": "Inherited descriptor custody, one-spawn consumption, exact existing-sidecar quiescence and native owner/descendant failure requirements; adapted to Host FS locks, caller-selected paths/environment/waits, passive native identity and Rust subprocess fixtures. Backup retains journal schemas, operation binding, paid spending and reference-release policy. MIT source notices retained."
-        },
-        {
-          "path": "crates/ic-backup/src/ops/persistence/command_lifetime_lock/tests/mod.rs",
-          "sha256": "8738cc00d9dd5485bdda50aac6e1bb22e1be5122c27c9ec3ca9cb152b9b23118",
-          "selection": "Inherited descriptor custody, one-spawn consumption, exact existing-sidecar quiescence and native owner/descendant failure requirements; adapted to Host FS locks, caller-selected paths/environment/waits, passive native identity and Rust subprocess fixtures. Backup retains journal schemas, operation binding, paid spending and reference-release policy. MIT source notices retained."
-        }
-      ]
-    },
-    {
       "repository": "https://github.com/dragginzgame/canic",
       "revision": "bc238ac363ea1dd51440057c625186e112c657c6",
       "files": [
@@ -204,6 +188,33 @@
         {
           "path": "crates/ic-backup/src/ops/persistence/artifact_commit/regressions/mod.rs",
           "sha256": "196ffbca1df05c5d82cd658d0380647be006cc26c9e22513e0a0eb82e0f13812"
+        }
+      ]
+    },
+    {
+      "repository": "https://github.com/dragginzgame/ic-query",
+      "revision": "32759d226414f3ee76cd769533049bf6ce92f3be",
+      "files": [
+        {
+          "path": "crates/ic-query/src/agent.rs",
+          "sha256": "e79dd046cc40e6d8a383d20dfe5d546ff27abdce53f5c160964e9370c956a92c",
+          "selection": "response-bounded native SDK builder, exact lazy endpoint/ceiling binding and no-network/bounded-response fixtures; adapted to opt-in typed Host errors and parsed SDK URLs. Strict portable endpoint admission, historical verification, root-key policy, deadlines, response budgets and source errors remain Query-owned."
+        }
+      ]
+    },
+    {
+      "repository": "https://github.com/dragginzgame/ic-query",
+      "revision": "32759d226414f3ee76cd769533049bf6ce92f3be",
+      "files": [
+        {
+          "path": "crates/ic-query/src/ledger_evidence/mod.rs",
+          "sha256": "734e1522366dbd7a79662bdb51b46f3d3ad908d67130b25344a5223964f14f38",
+          "selection": "bounded ICRC-3 block value admission and contiguous-chain verification; caller retains tip authentication, ledger selection and transaction interpretation"
+        },
+        {
+          "path": "crates/ic-query/src/ledger_evidence/tests.rs",
+          "sha256": "1e39cc3f40782bbecfe37f35f7d6f9f386b6a8971bb061066f0d472d2c85fb5d",
+          "selection": "bounded ICRC-3 block value admission and contiguous-chain verification; caller retains tip authentication, ledger selection and transaction interpretation"
         }
       ]
     }

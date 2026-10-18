@@ -18,6 +18,38 @@
   ([PR #162 — Duration text](https://github.com/dragginzgame/ic-host-tooling/pull/162)).
   [Details](docs/changelog/0.27.md).
 
+- Share opt-in canonical unsigned `u64` LEB128 admission without allocation or
+  new dependencies. Callers retain field diagnostics, semantic limits and trust.
+  [Details](docs/changelog/0.27.md).
+
+- Share explicit Unix signal-action installation and restoration with rollback,
+  leaving signal choice, registration custody and shutdown policy with callers.
+  [Details](docs/changelog/0.27.md).
+
+- Project exact environment/network facts from bounded effective ICP YAML using
+  an optional real parser, leaving configuration resolution and funding to callers.
+  [Details](docs/changelog/0.27.md).
+
+- Share opt-in bounded ICRC-3 block admission and contiguous-chain verification,
+  using Platform's upstream types and leaving tip authentication with callers.
+  [Details](docs/changelog/0.27.md).
+
+- Share opt-in native response-bounded Agent construction and exact endpoint
+  binding through Platform, leaving endpoint admission and network policy local.
+  [Details](docs/changelog/0.27.md).
+
+- Share opt-in focused Registry wire projections and shard interval admission,
+  preserving protocol tags and caller-owned budgets, certification and replay.
+  [Details](docs/changelog/0.27.md).
+
+- Complete retained writes and shell-status
+  projection, preserving caller-owned publication, cleanup and recovery policy.
+  Document direct managed Wasm-inspector use. [Details](docs/changelog/0.27.md).
+
+- Qualify Rust 1.99.1 for development and native CI, retaining Rust 1.88 as
+  the package minimum and preserving dependency selections.
+  [Details](docs/changelog/0.27.md).
+
 ## [0.27.6] - 2026-10-18
 
 - Share pure ICP call/status command builders and typed installation-state

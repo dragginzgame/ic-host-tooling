@@ -97,6 +97,23 @@ Replica install thresholds and their reports belong to the consuming application
 Canic selects its replica revision and enforces its resource limits; Host Artifacts
 retains generic Wasm inspection. See the [0.25 migration](docs/changelog/0.25.md).
 
+The optional Tools `registry` feature shares focused Registry Protobuf
+projections and canister-range shard key/interval checks. These are partial
+projections, with normal Prost unknown-field behavior. Callers retain budgets,
+complete/sorted/disjoint range checks, trust, discovery and replay policy.
+Principal identities come from Platform; no direct IC dependency is introduced.
+
+The optional `icp-project` feature exposes
+`icp_project::environment_network` over bounded `icp project show` YAML.
+ICP resolves implicit environments and recipes; the parser preserves exact names
+and refuses malformed or ambiguous facts. Callers retain executable selection,
+capture limits, funding and lifecycle. The YAML parser is absent from defaults.
+
+The optional tools `encoding` feature decodes a complete canonical unsigned
+`u64` LEB128 value without allocation or new dependencies. It rejects truncated,
+overflowing, nonminimal and trailing encodings while inspecting at most ten bytes.
+Callers retain field names, semantic limits, transport and trust policy.
+
 The optional tools `certificate` feature exposes
 `certificate::{decode_certificate, decode_hash_tree}` with explicit input-byte and
 CBOR-depth limits. It returns owned certification values through Platform,
@@ -105,6 +122,23 @@ data, malformed trees and invalid certificate fields. Parsing authenticates
 nothing: callers retain Agent verification, trust roots, combined evidence
 budgets, witness commitments and application leaf meanings. The feature adds no
 Agent transport, filesystem/process execution or Candid parser.
+
+The opt-in native `agent` feature exposes `agent::{agent_builder, EndpointAgent}`
+using upstream Agent identities through Platform. Pass a parsed `url::Url` and response-byte ceiling
+to the builder, then customize SDK identity/verification settings as needed.
+`EndpointAgent::get(endpoint, ceiling)` lazily reuses an SDK-default agent bound
+to the exact endpoint text and ceiling; conflicting reuse is a typed error.
+Consumers must admit their endpoints before use: URL parsing alone does not
+enforce HTTP(S), credential, query or fragment policy. Root-key fetching,
+historical verification, deadlines and all network calls remain caller-owned.
+This native-only profile does not widen default or certificate dependencies.
+
+The optional `ledger-evidence` feature adds `ledger_evidence::BoundedLedgerBlocks`
+for caller-bounded ICRC-3 value admission and exact descending-chain verification.
+Supply a separately authenticated `LedgerTip`; constructing that passive record
+does not establish trust. Block/node/byte/depth budgets, tip authentication and
+transaction interpretation remain caller-owned. This feature performs no IO and
+does not enable certificate decoding or Agent transport.
 
 `ic-host-tools::response::decode` accepts explicitly selected JSON envelopes or
 plain hex. CLI presentation labels, preambles and any broader whitespace policy
@@ -332,6 +366,9 @@ failures. Select mode and permissions explicitly; see the
 expected digest admission before publication. Callers select paths, the byte
 allowance and `WriteOptions`; source symlinks are followed. Existing destination
 bytes survive digest, source and limit failures.
+`durable::write_retained_at_with` creates and syncs a caller-named entry before
+production, then syncs its file and directory on success. Errors and panics retain
+partial evidence; callers own schemas, byte bounds and recovery decisions.
 `durable::copy_from` consumes an already-selected reader from its current
 position. Callers retain input admission, byte/time bounds and choose `WriteOptions`.
 Optional exact permissions are applied after copying; otherwise the creation
