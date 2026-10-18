@@ -50,10 +50,10 @@ case "$*" in
     'status --porcelain --untracked-files=all')
         if [[ "${PUBLISH_CORE_RACE:-0}" == 1 && -d target/publish/.cargo-publication.lock ]]; then echo ' M raced'; fi
         if [[ "${PUBLISH_DIRTY:-0}" == 1 ]]; then echo ' M Cargo.toml'; fi ;;
-    init\ --bare\ *) mkdir -p "$3" ;;
+    init\ --bare\ --object-format=sha1\ *) mkdir -p "$4" ;;
     -C\ *\ fetch\ --no-tags\ --depth=1\ *)
-        [[ "$6" == https://github.com/dragginzgame/ic-host-tooling &&
-           "$7" == 0000000000000000000000000000000000000000 ]] || exit 1
+        [[ "$6" == -- && "$7" == https://github.com/dragginzgame/ic-host-tooling &&
+           "$8" == 0000000000000000000000000000000000000000 ]] || exit 1
         printf '%s\n' "$*" >> "$PUBLISH_FIXTURE/fetch-calls"
         exit "${PUBLISH_FETCH_RESULT:-0}" ;;
     -C\ *\ rev-parse\ --verify\ *)
@@ -187,7 +187,8 @@ attempts=(target/publish/publish.*)
 attempt="${attempts[0]}"
 successful_attempt="$attempt"
 admission="target/publish/admission/${attempt##*/}"
-[[ -f "$admission/source-verified" && -f "$admission/source-request" && -f "$admission/ic-host-fs-vcs.json" ]] || exit 1
+[[ -f "$admission/provenance/source-verified" && -f "$admission/provenance/source-request" &&
+   -f "$admission/provenance/ic-host-fs-vcs.json" ]] || exit 1
 [[ "$(cat "$admission/publication-attempt")" == "$fixture/$attempt" ]] || exit 1
 
 # Stop at Cargo's failure and retain the attempt's intent, log and artifacts.
@@ -204,22 +205,17 @@ done
 [[ -f "$attempt/intent" && -f "$attempt/arguments" && -f "$attempt/cargo.log" && "$(cat "$attempt/status")" == 17 ]] || exit 1
 [[ -f target/package/fixture.crate && ! -e target/publish/lock ]] || exit 1
 
-# The adapter preserves both shared statuses, with Cargo failure taking priority.
-for pair in '0 23' '17 23'; do
-    read -r cargo_status log_status <<< "$pair"
-    : > calls
-    status=0
-    PUBLISH_CARGO_RESULT="$cargo_status" PUBLISH_LOG_RESULT="$log_status" \
-        invoke publish > logger-failure.log 2>&1 || status=$?
-    expected_status="$cargo_status"; [[ "$expected_status" != 0 ]] || expected_status="$log_status"
-    [[ "$status" == "$expected_status" ]] || exit 1
-    cmp expected-calls calls
-    core="$(sed -n 's/^Publication evidence: //p' logger-failure.log)"
-    [[ "$(cat "$core/cargo-status")" == "$cargo_status" &&
-       "$(cat "$core/log-status")" == "$log_status" &&
-       "$(cat "$core/status")" == "$expected_status" ]] || exit 1
-    [[ ! -e target/publish/lock && ! -e target/publish/.cargo-publication.lock ]] || exit 1
-done
+# Shared owns status precedence and the complete Cargo/logger failure matrix.
+# Host proves delegation preserves its status and releases the preparation lock.
+: > calls
+status=0
+PUBLISH_CARGO_RESULT=0 PUBLISH_LOG_RESULT=23 \
+    invoke publish > logger-failure.log 2>&1 || status=$?
+[[ "$status" == 23 ]] || exit 1
+cmp expected-calls calls
+core="$(sed -n 's/^Publication evidence: //p' logger-failure.log)"
+[[ "$(cat "$core/status")" == "$status" &&
+   ! -e target/publish/lock && ! -e target/publish/.cargo-publication.lock ]] || exit 1
 
 # Plausible stdout from a failed metadata query is never upload authority.
 : > calls

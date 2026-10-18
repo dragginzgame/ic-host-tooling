@@ -3,32 +3,43 @@ use std::os::unix::ffi::OsStrExt as _;
 
 #[test]
 fn existing_parent_selection_rejects_missing_and_directory_targets_before_production() {
-    let fixture = Fixture::new();
+    let fixture = fixture();
     for path in [
-        fixture.root.join("missing/report"),
-        fixture.root.join("directory/"),
-        fixture.root.join("directory/."),
-        fixture.root.join(OsStr::from_bytes(b"nul\0name")),
+        fixture.path().join("missing/report"),
+        fixture.path().join("directory/"),
+        fixture.path().join("directory/."),
+        fixture.path().join(OsStr::from_bytes(b"nul\0name")),
     ] {
         let mut produced = false;
-        let result = write_existing_parent_with(&path, CREATE, |_| {
-            produced = true;
-            Ok::<_, io::Error>(())
-        });
+        let result = write_existing_parent_validated_with(
+            &path,
+            CREATE,
+            |_| {
+                produced = true;
+                Ok::<_, io::Error>(())
+            },
+            |()| Ok(()),
+        );
         assert!(matches!(
             result,
             Err(NamedWriteError::BeforePublication { .. })
         ));
         assert!(!produced);
     }
-    assert_eq!(fs::read_dir(&fixture.root).unwrap().count(), 0);
+    assert_eq!(fs::read_dir(fixture.path()).unwrap().count(), 0);
 }
 
 #[test]
 fn existing_parent_modes_keep_permissions_symlinks_and_typed_admission() {
-    let fixture = Fixture::new();
-    let output = fixture.root.join("report");
-    write_existing_parent_with(&output, CREATE, |file| file.write_all(b"first")).unwrap();
+    let fixture = fixture();
+    let output = fixture.path().join("report");
+    write_existing_parent_validated_with(
+        &output,
+        CREATE,
+        |file| file.write_all(b"first"),
+        |()| Ok(()),
+    )
+    .unwrap();
     assert_eq!(
         fs::metadata(&output).unwrap().permissions().mode() & 0o777,
         0o600
@@ -54,11 +65,17 @@ fn existing_parent_modes_keep_permissions_symlinks_and_typed_admission() {
     ));
     assert_eq!(fs::read(&output).unwrap(), b"first");
     assert!(
-        write_existing_parent_with(&output, CREATE, |file| file.write_all(b"duplicate")).is_err()
+        write_existing_parent_validated_with(
+            &output,
+            CREATE,
+            |file| file.write_all(b"duplicate"),
+            |()| Ok(())
+        )
+        .is_err()
     );
     assert_eq!(fs::read(&output).unwrap(), b"first");
-    let alias = fixture.root.join("parent alias");
-    symlink(&fixture.root, &alias).unwrap();
+    let alias = fixture.path().join("parent alias");
+    symlink(fixture.path(), &alias).unwrap();
     write_existing_parent_validated_with(
         &alias.join("report"),
         REPLACE,
@@ -73,10 +90,16 @@ fn existing_parent_modes_keep_permissions_symlinks_and_typed_admission() {
     )
     .unwrap();
     assert_eq!(fs::read(&output).unwrap(), b"accepted");
-    let link = fixture.root.join("final-link");
+    let link = fixture.path().join("final-link");
     symlink(&output, &link).unwrap();
     assert!(
-        write_existing_parent_with(&link, CREATE, |file| file.write_all(b"duplicate")).is_err()
+        write_existing_parent_validated_with(
+            &link,
+            CREATE,
+            |file| file.write_all(b"duplicate"),
+            |()| Ok(())
+        )
+        .is_err()
     );
     assert!(
         fs::symlink_metadata(&link)
@@ -85,7 +108,13 @@ fn existing_parent_modes_keep_permissions_symlinks_and_typed_admission() {
             .is_symlink()
     );
     assert_eq!(fs::read(&output).unwrap(), b"accepted");
-    write_existing_parent_with(&link, REPLACE, |file| file.write_all(b"link replacement")).unwrap();
+    write_existing_parent_validated_with(
+        &link,
+        REPLACE,
+        |file| file.write_all(b"link replacement"),
+        |()| Ok(()),
+    )
+    .unwrap();
     assert!(fs::symlink_metadata(&link).unwrap().is_file());
     assert_eq!(fs::read(&link).unwrap(), b"link replacement");
     assert_eq!(fs::read(&output).unwrap(), b"accepted");
@@ -93,15 +122,20 @@ fn existing_parent_modes_keep_permissions_symlinks_and_typed_admission() {
 
 #[test]
 fn existing_parent_remains_selected_after_path_rename() {
-    let fixture = Fixture::new();
-    let original = fixture.root.join("parent");
-    let renamed = fixture.root.join("renamed");
+    let fixture = fixture();
+    let original = fixture.path().join("parent");
+    let renamed = fixture.path().join("renamed");
     fs::create_dir(&original).unwrap();
-    write_existing_parent_with(&original.join("report"), CREATE, |file| {
-        fs::rename(&original, &renamed)?;
-        fs::create_dir(&original)?;
-        file.write_all(b"retained directory")
-    })
+    write_existing_parent_validated_with(
+        &original.join("report"),
+        CREATE,
+        |file| {
+            fs::rename(&original, &renamed)?;
+            fs::create_dir(&original)?;
+            file.write_all(b"retained directory")
+        },
+        |()| Ok(()),
+    )
     .unwrap();
     assert_eq!(
         fs::read(renamed.join("report")).unwrap(),
@@ -112,23 +146,27 @@ fn existing_parent_remains_selected_after_path_rename() {
 
 #[test]
 fn existing_parent_refuses_invalid_permissions_before_production_or_admission() {
-    let fixture = Fixture::new();
-    let output = fixture.root.join("report");
-    let error = write_existing_parent_validated_with(
-        &output,
-        WriteOptions {
-            permissions: 0o1000,
-            ..CREATE
-        },
-        |_| -> io::Result<()> { panic!("invalid permissions ran producer") },
-        |()| panic!("invalid permissions ran admission"),
-    )
-    .unwrap_err();
-    assert!(
-        matches!(error, NamedWriteError::BeforePublication { source, cleanup_error: None }
-        if source.kind() == io::ErrorKind::InvalidInput)
-    );
-    assert_eq!(fs::read_dir(&fixture.root).unwrap().count(), 0);
+    let fixture = fixture();
+    for output in [
+        fixture.path().join("report"),
+        fixture.path().join("missing/report"),
+    ] {
+        let error = write_existing_parent_validated_with(
+            &output,
+            WriteOptions {
+                permissions: 0o1000,
+                ..CREATE
+            },
+            |_| -> io::Result<()> { panic!("invalid permissions ran producer") },
+            |()| panic!("invalid permissions ran admission"),
+        )
+        .unwrap_err();
+        assert!(
+            matches!(error, NamedWriteError::BeforePublication { source, cleanup_error: None }
+            if source.kind() == io::ErrorKind::InvalidInput)
+        );
+    }
+    assert_eq!(fs::read_dir(fixture.path()).unwrap().count(), 0);
 }
 
 #[test]
@@ -140,27 +178,22 @@ fn existing_parent_refuses_non_directories_without_blocking() {
     const CHILD: &str = "IC_HOST_FS_EXISTING_PARENT_CHILD";
     if let Some(parent) = std::env::var_os(CHILD) {
         let path = std::path::PathBuf::from(parent).join("report");
-        let ordinary = write_existing_parent_with(&path, CREATE, |_| -> io::Result<()> {
-            panic!("non-directory parent ran producer")
-        });
         let validated = write_existing_parent_validated_with(
             &path,
             CREATE,
             |_| -> io::Result<()> { panic!("non-directory parent ran producer") },
             |()| panic!("non-directory parent ran admission"),
         );
-        for result in [ordinary, validated] {
-            assert!(
-                matches!(result, Err(NamedWriteError::BeforePublication { source, cleanup_error: None })
-                if source.kind() == io::ErrorKind::NotADirectory)
-            );
-        }
+        assert!(
+            matches!(validated, Err(NamedWriteError::BeforePublication { source, cleanup_error: None })
+            if source.kind() == io::ErrorKind::NotADirectory)
+        );
         return;
     }
-    let fixture = Fixture::new();
-    let regular = fixture.root.join("regular");
+    let fixture = fixture();
+    let regular = fixture.path().join("regular");
     fs::write(&regular, b"preserved").unwrap();
-    let fifo = fixture.root.join("fifo");
+    let fifo = fixture.path().join("fifo");
     crate::test_support::create_fifo(&fifo, None).unwrap();
     for parent in [&fifo, &regular] {
         let mut child = Command::new(std::env::current_exe().unwrap())
@@ -186,5 +219,5 @@ fn existing_parent_refuses_non_directories_without_blocking() {
         assert!(result.expect("parent admission must not block").success());
     }
     assert_eq!(fs::read(&regular).unwrap(), b"preserved");
-    assert_eq!(fs::read_dir(&fixture.root).unwrap().count(), 2);
+    assert_eq!(fs::read_dir(fixture.path()).unwrap().count(), 2);
 }

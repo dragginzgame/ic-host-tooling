@@ -1,9 +1,11 @@
 //! No-follow traversal relative to an explicitly supplied directory capability.
 
-use super::{ArtifactError, check_metadata};
-use rustix::fs::{AtFlags, FileType, Mode, OFlags, openat, statat};
+use super::{
+    ArtifactError, admit_file,
+    entry::{entry_type, open_child, opened_type},
+};
+use rustix::fs::{FileType, Mode, OFlags};
 use std::{
-    fmt,
     fs::File,
     io,
     os::fd::{AsFd, BorrowedFd, OwnedFd},
@@ -39,39 +41,17 @@ pub enum OpenedEntry {
 }
 
 /// Refusal or native failure when selecting a root-relative entry.
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum OpenEntryError {
     /// A native open or metadata operation failed.
-    Io(io::Error),
+    #[error("root-relative opening failed: {0}")]
+    Io(#[from] io::Error),
     /// The selected entry is neither a regular file nor a directory.
+    #[error("unsupported entry: {kind:?}")]
     UnsupportedEntry {
         /// Observed descriptor kind.
         kind: FileType,
     },
-}
-
-impl fmt::Display for OpenEntryError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Io(error) => write!(formatter, "root-relative opening failed: {error}"),
-            Self::UnsupportedEntry { kind } => write!(formatter, "unsupported entry: {kind:?}"),
-        }
-    }
-}
-
-impl std::error::Error for OpenEntryError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Self::Io(error) => Some(error),
-            Self::UnsupportedEntry { .. } => None,
-        }
-    }
-}
-
-impl From<io::Error> for OpenEntryError {
-    fn from(error: io::Error) -> Self {
-        Self::Io(error)
-    }
 }
 
 /// Open one regular file or directory beneath a caller-held root descriptor.
@@ -101,8 +81,7 @@ pub fn open_entry_beneath(
     let mut parent: Option<OwnedFd> = None;
     while let Some(Component::Normal(name)) = parts.next() {
         let directory = parent.as_ref().map_or(root, AsFd::as_fd);
-        let stat = statat(directory, name, AtFlags::SYMLINK_NOFOLLOW).map_err(io::Error::from)?;
-        let observed = FileType::from_raw_mode(stat.st_mode);
+        let observed = entry_type(directory, name)?;
         if observed == FileType::Symlink {
             return Err(
                 io::Error::new(io::ErrorKind::InvalidInput, "symlink component refused").into(),
@@ -112,20 +91,13 @@ pub fn open_entry_beneath(
         if final_component && !matches!(observed, FileType::RegularFile | FileType::Directory) {
             return Err(OpenEntryError::UnsupportedEntry { kind: observed });
         }
-        let flags = OFlags::RDONLY
-            | OFlags::NOFOLLOW
-            | OFlags::NONBLOCK
-            | OFlags::CLOEXEC
-            | if !final_component || observed == FileType::Directory {
-                OFlags::DIRECTORY
-            } else {
-                OFlags::empty()
-            };
-        let opened = openat(directory, name, flags, Mode::empty()).map_err(io::Error::from)?;
+        let opened = open_child(
+            directory,
+            name,
+            !final_component || observed == FileType::Directory,
+        )?;
         if final_component {
-            let actual = FileType::from_raw_mode(
-                rustix::fs::fstat(&opened).map_err(io::Error::from)?.st_mode,
-            );
+            let actual = opened_type(&opened)?;
             let file = File::from(opened);
             return match (observed, actual) {
                 (FileType::RegularFile, FileType::RegularFile) => {
@@ -169,7 +141,7 @@ pub fn open_regular_file_beneath(
     })?;
     match opened {
         OpenedEntry::RegularFile(file) => {
-            check_metadata(&file.metadata()?, max_bytes)?;
+            admit_file(&file, max_bytes)?;
             Ok(file)
         }
         OpenedEntry::Directory(_) => Err(ArtifactError::NotRegularFile),

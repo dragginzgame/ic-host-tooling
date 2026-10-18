@@ -18,20 +18,20 @@ fn acknowledged_barrier_kills_only_after_the_child_is_armed() {
             "testing::crash_barrier::tests::acknowledged_barrier_kills_only_after_the_child_is_armed",
             "--nocapture",
         ])
-        .env(ROOT_ENV, &fixture.root)
+        .env(ROOT_ENV, fixture.path())
         .spawn()
         .unwrap();
-    kill_child_at_acknowledged_barrier(&mut child, &fixture.root, Duration::from_secs(5)).unwrap();
+    kill_child_at_acknowledged_barrier(&mut child, fixture.path(), Duration::from_secs(5)).unwrap();
     assert_eq!(
-        fs::read(fixture.root.join("barrier-ready")).unwrap(),
+        fs::read(fixture.path().join("barrier-ready")).unwrap(),
         b"ready\n"
     );
     assert_eq!(
-        fs::read(fixture.root.join("barrier-acknowledged")).unwrap(),
+        fs::read(fixture.path().join("barrier-acknowledged")).unwrap(),
         b"acknowledged\n"
     );
     assert_eq!(
-        fs::read(fixture.root.join("barrier-armed")).unwrap(),
+        fs::read(fixture.path().join("barrier-armed")).unwrap(),
         b"armed\n"
     );
 }
@@ -39,7 +39,7 @@ fn acknowledged_barrier_kills_only_after_the_child_is_armed() {
 #[test]
 fn missing_marker_times_out_without_creating_it() {
     let fixture = Fixture::new();
-    let missing = fixture.root.join("absent");
+    let missing = fixture.path().join("absent");
     assert_eq!(
         wait_for_path(&missing, "missing", Duration::ZERO)
             .unwrap_err()
@@ -53,7 +53,7 @@ fn missing_marker_times_out_without_creating_it() {
 #[test]
 fn marker_precedes_child_exit_and_child_exit_precedes_timeout() {
     let fixture = Fixture::new();
-    let marker = fixture.root.join("ready");
+    let marker = fixture.path().join("ready");
     fs::write(&marker, b"ready\n").unwrap();
     let mut child = Command::new("/bin/sh")
         .args(["-c", "exit 17"])
@@ -63,7 +63,7 @@ fn marker_precedes_child_exit_and_child_exit_precedes_timeout() {
 
     wait_for_path(&marker, "ready", Duration::ZERO).unwrap();
     wait_for_child_path(&mut child, &marker, "ready", Duration::ZERO).unwrap();
-    let missing = fixture.root.join("absent");
+    let missing = fixture.path().join("absent");
     assert_eq!(
         wait_for_child_path(&mut child, &missing, "missing", Duration::ZERO)
             .unwrap_err()

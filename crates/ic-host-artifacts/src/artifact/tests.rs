@@ -1,6 +1,58 @@
 use super::test_support::{DeniedReader, InvalidReader};
 use super::*;
-use std::io::Cursor;
+use std::{fmt::Write as _, io::Cursor};
+
+#[test]
+fn visiting_reuses_caller_scratch_and_preserves_exact_bytes() {
+    let input = vec![42; 40_001];
+    for scratch_bytes in [1, 7, 16 * 1024, 64 * 1024] {
+        let mut scratch = vec![0; scratch_bytes];
+        let mut observed = Vec::new();
+        let bytes = visit_reader::<ArtifactError>(
+            &mut input.as_slice(),
+            &mut scratch,
+            input.len() as u64,
+            |chunk| {
+                observed.extend_from_slice(chunk);
+                Ok(())
+            },
+        )
+        .unwrap();
+        assert_eq!(bytes, input.len() as u64);
+        assert_eq!(observed, input);
+    }
+    assert_eq!(
+        visit_reader::<ArtifactError>(&mut b"".as_slice(), &mut [0], 0, |_| Ok(())).unwrap(),
+        0
+    );
+}
+
+#[test]
+fn visiting_retains_callback_errors_and_refuses_empty_scratch_and_overflow() {
+    let mut input = Cursor::new(b"abcd");
+    assert!(
+        matches!(visit_reader::<ArtifactError>(&mut input, &mut [], 4, |_| Ok(())),
+        Err(ArtifactError::Io(source)) if source.kind() == io::ErrorKind::InvalidInput)
+    );
+    assert_eq!(input.position(), 0);
+    let mut observed = Vec::new();
+    assert!(matches!(
+        visit_reader::<ArtifactError>(&mut input, &mut [0; 2], 3, |chunk| {
+            observed.extend_from_slice(chunk);
+            Ok(())
+        }),
+        Err(ArtifactError::LimitExceeded { limit: 3 })
+    ));
+    assert_eq!(input.position(), 4);
+    assert_eq!(observed, b"ab");
+    let mut input = Cursor::new(b"abcd");
+    let error = visit_reader::<io::Error>(&mut input, &mut [0; 2], 4, |_| {
+        Err(io::Error::from_raw_os_error(13))
+    })
+    .unwrap_err();
+    assert_eq!(error.raw_os_error(), Some(13));
+    assert_eq!(input.position(), 2);
+}
 
 #[test]
 fn io_projection_preserves_native_codes_and_typed_artifact_causes() {
@@ -45,6 +97,7 @@ fn sha256_matches_known_vectors_and_round_trips_authority() {
         let expected: Sha256Digest = hex.parse().unwrap();
         assert_eq!(Sha256Digest::compute(bytes), expected);
         assert_eq!(expected.to_string(), hex);
+        assert_eq!(expected.hex_bytes().as_slice(), hex.as_bytes());
         assert_eq!(Sha256Digest::from_bytes(*expected.as_bytes()), expected);
         assert_eq!(
             hash_reader(bytes, bytes.len() as u64).unwrap(),
@@ -69,14 +122,39 @@ fn sha256_matches_known_vectors_and_round_trips_authority() {
 }
 
 #[test]
+fn fixed_hex_covers_every_byte_leading_zeroes_and_display_flags() {
+    const ZERO: [u8; 64] = Sha256Digest::from_bytes([0; 32]).hex_bytes();
+    assert_eq!(ZERO, [b'0'; 64]);
+    for value in u8::MIN..=u8::MAX {
+        let bytes = std::array::from_fn(|index| value.wrapping_add(u8::try_from(index).unwrap()));
+        let digest = Sha256Digest::from_bytes(bytes);
+        // Independent formatting reproduces the prior per-byte implementation.
+        let mut expected = String::new();
+        for byte in bytes {
+            write!(expected, "{byte:02x}").unwrap();
+        }
+        let encoded = digest.hex_bytes();
+        assert_eq!(encoded.as_slice(), expected.as_bytes());
+        assert_eq!(digest.to_string(), expected);
+        assert_eq!(format!("{digest:>80.12}"), expected);
+        assert_eq!(expected.parse::<Sha256Digest>().unwrap(), digest);
+    }
+}
+
+#[test]
 fn streaming_hashes_multiple_buffers_and_preserves_mismatch_identity() {
     let bytes = vec![42; 40_001];
     let expected = Sha256Digest::compute(&bytes);
-    let actual = verify_reader(bytes.as_slice(), 40_001, expected).unwrap();
+    let actual = hash_reader(bytes.as_slice(), 40_001)
+        .unwrap()
+        .verify(expected)
+        .unwrap();
     assert_eq!(actual.bytes, 40_001);
     let wrong = Sha256Digest::compute(b"wrong");
-    assert!(matches!(verify_reader(bytes.as_slice(), 40_001, wrong),
-        Err(ArtifactError::DigestMismatch { expected, actual: observed }) if expected == wrong && observed == actual));
+    assert!(
+        matches!(hash_reader(bytes.as_slice(), 40_001).unwrap().verify(wrong),
+        Err(ArtifactError::DigestMismatch { expected, actual: observed }) if expected == wrong && observed == actual)
+    );
 }
 
 #[test]

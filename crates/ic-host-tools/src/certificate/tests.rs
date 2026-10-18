@@ -69,7 +69,7 @@ fn strict_tags_arities_and_byte_kinds_refuse_malformed_trees() {
     }
     assert_eq!(
         decode_hash_tree(&[0x9f, 0, 0xff], LIMITS).unwrap(),
-        ic_certification::empty()
+        ic_platform::certification::empty()
     );
     assert!(matches!(
         decode_hash_tree(&[0x9f, 0, 0, 0xff], LIMITS),
@@ -223,4 +223,23 @@ fn certificate_and_delegation_fields_are_strict_and_trailing_data_refuses() {
         decode_certificate(&bytes, DecodeLimits { bytes: 0, depth: 0 }),
         Err(DecodeError::ByteLimit { .. })
     ));
+}
+
+#[test]
+fn parser_failure_retains_wrapped_source_and_sanitized_display() {
+    use std::error::Error as _;
+
+    let secret = "private-certificate-value";
+    let error = decode_certificate(&encode(&secret), LIMITS).unwrap_err();
+    let wrapped = error.source().unwrap();
+    assert!(wrapped.is::<ParseError>());
+    assert!(
+        wrapped
+            .source()
+            .unwrap()
+            .is::<ciborium::de::Error<io::Error>>()
+    );
+    assert!(!error.to_string().contains(secret));
+    assert!(!wrapped.to_string().contains(secret));
+    assert!(DecodeError::TrailingData.source().is_none());
 }

@@ -1,10 +1,13 @@
 //! Durable filesystem publication and regular descriptor locks.
 //!
-//! Responsibility: own atomic durable regular-file publication for host consumers.
+//! Responsibility: own durable publication and explicitly in-place synchronized writes.
 //! Does not own: domain schemas or transitions, path selection, ephemeral protocol files, open
 //! command-result descriptors, backup persistence, or multi-file transactions.
 //! Boundary: writes own sibling staging, publication, cleanup and filesystem syncs
 //! behind replace and create-new modes. Reads belong to [`crate::read`].
+
+#[cfg(unix)]
+pub mod tree;
 
 mod directory;
 mod lock_wait;
@@ -13,7 +16,8 @@ pub use directory::{
     admit_directory, commit_existing_directory_with, create_private_directory,
 };
 pub use lock_wait::{
-    lock_exclusive, lock_exclusive_with_wait, lock_shared, try_lock_exclusive, unlock,
+    SharedFileLock, lock_exclusive, lock_exclusive_with_wait, lock_shared, try_lock_exclusive,
+    unlock,
 };
 #[cfg(unix)]
 mod retained;
@@ -21,55 +25,45 @@ mod retained;
 pub use retained::{create_retained_at, publish_retained_at};
 mod named;
 pub use named::{NamedWriteError, write_named_with};
-mod stream;
-pub use stream::{
-    PublicationMode, WriteOptions, write_existing_parent_validated_with,
-    write_existing_parent_with, write_validated_with, write_with,
-};
 #[cfg(unix)]
-pub use stream::{write_at_validated_with, write_at_with};
+mod export;
+#[cfg(unix)]
+pub use export::{NonAliasingWriteError, validate_non_aliasing, write_non_aliasing};
+#[cfg(unix)]
+mod symlink;
+#[cfg(unix)]
+pub use symlink::publish_symlink_with;
+mod verified_copy;
+pub use verified_copy::copy_verified;
+mod stream;
+#[cfg(unix)]
+pub use stream::write_at_validated_with;
+pub use stream::{
+    PublicationMode, WriteOptions, write_existing_parent_validated_with, write_validated_with,
+    write_with,
+};
 
 #[cfg(test)]
 mod tests;
 
-use std::{fmt, fs, io, path::Path};
+use std::{fs, io, path::Path};
 
 /// A no-follow regular-file lock could not be acquired.
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum RegularFileLockError {
     /// The opened entry is not a regular file.
+    #[error("lock target is not a regular file")]
     NotRegular,
     /// The filesystem operation failed.
-    Io(io::Error),
+    #[error("regular file lock I/O failed")]
+    Io(#[source] io::Error),
     /// Durable lock-file creation failed, retaining publication and cleanup evidence.
-    Publication(NamedWriteError<io::Error>),
-    #[cfg(windows)]
+    #[error("durable lock-file creation failed")]
+    Publication(#[source] NamedWriteError<io::Error>),
+    #[cfg(not(unix))]
     /// This operation is unsupported on the selected host.
+    #[error("regular file locking is unsupported")]
     UnsupportedPlatform,
-}
-
-impl fmt::Display for RegularFileLockError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::NotRegular => formatter.write_str("lock target is not a regular file"),
-            Self::Io(_) => formatter.write_str("regular file lock I/O failed"),
-            Self::Publication(_) => formatter.write_str("durable lock-file creation failed"),
-            #[cfg(windows)]
-            Self::UnsupportedPlatform => formatter.write_str("regular file locking is unsupported"),
-        }
-    }
-}
-
-impl std::error::Error for RegularFileLockError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Self::Io(source) => Some(source),
-            Self::Publication(source) => Some(source),
-            Self::NotRegular => None,
-            #[cfg(windows)]
-            Self::UnsupportedPlatform => None,
-        }
-    }
 }
 
 /// Preserve native I/O identity or retain the complete admission/publication cause.
@@ -82,7 +76,7 @@ impl From<RegularFileLockError> for io::Error {
             RegularFileLockError::Io(source) => source,
             other @ RegularFileLockError::NotRegular => Self::other(other),
             other @ RegularFileLockError::Publication(_) => Self::other(other),
-            #[cfg(windows)]
+            #[cfg(not(unix))]
             other @ RegularFileLockError::UnsupportedPlatform => Self::other(other),
         }
     }
@@ -106,6 +100,34 @@ pub fn write_bytes(
     bytes: &[u8],
 ) -> Result<(), NamedWriteError<io::Error>> {
     write_with(path, options, |file| std::io::Write::write_all(file, bytes))
+}
+
+/// Durably copy a caller-selected stream into one named output.
+///
+/// Reads from the reader's current position. Caller-owned admission, byte limits
+/// and deadlines remain outside this operation. `permissions` selects exact
+/// output permissions when supplied; otherwise `options` and umask apply.
+/// Explicit permissions are applied after copying so writes do not clear them.
+/// Publication, parent creation, interruption cleanup and after-publication
+/// errors have the same contract as [`write_with`]. This adds no input-path policy.
+///
+/// # Errors
+/// Retains read/write, explicit permission and publication failures in
+/// [`NamedWriteError`]. Before-publication failure preserves an existing output;
+/// after-publication sync failure means the complete copy is already visible.
+pub fn copy_from<R: io::Read>(
+    source: &mut R,
+    destination: &Path,
+    options: WriteOptions,
+    permissions: Option<fs::Permissions>,
+) -> Result<u64, NamedWriteError<io::Error>> {
+    write_with(destination, options, |sink| {
+        let copied = io::copy(source, sink)?;
+        if let Some(permissions) = permissions {
+            sink.set_permissions(permissions)?;
+        }
+        Ok(copied)
+    })
 }
 
 /// Durably create missing owner-only parent directories without publishing a file.
@@ -135,42 +157,6 @@ pub fn prepare_private_parents(parent: &Path) -> io::Result<()> {
     }
 }
 
-/// Open and exclusively lock one durable regular no-follow file.
-///
-/// The lock file and missing parent hierarchy are durably created first. The
-/// returned descriptor owns the kernel lock and is close-on-exec.
-///
-/// # Errors
-/// Returns typed file admission, creation, sync or lock acquisition failures.
-pub fn lock_regular_file_with_parents(path: &Path) -> Result<fs::File, RegularFileLockError> {
-    let file = open_regular_lock_file_with_parents(path)?;
-    #[cfg(not(windows))]
-    rustix::fs::flock(&file, rustix::fs::FlockOperation::LockExclusive)
-        .map_err(errno_to_lock_error)?;
-    Ok(file)
-}
-
-/// Open a durable regular no-follow lock file and attempt exclusive acquisition once.
-///
-/// Uses the same parent creation and file admission as
-/// [`lock_regular_file_with_parents`], preserving existing file contents.
-/// Contention returns [`RegularFileLockError::Io`] with [`io::ErrorKind::WouldBlock`]
-/// immediately; there is no polling, retry or progress callback. The returned
-/// close-on-exec descriptor holds the lock until unlocked or closed.
-///
-/// Callers own trusted parents, namespace stability and contention policy.
-/// Nonblocking acquisition does not bound filesystem open, creation or sync latency.
-///
-/// # Errors
-/// Returns typed admission, creation, sync or native lock errors, including contention.
-pub fn try_lock_regular_file_with_parents(path: &Path) -> Result<fs::File, RegularFileLockError> {
-    let file = open_regular_lock_file_with_parents(path)?;
-    #[cfg(not(windows))]
-    rustix::fs::flock(&file, rustix::fs::FlockOperation::NonBlockingLockExclusive)
-        .map_err(errno_to_lock_error)?;
-    Ok(file)
-}
-
 /// Open an unlocked regular no-follow lock file, durably creating missing parents
 /// and the file first. Existing file bytes are preserved.
 ///
@@ -191,39 +177,40 @@ pub fn try_lock_regular_file_with_parents(path: &Path) -> Result<fs::File, Regul
 /// # Errors
 /// Returns typed file admission, creation, sync or unsupported-host failures.
 pub fn open_regular_lock_file_with_parents(path: &Path) -> Result<fs::File, RegularFileLockError> {
-    let metadata = match fs::symlink_metadata(path) {
-        Ok(metadata) => metadata,
-        Err(source) if source.kind() == io::ErrorKind::NotFound => {
-            match write_bytes(
-                path,
-                WriteOptions {
-                    mode: PublicationMode::CreateNew,
-                    permissions: 0o666,
-                },
-                &[],
-            ) {
-                Ok(()) => {}
-                Err(NamedWriteError::BeforePublication {
-                    source,
-                    cleanup_error: None,
-                }) if source.kind() == io::ErrorKind::AlreadyExists => {}
-                Err(source) => return Err(RegularFileLockError::Publication(source)),
-            }
-            fs::symlink_metadata(path).map_err(RegularFileLockError::Io)?
-        }
-        Err(source) => return Err(RegularFileLockError::Io(source)),
-    };
-    if !metadata.file_type().is_file() {
-        return Err(RegularFileLockError::NotRegular);
-    }
-
-    #[cfg(not(windows))]
+    #[cfg(unix)]
     {
+        let metadata = match fs::symlink_metadata(path) {
+            Ok(metadata) => metadata,
+            Err(source) if source.kind() == io::ErrorKind::NotFound => {
+                match write_bytes(
+                    path,
+                    WriteOptions {
+                        mode: PublicationMode::CreateNew,
+                        permissions: 0o666,
+                    },
+                    &[],
+                ) {
+                    Ok(()) => {}
+                    Err(NamedWriteError::BeforePublication {
+                        source,
+                        cleanup_error: None,
+                    }) if source.kind() == io::ErrorKind::AlreadyExists => {}
+                    Err(source) => return Err(RegularFileLockError::Publication(source)),
+                }
+                fs::symlink_metadata(path).map_err(RegularFileLockError::Io)?
+            }
+            Err(source) => return Err(RegularFileLockError::Io(source)),
+        };
+        if !metadata.file_type().is_file() {
+            return Err(RegularFileLockError::NotRegular);
+        }
+
         open_regular_lock_descriptor(path, None)
     }
 
-    #[cfg(windows)]
+    #[cfg(not(unix))]
     {
+        let _ = path;
         Err(RegularFileLockError::UnsupportedPlatform)
     }
 }
@@ -246,7 +233,7 @@ pub fn open_regular_lock_file_with_parents(path: &Path) -> Result<fs::File, Regu
 /// or the original I/O cause for open/metadata failures (including missing parents
 /// and a symlink encountered during open). Unsupported hosts are rejected.
 pub fn open_private_regular_lock_file(path: &Path) -> Result<fs::File, RegularFileLockError> {
-    #[cfg(not(windows))]
+    #[cfg(unix)]
     {
         match fs::symlink_metadata(path) {
             Ok(metadata) if metadata.file_type().is_file() => {}
@@ -256,7 +243,7 @@ pub fn open_private_regular_lock_file(path: &Path) -> Result<fs::File, RegularFi
         }
         open_regular_lock_descriptor(path, Some(rustix::fs::Mode::RUSR | rustix::fs::Mode::WUSR))
     }
-    #[cfg(windows)]
+    #[cfg(not(unix))]
     {
         let _ = path;
         Err(RegularFileLockError::UnsupportedPlatform)
@@ -273,7 +260,7 @@ pub fn open_private_regular_lock_file(path: &Path) -> Result<fs::File, RegularFi
 /// # Errors
 /// Returns typed entry admission, native open/metadata or unsupported-host errors.
 pub fn open_existing_regular_lock_file(path: &Path) -> Result<fs::File, RegularFileLockError> {
-    #[cfg(not(windows))]
+    #[cfg(unix)]
     {
         let metadata = fs::symlink_metadata(path).map_err(RegularFileLockError::Io)?;
         if !metadata.file_type().is_file() {
@@ -281,14 +268,14 @@ pub fn open_existing_regular_lock_file(path: &Path) -> Result<fs::File, RegularF
         }
         open_regular_lock_descriptor(path, None)
     }
-    #[cfg(windows)]
+    #[cfg(not(unix))]
     {
         let _ = path;
         Err(RegularFileLockError::UnsupportedPlatform)
     }
 }
 
-#[cfg(not(windows))]
+#[cfg(unix)]
 fn open_regular_lock_descriptor(
     path: &Path,
     create_permissions: Option<rustix::fs::Mode>,
@@ -310,7 +297,7 @@ fn open_regular_lock_descriptor(
     Ok(fs::File::from(fd))
 }
 
-#[cfg(not(windows))]
+#[cfg(unix)]
 fn errno_to_lock_error(source: rustix::io::Errno) -> RegularFileLockError {
     RegularFileLockError::Io(io::Error::from_raw_os_error(source.raw_os_error()))
 }
@@ -318,11 +305,12 @@ fn errno_to_lock_error(source: rustix::io::Errno) -> RegularFileLockError {
 #[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
 mod supported {
     use super::{NamedWriteError, PublicationMode, WriteOptions};
+    use crate::identity::FileIdentity;
 
     use std::{
         ffi::{OsStr, OsString},
         fs, io,
-        path::{Component, Path, PathBuf},
+        path::{Path, PathBuf},
         sync::atomic::{AtomicU64, Ordering},
     };
 
@@ -376,7 +364,10 @@ mod supported {
         admission: (WriterCustody, impl FnOnce(&Path, &T) -> Result<(), E>),
         mut before: impl FnMut(FileCommitStep, &Path) -> io::Result<()>,
     ) -> Result<T, NamedWriteError<E>> {
-        validate_permissions(options.permissions).map_err(NamedWriteError::before)?;
+        let options = (
+            options.mode,
+            native_permissions(options.permissions).map_err(NamedWriteError::before)?,
+        );
         let (parent, file_name) = split_target(path).map_err(NamedWriteError::before)?;
         create_parent_hierarchy(parent, &mut before, false).map_err(NamedWriteError::before)?;
         let parent_fd = open_directory(parent).map_err(NamedWriteError::before)?;
@@ -395,12 +386,11 @@ mod supported {
         parent_fd: BorrowedFd<'_>,
         parent_path: Option<&Path>,
         file_name: &OsStr,
-        options: WriteOptions,
+        (mode, permissions): (PublicationMode, Mode),
         produce: impl FnOnce(&Path, &mut fs::File) -> Result<T, E>,
         admission: (WriterCustody, impl FnOnce(&Path, &T) -> Result<(), E>),
         mut before: impl FnMut(FileCommitStep, &Path) -> io::Result<()>,
     ) -> Result<T, NamedWriteError<E>> {
-        validate_permissions(options.permissions).map_err(NamedWriteError::before)?;
         validate_file_name(file_name).map_err(NamedWriteError::before)?;
         let metadata = unix_fs::fstat(parent_fd)
             .map_err(|error| NamedWriteError::before(errno_to_io(error)))?;
@@ -413,8 +403,6 @@ mod supported {
         // All filesystem operations below use the held directory descriptor.
         let parent = parent_path.unwrap_or_else(|| Path::new(""));
         let path = parent.join(file_name);
-        let permissions =
-            native_permissions(options.permissions).map_err(NamedWriteError::before)?;
         let (temp_name, temp_path, mut temp_file) =
             create_sibling_temp(&parent_fd, parent, file_name, permissions, &mut before)
                 .map_err(NamedWriteError::before)?;
@@ -458,7 +446,7 @@ mod supported {
             // be recycled after a producer unlinks or replaces the pathname.
             verify_staging(&parent_fd, parent_path, &temp_name, &temp_file)
                 .map_err(NamedWriteError::before)?;
-            match options.mode {
+            match mode {
                 PublicationMode::Replace => {
                     unix_fs::renameat(parent_fd, &temp_name, parent_fd, file_name)
                         .map_err(|error| NamedWriteError::before(errno_to_io(error)))
@@ -525,8 +513,7 @@ mod supported {
     }
 
     fn same_identity(left: &unix_fs::Stat, right: &unix_fs::Stat) -> bool {
-        left.st_dev == right.st_dev
-            && left.st_ino == right.st_ino
+        FileIdentity::from_stat(left) == FileIdentity::from_stat(right)
             && unix_fs::FileType::from_raw_mode(left.st_mode)
                 == unix_fs::FileType::from_raw_mode(right.st_mode)
     }
@@ -693,30 +680,7 @@ mod supported {
     }
 
     pub(super) fn prepare_private_parents(parent: &Path) -> io::Result<()> {
-        let mut component_path = PathBuf::new();
-        for component in parent.components() {
-            if component == Component::ParentDir {
-                return Err(io::Error::new(
-                    io::ErrorKind::InvalidInput,
-                    "private parent path may not contain '..'",
-                ));
-            }
-            component_path.push(component.as_os_str());
-            match fs::symlink_metadata(&component_path) {
-                Ok(metadata) if metadata.is_dir() => {}
-                Ok(_) => {
-                    return Err(io::Error::new(
-                        io::ErrorKind::NotADirectory,
-                        format!(
-                            "output parent is not a directory: {}",
-                            component_path.display()
-                        ),
-                    ));
-                }
-                Err(error) if error.kind() == io::ErrorKind::NotFound => {}
-                Err(error) => return Err(error),
-            }
-        }
+        crate::path::validate_physical_directory_allow_missing(parent)?;
         create_parent_hierarchy(parent, &mut |_, _| Ok(()), true)
     }
 

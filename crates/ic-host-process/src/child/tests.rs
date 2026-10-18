@@ -66,13 +66,13 @@ fn command_context_and_caller_owned_pipes_are_preserved() {
     );
     command
         .process_group(rustix::process::getpgrp().as_raw_nonzero().get())
-        .current_dir(&fixture.root)
+        .current_dir(fixture.path())
         .env_clear()
         .env("SELECTED", "explicit")
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
-    let mut child = OwnedChild::spawn(&mut command).unwrap();
+    let mut child = OwnedChild::spawn(&mut command, CleanupPolicy::KillAndWait).unwrap();
     let pid = child.id();
     assert_eq!(
         rustix::process::getpgid(Pid::from_raw(i32::try_from(pid).unwrap()))
@@ -98,7 +98,7 @@ fn command_context_and_caller_owned_pipes_are_preserved() {
     assert_eq!(child.terminate().unwrap(), status);
     assert_eq!(
         output,
-        format!("caller input|explicit|{}", fixture.root.display()).as_bytes()
+        format!("caller input|explicit|{}", fixture.path().display()).as_bytes()
     );
     assert_eq!(errors, b"error");
     assert_reaped(pid);
@@ -109,7 +109,7 @@ fn natural_exit_cleans_descendants_before_reaping_and_caches_status() {
     let _fixture = Fixture::new();
     let mut command = command("sleep 30 & printf ready; exit 17");
     command.stdout(Stdio::piped());
-    let mut child = OwnedChild::spawn(&mut command).unwrap();
+    let mut child = OwnedChild::spawn(&mut command, CleanupPolicy::KillAndWait).unwrap();
     let pid = child.id();
     let mut stdout = child.take_stdout().unwrap();
     nonblocking(&stdout);
@@ -133,7 +133,7 @@ fn explicit_termination_drop_and_unwind_close_descendant_pipes() {
     for mode in ["terminate", "drop", "panic"] {
         let mut command = command("sleep 30 & printf ready; wait");
         command.stdout(Stdio::piped());
-        let mut child = OwnedChild::spawn(&mut command).unwrap();
+        let mut child = OwnedChild::spawn(&mut command, CleanupPolicy::KillAndWait).unwrap();
         let pid = child.id();
         let mut stdout = child.take_stdout().unwrap();
         nonblocking(&stdout);
@@ -161,9 +161,11 @@ fn explicit_termination_drop_and_unwind_close_descendant_pipes() {
 #[test]
 fn failed_spawn_preserves_native_error() {
     let fixture = Fixture::new();
-    let path = fixture.root.join("missing");
+    let path = fixture.path().join("missing");
     let expected = Command::new(&path).spawn().err().unwrap();
-    let actual = OwnedChild::spawn(&mut Command::new(&path)).err().unwrap();
+    let actual = OwnedChild::spawn(&mut Command::new(&path), CleanupPolicy::KillAndWait)
+        .err()
+        .unwrap();
     assert_eq!(actual.raw_os_error(), expected.raw_os_error());
 }
 
@@ -185,7 +187,7 @@ fn interrupted_inspection_retries_but_other_errors_remain_native() {
 #[test]
 fn external_reaping_loses_ownership_and_retains_cleanup_failures() {
     let _fixture = Fixture::new();
-    let mut child = OwnedChild::spawn(&mut command("exit 0")).unwrap();
+    let mut child = OwnedChild::spawn(&mut command("exit 0"), CleanupPolicy::KillAndWait).unwrap();
     let pid = Pid::from_raw(i32::try_from(child.id()).unwrap()).unwrap();
     // Deliberately violate exclusive reaping to exercise the fail-closed boundary.
     waitid(WaitId::Pid(pid), WaitIdOptions::EXITED).unwrap();
@@ -222,7 +224,7 @@ fn successful_handoff_preserves_background_io_until_consumer_stop() {
         "exec 3<&0; read gate; (while IFS= read -r line; do printf '%s\\n' \"$line\"; done) <&3 & exit 0",
     );
     command.stdin(Stdio::piped()).stdout(Stdio::piped());
-    let mut child = OwnedChild::spawn(&mut command).unwrap();
+    let mut child = OwnedChild::spawn(&mut command, CleanupPolicy::KillAndWait).unwrap();
     let pid = child.id();
     let mut stdin = child.take_stdin().unwrap();
     let mut stdout = child.take_stdout().unwrap();
@@ -277,7 +279,7 @@ fn unsuccessful_handoff_retains_status_and_group_cleanup() {
     ] {
         let mut command = command(&format!("sleep 30 & {ending}"));
         command.stdout(Stdio::piped());
-        let mut child = OwnedChild::spawn(&mut command).unwrap();
+        let mut child = OwnedChild::spawn(&mut command, CleanupPolicy::KillAndWait).unwrap();
         let pid = child.id();
         let mut stdout = child.take_stdout().unwrap();
         nonblocking(&stdout);
@@ -301,7 +303,7 @@ fn observed_success_still_cleans_on_cancellation_wait_and_unwind() {
     for mode in ["terminate", "wait", "drop", "panic"] {
         let mut command = command("sleep 30 & exit 0");
         command.stdout(Stdio::piped());
-        let mut child = OwnedChild::spawn(&mut command).unwrap();
+        let mut child = OwnedChild::spawn(&mut command, CleanupPolicy::KillAndWait).unwrap();
         let pid = child.id();
         let mut stdout = child.take_stdout().unwrap();
         nonblocking(&stdout);
@@ -326,7 +328,7 @@ fn observed_success_still_cleans_on_cancellation_wait_and_unwind() {
 #[test]
 fn handoff_refuses_external_reaping_without_signalling_reused_identity() {
     let _fixture = Fixture::new();
-    let mut child = OwnedChild::spawn(&mut command("exit 0")).unwrap();
+    let mut child = OwnedChild::spawn(&mut command("exit 0"), CleanupPolicy::KillAndWait).unwrap();
     until(|| child.poll_exit().unwrap().is_some());
     let pid = Pid::from_raw(i32::try_from(child.id()).unwrap()).unwrap();
     waitid(WaitId::Pid(pid), WaitIdOptions::EXITED).unwrap();
@@ -347,14 +349,14 @@ fn handoff_refuses_external_reaping_without_signalling_reused_identity() {
 #[test]
 fn term_grace_reserves_exited_leader_until_descendant_kill() {
     let fixture = Fixture::new();
-    let marker = fixture.root.join("term");
+    let marker = fixture.path().join("term");
     let mut command = command(
         "trap 'printf term > \"$MARKER\"; exit 0' TERM; \
          sh -c 'trap \"\" TERM; printf ready; exec sleep 30' & wait",
     );
     command.env("MARKER", &marker).stdout(Stdio::piped());
     let grace = Duration::from_millis(100);
-    let mut child = OwnedChild::spawn_with_cleanup(
+    let mut child = OwnedChild::spawn(
         &mut command,
         CleanupPolicy::TermThenKill {
             grace,
@@ -385,7 +387,7 @@ fn bounded_policy_applies_to_termination_drop_and_unwinding() {
         let mut command = command("trap '' TERM; printf ready; exec sleep 30");
         command.stdout(Stdio::piped());
         let grace = Duration::from_millis(25);
-        let mut child = OwnedChild::spawn_with_cleanup(
+        let mut child = OwnedChild::spawn(
             &mut command,
             CleanupPolicy::TermThenKill {
                 grace,
@@ -419,7 +421,7 @@ fn bounded_policy_applies_to_termination_drop_and_unwinding() {
 #[test]
 fn exhausted_reap_allowance_is_not_restarted_by_return_or_drop() {
     let _fixture = Fixture::new();
-    let mut child = OwnedChild::spawn_with_cleanup(
+    let mut child = OwnedChild::spawn(
         &mut command("exec sleep 30"),
         CleanupPolicy::TermThenKill {
             grace: Duration::from_secs(30),
@@ -452,10 +454,10 @@ fn exhausted_reap_allowance_is_not_restarted_by_return_or_drop() {
 #[test]
 fn bounded_policy_keeps_successful_handoff_explicit() {
     let fixture = Fixture::new();
-    let marker = fixture.root.join("survived");
+    let marker = fixture.path().join("survived");
     let mut command = command("(sleep 0.1; printf alive > \"$MARKER\") & exit 0");
     command.env("MARKER", &marker);
-    let mut child = OwnedChild::spawn_with_cleanup(
+    let mut child = OwnedChild::spawn(
         &mut command,
         CleanupPolicy::TermThenKill {
             grace: Duration::ZERO,
@@ -472,7 +474,7 @@ fn bounded_policy_keeps_successful_handoff_explicit() {
 #[test]
 fn bounded_termination_accepts_a_reserved_sole_zombie() {
     let _fixture = Fixture::new();
-    let mut child = OwnedChild::spawn_with_cleanup(
+    let mut child = OwnedChild::spawn(
         &mut command("exit 0"),
         CleanupPolicy::TermThenKill {
             grace: Duration::from_millis(25),

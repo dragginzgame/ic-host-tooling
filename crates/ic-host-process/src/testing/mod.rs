@@ -13,7 +13,7 @@ use std::{
 };
 
 #[cfg(unix)]
-use crate::child::OwnedChild;
+use crate::child::{CleanupPolicy, OwnedChild};
 
 #[cfg(unix)]
 pub mod crash_barrier;
@@ -40,6 +40,7 @@ pub fn write_executable_script(path: &Path, contents: impl AsRef<[u8]>) -> io::R
             .args(["-c", "cat > \"$1\"", "write-test-script"])
             .arg(path)
             .stdin(Stdio::piped()),
+        CleanupPolicy::KillAndWait,
     )?;
     let written = writer
         .take_stdin()

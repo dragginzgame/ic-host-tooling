@@ -13,7 +13,7 @@ const REPLACE: WriteOptions = WriteOptions {
 fn named_output_keeps_bounded_capture_and_direct_child_cleanup_evidence() {
     let fixture = Fixture::new();
     let tool = fixture.tool();
-    let output = fixture.root.join("output");
+    let output = fixture.path().join("output");
     fs::write(&output, b"old").unwrap();
     for argument in ["--flood-stdout", "--wait"] {
         let limits = OutputLimits {
@@ -51,7 +51,7 @@ fn named_output_keeps_bounded_capture_and_direct_child_cleanup_evidence() {
         assert!(failure.evidence.status.is_some());
         assert!(failure.cleanup.is_none());
         assert_eq!(fs::read(&output).unwrap(), b"old");
-        assert_eq!(fs::read_dir(&fixture.root).unwrap().count(), 1);
+        assert_eq!(fs::read_dir(fixture.path()).unwrap().count(), 1);
     }
 }
 
@@ -59,7 +59,7 @@ fn named_output_keeps_bounded_capture_and_direct_child_cleanup_evidence() {
 fn admitted_named_output_preserves_process_evidence_and_validates_before_publication() {
     let fixture = Fixture::new();
     let tool = fixture.tool();
-    let output = fixture.root.join("output with spaces");
+    let output = fixture.path().join("output with spaces");
     fs::write(&output, b"old").unwrap();
     for (payload, exit, valid) in [
         ("partial", "23", false),
@@ -107,6 +107,6 @@ fn admitted_named_output_preserves_process_evidence_and_validates_before_publica
             }
             assert_eq!(fs::read(&output).unwrap(), b"old");
         }
-        assert_eq!(fs::read_dir(&fixture.root).unwrap().count(), 1);
+        assert_eq!(fs::read_dir(fixture.path()).unwrap().count(), 1);
     }
 }

@@ -6,7 +6,7 @@ version.workspace = true
 license.workspace = true
 repository.workspace = true
 authors.workspace = true
-description = "Pure terminal-safe escaping and Unicode-aware text tables"
+description = "Pure bounded line normalization and terminal-safe Unicode text rendering"
 readme = "../../README.md"
 publish = ["crates-io"]
 

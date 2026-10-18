@@ -89,7 +89,7 @@ fixture_probe_exit() {
 
 fixture_probe_exits() {
     local failure
-    for failure in nounset nounset-function command nonzero premature completed failed-completion; do
+    for failure in nounset nounset-function command nonzero premature completed failed-completion cleanup-failure; do
         fixture_probe_exit "$1" "$2" "$3" "$4" "$failure" "${@:5}" || return
     done
 }
@@ -120,31 +120,26 @@ fixture_probe_effect() {
     fixture_effect_retained="${matches[0]}"
 }
 
-# Contradict the first status assertion in a lower-case fixture, or select one
-# literal assertion from another source with --selected SOURCE PREFIX BINDINGS.
+# Select one literal assertion with --selected SOURCE PREFIX BINDINGS.
 # Selected bindings are trusted, caller-owned shell source, never external input.
-# Only the initialization/EXIT prefix runs in selected mode; fixture bodies and
+# Only the initialization/EXIT prefix runs; fixture bodies and
 # tools cannot run. Refuse unsupported layouts before starting the child.
 fixture_probe_assertion() {
+    [[ $# == 8 && "$5" == --selected ]] || return 2
     local source="$1" probe_root="$2" source_root="$3" name="$4"
     shift 4
     local directory="$probe_root/assertion-source" status=0 retained
     local observation="$probe_root/$name-assertion.path"
     mkdir -p "$directory" || return
-    local reached="$probe_root/$name-assertion.reached" assertion='' bindings='' selected=false
+    local reached="$probe_root/$name-assertion.reached" assertion='' bindings="$4"
     rm -f -- "$observation" "$reached" || return
-    if [[ "${1:-}" == --selected ]]; then
-        [[ $# == 4 ]] || return 2
-        assertion="$(RETENTION_ASSERTION_PREFIX="$3" awk '
-            { line=$0; sub(/^[[:space:]]*/, "", line) }
-            index(line, ENVIRON["RETENTION_ASSERTION_PREFIX"]) == 1 { print; found++ }
-            END { if (found != 1 || ENVIRON["RETENTION_ASSERTION_PREFIX"] == "") exit 1 }
-        ' "$2")" || return
-        [[ "$assertion" == *'[[ '* ]] || return 2
-        bindings="$4"; selected=true
-        shift 4
-    fi
-    RETENTION_ASSERTION="$assertion" RETENTION_BINDINGS="$bindings" RETENTION_SELECTED="$selected" awk '
+    assertion="$(RETENTION_ASSERTION_PREFIX="$3" awk '
+        { line=$0; sub(/^[[:space:]]*/, "", line) }
+        index(line, ENVIRON["RETENTION_ASSERTION_PREFIX"]) == 1 { print; found++ }
+        END { if (found != 1 || ENVIRON["RETENTION_ASSERTION_PREFIX"] == "") exit 1 }
+    ' "$2")" || return
+    [[ "$assertion" == *'[[ '* ]] || return 2
+    RETENTION_ASSERTION="$assertion" RETENTION_BINDINGS="$bindings" awk '
         { line=$0 }
         /^root="\$\{root%\/\.\}"$/ {
             line="root=\"$RETENTION_SOURCE_ROOT\""; anchored=1
@@ -154,29 +149,22 @@ fixture_probe_assertion() {
             print "printf \"%s\\n\" \"$fixture\" > \"$RETENTION_ASSERTION_PATH\""
             print "printf \"retained assertion evidence\\n\" > \"$fixture/assertion-evidence\""
             trapped=1
-            if (ENVIRON["RETENTION_SELECTED"] == "true") {
-                print ENVIRON["RETENTION_BINDINGS"]
-                print "printf reached > \"$RETENTION_ASSERTION_REACHED\""
-                # Preserve return-based function guards as well as exit guards.
-                print "_retention_selected_assertion() {"
-                print ENVIRON["RETENTION_ASSERTION"]
-                print "}"
-                print "_retention_selected_assertion"
-                print "fixture_complete=true; exit 0"
-                injected=1; exit
-            }
-            next
-        }
-        trapped && !injected && /^[[:space:]]*\[\[ "\$status" == .* \]\]/ {
+            print ENVIRON["RETENTION_BINDINGS"]
             print "printf reached > \"$RETENTION_ASSERTION_REACHED\""
-            sub(/== .* \]\]/, "== 97 ]]", line); injected=1
+            # Preserve return-based function guards as well as exit guards.
+            print "_retention_selected_assertion() {"
+            print ENVIRON["RETENTION_ASSERTION"]
+            print "}"
+            print "_retention_selected_assertion"
+            print "fixture_complete=true; exit 0"
+            injected=1; exit
         }
         { print line }
         END { if (!anchored || !trapped || !injected) exit 1 }
     ' "$source" > "$directory/$name.sh" || return
     RETENTION_SOURCE_ROOT="$source_root" RETENTION_ASSERTION_PATH="$observation" \
         RETENTION_ASSERTION_REACHED="$reached" \
-        TMPDIR="$probe_root" "$BASH" "$directory/$name.sh" "$@" \
+        TMPDIR="$probe_root" "$BASH" "$directory/$name.sh" \
         > "$probe_root/$name-assertion.log" 2>&1 || status=$?
     [[ "$status" == 1 && -f "$reached" && "$(cat "$reached")" == reached ]] || return 1
     retained="$(cat "$observation")" || return

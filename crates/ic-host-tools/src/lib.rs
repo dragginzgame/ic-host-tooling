@@ -1,15 +1,10 @@
-//! IC-specific interface facts, Candid extraction and bounded ICP responses.
+//! IC-specific interface facts and bounded ICP responses.
 pub mod candid;
 #[cfg(feature = "certificate")]
 pub mod certificate;
-#[cfg(feature = "ic-limits")]
-pub mod install_limits;
-#[cfg(any(feature = "candid-service", feature = "ic-interface"))]
-pub mod interface;
-pub mod response;
-#[cfg(all(test, unix, feature = "candid-extraction"))]
-mod test_support;
-
-/// Bounded effective ICP project environment facts; resolution remains ICP-owned.
+pub mod icp;
+/// Bounded effective project facts; ICP retains configuration resolution.
 #[cfg(feature = "icp-project")]
 pub mod icp_project;
+pub mod interface;
+pub mod response;

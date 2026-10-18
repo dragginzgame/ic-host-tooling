@@ -4,8 +4,9 @@
 
 The maintainer-operated `make release-patch`, `make release-minor` and
 `make release-major` commands use the [shared release contract](releases.md).
-Host selects `RELEASE_DELIVERY=direct`: preparation, commit, tag and atomic
-branch/tag push. Other delivery selections are rejected before execution;
+Host's [delivery policy](../ci/release-delivery.txt) selects `RELEASE_DELIVERY=direct`:
+preparation, commit, tag and atomic branch/tag push. Other delivery selections
+are rejected before execution;
 the shared runner's optional PR flow is not qualified by this adapter.
 These commands do not publish crates to a registry.
 
@@ -70,13 +71,23 @@ metadata admission and before package preparation or upload. The explicit packag
 allowlist remains separate from workspace membership. All package metadata must
 declare `https://github.com/dragginzgame/ic-host-tooling` as the repository.
 
-The wrapper then fetches that exact commit from the declared HTTPS repository
+Shared's [canonical provenance helper](../scripts/ci/check-cargo-package-provenance.sh)
+checks the prepared archives and fetches that exact commit from the declared HTTPS repository
 into a fresh bare object store beneath the publication attempt. Failed fetches,
 mismatched commit identities, missing/dirty package provenance and source changes
 stop before upload. Git prompts are disabled; ordinary trusted Git transport
 configuration still applies. The source request, archive provenance, fetch log
-and retrieved objects are retained. This guard is a remote-read effect of the
+and retrieved objects are retained in the admission attempt's `provenance/`
+directory. This guard is a remote-read effect of the
 explicit upload command; it never pushes a ref or creates a commit.
+
+The single Shared 0.24.2 snapshot supplies this helper and the
+[selected-source reader](../scripts/ci/read-cargo-source-context.sh), alongside
+the existing release metadata/receipt custody. Host selects packages, manifests,
+versions and recovery; Shared owns exact commit retrieval, archive provenance
+and selected-source member observation. There are no local source-evidence copies.
+Both Git object formats, ambiguous parser-stream refusal and retained failure
+evidence remain part of admission; replacing the helper owner removes no check.
 
 `publish-check` retains its dirty-worktree dry-run contract and does not claim
 remote provenance verification. The upload guard does not establish CI success

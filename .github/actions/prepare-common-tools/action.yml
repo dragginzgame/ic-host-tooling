@@ -11,6 +11,5 @@ runs:
         make tools-check 2>&1 | tee "$RUNNER_TEMP/tools-check.log"
         {
           echo "$GITHUB_WORKSPACE/.tools/host/bin"
-          echo "$GITHUB_WORKSPACE/.tools/ic/bin"
           echo "$GITHUB_WORKSPACE/.tools/rust/common/bin"
         } >> "$GITHUB_PATH"

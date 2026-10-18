@@ -38,8 +38,8 @@ fn line_phase_returns_before_headers_and_completion_preserves_original_bytes() {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let (proceed, waiting) = mpsc::channel();
     let mut writer_socket = TcpStream::connect(listener.local_addr().unwrap()).unwrap();
-    listener.set_nonblocking(true).unwrap();
     let mut socket = listener.accept().unwrap().0;
+    socket.set_nonblocking(true).unwrap();
     let writer = std::thread::spawn(move || {
         let socket = &mut writer_socket;
         socket.write_all(b"POST /selected HTTP/1.1\r\n").unwrap();

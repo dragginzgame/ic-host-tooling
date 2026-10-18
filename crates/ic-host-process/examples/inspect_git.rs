@@ -64,9 +64,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             executable: &executable,
             executable_bytes,
             version_arguments: &[OsString::from("--version")],
-            version_identity: &version,
         },
         digest,
+        &version,
         &context,
         limits,
     )?;

@@ -317,6 +317,40 @@ Consumer choices described in those guides remain subject to this baseline.
   Cleanup requires explicit scope and authority. Tools may clean temporary files
   they own; they must not erase consumer artifacts or the only retained evidence.
 
+## IC stable-memory governance
+
+- Production stable stores in `dragginzgame` IC applications and components must
+  use memory handles issued by `ic-memory` after successful admission and durable
+  allocation commitment. Stable keys and their retained memory-ID assignments
+  belong to `ic-memory`; store formats, schema admission and data semantics stay
+  with their storage owners.
+- Application and component code must not independently assign memory IDs,
+  construct `MemoryManager` instances, or read/write unmanaged stable memory.
+  The host integration supplies raw backing memory to its owned `ic-memory`
+  runtime; it must not retain an alternate store-access path or create another
+  manager over that backing. Raw backing access and manager construction belong
+  to that integration boundary and `ic-memory` internals.
+- Production storage integration entry points must require checked runtime
+  handles and preserve validation and persistence before opening stores.
+  Generic storage engines may accept the upstream `Memory` trait, but accepting
+  that trait alone does not enforce allocation governance. Their production
+  callers must supply `ic-memory::RuntimeMemory` through the checked integration.
+- `ic-storage` is a collection layer; it does not replace allocation governance.
+  Its production integrations must use `ic-memory` handles. Selecting it as the
+  standard collection implementation is a separate product decision, qualified
+  at the affected consumers. An upstream collection using checked runtime memory
+  can preserve allocation safety; a replacement collection using unmanaged
+  memory cannot claim that protection.
+- Review actual handle construction and access, including dependency re-exports.
+  Importing `Memory`, `Storable` or an upstream collection is not itself a bypass;
+  neither an import-path rule nor a direct-dependency ban proves this invariant.
+- Raw-memory infrastructure internals, isolated tests and benchmarks may use
+  scoped unmanaged memory. Document the owning boundary and purpose; such
+  evidence does not qualify a production integration. Other production bypasses
+  require a maintainer-approved exception naming the scope, reason and safety
+  qualification. Adopt this rule through a reviewed snapshot or revision-bound
+  reference; policy adoption alone does not prove consumer implementation.
+
 ## Rust workspaces and portable tooling
 
 - Directory names for repositories, workspaces, tooling and operational inputs
@@ -329,13 +363,17 @@ Consumer choices described in those guides remain subject to this baseline.
 - Provide [local developer setup](docs/local-setup.md) through explicit
   `make install-tools` and offline `make tools-check`, following the
   [required tool inventory](docs/local-setup.md#required-tool-inventory).
-  Every repository prepares the same common host, IC and Cargo-tool sets,
-  including tools it does not currently use. The host set includes pinned jq,
+  Every repository prepares the same common host and Cargo-tool sets. IC
+  executables are product selections through the existing ordered local target
+  lists; repositories without an IC executable caller need not install them.
+  The host set includes pinned jq,
   Mike Farah yq, ripgrep with PCRE2 and cloc under `.tools/host/bin`; the Cargo
-  set includes cargo-sort, cargo-sort-derives and candid-extractor under
+  set includes cargo-sort and cargo-sort-derives under
   `.tools/rust/common/bin`. Common and selected Cargo tools share versioned-slot
   receipt and byte admission; common PATH activation requires the complete set.
-  Aggregates run host, IC and Rust steps in order, stopping on
+  Candid extractor selection belongs to products that extract declarations, using
+  the selected Cargo-tool interface and publishing its admitted path explicitly.
+  Aggregates run host and Rust steps, then selected product tools, stopping on
   failure. Consumer-specific setup/check targets extend the ordered lists in
   `make/tools.mk`, not unordered aggregate prerequisites. Make/CI callers select
   their own checkout's local paths; document interactive shell PATH setup,
@@ -361,7 +399,7 @@ Consumer choices described in those guides remain subject to this baseline.
   bundles without storing new executable copies in the checkout. This does not
   authorize deleting
   existing installations or replacing them with a mutable sibling PATH.
-- Provide the [common local IC executable setup](docs/ic-tools.md) through
+- Repositories using IC executables select the [local IC setup](docs/ic-tools.md) through
   `make install-ic-tools` and offline `make ic-tools-check`. Keep the common tool
   names available under the checkout's `.tools/ic/bin`, with one reviewed pin
   matrix and explicit installation. Consumers own version qualification and
@@ -394,6 +432,12 @@ Consumer choices described in those guides remain subject to this baseline.
   development toolchain. CI must explicitly check each advertised floor;
   documented package groups may have different floors. Do not upgrade a toolchain
   or raise MSRV without an established need and appropriate validation.
+- Consume every externally maintained IC-specific dependency through `ic-platform`,
+  including DFINITY packages. Apply the
+  [external IC dependency boundary](rules/cargo-dependencies.md#external-ic-dependency-boundary)
+  to production, build, test and tooling code, optional features and all targets.
+  Missing Platform support requires an upstream capability issue, not a new direct
+  dependency or a local replacement facade.
 - Follow the [Rust hygiene baseline](docs/principles/rust-code-hygiene.md): narrow
   visibility, documented APIs/invariants, ordinary module discovery, bounded
   fallible decoding, typed errors and `std` paths in code that requires `std`,
@@ -403,7 +447,7 @@ Consumer choices described in those guides remain subject to this baseline.
 - Rust repositories adopt the [standard formatting hook](rules/git-hooks.md):
   `make install-hooks` enables a reviewed repository-local pre-commit hook that
   auto-formats and refreshes only selected files, rejects partial staging and
-  preserves unrelated working edits. Formatting includes `cargo sort --workspace`
+  preserves unrelated working edits. Formatting includes `cargo sort --workspace --grouped`
   for root and child manifests before Rust formatting. Keep matching `fmt-check`
   sorting and Rust checks in CI and release gates;
   hook activation and independent formatting qualification are separate checks.

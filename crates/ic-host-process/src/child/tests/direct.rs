@@ -49,7 +49,7 @@ fn direct_spawn_preserves_inherited_group_context_and_io() {
     let fixture = Fixture::new();
     let mut command = command("read value; printf '%s|%s|%s' \"$value\" \"$SELECTED\" \"$PWD\"");
     command
-        .current_dir(&fixture.root)
+        .current_dir(fixture.path())
         .env_clear()
         .env("SELECTED", "direct")
         .stdin(Stdio::piped())
@@ -75,7 +75,7 @@ fn direct_spawn_preserves_inherited_group_context_and_io() {
     .unwrap();
     assert_eq!(
         observed,
-        format!("input|direct|{}", fixture.root.display()).as_bytes()
+        format!("input|direct|{}", fixture.path().display()).as_bytes()
     );
     assert_eq!(evidence.stdout, observed);
     assert!(evidence.status.success());
@@ -87,7 +87,7 @@ fn direct_cleanup_preserves_other_members_of_the_selected_group() {
     let _fixture = Fixture::new();
     let mut keeper_command = command("cat");
     keeper_command.stdin(Stdio::piped()).stdout(Stdio::null());
-    let mut keeper = OwnedChild::spawn(&mut keeper_command).unwrap();
+    let mut keeper = OwnedChild::spawn(&mut keeper_command, CleanupPolicy::KillAndWait).unwrap();
     let group = i32::try_from(keeper.id()).unwrap();
     for case in ["success", "cancel", "overflow", "panic", "drop"] {
         let script = if case == "success" {

@@ -18,6 +18,7 @@ perl "$root/scripts/ci/prepare-cargo-formatting-fixture.pl" \
 bash "$root/scripts/ci/check-formatting-hooks.sh" "$root" \
     crates/ic-host-fs/src/durable/mod.rs Cargo.toml "$fixture/unsorted.toml" --rust-sources \
     make/consumer.mk make/tools.mk make/rust-format.mk make/release.mk make/execution.mk \
-    ci/tool-versions.env scripts/ci/check-format-tools.sh scripts/ci/run-formatting.sh \
+    ci/tool-versions.env ci/release-delivery.txt scripts/ci/check-release-delivery.sh \
+    scripts/ci/check-format-tools.sh scripts/ci/run-formatting.sh \
     scripts/ci/select-rust-formatting-sources.sh scripts/ci/fixture-lifecycle.sh
 fixture_complete=true

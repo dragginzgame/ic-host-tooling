@@ -146,3 +146,52 @@ fn malformed_and_oversized_frames_retain_received_bytes() {
         assert_eq!(capture.bytes, bytes);
     }
 }
+
+#[test]
+fn fragmented_headers_and_large_bodies_keep_one_framing_contract() {
+    let body = b"Content-Length: 999\r\n\r\n".repeat(300);
+    let mut expected =
+        format!("POST / HTTP/1.1\r\nContent-Length: {}\r\n\r\n", body.len()).into_bytes();
+    expected.extend_from_slice(&body);
+    for fragment in [1, 3, 4096] {
+        let mut source = Cursor::new(&expected);
+        let mut reads = 0;
+        let capture = capture_with(
+            |buffer, _| {
+                reads += 1;
+                let length = buffer.len().min(fragment);
+                source.read(&mut buffer[..length])
+            },
+            Duration::from_secs(5),
+            128,
+            body.len(),
+            HttpContentLength::Required,
+        );
+        assert!(capture.failure.is_none(), "{:?}", capture.failure);
+        assert_eq!(capture.bytes, expected);
+        assert!(reads > 1);
+    }
+}
+
+#[test]
+fn invalid_capture_bounds_refuse_before_reading() {
+    for (headers, body) in [(0, 0), (3, 128), (4, usize::MAX)] {
+        let mut reads = 0;
+        let capture = capture_with(
+            |_, _| {
+                reads += 1;
+                Ok(0)
+            },
+            Duration::from_secs(1),
+            headers,
+            body,
+            HttpContentLength::Required,
+        );
+        assert_eq!(reads, 0);
+        assert_eq!(capture.bytes, [] as [u8; 0]);
+        assert!(matches!(
+            capture.failure,
+            Some(HttpCaptureFailure::InvalidBounds)
+        ));
+    }
+}
