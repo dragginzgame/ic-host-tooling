@@ -4,9 +4,14 @@
 
 Read [Cargo.toml](../../Cargo.toml), [CHANGELOG.md](../../CHANGELOG.md), Git tags,
 [AGENTS.md](../../AGENTS.md) and the exact [Shared snapshot](../../.shared-tooling.snapshot).
-Released Host 0.27.6 is delivered at `0c3acb8d52e8017dd7a3b39d0ae94443f90066a0`.
-Pending work belongs to [0.28.0](../changelog/0.28.md#0280);
-package versions, the index, Git delivery and releases remain user-owned.
+Host 0.28.0 is published from `b9c20de084a8f8176d8c73c61a3b30e740c8875c`,
+including the initial package-notice correction after the unchanged release tag.
+The normal checkout now selects that source and version; its unrelated lockfile
+changes remain pending. The compatible next batch belongs to
+[0.28.1](../changelog/0.28.md#0281), prepared in
+[PR #207 — Integrate the 0.28.1 batch](https://github.com/dragginzgame/ic-host-tooling/pull/207).
+Producer integration is still required. Staging, commits, version changes,
+Git release/push and registry publication remain user-owned.
 Sibling checkouts are read-only. GitHub issues are the sole follow-up tracker.
 
 ## Prepared Candid isolation

@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.28.1]
+
+Prepared in [PR #207 — Integrate the 0.28.1 batch](https://github.com/dragginzgame/ic-host-tooling/pull/207);
+merge the producer changes before releasing. [Adoption notes](docs/changelog/0.28.md#0281).
+
+- Add Unix directory capabilities backed by cap-*, sharing no-follow traversal,
+  descriptor-relative operations and bounded enumeration while keeping cache
+  policy with consumers ([#80 — Capability-rooted filesystem extraction from Query](https://github.com/dragginzgame/ic-host-tooling/issues/80)).
+- Add opt-in full core Wasm validation to Artifacts so consumers can remove direct
+  wasmparser dependencies without losing instruction or type checks.
+- Add scoped private temporary files to FS, with cleanup on drop and explicit
+  removal errors. Existing caller-retained scratch files keep their recovery contract.
+- Remove Ciborium from certificate decoding in favor of Minicbor, preserving
+  public APIs and caller-selected depth limits while rejecting malformed nested
+  byte-string chunks ([#201 — Replace the certificate Ciborium backend](https://github.com/dragginzgame/ic-host-tooling/issues/201)).
+
 ## [0.28.0] - 2026-10-19
 
 - Synchronize package MIT notices with the root before initial registry
