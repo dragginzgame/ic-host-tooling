@@ -1,7 +1,7 @@
 //! Focused PocketIC test-harness utilities for Internet Computer canisters.
 //!
-//! `ic-testkit` keeps PocketIC itself visible: `pocket_ic` re-exports the
-//! complete upstream crate, while `pic` retains convenient runtime type
+//! `pocket_ic` forwards Platform's explicit native PocketIC surface, preserving
+//! upstream client and DTO identities. `pic` retains convenient runtime type
 //! re-exports and adds bounded Candid call functions, extension traits for
 //! installation, diagnostics and snapshots, startup errors, caller-owned
 //! managed-server startup and bounded readiness polling. It does not provide a
@@ -20,7 +20,7 @@
 pub mod benchmark;
 
 #[cfg(not(target_arch = "wasm32"))]
-pub use pocket_ic;
+pub use ic_platform::pocket_ic;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub mod pic;

@@ -1,11 +1,11 @@
 mod support;
 
 use ic_platform::Principal;
+use ic_platform::pocket_ic::CanisterSettings;
 use ic_testkit::pic::{
     CanisterSnapshotTarget, ControllerSnapshotError, PocketIcCallFailure, PocketIcSnapshotExt,
     SnapshotRestoreFunding,
 };
-use pocket_ic::CanisterSettings;
 
 #[test]
 fn explicit_snapshot_senders_support_mixed_controller_sets_without_fallback() {
@@ -213,7 +213,7 @@ fn failed_snapshot_set_capture_cleans_up_earlier_snapshots() {
     let remaining = pocket_ic
         .list_canister_snapshots(captured_first, None)
         .expect("list snapshots after rollback");
-    assert_eq!(remaining, [] as [pocket_ic::Snapshot; 0]);
+    assert_eq!(remaining, [] as [ic_platform::pocket_ic::Snapshot; 0]);
 }
 
 #[test]

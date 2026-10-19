@@ -1,4 +1,5 @@
 [
+  {"dependency": "pocket-ic", "allowed_packages": []},
   {"dependency": "candid", "allowed_packages": []},
   {"dependency": "candid_parser", "allowed_packages": []},
   {"dependency": "ic0", "allowed_packages": []},

@@ -1,11 +1,11 @@
 mod support;
 
 use ic_platform::Principal;
+use ic_platform::pocket_ic::CanisterSettings;
 use ic_testkit::pic::{
     CanisterDiagnosticsRequest, CanisterLogRenderLimits, LabeledCanisterDiagnosticsRequest,
     PocketIcCallFailure, PocketIcDiagnosticsExt, is_dead_pocket_ic_transport_error,
 };
-use pocket_ic::CanisterSettings;
 
 #[test]
 fn diagnostics_use_independent_exact_senders_and_preserve_both_outcomes() {

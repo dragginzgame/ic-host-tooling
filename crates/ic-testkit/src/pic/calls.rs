@@ -1,12 +1,10 @@
-#[cfg(test)]
-use super::PocketIcOperationError;
 use super::{CandidCallContext, CandidCallError, PocketIcCallFailure, transport};
 use ic_platform::candid::{DecodeError, DecodeLimits, decode_args};
+use ic_platform::pocket_ic::{PocketIc, RejectResponse};
 use ic_platform::{
     Principal,
     candid::contract::{ArgumentDecoder, ArgumentEncoder, encode_args},
 };
-use pocket_ic::{PocketIc, RejectResponse};
 
 #[derive(Clone, Copy)]
 struct CallContext<'a> {
@@ -324,14 +322,14 @@ mod tests {
             caller: Principal::management_canister(),
             method: "get",
         };
-        let error = run_raw_call(context, || -> Result<Vec<u8>, pocket_ic::RejectResponse> {
+        let error = run_raw_call(context, || -> Result<Vec<u8>, ic_platform::pocket_ic::RejectResponse> {
             panic!("HTTP failure: reqwest::Error {{ kind: Request, url: \"http://127.0.0.1:1234/instances/0/update/execute_ingress_message\", source: ConnectError(\"tcp connect error\", Os {{ code: 111, kind: ConnectionRefused, message: \"Connection refused\" }}) }}");
         })
         .unwrap_err();
 
         let source = std::error::Error::source(&error)
             .unwrap()
-            .downcast_ref::<super::PocketIcOperationError>()
+            .downcast_ref::<super::super::PocketIcOperationError>()
             .unwrap();
         assert!(source.is_transport());
         assert!(source.message().starts_with("HTTP failure: "));
@@ -358,9 +356,12 @@ mod tests {
             let payload = message.to_owned();
             let original_allocation = payload.as_ptr() as usize;
             let result = std::panic::catch_unwind(|| {
-                run_raw_call(context, || -> Result<Vec<u8>, pocket_ic::RejectResponse> {
-                    std::panic::panic_any(payload);
-                })
+                run_raw_call(
+                    context,
+                    || -> Result<Vec<u8>, ic_platform::pocket_ic::RejectResponse> {
+                        std::panic::panic_any(payload);
+                    },
+                )
             });
             let resumed = result
                 .expect_err("application panic must resume")
@@ -379,7 +380,7 @@ mod tests {
                     caller: Principal::anonymous(),
                     method: "get",
                 },
-                || -> Result<Vec<u8>, pocket_ic::RejectResponse> {
+                || -> Result<Vec<u8>, ic_platform::pocket_ic::RejectResponse> {
                     std::panic::panic_any(payload);
                 },
             )

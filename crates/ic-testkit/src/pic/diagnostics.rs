@@ -5,7 +5,7 @@ use std::{
 };
 
 use ic_platform::Principal;
-use pocket_ic::{CanisterLogRecord, CanisterStatusResult, PocketIc};
+use ic_platform::pocket_ic::{CanisterLogRecord, CanisterStatusResult, PocketIc};
 
 use super::{
     PocketIcCallFailure,
@@ -499,7 +499,7 @@ mod tests {
     use std::cell::Cell;
 
     use ic_platform::Principal;
-    use pocket_ic::CanisterLogRecord;
+    use ic_platform::pocket_ic::CanisterLogRecord;
 
     use super::{
         CanisterDiagnosticsBatchContractError, CanisterDiagnosticsReport,

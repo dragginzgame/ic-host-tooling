@@ -6,9 +6,32 @@ documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
-## [0.54.2]
+## [0.55.3]
+
+### Added
+
+- Add dependency-free `ic-testkit-native` allocation measurements with caller-owned
+  allocator selection, thread-local scopes, nesting refusal and unwind cleanup.
+  Workloads and report policy remain with consumers
+  ([#86 — Own lightweight native allocation measurement](https://github.com/dragginzgame/ic-testkit/issues/86)).
+
+## [0.55.2] - 2026-10-19
 
 ### Changed
+
+- Route native fixture Wasm encoding and full validation through published Host
+  0.29.0, retaining IC method policy, caller budgets and exact reply bytes
+  ([Host #208 — Core-Wasm encoding for Testkit reply fixtures](https://github.com/dragginzgame/ic-host-tooling/issues/208)).
+- Use Host filesystem allocation and cleanup for ephemeral directories and worker
+  output, removing direct `tempfile`, `wasm-encoder` and `wasmparser` dependencies.
+  Startup privacy, teardown cleanup and retained qualification evidence remain.
+
+## [0.55.1] - 2026-10-19
+
+### Changed
+
+- Adopt published Platform 0.1.16 while retaining the selected PocketIC client,
+  Candid limits and runtime identities.
 
 - Use published Host command execution for cancellable server downloads and
   benchmark preparation, retaining explicit deadlines, output bounds and cleanup.
@@ -36,15 +59,41 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
   preserving exact senders and log limits while keeping secondary reporting
   failures separate from the original operation failure.
 
-- Add dependency-free `ic-testkit-native` allocation measurements with caller-owned
-  allocator selection, thread-local scopes, nesting refusal and unwind cleanup.
-  Workloads and report policy remain with consumers
-  ([#86 — Own lightweight native allocation measurement](https://github.com/dragginzgame/ic-testkit/issues/86)).
-
 - Add opt-in native typed Wire query/update helpers with explicit callers,
   method-owned limits, structured codec/call failures and no update retries.
   Private probe callers now share this transport owner
   ([#119 — Own typed IC Wire query/update adapters](https://github.com/dragginzgame/ic-testkit/issues/119)).
+
+## [0.55.0] - 2026-10-19
+
+### Breaking
+
+- Route PocketIC through published Platform 0.1.15. `ic_testkit::pocket_ic`
+  now forwards Platform's explicit native client/DTO surface instead of the
+  complete upstream crate. Client identities remain PocketIC 16.1.0; server
+  provisioning, transport and fixture lifecycle policy remain in Testkit.
+- Consumers of unexported upstream types must wait for their canonical Platform
+  exports before upgrading. Backup and Canic need placement, effective-principal,
+  pending-message, HTTP gateway and HTTP mock types tracked in
+  [Platform #27 — Complete PocketIC exports used by Testkit consumers in Backup and Canic](https://github.com/dragginzgame/ic-platform/issues/27).
+  Additions belong in Platform; do not restore a direct PocketIC dependency or
+  recreate its DTOs in Testkit. The library's Wasm dependency selection is unchanged.
+
+### Added
+
+- Add `try_pocket_ic_operation` for raw synchronous operations and share its
+  transport-panic boundary with Candid calls. Preserve returned rejections and
+  unrelated panic payloads, invoke each closure once, and leave replay and
+  reconciliation with callers. The selected client's panic shapes remain a
+  maintained Testkit responsibility
+  ([#118 — Own PocketIC transport failure handling in Testkit](https://github.com/dragginzgame/ic-testkit/issues/118));
+  this workaround does not remove the transitive `thiserror` constraint.
+
+### Changed
+
+- Pin `thiserror` to `=2.0.18`, matching PocketIC's current requirement and
+  retaining the existing lock selection
+  ([#100 — PocketIC exact thiserror pin forces consumer lockfile downgrades](https://github.com/dragginzgame/ic-testkit/issues/100)).
 
 ## [0.54.1] - 2026-10-18
 

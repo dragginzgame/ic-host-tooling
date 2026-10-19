@@ -1,0 +1,10 @@
+[
+  {
+    "rule": "cargo-exact",
+    "file": "Cargo.toml",
+    "subject": "thiserror",
+    "value": "=2.0.18",
+    "reason": "Maintainer-selected alignment with PocketIC 16.1.0's exact thiserror requirement.",
+    "evidence": "POCKET-IC.md#resolver-constraint"
+  }
+]

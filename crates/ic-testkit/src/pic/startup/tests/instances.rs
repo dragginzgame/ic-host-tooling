@@ -4,7 +4,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use pocket_ic::PocketIcBuilder;
+use ic_platform::pocket_ic::PocketIcBuilder;
 
 use super::super::{PocketIcManagedServerOutput, PocketIcStartupConfig, PocketIcStartupFailure};
 

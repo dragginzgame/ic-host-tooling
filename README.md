@@ -98,8 +98,9 @@ many integration tests, intermittent CI failures, or performance budgets. A
 small project with a few independent tests may only need PocketIC directly.
 
 ic-testkit builds on PocketIC rather than replacing or hiding it. Developers
-can use the complete upstream API through `ic_testkit::pocket_ic` and add only
-the testkit helpers they need.
+can use Platform's explicit native client surface through
+`ic_testkit::pocket_ic` and add the testkit helpers they need. Platform owns the
+PocketIC dependency selection; Testkit owns server and fixture policy.
 
 ## Install
 
@@ -107,8 +108,8 @@ Host-side test crates normally add:
 
 ```toml
 [dev-dependencies]
-ic-testkit = "0.54"
-ic-platform = { version = "0.1.11", default-features = false, features = ["candid"] }
+ic-testkit = "0.55"
+ic-platform = { version = "0.1.16", default-features = false, features = ["candid"] }
 ```
 
 Canister crates that emit benchmark markers can add the same version under
@@ -183,9 +184,10 @@ restored or validated.
 
 | Area | Main surface | Value added by ic-testkit |
 | --- | --- | --- |
-| PocketIC runtime | `pocket_ic`; `pic::{PocketIc, PocketIcBuilder}` | Complete upstream crate escape hatch plus focused convenience re-exports; no wrapper |
+| PocketIC runtime | `pocket_ic`; `pic::{PocketIc, PocketIcBuilder}` | Platform client surface plus focused convenience re-exports; no wrapper |
 | Startup | `PocketIcStartupConfig`, `PocketIcManagedServer` | Explicit bounded spawn/connect policy, owned shared-server lifecycle, and structured failures |
 | Calls | `query_candid_args`, `update_candid_args` | Candid encoding/decoding, contextual errors, preserved rejections |
+| Raw operations | `try_pocket_ic_operation` | Return recognized synchronous transport panics without retrying or changing upstream results |
 | Installation | `CanisterInstallExt`, `InstallSpec` | Generic install policy, structured failures and rate-limit retry |
 | Standalone fixtures | `StandaloneCanisterFixture` | Owns one caller-built instance and one installed canister id |
 | Snapshots | `PocketIcSnapshotExt`, `CachedPocketIcBaseline` | Ordered transactional capture, explicit restore funding, scoped caching |
@@ -827,6 +829,14 @@ and group the results by recipe. Compare cold `build` time with warm `restore`,
 recovery costs; inspect their reasons before changing the recipe. Queue `wait`
 time shows time spent waiting for a pool slot. Measure total suite time when
 tuning capacity, since more concurrent instances also consume more host resources.
+
+For raw synchronous operations, use `try_pocket_ic_operation(|| pic.tick())`
+to return recognized transport panics as `PocketIcOperationError`. A returned
+upstream `Result` stays nested so canister rejection remains distinct from
+transport failure. Unrelated panics resume with their original payload. The
+closure runs once; interrupted updates may already have been accepted and must
+not be replayed automatically. This does not bound a blocked request or catch
+failures while polling a returned future. Candid calls use this same boundary.
 
 Recipes that wrap PocketIC's currently unstructured transport failures can use
 `is_dead_pocket_ic_transport_error` in `classify_failure`, returning

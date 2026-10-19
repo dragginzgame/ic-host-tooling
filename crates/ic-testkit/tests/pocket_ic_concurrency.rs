@@ -92,7 +92,9 @@ enum Event {
 fn upstream_supports_two_overlapping_instances() {
     assert_two_instances_overlap(move || {
         support::startup_config()
-            .build_instance(pocket_ic::PocketIcBuilder::new().with_application_subnet())
+            .build_instance(
+                ic_platform::pocket_ic::PocketIcBuilder::new().with_application_subnet(),
+            )
             .expect("build explicitly configured upstream instance")
     });
 }

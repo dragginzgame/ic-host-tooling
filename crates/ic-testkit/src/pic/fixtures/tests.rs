@@ -1,5 +1,5 @@
 use super::*;
-use ic_host_artifacts::wasm::{InspectionLimits, inspect};
+use ic_host_artifacts::wasm::{InspectionLimits, inspect, validate};
 
 const LIMITS: RawReplyLimits = RawReplyLimits {
     methods: 2,
@@ -30,7 +30,7 @@ fn exports_both_modes_preserving_raw_binary_data_and_page_boundaries() {
         },
     )
     .unwrap();
-    wasmparser::Validator::new().validate_all(&wasm).unwrap();
+    validate(&wasm, 100_000).unwrap();
     let facts = inspect(
         &wasm,
         InspectionLimits {
@@ -66,7 +66,7 @@ fn permits_empty_replies_and_an_empty_catalog() {
     ];
     for selected in [&methods[..], &[][..]] {
         let wasm = raw_reply_canister(selected, LIMITS).unwrap();
-        wasmparser::Validator::new().validate_all(&wasm).unwrap();
+        validate(&wasm, 100_000).unwrap();
         inspect(
             &wasm,
             InspectionLimits {

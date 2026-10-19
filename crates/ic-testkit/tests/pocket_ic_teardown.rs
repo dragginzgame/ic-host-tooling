@@ -9,7 +9,7 @@ use ic_testkit::pic::{
     CandidCallError, CanisterDiagnosticsRequest, CanisterInstallError, CanisterLogRenderLimits,
     InstallSpec, PocketIc, PocketIcBuilder, PocketIcCallFailure, PocketIcDiagnosticsExt,
     PocketIcInstance, PocketIcStartupConfig, StandaloneCanisterFixture,
-    is_dead_pocket_ic_transport_error, query_candid_args,
+    is_dead_pocket_ic_transport_error, query_candid_args, try_pocket_ic_operation,
 };
 use ic_testkit::pocket_ic::common::rest::{CreateInstanceResponse, RawCanisterId, Topology};
 #[cfg(unix)]
@@ -55,6 +55,20 @@ fn instance_drop_probe() {
 #[test]
 fn refused_instance_request_is_classified_at_the_call_boundary() {
     run_refused_operation_probe("refused_instance_request_probe");
+}
+
+#[test]
+fn raw_operation_returns_a_refused_request() {
+    run_refused_operation_probe("raw_instance_request_probe");
+}
+
+#[cfg(unix)]
+#[test]
+fn raw_operation_returns_a_reset_request() {
+    run_reset_operation_probe(
+        "raw_instance_request_probe",
+        "GET /instances/0/read/get_time HTTP/1.1",
+    );
 }
 
 #[test]
@@ -175,6 +189,20 @@ fn run_refused_operation_probe(name: &str) {
     drop(listener);
     probe.release();
     assert!(probe.wait().success(), "real reqwest refusal must qualify");
+}
+
+#[test]
+#[ignore = "subprocess probe selected explicitly by the parent raw-operation test"]
+fn raw_instance_request_probe() {
+    let owned = synthetic_instance();
+    std::io::stdin()
+        .read_exact(&mut [0])
+        .expect("parent releases raw call");
+    let error = try_pocket_ic_operation(|| owned.instance.get_time())
+        .expect_err("raw request peer is gone");
+    assert!(error.is_transport());
+    assert!(is_dead_pocket_ic_transport_error(&error));
+    drop(owned);
 }
 
 #[test]

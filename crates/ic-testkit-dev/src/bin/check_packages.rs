@@ -14,10 +14,12 @@ fn main() -> Result<(), Box<dyn Error>> {
         .ok_or("development package requires the repository workspace")?;
     let target = workspace.join("target");
     std::fs::create_dir_all(target.join("package"))?;
-    let evidence = tempfile::Builder::new()
-        .prefix("package-qualification-")
-        .tempdir_in(&target)?
-        .keep();
+    let evidence = ic_host_fs::directory::create_unique_directory(
+        &target,
+        "package-qualification",
+        0o700,
+        None,
+    )?;
     eprintln!("Package qualification evidence: {}", evidence.display());
     let version = env!("CARGO_PKG_VERSION");
     qualify_package_archives(

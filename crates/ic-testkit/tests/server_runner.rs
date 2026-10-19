@@ -12,7 +12,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-struct Fixture(tempfile::TempDir);
+struct Fixture(ic_host_fs::owned_directory::OwnedDirectory);
 impl Fixture {
     fn new() -> Self {
         let fixture = Self(support::unique_temp_directory("ic-testkit-server-runner-"));
@@ -382,11 +382,13 @@ fn managed_idle_ttl_allows_preclient_work_beyond_server_default() {
         .join("../..")
         .canonicalize()
         .unwrap();
-    let evidence = tempfile::Builder::new()
-        .prefix("idle-lifetime-")
-        .tempdir_in(workspace.join("target"))
-        .unwrap()
-        .keep();
+    let evidence = ic_host_fs::directory::create_unique_directory(
+        &workspace.join("target"),
+        "idle-lifetime",
+        0o700,
+        None,
+    )
+    .unwrap();
     eprintln!("Idle lifetime evidence retained at {}", evidence.display());
     let output = Command::new(env!("CARGO_BIN_EXE_ic-testkit-server"))
         .current_dir(workspace)
