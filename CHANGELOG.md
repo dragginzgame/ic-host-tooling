@@ -3,6 +3,13 @@
 The 0.1.0 section preserves the original bootstrap notes. The published 0.1.0
 archive also includes the extracted artifact engine and Cargo grouping API.
 
+## [0.21.0]
+
+- **Breaking:** align exposed filesystem, artifact and process types with
+  published IC Host 0.29.0. Consumers exchanging Host values must adopt the
+  same 0.29 family. Keep optional Host CLI, Wasm, gzip and text backends disabled;
+  Cargo recipes, captured evidence and retained cache formats are unchanged.
+
 ## [0.20.0] - 2026-10-19
 
 - Adopt Shared Tooling 0.25.0 and retire the Perl editors while preserving

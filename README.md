@@ -37,19 +37,19 @@ Batch label errors use `ic_host_artifacts::batch::BatchLabelError` in
 
 ## Use
 
-The published 0.18 API requires Rust 1.91.0 or newer:
+The published 0.20 API requires Rust 1.91.0 or newer:
 
 ```toml
 [dependencies]
-ic-build = "0.18"
+ic-build = "0.20"
 # Add matching direct Host dependencies when passing Host values through Build.
-ic-host-process = { version = "0.27", default-features = false }
+ic-host-process = { version = "0.28", default-features = false }
 ```
 
 The examples use the current API and are compiled as Cargo example targets.
-Pending 0.19 replaces public raw Cargo-child communication with typed
+Release 0.19 replaces public raw Cargo-child communication with typed
 `CargoInvocation` / `execute_cargo`, including explicit compiler selection and
-execution-bound tool observations. It is not published yet; see the
+execution-bound tool observations; see the
 [migration contract](docs/artifacts.md#cargo-observations).
 Wasm specifications require the complete environment at construction and an
 explicit spawner at acquisition. See the [artifact guide](docs/artifacts.md) for
@@ -71,7 +71,9 @@ mutable target custody remains with the caller. Both select their Host spawner
 explicitly and add no elapsed-time deadline. Applications supply their own
 cancellation, process-group custody and source admission where required.
 
-Align direct Host dependencies with the 0.27 family when exchanging Host values.
+Published Build 0.20 uses the Host 0.28 family. The pending 0.21 source selects
+published Host 0.29.0; adopt matching direct Host dependencies when exchanging
+Host values after that Build release becomes available.
 `cargo::discovery::declared_workspace_root_from` finds the nearest explicit
 `[workspace]` from an existing file or directory without invoking Cargo. It follows
 file symlinks and refuses invalid manifests, non-file markers and dangling links.

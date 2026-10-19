@@ -30,6 +30,14 @@ roles, release identities or manifests.
 
 ## Implemented ownership
 
+Pending Build 0.21 selects the published Host 0.29 family, including exposed
+artifact, filesystem and process types. Published Build 0.20 retains Host 0.28.
+Optional Host Wasm/encoding/text/gzip and file-CLI features remain disabled.
+Host FS 0.29's Unix capability and scoped-tempfile dependencies are unconditional,
+even for this engine's existing read/lock/publication APIs. Build does not own or
+copy those backend implementations. Making them optional belongs in Host;
+published 0.29.0 provides no consumer feature switch to exclude them.
+
 Native optimizer semantic qualification belongs to Build. Its explicit qualifier
 uses retained transactions and the transferred execution oracle; callers admit
 the optimizer and select Node. Shared Tooling retains archive authentication and
@@ -50,7 +58,7 @@ The current manifest depends directly on Host Artifacts, FS and Process, plus
 Cargo's canonical metadata schema. Host Tools and Text are consumer dependencies
 where interpretation or normalization is needed; Build does not depend on them.
 Build's `cargo::execution` composes Host communication with Cargo decoding and
-exact artifact selection. Pending 0.19 gives this owner concrete invocation
+exact artifact selection. Release 0.19 gives this owner concrete invocation
 rendering and Cargo/compiler observation, replacing the public raw-child
 communication contract. Custom recipes consume `CargoInvocation` and
 `execute_cargo`; consumer code no longer needs to probe tools or assemble these

@@ -1,6 +1,6 @@
 # Artifact and Wasm build APIs
 
-Examples target the pending 0.18 API. Standalone Wasm acquisition provides two
+Examples target the current source API. Standalone Wasm acquisition provides two
 entrypoints: `build_wasm_canisters_cached(&spec, spawn)` for silent execution,
 and `build_wasm_canisters_cached_with_progress(&spec, config, observer, spawn)`
 for observation. Both use the same internal acquisition engine. Progress remains
@@ -48,7 +48,8 @@ still observe complete raw workspace manifests and lockfiles. Retained artifacts
 stamp formats and namespaces stay unchanged; this does not remove old entries.
 Metadata and builds receive the same feature and network selection. There is no
 arbitrary CLI argument escape hatch. Align direct Host dependencies with the
-0.27 family when passing Host values through Build's public APIs. Cargo progress
+0.29 family for pending Build 0.21 (0.28 for published Build 0.20) when passing
+Host values through Build's public APIs. Cargo progress
 events carry `ic_host_process::tool::OutputStream` directly; remove imports of
 `WasmBuildOutputStream`.
 
@@ -1138,11 +1139,11 @@ text/grammar separately; before/after digests cannot rule out transient writes.
 Host 0.24 has removed its extraction module/feature; adopt the new Build owner
 when upgrading that graph ([#51](https://github.com/dragginzgame/ic-build/issues/51)).
 Structural Wasm inspection does not replace PocketIC's runtime validation.
-IC Build currently requires compatible IC Host 0.27 releases at the
-public dependency boundary. The pending 0.18 cut requires Host Artifacts/FS
-0.27.5 for stream visitation and fresh-directory allocation; FS also owns shared
+Pending IC Build 0.21 requires compatible published IC Host 0.29 releases at the
+public dependency boundary; published Build 0.20 requires Host 0.28. Host
+Artifacts/FS supply stream visitation and fresh-directory allocation; FS also owns shared
 lock guards, logical directory sizing and cache-directory tags. Cargo.lock records
-the selected graph. Host Process requires at least 0.27.3 for cancellable
+the selected graph. Host Process supplies cancellable
 process-group probe capture. Build owns record lifetime, pruning policy and tag comments,
 while Host owns these filesystem primitives. Existing valid tags are preserved;
 new tags identify IC Build without renaming retained cache paths or formats.

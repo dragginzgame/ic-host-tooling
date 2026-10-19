@@ -1,5 +1,56 @@
 # Current handoff
 
+## Published Host 0.29 adoption and dependency review — 2026-10-19
+
+Starting source is released `172b52f` (Build 0.20.0), with incoming manifest and
+lock edits already selecting Host 0.29.0. Preserve those edits and the delivered
+release-editor repair. All three Host archives are non-yanked registry releases
+from `ef1e632d7f48f39d80e2b3c27f10b78bc706c39f`; archive hashes match their index
+checksums. Verify published source rather than the producer's stale pending notes.
+The existing APIs compile unchanged. Exposed Host crate identities select pending
+Build 0.21.0 notes; own package metadata remains 0.20.0.
+
+The dependency review covers both manifests and the locked normal/build/dev graph.
+Compared with released 0.20's Host 0.28.1 graph, the Linux normal/build selection
+grows from 51 to 66 package identities (including Build); the cross-platform lock
+grows from 54 to 91. These are resolved identities, not compiled packages on every
+host. New unconditional Host FS cap-std/cap-fs-ext and tempfile backends explain
+the growth. `fs-set-times` selects io-lifetimes 2 while cap-* selects 3; Windows
+support also selects three windows-sys generations. These are upstream edges,
+not directly removable Build declarations.
+
+The worthwhile next reduction is optional Host FS capability and scoped-tempfile
+features, with existing read/durable/directory primitives remaining in the core.
+Neither Build nor Host Process's normal code uses those new APIs. No such switch
+exists in published 0.29.0, so changing this repository's feature declarations
+cannot prune them. Do not fork Host, replace its safety mechanisms or force
+incompatible transitive versions to reduce counts. No sibling source is changed.
+
+All current direct dependencies have live callers. Cargo metadata's canonical
+public schema, independent TOML semantic checking and span-preserving editing,
+incremental framed SHA-256, native Rustix operations and the minimal Clap CLI
+remain justified. Consolidating them would weaken contracts or add replacement
+code without removing their already shared transitive packages. Host CLI, gzip,
+Wasm parsing/encoding/text and Platform/Candid/CDK graphs remain absent here.
+
+Focused Linux qualification passes 156 unit/integration cases: execution,
+filesystem locks/publication, staging, digest framing, package/input evidence,
+Wasm caching and real Cargo/native/process coordination. The Wasm producer
+fixtures establish cache/artifact mechanics, not installed-canister acceptance.
+Strict all-target/all-feature Clippy, actual Rust 1.91 all-target/all-feature
+checking and warning-denied Rustdoc pass. Snapshot, pins, direct boundaries,
+formatting, documentation and release-adapter checks pass, including the delivered
+default editor handoff without environment exports. Full release validation,
+native macOS and installed-IC qualification remain unrun for this graph.
+
+An edge-reachability projection removes fifteen Linux packages if Host makes the
+three backend edges optional; this is an upstream design candidate, not an
+implemented feature or a qualified reduced graph. The registry archives supply
+no pruning mechanism today. No new test/API/implementation was needed in Build,
+and no library dependency was removed merely to hide its owner. Incoming Host
+manifest/lock bytes remain unchanged. Evidence: `/tmp/ic-build-host029.cTnlUP/`.
+No staging, root Git refs, own version or release effects are included.
+
 ## Release editor selection repair — 2026-10-19
 
 At source `bd297d1`, full validation failed only because the release-adapter
