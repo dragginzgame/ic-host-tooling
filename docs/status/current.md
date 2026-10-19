@@ -12,7 +12,7 @@ The graph matrix and native CI qualify core, each backend and combined selection
 This contribution leaves package versions, sibling checkouts and releases alone.
 
 Focused Linux evidence: actual Rust 1.88 passes 177 minimal FS, twelve capability,
-six scoped-tempfile, 147 Process and eight file-CLI cases. Strict affected-package
+six scoped-tempfile, 147 Process and eleven file-CLI cases. Strict affected-package
 all-target/all-feature Clippy, Rust 1.88 checks, warning-denied FS Rustdoc and the
 all-feature unsupported-Wasm compile pass. Minimal/independent/combined/CLI/Process
 graph checks pass for Linux and both macOS target selections. Source-following
