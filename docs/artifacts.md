@@ -89,11 +89,33 @@ The existing v1 retained formats and namespaces are unchanged.
 
 ## Cargo observations
 
-`cargo::execution::communicate_cargo` drains caller-owned Cargo children, decodes
-stdout once and forwards canonical messages. Check both original execution
-status and protocol evidence before admitting artifacts. Protocol refusal drains
-the child; output-sink failure uses Host cleanup. Limits, cancellation, source
-custody and build-script interpretation remain caller-owned.
+Pending 0.19 replaces public `cargo::execution::communicate_cargo` with
+`CargoInvocation` and `execute_cargo`. Describe the complete environment, selected
+Cargo executable, absolute working directory, graph selection, packages, manifest
+and library/example/compiler recipe. Build renders the command from that single
+selection. Explicit profile configurations and trailing compiler arguments remain
+consumer recipes; no arbitrary Cargo argument parser is introduced. Observed
+execution requires a nonempty `RUSTC` environment entry so configuration cannot
+silently choose another compiler. Explicit environment removals stay removed.
+
+`execute_cargo` observes Cargo and that compiler before spawning, drains stdout
+once into canonical messages, then rechecks tools after success. Inspect
+`execution` and its exit status first, then `messages`, then `facts`.
+Facts are `Ok(Some(_))` only for successful, protocol-valid execution with matching
+tool observations and an unchanged command. A failed process/protocol returns
+`Ok(None)` facts; a post-build observation refusal is retained separately as an
+error, alongside original raw execution evidence. These observations do not guard
+source/configuration mutations, retain artifacts or admit a release.
+
+The caller's spawner selects child/group custody and may override stdio. Changing
+its executable, environment, arguments or cwd refuses successful facts after
+draining. Identity probes use bounded complete output and caller-selected Host
+group cleanup, share the cancellation predicate and have no finite deadline.
+Build retention/deadline limits remain explicit. Protocol refusal drains the child;
+output-sink failure uses Host cleanup. Source custody, build-script interpretation
+and provenance redaction remain caller-owned. Cached builds use the same renderer,
+tool observer and decoder with their existing phase/error mapping and complete
+post-build input revalidation; they do not add redundant before/after probes.
 `select_cdylib_wasm` selects only reported outputs for the admitted manifest;
 capture or retain those bytes before another build can replace them.
 

@@ -38,11 +38,11 @@ installation. Product-specific installed-IC qualification stays with consumers.
 Published Host Artifacts/FS 0.27.5 own caller-scratch stream visitation and fresh-
 directory allocation. Build retains digest framing, exact-size refusal and its
 capture prefix/permissions/collision policy, using Host OwnedDirectory directly.
-The pending 0.18 cut removes the public staging wrapper; direct staging consumers
+Release 0.18 removes the public staging wrapper; direct staging consumers
 select their allocation policy and guard at the Host boundary.
 
 Published Host Artifacts 0.27.4 owns ordered batch label validation and its error
-identity. The pending 0.18 cut consumes that owner directly and removes Build
+identity. Release 0.18 consumes that owner directly and removes Build
 batch admission without an alias. Consumers update their error import paths;
 pre-effect ordering and original label/index evidence are unchanged.
 
@@ -50,7 +50,14 @@ The current manifest depends directly on Host Artifacts, FS and Process, plus
 Cargo's canonical metadata schema. Host Tools and Text are consumer dependencies
 where interpretation or normalization is needed; Build does not depend on them.
 Build's `cargo::execution` composes Host communication with Cargo decoding and
-exact artifact selection. `cargo::native` keeps immediate protocol-refusal cleanup;
+exact artifact selection. Pending 0.19 gives this owner concrete invocation
+rendering and Cargo/compiler observation, replacing the public raw-child
+communication contract. Custom recipes consume `CargoInvocation` and
+`execute_cargo`; consumer code no longer needs to probe tools or assemble these
+facts independently. Consumers still own their recipes, selected environment,
+source/configuration custody, process cleanup and release admission. Cache
+resolution uses the same observer and renderer while retaining its existing
+input guards and fingerprint semantics. `cargo::native` keeps immediate protocol-refusal cleanup;
 the Wasm path instead drains diagnostics after protocol refusal. These distinct
 contracts share decoding, not one imposed failure policy. The 0.17.3 retained-evidence
 and diagnostic adapters compose these existing owners for Wire evaluation; they

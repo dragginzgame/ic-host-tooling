@@ -1,6 +1,6 @@
 //! Cargo process communication and exact artifact observations shared by build recipes.
 //!
-//! Callers own command construction, environment, source custody, process spawning,
+//! Callers select recipes, environment, source custody, process spawning,
 //! budgets, cancellation, build-script interpretation and release admission.
 
 use super::{messages::MessageDecoder, observation::schema};
@@ -17,8 +17,15 @@ use std::{
     path::{Path, PathBuf},
 };
 
+mod invocation;
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+pub(crate) use invocation::command_identity;
+pub use invocation::{
+    CargoExecution, CargoExecutionPolicy, CargoInvocation, CargoRecipe, execute_cargo,
+};
+pub(crate) use invocation::{CargoTool, TOOL_IDENTITY_BYTES};
 
 /// Independent execution and Cargo protocol evidence from one drained child.
 ///
@@ -26,7 +33,7 @@ mod tests;
 /// Successful execution requires checking `messages` before admitting artifacts.
 /// Protocol or message-sink refusal stops decoding but still drains the child.
 #[must_use = "check execution status and protocol evidence before admitting artifacts"]
-pub struct CargoExecution {
+pub(crate) struct CargoCommunication {
     /// Original Host execution result, including bounded output and cleanup evidence.
     pub execution: Result<CompletedExecution, ToolError>,
     /// Original decoder or message-sink refusal, if any.
@@ -42,14 +49,14 @@ pub struct CargoExecution {
 /// are explicit; no elapsed-time deadline or global state is introduced.
 /// Observer panic unwinds through the caller's owned child and cleanup policy.
 /// The caller must check both execution status and protocol evidence.
-pub fn communicate_cargo(
+pub(crate) fn communicate_cargo(
     child: &mut OwnedChild,
     limits: OutputLimits,
     message_bytes: usize,
     cancelled: impl FnMut() -> bool,
     mut output: impl FnMut(OutputStream, &[u8]) -> io::Result<()>,
     mut message: impl FnMut(schema::Message) -> io::Result<()>,
-) -> CargoExecution {
+) -> CargoCommunication {
     let mut decoder = MessageDecoder::new(message_bytes, true);
     let mut protocol_error = None;
     let execution = communicate_child_with_observer(
@@ -73,7 +80,7 @@ pub fn communicate_cargo(
     } else {
         protocol_error.map_or(Ok(()), Err)
     };
-    CargoExecution {
+    CargoCommunication {
         execution,
         messages,
     }

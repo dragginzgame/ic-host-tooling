@@ -3,6 +3,17 @@
 The 0.1.0 section preserves the original bootstrap notes. The published 0.1.0
 archive also includes the extracted artifact engine and Cargo grouping API.
 
+## [0.19.0]
+
+- **Breaking:** replace public `cargo::execution::communicate_cargo` with
+  `CargoInvocation` and `execute_cargo`. Build renders typed graph choices,
+  observes the explicit compiler and Cargo, drains messages and checks tool
+  identities after success. Custom recipes select their environment, profile
+  overrides, compiler arguments, process custody and budgets; inspect execution,
+  protocol and facts before admitting artifacts. No compatibility entry point
+  remains. Cached builds reuse the renderer and observer without extra probes
+  or changes to retained formats, cache identities or source-mutation guards.
+
 ## [0.18.0] - 2026-10-18
 
 - **Breaking:** replace `ArtifactStagingDirectory` with Host fresh-directory

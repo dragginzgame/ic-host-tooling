@@ -933,7 +933,9 @@ fn explicit_environment_key_separates_retained_keys_and_keeps_stamp_format() {
     );
     let fingerprint = super::finish_build_fingerprint(
         &spec,
-        &super::CargoBuildFacts::observed(&spec, b"cargo".to_vec(), b"rustc".to_vec()),
+        &spec
+            .cargo_invocation()
+            .facts(b"cargo".to_vec(), b"rustc".to_vec()),
         super::InputDigest::from_bytes([7; 32]),
     );
     // Independent byte-framing fixtures: every recipe fact is the same, only

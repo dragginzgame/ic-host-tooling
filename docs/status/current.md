@@ -1,5 +1,88 @@
 # Current handoff
 
+## Observed Cargo invocation hard cut — pending 0.19.0
+
+Starting source is released `73582d1` (0.18.0), preserving the incoming published
+0.18 handoff below. Own manifests and Cargo.lock remain unchanged. The numbered
+0.19 notes describe a breaking public API cut, not a release or publication.
+
+Build now owns concrete `CargoInvocation` rendering, bounded Cargo/compiler
+observations and `execute_cargo`. Custom execution requires explicit RUSTC,
+preserves the complete selected environment and returns successful facts only
+after process/protocol success and matching tool observations. Spawner recipe
+changes refuse facts after draining; original process, protocol and observation
+failures remain independently available. The public raw-child communicator is
+retired without an alias. Command rendering leaves stdio unconfigured; execution
+sets defaults before the caller's spawner selects stdio/custody.
+
+Cached Wasm builds use the same renderer, observer, fact constructor and decoder.
+Their existing phase/error mapping, probe reuse, full input revalidation, retained
+formats, fingerprint domain and target-directory treatment remain intact. Native
+extractors retain immediate protocol-refusal cleanup rather than Wasm draining.
+Consumers still own source/configuration custody, tool selection/admission,
+recipes, budgets, retained artifact use and release/lifecycle decisions.
+
+Canic adoption is prepared in an isolated snapshot of its current uncommitted
+pipeline and graph, including Platform 0.1.15, Query 0.62.3 and Host 0.27.6.
+The port replaces after-build version probes and generic Cargo argument rendering
+with Build's contract; product declarations, profile overrides, source guards and
+artifact admission remain local. Captured facts feed provenance and the CLI/test
+callers. Explicit RUSTC selection preserves CARGO_BUILD_RUSTC as its fallback;
+compiler choices solely in Cargo configuration require an explicit RUSTC.
+Current Canic harness edits and its already-applied Host staging fix are preserved.
+
+The source patch applies cleanly but needs published Build 0.19 and a committed
+unified Canic pipeline before refreshing [Canic #596](https://github.com/dragginzgame/canic/pull/596).
+Its dependency requirement is 0.19; no unpublished checksum/lockfile or local
+producer path is supplied as a delivery dependency. Qualification alone uses the
+local pending API with the producer's unchanged 0.18 package metadata. Sibling
+normal checkouts and the existing PR source branch remain untouched. Before-images,
+patch, custody hashes and logs are retained under `/tmp/ic-build-019.mxouE7/`.
+
+Linux evidence: seven execution, seventy cache and eighteen integration cases
+pass; strict development Clippy, actual Rust 1.91 all-target checking and
+warning-denied Rustdoc, formatting, boundaries, pins and documentation links pass.
+Canic passes 39 selected provenance/cache/artifact/infrastructure cases and strict
+Host library/test Clippy. Host, CLI and Testing Internal production checks pass
+on actual Rust 1.91; development caller tests compile with one existing unused
+import warning. Canic's changed dependency boundaries and note links pass.
+Full release gates, native macOS and installed-IC acceptance remain separate.
+No commits, branch pushes, package versions or release effects are included.
+
+## Published 0.18 and downstream ownership follow-through — 2026-10-18
+
+Build 0.18.0 is published and non-yanked at source `73582d1`; its registry
+archive includes the Cargo release editor. The older pending/publication blockers
+below describe their captured source and are historical.
+
+Shared's editor handoff is prepared in [PR #287](https://github.com/dragginzgame/shared-tooling/pull/287),
+stacked after #286. It removes the two Perl editors and their producer fixtures,
+uses the published Build executable, and preserves Shared's preparation
+transaction and independent graph/recovery checks. Its focused preparation,
+restoration, saved-source, ShellCheck and documentation checks pass again.
+The proposed Shared 0.25.0 minor is not integrated; this repository retains its
+reviewed 0.24.0 snapshot until deliberate adoption, rather than patching exports.
+
+[Query #84](https://github.com/dragginzgame/ic-query/pull/84) is refreshed without
+rewriting history onto released 0.62.3 at `58ee9b59`. All thirty floor smoke
+tests, strict development Clippy, formatting, direct boundaries and links pass
+with main's lockfile; notes target 0.62.4. Exact-head hosted checks remain separate.
+
+[Canic #596](https://github.com/dragginzgame/canic/pull/596) remains draft: remote
+main still lacks the maintainer's pending unified pipeline. Its narrow facts port
+is qualified against an isolated source snapshot, replacing the retired staging
+wrapper with Host allocation/cleanup and using captured encoded Rust flags.
+Capture preserves explicit environment removals rather than rebuilding a base.
+All 71 selected development tests and strict Host library/test Clippy pass.
+Host, CLI and Testing Internal production checks pass on actual Rust 1.91;
+development caller test targets compile with one existing unused-import warning.
+The existing test source uses development-only `std::assert_matches!`; floor
+test compilation does not qualify those tests. The patch applies to the current
+normal source, but later lockfile changes remain independently unqualified.
+Refresh #596 only after the unified pipeline is a committed integration base.
+No sibling normal checkout, release or package version is changed. Evidence:
+`/tmp/ic-build-owner-followup.nteml7/`.
+
 ## Published Host stream/staging cleanup — pending 0.18.0
 
 Issue #45 now consumes published Host Artifacts/FS >=0.27.5, with the coherent

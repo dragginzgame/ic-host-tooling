@@ -1,7 +1,7 @@
-//! Bounded Cargo observations and feature-safe package grouping.
+//! Explicit Cargo execution, bounded observations and feature-safe package grouping.
 //!
-//! Responsibility: observe complete Cargo evidence and preserve isolated dependency trees.
-//! Does not own: feature selection, role contracts, or runtime compilation.
+//! Responsibility: execute selected recipes, observe complete Cargo evidence and preserve isolated dependency trees.
+//! Does not own: recipe selection, source custody, role contracts or runtime lifecycle.
 //! Boundary: shared dependency feature unification must not change a role's isolated build.
 
 #[cfg(test)]

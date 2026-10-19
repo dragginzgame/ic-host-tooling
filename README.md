@@ -23,7 +23,7 @@ admission; IcyDB owns optimizer/interface policy; Testkit owns testing and Pocke
 lifecycle. Build depends on none of those consumers. Shared Tooling owns the
 reviewed development, installation and release helpers used by this checkout.
 
-Pending 0.18 removes `ArtifactStagingDirectory`; use published Host FS 0.27.5
+Release 0.18 removes `ArtifactStagingDirectory`; use published Host FS 0.27.5
 fresh-directory allocation and `OwnedDirectory` directly for staging. Capture
 records retain their artifact lifetime and explicit cleanup behavior.
 
@@ -32,21 +32,25 @@ owners from the historical extraction audit. The [artifact API guide](docs/artif
 owns detailed contracts and upgrade actions; the [current handoff](docs/status/current.md)
 records source-bound qualification and outstanding consumer acceptance.
 
-Batch label errors use `ic_host_artifacts::batch::BatchLabelError` in pending
+Batch label errors use `ic_host_artifacts::batch::BatchLabelError` in
 0.18; replace imports from the retired `ic_build::batch` module.
 
 ## Use
 
-The current 0.17 API requires Rust 1.91.0 or newer:
+The published 0.18 API requires Rust 1.91.0 or newer:
 
 ```toml
 [dependencies]
-ic-build = "0.17.3"
+ic-build = "0.18"
 # Add matching direct Host dependencies when passing Host values through Build.
 ic-host-process = { version = "0.27", default-features = false }
 ```
 
 The examples use the current API and are compiled as Cargo example targets.
+Pending 0.19 replaces public raw Cargo-child communication with typed
+`CargoInvocation` / `execute_cargo`, including explicit compiler selection and
+execution-bound tool observations. It is not published yet; see the
+[migration contract](docs/artifacts.md#cargo-observations).
 Wasm specifications require the complete environment at construction and an
 explicit spawner at acquisition. See the [artifact guide](docs/artifacts.md) for
 contracts and upgrade actions from earlier versions.

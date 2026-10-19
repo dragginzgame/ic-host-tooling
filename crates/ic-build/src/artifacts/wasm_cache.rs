@@ -1,6 +1,9 @@
 use super::phase::WasmBuildPhase;
 use crate::cargo::{
-    execution::{communicate_cargo, wasm_artifact_paths},
+    execution::{
+        CargoInvocation, CargoRecipe, CargoTool, TOOL_IDENTITY_BYTES, communicate_cargo,
+        wasm_artifact_paths,
+    },
     messages::artifact_matches,
     observation::schema,
     selection::CargoSelection,
@@ -58,7 +61,6 @@ const BUILD_FINGERPRINT_DOMAIN: &str = "ic-build-explicit-environment-fingerprin
 const ARTIFACT_STAMP_DIGEST_LABEL: &str = "artifact-sha256:";
 // Consumer policy: diagnostic prefixes, complete probe output, and no deadline.
 const CARGO_DIAGNOSTIC_BYTES: usize = 1024 * 1024;
-const TOOL_IDENTITY_BYTES: usize = 64 * 1024;
 const CARGO_METADATA_BYTES: usize = 16 * 1024 * 1024;
 
 const DEFAULT_TARGET: &str = "wasm32-unknown-unknown";
@@ -218,10 +220,11 @@ pub struct CargoBuildInput {
     path: PathBuf,
 }
 
-/// Tool and recipe observations already used to fingerprint resolved inputs.
+/// Tool and recipe observations from resolved inputs or an observed execution.
 ///
-/// These facts do not establish successful compilation or bind an external
-/// execution. Consumers retain source custody, execution binding and provenance
+/// These facts alone do not establish successful compilation or bind an external
+/// execution. `cargo::execution::execute_cargo` binds observations to its own
+/// successful invocation. Consumers retain source custody and provenance
 /// redaction. Environment values and probe bytes may contain secrets; Debug
 /// reports only their sizes. Reading these observations performs no I/O.
 #[derive(Clone, Eq, PartialEq)]
@@ -230,7 +233,8 @@ pub struct CargoBuildFacts {
     pub selection: CargoSelection,
     /// Selected compilation target.
     pub target: String,
-    /// Complete selected environment, before Build adds its owned target directory.
+    /// Complete selected environment. Cache resolution excludes Build's owned
+    /// target-directory override; custom execution retains its exact environment.
     pub environment: BTreeMap<OsString, OsString>,
     /// Exact successful Cargo probe stdout followed by stderr, as fingerprinted.
     pub cargo_identity: Vec<u8>,
@@ -247,18 +251,6 @@ impl std::fmt::Debug for CargoBuildFacts {
             .field("cargo_identity_bytes", &self.cargo_identity.len())
             .field("rustc_identity_bytes", &self.rustc_identity.len())
             .finish()
-    }
-}
-
-impl CargoBuildFacts {
-    fn observed(spec: &WasmBuildSpec, cargo_identity: Vec<u8>, rustc_identity: Vec<u8>) -> Self {
-        Self {
-            selection: spec.cargo_selection.clone(),
-            target: spec.target.clone(),
-            environment: spec.environment.clone(),
-            cargo_identity,
-            rustc_identity,
-        }
     }
 }
 
@@ -1838,7 +1830,8 @@ impl<'a, 'session> WasmBuildBatchInputResolver<'a, 'session> {
                 exclusions,
                 input_digest,
                 validation_digest,
-                CargoBuildFacts::observed(spec, cargo_identity.clone(), rustc_identity.clone()),
+                spec.cargo_invocation()
+                    .facts(cargo_identity.clone(), rustc_identity.clone()),
                 || {
                     if Some(index) == timing_index {
                         timings
@@ -1899,29 +1892,24 @@ fn resolve_tool_identity_with_policy(
     policy: &mut Option<&mut CargoInputProbePolicy<'_>>,
 ) -> Result<(Vec<u8>, Vec<u8>, Duration), WasmBuildError> {
     let started = Instant::now();
-    let cargo_identity = progress.run_phase(WasmBuildPhase::CargoIdentity, || {
-        command_identity_with_policy(
-            spec,
-            WasmBuildPhase::CargoIdentity,
-            &spec.cargo_program,
-            &["--version", "--verbose"],
-            policy,
-        )
-    })?;
-    let rustc_program = spec
-        .environment
-        .get(OsStr::new("RUSTC"))
-        .unwrap_or(&spec.rustc_program);
-    let rustc_identity = progress.run_phase(WasmBuildPhase::RustcIdentity, || {
-        command_identity_with_policy(
-            spec,
-            WasmBuildPhase::RustcIdentity,
-            rustc_program,
-            &["-vV"],
-            policy,
-        )
-    })?;
-    Ok((cargo_identity, rustc_identity, started.elapsed()))
+    let facts = spec
+        .cargo_invocation()
+        .observe(&spec.rustc_program, |tool, command| {
+            let phase = match tool {
+                CargoTool::Cargo => WasmBuildPhase::CargoIdentity,
+                CargoTool::Rustc => WasmBuildPhase::RustcIdentity,
+            };
+            progress.run_phase(phase, || {
+                let output =
+                    capture_probe_output_with_policy(command, phase, TOOL_IDENTITY_BYTES, policy)?;
+                ensure_command_success(phase, output)
+            })
+        })?;
+    Ok((
+        facts.cargo_identity,
+        facts.rustc_identity,
+        started.elapsed(),
+    ))
 }
 
 impl<'a> BatchResolutionKey<'a> {
@@ -3460,7 +3448,8 @@ fn build_fingerprint_with_policy(
         exclusions,
         input_digest,
         validation_digest,
-        CargoBuildFacts::observed(spec, cargo_identity, rustc_identity),
+        spec.cargo_invocation()
+            .facts(cargo_identity, rustc_identity),
         || WasmInputResolutionTimings {
             tool_identity,
             cargo_metadata,
@@ -3525,6 +3514,7 @@ fn command_identity(
     command_identity_with_policy(spec, phase, program, arguments, &mut None)
 }
 
+#[cfg(test)]
 fn command_identity_with_policy(
     spec: &WasmBuildSpec,
     phase: WasmBuildPhase,
@@ -3532,16 +3522,17 @@ fn command_identity_with_policy(
     arguments: &[&str],
     policy: &mut Option<&mut CargoInputProbePolicy<'_>>,
 ) -> Result<Vec<u8>, WasmBuildError> {
-    let mut command = Command::new(program);
-    command.current_dir(&spec.workspace_root).args(arguments);
-    apply_command_environment(&mut command, spec);
-    let output =
-        capture_probe_output_with_policy(&mut command, phase, TOOL_IDENTITY_BYTES, policy)?;
-    ensure_command_success(phase, output).map(|output| {
-        let mut identity = output.stdout;
-        identity.extend_from_slice(&output.stderr);
-        identity
-    })
+    crate::cargo::execution::command_identity(
+        program,
+        &spec.workspace_root,
+        &spec.environment,
+        arguments,
+        |command| {
+            let output =
+                capture_probe_output_with_policy(command, phase, TOOL_IDENTITY_BYTES, policy)?;
+            ensure_command_success(phase, output)
+        },
+    )
 }
 
 fn cargo_metadata(spec: &WasmBuildSpec) -> Result<schema::Metadata, WasmBuildError> {
@@ -4476,6 +4467,26 @@ fn run_cargo_build(
     )
 }
 
+impl WasmBuildSpec {
+    fn cargo_invocation(&self) -> CargoInvocation {
+        CargoInvocation {
+            cargo_program: self.cargo_program.clone(),
+            working_directory: self.workspace_root.clone(),
+            environment: self.environment.clone(),
+            target: self.target.clone(),
+            selection: self.cargo_selection.clone(),
+            packages: self.packages.clone(),
+            manifest_path: None,
+            recipe: self.example.as_ref().map_or(CargoRecipe::Library, |name| {
+                CargoRecipe::Example(name.clone())
+            }),
+            configurations: Vec::new(),
+            render_diagnostics: false,
+            keep_going: false,
+        }
+    }
+}
+
 fn cargo_build_command(
     spec: &WasmBuildSpec,
     build_target_dir: &Path,
@@ -4486,25 +4497,16 @@ fn cargo_build_command(
             path: build_target_dir.to_owned(),
             source,
         })?;
-    let mut command = Command::new(&spec.cargo_program);
-    apply_command_environment(&mut command, spec);
-    command
-        .current_dir(&spec.workspace_root)
-        .env("CARGO_TARGET_DIR", absolute_target_dir)
-        .args(["build", "--message-format=json"]);
-    if let Some(example) = &spec.example {
-        command.args(["--example", example]);
-    } else {
-        command.arg("--lib");
-    }
-    command
-        .args(["--target", &spec.target])
-        .args(spec.cargo_selection.build_arguments());
-    for package in &spec.packages {
-        command.args(["-p", package]);
-    }
-
-    Ok(command)
+    let mut invocation = spec.cargo_invocation();
+    invocation.environment.insert(
+        "CARGO_TARGET_DIR".into(),
+        absolute_target_dir.into_os_string(),
+    );
+    invocation.command().map_err(|source| WasmBuildError::Io {
+        operation: "render Cargo build invocation",
+        path: spec.workspace_root.clone(),
+        source,
+    })
 }
 
 fn communicate_cargo_build(
