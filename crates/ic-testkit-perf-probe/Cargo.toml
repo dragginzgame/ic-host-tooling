@@ -1,6 +1,6 @@
 [package]
 license.workspace = true
-name = "ic_testkit_perf_probe"
+name = "ic-testkit-perf-probe"
 edition.workspace = true
 rust-version.workspace = true
 version.workspace = true

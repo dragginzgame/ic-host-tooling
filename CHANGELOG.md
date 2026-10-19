@@ -6,6 +6,37 @@ documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.56.0]
+
+### Breaking
+
+- Align public Candid limits and decode-error sources with published Platform
+  0.2.1. Callers must select Platform 0.2 and pass its original `DecodeLimits`;
+  all five caller budgets and top-level reply arity remain unchanged
+  ([#133 — Align public decoder-limit identities with published Platform 0.2](https://github.com/dragginzgame/ic-testkit/issues/133)).
+
+- Adopt published Host 0.30.0. Callers naming startup probe errors or cleanup
+  error references must select `ic-host-process` 0.30. Server selection, startup
+  behavior and cleanup policy are unchanged.
+
+### Changed
+
+- Adopt published Platform 0.2.1. The private Wire probe uses Platform's
+  maintained runtime without transitive Candid or full `ic-cdk`; its explicit
+  codecs, request guard, executor identity and trap behavior are retained.
+  Native bounded Candid helpers and PocketIC remain behind Platform.
+
+- Rename the private performance-probe package and directory to
+  `ic-testkit-perf-probe`; Rust imports and the generated Wasm filename retain
+  their underscore spelling. Update build selection, release tooling and docs
+  together; public library APIs are unchanged.
+
+- Delegate scoped Unix signal actions and child exit-status projection to Host,
+  retaining the CLI's selected signals, benchmark interruption flag and existing
+  exit-code fallbacks
+  ([#93 — Adopt scoped Host signal actions](https://github.com/dragginzgame/ic-testkit/issues/93),
+  [#102 — Adopt Host shell-status projection](https://github.com/dragginzgame/ic-testkit/issues/102)).
+
 ## [0.55.2] - 2026-10-19
 
 ### Changed

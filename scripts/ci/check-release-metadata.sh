@@ -158,7 +158,7 @@ new_fixture() {
     mkdir -p "$(dirname "$file")"
     cp "$repo_root/$file" "$file"
   done
-  for member in crates/ic-testkit crates/ic-testkit-dev crates/ic_testkit_perf_probe; do
+  for member in crates/ic-testkit crates/ic-testkit-dev crates/ic-testkit-perf-probe; do
     mkdir -p "$member/src"
     cp "$repo_root/$member/Cargo.toml" "$member/Cargo.toml"
     : > "$member/src/lib.rs"
@@ -429,7 +429,7 @@ printf '/.release-state/\n' > .git/info/exclude
   crates/ic-testkit/CHANGELOG.md README.md crates/ic-testkit/README.md \
   rust-toolchain.toml crates/ic-testkit/Cargo.toml crates/ic-testkit/src/lib.rs \
   crates/ic-testkit-dev/Cargo.toml crates/ic-testkit-dev/src/lib.rs \
-  crates/ic_testkit_perf_probe/Cargo.toml crates/ic_testkit_perf_probe/src/lib.rs \
+  crates/ic-testkit-perf-probe/Cargo.toml crates/ic-testkit-perf-probe/src/lib.rs \
   artifact gate-trace gate-environment tool-trace preparation-trace rejected.log scripts ci
 printf 'interrupted root staging bytes\n' > .release-metadata.fixture
 printf 'interrupted package staging bytes\n' > crates/ic-testkit/.release-metadata.fixture
@@ -438,7 +438,7 @@ ADAPTER_REAL_UNTRACKED=true adapter prepare || fail "tracked fixture recovery re
 [[ "$(cat .release-metadata.fixture)" == 'interrupted root staging bytes' ]] || fail "fixture invariant in $PWD at line $LINENO"
 [[ "$(cat crates/ic-testkit/.release-metadata.fixture)" == 'interrupted package staging bytes' ]] || fail "fixture invariant in $PWD at line $LINENO"
 [[ "$(wc -l < gate-trace)" -eq 1 ]] || fail "fixture invariant in $PWD at line $LINENO"
-printf 'unrelated same-prefix file\n' > crates/ic_testkit_perf_probe/.release-metadata.unrelated
+printf 'unrelated same-prefix file\n' > crates/ic-testkit-perf-probe/.release-metadata.unrelated
 ADAPTER_REAL_UNTRACKED=true expect_failure prepared
 
 new_fixture finalized-notes patch finalized

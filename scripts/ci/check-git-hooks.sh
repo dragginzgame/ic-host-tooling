@@ -19,7 +19,7 @@ awk '
 ' "$root/Cargo.toml" > "$fixture/Cargo.toml"
 
 bash "$root/scripts/ci/check-formatting-hooks.sh" "$root" \
-    crates/ic_testkit_perf_probe/src/lib.rs Cargo.toml "$fixture/Cargo.toml" \
+    crates/ic-testkit-perf-probe/src/lib.rs Cargo.toml "$fixture/Cargo.toml" \
     --rust-sources \
     make/consumer.mk make/tools.mk make/release.mk make/rust-format.mk \
     make/execution.mk ci/tool-versions.env Cargo.lock \

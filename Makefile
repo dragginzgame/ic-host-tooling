@@ -40,7 +40,7 @@ CI_TARGETS := shared-tooling-check tools-check format-tools-check dependency-pin
 
 RELEASE_CHECK_TARGETS := $(CI_TARGETS) msrv
 VALIDATION_INPUTS := Makefile Cargo.toml Cargo.lock rust-toolchain.toml \
-	crates/ic-testkit/Cargo.toml crates/ic-testkit-dev/Cargo.toml crates/ic_testkit_perf_probe/Cargo.toml \
+	crates/ic-testkit/Cargo.toml crates/ic-testkit-dev/Cargo.toml crates/ic-testkit-perf-probe/Cargo.toml \
 	ci/tool-versions.env ci/ic-tools.tsv ci/cargo-dependency-boundaries.json .shared-tooling.snapshot
 
 help:
@@ -96,7 +96,7 @@ test: build-server-cli
 		POCKET_IC_BIN="$$server" cargo test -p ic-testkit --locked --test server_runner real_server_runs_a_separate_process_using_environment_startup -- --ignored --exact
 
 build-test-canisters:
-	+CARGO_TARGET_DIR=target/pic-wasm cargo build --locked --target wasm32-unknown-unknown -p ic_testkit_perf_probe
+	+CARGO_TARGET_DIR=target/pic-wasm cargo build --locked --target wasm32-unknown-unknown -p ic-testkit-perf-probe
 
 test-canisters: build-server-cli
 	+@server="$$("$(SERVER_CLI)" check)" || exit $$?; \
@@ -128,7 +128,7 @@ msrv:
 	cargo +$(MSRV) --version
 	+cargo +$(MSRV) check --workspace --all-targets --features ic-testkit/reply-fixtures --locked
 	+cargo +$(MSRV) check -p ic-testkit --features reply-fixtures --lib --target wasm32-unknown-unknown --locked
-	+cargo +$(MSRV) check -p ic_testkit_perf_probe --lib --target wasm32-unknown-unknown --locked
+	+cargo +$(MSRV) check -p ic-testkit-perf-probe --lib --target wasm32-unknown-unknown --locked
 
 installation-check:
 	bash scripts/ci/check-installation-version.sh

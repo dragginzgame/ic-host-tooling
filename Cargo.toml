@@ -1,7 +1,7 @@
 [workspace]
 # Production packages: ic-testkit.
-# Tests and tooling packages: ic-testkit-dev and ic_testkit_perf_probe.
-members = ["crates/ic-testkit", "crates/ic-testkit-dev", "crates/ic_testkit_perf_probe"]
+# Tests and tooling packages: ic-testkit-dev and ic-testkit-perf-probe.
+members = ["crates/ic-testkit", "crates/ic-testkit-dev", "crates/ic-testkit-perf-probe"]
 resolver = "2"
 
 [workspace.package]
@@ -19,11 +19,11 @@ readme = "README.md"
 
 [workspace.dependencies]
 # Production dependencies
-ic-host-artifacts = "0.29"
-ic-host-fs = "0.29"
-ic-host-process = "0.29"
+ic-host-artifacts = "0.30"
+ic-host-fs = "0.30"
+ic-host-process = "0.30"
 ic-metrics = "0.14"
-ic-platform = { version = "0.1.16", default-features = false }
+ic-platform = { version = "0.2.1", default-features = false }
 ic-wire = "0.4.1"
 libc = "0.2"
 serde = { version = "1.0", default-features = false }
@@ -32,10 +32,10 @@ thiserror = "=2.0.18"
 tokio = { version = "1", features = ["net", "rt", "time"] }
 
 # Tests and tooling only
-ic-build = { version = "0.21" }
-ic-host-text = { version = "0.29", default-features = false }
+ic-build = { version = "0.22" }
+ic-host-text = { version = "0.30", default-features = false }
 ic-testkit = { path = "crates/ic-testkit" }
-ic_testkit_perf_probe = { path = "crates/ic_testkit_perf_probe" }
+ic-testkit-perf-probe = { path = "crates/ic-testkit-perf-probe" }
 
 [workspace.lints.clippy]
 all = { level = "warn", priority = -1 }

@@ -24,7 +24,7 @@ use ic_testkit_perf_probe::protocol::{
 };
 use ic_wire::Method;
 use std::process::Command;
-const PERF_PROBE_PACKAGE: &str = "ic_testkit_perf_probe";
+const PERF_PROBE_PACKAGE: &str = "ic-testkit-perf-probe";
 
 fn install_probe() -> StandaloneCanisterFixture {
     let workspace = workspace_root_for(
@@ -39,7 +39,7 @@ fn install_probe() -> StandaloneCanisterFixture {
     .expect("resolve Cargo workspace");
     assert!(
         workspace
-            .join("crates/ic_testkit_perf_probe/Cargo.toml")
+            .join("crates/ic-testkit-perf-probe/Cargo.toml")
             .is_file(),
         "benchmark qualification requires the workspace perf probe"
     );

@@ -8,6 +8,10 @@ Makefile define the product and its selected interfaces. The qualification
 receipts below preserve earlier source identities, results and limitations;
 their old commands and version numbers are historical evidence.
 
+The private test-canister package is `ic-testkit-perf-probe` under
+`crates/ic-testkit-perf-probe`. Cargo package selections use hyphens; Rust imports
+and Cargo's generated `ic_testkit_perf_probe.wasm` retain underscores.
+
 The private fixture reporter owns complete-sample floating-point statistics;
 IC Metrics remains the owner of the public benchmark's checked integer ratios.
 Focused reporter qualification runs the `statistics::tests` and
@@ -45,11 +49,12 @@ and inheritance plus the explicit direct-dependency policy, not transitive role 
 integrity closes that gap. Deploying consumers must enforce exclusions for their
 own target/features and bind locked build evidence and the final artifact digest
 to deployed bytes. This inspection does not qualify macOS graphs or consumer
-deployments; the probe intentionally includes CDK for its test-canister role.
+deployments; the probe intentionally includes Platform's maintained runtime and
+the qualified executor for its test-canister role.
 
 ### Published Platform boundary
 
-Testkit selects registry `ic-platform` 0.1.16 with no default features. Its native
+Testkit selects registry `ic-platform` 0.2.1 with no default features. Its native
 target enables `candid` and `pocket-ic`; the Wasm library selects `ic0` for marker logging,
 execution counters and stable-page counts alongside the unconditional Principal identity. Candid, CDK
 and host parsing stay out of that graph. The published library selects no executor,
@@ -57,19 +62,27 @@ certification, Agent, management DTO or `candid-parser` feature. Native PocketIC
 require transitive Candid; removing direct declarations does not remove that code.
 
 The published archive checksum is
-`c11b873bf01a0a82774b073a3c0489ec6aa096eb1aacda7b438251a98e81d888`,
+`73506580e1ea0f78adacdd44560717eb9057e86274169e6525bbb024d1dd1c83`,
 matching Cargo's registry index. The archive provides the argument traits,
 encoders, bounded decoders, five explicit limits and typed error sources used
 here. Its decoder implementation matches the former local implementation; no
 compatibility crate remains. External consumers must adopt Platform's limits
 and error identities with Testkit 0.54; prior published packages remain available.
 
+The pending Testkit 0.56 release changes those authored limits and error identities
+to Platform 0.2.1. Native callers must select Platform 0.2 for both their limits
+and typed error matching; the prior 0.1 identity is incompatible even though all
+five budgets and decoder behavior are unchanged. Published Testkit 0.55.2 still
+uses Platform 0.1, so downstream removal of temporary old-limit selections must
+wait for Testkit publication and normal registry qualification
+([#133 — Align public decoder-limit identities with published Platform 0.2](https://github.com/dragginzgame/ic-testkit/issues/133)).
+
 Platform also owns the native PocketIC client and DTO dependency; Testkit forwards
 its explicit module rather than the complete upstream crate. Testkit retains
 provisioning, server admission, startup/teardown, transport classification and
 fixture policy. The upstream client remains 16.1.0, with its own management DTOs
 0.8.0. The library's Wasm normal/build graph must exclude PocketIC, Candid, CDK
-and host transport; the test probe's CDK graph is a separate intentional selection.
+and host transport; the test probe's runtime graph is a separate intentional selection.
 
 Testkit 0.55.0 narrows the former complete upstream re-export. Observed sibling callers in
 Backup and Canic require additional Platform exports: placement, effective
@@ -84,9 +97,11 @@ establish those siblings' qualification.
 The private probe selects Platform's `cdk` feature and entrypoint macros, with
 IC Wire framing and shared private method contracts for its native callers. Its
 direct Candid/CDK declarations and policy exceptions are removed; Platform owns
-the generator and qualified upstream runtime. The locked runtime remains CDK
-0.20.3, executor 2.0.0 and ic0 1.2.0. Candid and CDK remain transitive in the
-probe's Wasm graph, while parser/Agent features stay absent. Its intentional trap
+the generator and maintained non-cryptographic runtime. The probe keeps explicit
+Wire codecs and its pre-copy request guard. Its Wasm normal/build graph excludes
+Candid, full `ic-cdk`, upstream `ic-cdk-macros`, PocketIC, parser and Agent.
+The qualified registry executor 2.0.0 and ic0 1.2.0 identities remain shared.
+Its intentional trap
 still calls Platform's raw `ic0::trap` with the same bytes. This completes
 Testkit's entrypoint migration under [Platform #1 — CDK call and entrypoint boundary](https://github.com/dragginzgame/ic-platform/issues/1);
 other consumers retain their own acceptance. No runtime or codec is copied here.
@@ -103,7 +118,7 @@ Platform now supplies `debug_print`, completing the removal of Testkit's direct
 `ic0` dependency under [Platform #11 — Expose debug_print for Testkit benchmark marker emission](https://github.com/dragginzgame/ic-platform/issues/11).
 The direct-dependency policy permits no workspace package to declare Candid,
 CDK-family crates, `ic0`, PocketIC or the private Platform macro implementation directly.
-One upstream `ic0` 1.2.0 identity remains transitive through Platform and CDK.
+One upstream `ic0` 1.2.0 identity remains transitive through Platform.
 Counter 1, 65,536-byte stable-page conversion and marker formatting remain
 unchanged. The live probe test checks marker spans, the intentional rejection
 text and a successful query after the trap.
@@ -134,7 +149,7 @@ The manifest and tool catalogs own exact selections.
 
 ### Fixture Wasm encoding and validation boundary
 
-Published Host Artifacts 0.29.0 owns fixture Wasm encoding and full validation.
+Published Host Artifacts 0.30.0 owns fixture Wasm encoding and full validation.
 The native-only `reply-fixtures` feature selects `wasm-encoding`; native development
 dependencies select `wasm-validation`. Testkit supplies IC import/export names,
 caller budgets, data placement and call order to Host's fixed-memory module
@@ -154,11 +169,36 @@ and test directories keep mode 0700 subject to umask and cleanup on drop,
 including unwind; caller-selected external startup logs survive teardown.
 Qualification evidence uses unguarded allocated paths for intentional retention.
 Worker capture uses Host's scoped `TemporaryFile`, cloning its descriptor and
-closing/unlinking its name before spawning the worker. Testkit declares none of
+closing/unlinking its name before spawning the worker. The private development
+package explicitly selects FS 0.30's `temporary-file` feature. The published
+library needs neither that feature nor `capability`; these empty-default
+backends are selected only by actual callers. Testkit declares none of
 `tempfile`, `wasm-encoder` or `wasmparser` directly; these remain transitive Host
 implementation dependencies.
 
+The public startup probe failure and command/server cleanup references expose
+Host Process 0.30 types. Consumers naming those types must select the matching
+Host minor with Testkit 0.56. Server compatibility, deadlines, retained output
+and cleanup behavior are unchanged. Qualification uses the selected registry
+lock; source compilation and cross-target graphs do not establish native macOS
+or deployed consumer acceptance.
+
+The private driver now consumes registry Build 0.22 with the same Host 0.30
+child and output-limit identities. Its actual Cargo selections, renamed probe
+build and installed marker test qualify this caller without a compatibility
+layer or unpublished source override. Other consumers retain their acceptance
+under [Build #9 — Qualify consumers against the current exposed Host boundary](https://github.com/dragginzgame/ic-build/issues/9).
+
 ### Local PocketIC operation boundary
+
+The server CLI and benchmark driver use Host's `SignalActions` for scoped Unix
+registration and restoration. Each standalone process owns its dispositions and
+supplies a static atomic-only callback: the CLI selects INT/TERM/HUP, while the
+driver selects INT. Testkit retains cancellation, child teardown and interruption
+exit policy. CLI child statuses use Host's numeric projection with Testkit's
+129 unavailable-status and 1 unrepresentable-status fallbacks. Qualify real
+interruption and descendant cleanup with `server_runner` and the isolated
+benchmark driver interruption case; signal actions are process-global.
 
 `pic::try_pocket_ic_operation` runs one synchronous operation and returns only
 recognized transport panics as the existing `PocketIcOperationError`. Candid

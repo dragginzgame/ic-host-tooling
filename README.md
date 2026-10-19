@@ -105,7 +105,7 @@ Host-side test crates normally add:
 ```toml
 [dev-dependencies]
 ic-testkit = "0.55"
-ic-platform = { version = "0.1.16", default-features = false, features = ["candid"] }
+ic-platform = { version = "0.2.1", default-features = false, features = ["candid"] }
 ```
 
 Canister crates that emit benchmark markers can add the same version under
