@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.30.1]
+## [0.30.1] - 2026-10-19
 
 - Update the private Wasm parser/validator backend to wasmparser 0.262.0,
   consolidating its lockfile versions while preserving opt-in full validation
