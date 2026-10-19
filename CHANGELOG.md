@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.28.1] - Unreleased
+
+- Remove Ciborium from certificate decoding, reusing Minicbor while preserving
+  strict schemas, caller-selected depth and public error categories. Reject
+  malformed nested byte-string chunks. [Details](docs/changelog/0.28.md#0281).
+
 ## [0.28.0] - 2026-10-19
 
 - Synchronize package MIT notices with the root before initial registry

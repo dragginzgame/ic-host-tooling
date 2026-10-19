@@ -4,10 +4,33 @@
 
 Read [Cargo.toml](../../Cargo.toml), [CHANGELOG.md](../../CHANGELOG.md), Git tags,
 [AGENTS.md](../../AGENTS.md) and the exact [Shared snapshot](../../.shared-tooling.snapshot).
-Released Host 0.27.6 is delivered at `0c3acb8d52e8017dd7a3b39d0ae94443f90066a0`.
-Pending work belongs to [0.28.0](../changelog/0.28.md#0280);
-package versions, the index, Git delivery and releases remain user-owned.
+Published Host 0.28.0 uses `b9c20de084a8f8176d8c73c61a3b30e740c8875c`, including
+the initial notice correction after the unchanged `v0.28.0` tag at `5150105`.
+Pending work belongs to [0.28.1](../changelog/0.28.md#0281);
+package versions and further release effects remain user-owned.
 Sibling checkouts are read-only. GitHub issues are the sole follow-up tracker.
+
+## Prepared Ciborium removal
+
+Tools' sole production Ciborium caller was the optional certificate decoder;
+the remaining direct uses encoded its fixtures. The replacement reuses locked
+Minicbor 0.19.1 primitives and removes Serde schema wrappers/visitors. Existing
+public decode/error categories, exact tree/field/byte admission and the full
+caller-selected depth range remain. The independent fixture encoder uses dev-only
+serde_cbor; that codec cannot supply production depth admission without narrowing
+the released contract. [#201](https://github.com/dragginzgame/ic-host-tooling/issues/201)
+owns the backend work. Query's adapter/error projection remains unchanged.
+
+Focused Linux receipt: `/tmp/host-cbor-removal.Kr2SzJ/`. Actual Rust 1.88 passes
+25 certificate-profile tests, all 53 all-feature Tools cases, strict MSRV and
+development Clippy, warning-denied Rustdoc and the three native-target graphs.
+Default/interface/parser-free combined cases also pass. New depth/tag
+fixtures were also exercised against the original decoder: the depth-255 and
+transparent-tag cases pass, while a malformed nested indefinite byte chunk exposed
+old parser tolerance and now refuses as invalid CBOR. Valid chunked bytes still
+decode. The lock removes Ciborium and its two helpers plus unused half 2.x, with no
+new selected package/version. Native macOS qualification and publication of this
+new source remain separate from the already-published 0.28.0 release.
 
 ## Prepared Candid isolation
 

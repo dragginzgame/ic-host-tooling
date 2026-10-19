@@ -31,6 +31,7 @@ check_graph() {
         printf '%s graph observation failed\n' "$label" >&2
         return "$status"
     }
+    forbidden="($forbidden)|^(ciborium|ciborium-io|ciborium-ll) "
     printf '%s\n' "$graph" | rg "$forbidden" || status=$?
     case "$status" in
         0) printf '%s graph includes a forbidden dependency\n' "$label" >&2; return 1 ;;
@@ -52,41 +53,41 @@ check_graph() {
 }
 
 check_graph tools ic-host-tools default '' '' \
-    '^(ic-platform|candid|candid_parser|ic-host-(artifacts|fs|process|text)|wasmparser|ciborium|ic-certification|ic-agent|reqwest|url) '
+    '^(ic-platform|candid|candid_parser|ic-host-(artifacts|fs|process|text)|wasmparser|ic-certification|ic-agent|reqwest|url) '
 check_graph tools-no-defaults ic-host-tools none '' '' \
-    '^(ic-platform|candid|candid_parser|ic-host-(artifacts|fs|process|text)|wasmparser|ciborium|ic-certification|ic-agent|reqwest|url) '
+    '^(ic-platform|candid|candid_parser|ic-host-(artifacts|fs|process|text)|wasmparser|ic-certification|ic-agent|reqwest|url) '
 check_graph encoding ic-host-tools none encoding '' \
-    '^(ic-platform|candid|candid_parser|ic-host-(artifacts|fs|process|text)|wasmparser|ciborium|ic-certification|ic-agent|reqwest|serde_yaml_ng) '
+    '^(ic-platform|candid|candid_parser|ic-host-(artifacts|fs|process|text)|wasmparser|ic-certification|ic-agent|reqwest|serde_yaml_ng) '
 check_graph icp-project ic-host-tools none icp-project 'serde_yaml_ng' \
-    '^(ic-platform|candid|candid_parser|ic-host-(artifacts|fs|process|text)|wasmparser|ciborium|ic-certification|ic-agent|reqwest) '
+    '^(ic-platform|candid|candid_parser|ic-host-(artifacts|fs|process|text)|wasmparser|ic-certification|ic-agent|reqwest) '
 check_graph ledger-evidence ic-host-tools none ledger-evidence 'ic-platform candid icrc-ledger-types' \
-    '^(candid_parser|ic-host-(artifacts|fs|process|text)|wasmparser|ciborium|ic-agent|reqwest|ic-stable-structures|serde_yaml_ng) '
+    '^(candid_parser|ic-host-(artifacts|fs|process|text)|wasmparser|ic-agent|reqwest|ic-stable-structures|serde_yaml_ng) '
 check_graph registry ic-host-tools none registry 'ic-platform prost' \
-    '^(candid|candid_parser|ic-host-(artifacts|fs|process|text)|wasmparser|ciborium|ic-certification|ic-agent|reqwest|serde_yaml_ng) '
+    '^(candid|candid_parser|ic-host-(artifacts|fs|process|text)|wasmparser|ic-certification|ic-agent|reqwest|serde_yaml_ng) '
 check_graph ic-interface ic-host-tools none ic-interface \
     'ic-host-artifacts wasmparser' '^(ic-platform|candid|candid_parser|ic-host-(fs|process|text)) '
 check_graph inspection ic-host-wasm-inspect default '' 'ic-host-artifacts ic-host-fs' \
     '^(ic-host-process|ic-platform|candid_parser) '
-check_graph certificate ic-host-tools none certificate 'ic-platform ciborium ic-certification' \
-    '^(candid|candid_parser|ic-host-(artifacts|fs|process|text)|wasmparser|ic-agent|reqwest) '
+check_graph certificate ic-host-tools none certificate 'ic-platform minicbor ic-certification' \
+    '^(candid|candid_parser|ic-host-(artifacts|fs|process|text)|wasmparser|ic-agent|reqwest|serde_cbor) '
 check_graph tools-parser-free-combined ic-host-tools none ic-interface,certificate \
-    'ic-platform ciborium ic-certification ic-host-artifacts wasmparser' \
-    '^(candid|candid_parser|ic-host-(fs|process|text)|ic-agent|reqwest) '
+    'ic-platform minicbor ic-certification ic-host-artifacts wasmparser' \
+    '^(candid|candid_parser|ic-host-(fs|process|text)|ic-agent|reqwest|serde_cbor) '
 check_graph candid ic-host-tools none candid 'ic-platform candid candid_parser' \
-    '^(ic-host-(artifacts|fs|process|text)|wasmparser|ciborium|ic-certification|ic-agent|reqwest) '
+    '^(ic-host-(artifacts|fs|process|text)|wasmparser|ic-certification|ic-agent|reqwest) '
 check_graph tools-combined ic-host-tools none candid,ic-interface,certificate \
-    'ic-platform candid_parser ciborium ic-certification ic-host-artifacts wasmparser' \
+    'ic-platform candid_parser minicbor ic-certification ic-host-artifacts wasmparser' \
     '^(ic-host-(fs|process|text)|ic-agent|reqwest) '
 check_graph tools-all ic-host-tools none agent,candid,certificate,encoding,ic-interface,icp-project,ledger-evidence,registry \
-    'ic-platform candid_parser ciborium ic-certification ic-host-artifacts wasmparser ic-agent reqwest icrc-ledger-types serde_yaml_ng prost' \
+    'ic-platform candid_parser minicbor ic-certification ic-host-artifacts wasmparser ic-agent reqwest icrc-ledger-types serde_yaml_ng prost' \
     '^(ic-host-(fs|process|text)|ic-stable-structures) '
 check_graph text ic-host-text default '' unicode-width \
-    '^(ic-host-(artifacts|fs|process|tools)|ic-platform|candid_parser|ic-agent|ic-certification|ciborium) '
+    '^(ic-host-(artifacts|fs|process|tools)|ic-platform|candid_parser|ic-agent|ic-certification) '
 check_graph artifacts ic-host-artifacts default '' '' '^ic-host-process '
 check_graph filesystem ic-host-fs default '' ic-host-artifacts \
-    '^(ic-host-(process|tools|text)|ic-platform|candid|candid_parser|ic-agent|ic-certification|ciborium|reqwest) '
+    '^(ic-host-(process|tools|text)|ic-platform|candid|candid_parser|ic-agent|ic-certification|reqwest) '
 check_graph agent ic-host-tools none agent 'ic-platform candid ic-agent reqwest url' \
-    '^(candid_parser|ic-host-(artifacts|fs|process|text)|wasmparser|ciborium) '
+    '^(candid_parser|ic-host-(artifacts|fs|process|text)|wasmparser) '
 check_graph agent-wasm ic-host-tools none agent 'ic-platform' \
     '^(ic-host-(artifacts|fs|process|text)|wasmparser|candid|candid_parser|ic-agent|reqwest|url) ' wasm32-unknown-unknown
 printf 'tools/text feature dependency graphs passed for %s (normal/build)\n' "$target"

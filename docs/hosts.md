@@ -190,3 +190,9 @@ successful build evidence to the installed artifact. Shared's sorter, pin checke
 and snapshot verification do not provide that admission. Further test-only catalog
 entries require explicit graph exclusions; comments alone do not activate them.
 Native macOS and deployment evidence remain distinct from graph checks.
+
+Certificate decoding uses Minicbor with explicit schema/container-depth admission.
+Graph checks require it for certificate profiles, keep the independent fixture
+encoder out of their normal/build graphs, and exclude Ciborium from every selected
+profile. Depth boundaries through 255 and tagged/indefinite wire cases require
+the same actual Rust 1.88 and native Linux/macOS qualification as other profiles.

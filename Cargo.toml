@@ -22,7 +22,6 @@ description = "Host-side artifact, filesystem, process and IC tooling"
 # Registry versions are compatible ranges; Cargo.lock records exact build selections.
 # Production dependencies
 # Shared production/test dependencies stay in this section.
-ciborium = "0.2.2"
 command-fds = "0.3.3"
 flate2 = { version = "1.1.10", default-features = false, features = ["rust_backend"] }
 ic-host-artifacts = { path = "crates/ic-host-artifacts", version = "0.28", default-features = false }
@@ -30,6 +29,7 @@ ic-host-fs = { path = "crates/ic-host-fs", version = "0.28", default-features = 
 ic-platform = { version = "0.1.11", default-features = false }
 leb128 = "0.2.5"
 libc = "0.2.190"
+minicbor = { version = "0.19.1", default-features = false, features = ["std"] }
 prost = "0.14.3"
 rustix = { version = "1.1.4", default-features = false, features = ["std", "fs"] }
 serde = { version = "1.0.228", default-features = false, features = ["std"] }
@@ -44,6 +44,7 @@ wasmparser = { version = "0.261.0", default-features = false, features = ["std",
 
 # Tests and tooling only
 ic-host-process = { path = "crates/ic-host-process", version = "0.28", default-features = false }
+serde_cbor = "0.11.2"
 
 [workspace.lints.rust]
 missing_docs = "warn"
