@@ -49,7 +49,7 @@ deployments; the probe intentionally includes CDK for its test-canister role.
 
 ### Published Platform boundary
 
-Testkit selects registry `ic-platform` 0.1.15 with no default features. Its native
+Testkit selects registry `ic-platform` 0.1.16 with no default features. Its native
 target enables `candid` and `pocket-ic`; the Wasm library selects `ic0` for marker logging,
 execution counters and stable-page counts alongside the unconditional Principal identity. Candid, CDK
 and host parsing stay out of that graph. The published library selects no executor,
@@ -57,7 +57,7 @@ certification, Agent, management DTO or `candid-parser` feature. Native PocketIC
 require transitive Candid; removing direct declarations does not remove that code.
 
 The published archive checksum is
-`f8e25f723e4b0f6db0e4b0a61beef7117c3e67066f7f5c717a82a43265e60b99`,
+`c11b873bf01a0a82774b073a3c0489ec6aa096eb1aacda7b438251a98e81d888`,
 matching Cargo's registry index. The archive provides the argument traits,
 encoders, bounded decoders, five explicit limits and typed error sources used
 here. Its decoder implementation matches the former local implementation; no
@@ -71,8 +71,7 @@ fixture policy. The upstream client remains 16.1.0, with its own management DTOs
 0.8.0. The library's Wasm normal/build graph must exclude PocketIC, Candid, CDK
 and host transport; the test probe's CDK graph is a separate intentional selection.
 
-This narrows the former complete upstream re-export, so pending notes target
-Testkit 0.55.0 without changing package metadata. Observed sibling callers in
+Testkit 0.55.0 narrows the former complete upstream re-export. Observed sibling callers in
 Backup and Canic require additional Platform exports: placement, effective
 principal, message IDs, HTTP gateway configuration and HTTP response fixtures.
 Their adoption is blocked by
@@ -82,7 +81,8 @@ The supplying exports are prepared in
 normal adoption still requires publication. The local caller migration does not
 establish those siblings' qualification.
 
-The private probe selects Platform's `cdk` feature and entrypoint macros. Its
+The private probe selects Platform's `cdk` feature and entrypoint macros, with
+IC Wire framing and shared private method contracts for its native callers. Its
 direct Candid/CDK declarations and policy exceptions are removed; Platform owns
 the generator and qualified upstream runtime. The locked runtime remains CDK
 0.20.3, executor 2.0.0 and ic0 1.2.0. Candid and CDK remain transitive in the
@@ -90,6 +90,14 @@ probe's Wasm graph, while parser/Agent features stay absent. Its intentional tra
 still calls Platform's raw `ic0::trap` with the same bytes. This completes
 Testkit's entrypoint migration under [Platform #1 — CDK call and entrypoint boundary](https://github.com/dragginzgame/ic-platform/issues/1);
 other consumers retain their own acceptance. No runtime or codec is copied here.
+
+Native controlled-protocol callers may enable Testkit's optional `wire` feature.
+Its query/update helpers use Wire's method types, identities and finite limits;
+the private workload and installed probe qualify their actual calls. Default native
+and all Wasm library graphs omit this optional dependency. The CI test target
+selects `wire` explicitly, while the development package also selects it for its
+fixture callers. Reply length checks follow PocketIC allocation. Auth and Wire
+retain their own protocol, trust and replay qualification when adopting the helpers.
 
 Platform now supplies `debug_print`, completing the removal of Testkit's direct
 `ic0` dependency under [Platform #11 — Expose debug_print for Testkit benchmark marker emission](https://github.com/dragginzgame/ic-platform/issues/11).
@@ -123,6 +131,19 @@ and Cargo tools, builds the local owner CLI and explicitly provisions PocketIC.
 Generic IC executables remain optional. `make tools-check` checks prepared
 selections offline; it neither builds the CLI nor installs missing tools.
 The manifest and tool catalogs own exact selections.
+
+### Fixture Wasm validation boundary
+
+The maintainer selected Platform as the boundary for fixture `wasmparser` use.
+Published Platform 0.1.16 has no such capability, tracked in
+[Platform #29 — Expose native Wasm validation for Testkit fixture checks](https://github.com/dragginzgame/ic-platform/issues/29).
+Until a supplying release is published, Testkit retains its native development
+`wasmparser` dependency for two full-module validation calls. Host's structural
+inspector does not replace instruction/type validation. The parser stays out of
+normal/build and Wasm library graphs; the private native development harness may
+reach it independently through IC Build/Host. `wasm-encoder` remains the opt-in
+native reply-fixture generator. Keep the current valid/empty/page-boundary
+fixtures and migrate the validator calls and manifests together after publication.
 
 ### Local PocketIC operation boundary
 

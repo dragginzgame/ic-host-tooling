@@ -105,7 +105,7 @@ Host-side test crates normally add:
 ```toml
 [dev-dependencies]
 ic-testkit = "0.55"
-ic-platform = { version = "0.1.15", default-features = false, features = ["candid"] }
+ic-platform = { version = "0.1.16", default-features = false, features = ["candid"] }
 ```
 
 Canister crates that emit benchmark markers can add the same version under
@@ -239,6 +239,33 @@ they are not a second maintained decoder implementation.
 
 Generic Host functionality belongs to direct `ic-host-artifacts`, `ic-host-fs`
 and `ic-host-process` dependencies; Testkit does not re-export those crates.
+
+## Typed Wire calls
+
+Enable the optional native `wire` feature on your existing `ic-testkit`
+development dependency to use `pic::query_wire` and `pic::update_wire` for
+controlled application protocols. Add `ic-wire` alongside it:
+
+```toml
+[dev-dependencies]
+ic-wire = "0.4.1"
+```
+
+Both helpers accept an explicit canister, caller and borrowed request. The selected
+`ic_wire::Method` owns the exported name, method identity, request/response types
+and finite limits. One call encodes once, executes one PocketIC operation and
+decodes the exact response; application-level results are returned unchanged.
+Updates are never retried; a refused reply does not prove absence of effects.
+`WireCallError` distinguishes encoding, call and decode
+failures, retaining typed codec causes and complete structured rejections. Known
+transport panics are classified through the existing Testkit policy; unrelated
+panic payloads resume unchanged.
+
+Reply length admission occurs before Wire decoding, after PocketIC has already
+allocated the reply. It is not network pre-allocation admission or a peak-heap
+bound. Error display omits payloads; use the typed rejection for details and raw
+PocketIC calls for malformed requests or original reply evidence. The feature is
+off by default and adds no Wire dependency to the canister library graph.
 
 ## Typed Candid calls
 

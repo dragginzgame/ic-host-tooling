@@ -1,4 +1,4 @@
-use super::{CandidCallContext, CandidCallError, transport};
+use super::{CandidCallContext, CandidCallError, PocketIcCallFailure, transport};
 use ic_platform::candid::{DecodeError, DecodeLimits, decode_args};
 use ic_platform::pocket_ic::{PocketIc, RejectResponse};
 use ic_platform::{
@@ -111,13 +111,13 @@ fn run_raw_call<F>(context: CallContext<'_>, call: F) -> Result<Vec<u8>, CandidC
 where
     F: FnOnce() -> Result<Vec<u8>, RejectResponse>,
 {
-    match transport::try_pocket_ic_operation(call) {
-        Ok(Ok(bytes)) => Ok(bytes),
-        Ok(Err(response)) => Err(CandidCallError::CanisterReject {
+    match transport::call_or_resume(call) {
+        Ok(bytes) => Ok(bytes),
+        Err(PocketIcCallFailure::Rejected(response)) => Err(CandidCallError::CanisterReject {
             context: Box::new(context.to_error_context()),
             response: Box::new(response),
         }),
-        Err(source) => Err(CandidCallError::Transport {
+        Err(PocketIcCallFailure::Operation(source)) => Err(CandidCallError::Transport {
             context: Box::new(context.to_error_context()),
             source,
         }),

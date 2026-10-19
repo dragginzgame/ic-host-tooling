@@ -8,11 +8,10 @@ use super::POCKET_IC_SERVER_VERSION;
 use ic_host_artifacts::artifact::{Sha256Digest, copy_gzip, hash_gzip, hash_reader};
 use ic_host_fs::{durable, read::read_file_no_follow};
 use ic_host_process::{
-    child::{CleanupPolicy, OwnedChild},
+    child::CleanupPolicy,
     tool::{
-        AdmittedTool, ExecutionContext, ExecutionError, ExecutionEvidence, ExecutionFailure,
-        ExecutionOperation, OutputLimit, OutputLimits, SuccessfulExit, ToolError, VersionSpec,
-        communicate_child,
+        AdmittedTool, ExecutionContext, OutputLimit, OutputLimits, VersionSpec,
+        capture_group_command_with_cancellation,
     },
 };
 use std::{
@@ -203,31 +202,18 @@ pub fn setup(directory: &Path, mut interrupted: impl FnMut() -> bool) -> Result<
             .stdin(Stdio::null())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
-        let outcome = OwnedChild::spawn(&mut command, CleanupPolicy::KillAndWait)
-            .map_err(|source| {
-                ToolError::Execution(Box::new(ExecutionError {
-                    failure: ExecutionFailure::Io {
-                        operation: ExecutionOperation::Spawn,
-                        source,
-                    },
-                    evidence: ExecutionEvidence::default(),
-                    cleanup: None,
-                }))
-            })
-            .and_then(|mut child| {
-                communicate_child(
-                    &mut child,
-                    None,
-                    OutputLimits {
-                        stdout: OutputLimit::Terminate(4096),
-                        stderr: OutputLimit::Terminate(64 * 1024),
-                        timeout: Some(Duration::from_secs(310)),
-                    },
-                    SuccessfulExit::Cleanup,
-                    &mut interrupted,
-                )
-            })
-            .and_then(ic_host_process::tool::CompletedExecution::require_success);
+        let outcome = capture_group_command_with_cancellation(
+            &mut command,
+            OutputLimits {
+                stdout: OutputLimit::Terminate(4096),
+                stderr: OutputLimit::Terminate(64 * 1024),
+                timeout: Some(Duration::from_secs(310)),
+            },
+            CleanupPolicy::KillAndWait,
+            None,
+            &mut interrupted,
+        )
+        .and_then(ic_host_process::tool::CompletedExecution::require_success);
         if let Some(stderr) = outcome
             .as_ref()
             .ok()
@@ -373,6 +359,10 @@ fn install(
 mod tests {
     use super::*;
     use ic_host_artifacts::artifact::encode_gzip;
+    use ic_host_process::{
+        child::OwnedChild,
+        tool::{SuccessfulExit, communicate_child},
+    };
     use std::os::unix::fs::{PermissionsExt as _, symlink};
 
     fn run_in_subprocess() -> bool {

@@ -6,6 +6,46 @@ documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.55.1]
+
+### Changed
+
+- Adopt published Platform 0.1.16 while retaining the selected PocketIC client,
+  Candid limits and runtime identities. Fixture Wasm validation keeps its native
+  development dependency until Platform publishes the missing capability
+  ([Platform #29 — Expose native Wasm validation for Testkit fixture checks](https://github.com/dragginzgame/ic-platform/issues/29)).
+
+- Use published Host command execution for cancellable server downloads and
+  benchmark preparation, retaining explicit deadlines, output bounds and cleanup.
+  Cargo commands keep inherited progress output and no elapsed-time ceiling
+  ([#85 — Adopt published Host cancellable capture](https://github.com/dragginzgame/ic-testkit/issues/85)).
+
+- Use bounded IC Wire controls for the private performance probe and its callers,
+  preserving fixture resets and trap qualification. Rebuild private benchmark
+  artifacts together; public Candid call helpers remain unchanged
+  ([#128 — Move the private performance probe to IC Wire](https://github.com/dragginzgame/ic-testkit/issues/128)).
+
+### Added
+
+- Add opt-in raw reply canister fixtures with caller-selected method and byte
+  budgets, standard Wasm encoding and unchanged query/update reply bytes,
+  including intentionally malformed protocol payloads. Simulator setup,
+  installation and application reply catalogs remain caller-owned.
+
+- Add a private Node fixture-session helper for browser harnesses, with retained
+  logs and bounded graceful/TERM/KILL cleanup. Callers keep readiness contracts,
+  browser assertions and executable admission
+  ([#120 — Own Node browser fixture session lifecycle](https://github.com/dragginzgame/ic-testkit/issues/120)).
+
+- Explicit panic-safe diagnostic reporting accepts a caller-selected writer,
+  preserving exact senders and log limits while keeping secondary reporting
+  failures separate from the original operation failure.
+
+- Add opt-in native typed Wire query/update helpers with explicit callers,
+  method-owned limits, structured codec/call failures and no update retries.
+  Private probe callers now share this transport owner
+  ([#119 — Own typed IC Wire query/update adapters](https://github.com/dragginzgame/ic-testkit/issues/119)).
+
 ## [0.55.0] - 2026-10-19
 
 ### Breaking

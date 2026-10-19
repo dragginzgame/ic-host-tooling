@@ -4,7 +4,7 @@
 
 # PocketIC upstream boundary
 
-This is maintained against Platform 0.1.15's selected `pocket-ic` 16.1 client and Testkit's
+This is maintained against Platform 0.1.16's selected `pocket-ic` 16.1 client and Testkit's
 current public interfaces. Recheck the relevant capabilities when changing that
 dependency. Historical decisions remain in the
 [design records](docs/README.md#historical-design-records) and
