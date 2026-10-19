@@ -76,6 +76,13 @@ encoded indirect calls, including tail calls, and data payload bytes without a
 subprocess. These counts differ from encoded section sizes and need not match
 optimizer reachability metrics. Type/feature validation and report policy remain
 caller-owned; the structural `wasm::inspect` contract is unchanged.
+
+Enable `wasm-validation` for `wasm::validate(bytes, max_bytes)`, which validates a
+complete core module, including indices, types and every function body. It uses
+the selected parser's default supported proposal set and returns Host-owned
+errors/offsets. The input-byte bound precedes validation; it is not a CPU/heap
+quota. Components are refused. Inspection-only consumers keep selecting `wasm`;
+IC target feature admission, install policy and deployment decisions remain local.
 `ic-host-tools` has no default features. Response and ICP command interpretation
 remain available without Platform. Enable `candid` for bounded Candid reply
 decoding and service facts; enable `certificate` for strict certificate decoding

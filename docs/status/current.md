@@ -4,10 +4,28 @@
 
 Read [Cargo.toml](../../Cargo.toml), [CHANGELOG.md](../../CHANGELOG.md), Git tags,
 [AGENTS.md](../../AGENTS.md) and the exact [Shared snapshot](../../.shared-tooling.snapshot).
-Released Host 0.27.6 is delivered at `0c3acb8d52e8017dd7a3b39d0ae94443f90066a0`.
-Pending work belongs to [0.28.0](../changelog/0.28.md#0280);
-package versions, the index, Git delivery and releases remain user-owned.
+Published Host 0.28.0 uses `b9c20de084a8f8176d8c73c61a3b30e740c8875c`, including
+the initial notice correction after the unchanged `v0.28.0` tag at `5150105`.
+Pending work belongs to [0.28.1](../changelog/0.28.md#0281);
+package versions and further release effects remain user-owned.
 Sibling checkouts are read-only. GitHub issues are the sole follow-up tracker.
+
+## Prepared full Wasm validation
+
+Artifacts' opt-in `wasm-validation` feature adds full core-module validation over
+the private existing wasmparser dependency. Structural inspection remains
+independent. The API admits caller-selected input bytes before validation, checks
+all function bodies and types, rejects components and returns Host diagnostics;
+IC target/admission policy remains consumer-owned. Testkit's two currently staged
+fixture-test Validator calls are the verified pending consumer; its source and
+direct dependency remain unchanged until it adopts a published supplying Host version.
+
+Focused Linux receipt: `/tmp/host-wasm-validation.ZH5CgD/`. Actual Rust 1.88 passes
+default (48), inspection (64 plus six public contracts), validation (69 plus seven)
+and all-feature (85 plus seven) Artifacts cases. Strict MSRV Clippy and Rustdoc
+pass, including inspection-only Rustdoc. The lockfile and dependency versions are
+unchanged. Native macOS execution and registry adoption of this new API remain
+separate qualification requirements.
 
 ## Prepared Candid isolation
 

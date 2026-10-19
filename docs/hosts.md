@@ -26,6 +26,12 @@ Select one changed crate with `PACKAGE=<crate>` for `make check`, `make clippy`,
 and Wasm features; production filesystem dependencies select none of them.
 Check target-directory ownership before compilation. Preserve failure logs and artifacts.
 
+`make test-artifacts-wasm` exercises structural inspection without the full
+validator. All-feature Artifacts tests also exercise `wasm-validation`, including
+invalid instructions, result types and indices that inspection intentionally does
+not reject. Feature graphs enforce that only `wasm-validation` selects the upstream
+validator; native CI retains both profiles. Neither profile executes Wasm.
+
 `make test-artifacts-minimal` checks the artifact library without optional
 features. `make test-tools-default` checks response and ICP interpretation without
 Platform or Candid. `make test-tools-candid` checks opt-in Candid decoding/service

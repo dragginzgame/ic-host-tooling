@@ -14,6 +14,7 @@ publish = ["crates-io"]
 default = []
 gzip = ["dep:flate2"]
 wasm = ["dep:leb128", "dep:wasmparser"]
+wasm-validation = ["wasm", "wasmparser/validate"]
 
 [dependencies]
 flate2 = { workspace = true, optional = true }
