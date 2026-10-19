@@ -11,6 +11,10 @@
   checks. Structural inspection stays independent.
   [Details](docs/changelog/0.28.md#0281).
 
+- Add scoped private argument files backed by tempfile in FS. Callers retain
+  parent selection and child lifetime; existing caller-retained scratch files
+  keep their recovery contract. [Details](docs/changelog/0.28.md#0281).
+
 ## [0.28.0] - 2026-10-19
 
 - Synchronize package MIT notices with the root before initial registry

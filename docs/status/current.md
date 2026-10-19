@@ -48,6 +48,23 @@ pass, including inspection-only Rustdoc. The lockfile and dependency versions ar
 unchanged. Native macOS execution and registry adoption of this new API remain
 separate qualification requirements.
 
+## Prepared scoped temporary files
+
+FS owns Unix `scratch::TemporaryFile` over a private tempfile 3.27 dependency.
+Callers select the existing parent/prefix, write through the standard descriptor
+and keep the guard alive through child completion. Drop attempts cleanup;
+explicit close returns original removal errors. Existing retained scratch files
+and panic-retaining directory fixtures preserve their different custody contracts.
+IcyDB's `icydb-cli/src/icp/call.rs` in read-only checkout `a1dc330` is the inspected
+consumer; its source and direct dependency remain unchanged pending adoption of
+a supplying Host release.
+
+Focused Linux receipt: `/tmp/host-tempfile.v8geXo/`. Actual Rust 1.88 passes all
+182 FS library tests and 12 integration cases, including six new scoped-file cases
+and the five retained scratch cases. Strict MSRV Clippy/Rustdoc and the non-Unix
+compile contract pass. Lock selection adds only tempfile 3.27.0; existing external
+package selections are unchanged. Native macOS execution remains separate.
+
 ## Published Candid isolation
 
 Tools Candid helpers require the explicit `candid` feature. Empty defaults and

@@ -48,6 +48,13 @@ prefix, bytes and collision-attempt allowance explicitly. Successful files remai
 caller-owned; failed writes retain the original error and any failed removal.
 The parent and candidate namespace must remain under the caller's custody.
 
+On Unix, `scratch::TemporaryFile::new_in(parent, prefix)` instead creates a scoped
+named file using the private tempfile backend. Write through `as_file_mut()` and
+keep the guard alive while a child uses `path()`. Drop attempts removal, including
+during unwinding; `close()` reports removal errors explicitly. Select the parent
+and byte policy at the caller. This supplies no durability or crash recovery;
+the retained-file API above remains appropriate for reconciliation evidence.
+
 For test fixtures, opt in to `ic-host-fs`'s `test-support` feature in a
 dev-dependency. `testing::FixtureDirectory::new(parent, prefix)` allocates beneath
 an existing physical parent and removes the owned directory on normal Drop.

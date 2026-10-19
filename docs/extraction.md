@@ -142,6 +142,12 @@ no longer owns an `ic-limits` profile or a reference-policy CLI example.
   consumers retain shared guard lifetimes, paths and cache/maintenance policy.
   Its `scratch::create_private_bytes` shares private, non-durable invocation-file
   creation; consumers retain byte budgets, successful cleanup and effect recovery.
+  Unix `scratch::TemporaryFile` instead owns explicitly scoped named-file custody
+  over a private tempfile dependency. Callers select the parent, prefix and bytes,
+  retain the guard through child completion, and choose whether to observe cleanup
+  errors. IcyDB's transient ICP argument-file use can adopt this API; product
+  commands, retries and recovery remain IcyDB-owned. Existing retained scratch and
+  panic-retaining directory fixtures keep their distinct cleanup contracts.
   Read-only and ordered-sync visitors share checksum collection while retaining
   their released descriptor interfaces and distinct effects.
 - ic-host-process owns executable resolution/admission, installed-version

@@ -201,3 +201,8 @@ FS's [capability backend](capability-fs.md) selects cap-std/cap-fs-ext only on
 Unix. Feature-graph validation requires both on each native host and excludes
 them from the Wasm compile-only profile. New capability tests must run natively
 on Linux and both macOS architectures; a named-target graph is not execution.
+
+Scoped named scratch files use tempfile only on Unix. Native dependency graphs
+require that backend; the Wasm compile-only graph excludes it. Qualify private
+modes, binary child input and scope/unwind/explicit cleanup on Linux and both
+macOS architectures. No new non-Unix filesystem execution support is implied.
