@@ -8,8 +8,8 @@ PocketIC-oriented test utilities for Internet Computer canister tests.
 
 ```toml
 [dev-dependencies]
-ic-testkit = "0.54"
-ic-platform = { version = "0.1.11", default-features = false, features = ["candid"] }
+ic-testkit = "0.55"
+ic-platform = { version = "0.1.15", default-features = false, features = ["candid"] }
 ```
 
 The published MSRV is Rust 1.91, and the selected PocketIC line is 16.
@@ -34,8 +34,10 @@ they are not a second maintained decoder implementation.
 This is the PocketIC package in the `ic-testkit` workspace. It provides:
 
 - direct re-exports of `PocketIc` and `PocketIcBuilder`
-- the complete host-only upstream crate at `ic_testkit::pocket_ic`
+- Platform's explicit host-only client surface at `ic_testkit::pocket_ic`
 - typed Candid query/update helpers with contextual, structured errors
+- `try_pocket_ic_operation` for recognized synchronous transport panics, preserving
+  upstream results and unrelated panics without automatic replay
 - canister install and retry helpers
 - explicit PocketIC startup, retained server/instance ownership, fallible async construction, and
   structured child/readiness failures
@@ -57,8 +59,8 @@ Explicit `server_assets::setup` takes a caller-owned cancellation predicate.
 Tests normally retain one
 `PocketIcInstance<PocketIc>` and use `owned.instance` for simulator operations;
 focused extension traits provide reusable harness behavior. Less common
-upstream types remain available through the complete `ic_testkit::pocket_ic`
-re-export instead of an expanding mirrored list.
+upstream client and DTO identities come from `ic_platform::pocket_ic`, forwarded
+at `ic_testkit::pocket_ic`. Platform owns additions to that explicit surface.
 
 ```bash
 cargo install --locked ic-testkit

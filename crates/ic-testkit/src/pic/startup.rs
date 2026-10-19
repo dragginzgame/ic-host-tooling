@@ -14,7 +14,7 @@ use std::{
 use std::os::unix::fs::{OpenOptionsExt as _, PermissionsExt as _};
 
 use ic_host_process::child::{CleanupError, CleanupPolicy, OwnedChild};
-use pocket_ic::{PocketIc, PocketIcBuilder};
+use ic_platform::pocket_ic::{PocketIc, PocketIcBuilder};
 
 use super::transport;
 
@@ -418,7 +418,8 @@ impl PocketIcStartupConfig {
     pub async fn build_instance_async(
         self,
         builder: PocketIcBuilder,
-    ) -> Result<PocketIcInstance<pocket_ic::nonblocking::PocketIc>, PocketIcStartupError> {
+    ) -> Result<PocketIcInstance<ic_platform::pocket_ic::nonblocking::PocketIc>, PocketIcStartupError>
+    {
         self.validate()?;
         let started = Instant::now();
         let timeout = self.timeout();
@@ -810,7 +811,7 @@ async fn build_async_bounded(
     deadline: Instant,
     timeout: Duration,
     mut server: Option<ManagedServer>,
-) -> Result<PocketIcInstance<pocket_ic::nonblocking::PocketIc>, PocketIcStartupError> {
+) -> Result<PocketIcInstance<ic_platform::pocket_ic::nonblocking::PocketIc>, PocketIcStartupError> {
     let builder = configured_builder(builder, server_url)
         .map_err(|error| finalize_failure(error, None, server.take()))?;
     let mut construction = std::pin::pin!(builder.build_async());
@@ -1176,7 +1177,7 @@ mod tests {
     use super::{
         PocketIcStartupConfig, PocketIcStartupError, PocketIcStartupFailure, StartupFiles,
     };
-    use pocket_ic::PocketIcBuilder;
+    use ic_platform::pocket_ic::PocketIcBuilder;
 
     #[cfg(unix)]
     use ic_host_process::testing::write_executable_script;
@@ -1490,7 +1491,7 @@ mod tests {
         for timeout in [false, true] {
             let qualified = format!(
                 "printf 'pocket-ic-server {}\\n'",
-                pocket_ic::LATEST_SERVER_VERSION
+                ic_platform::pocket_ic::LATEST_SERVER_VERSION
             );
             let ending = if timeout { "wait" } else { &qualified };
             let script = TestServerScript::new(
@@ -1565,7 +1566,7 @@ mod tests {
     fn environment_binary_selection_uses_bounded_shared_version_capture() {
         let qualified = format!(
             "printf 'pocket-ic-server {}\\n'",
-            pocket_ic::LATEST_SERVER_VERSION
+            ic_platform::pocket_ic::LATEST_SERVER_VERSION
         );
         let failed = format!("{qualified}; exit 23");
         for (label, body, expected) in [

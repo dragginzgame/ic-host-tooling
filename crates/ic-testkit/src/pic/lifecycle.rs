@@ -1,7 +1,7 @@
 use std::{num::NonZeroUsize, time::Duration};
 
 use ic_platform::Principal;
-use pocket_ic::{ErrorCode, PocketIc, RejectResponse};
+use ic_platform::pocket_ic::{ErrorCode, PocketIc, RejectResponse};
 
 use super::{CanisterInstallError, transport::capture_operation};
 
@@ -135,7 +135,7 @@ mod tests {
         time::Duration,
     };
 
-    use pocket_ic::{ErrorCode, RejectCode, RejectResponse};
+    use ic_platform::pocket_ic::{ErrorCode, RejectCode, RejectResponse};
 
     use super::{RetryPolicy, retry_install_code_with};
 

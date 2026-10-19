@@ -49,20 +49,38 @@ deployments; the probe intentionally includes CDK for its test-canister role.
 
 ### Published Platform boundary
 
-Testkit selects registry `ic-platform` 0.1.11 with no default features. Its native
-target enables `candid`; the Wasm library selects `ic0` for marker logging,
+Testkit selects registry `ic-platform` 0.1.15 with no default features. Its native
+target enables `candid` and `pocket-ic`; the Wasm library selects `ic0` for marker logging,
 execution counters and stable-page counts alongside the unconditional Principal identity. Candid, CDK
 and host parsing stay out of that graph. The published library selects no executor,
 certification, Agent, management DTO or `candid-parser` feature. Native PocketIC and other dependencies still
 require transitive Candid; removing direct declarations does not remove that code.
 
 The published archive checksum is
-`8d55106ea1d1ccd65bd67c7d2a681b7d8199f3c0206ae990e24589b3ce502bdf`,
+`f8e25f723e4b0f6db0e4b0a61beef7117c3e67066f7f5c717a82a43265e60b99`,
 matching Cargo's registry index. The archive provides the argument traits,
 encoders, bounded decoders, five explicit limits and typed error sources used
 here. Its decoder implementation matches the former local implementation; no
 compatibility crate remains. External consumers must adopt Platform's limits
 and error identities with Testkit 0.54; prior published packages remain available.
+
+Platform also owns the native PocketIC client and DTO dependency; Testkit forwards
+its explicit module rather than the complete upstream crate. Testkit retains
+provisioning, server admission, startup/teardown, transport classification and
+fixture policy. The upstream client remains 16.1.0, with its own management DTOs
+0.8.0. The library's Wasm normal/build graph must exclude PocketIC, Candid, CDK
+and host transport; the test probe's CDK graph is a separate intentional selection.
+
+This narrows the former complete upstream re-export, so pending notes target
+Testkit 0.55.0 without changing package metadata. Observed sibling callers in
+Backup and Canic require additional Platform exports: placement, effective
+principal, message IDs, HTTP gateway configuration and HTTP response fixtures.
+Their adoption is blocked by
+[Platform #27 — Complete PocketIC exports used by Testkit consumers in Backup and Canic](https://github.com/dragginzgame/ic-platform/issues/27).
+The supplying exports are prepared in
+[Platform PR #28 — Complete PocketIC fixture exports for Testkit consumers](https://github.com/dragginzgame/ic-platform/pull/28);
+normal adoption still requires publication. The local caller migration does not
+establish those siblings' qualification.
 
 The private probe selects Platform's `cdk` feature and entrypoint macros. Its
 direct Candid/CDK declarations and policy exceptions are removed; Platform owns
@@ -76,7 +94,7 @@ other consumers retain their own acceptance. No runtime or codec is copied here.
 Platform now supplies `debug_print`, completing the removal of Testkit's direct
 `ic0` dependency under [Platform #11 — Expose debug_print for Testkit benchmark marker emission](https://github.com/dragginzgame/ic-platform/issues/11).
 The direct-dependency policy permits no workspace package to declare Candid,
-CDK-family crates, `ic0` or the private Platform macro implementation directly.
+CDK-family crates, `ic0`, PocketIC or the private Platform macro implementation directly.
 One upstream `ic0` 1.2.0 identity remains transitive through Platform and CDK.
 Counter 1, 65,536-byte stable-page conversion and marker formatting remain
 unchanged. The live probe test checks marker spans, the intentional rejection
@@ -105,6 +123,24 @@ and Cargo tools, builds the local owner CLI and explicitly provisions PocketIC.
 Generic IC executables remain optional. `make tools-check` checks prepared
 selections offline; it neither builds the CLI nor installs missing tools.
 The manifest and tool catalogs own exact selections.
+
+### Local PocketIC operation boundary
+
+`pic::try_pocket_ic_operation` runs one synchronous operation and returns only
+recognized transport panics as the existing `PocketIcOperationError`. Candid
+calls reuse it. Upstream returned values/rejections and unrelated panic payloads
+retain their behavior. The adapter adds no retries, deadlines or async polling
+capture; it does not infer whether a submitted update executed or an instance
+died. Internal cleanup/collect-all adapters retain their intentional broader
+panic capture. Focused qualification selects `pic::transport::tests`,
+`pic::calls::tests` and `pocket_ic_teardown`, including real reqwest refusal/reset
+through the raw operation adapter, plus live Candid rejection and explicit docs.
+
+The selected client's diagnostic shapes remain a maintained Testkit obligation;
+normal support does not wait for upstream structured errors. The exact transitive
+`thiserror` constraint is independent: Testkit explicitly selects the same
+`=2.0.18` requirement as PocketIC under the maintainer's current decision.
+See [the resolver constraint](../POCKET-IC.md#resolver-constraint).
 
 ## Current focused qualification
 

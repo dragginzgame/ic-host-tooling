@@ -1,9 +1,9 @@
 use std::{
     any::Any,
-    panic::{AssertUnwindSafe, catch_unwind},
+    panic::{AssertUnwindSafe, catch_unwind, resume_unwind},
 };
 
-use pocket_ic::RejectResponse;
+use ic_platform::pocket_ic::RejectResponse;
 
 /// Captured PocketIC operation failure, retaining transport classification.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -50,6 +50,44 @@ impl std::fmt::Display for PocketIcOperationError {
 }
 
 impl std::error::Error for PocketIcOperationError {}
+
+/// Execute one synchronous PocketIC operation, returning recognized transport panics.
+///
+/// Successful values are returned unchanged, including any upstream `Result` and
+/// its original rejection. Unrelated panics resume with their original payload.
+/// The closure is invoked once: this helper never retries or replays an operation.
+/// A transport failure does not establish whether an update was accepted or
+/// whether an instance died; callers retain recovery and reconciliation policy.
+///
+/// Recognition uses the maintained panic shapes of the selected PocketIC client.
+/// It cannot recover the typed cause discarded upstream, suppress the panic hook,
+/// bound a blocked request, or catch errors while polling a returned future.
+///
+/// ```no_run
+/// use ic_testkit::pic::{PocketIc, PocketIcOperationError, try_pocket_ic_operation};
+///
+/// fn tick(pic: &PocketIc) -> Result<(), PocketIcOperationError> {
+///     try_pocket_ic_operation(|| pic.tick())
+/// }
+/// ```
+///
+/// # Panics
+/// Unrecognized panic payloads continue unwinding.
+pub fn try_pocket_ic_operation<T>(
+    operation: impl FnOnce() -> T,
+) -> Result<T, PocketIcOperationError> {
+    match catch_unwind(AssertUnwindSafe(operation)) {
+        Ok(value) => Ok(value),
+        Err(payload) => {
+            let source = PocketIcOperationError::new(panic_payload_to_string(payload.as_ref()));
+            if source.is_transport() {
+                Err(source)
+            } else {
+                resume_unwind(payload)
+            }
+        }
+    }
+}
 
 /// A rejected management call or a captured PocketIC operation panic.
 #[non_exhaustive]
@@ -223,6 +261,7 @@ mod tests {
     use super::{
         PocketIcCallFailure, PocketIcOperationError, capture_operation,
         is_dead_instance_transport_error, is_dead_pocket_ic_transport_error,
+        try_pocket_ic_operation,
     };
 
     #[derive(Debug)]
@@ -231,6 +270,38 @@ mod tests {
     const REFUSED: &str = "reqwest::Error { kind: Request, url: \"http://127.0.0.1:1234/instances/0/update/tick\", source: hyper_util::client::legacy::Error(Connect, ConnectError(\"tcp connect error\", 127.0.0.1:1234, Os { code: 111, kind: ConnectionRefused, message: \"Connection refused\" })) }";
     const INCOMPLETE: &str = "reqwest::Error { kind: Request, url: \"http://127.0.0.1:1234/instances/0/read/get_time\", source: hyper::Error(IncompleteMessage) }";
     const RESET: &str = "reqwest::Error { kind: Request, url: \"http://127.0.0.1:49238/instances/0/update/submit_ingress_message\", source: hyper_util::client::legacy::Error(SendRequest, hyper::Error(Io, Os { code: 54, kind: ConnectionReset, message: \"Connection reset by peer\" })) }";
+
+    #[test]
+    fn raw_operations_preserve_values_and_rejections() {
+        assert_eq!(try_pocket_ic_operation(|| 42), Ok(42));
+        let rejection = ic_platform::pocket_ic::RejectResponse {
+            reject_code: ic_platform::pocket_ic::RejectCode::CanisterReject,
+            reject_message: "application rejection".into(),
+            error_code: ic_platform::pocket_ic::ErrorCode::CanisterRejectedMessage,
+            certified: false,
+        };
+        let result = try_pocket_ic_operation(|| Err::<(), _>(rejection))
+            .expect("returned rejection is not a transport panic");
+        let rejection = result.expect_err("retain the original rejection");
+        assert_eq!(rejection.reject_message, "application rejection");
+        assert_eq!(
+            rejection.reject_code,
+            ic_platform::pocket_ic::RejectCode::CanisterReject
+        );
+    }
+
+    #[test]
+    fn raw_transport_failure_is_returned_after_one_attempt() {
+        let mut attempts = 0;
+        let error = try_pocket_ic_operation::<()>(|| {
+            attempts += 1;
+            panic!("{REFUSED}");
+        })
+        .expect_err("transport panic must return an error");
+        assert_eq!(attempts, 1);
+        assert_eq!(error.message(), REFUSED);
+        assert!(error.is_transport());
+    }
 
     impl std::fmt::Display for WrapperError {
         fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

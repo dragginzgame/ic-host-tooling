@@ -1,6 +1,6 @@
 //! Direct PocketIC types plus value-adding host-test harness extensions.
 //!
-//! The complete upstream crate is available through [`crate::pocket_ic`]. This
+//! Platform's explicit client surface is available through [`crate::pocket_ic`]. This
 //! module keeps the common runtime types alongside ic-testkit's focused
 //! extension traits and policy types.
 //!
@@ -15,7 +15,7 @@
 //! authenticated provisioning and admission; the published
 //! `ic-testkit-server setup` / `check` commands delegate to that implementation.
 
-pub use pocket_ic::{
+pub use ic_platform::pocket_ic::{
     CanisterStatusResult, ErrorCode, LATEST_SERVER_VERSION, PocketIc, PocketIcBuilder, RejectCode,
     RejectResponse,
 };
@@ -71,6 +71,7 @@ pub use startup::{
 pub use time::{TickUntilError, advance_and_tick, tick_until};
 pub use transport::{
     PocketIcCallFailure, PocketIcOperationError, is_dead_pocket_ic_transport_error,
+    try_pocket_ic_operation,
 };
 
 /// All PocketIC extension traits, and no data types.

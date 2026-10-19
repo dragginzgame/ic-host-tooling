@@ -1,5 +1,5 @@
 use ic_platform::Principal;
-use pocket_ic::PocketIc;
+use ic_platform::pocket_ic::PocketIc;
 
 use super::{CanisterInstallExt, InstallSpec, PocketIcInstance, StandaloneCanisterInstallError};
 

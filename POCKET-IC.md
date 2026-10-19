@@ -4,7 +4,7 @@
 
 # PocketIC upstream boundary
 
-This is maintained against the selected `pocket-ic` 16.1 client and Testkit's
+This is maintained against Platform 0.1.15's selected `pocket-ic` 16.1 client and Testkit's
 current public interfaces. Recheck the relevant capabilities when changing that
 dependency. Historical decisions remain in the
 [design records](docs/README.md#historical-design-records) and
@@ -15,9 +15,11 @@ has shipped.
 ## Ownership
 
 PocketIC owns the simulator, management operations, client runtime types and
-its default server discovery/download path. Testkit exposes the complete native
-crate through `ic_testkit::pocket_ic`; the convenience exports in `pic` preserve
-those same types. Testkit does not mirror the upstream simulator API.
+its default server discovery/download path. Platform owns the explicit native
+client and DTO exports and their upstream dependency selection. Testkit forwards
+that surface through `ic_testkit::pocket_ic`; the convenience exports in `pic`
+preserve those same types. Testkit does not mirror the upstream simulator API.
+Additional upstream types must be exposed by Platform rather than copied here.
 
 Testkit owns explicit server provisioning and fixture lifecycle policy. It adds
 bounded startup, server/instance custody, contextual calls, installation policy,
@@ -131,11 +133,35 @@ reply, `((),)` one unit value, and `()` no reply values. Unrelated panic payload
 continue unwinding rather than becoming transport failures.
 
 Some upstream operations still panic instead of returning structured failures.
-The operation adapters preserve their messages and recognized transport causes;
-the isolated transport classifier exists because that source is not a stable
-typed transport contract. A generic Host error parser cannot supply PocketIC's
-missing distinction. Replace this classifier when the selected upstream API
-exposes equivalent typed causes, not by adding another string-matching layer.
+Testkit owns `try_pocket_ic_operation` as the maintained boundary for recognized
+synchronous transport panics. Candid calls use that same boundary; callers can
+also apply it to raw operations without mirroring the simulator API. It returns
+the original successful value, preserves upstream returned rejections and resumes
+unrelated panic payloads. The closure runs once, with no automatic update replay.
+Disconnects do not prove whether an update was accepted or an instance died.
+
+The selected client's panic shapes are maintained here. Upstream has already
+discarded the typed request cause, so this remains heuristic classification;
+it cannot bound a blocked operation or catch asynchronous future polling. The
+separate internal startup/install/diagnostic capture boundary intentionally
+retains every panic for cleanup or collect-all behavior. Neither helper changes
+the process panic hook. A supplying upstream API could eventually replace this
+recognizer, but local support does not depend on that producer change.
+
+### Resolver constraint
+
+PocketIC 16.1.0 requires exactly `thiserror` 2.0.18. The maintainer has selected
+the same `=2.0.18` requirement in Testkit's root catalog for now; both native
+packages inherit it. Keep the existing registry client rather than maintaining
+a patched client. The scoped exact-pin exception records this compatibility
+reason. Qualify the declaration with `make dependency-pins-check` and the
+selected packages with `cargo check -p ic-testkit -p ic-testkit-dev --locked`.
+
+Routing the client through Platform retains that transitive requirement. Cargo
+cannot combine it with an incompatible same-major requirement such as `^2.0.21`
+in the same graph. Testkit's operation adapter cannot alter this constraint;
+revisit the pin when deliberately changing the selected client. See
+[#100 — PocketIC exact thiserror pin forces consumer lockfile downgrades](https://github.com/dragginzgame/ic-testkit/issues/100).
 
 `CanisterInstallExt` preserves create, funding and installation failures. Retry
 policy uses `ErrorCode::CanisterInstallCodeRateLimited` and caller-selected

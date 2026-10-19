@@ -6,6 +6,37 @@ documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.55.0]
+
+### Breaking
+
+- Route PocketIC through published Platform 0.1.15. `ic_testkit::pocket_ic`
+  now forwards Platform's explicit native client/DTO surface instead of the
+  complete upstream crate. Client identities remain PocketIC 16.1.0; server
+  provisioning, transport and fixture lifecycle policy remain in Testkit.
+- Consumers of unexported upstream types must wait for their canonical Platform
+  exports before upgrading. Backup and Canic need placement, effective-principal,
+  pending-message, HTTP gateway and HTTP mock types tracked in
+  [Platform #27 — Complete PocketIC exports used by Testkit consumers in Backup and Canic](https://github.com/dragginzgame/ic-platform/issues/27).
+  Additions belong in Platform; do not restore a direct PocketIC dependency or
+  recreate its DTOs in Testkit. The library's Wasm dependency selection is unchanged.
+
+### Added
+
+- Add `try_pocket_ic_operation` for raw synchronous operations and share its
+  transport-panic boundary with Candid calls. Preserve returned rejections and
+  unrelated panic payloads, invoke each closure once, and leave replay and
+  reconciliation with callers. The selected client's panic shapes remain a
+  maintained Testkit responsibility
+  ([#118 — Own PocketIC transport failure handling in Testkit](https://github.com/dragginzgame/ic-testkit/issues/118));
+  this workaround does not remove the transitive `thiserror` constraint.
+
+### Changed
+
+- Pin `thiserror` to `=2.0.18`, matching PocketIC's current requirement and
+  retaining the existing lock selection
+  ([#100 — PocketIC exact thiserror pin forces consumer lockfile downgrades](https://github.com/dragginzgame/ic-testkit/issues/100)).
+
 ## [0.54.1] - 2026-10-18
 
 ### Changed
