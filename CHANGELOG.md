@@ -2,6 +2,10 @@
 
 ## [0.28.0] - 2026-10-19
 
+- Synchronize package MIT notices with the root before initial registry
+  publication. Preserve actual notices in release fixtures so source drift fails
+  validation. [Details](docs/changelog/0.28.md).
+
 - **Breaking:** Make Tools Candid helpers opt-in through `candid`. Existing
   helper consumers must enable it explicitly; empty defaults, certificate-only
   and Wasm-interface-only graphs exclude Candid and its parser.

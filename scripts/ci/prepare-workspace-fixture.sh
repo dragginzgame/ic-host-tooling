@@ -24,7 +24,11 @@ jq -r '. as $m | .packages[] |
         mkdir -p "$destination/${relative%/*}"
         if [[ "${relative##*/}" == Cargo.toml ]]; then
             cp "$path" "$destination/$relative"
-            cp "$source_root/LICENSE" "$destination/${relative%/*}/LICENSE"
+            notice="${path%/*}/LICENSE"
+            [[ -f "$notice" && ! -L "$notice" ]] || {
+                echo 'fixture requires the real regular package license notice' >&2; exit 1;
+            }
+            cp "$notice" "$destination/${relative%/*}/LICENSE"
         else
             : > "$destination/$relative"
         fi

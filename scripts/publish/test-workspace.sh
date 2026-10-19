@@ -35,6 +35,16 @@ capture_metadata() {
 }
 capture_metadata
 cp metadata.json original-metadata.json
+# The generator must preserve actual notice drift so CI cannot synthesize a
+# healthy publication input from an inconsistent source checkout.
+notice_directory="$(head -n 1 fixture-packages.tsv | cut -f 2)"
+cp "$notice_directory/LICENSE" notice-before
+printf '\nfixture source notice drift\n' >> "$notice_directory/LICENSE"
+projected="$FIXTURE_ROOT/notice projection"
+mkdir "$projected"
+bash "$root/scripts/ci/prepare-workspace-fixture.sh" "$fixture" "$projected"
+cmp "$notice_directory/LICENSE" "$projected/$notice_directory/LICENSE"
+mv notice-before "$notice_directory/LICENSE"
 cp Cargo.toml original-Cargo.toml
 export PUBLISH_FIXTURE="$fixture" REAL_PUBLISH_TEE
 REAL_PUBLISH_TEE="$(command -v tee)"
