@@ -206,3 +206,9 @@ Scoped named scratch files use tempfile only on Unix. Native dependency graphs
 require that backend; the Wasm compile-only graph excludes it. Qualify private
 modes, binary child input and scope/unwind/explicit cleanup on Linux and both
 macOS architectures. No new non-Unix filesystem execution support is implied.
+
+Certificate decoding uses Minicbor with explicit schema/container-depth admission.
+Graph checks require it for certificate profiles, keep the independent fixture
+encoder out of their normal/build graphs, and exclude Ciborium from every selected
+profile. Depth boundaries through 255 and tagged/indefinite wire cases require
+the same actual Rust 1.88 and native Linux/macOS qualification as other profiles.

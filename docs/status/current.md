@@ -12,6 +12,25 @@ Pending work belongs to [0.28.1](../changelog/0.28.md#0281);
 package versions and further release effects remain user-owned.
 Sibling checkouts are read-only. GitHub issues are the sole follow-up tracker.
 
+## Checkout reconciliation and next release
+
+The normal checkout remained at 0.27.6 while the authorized 0.28.0 release ran
+in an isolated clone to preserve pending work. Its manifests and this handoff
+therefore lagged the actual Git and registry release. It is now fast-forwarded
+to the published source; the already-delivered pending changes are preserved in
+a named stash and a complete archive under `/tmp/host-0281-release.CmB6tK/`.
+The independent cc, find-msvc-tools and Platform lock selections remain pending
+in that checkout and are excluded from this release integration.
+
+0.28.1 integrates the four compatible producer changes below, retaining their
+original PR commits. New APIs are additive; certificate decoding retains the
+published signatures and valid-wire contract. Invalid nested indefinite byte
+chunks now fail as malformed CBOR. No new minor feature cut is required.
+The combined source must pass the complete local release gate and exact-source
+Linux, macOS 15 Intel/Apple Silicon and MSRV CI before release execution. The
+previous individual PR results do not claim combined-source qualification.
+Git release/push and registry publication remain separate operations.
+
 ## Prepared capability backend
 
 FS owns the Unix [capability backend](../capability-fs.md), adapted from committed
@@ -65,6 +84,28 @@ and the five retained scratch cases. Strict MSRV Clippy/Rustdoc and the non-Unix
 compile contract pass. Lock selection adds only tempfile 3.27.0; existing external
 package selections are unchanged. Native macOS execution remains separate.
 
+## Prepared Ciborium removal
+
+Tools' sole production Ciborium caller was the optional certificate decoder;
+the remaining direct uses encoded its fixtures. The replacement reuses locked
+Minicbor 0.19.1 primitives and removes Serde schema wrappers/visitors. Existing
+public decode/error categories, exact tree/field/byte admission and the full
+caller-selected depth range remain. The independent fixture encoder uses dev-only
+serde_cbor; that codec cannot supply production depth admission without narrowing
+the released contract. [#201](https://github.com/dragginzgame/ic-host-tooling/issues/201)
+owns the backend work. Query's adapter/error projection remains unchanged.
+
+Focused Linux receipt: `/tmp/host-cbor-removal.Kr2SzJ/`. Actual Rust 1.88 passes
+25 certificate-profile tests, all 53 all-feature Tools cases, strict MSRV and
+development Clippy, warning-denied Rustdoc and the three native-target graphs.
+Default/interface/parser-free combined cases also pass. New depth/tag
+fixtures were also exercised against the original decoder: the depth-255 and
+transparent-tag cases pass, while a malformed nested indefinite byte chunk exposed
+old parser tolerance and now refuses as invalid CBOR. Valid chunked bytes still
+decode. The lock removes Ciborium and its two helpers plus unused half 2.x, with no
+new selected package/version. Native macOS qualification and publication of this
+new source remain separate from the already-published 0.28.0 release.
+
 ## Published Candid isolation
 
 Tools Candid helpers require the explicit `candid` feature. Empty defaults and
@@ -72,8 +113,7 @@ certificate-only, interface-only and combined certificate/interface normal/build
 graphs exclude both Candid and its parser. Independent interface projection tests
 remain enabled; only the DID comparison requires `candid`. Agent and ledger
 evidence select their required codec without the parser, while Registry selects
-Platform principal types alone. The prepared duration and MSRV CI fixes remain
-in this minor batch. Query owns its separate lockfile refresh and certificate-host
+Platform principal types alone. Duration and MSRV CI fixes also shipped in 0.28.0. Query owns its separate lockfile refresh and certificate-host
 graph verification after registry publication.
 
 All six registry packages are available at 0.28.0. The downloaded Tools archive
@@ -97,7 +137,7 @@ and rendering. Tools owns IC format interpretation and its aggregate reply adapt
 The [Wasm inspector](../../apps/ic-host-wasm-inspect/README.md) composes Artifacts
 and FS and owns its arguments/output; it performs no build or tool installation.
 
-Platform 0.1.11 owns the upstream Candid/parser/certification dependency boundary;
+Platform owns the upstream Candid/parser/certification dependency boundary;
 Host retains service projection, aggregate debit ordering and strict CBOR admission.
 Shared owns common development, CI and release mechanics. Host retains package
 eligibility, metadata projection, real integration checks and recovery decisions.

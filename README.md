@@ -142,6 +142,10 @@ nothing: callers retain Agent verification, trust roots, combined evidence
 budgets, witness commitments and application leaf meanings. The feature adds no
 Agent transport, filesystem/process execution or Candid parser.
 
+Certificate CBOR uses private Minicbor primitives and preserves caller-selected
+depth across the full `u8` range. Map/key tags are transparent; byte-string chunks
+consume no container depth. Authentication and target policy remain caller-owned.
+
 The opt-in native `agent` feature exposes `agent::{agent_builder, EndpointAgent}`
 using upstream Agent identities through Platform. Pass a parsed `url::Url` and response-byte ceiling
 to the builder, then customize SDK identity/verification settings as needed.

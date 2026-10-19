@@ -1,4 +1,5 @@
 [
+  {"dependency": "ciborium", "allowed_packages": []},
   {"dependency": "candid", "allowed_packages": []},
   {"dependency": "candid_derive", "allowed_packages": []},
   {"dependency": "candid_parser", "allowed_packages": []},
