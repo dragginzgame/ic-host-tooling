@@ -75,7 +75,7 @@ jobs:
             ${{ steps.tool-cache-key.outputs.root }}/cargo-cache
             ${{ steps.tool-cache-key.outputs.root }}/rust-*
           # The shared identity covers the selected common formatter tools.
-          key: cargo-tools-${{ runner.os }}-${{ runner.arch }}-${{ steps.tool-cache-key.outputs.key }}
+          key: cargo-tools-${{ runner.os }}-${{ runner.arch }}-${{ steps.tool-cache-key.outputs.key }}-${{ hashFiles('ci/release-editor.env') }}
       - name: Prepare pinned local tools
         uses: ./.github/actions/prepare-common-tools
       - name: Save admitted Cargo tool builds
@@ -87,7 +87,7 @@ jobs:
           path: |
             ${{ steps.tool-cache-key.outputs.root }}/cargo-cache
             ${{ steps.tool-cache-key.outputs.root }}/rust-*
-          key: cargo-tools-${{ runner.os }}-${{ runner.arch }}-${{ steps.tool-cache-key.outputs.key }}
+          key: cargo-tools-${{ runner.os }}-${{ runner.arch }}-${{ steps.tool-cache-key.outputs.key }}-${{ hashFiles('ci/release-editor.env') }}
       - name: Run native CI
         env:
           TMPDIR: ${{ runner.temp }}/portable-fixtures

@@ -97,6 +97,11 @@ if [[ "$mode" == publish ]]; then
     done
     bash "$tooling_root/scripts/ci/check-cargo-package-provenance.sh" \
         "$attempt/provenance" "$root/target/package" "$repository" "$source" "${provenance_arguments[@]}"
+    for package in "${packages[@]}"; do
+        directory="$(package_path "$package")" || fail "invalid package directory for $package"
+        perl "$tooling_root/scripts/ci/check-license.pl" --kind mit --file "$root/$directory/LICENSE" \
+            --archive "$root/target/package/$package-$version.crate" --member "$package-$version/LICENSE"
+    done
 fi
 observed_source="$(git rev-parse --verify HEAD)" || exit $?
 observed_dirty="$(git status --porcelain --untracked-files=all)" || exit $?

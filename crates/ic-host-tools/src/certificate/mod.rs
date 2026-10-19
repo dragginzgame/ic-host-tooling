@@ -10,26 +10,26 @@ use serde::{
     Deserialize, Deserializer,
     de::{self, DeserializeOwned, IgnoredAny, SeqAccess, Visitor},
 };
-use std::{fmt, io};
+use std::fmt;
 
 #[cfg(test)]
 mod tests;
 
-/// Explicit complete-input byte and CBOR container-depth allowances.
+/// Explicit complete-input byte allowance.
+///
+/// CBOR recursion and semantic tags follow the IC Agent's `serde_cbor` decoder.
+/// There is no caller-selected parser depth override.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct DecodeLimits {
     /// Maximum bytes supplied to one decoding operation.
     pub bytes: usize,
-    /// Maximum nesting, using Ciborium's recursion-limit contract.
-    /// Callers must choose a stack-safe bound; this is not a heap/CPU quota.
-    pub depth: u8,
 }
 
 /// CBOR grammar, field/type, hash-tree shape or nesting failure.
 #[derive(Debug, thiserror::Error)]
 #[error("IC CBOR decoding failed")]
 pub struct ParseError {
-    source: ciborium::de::Error<io::Error>,
+    source: serde_cbor::Error,
 }
 
 /// Decoding refused; no partial certificate or hash tree is returned.
@@ -77,8 +77,9 @@ pub fn decode_certificate(bytes: &[u8], limits: DecodeLimits) -> Result<Certific
 ///
 /// Enforces exact tags 0–4 and node arities, byte-string payloads and exactly
 /// 32 bytes for pruned digests. Both definite and indefinite arrays are checked.
-/// Container nesting follows the selected CBOR bound. Storage uses ordinary
-/// upstream Vec/Box allocations; the input bound is not an allocation quota.
+/// Container nesting follows the IC Agent codec's built-in recursion limit.
+/// Storage uses ordinary upstream Vec/Box allocations; the input bound is not an
+/// allocation quota.
 /// Does not authenticate a tree or verify its commitment against a certificate.
 ///
 /// # Errors
@@ -87,19 +88,17 @@ pub fn decode_hash_tree(bytes: &[u8], limits: DecodeLimits) -> Result<HashTree, 
     decode::<OwnedTree>(bytes, limits).map(|tree| tree.0)
 }
 
-fn decode<T: DeserializeOwned>(mut bytes: &[u8], limits: DecodeLimits) -> Result<T, DecodeError> {
+fn decode<T: DeserializeOwned>(bytes: &[u8], limits: DecodeLimits) -> Result<T, DecodeError> {
     if bytes.len() > limits.bytes {
         return Err(DecodeError::ByteLimit {
             actual: bytes.len(),
             limit: limits.bytes,
         });
     }
+    let mut decoder = serde_cbor::Deserializer::from_slice(bytes);
     let value =
-        ciborium::de::from_reader_with_recursion_limit(&mut bytes, usize::from(limits.depth))
-            .map_err(|source| DecodeError::Cbor(ParseError { source }))?;
-    if !bytes.is_empty() {
-        return Err(DecodeError::TrailingData);
-    }
+        T::deserialize(&mut decoder).map_err(|source| DecodeError::Cbor(ParseError { source }))?;
+    decoder.end().map_err(|_| DecodeError::TrailingData)?;
     Ok(value)
 }
 
@@ -141,29 +140,11 @@ impl Visitor<'_> for ByteVisitor {
     }
 }
 
-struct Tag(u64);
-struct TagVisitor;
-impl<'de> Deserialize<'de> for Tag {
-    fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
-        d.deserialize_any(TagVisitor)
-    }
-}
-impl Visitor<'_> for TagVisitor {
-    type Value = Tag;
-    fn expecting(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("unsigned IC hash-tree tag")
-    }
-    fn visit_u64<E: de::Error>(self, tag: u64) -> Result<Self::Value, E> {
-        Ok(Tag(tag))
-    }
-}
-
 struct OwnedTree(HashTree);
 struct TreeVisitor;
 impl<'de> Deserialize<'de> for OwnedTree {
     fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
-        // Ciborium's deserialize_seq can expose byte strings as integer arrays.
-        // The any visitor accepts only actual arrays and rejects that coercion.
+        // Require an actual array instead of codec-specific sequence coercions.
         d.deserialize_any(TreeVisitor)
     }
 }
@@ -173,7 +154,7 @@ impl<'de> Visitor<'de> for TreeVisitor {
         f.write_str("IC hash-tree array")
     }
     fn visit_seq<A: SeqAccess<'de>>(self, mut seq: A) -> Result<Self::Value, A::Error> {
-        let Tag(tag) = required(&mut seq)?;
+        let tag: u64 = required(&mut seq)?;
         let tree = match tag {
             0 => empty(),
             1 => fork(

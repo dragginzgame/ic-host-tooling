@@ -27,13 +27,40 @@ and Wasm features; production filesystem dependencies select none of them.
 Check target-directory ownership before compilation. Preserve failure logs and artifacts.
 
 `make test-artifacts-minimal` checks the artifact library without optional
-features. `make test-tools-default` checks response and ICP interpretation without
+features. `make test-artifacts-wasm` checks inspection without the encoder or
+validator. `make test-artifacts-encoding` checks encoding alone; its normal/build
+graph excludes wasmparser, while dev-only parser checks inspect emitted binaries.
+`make test-artifacts-text` checks optional WAT compilation without a production
+parser or validator. Source/output admission, symbolic names, stateful instructions
+and separate full validation are covered in its all-feature profile.
+Select `--features wasm-encoding,wasm-validation` for full instruction/type
+validation of encoder fixtures. All-feature tests include both. The feature guard
+checks these profiles on Linux and both macOS target graphs, including exclusion
+of wasmparser's validation feature unless explicitly requested. These graph checks
+do not replace native qualification. Both new capabilities require actual Rust
+1.88 and native Linux/macOS evidence; native macOS remains separately reported.
+The direct-dependency policy restricts cap-std, cap-fs-ext and tempfile to FS,
+and wasmparser, wasm-encoder and wat to Artifacts, including dev/build and aliases.
+All normal/build profiles except explicitly selected text compilation exclude
+wat/wast. Native FS graphs require its cap/tempfile backends; the non-Unix graph
+excludes them. `make check-fs-non-unix` also compiles the unsupported-target contract.
+FS tests cover held-parent operations, link/special-file refusal, bounded entries,
+temporary-file cleanup and the read-only no-follow descriptor opener.
+`make test-tools-default` checks response and ICP interpretation without
 Platform or Candid. `make test-tools-candid` checks opt-in Candid decoding/service
 facts. `make test-tools-interface` adds Wasm export
 interpretation; `make test-tools-certificate` adds strict owned certificate/hash-tree
 decoding. `make test PACKAGE=ic-host-text` checks bounded line normalization,
 escaping, progress frames and Unicode table alignment.
 `make test-tools-registry` checks golden Protobuf tags and shard admission.
+
+Certificate tests compare recursion refusal, semantic tags and indefinite byte
+chunks with the same `serde_cbor` decoder used by IC Agent. Strict Host field,
+array/byte-kind, trailing-input and redacted-error tests remain independent.
+Certificate normal/build graphs require serde_cbor and exclude Minicbor; every
+selected graph excludes Ciborium. The ledger profile retains its upstream
+Minicbor dependency. Native Linux and both macOS hosts must qualify new decoder
+source separately; named-target graph checks do not execute on those hosts.
 
 `make test-tools-agent` exercises native construction, exact binding and response
 ceilings. Its Wasm graph check observes dependency exclusion, not Tools execution.
@@ -105,13 +132,27 @@ Bash 3.2 passes remain separate evidence under
 Shared 0.3.1 setup checks IC platform/catalog admission and Rust/Cargo
 availability before downloading common tools. These preflight checks do not
 install a toolchain or replace the offline verification of installed tools.
-Release preparation uses the shared literal metadata renderers with source-bound
+Release preparation uses the admitted IC Build metadata editor with source-bound
 member identities, with rollback qualification in disposable release fixtures.
+`make install-tools` includes the pinned release-only editor; `make tools-check`
+admits it offline. The editor's Rust 1.91 floor is separate from Host's 1.88 MSRV.
+Both native CI cache paths include its tool-store entries; its pin participates
+in the cache key. `make release-adapter-check` exercises actual rendering with
+substituted setup/Git effects, including first-use setup and offline refusal.
+`make check-no-symlinks` checks indexed and tracked/nonignored working paths in CI
+and the release gate. Publication checks complete regular source notices and the
+prepared archive's exact notice bytes before upload.
 The root catalog uses `Production dependencies`, and all six maintained library/
 CLI members are `Production packages`. Shared test/production dependencies stay
 in the production category. No current external catalog entry is test-only.
 Internal aliases exist only for dependencies inherited by actual members;
 workspace membership does not require a matching catalog dependency.
+Clap is shared by production CLIs and maintained examples. FS gates its binary
+and normal Clap edge behind `cli`; generic Artifacts/FS/Process library graphs
+exclude it. Clap owns typed arguments, help, version and diagnostics; CLIs retain
+their admission, output and operation semantics. Existing feature matrices use
+Shared's Cargo graph checker for canonical names/counts while retaining Host's
+enabled-validator/compiler feature checks. These are not deployed-artifact proof.
 The Process alias is a test-only dependency of Tools' HTTP fixture and is excluded
 from the other packages' normal/build graphs. Process itself remains a production
 package. Tokio stays in the production category because Agent transport also

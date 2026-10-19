@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Shared companions: ci/release-delivery.txt scripts/ci/check-release-delivery.sh scripts/ci/read-cargo-workspace-version.sh scripts/ci/check-release-source.sh scripts/ci/next-release-version.sh scripts/ci/finalize-release-changelog.awk scripts/ci/rewrite-local-lock-versions.pl scripts/ci/render-cargo-workspace-version.pl scripts/ci/read-cargo-source-context.sh scripts/ci/release-receipts.sh scripts/ci/release-metadata-transaction.sh
+# Shared companions: ci/release-delivery.txt ci/release-editor.env scripts/release/editor.sh scripts/ci/check-release-delivery.sh scripts/ci/read-cargo-workspace-version.sh scripts/ci/check-release-source.sh scripts/ci/next-release-version.sh scripts/ci/finalize-release-changelog.awk scripts/ci/read-cargo-source-context.sh scripts/ci/release-receipts.sh scripts/ci/release-metadata-transaction.sh
 set -euo pipefail
 
 # Consumer-owned Cargo adapter. Requires Bash 3.2, Git, Make, awk, the selected
@@ -17,6 +17,13 @@ tooling_root="${tooling_root%/.}"
 bash "$tooling_root/scripts/ci/check-release-delivery.sh" \
     "$tooling_root/ci/release-delivery.txt" "${RELEASE_DELIVERY-direct}"
 fail() { echo "release metadata refused: $1" >&2; exit 1; }
+select_editor() {
+    # shellcheck source=ci/release-editor.env
+    source "$tooling_root/ci/release-editor.env"
+    metadata_editor="$(bash "$tooling_root/scripts/release/editor.sh" check)" || return
+    [[ "$metadata_editor" == /* && -f "$metadata_editor" && -x "$metadata_editor" ]] ||
+        fail 'release editor must be an admitted absolute executable'
+}
 version() {
     local observed
     observed="$(bash "$tooling_root/scripts/ci/read-cargo-workspace-version.sh" --stable Cargo.toml)" || return
@@ -51,7 +58,7 @@ project_manifest() (
         > "$temporary/context.json" || return
     jq -e --arg packages "$3" '.members | (map(.name) | sort) == ($packages | split(" "))' \
         "$temporary/context.json" > /dev/null || return
-    perl "$tooling_root/scripts/ci/render-cargo-workspace-version.pl" \
+    "$metadata_editor" --max-input-bytes "$HOST_RELEASE_EDITOR_MAX_BYTES" manifest \
         "$1" "$RELEASE_PREVIOUS" "$2" "$temporary/context.json"
 )
 admit_files() {
@@ -100,7 +107,7 @@ check_payload() (
     git show "$RELEASE_SOURCE:Cargo.toml" > "$scratch/Cargo.toml" || return
     project_manifest "$scratch/Cargo.toml" "$RELEASE_VERSION" "$packages" |
         cmp - "$directory/Cargo.toml"
-    perl "$tooling_root/scripts/ci/rewrite-local-lock-versions.pl" \
+    "$metadata_editor" --max-input-bytes "$HOST_RELEASE_EDITOR_MAX_BYTES" lock \
         "$scratch/Cargo.lock" "$RELEASE_PREVIOUS" "$RELEASE_VERSION" "${selected[@]}" |
         cmp - "$directory/Cargo.lock"
     finalize_notes "$notes" | cmp - "$directory/CHANGELOG.md"
@@ -137,7 +144,7 @@ render_prepared_metadata() {
     packages="$(local_packages < "$original/Cargo.lock")" || return
     read -r -a selected <<< "$packages"
     project_manifest "$original/Cargo.toml" "$RELEASE_VERSION" "$packages" > "$candidate/Cargo.toml" || return
-    perl "$tooling_root/scripts/ci/rewrite-local-lock-versions.pl" \
+    "$metadata_editor" --max-input-bytes "$HOST_RELEASE_EDITOR_MAX_BYTES" lock \
         "$original/Cargo.lock" "$RELEASE_PREVIOUS" "$RELEASE_VERSION" "${selected[@]}" > "$candidate/Cargo.lock" || return
     finalize_notes "$notes" > "$candidate/CHANGELOG.md" || return
     "${YQ:-yq}" -p toml -o json '.' "$candidate/Cargo.toml" > /dev/null
@@ -168,6 +175,26 @@ case "$operation" in
         # TOML reading belongs to the shared helper. Keep this consumer's exact
         # version-only metadata layout and synchronized path requirements here.
         packages="$(local_packages < Cargo.lock)" || exit $?
+        admit_files
+        # The runner replays preflight while reconciling saved preparation.
+        # Only a fresh attempt may set up tools or prepare the dependency cache.
+        fresh_tool_setup=false
+        if [[ "$operation" == preflight && ! -e "$state/$RELEASE_VERSION.plan" && ! -L "$state/$RELEASE_VERSION.plan" ]]; then
+            fresh_tool_setup=true
+        fi
+        editor_setup=false
+        if [[ "$fresh_tool_setup" == true ]]; then
+            if ! select_editor; then
+                # A first release needs the renderer before layout comparison.
+                # Source admission precedes setup; already prepared tools allow
+                # unsupported metadata to refuse before any setup dispatch.
+                make --no-print-directory install-tools
+                editor_setup=true
+                select_editor
+            fi
+        else
+            select_editor
+        fi
         project_manifest Cargo.toml "$RELEASE_PREVIOUS" "$packages" |
             cmp - Cargo.toml || fail "unsupported or unsynchronized release metadata"
         admit_files
@@ -181,7 +208,7 @@ case "$operation" in
         finalize_notes CHANGELOG.md > /dev/null
         # Selected releases prepare the complete common toolset in shared order.
         # Standalone verification checks the prepared set without installation.
-        if [[ "$operation" == preflight ]]; then
+        if [[ "$fresh_tool_setup" == true && "$editor_setup" == false ]]; then
             make --no-print-directory install-tools
         fi
         CARGO_NET_OFFLINE=true make --no-print-directory tools-check
@@ -189,7 +216,7 @@ case "$operation" in
         # labels need no grouped-mode override and survive this read-only check.
         cargo sort --workspace --grouped --check
         CARGO_NET_OFFLINE=true make --no-print-directory dependency-pins-check
-        if [[ "$operation" == preflight ]]; then
+        if [[ "$fresh_tool_setup" == true ]]; then
             # The selected release prepares its existing graph before validation.
             # Cargo still honours explicit offline environment/configuration.
             cargo fetch --locked
@@ -225,12 +252,14 @@ case "$operation" in
         [[ "$observed_version" == "$RELEASE_PREVIOUS" ]] || fail "preparation workspace version changed"
         check_receipt
         cmp "$notes" CHANGELOG.md
+        select_editor
         release_metadata_prepare "$state/$RELEASE_VERSION.prepare.XXXXXX" \
             render_prepared_metadata validate_prepared_metadata Cargo.toml Cargo.lock CHANGELOG.md
         ;;
-    check) check_prepared ;;
-    committed-check) check_committed ;;
+    check) select_editor; check_prepared ;;
+    committed-check) select_editor; check_committed ;;
     commit-check)
+        select_editor
         check_prepared
         # The common runner fixes the index tree; also reject unstaged edits and
         # staging outside the explicit file set before it creates the commit.

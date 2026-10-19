@@ -6,6 +6,24 @@ use ic_host_artifacts::{
 };
 use std::{collections::BTreeMap, io};
 
+#[cfg(feature = "wasm-validation")]
+#[test]
+fn wasm_validation_exposes_host_errors_without_a_parser_dependency() {
+    use ic_host_artifacts::wasm::{ValidationError, validate};
+    use std::error::Error as _;
+
+    let invalid_export = b"\0asm\x01\0\0\0\x07\x05\x01\x01x\0\x63";
+    let Err(ValidationError::Invalid(diagnostic)) = validate(invalid_export, invalid_export.len())
+    else {
+        panic!("expected nonexistent function refusal");
+    };
+    let diagnostic: ParseError = diagnostic;
+    assert_eq!(diagnostic.offset(), 11);
+    assert_ne!(diagnostic.message(), "");
+    assert!(diagnostic.source().is_none());
+    validate(b"\0asm\x01\0\0\0", 8).unwrap();
+}
+
 #[test]
 fn wasm_parse_errors_expose_owned_offsets_and_diagnostics() {
     use std::error::Error as _;

@@ -11,6 +11,7 @@ readme = "README.md"
 publish = ["crates-io"]
 
 [dependencies]
+clap.workspace = true
 ic-host-artifacts = { workspace = true, features = ["wasm"] }
 ic-host-fs.workspace = true
 

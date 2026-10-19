@@ -1,6 +1,7 @@
 # Native file commands
 
-`ic-host-file` is a binary in the existing `ic-host-fs` package. It translates
+`ic-host-file` is a binary selected by the `ic-host-fs` package's explicit `cli`
+feature. It translates
 explicit native arguments into Artifacts/FS operations; it has no IC, process,
 network, release or browser-contract dependency. The supported execution hosts
 are Linux x86-64 and macOS 15 Intel/Apple Silicon. Non-Unix platforms refuse file
@@ -69,7 +70,7 @@ after explicitly selecting `HOST_FS_VERSION` and `HOST_FILE_ROOT`:
 
 ```sh
 cargo install --locked --version "$HOST_FS_VERSION" --root "$HOST_FILE_ROOT" \
-  ic-host-fs --bin ic-host-file
+  ic-host-fs --bin ic-host-file --features cli
 ```
 
 This is an explicit preparation command, not a check or permission to replace an

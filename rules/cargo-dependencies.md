@@ -71,9 +71,15 @@ through renamed dependencies, generated code or proc-macro expansions.
   reason under the baseline's exception rules.
 - Product ownership stays with its Dragginzgame crate: for example, Memory/Storage
   own memory and storage policy, Testkit owns simulator lifecycle, and Wire owns
-  controlled application protocols. Platform owns the external dependency boundary;
+  application codecs and resource admission. Platform owns the external dependency boundary;
   this rule does not move those product implementations into Platform. General
   purpose dependencies such as Serde remain with their consuming crates.
+
+Apply the baseline's [IC application encoding policy](../DRAGGINZGAME.md#ic-application-encoding)
+before adding or retaining a Candid dependency or requesting another Platform
+Candid facade. Prefer `ic-wire` for supported controlled application messages;
+`ic-platform` is the dependency boundary for Candid that is still required,
+not a reason to retain otherwise unnecessary Candid use.
 
 ## Dependency roles and deployment checks
 
@@ -81,9 +87,12 @@ Organize the root `[workspace.dependencies]` catalog into two sections headed
 `# Production dependencies` and `# Tests and tooling only`. Put each header once
 above its section, with a blank line between sections and alphabetical order
 within each. Do not repeat role annotations after individual dependencies.
-These headers belong only inside `[workspace.dependencies]`; do not add them
-to `[workspace]`, its `members` array or other manifest tables. They describe use
-within this workspace, not whether a selected version is published to a registry.
+These dependency-role headers belong only inside `[workspace.dependencies]`.
+The `members` array may separately use `# Production packages` and
+`# Tests and tooling packages` under the
+[workspace member-role guidance](rust-workspaces.md#workspace-member-roles).
+Dependency roles describe use within this workspace, not whether a selected
+version is published to a registry.
 
 - A production dependency is needed by a production package through normal or
   build dependencies, including supported optional features and targets. Put an

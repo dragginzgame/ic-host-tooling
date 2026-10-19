@@ -6,6 +6,11 @@
 //! instruction validation, type checking, feature admission, or IC install policy.
 //! Facts borrow source bytes; no metadata or export names are copied.
 
+#[cfg(feature = "wasm-validation")]
+mod validation;
+#[cfg(feature = "wasm-validation")]
+pub use validation::{ValidationError, validate};
+
 use std::{collections::BTreeMap, fmt};
 use wasmparser::{Encoding, ExternalKind, Operator, Parser, Payload, TypeRef};
 
@@ -38,7 +43,7 @@ pub enum InspectionResource {
     CustomSections,
 }
 
-/// A malformed Wasm structure, independent of the parser dependency's API.
+/// A Wasm parsing or validation failure, independent of the parser API.
 ///
 /// The parser and its diagnostic metadata remain private. Use [`Self::offset`]
 /// for the source position and [`Self::message`] for a human-readable diagnostic.

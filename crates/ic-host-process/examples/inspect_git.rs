@@ -1,72 +1,65 @@
 //! Bounded Git observations with explicit tool admission and status scope.
 
 #[cfg(unix)]
+#[derive(clap::Parser)]
+struct Arguments {
+    tool: std::path::PathBuf,
+    sha256: ic_host_artifacts::artifact::Sha256Digest,
+    version: String,
+    workdir: std::path::PathBuf,
+    max_tool_bytes: u64,
+    max_stdout_bytes: usize,
+    max_stderr_bytes: usize,
+    timeout_ms: u64,
+    #[arg(value_parser = ["no", "normal", "all"])]
+    untracked: String,
+    #[arg(value_parser = ["none", "untracked", "dirty", "all"])]
+    submodules: String,
+}
+
+#[cfg(unix)]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     use ic_host_process::provenance::{
         IgnoreSubmodules, StatusOptions, UntrackedFiles, capture_git,
     };
     use ic_host_process::tool::{AdmittedTool, ExecutionContext, OutputLimits, VersionSpec};
 
-    use std::{ffi::OsString, io, path::PathBuf, time::Duration};
+    use clap::Parser as _;
+    use std::{ffi::OsString, time::Duration};
 
-    let invalid = |message| io::Error::new(io::ErrorKind::InvalidInput, message);
-    let mut args = std::env::args_os().skip(1);
-    let mut required = || {
-        args.next().ok_or_else(|| invalid(
-        "usage: inspect_git TOOL SHA256 VERSION WORKDIR MAX_TOOL_BYTES MAX_STDOUT_BYTES MAX_STDERR_BYTES TIMEOUT_MS UNTRACKED SUBMODULES",
-    ))
-    };
-    let executable = PathBuf::from(required()?);
-    let digest = required()?
-        .into_string()
-        .map_err(|_| invalid("digest must be UTF-8"))?
-        .parse()?;
-    let version = required()?
-        .into_string()
-        .map_err(|_| invalid("version must be UTF-8"))?;
-    let directory = PathBuf::from(required()?);
-    let mut number = || -> Result<u64, Box<dyn std::error::Error>> {
-        Ok(required()?
-            .to_str()
-            .ok_or_else(|| invalid("limits must be UTF-8"))?
-            .parse()?)
-    };
-    let executable_bytes = number()?;
+    let args = Arguments::parse();
     let limits = OutputLimits {
-        stdout: ic_host_process::tool::OutputLimit::Terminate(usize::try_from(number()?)?),
-        stderr: ic_host_process::tool::OutputLimit::Terminate(usize::try_from(number()?)?),
-        timeout: Some(Duration::from_millis(number()?)),
+        stdout: ic_host_process::tool::OutputLimit::Terminate(args.max_stdout_bytes),
+        stderr: ic_host_process::tool::OutputLimit::Terminate(args.max_stderr_bytes),
+        timeout: Some(Duration::from_millis(args.timeout_ms)),
     };
-    let untracked = match required()?.to_str() {
-        Some("no") => UntrackedFiles::No,
-        Some("normal") => UntrackedFiles::Normal,
-        Some("all") => UntrackedFiles::All,
-        _ => return Err(invalid("untracked must be no, normal or all").into()),
+    let untracked = match args.untracked.as_str() {
+        "no" => UntrackedFiles::No,
+        "normal" => UntrackedFiles::Normal,
+        "all" => UntrackedFiles::All,
+        _ => unreachable!("Clap admits only declared untracked policies"),
     };
-    let ignore_submodules = match required()?.to_str() {
-        Some("none") => IgnoreSubmodules::None,
-        Some("untracked") => IgnoreSubmodules::Untracked,
-        Some("dirty") => IgnoreSubmodules::Dirty,
-        Some("all") => IgnoreSubmodules::All,
-        _ => return Err(invalid("submodules must be none, untracked, dirty or all").into()),
+    let ignore_submodules = match args.submodules.as_str() {
+        "none" => IgnoreSubmodules::None,
+        "untracked" => IgnoreSubmodules::Untracked,
+        "dirty" => IgnoreSubmodules::Dirty,
+        "all" => IgnoreSubmodules::All,
+        _ => unreachable!("Clap admits only declared submodule policies"),
     };
-    if args.next().is_some() {
-        return Err(invalid("unexpected argument").into());
-    }
     // The example explicitly selects an empty environment; the library never
     // chooses environment exclusions or tool/version pins for a consumer.
     let context = ExecutionContext {
-        current_dir: &directory,
+        current_dir: &args.workdir,
         environment: &[],
     };
     let git = AdmittedTool::admit(
         &VersionSpec {
-            executable: &executable,
-            executable_bytes,
+            executable: &args.tool,
+            executable_bytes: args.max_tool_bytes,
             version_arguments: &[OsString::from("--version")],
         },
-        digest,
-        &version,
+        args.sha256,
+        &args.version,
         &context,
         limits,
     )?;

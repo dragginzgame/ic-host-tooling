@@ -1,4 +1,12 @@
 [
+  {"dependency": "cap-fs-ext", "allowed_packages": ["ic-host-fs"]},
+  {"dependency": "cap-std", "allowed_packages": ["ic-host-fs"]},
+  {"dependency": "tempfile", "allowed_packages": ["ic-host-fs"]},
+  {"dependency": "wasm-encoder", "allowed_packages": ["ic-host-artifacts"]},
+  {"dependency": "wasmparser", "allowed_packages": ["ic-host-artifacts"]},
+  {"dependency": "wat", "allowed_packages": ["ic-host-artifacts"]},
+  {"dependency": "wast", "allowed_packages": ["ic-host-artifacts"]},
+  {"dependency": "ciborium", "allowed_packages": []},
   {"dependency": "candid", "allowed_packages": []},
   {"dependency": "candid_derive", "allowed_packages": []},
   {"dependency": "candid_parser", "allowed_packages": []},

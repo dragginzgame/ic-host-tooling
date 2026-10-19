@@ -1,32 +1,25 @@
 //! Inspect a saved gzip artifact without writing decoded bytes or printing them.
 
+use clap::Parser as _;
 use ic_host_artifacts::artifact::{Sha256Digest, hash_gzip};
 use ic_host_fs::read::read_file;
-use std::{error::Error, io, path::Path};
+use std::{error::Error, path::PathBuf};
+
+#[derive(clap::Parser)]
+struct Arguments {
+    path: PathBuf,
+    max_compressed_bytes: usize,
+    max_decoded_bytes: usize,
+}
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let mut args = std::env::args_os().skip(1);
-    let path = args.next().ok_or_else(|| {
-        io::Error::new(
-            io::ErrorKind::InvalidInput,
-            "usage: inspect_gzip PATH MAX_COMPRESSED_BYTES MAX_DECODED_BYTES",
-        )
-    })?;
-    let mut limit = || -> Result<usize, Box<dyn Error>> {
-        Ok(args
-            .next()
-            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "missing byte limit"))?
-            .to_str()
-            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "limits must be UTF-8"))?
-            .parse()?)
-    };
-    let max_compressed = limit()?;
-    let max_decoded = limit()?;
-    if args.next().is_some() {
-        return Err(io::Error::new(io::ErrorKind::InvalidInput, "unexpected argument").into());
-    }
-    let compressed = read_file(Path::new(&path), max_compressed)?;
-    let decoded = hash_gzip(&compressed, max_compressed, max_decoded as u64)?;
+    let args = Arguments::parse();
+    let compressed = read_file(&args.path, args.max_compressed_bytes)?;
+    let decoded = hash_gzip(
+        &compressed,
+        args.max_compressed_bytes,
+        args.max_decoded_bytes as u64,
+    )?;
     println!(
         "compressed_bytes={} sha256={}",
         compressed.len(),

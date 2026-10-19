@@ -21,6 +21,8 @@ export ADAPTER_REAL_CARGO
 ADAPTER_REAL_BASH="$(command -v bash)"
 ADAPTER_REAL_YQ="$(command -v "${YQ:-yq}")"
 export ADAPTER_REAL_BASH ADAPTER_REAL_YQ
+ADAPTER_REAL_EDITOR="$(bash "$root/scripts/release/editor.sh" check)"
+export ADAPTER_REAL_EDITOR
 export ADAPTER_EVENTS="$fixture/events"
 export RELEASE_SOURCE=0000000000000000000000000000000000000000
 export RELEASE_DATE=2026-10-06 RELEASE_KIND=minor
@@ -35,6 +37,14 @@ export RELEASE_PREVIOUS
 RELEASE_VERSION="$(bash "$root/scripts/ci/next-release-version.sh" "$RELEASE_PREVIOUS" "$RELEASE_KIND")"
 export RELEASE_VERSION
 mkdir "$fixture/bin"
+export ADAPTER_SELECTED_EDITOR="$fixture/bin/editor"
+cat > "$ADAPTER_SELECTED_EDITOR" <<'STUB'
+#!/usr/bin/env bash
+set -euo pipefail
+"$ADAPTER_REAL_EDITOR" "$@"
+if [[ "${PREPARATION_CONTROL:-}" == render && "${3:-}" == manifest ]]; then exit 31; fi
+STUB
+chmod +x "$ADAPTER_SELECTED_EDITOR"
 bash "$root/scripts/ci/prepare-workspace-fixture.sh" "$root" "$fixture"
 ADAPTER_PACKAGES="$(jq -er '. as $m |
     [.packages[] | select(.id as $id | $m.workspace_members | index($id)) | .name] |
@@ -147,6 +157,9 @@ set -euo pipefail
 case "$*" in
     '--no-print-directory install-tools'|'--no-print-directory tools-check'|'--no-print-directory dependency-pins-check'|'--no-print-directory ci'|'--no-print-directory msrv-workspace')
         printf 'make %s\n' "$*" >> "$ADAPTER_EVENTS"
+        if [[ "$*" == '--no-print-directory install-tools' && -n "${ADAPTER_EDITOR_CACHE:-}" ]]; then
+            : > "$ADAPTER_EDITOR_CACHE"
+        fi
         if [[ "$*" == '--no-print-directory ci' ]]; then exit "${ADAPTER_GATE_RESULT:-0}"; fi ;;
     *) echo "Unexpected Make operation: $*" >&2; exit 2 ;;
 esac
@@ -156,6 +169,14 @@ chmod +x "$fixture/bin/git" "$fixture/bin/cargo" "$fixture/bin/make"
 printf '#!%s\n' "$ADAPTER_REAL_BASH" > "$fixture/bin/bash"
 cat >> "$fixture/bin/bash" <<'STUB'
 set -euo pipefail
+if [[ "${1##*/}" == editor.sh && "${2:-}" == check ]]; then
+    if [[ -n "${ADAPTER_EDITOR_CACHE:-}" && ! -f "$ADAPTER_EDITOR_CACHE" ]]; then
+        echo 'fixture: release editor is not prepared' >&2
+        exit 1
+    fi
+    printf '%s\n' "$ADAPTER_SELECTED_EDITOR"
+    exit 0
+fi
 if [[ "${1##*/}" == "${ADAPTER_FAILED_READER:-}" ]]; then
     "$ADAPTER_REAL_BASH" "$@"
     exit 23
@@ -270,6 +291,34 @@ cp expected accepted-events
 cmp Cargo.toml source/Cargo.toml
 cmp Cargo.lock "$root/Cargo.lock"
 [[ ! -e release-state ]] || exit 1
+
+# First-use preflight prepares and admits its own editor once; standalone verify
+# stays offline and must not repair a missing selection or dispatch installation.
+: > "$ADAPTER_EVENTS"
+ADAPTER_EDITOR_CACHE="$fixture/editor-prepared" bash "$adapter" preflight > editor-first-use.log 2>&1
+[[ -f "$fixture/editor-prepared" ]] || exit 1
+[[ "$(grep -Fc 'make --no-print-directory install-tools' "$ADAPTER_EVENTS")" == 1 ]] || exit 1
+cmp Cargo.toml source/Cargo.toml
+cmp Cargo.lock source/Cargo.lock
+: > "$ADAPTER_EVENTS"
+if ADAPTER_EDITOR_CACHE="$fixture/editor-missing" bash "$adapter" verify > editor-missing.log 2>&1; then exit 1; fi
+[[ ! -e "$fixture/editor-missing" ]] || exit 1
+if grep -F 'install-tools' "$ADAPTER_EVENTS"; then exit 1; fi
+
+# Replaying preflight with saved intent only checks prepared inputs. A missing
+# editor must fail without installation, even though the source still matches.
+mkdir release-state
+: > "release-state/$RELEASE_VERSION.plan"
+: > "$ADAPTER_EVENTS"
+bash "$adapter" preflight > saved-preflight.log 2>&1
+if grep -F 'install-tools' "$ADAPTER_EVENTS"; then exit 1; fi
+grep -Fx 'cargo fetch --locked --offline' "$ADAPTER_EVENTS" > /dev/null
+: > "$ADAPTER_EVENTS"
+if ADAPTER_EDITOR_CACHE="$fixture/editor-missing" bash "$adapter" preflight > saved-editor-missing.log 2>&1; then exit 1; fi
+[[ ! -e "$fixture/editor-missing" ]] || exit 1
+if grep -F 'install-tools' "$ADAPTER_EVENTS"; then exit 1; fi
+rm "release-state/$RELEASE_VERSION.plan"
+rmdir release-state
 
 # Role comments do not bypass ordering. Reject an unsorted real catalog before
 # fetching or release validation, without repairing either the source or input.
@@ -586,7 +635,6 @@ cat > preparation-controls/perl <<'STUB'
 #!/usr/bin/env bash
 set -euo pipefail
 "$ADAPTER_REAL_PERL" "$@"
-if [[ "${PREPARATION_CONTROL:-}" == render && "${1##*/}" == render-cargo-workspace-version.pl ]]; then exit 31; fi
 STUB
 cat > preparation-controls/cp <<'STUB'
 #!/usr/bin/env bash

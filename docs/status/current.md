@@ -4,15 +4,138 @@
 
 Read [Cargo.toml](../../Cargo.toml), [CHANGELOG.md](../../CHANGELOG.md), Git tags,
 [AGENTS.md](../../AGENTS.md) and the exact [Shared snapshot](../../.shared-tooling.snapshot).
-Host 0.28.0 is published from `b9c20de084a8f8176d8c73c61a3b30e740c8875c`,
-including the initial package-notice correction after the unchanged release tag.
-The normal checkout now selects that source and version; its unrelated lockfile
-changes remain pending. The compatible next batch belongs to
-[0.28.1](../changelog/0.28.md#0281), prepared in
-[PR #207 — Integrate the 0.28.1 batch](https://github.com/dragginzgame/ic-host-tooling/pull/207).
-Producer integration is still required. Staging, commits, version changes,
+Host 0.28.1 is released at `a4c2bf48d520391cfd326f98ea9fda864241a1a5`
+and is available from the registry. That source still uses Ciborium: the producer
+changes described in its notes were not integrated before the release. The next
+draft is [0.29.0](../changelog/0.29.md#0290), selected for the explicit certificate
+depth-contract change below. Staging, commits, version changes,
 Git release/push and registry publication remain user-owned.
 Sibling checkouts are read-only. GitHub issues are the sole follow-up tracker.
+
+## Shared Tooling 0.25.1 adoption
+
+The snapshot now selects committed main
+`d57c631206e3618755e45bebf2c88c673564ddc1` (0.25.1), verified against GitHub
+main. The sibling started unrelated edits during review; export used a clean
+isolated checkout of that exact commit. No sibling edits were copied or changed.
+The 125-file snapshot adds canonical graph, symlink and license admission and
+retires the two Perl Cargo renderers. Host's graph matrix delegates package
+observation/counting while keeping its targets, profiles and enabled-feature checks.
+
+Host release candidate rendering now uses released IC Build 0.18.0's admitted
+editor and the positive 8-MiB per-document allowance in `ci/release-editor.env`.
+The optional release tool is prepared through Shared's verified store and local
+setup extensions, with offline checks and a pin-sensitive CI cache key. Source
+custody, exact receipts and metadata transaction/rollback remain Host/Shared-owned.
+First-use preflight prepares a missing editor after source admission; verification
+and saved-plan recovery never install. Saved-plan preflight admits dependencies
+offline. Its Rust 1.91 tool floor does not raise Host's 1.88 MSRV.
+
+Maintained binaries and argument-taking examples use Clap. FS's `ic-host-file`
+requires the explicit `cli` feature so normal library graphs remain Clap-free.
+Report/operation bytes and refusal exit code 1 remain; Clap owns typed arguments,
+help, version and diagnostics. The [0.29 notes](../changelog/0.29.md) document the
+installation change. Required Candid helpers still target external Candid/DID
+interoperability through Platform; Host owns no canister RPC to migrate to Wire.
+
+Receipt: `/tmp/host-shared-025.a3okEz/`. Actual Rust 1.88 passes both CLI suites
+and compiles every changed example. Strict Clippy passes MSRV/development Rust
+for affected packages, and the actual MSRV non-Unix compile gate passes. The
+inspector's existing oversized integration test was split at the argument-refusal
+boundary to satisfy its pre-existing MSRV Clippy complexity failure, preserving
+coverage. Real IC Build rendering/rollback/first-use/offline adapter fixtures and
+publication/license rejection fixtures pass with Git/upload/setup substituted.
+Make routing covers the local editor extension; Linux/both macOS graph profiles
+pass. The 125-file snapshot, source-symlink checks, grouped formatting, real hook
+preservation/installation, pins, local links, ShellCheck and retained-fixture
+contract checks pass. Package selections/checksums are preserved; only five Clap-family packages
+are added. No full local workspace gate, Git/release or real publication ran.
+Shared 0.25.0's CI was superseded; 0.25.1's exact-revision CI was still running
+at review. Local Linux and graph
+checks do not qualify native macOS. Prior source/artifacts and the index are retained.
+
+## Consolidated filesystem and Wasm tooling
+
+The approved capability API from PR #203 and scoped-tempfile API from PR #205 are
+now present in this working checkout, preserving the existing backends and generic
+regression coverage. FS privately owns Unix cap-std/cap-fs-ext and tempfile;
+non-Unix graphs exclude them. `read::open_regular_file_no_follow` shares the
+existing read-only opener and returns an admitted standard file without consuming
+bytes, supporting consumer reference synchronization and lock inspection.
+
+Artifacts adds independent `wasm-text` through wat 1.262.0 with components disabled,
+owned limits/errors and source/output-byte admission. Compilation remains distinct
+from full validation. Text-only production graphs exclude wasmparser; defaults,
+inspection and encoding-only graphs exclude wat/wast. The lock retains an optional
+encoder/parser integration selection without compiling it in text-only profiles.
+All existing selected dependency versions/checksums are preserved. Direct backend
+declarations are now checked against their owning Host crate in every dependency
+kind, alias and target, alongside the existing Platform rules.
+
+Receipt: `/tmp/host-boundary-cleanup.70rMhG/`. Actual Rust 1.88 passes 52
+text-only Artifacts cases, 95 all-feature unit plus eight integration cases,
+195 FS unit plus 12 integration cases and both isolated signal-action cases.
+Strict Clippy passes on MSRV/development Rust for the changed packages; strict
+Rustdoc passes all features and text-only. Formatting, pins, links, ShellCheck and
+Linux/both macOS normal/build graph profiles pass. The actual 1.88 non-Unix FS
+library/binary/unsupported-lock compile gate passes. This does not qualify native
+macOS behavior. No full local gate, release, index/HEAD change or sibling edit ran.
+
+The [0.29 notes](../changelog/0.29.md) describe Query capability/discovery and
+Testkit encoder/validator adoption, Backup's WAT calls, Query's replacement of
+generated WAT with Testkit fixtures, and consumers of the existing signal guard
+and no-follow opener. These remain consumer-owned migrations after the supplying
+release. IcyDB already uses caller-retained scratch files without tempfile.
+Testkit temporary directories/unnamed captures and Canic cooperative signal-hook
+callbacks keep their distinct custody/registration contracts. No new signal facade
+or broad tempfile replacement was introduced. The earlier qualification receipts
+below describe their own preceding source, rather than this expanded batch.
+
+## Private Wasm encoder boundary
+
+Artifacts now prepares independent `wasm-encoding` with owned call-module inputs
+and a private wasm-encoder 0.262.0 backend. It supports the fixed-memory,
+i32/void import-call mechanics demonstrated by Testkit's raw-reply fixtures;
+Testkit retains all IC names, reply/layout budgets, error mapping and lifecycle.
+That sibling remains read-only (inspected HEAD
+`76f20411a368a230a282f7c445026f009b31fe4c`, with its existing dirty lockfile).
+The full validator already prepared in PR #204 is also present locally through
+`wasm-validation`; released 0.28.1 source did not integrate that earlier proposal.
+The next draft remains 0.29.0, with both codec and Wasm adoption instructions.
+
+Receipt: `/tmp/host-wasm-encoding.F8Zi5R/`. Actual Rust 1.88 passes default,
+inspection-only, validation-only, encoding-only and encoding/validation tests;
+the all-feature profile passes 90 unit and eight integration cases. Strict Clippy
+passes on MSRV and development Rust; strict Rustdoc passes for encoding,
+inspection and combined validation. Formatting, dependency pins, links,
+ShellCheck and Linux/both macOS target graphs pass. Encoding-only normal/build
+graphs exclude the parser; inspection-only graphs exclude encoder and validator.
+Only wasm-encoder and leb128fmt are added; existing package selections/checksums
+are unchanged. The parser remains 0.261.0. Native macOS execution of this source
+is not qualified by these graph checks. No full local gate or release ran.
+Testkit adoption requires the supplying registry release and its focused fixture
+checks before removing its direct encoder/parser declarations. No sibling changed.
+
+## IC Agent codec alignment
+
+The maintainer selected serde_cbor, matching IC Agent, instead of the unmerged
+Minicbor proposal in PRs #206/#207. Tools retains strict schema and byte admission
+but removes `certificate::DecodeLimits.depth`; recursion and semantic-tag
+handling belong to the shared codec. Query is the verified consumer of that
+field; its source and lock are unchanged. The private parser error source becomes
+serde_cbor. Ciborium and its helpers plus unused half 2.x leave the lockfile;
+the existing upstream ledger Minicbor dependency remains separate.
+
+Receipt: `/tmp/host-serde-cbor.bh63Mr/`. The selected SDK implementation is
+IC Agent 0.49.2 with serde_cbor 0.11.2. Actual Rust 1.88 passes all 24 Tools
+certificate-profile tests, all 52 Tools tests and default/interface/parser-free
+combined profiles. Strict Clippy passes on MSRV and development Rust; Rustdoc,
+formatting, dependency pins, links, ShellCheck and Linux/both macOS target graphs
+pass. Existing external versions/checksums remain selected; only four obsolete
+packages leave. Native macOS execution of this source remains separate; no full
+local workspace gate, release or publication ran.
+The replacement is prepared for decoder PR #206 and combined producer PR #207;
+their superseded Minicbor heads are not qualification of this new contract.
 
 ## Prepared Candid isolation
 
@@ -100,7 +223,7 @@ manifest, lockfile or sibling source changed. Receipt:
 `/tmp/host-canic-issues.t1JUg3/`. Integration/publication and native qualification
 of this new source remain separate; Canic #458 and IcyDB #307 own adoption.
 
-The snapshot selects reviewed Shared main
+The preceding adoption selected reviewed Shared main
 `86464be41588182be6c979070a26ea9dfa5aa566` (0.24.3 in its changelog; committed
 `VERSION` and canonical snapshot label remain 0.24.2). Its canonical source helpers
 coexist
@@ -111,7 +234,7 @@ The former contribution PR remains open, but committed source and successful
 Shared 0.24.2 Linux/macOS CI establish helper availability. Formatting/hooks and every release
 manifest check use grouped sorting. No tool version or installed bundle changes.
 
-The latest refresh adopts Shared's external IC dependency rule and extends the
+That preceding refresh adopted Shared's external IC dependency rule and extended the
 direct-dependency guard to known Agent, Principal, PocketIC, system, signature,
 ledger/management and storage packages. The finite name policy still needs review
 for new IC package identities and generated imports. Snapshot, pins, Linux/macOS

@@ -1,6 +1,6 @@
 use super::{
-    hash_file_no_follow, open_no_follow, open_optional_no_follow, read_file_no_follow,
-    read_optional_file_no_follow,
+    hash_file_no_follow, open_no_follow, open_optional_no_follow, open_regular_file_no_follow,
+    read_file_no_follow, read_optional_file_no_follow,
 };
 use crate::{
     read::{admit_file, hash_file, read_file, read_opened_file},
@@ -66,12 +66,37 @@ fn exact_limits_and_empty_files_preserve_the_selected_bytes() {
 }
 
 #[test]
+fn no_follow_descriptor_remains_bound_after_replacement_and_is_close_on_exec() {
+    use std::os::unix::fs::MetadataExt as _;
+    let fixture = fixture();
+    let path = fixture.path().join("selected");
+    fs::write(&path, b"original").unwrap();
+    let file = open_regular_file_no_follow(&path).unwrap();
+    let selected = file.metadata().unwrap();
+    assert!(
+        rustix::io::fcntl_getfd(&file)
+            .unwrap()
+            .contains(rustix::io::FdFlags::CLOEXEC)
+    );
+    fs::rename(&path, fixture.path().join("retained")).unwrap();
+    fs::write(&path, b"replacement").unwrap();
+    assert_ne!(selected.ino(), fs::metadata(&path).unwrap().ino());
+    file.sync_all().unwrap();
+    assert_eq!(read_opened_file(file, 8).unwrap(), b"original");
+    assert_eq!(fs::read(&path).unwrap(), b"replacement");
+}
+
+#[test]
 fn final_symlinks_are_rejected_without_changing_existing_following_reads() {
     let fixture = fixture();
     let target = fixture.path().join("target");
     let link = fixture.path().join("link");
     fs::write(&target, b"retained").unwrap();
     symlink("target", &link).unwrap();
+    assert!(
+        matches!(open_regular_file_no_follow(&link), Err(ArtifactError::Io(error))
+        if error.raw_os_error() == Some(rustix::io::Errno::LOOP.raw_os_error()))
+    );
     assert!(
         matches!(read_file_no_follow(&link, 8), Err(ArtifactError::Io(error))
         if error.raw_os_error() == Some(rustix::io::Errno::LOOP.raw_os_error()))
@@ -134,10 +159,12 @@ fn fifo_without_a_writer_is_rejected_without_waiting_for_one() {
             .unwrap();
         tx.send(hash_file_no_follow(&path_for_reader, 1024).map(|_| Vec::new()))
             .unwrap();
+        tx.send(open_regular_file_no_follow(&path_for_reader).map(|_| Vec::new()))
+            .unwrap();
     });
     // Bound a regression to a blocking FIFO open; this is a fixture deadline,
     // not a filesystem timing guarantee or performance assertion.
-    for _ in 0..2 {
+    for _ in 0..3 {
         assert!(matches!(
             rx.recv_timeout(Duration::from_secs(5))
                 .expect("FIFO read/hash must not wait for a writer"),
@@ -161,6 +188,10 @@ fn fifo_without_a_writer_is_rejected_without_waiting_for_one() {
 fn opened_directories_and_devices_are_rejected_before_reading() {
     let fixture = fixture();
     for path in [fixture.path(), Path::new("/dev/null")] {
+        assert!(matches!(
+            open_regular_file_no_follow(path),
+            Err(ArtifactError::NotRegularFile)
+        ));
         assert!(matches!(
             hash_file_no_follow(path, 1024),
             Err(ArtifactError::NotRegularFile)

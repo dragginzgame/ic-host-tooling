@@ -383,6 +383,16 @@ dependency edges; unordered sibling prerequisites do not establish order. Ordina
 tool checks never install or download tools. A caller adds its own explicit setup
 command to the shared installer's selection diagnostic, preserving the failed status.
 
+The consumer adapter also selects the admitted executable path for its children.
+Standard `make release-*` commands must work without a per-shell tool-path export.
+An installation in one process cannot export a variable into the calling shell;
+adding a setup target alone does not wire its result into the release adapter.
+Capture a successful offline check before dispatching the helper, preserving a
+nonzero status even if the check printed a plausible path. For saved-release
+checks, select against the admitted saved source or retained original lock,
+not partially prepared live metadata. Keep installation in fresh preflight after
+source/recovery admission, never in a rendering or recovery check.
+
 For adoption, prove an installed version N / selected N+1 prepares N+1 before
 builds, reuses it on retry and leaves locks, older installations and server bytes
 unchanged. Cover standalone early refusal without installation/build dispatch,
@@ -760,84 +770,74 @@ Supplement effect/interruption stubs with real Git index/tree checks at staging
 boundaries. Shared Tooling's metadata fixture reuses existing history without
 creating commits and exercises the actual adapter's failed-log retention.
 
-## Pure workspace-version rendering
+## Cargo release candidate rendering
 
-IC Build owns the proposed replacement editor in
-[PR #56 — Own Cargo release candidate editing](https://github.com/dragginzgame/ic-build/pull/56).
-The current helpers below remain supported until reviewed publication and
-consumer adoption permit their deletion;
-[#273 — Adopt the released IC Build editor](https://github.com/dragginzgame/shared-tooling/issues/273)
-records the tested caller cut and publication boundary.
+IC Build owns manifest and lockfile candidate rendering. The calling consumer
+adapter selects its released `ic-build-release-metadata` executable through the
+consumer's offline admission interface. Before dispatching Shared's low-level
+Cargo helper, it supplies `CARGO_RELEASE_METADATA_EDITOR` as that absolute
+executable path and `CARGO_RELEASE_METADATA_MAX_BYTES` as a positive per-document
+byte allowance. The low-level helper does not install or discover tools through
+PATH or sibling checkouts. Standard release entrypoints perform the consumer's
+admitted preflight setup and path selection themselves; they must not require
+the maintainer to export these variables manually.
 
-`scripts/ci/render-cargo-workspace-version.pl SOURCE PREVIOUS CANDIDATE [WORKSPACE_INPUT_JSON]` emits
-the complete candidate manifest without changing the source. It recognizes one
-literal bare `workspace.package` table and one double-quoted stable version,
-including indentation, table comments and CRLF. Surrounding bytes and unrelated
-versions remain unchanged. Missing, duplicate, unsupported or mismatched literal
-selectors fail before candidate output; version components compare as strings.
+For direct low-level invocation, explicitly prepare the pinned published package,
+then capture its offline-admitted selection before running the helper:
 
-This helper is not a TOML parser or a release transaction. The caller admits the
-source with its existing TOML owner and independently checks the candidate's
-meaning before installation. Keep file custody, source identity, metadata roster,
-dependency selection, rollback and interruption recovery in the consumer. A
-saved-source renderer must not be replaced by the mutating adapter below solely
-to share version mechanics
-([#159](https://github.com/dragginzgame/shared-tooling/issues/159)).
+```sh
+bash scripts/dev/install-rust-tools.sh --package ic-build --version 0.18.0 \
+  --bin ic-build-release-metadata --profile debug || exit "$?"
+CARGO_RELEASE_METADATA_EDITOR="$(bash scripts/dev/install-rust-tools.sh \
+  --package ic-build --version 0.18.0 --bin ic-build-release-metadata --profile debug --check)" || exit "$?"
+export CARGO_RELEASE_METADATA_EDITOR
+export CARGO_RELEASE_METADATA_MAX_BYTES=8388608
+```
 
-The optional input contains the admitted parsed root `manifest` and complete
-workspace `members` with `name` and absolute `manifest_path`. The renderer updates
-owned path-dependency requirements while preserving aliases, requirement precision
-and operators. Composite ranges remain unchanged for the caller's graph check.
-By default, dependency ownership is resolved against the live manifest directory;
-missing ownership evidence refuses rather than silently omitting an edit.
+The byte allowance above is a fixture example; consumers choose a limit for their
+own documents. Shared's Cargo adapter and saved-source context fixtures require
+these same explicit selections. Common tool setup does not install this optional
+release tool unless the consumer includes it in its local extensions. The
+published package requires Rust 1.91 or later.
 
-For a saved manifest, also supply `source_root`: the absolute workspace identity
-from the same admitted source as the manifest and member records. The renderer
-then compares lexical dependency paths with recorded member identities, independent
-of the scratch file location or whether the old workspace still exists. It does
-not inspect today's filesystem or reconstruct a workspace. A path for a named
-workspace member that disagrees with its recorded identity refuses before output;
-duplicate member identities and invalid paths also refuse. Source admission must
-establish these lexical identities; symlink-dependent ownership that cannot be
-represented by this contract is unsupported, not guessed or silently skipped.
-The caller supplies complete, source-bound records and independently admits the
-rendered candidate. This helper does not authenticate the supplied JSON.
+Direct callers of the retired `render-cargo-workspace-version.pl` use the editor's
+`--max-input-bytes LIMIT manifest SOURCE PREVIOUS CANDIDATE [WORKSPACE_INPUT_JSON]`
+operation. Callers of `rewrite-local-lock-versions.pl` use
+`--max-input-bytes LIMIT lock LOCKFILE PREVIOUS CANDIDATE PACKAGE...`.
+Saved-source callers retain the admitted context JSON, including `source_root`;
+source/transaction custody and independent candidate checks stay with the caller.
+The Shared Cargo adapter delegates these operations using the selections above.
 
-Candidate comparison remains a separate consumer
-contract. An exact saved-byte comparison must not become parsed-TOML equality
-merely to share code; a consumer admitting harmless formatting differences must
-not silently gain byte-exact rejection either. Keep independent parsed-candidate
-checks where they protect the renderer boundary. The shared literal renderer
-does not replace those checks or generalize into a selector/comparator framework
-without another demonstrated matching contract.
-
-Select this helper as a snapshot entrypoint when invoking it directly. Commit
-and qualify its owner before adopting it; a dirty producer draft is not an
-immutable consumer export.
+The command uses TOML-owned literal spans and complete context admission. It
+preserves unrelated bytes, source-qualified lock references, saved-source
+identities and simple local requirement precision. Shared Tooling retains source
+admission, originals, changelog preparation, independent locked/offline Cargo
+graph checks and restoration on renderer or graph failure. Keep saved-byte
+comparison separate from parsed semantic equality at its owning boundary.
 
 ## Coordinated Cargo metadata adapter
 
 `scripts/ci/cargo-release-metadata.sh prepare|check PRIMARY_PACKAGE` owns
 the reusable Cargo-only metadata flow. Adopt it as a snapshot root; its version
-reader, lock rewriter, changelog finalizer and shared preparation helper are
-required companions. It requires
-root `Cargo.toml`, `Cargo.lock`, `CHANGELOG.md`, workspace-inherited package versions
+reader, changelog finalizer and preparation transaction are required companions.
+It requires root `Cargo.toml`, `Cargo.lock`, `CHANGELOG.md`, workspace-inherited package versions
 and no source-less packages outside the workspace. It admits actual workspace
 and lock identities before mutation; independently versioned packages need their
 consumer-owned adapter. Existing adapters are not replaced by adoption alone.
 
+Preparation delegates installation and restoration to
+`release-metadata-transaction.sh`. Every candidate finishes rendering before any
+live file is installed. Failed attempts retain `original/` and `candidate/`
+directories under the printed preparation path.
+
 The caller supplies `RELEASE_PREVIOUS`, `RELEASE_VERSION`, `RELEASE_DATE`, prepared
-Cargo, Perl, jq and Mike Farah yq. Preparation uses the locked offline graph
-and a literal root-version renderer. It independently parses the candidate before
-installation, preserves manifest layout, file modes and external lock selections,
-uses `release-metadata-transaction.sh` for installation and restoration, and
-retains failure custody. All three candidates must finish rendering before any
-live file is installed; caught installation or validation failures restore the
-original bytes and modes. Failed attempts retain `original/` and `candidate/`
-directories under the printed preparation path. It does
+Cargo, Perl, jq, Mike Farah yq and the explicitly selected IC Build editor and
+byte allowance above. Preparation uses the locked offline graph and the editor.
+It independently parses the candidate before installation, preserves manifest layout, file modes and external lock selections,
+restores all three original files on failure and retains failure custody. It does
 not run Cargo-edit or Cargo-sort; consumer ordering gates remain separate.
 Catchable INT/TERM interruptions restore the same originals and preserve their
-exit status. Unsupported literal layouts refuse before installation.
+exit status. Unsupported inputs refuse before installation.
 The `check` operation uses `RELEASE_COMMIT` when selected, exporting that exact
 committed source instead of reading newer working metadata. No version selection,
 fetch, tool installation, Git staging/ref mutation or publication is implicit.

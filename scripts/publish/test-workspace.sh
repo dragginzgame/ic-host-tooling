@@ -92,6 +92,13 @@ case "$1" in
         while IFS=$'\t' read -r package package_root; do
             directory="target/package/$package-$version"
             mkdir -p "$directory"
+            rm -f "$directory/LICENSE"
+            cp "$PUBLISH_FIXTURE/$package_root/LICENSE" "$directory/LICENSE"
+            case "${PUBLISH_ARCHIVE_LICENSE:-}" in
+                missing) rm "$directory/LICENSE" ;;
+                changed) printf '\nchanged archive notice\n' >> "$directory/LICENSE" ;;
+                linked) rm "$directory/LICENSE"; ln -s outside-license "$directory/LICENSE" ;;
+            esac
             jq -n --arg source "${PUBLISH_PACKAGE_SOURCE:-0000000000000000000000000000000000000000}" \
                 --arg path "${PUBLISH_PACKAGE_PATH:-$package_root}" --argjson dirty "${PUBLISH_PACKAGE_DIRTY:-false}" \
                 '{git: {sha1: $source, dirty: $dirty}, path_in_vcs: $path}' > "$directory/.cargo_vcs_info.json"
@@ -200,6 +207,16 @@ admission="target/publish/admission/${attempt##*/}"
 [[ -f "$admission/provenance/source-verified" && -f "$admission/provenance/source-request" &&
    -f "$admission/provenance/ic-host-fs-vcs.json" ]] || exit 1
 [[ "$(cat "$admission/publication-attempt")" == "$fixture/$attempt" ]] || exit 1
+
+# Real archive admission must reject altered, missing or linked package notices
+# before Cargo's upload dispatch, independently of correct source notices.
+for scenario in missing changed linked; do
+    : > calls
+    if PUBLISH_ARCHIVE_LICENSE="$scenario" invoke publish > "archive-license-$scenario.log" 2>&1; then exit 1; fi
+    printf 'metadata\npackage\n' > expected-calls
+    cmp expected-calls calls
+done
+printf 'metadata\npackage\npublish\n' > expected-calls
 
 # Stop at Cargo's failure and retain the attempt's intent, log and artifacts.
 : > calls

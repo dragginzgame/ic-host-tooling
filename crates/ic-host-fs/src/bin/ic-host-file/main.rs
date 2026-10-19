@@ -1,44 +1,77 @@
 //! Explicit bounded file operations over the existing filesystem owners.
 
-use std::{
-    env,
-    error::Error,
-    ffi::OsString,
-    io::{self, Write as _},
-    process::ExitCode,
-};
+use clap::Parser as _;
+use std::{error::Error, path::PathBuf, process::ExitCode};
 
 #[cfg(unix)]
 mod batch;
 #[cfg(unix)]
 mod unix;
 
-const USAGE: &str = "usage: ic-host-file hash-file PATH MAX_BYTES | hash-files0 MAX_BYTES MAX_LIST_BYTES MAX_FILES | {create-private|replace-private} SOURCE DESTINATION MAX_BYTES | --version | --help";
+#[derive(clap::Parser)]
+#[command(
+    name = "ic-host-file",
+    version,
+    about = "Bounded file hashing and private publication"
+)]
+struct Arguments {
+    #[command(subcommand)]
+    operation: Operation,
+}
 
-fn run(arguments: &[OsString]) -> Result<(), Box<dyn Error>> {
-    match arguments {
-        [argument] if argument == "--help" => writeln!(io::stdout().lock(), "{USAGE}")?,
-        [argument] if argument == "--version" => {
-            writeln!(
-                io::stdout().lock(),
-                "ic-host-file {}",
-                env!("CARGO_PKG_VERSION")
-            )?;
-        }
-        _ => {
-            #[cfg(unix)]
-            unix::run(arguments)?;
-            #[cfg(not(unix))]
-            return Err(
-                io::Error::new(io::ErrorKind::Unsupported, "ic-host-file requires Unix").into(),
-            );
-        }
+#[derive(clap::Subcommand)]
+enum Operation {
+    /// Hash one no-follow regular file.
+    HashFile { path: PathBuf, max_bytes: usize },
+    /// Hash a bounded NUL-separated path list from stdin.
+    HashFiles0 {
+        max_bytes: usize,
+        max_list_bytes: usize,
+        max_files: usize,
+    },
+    /// Create a private destination without replacing an existing entry.
+    CreatePrivate {
+        source: PathBuf,
+        destination: PathBuf,
+        max_bytes: usize,
+    },
+    /// Replace a destination with privately published bytes.
+    ReplacePrivate {
+        source: PathBuf,
+        destination: PathBuf,
+        max_bytes: usize,
+    },
+}
+
+fn run(operation: Operation) -> Result<(), Box<dyn Error>> {
+    #[cfg(unix)]
+    unix::run(operation)?;
+    #[cfg(not(unix))]
+    {
+        let _ = operation;
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::Unsupported,
+            "ic-host-file requires Unix",
+        )
+        .into());
     }
+    #[cfg(unix)]
     Ok(())
 }
 
 fn main() -> ExitCode {
-    match run(&env::args_os().skip(1).collect::<Vec<_>>()) {
+    let arguments = match Arguments::try_parse() {
+        Ok(arguments) => arguments,
+        Err(error) => {
+            let refused = error.use_stderr();
+            return if error.print().is_err() || refused {
+                ExitCode::FAILURE
+            } else {
+                ExitCode::SUCCESS
+            };
+        }
+    };
+    match run(arguments.operation) {
         Ok(()) => ExitCode::SUCCESS,
         Err(error) => {
             eprintln!("host file operation refused: {error}");

@@ -11,19 +11,34 @@ readme = "../../README.md"
 publish = ["crates-io"]
 
 [target.'cfg(unix)'.dependencies]
+cap-fs-ext.workspace = true
+cap-std.workspace = true
 rustix.workspace = true
+tempfile.workspace = true
+
+[[bin]]
+name = "ic-host-file"
+path = "src/bin/ic-host-file/main.rs"
+required-features = ["cli"]
 
 [features]
+cli = ["dep:clap"]
 test-support = []
 
 [dependencies]
+clap = { workspace = true, optional = true }
 ic-host-artifacts.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
+clap.workspace = true
 ic-host-artifacts = { workspace = true, features = ["gzip"] }
 serde.workspace = true
 serde_json.workspace = true
 
 [lints]
 workspace = true
+
+[[test]]
+name = "file_cli"
+required-features = ["cli"]

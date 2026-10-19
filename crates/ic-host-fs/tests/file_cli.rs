@@ -260,11 +260,18 @@ fn arguments_and_version_are_explicit_before_filesystem_effects() {
     );
     let help = invoke(root, &["--help"]);
     assert!(help.status.success());
-    assert!(help.stdout.starts_with(b"usage: ic-host-file "));
+    let help = String::from_utf8(help.stdout).unwrap();
+    for command in [
+        "hash-file",
+        "hash-files0",
+        "create-private",
+        "replace-private",
+    ] {
+        assert!(help.contains(command));
+    }
     for arguments in [
         vec![],
         vec!["unknown"],
-        vec!["--version", "extra"],
         vec!["hash-file", "missing"],
         vec!["hash-file", "missing", "-1"],
         vec!["hash-file", "missing", "3", "extra"],

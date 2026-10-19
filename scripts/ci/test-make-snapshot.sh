@@ -19,7 +19,7 @@ trap 'fixture_finish "$?" "$fixture" "Host Make evidence retained"' EXIT
 export TMPDIR="${fixture%/*}"
 mkdir -p "$fixture/local"
 bash "$root/scripts/ci/prepare-script-fixture.sh" "$root" "$fixture/local" \
-    make/consumer.mk scripts/ci/check-pipe-jobserver.pl
+    make/consumer.mk scripts/ci/check-pipe-jobserver.pl scripts/release/editor.sh
 for input in Makefile ci/tool-versions.env ci/release-delivery.txt scripts/ci/check-format-tools.sh; do
     parent=.
     [[ "$input" != */* ]] || parent="${input%/*}"
@@ -134,6 +134,10 @@ for argument in "$@"; do
     if [[ "$argument" == --check ]]; then mode=check; fi
     if [[ "$argument" == --preflight ]]; then mode=preflight; fi
 done
+if [[ "$*" == *'--package ic-build'* ]]; then
+    [[ "$*" == *'--bin ic-build-release-metadata --profile debug'* ]] || exit 1
+    name=install-editor-tools.sh
+fi
 printf '%s %s\n' "$name" "$mode" >> "$HOST_MAKE_EVENTS"
 if [[ "${HOST_MAKE_TOOL_FAIL:-}" == "$name" && "${HOST_MAKE_TOOL_FAIL_MODE:-}" == "$mode" ]]; then exit 23; fi
 STUB
@@ -141,7 +145,7 @@ done
 for mode in install check; do
     target=install-tools
     [[ "$mode" != check ]] || target=tools-check
-    for failed in none host rust; do
+    for failed in none host rust editor; do
         : > "$HOST_MAKE_EVENTS"
         status=0
         HOST_MAKE_TOOL_FAIL="install-$failed-tools.sh" HOST_MAKE_TOOL_FAIL_MODE="$mode" make --no-print-directory -j4 "$target" \
@@ -156,6 +160,9 @@ for mode in install check; do
             printf 'install-%s-tools.sh %s\n' "$tool" "$mode" >> "$fixture/expected"
             [[ "$tool" != "$failed" ]] || break
         done
+        if [[ "$failed" == none || "$failed" == editor ]]; then
+            printf 'install-editor-tools.sh %s\n' "$mode" >> "$fixture/expected"
+        fi
         cmp "$fixture/expected" "$HOST_MAKE_EVENTS"
         [[ ! -e "$HOST_MAKE_EXTERNAL" ]] || exit 1
     done

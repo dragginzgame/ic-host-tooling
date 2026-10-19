@@ -124,9 +124,12 @@ no longer owns an `ic-limits` profile or a reference-policy CLI example.
   bounded read/write/copy mechanics,
   including allocation-free visitation with caller-owned scratch and callbacks,
   optional gzip encoding/decoding, optional Wasm
-  structural facts, encoded code/data statistics and bounded custom-section framing.
+  structural facts, encoded code/data statistics, bounded custom-section framing,
+  full core-module validation, generic fixed-memory call-module encoding and
+  optional core WebAssembly Text compilation.
 - ic-host-fs owns no-follow directory hashing and ordered sync/checksum traversal
   over caller-held descriptors,
+  held directory capabilities with private cap-* traversal and bounded enumeration,
   fresh child-directory allocation with explicit permissions and collision bounds,
   standard cache-directory tag recognition and durable replacement with explicit
   suffix bytes and permissions,
@@ -137,6 +140,10 @@ no longer owns an `ic-limits` profile or a reference-policy CLI example.
   consumers retain shared guard lifetimes, paths and cache/maintenance policy.
   Its `scratch::create_private_bytes` shares private, non-durable invocation-file
   creation; consumers retain byte budgets, successful cleanup and effect recovery.
+  Its separate `scratch::TemporaryFile` owns scoped named-file cleanup through
+  private tempfile allocation; retained files, unnamed files and directory custody
+  are separate contracts. The [capability guide](capability-fs.md) identifies
+  Query's remaining cache-specific adapter and discovery responsibilities.
   Read-only and ordered-sync visitors share checksum collection while retaining
   their released descriptor interfaces and distinct effects.
 - ic-host-process owns executable resolution/admission, installed-version
@@ -223,11 +230,15 @@ Callers retain field names, semantic limits, transport and trust policy.
 The optional tools `certificate` feature owns strict CBOR decoding into owned
 certificate/delegation/hash-tree values supplied by `ic_platform::certification`.
 These retain upstream `ic-certification` type identities. It admits complete
-input bytes and selected CBOR nesting before returning a single fully consumed
-value. Direct Serde visitors enforce actual array/byte kinds, exact tree tags
+input bytes before decoding with the IC Agent's `serde_cbor` codec and its
+built-in recursion limit, returning one fully consumed value. Host has no depth
+override or competing CBOR parser. Direct Serde visitors enforce actual array/byte kinds, exact tree tags
 and arities and 32-byte pruned digests without a generic CBOR payload tree.
 Certificate/delegation fields reject unknown, duplicate, missing or invalid
-values. Errors distinguish byte allowance, trailing data and CBOR/shape failures.
+values. These stricter schema adapters remain necessary: upstream storage
+deserialization also accepts text/integer-array byte projections and does not
+detect every duplicate-null field. Errors distinguish byte allowance, trailing
+data and CBOR/shape failures.
 Parser allocations use ordinary upstream Vec/Box storage; a byte bound is not a
 heap/CPU quota. No authentication is implied. Agent verification, network trust
 roots, combined certificate/witness budgets, witness commitment and application
@@ -247,6 +258,44 @@ writer; no filesystem/process or Candid dependency is added. Names, raw payloads
 metadata schemas, duplicate/append policy and aggregate module budgets stay with
 callers. They assemble and validate the containing module. Independent malformed-
 parser fixtures remain separate from encoder round-trip coverage.
+
+The independent `wasm-encoding` feature owns `wasm_encoding::encode` and its
+Host records, backed privately by `wasm-encoder`. Its demonstrated consumer is
+Testkit's raw-reply fixture builder: imports, fixed Wasm32 memory, active data and
+exported functions that call imports with i32 constants. Host encodes those generic
+mechanics. Testkit retains IC method-name admission, query/update prefixes,
+reply limits, offset/page selection, error translation and PocketIC lifecycle.
+No upstream encoder types or raw instruction escape hatch are exposed. The
+output-byte allowance checks input lower bounds before encoding and complete
+framing afterwards; it is not a hard allocation or CPU quota. This feature does
+not imply inspection or validation. The existing custom-section encoder retains
+its stronger pre-allocation admission and independent minimal feature contract.
+
+`wasm-validation` adds `wasm::validate` and owned `ValidationError`, using the
+private parser's full validator rather than structural inspection. It implies
+`wasm`, leaving inspection-only graphs free of validation machinery. Consumers
+retain target/proposal admission, execution and installation policy. Testkit can
+replace its direct full-validation calls without weakening fixture coverage;
+its adoption and dependency removal require the supplying Host release.
+
+The independent `wasm-text` feature owns `wasm_text::compile`, using `wat` with
+component support disabled. It admits UTF-8 source length before compilation,
+then checks complete output length and core-module framing. These are byte
+allowances, not CPU/heap quotas, and compilation is not full type/instruction
+validation. Backend diagnostics are owned strings and may contain source excerpts.
+Backup retains its stateful fixture sources and lifecycle; it can call this API
+without a direct WAT dependency. Query's raw-reply fixture fits Testkit's existing
+fixture builder, so it can eliminate its generated WAT instead. Neither route
+requires a general instruction API or upstream encoder/parser re-export.
+
+`read::open_regular_file_no_follow` exposes the existing Unix read-only opener's
+regular descriptor admission without consuming bytes. Backup can sync its
+reference descriptor and Canic can inspect a lock using that same standard handle.
+Paths, permission admission, error mapping and locking decisions stay local.
+Process's existing `signal::SignalActions` handles installation/restoration for
+Testkit/Query-style exclusive registrations. Canic's cooperative signal-hook
+callbacks and terminal restoration have distinct semantics; they are not replaced
+by an exclusively owned disposition guard. No second signal abstraction is added.
 
 `candid::service::inspect` uses the Candid parser for self-contained grammar and
 type checking, returning method names and modes without expanding argument/return

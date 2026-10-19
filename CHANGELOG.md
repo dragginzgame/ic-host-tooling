@@ -1,5 +1,32 @@
 # Changelog
 
+## [0.29.0]
+
+- Adopt Shared Tooling 0.25.1: IC Build owns release candidate rendering, source
+  symlinks are rejected, prepared package licenses are verified before upload,
+  and feature matrices reuse Shared's Cargo graph checker.
+- **CLI installation:** Enable FS's `cli` feature when installing `ic-host-file`.
+  Clap owns parsing in both maintained binaries and argument-taking examples;
+  generic library defaults stay Clap-free. [Migration](docs/changelog/0.29.md).
+- Consolidate the prepared Unix cap-* and scoped-tempfile backends in FS. Expose
+  the existing no-follow regular descriptor admission for consumer sync/inspection.
+  [Filesystem contract](docs/capability-fs.md).
+- Add optional core WAT compilation in Artifacts with explicit source/output
+  allowances, keeping text tooling out of defaults and inspection-only graphs.
+  [Adoption and remaining consumer boundaries](docs/changelog/0.29.md).
+- Add independent `wasm-encoding` support to Artifacts using a private
+  wasm-encoder backend for fixed-memory, call-only core modules. Add opt-in full
+  Wasm validation so Testkit can move both backend dependencies behind Host
+  without weakening fixture checks. [Adoption](docs/changelog/0.29.md).
+- **Breaking:** Align certificate decoding with IC Agent's `serde_cbor` codec
+  and built-in recursion limit. Remove `depth` from certificate `DecodeLimits`
+  initializers; strict schema and input-byte admission remain Host-owned
+  ([#201 — Replace the certificate Ciborium backend](https://github.com/dragginzgame/ic-host-tooling/issues/201)).
+  [Migration](docs/changelog/0.29.md).
+- Remove Ciborium and its helper packages without adding a direct Minicbor
+  dependency or another CBOR parser. Ledger dependencies remain upstream-owned.
+  [Details](docs/changelog/0.29.md).
+
 ## [0.28.1] - 2026-10-19
 
 Prepared in [PR #207 — Integrate the 0.28.1 batch](https://github.com/dragginzgame/ic-host-tooling/pull/207);

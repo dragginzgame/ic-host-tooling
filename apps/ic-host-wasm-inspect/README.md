@@ -6,6 +6,9 @@ Inspect an explicit raw Wasm file without executing or transforming it:
 ic-host-wasm-inspect input.wasm 1048576 1000 1000 1000
 ```
 
+Clap owns argument parsing, help and version output. Required budgets remain
+explicit; argument refusals preserve exit status 1 and publish no report.
+
 The limits are module bytes, sections, exports and custom sections. The CLI uses
 canonical artifact/filesystem owners and prints a twelve-column TSV report
 including SHA-256 only after admission. Invalid arguments/files/budgets return nonzero without a

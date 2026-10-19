@@ -25,6 +25,8 @@ mod no_follow;
 #[cfg(unix)]
 pub mod tree;
 #[cfg(unix)]
+pub use no_follow::open_regular_file_no_follow;
+#[cfg(unix)]
 pub use no_follow::read_file_no_follow;
 #[cfg(unix)]
 pub use no_follow::read_optional_file_no_follow;

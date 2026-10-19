@@ -10,6 +10,24 @@ use std::{
     path::Path,
 };
 
+/// Open a read-only regular file without following the final component.
+///
+/// Shares the reader's NOFOLLOW, NONBLOCK and CLOEXEC opening implementation.
+/// Descriptor metadata admits the file kind before returning; no bytes are read
+/// and the cursor starts at zero. Callers can inspect, synchronize or read that
+/// same descriptor without repeating Unix opening/regular-file admission.
+/// Ancestor links are followed. Namespace custody, permissions, content bounds,
+/// concurrent writers and filesystem latency remain caller-owned.
+///
+/// # Errors
+/// Preserves native open/metadata errors, including final-symlink refusal, or
+/// returns [`ArtifactError::NotRegularFile`] for directories, FIFOs and devices.
+pub fn open_regular_file_no_follow(path: &Path) -> Result<File, ArtifactError> {
+    let file = open_no_follow(path)?;
+    admit_file(&file, u64::MAX)?;
+    Ok(file)
+}
+
 /// Read a bounded regular file without following a final-component symlink.
 ///
 /// Uses Unix `NOFOLLOW`, `NONBLOCK` and `CLOEXEC` flags, then validates descriptor

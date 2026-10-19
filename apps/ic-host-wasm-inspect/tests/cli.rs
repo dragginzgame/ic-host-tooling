@@ -86,29 +86,6 @@ fn input_admission_controls_exit_and_report_publication() {
         assert_ne!(rejected.stderr.as_slice(), b"");
     }
 
-    // Use a valid input so argument admission cannot pass via a file-read failure.
-    for arguments in [
-        vec![],
-        vec!["8", "0", "0"],
-        vec!["-1", "0", "0", "0"],
-        vec!["8", "-1", "0", "0"],
-        vec!["8", "0", "4294967296", "0"],
-        vec!["8", "0", "0", "not-a-number"],
-        vec!["8", "0", "0", "0", "extra"],
-        vec!["8", "0", "0", "0", "--details", "--details"],
-        vec!["8", "0", "0", "0", "--expect-sha256"],
-        vec!["8", "0", "0", "0", "--expect-sha256", "bad-digest"],
-        vec!["8", "0", "0", "0", "--expect-sha256", "--details"],
-    ] {
-        let rejected = Command::new(env!("CARGO_BIN_EXE_ic-host-wasm-inspect"))
-            .arg(&input)
-            .args(arguments)
-            .output()
-            .unwrap();
-        assert_eq!(rejected.status.code(), Some(1));
-        assert_eq!(rejected.stdout.as_slice(), b"");
-        assert_ne!(rejected.stderr.as_slice(), b"");
-    }
     // Close every reader before launch, making the output failure deterministic.
     let (reader, writer) = io::pipe().unwrap();
     drop(reader);
@@ -212,4 +189,36 @@ fn digest_and_detail_options_preserve_admission() {
     }
 
     assert_eq!(fs::read(&structured).unwrap(), STRUCTURED_MODULE);
+}
+
+#[test]
+fn invalid_arguments_leave_input_and_output_untouched() {
+    let root = fixture_directory();
+    let input = root.join("valid.wasm");
+    let module = b"\0asm\x01\0\0\0";
+    fs::write(&input, module).unwrap();
+    // Use a valid input so argument admission cannot pass via a file-read failure.
+    for arguments in [
+        vec![],
+        vec!["8", "0", "0"],
+        vec!["-1", "0", "0", "0"],
+        vec!["8", "-1", "0", "0"],
+        vec!["8", "0", "4294967296", "0"],
+        vec!["8", "0", "0", "not-a-number"],
+        vec!["8", "0", "0", "0", "extra"],
+        vec!["8", "0", "0", "0", "--details", "--details"],
+        vec!["8", "0", "0", "0", "--expect-sha256"],
+        vec!["8", "0", "0", "0", "--expect-sha256", "bad-digest"],
+        vec!["8", "0", "0", "0", "--expect-sha256", "--details"],
+    ] {
+        let rejected = Command::new(env!("CARGO_BIN_EXE_ic-host-wasm-inspect"))
+            .arg(&input)
+            .args(arguments)
+            .output()
+            .unwrap();
+        assert_eq!(rejected.status.code(), Some(1));
+        assert_eq!(rejected.stdout.as_slice(), b"");
+        assert_ne!(rejected.stderr.as_slice(), b"");
+    }
+    assert_eq!(fs::read(input).unwrap(), module);
 }

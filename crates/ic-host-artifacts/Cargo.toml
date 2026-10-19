@@ -6,7 +6,7 @@ version.workspace = true
 license.workspace = true
 repository.workspace = true
 authors.workspace = true
-description = "Bounded host artifact streams, identities, gzip and Wasm inspection"
+description = "Bounded host artifact streams, identities, gzip and Wasm tooling"
 readme = "../../README.md"
 publish = ["crates-io"]
 
@@ -14,16 +14,23 @@ publish = ["crates-io"]
 default = []
 gzip = ["dep:flate2"]
 wasm = ["dep:leb128", "dep:wasmparser"]
+wasm-encoding = ["dep:wasm-encoder"]
+wasm-text = ["dep:wat"]
+wasm-validation = ["wasm", "wasmparser/validate"]
 
 [dependencies]
 flate2 = { workspace = true, optional = true }
 leb128 = { workspace = true, optional = true }
 sha2.workspace = true
+wasm-encoder = { workspace = true, optional = true }
 wasmparser = { workspace = true, optional = true }
+wat = { workspace = true, optional = true }
 
 [dev-dependencies]
+clap.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+wasmparser.workspace = true
 
 [lints]
 workspace = true
@@ -31,3 +38,7 @@ workspace = true
 [[test]]
 name = "consumer_contracts"
 required-features = ["wasm"]
+
+[[test]]
+name = "wasm_encoding"
+required-features = ["wasm-encoding"]

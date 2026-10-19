@@ -5,13 +5,13 @@ admitted process execution and IC-specific format handling.
 
 | Crate | Implemented source ownership |
 | --- | --- |
-| ic-host-artifacts | Bounded streams and hashing writers, exact byte comparison, SHA-256, gzip encoding/decoding, generic Wasm facts and custom-section encoding |
+| ic-host-artifacts | Bounded streams and hashing writers, exact byte comparison, SHA-256, gzip encoding/decoding, generic Wasm facts, validation and encoding |
 | ic-host-fs | Regular/no-follow reads, missing-suffix path resolution, streamed durable publication, private files and observed descriptor locks |
 | ic-host-process | Executable resolution, digest/version admission, bounded capture, explicit child/group cleanup and Git observations |
 | ic-host-text | Pure line normalization, decimal/UTC text, terminal-safe rendering, Unicode tables and progress frames |
 | ic-host-tools | Candid service facts, optional IC export facts, ICP command syntax, response decoding and certificate decoding |
 
-The FS package also supplies [native `ic-host-file` commands](docs/file-cli.md)
+The FS package's explicit `cli` feature supplies [native `ic-host-file` commands](docs/file-cli.md)
 for bounded hashes and private create/replace operations, with caller-selected
 batch limits and explicit executable preparation.
 
@@ -76,6 +76,42 @@ encoded indirect calls, including tail calls, and data payload bytes without a
 subprocess. These counts differ from encoded section sizes and need not match
 optimizer reachability metrics. Type/feature validation and report policy remain
 caller-owned; the structural `wasm::inspect` contract is unchanged.
+
+Enable `wasm-validation` for `wasm::validate(bytes, max_bytes)`, which checks a
+complete core module's structure, types and instructions without executing it.
+This implies `wasm`; inspection alone does not select the validator.
+Enable the independent `wasm-encoding` feature for
+`wasm_encoding::encode(&CallModule { .. }, max_bytes)`. Artifacts owns the private
+`wasm-encoder` backend and its records for fixed Wasm32 memory, active data,
+i32/void imports and call-only exported functions. Callers supply exact names,
+data layout, calls and output allowances; IC entry-point and reply policy remain
+with the consumer. The allowance bounds returned bytes, not peak allocation.
+Encoding alone selects neither the parser nor validator; select
+`wasm-encoding,wasm-validation` together to validate generated modules.
+See the [0.29 adoption notes](docs/changelog/0.29.md).
+
+Enable `wasm-text` for
+`wasm_text::compile(source, CompileLimits { source_bytes, module_bytes })`.
+Artifacts privately owns WAT compilation, with source admission before parsing
+and complete-output admission afterwards. It accepts the core text language,
+including stateful instructions beyond the call-only encoder. Compilation alone
+does not prove instruction/type validity; select `wasm-validation` when needed.
+`wasm-text` selects neither Host's binary inspector nor validator. Defaults remain
+empty, and inspection-only consumers do not select the text compiler.
+
+On Unix, FS's [held capabilities](docs/capability-fs.md) own the cap-* backend,
+descriptor-relative traversal, creation and bounded enumeration. Consumers select
+roots, permission masks, names and scan policy. `read::open_regular_file_no_follow`
+returns an admitted standard descriptor without consuming bytes, sharing the
+existing nonblocking opener. `scratch::TemporaryFile` owns a named private file's
+scope and cleanup; `scratch::create_private_bytes` retains caller-owned files.
+Unnamed capture files and temporary directories have distinct custody contracts.
+
+Process already supplies `signal::SignalActions` for explicit Unix signal action
+installation, rollback and restoration. Callers retain async-signal-safe callbacks,
+exclusive process-global handler custody, interruption flags and shutdown policy.
+See the [migration boundaries](docs/changelog/0.29.md).
+
 `ic-host-tools` has no default features. Response and ICP command interpretation
 remain available without Platform. Enable `candid` for bounded Candid reply
 decoding and service facts; enable `certificate` for strict certificate decoding
@@ -120,13 +156,16 @@ overflowing, nonminimal and trailing encodings while inspecting at most ten byte
 Callers retain field names, semantic limits, transport and trust policy.
 
 The optional tools `certificate` feature exposes
-`certificate::{decode_certificate, decode_hash_tree}` with explicit input-byte and
-CBOR-depth limits. It returns owned certification values through Platform,
+`certificate::{decode_certificate, decode_hash_tree}` with an explicit input-byte
+allowance. It uses the IC Agent's `serde_cbor` codec and built-in recursion limit;
+there is no caller-selected depth override. It returns owned values through Platform,
 preserving `ic-certification` type identity, and rejects trailing
 data, malformed trees and invalid certificate fields. Parsing authenticates
 nothing: callers retain Agent verification, trust roots, combined evidence
 budgets, witness commitments and application leaf meanings. The feature adds no
 Agent transport, filesystem/process execution or Candid parser.
+When adopting 0.29, remove `depth` from certificate `DecodeLimits` initializers;
+see [the migration instructions](docs/changelog/0.29.md).
 
 The opt-in native `agent` feature exposes `agent::{agent_builder, EndpointAgent}`
 using upstream Agent identities through Platform. Pass a parsed `url::Url` and response-byte ceiling

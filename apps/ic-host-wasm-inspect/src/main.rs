@@ -1,27 +1,18 @@
 //! Inspect explicit raw Wasm inputs without executing or transforming them.
 
-use std::{env, fmt, io, io::Write, num::ParseIntError, process::ExitCode};
-
+use clap::Parser as _;
 use ic_host_artifacts::{
-    artifact::{ArtifactError, DigestParseError},
-    wasm::InspectionError,
+    artifact::ArtifactError,
+    wasm::{InspectionError, InspectionLimits},
 };
+use std::{fmt, io, io::Write, process::ExitCode};
 
 mod args;
 mod report;
 
-// The executable owns failures across argument parsing, input and reporting.
+// The executable owns failures across input and reporting; Clap owns parsing.
 #[derive(Debug)]
 enum Error {
-    MissingArgument(&'static str),
-    ExtraArgument,
-    NonUtf8Number(&'static str),
-    NonUtf8Digest,
-    InvalidDigest(DigestParseError),
-    InvalidNumber {
-        name: &'static str,
-        source: ParseIntError,
-    },
     Input(ArtifactError),
     Inspection(InspectionError),
     Output(io::Error),
@@ -30,18 +21,6 @@ enum Error {
 impl fmt::Display for Error {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::MissingArgument(name) => {
-                write!(formatter, "missing {name}; {}", args::USAGE)
-            }
-            Self::ExtraArgument => write!(formatter, "unexpected argument; {}", args::USAGE),
-            Self::NonUtf8Number(name) => {
-                write!(formatter, "{name} must be a UTF-8 unsigned integer")
-            }
-            Self::NonUtf8Digest => {
-                formatter.write_str("SHA256 must be UTF-8 lowercase hexadecimal")
-            }
-            Self::InvalidDigest(source) => write!(formatter, "invalid SHA256: {source}"),
-            Self::InvalidNumber { name, source } => write!(formatter, "invalid {name}: {source}"),
             Self::Input(source) => write!(formatter, "input admission failed: {source}"),
             Self::Inspection(source) => write!(formatter, "Wasm inspection failed: {source}"),
             Self::Output(source) => write!(formatter, "report output failed: {source}"),
@@ -52,35 +31,42 @@ impl fmt::Display for Error {
 impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Self::InvalidNumber { source, .. } => Some(source),
-            Self::InvalidDigest(source) => Some(source),
             Self::Input(source) => Some(source),
             Self::Inspection(source) => Some(source),
             Self::Output(source) => Some(source),
-            Self::MissingArgument(_)
-            | Self::ExtraArgument
-            | Self::NonUtf8Number(_)
-            | Self::NonUtf8Digest => None,
         }
     }
 }
 
 fn main() -> ExitCode {
-    let result = args::parse(env::args_os().skip(1)).and_then(|command| match command {
-        args::Command::Help => {
-            writeln!(io::stdout().lock(), "{}", args::USAGE).map_err(Error::Output)
+    let command = match args::Command::try_parse() {
+        Ok(command) => command,
+        Err(error) => {
+            let refused = error.use_stderr();
+            return if error.print().is_err() || refused {
+                ExitCode::FAILURE
+            } else {
+                ExitCode::SUCCESS
+            };
         }
-        args::Command::Inspect {
-            path,
-            limits,
-            expected,
-            details,
-        } => {
-            let bytes =
-                ic_host_fs::read::read_file(&path, limits.module_bytes).map_err(Error::Input)?;
-            report::write(&bytes, limits, expected, details, &mut io::stdout().lock())
-        }
-    });
+    };
+    let limits = InspectionLimits {
+        module_bytes: command.module_bytes,
+        sections: command.sections,
+        exports: command.exports,
+        custom_sections: command.custom_sections,
+    };
+    let result = ic_host_fs::read::read_file(&command.path, limits.module_bytes)
+        .map_err(Error::Input)
+        .and_then(|bytes| {
+            report::write(
+                &bytes,
+                limits,
+                command.expected,
+                command.details,
+                &mut io::stdout().lock(),
+            )
+        });
     match result {
         Ok(()) => ExitCode::SUCCESS,
         Err(error) => {

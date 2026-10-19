@@ -13,15 +13,20 @@ These commands do not publish crates to a registry.
 Prepare the development toolchain selected in [rust-toolchain.toml](../rust-toolchain.toml),
 then run `make install-tools` and `make tools-check`. Shared Tooling owns
 [common setup and executable storage](local-setup.md). Release preparation uses
-the canonical literal workspace-version and lock renderers. Host admits its
+the released IC Build `ic-build-release-metadata` editor, pinned separately in
+`ci/release-editor.env` and selected through its verified tool-store receipt.
+Host admits its
 explicit workspace member paths and reads member identities from the selected
-Git source; Shared projects owned dependency requirements for live and saved
+Git source; IC Build projects owned dependency requirements for live and saved
 manifests. Recovery does not need today's member paths or a reconstructed old
 workspace. It validates candidate TOML and the prepared
 locked Cargo graph, restoring original bytes/modes after failure or catchable
-interruption and retaining recovery evidence. No cargo-edit executable or
-release-only tool installation is required. The development toolchain is separate
-from the library MSRV.
+interruption and retaining recovery evidence. Shared retains the preparation
+transaction, receipts and rollback. `make install-tools` includes the release
+editor; `make tools-check`/`make release-editor-check` admit it offline. Preflight
+can prepare a missing editor after source admission without per-shell exports;
+standalone verification never installs. The editor requires Rust 1.91 or later;
+Host libraries retain MSRV 1.88. No Cargo-edit command renders release metadata.
 
 The read-only `make release-version` query needs prepared host parsers and never
 installs them. Selected release preflight prepares the complete toolset and
