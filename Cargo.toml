@@ -19,9 +19,9 @@ readme = "README.md"
 
 [workspace.dependencies]
 # Production dependencies
-ic-host-artifacts = "0.28"
-ic-host-fs = "0.28"
-ic-host-process = "0.28"
+ic-host-artifacts = "0.29"
+ic-host-fs = "0.29"
+ic-host-process = "0.29"
 ic-metrics = "0.14"
 ic-platform = { version = "0.1.16", default-features = false }
 ic-wire = "0.4.1"
@@ -34,8 +34,8 @@ tokio = { version = "1", features = ["net", "rt", "time"] }
 wasm-encoder = { version = "0.262", default-features = false }
 
 # Tests and tooling only
-ic-build = { version = "0.19" }
-ic-host-text = { version = "0.28", default-features = false }
+ic-build = { version = "0.21" }
+ic-host-text = { version = "0.29", default-features = false }
 ic-testkit = { path = "crates/ic-testkit" }
 ic_testkit_perf_probe = { path = "crates/ic_testkit_perf_probe" }
 wasmparser = { version = "0.261", default-features = false, features = ["std", "validate"] }

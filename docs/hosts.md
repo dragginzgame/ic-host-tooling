@@ -132,18 +132,24 @@ Generic IC executables remain optional. `make tools-check` checks prepared
 selections offline; it neither builds the CLI nor installs missing tools.
 The manifest and tool catalogs own exact selections.
 
-### Fixture Wasm validation boundary
+### Fixture Wasm encoding and validation boundary
 
-The maintainer selected Platform as the boundary for fixture `wasmparser` use.
-Published Platform 0.1.16 has no such capability, tracked in
-[Platform #29 — Expose native Wasm validation for Testkit fixture checks](https://github.com/dragginzgame/ic-platform/issues/29).
-Until a supplying release is published, Testkit retains its native development
-`wasmparser` dependency for two full-module validation calls. Host's structural
-inspector does not replace instruction/type validation. The parser stays out of
-normal/build and Wasm library graphs; the private native development harness may
-reach it independently through IC Build/Host. `wasm-encoder` remains the opt-in
-native reply-fixture generator. Keep the current valid/empty/page-boundary
-fixtures and migrate the validator calls and manifests together after publication.
+The maintainer selected Host Artifacts as the boundary for fixture Wasm encoding
+and validation. Published Host 0.28.1 supplies structural inspection and
+custom-section framing, but no full validator or core-module encoder API.
+[Host PR #204 — Full Wasm validation](https://github.com/dragginzgame/ic-host-tooling/pull/204)
+prepares validation; the encoding boundary is tracked in
+[Host #208 — Core-Wasm encoding for Testkit reply fixtures](https://github.com/dragginzgame/ic-host-tooling/issues/208).
+Platform continues to own the Candid/CDK/PocketIC boundary.
+
+Until supplying releases are published, Testkit retains native development
+`wasmparser` for two full-module validation calls and opt-in native `wasm-encoder`
+for reply-fixture construction. Structural inspection cannot replace instruction
+and type validation. The direct validator stays out of normal/build and Wasm
+library graphs; the private native development harness may reach its parser
+independently through IC Build/Host. Keep IC method naming, admission budgets and
+simulator lifecycle in Testkit; migrate imports and manifests together while
+preserving valid, empty, page-boundary and live exact-reply qualification.
 
 ### Local PocketIC operation boundary
 

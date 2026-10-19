@@ -11,9 +11,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Changed
 
 - Adopt published Platform 0.1.16 while retaining the selected PocketIC client,
-  Candid limits and runtime identities. Fixture Wasm validation keeps its native
-  development dependency until Platform publishes the missing capability
-  ([Platform #29 — Expose native Wasm validation for Testkit fixture checks](https://github.com/dragginzgame/ic-platform/issues/29)).
+  Candid limits and runtime identities.
 
 - Use published Host command execution for cancellable server downloads and
   benchmark preparation, retaining explicit deadlines, output bounds and cleanup.
