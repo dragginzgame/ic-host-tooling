@@ -3,7 +3,7 @@
 The 0.1.0 section preserves the original bootstrap notes. The published 0.1.0
 archive also includes the extracted artifact engine and Cargo grouping API.
 
-## [0.22.0]
+## [0.22.0] - 2026-10-19
 
 - **Breaking:** align exposed filesystem, artifact and process types with
   published IC Host 0.30.0. Consumers exchanging Host values must adopt the
