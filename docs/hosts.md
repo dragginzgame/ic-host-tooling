@@ -27,8 +27,9 @@ and Wasm features; production filesystem dependencies select none of them.
 Check target-directory ownership before compilation. Preserve failure logs and artifacts.
 
 `make test-artifacts-minimal` checks the artifact library without optional
-features. `make test-tools-default` checks response decoding and Candid service
-inspection with the default graph. `make test-tools-interface` adds Wasm export
+features. `make test-tools-default` checks response and ICP interpretation without
+Platform or Candid. `make test-tools-candid` checks opt-in Candid decoding/service
+facts. `make test-tools-interface` adds Wasm export
 interpretation; `make test-tools-certificate` adds strict owned certificate/hash-tree
 decoding. `make test PACKAGE=ic-host-text` checks bounded line normalization,
 escaping, progress frames and Unicode table alignment.
@@ -41,11 +42,14 @@ The optional `icp-project` feature qualifies bounded effective-YAML projection;
 default and certificate profiles exclude its YAML parser.
 
 `make test-tools-encoding` checks canonical unsigned LEB128 admission. The decoder
-adds no dependencies; Tools retains its normal Platform/parser dependency.
-`make tools-features-check` verifies the normal parser dependency, including with
-default features disabled, and the remaining optional owner boundaries. Native
-CI includes these profiles. Tools selects Platform's native Candid parser unconditionally;
-`ic-interface` adds Host Artifacts and Wasm parsing. The standalone Wasm inspector
+adds no dependencies. `make tools-features-check` excludes Candid and its parser
+from default, certificate-only and interface-only normal/build graphs, including
+`certificate,ic-interface` together. `make test-tools-combined` exercises that
+parser-free combination; all-feature tests retain the DID/Wasm comparison.
+Native CI includes these profiles. Only explicit `candid` selects Platform's parser;
+Agent and ledger evidence retain their required codec dependencies without it.
+Registry selects Platform principal types without the codec. `ic-interface` adds
+Host Artifacts and Wasm parsing. The standalone Wasm inspector
 retains its parser-free graph. These profiles must qualify on the same Rust 1.88
 and native Linux/macOS matrix as the existing libraries.
 

@@ -5,9 +5,20 @@
 Read [Cargo.toml](../../Cargo.toml), [CHANGELOG.md](../../CHANGELOG.md), Git tags,
 [AGENTS.md](../../AGENTS.md) and the exact [Shared snapshot](../../.shared-tooling.snapshot).
 Released Host 0.27.6 is delivered at `0c3acb8d52e8017dd7a3b39d0ae94443f90066a0`.
-Pending compatible work belongs to [0.27.7](../changelog/0.27.md#0277);
+Pending work belongs to [0.28.0](../changelog/0.28.md#0280);
 package versions, the index, Git delivery and releases remain user-owned.
 Sibling checkouts are read-only. GitHub issues are the sole follow-up tracker.
+
+## Prepared Candid isolation
+
+Tools Candid helpers require the explicit `candid` feature. Empty defaults and
+certificate-only, interface-only and combined certificate/interface normal/build
+graphs exclude both Candid and its parser. Independent interface projection tests
+remain enabled; only the DID comparison requires `candid`. Agent and ledger
+evidence select their required codec without the parser, while Registry selects
+Platform principal types alone. The prepared duration and MSRV CI fixes remain
+in this minor batch. Query owns its separate lockfile refresh and certificate-host
+graph verification after registry publication.
 
 ## Ownership
 

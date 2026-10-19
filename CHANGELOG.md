@@ -1,6 +1,11 @@
 # Changelog
 
-## [0.27.7]
+## [0.28.0]
+
+- **Breaking:** Make Tools Candid helpers opt-in through `candid`. Existing
+  helper consumers must enable it explicitly; empty defaults, certificate-only
+  and Wasm-interface-only graphs exclude Candid and its parser.
+  [Migration instructions](docs/changelog/0.28.md).
 
 - Add the native `ic-host-file` binary to the existing FS package for bounded
   hashes, explicit NUL-list batches and private create/replace operations.

@@ -76,12 +76,13 @@ encoded indirect calls, including tail calls, and data payload bytes without a
 subprocess. These counts differ from encoded section sizes and need not match
 optimizer reachability metrics. Type/feature validation and report policy remain
 caller-owned; the structural `wasm::inspect` contract is unchanged.
-`ic-host-tools` has no default features. Response decoding, Candid service
-inspection and shared method identities are always available; `ic-platform`
-owns the Candid codec and native parser. The optional `ic-interface` feature adds
-export projection over generic Wasm facts for service/export comparisons.
-The default graph has no other Host library dependency; `ic-interface` adds
-Artifacts without introducing filesystem or process execution.
+`ic-host-tools` has no default features. Response and ICP command interpretation
+remain available without Platform. Enable `candid` for bounded Candid reply
+decoding and service facts; enable `certificate` for strict certificate decoding
+without Candid or its parser. The independent `ic-interface` feature adds Wasm
+export facts; select it together with `candid` for DID/Wasm comparisons.
+Existing Candid-helper consumers must explicitly enable `candid` when adopting
+0.28. See [the migration instructions](docs/changelog/0.28.md).
 
 Native Candid extraction belongs to IC Build's `artifacts::candid` module;
 Host Tools no longer supplies an extraction feature or invocation wrapper.
