@@ -1139,9 +1139,11 @@ text/grammar separately; before/after digests cannot rule out transient writes.
 Host 0.24 has removed its extraction module/feature; adopt the new Build owner
 when upgrading that graph ([#51](https://github.com/dragginzgame/ic-build/issues/51)).
 Structural Wasm inspection does not replace PocketIC's runtime validation.
-Pending IC Build 0.21 requires compatible published IC Host 0.29 releases at the
-public dependency boundary; published Build 0.20 requires Host 0.28. Host
-Artifacts/FS supply stream visitation and fresh-directory allocation; FS also owns shared
+Pending IC Build 0.22 requires compatible published IC Host 0.30 releases at the
+public dependency boundary; published Build 0.21 requires Host 0.29.
+Host FS's `capability` and `temporary-file` backends remain disabled here;
+direct consumers of those APIs enable the corresponding Host features explicitly.
+Host Artifacts/FS supply stream visitation and fresh-directory allocation; FS also owns shared
 lock guards, logical directory sizing and cache-directory tags. Cargo.lock records
 the selected graph. Host Process supplies cancellable
 process-group probe capture. Build owns record lifetime, pruning policy and tag comments,

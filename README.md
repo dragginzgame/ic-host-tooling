@@ -71,9 +71,11 @@ mutable target custody remains with the caller. Both select their Host spawner
 explicitly and add no elapsed-time deadline. Applications supply their own
 cancellation, process-group custody and source admission where required.
 
-Published Build 0.20 uses the Host 0.28 family. The pending 0.21 source selects
-published Host 0.29.0; adopt matching direct Host dependencies when exchanging
+Published Build 0.21 uses the Host 0.29 family. The pending 0.22 source selects
+published Host 0.30.0; adopt matching direct Host dependencies when exchanging
 Host values after that Build release becomes available.
+Build uses neither Host FS's `capability` nor `temporary-file` features; both
+remain disabled. Consumers using those optional APIs select them explicitly.
 `cargo::discovery::declared_workspace_root_from` finds the nearest explicit
 `[workspace]` from an existing file or directory without invoking Cargo. It follows
 file symlinks and refuses invalid manifests, non-file markers and dangling links.

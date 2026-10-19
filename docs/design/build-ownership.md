@@ -30,13 +30,16 @@ roles, release identities or manifests.
 
 ## Implemented ownership
 
-Pending Build 0.21 selects the published Host 0.29 family, including exposed
-artifact, filesystem and process types. Published Build 0.20 retains Host 0.28.
-Optional Host Wasm/encoding/text/gzip and file-CLI features remain disabled.
-Host FS 0.29's Unix capability and scoped-tempfile dependencies are unconditional,
-even for this engine's existing read/lock/publication APIs. Build does not own or
-copy those backend implementations. Making them optional belongs in Host;
-published 0.29.0 provides no consumer feature switch to exclude them.
+Pending Build 0.22 selects published Host 0.30, including exposed artifact,
+filesystem and process types; published Build 0.21 retains Host 0.29.
+Host FS 0.30 makes its Unix capability and scoped-tempfile backends independently
+optional through `capability` and `temporary-file`. Build needs neither and
+keeps them disabled, together with Host Wasm/encoding/text/gzip and file CLI.
+The core read/lock/publication APIs retain their existing implementations.
+Consumers using the optional APIs select their features explicitly at Host;
+Build does not copy or re-export those capabilities. Backend ownership and
+safety stay in Host. Published dependencies replace the earlier qualification-
+only source overrides recorded in the handoff.
 
 Native optimizer semantic qualification belongs to Build. Its explicit qualifier
 uses retained transactions and the transferred execution oracle; callers admit

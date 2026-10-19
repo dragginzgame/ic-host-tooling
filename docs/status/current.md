@@ -1,5 +1,94 @@
 # Current handoff
 
+## Published Host 0.30 adoption — pending 0.22.0
+
+Starting at released Build `c1a7488` (0.21.0), incoming Cargo.toml/Cargo.lock edits
+already select Host Artifacts/FS/Process 0.30.0. Preserve those exact bytes and the
+existing consumer-facts/ownership documentation. The public sparse index confirms
+0.30.0 is the latest non-yanked release of all three crates; downloaded archive
+hashes match their checksums and source `a407de0fd2e2d19cd7531eb36e5354dd446939e4`.
+No unpublished sibling or source override participates in this qualification.
+
+The published FS features are `capability` and `temporary-file`, rather than the
+earlier proposal's scoped-tempfile spelling. Build uses neither. Artifacts and
+Process source are unchanged from 0.29; FS source changes only the optional API
+gates and their explanation. Existing read/publication/locking, process/error,
+capture and cache behavior is retained without a local implementation change.
+The actual Linux normal/build graph drops from 66 to 51 package identities;
+the cross-platform lock drops from 91 to 54. Retained non-Host package versions,
+sources and checksums are unchanged. Both macOS target graphs select 51 identities,
+which is graph evidence rather than native execution. All-feature metadata has
+only Host fixture support enabled, with no capability/tempfile, Wasm parsing,
+gzip or Platform/Candid/CDK graph.
+
+Exposed Host artifact/filesystem/process types change Rust crate identity, so
+the coherent pending notes select Build 0.22.0 and require direct consumers to
+align on Host 0.30. Own manifests still say 0.21.0; no version bump, staging,
+commit, push, release or publication is performed. README and artifact/ownership
+guidance now describe the actual published features and pending consumer boundary.
+
+Focused Linux qualification passes actual Rust 1.91 all-target/all-feature checks,
+strict development Clippy, warning-denied Rustdoc and the selected execution,
+filesystem/staging/digest, cache/tool-invalidation, real Cargo/Wasm, retained
+handoff and cross-process coordination cases. The initial execution module run
+hit one transient ExecutableFileBusy spawn refusal; its unchanged seven-case
+retry passes. Preserve that failed log rather than claiming a first-pass success.
+Formatting, pins/inheritance, direct boundaries, workspace metadata and changed
+documentation links pass. Full release gates, native macOS execution and
+installed-IC acceptance remain separate. Evidence and incoming before-images:
+`/tmp/ic-build-host030.pS4GJ4/`.
+
+## Consumer facts and optional Host backends — 2026-10-19
+
+Build 0.21.0 is published at `c1a748859678588c8788d1ad713d297ccdd74c8c`;
+its exact-source Linux, native macOS Intel/Apple Silicon and lint CI passes.
+This pass changes no engine source, manifests, lockfile, own version or root
+index/refs. All sibling contributions use isolated clones; normal pending work stays
+with its owner.
+
+[Canic #596](https://github.com/dragginzgame/canic/pull/596) is refreshed against
+committed main `4caeec25d`, preserving shared history and retiring its superseded
+bootstrap layout. Head `e7c92f8c0` retains actual runtime CargoBuildFacts through
+configured/batched and infrastructure artifacts, provenance, CLI tests and internal
+fixtures. After-build version probes and ambient recipe reconstruction are gone.
+Main's published Build 0.19/Host 0.27.6 selections remain unchanged. Forty-one
+focused build/provenance cases and twenty enabled reuse cases pass; strict Host
+Clippy and actual Rust 1.91 production caller checks, including the CLI binary,
+pass. One existing reuse case stays ignored; development Internal libtests keep
+their pre-existing unused-import warning. Hosted checks remain separate.
+
+[Host #210](https://github.com/dragginzgame/ic-host-tooling/pull/210), head
+`35157164`, makes the existing capability and scoped-tempfile backends independently
+opt-in for proposed 0.30. Build needs neither. Query must select capability;
+IcyDB and Testkit's fixture worker must select scoped-tempfile on published
+adoption. No backend implementation, safety rule or compatibility copy changes.
+Actual Rust 1.88 passes 177 core FS, twelve capability, six scoped-tempfile,
+147 Process and eleven CLI cases. Strict affected-package Clippy, floor checks,
+Rustdoc and independent target/feature graph checks pass. Native-permission
+Process tests resolve the sandbox-only loopback refusal from the first run.
+
+Qualification-only Host paths in an isolated Build 0.21 source reduce the Linux
+normal/build graph from 66 to 51 identities and the lock from 91 to 54. All 156
+focused Build cases and actual Rust 1.91 all-target checking pass. Released
+Testkit 0.55.2 source with the required scoped-tempfile feature passes nineteen
+fixture-driver cases and actual Rust 1.91 library checking; its graph drops from
+243 to 233 identities, retaining the tempfile backend it uses. These unpublished
+Host paths and feature declarations are not delivered as consumer dependencies.
+
+The newer normal Canic graph is inspected through a frozen, read-only copy,
+without importing its wider pending work into #596. Its current Query 0.63
+adoption still calls the retired certificate depth field/argument and blocks
+compilation outside the facts patch; the untouched snapshot reproduces both
+errors before this port. Actual Rust 1.91 caller qualification also
+stops at the missing RawMessageId export tracked by
+[Platform #27](https://github.com/dragginzgame/ic-platform/issues/27).
+Do not remove policy or downgrade dependencies to hide those consumer migrations.
+Full managed/PocketIC and installed-IC acceptance
+remain unproven. [Build #9](https://github.com/dragginzgame/ic-build/issues/9) stays
+open for published consumer adoption, exact-head native evidence and application
+acceptance. No merge, release or publication is performed. Evidence:
+`/tmp/ic-build-fleet-followup.KGzFhf/`.
+
 ## Published Host 0.29 adoption and dependency review — 2026-10-19
 
 Starting source is released `172b52f` (Build 0.20.0), with incoming manifest and
