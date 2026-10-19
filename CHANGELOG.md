@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.30.0]
+## [0.30.0] - 2026-10-19
 
 - **Breaking:** Make FS's held-capability and scoped-tempfile APIs opt-in through
   independent `capability` and `temporary-file` features. Default FS, Process and
