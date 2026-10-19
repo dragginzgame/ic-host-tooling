@@ -1,10 +1,10 @@
 use super::{BenchmarkRunReport, write_benchmark_report_dir};
+use ic_host_fs::{directory::create_unique_directory, owned_directory::OwnedDirectory};
 use ic_testkit::benchmark::{
     BenchmarkParserConfig, SuiteDerivation, aggregate_benchmark_spans,
     compare_benchmark_aggregates, pair_benchmark_spans, parse_benchmark_events,
 };
 use std::fs;
-use tempfile::TempDir;
 
 #[test]
 fn comparison_csv_distinguishes_named_all_suite_from_all_suites() {
@@ -18,7 +18,15 @@ fn comparison_csv_distinguishes_named_all_suite_from_all_suites() {
     let spans = pair_benchmark_spans(&parse.events);
     let aggregates = aggregate_benchmark_spans(&spans.spans).expect("aggregate benchmark spans");
     let comparison = compare_benchmark_aggregates(&aggregates, &aggregates, 1).unwrap();
-    let root_directory = TempDir::new().unwrap();
+    let root_directory = OwnedDirectory::new(
+        create_unique_directory(
+            &std::env::temp_dir(),
+            "testkit-benchmark-report",
+            0o700,
+            None,
+        )
+        .unwrap(),
+    );
     let root = root_directory.path();
     let report = BenchmarkRunReport {
         parse,
@@ -100,7 +108,15 @@ ICTK|app/previous-only:end|0|0|0
         aggregates,
         comparison: Some(comparison),
     };
-    let root_directory = TempDir::new().unwrap();
+    let root_directory = OwnedDirectory::new(
+        create_unique_directory(
+            &std::env::temp_dir(),
+            "testkit-benchmark-report",
+            0o700,
+            None,
+        )
+        .unwrap(),
+    );
     let root = root_directory.path();
 
     write_benchmark_report_dir(&report, root).expect("write report");

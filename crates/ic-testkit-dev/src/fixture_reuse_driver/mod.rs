@@ -8,7 +8,7 @@ use std::{
     collections::BTreeMap,
     error::Error as StdError,
     ffi::OsString,
-    fs::{self, File, Permissions},
+    fs::{self, File},
     io::{self, Seek as _, Write as _},
     path::{Path, PathBuf},
     process::{Command, ExitStatus, Stdio},
@@ -18,7 +18,7 @@ use std::{
 };
 
 #[cfg(unix)]
-use std::os::unix::{fs::PermissionsExt as _, process::CommandExt as _};
+use std::os::unix::process::CommandExt as _;
 
 use ic_build::{
     artifacts::{WasmBuildError, WasmBuildOutcome, WasmBuildSpec, build_wasm_canisters_cached},
@@ -34,6 +34,7 @@ use ic_host_fs::{
         NamedWriteError, PublicationMode, WriteOptions, write_existing_parent_validated_with,
     },
     read::{hash_file, read_opened_file},
+    scratch::TemporaryFile,
 };
 use ic_host_process::{
     child::OwnedChild,
@@ -197,10 +198,10 @@ fn measure(
     mut snapshot: impl FnMut() -> Result<sampling::Snapshot, sampling::SamplingError>,
 ) -> Result<CapturedRun, Error> {
     check_interrupted()?;
-    let mut output = tempfile::Builder::new()
-        .permissions(Permissions::from_mode(0o600))
-        .tempfile()?
-        .into_file();
+    let temporary = TemporaryFile::new_in(&std::env::temp_dir(), "ic-testkit-worker-output")?;
+    let mut output = temporary.as_file().try_clone()?;
+    // Keep the anonymous descriptor contract: unlink before the worker starts.
+    temporary.close()?;
     command
         .stdin(Stdio::null())
         .stdout(Stdio::from(output.try_clone()?));
@@ -614,8 +615,7 @@ pub fn run() -> Result<(), Error> {
 mod tests {
     use super::arguments::parse_arguments;
     use super::{
-        Error, Permissions, REPORT_LIMIT, execute_command, measure, prepare, publish_report,
-        text_command,
+        Error, REPORT_LIMIT, execute_command, measure, prepare, publish_report, text_command,
     };
     use ic_host_process::tool::{ExecutionFailure, OutputStream, ToolError};
 
@@ -638,11 +638,16 @@ mod tests {
         ic_host_process::sampling::snapshot(64 * 1024, super::arguments::RSS_COMMAND_LIMITS)
     }
 
-    fn fixture_directory() -> tempfile::TempDir {
-        tempfile::Builder::new()
-            .permissions(Permissions::from_mode(0o700))
-            .tempdir()
-            .unwrap()
+    fn fixture_directory() -> ic_host_fs::owned_directory::OwnedDirectory {
+        ic_host_fs::owned_directory::OwnedDirectory::new(
+            ic_host_fs::directory::create_unique_directory(
+                &std::env::temp_dir(),
+                "testkit-fixture-driver",
+                0o700,
+                None,
+            )
+            .unwrap(),
+        )
     }
 
     #[test]

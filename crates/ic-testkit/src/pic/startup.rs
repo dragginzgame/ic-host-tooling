@@ -11,8 +11,9 @@ use std::{
 };
 
 #[cfg(unix)]
-use std::os::unix::fs::{OpenOptionsExt as _, PermissionsExt as _};
+use std::os::unix::fs::OpenOptionsExt as _;
 
+use ic_host_fs::{directory::create_unique_directory, owned_directory::OwnedDirectory};
 use ic_host_process::child::{CleanupError, CleanupPolicy, OwnedChild};
 use ic_platform::pocket_ic::{PocketIc, PocketIcBuilder};
 
@@ -1014,7 +1015,7 @@ impl ManagedServer {
 }
 
 struct StartupFiles {
-    _directory: tempfile::TempDir,
+    _directory: OwnedDirectory,
     port: PathBuf,
     stdout: PathBuf,
     stderr: PathBuf,
@@ -1081,13 +1082,15 @@ impl StartupFiles {
                 ))
             })
             .transpose()?;
-        let mut directory = tempfile::Builder::new();
-        directory.prefix("ic-testkit-pocket-ic-startup-");
-        #[cfg(unix)]
-        directory.permissions(fs::Permissions::from_mode(0o700));
-        let directory = directory
-            .tempdir()
-            .map_err(|source| startup_file_error("create", &std::env::temp_dir(), source))?;
+        let directory = OwnedDirectory::new(
+            create_unique_directory(
+                &std::env::temp_dir(),
+                "ic-testkit-pocket-ic-startup",
+                0o700,
+                None,
+            )
+            .map_err(|source| startup_file_error("create", &std::env::temp_dir(), source))?,
+        );
         let base = directory.path();
         let (stdout_path, stderr_path) =
             output_files.unwrap_or_else(|| (base.join("stdout"), base.join("stderr")));
@@ -1175,7 +1178,8 @@ mod tests {
     };
 
     use super::{
-        PocketIcStartupConfig, PocketIcStartupError, PocketIcStartupFailure, StartupFiles,
+        OwnedDirectory, PocketIcStartupConfig, PocketIcStartupError, PocketIcStartupFailure,
+        StartupFiles, create_unique_directory,
     };
     use ic_platform::pocket_ic::PocketIcBuilder;
 
@@ -2232,17 +2236,21 @@ mod tests {
     #[cfg(unix)]
     struct TestServerScript {
         path: PathBuf,
-        _directory: tempfile::TempDir,
+        _directory: OwnedDirectory,
     }
 
     #[cfg(unix)]
     impl TestServerScript {
         fn new(label: &str, contents: &str) -> Self {
-            let directory = tempfile::Builder::new()
-                .prefix(&format!("ic-testkit-pocket-ic-{label}-"))
-                .permissions(fs::Permissions::from_mode(0o700))
-                .tempdir()
-                .expect("create test server directory");
+            let directory = OwnedDirectory::new(
+                create_unique_directory(
+                    &std::env::temp_dir(),
+                    &format!("ic-testkit-pocket-ic-{label}"),
+                    0o700,
+                    None,
+                )
+                .expect("create test server directory"),
+            );
             let path = directory.path().join("server");
             write_executable_script(&path, contents).expect("write executable test script");
             Self {

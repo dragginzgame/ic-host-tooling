@@ -14,7 +14,7 @@ categories.workspace = true
 
 [features]
 default = []
-reply-fixtures = ["dep:wasm-encoder"]
+reply-fixtures = ["ic-host-artifacts/wasm-encoding"]
 wire = ["dep:ic-wire"]
 
 [dependencies]
@@ -30,10 +30,8 @@ ic-host-fs = { workspace = true }
 ic-host-process = { workspace = true }
 ic-platform = { workspace = true, features = ["candid", "pocket-ic"] }
 ic-wire = { workspace = true, optional = true }
-tempfile = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
-wasm-encoder = { workspace = true, optional = true }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 ic-platform = { workspace = true, features = ["ic0"] }
@@ -42,9 +40,8 @@ ic-platform = { workspace = true, features = ["ic0"] }
 ic-host-process = { workspace = true, features = ["test-support"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
-ic-host-artifacts = { workspace = true, features = ["wasm"] }
+ic-host-artifacts = { workspace = true, features = ["wasm-validation"] }
 serde_json = { workspace = true }
-wasmparser = { workspace = true }
 
 [lints]
 workspace = true

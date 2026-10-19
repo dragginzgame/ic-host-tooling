@@ -962,6 +962,7 @@ dependencies = [
  "flate2",
  "leb128",
  "sha2",
+ "wasm-encoder",
  "wasmparser",
 ]
 
@@ -1058,11 +1059,8 @@ dependencies = [
  "ic-wire",
  "libc",
  "serde_json",
- "tempfile",
  "thiserror 2.0.18",
  "tokio",
- "wasm-encoder",
- "wasmparser",
 ]
 
 [[package]]
@@ -1081,7 +1079,6 @@ dependencies = [
  "libc",
  "serde",
  "serde_json",
- "tempfile",
  "thiserror 2.0.18",
 ]
 

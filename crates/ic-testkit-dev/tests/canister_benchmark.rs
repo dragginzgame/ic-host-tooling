@@ -43,10 +43,15 @@ fn install_probe() -> StandaloneCanisterFixture {
             .is_file(),
         "benchmark qualification requires the workspace perf probe"
     );
-    let target_dir = tempfile::Builder::new()
-        .prefix("ic-testkit-perf-probe-target")
-        .tempdir_in(workspace.join("target"))
-        .expect("create private test directory");
+    let target_dir = ic_host_fs::owned_directory::OwnedDirectory::new(
+        ic_host_fs::directory::create_unique_directory(
+            &workspace.join("target"),
+            "ic-testkit-perf-probe-target",
+            0o700,
+            None,
+        )
+        .expect("create private test directory"),
+    );
 
     let env = std::env::vars_os();
     let spec = WasmBuildSpec::new(&workspace, target_dir.path(), &[PERF_PROBE_PACKAGE], env)

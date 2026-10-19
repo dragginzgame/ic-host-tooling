@@ -23,19 +23,16 @@ pub fn pocket_ic() -> ic_testkit::pic::PocketIcInstance<ic_testkit::pic::PocketI
         .expect("construct explicitly configured test instance")
 }
 
-pub fn unique_temp_directory(label: &str) -> tempfile::TempDir {
-    let mut directory = tempfile::Builder::new();
-    directory.prefix(label);
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt as _;
-        directory.permissions(std::fs::Permissions::from_mode(0o700));
-    }
-    directory
-        .tempdir_in(
-            std::env::temp_dir()
+pub fn unique_temp_directory(label: &str) -> ic_host_fs::owned_directory::OwnedDirectory {
+    ic_host_fs::owned_directory::OwnedDirectory::new(
+        ic_host_fs::directory::create_unique_directory(
+            &std::env::temp_dir()
                 .canonicalize()
                 .expect("resolve test temporary root"),
+            label,
+            0o700,
+            None,
         )
-        .expect("create private test directory")
+        .expect("create private test directory"),
+    )
 }

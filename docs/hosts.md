@@ -134,22 +134,29 @@ The manifest and tool catalogs own exact selections.
 
 ### Fixture Wasm encoding and validation boundary
 
-The maintainer selected Host Artifacts as the boundary for fixture Wasm encoding
-and validation. Published Host 0.28.1 supplies structural inspection and
-custom-section framing, but no full validator or core-module encoder API.
-[Host PR #204 — Full Wasm validation](https://github.com/dragginzgame/ic-host-tooling/pull/204)
-prepares validation; the encoding boundary is tracked in
-[Host #208 — Core-Wasm encoding for Testkit reply fixtures](https://github.com/dragginzgame/ic-host-tooling/issues/208).
-Platform continues to own the Candid/CDK/PocketIC boundary.
+Published Host Artifacts 0.29.0 owns fixture Wasm encoding and full validation.
+The native-only `reply-fixtures` feature selects `wasm-encoding`; native development
+dependencies select `wasm-validation`. Testkit supplies IC import/export names,
+caller budgets, data placement and call order to Host's fixed-memory module
+encoder. Host owns binary sections and instructions through its private encoder;
+Testkit retains simulator installation and lifecycle policy. Platform continues
+to own the Candid/CDK/PocketIC boundary.
 
-Until supplying releases are published, Testkit retains native development
-`wasmparser` for two full-module validation calls and opt-in native `wasm-encoder`
-for reply-fixture construction. Structural inspection cannot replace instruction
-and type validation. The direct validator stays out of normal/build and Wasm
-library graphs; the private native development harness may reach its parser
-independently through IC Build/Host. Keep IC method naming, admission budgets and
-simulator lifecycle in Testkit; migrate imports and manifests together while
-preserving valid, empty, page-boundary and live exact-reply qualification.
+Fixture tests call Host's full validator with a 100,000-byte allowance, followed
+by independent structural assertions. Validation covers every function body and
+type; structural inspection alone is insufficient. The encoder and validator
+remain absent from the Wasm library graph. Private native development tooling
+may independently reach the parser through IC Build/Host. Qualify empty and
+page-boundary fixtures, admission refusals and live exact query/update replies.
+
+Host FS owns unique directory allocation and `OwnedDirectory` cleanup. Startup
+and test directories keep mode 0700 subject to umask and cleanup on drop,
+including unwind; caller-selected external startup logs survive teardown.
+Qualification evidence uses unguarded allocated paths for intentional retention.
+Worker capture uses Host's scoped `TemporaryFile`, cloning its descriptor and
+closing/unlinking its name before spawning the worker. Testkit declares none of
+`tempfile`, `wasm-encoder` or `wasmparser` directly; these remain transitive Host
+implementation dependencies.
 
 ### Local PocketIC operation boundary
 

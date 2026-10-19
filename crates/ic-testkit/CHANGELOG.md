@@ -8,6 +8,17 @@ This file ships in the crate archive so upgrades can be completed without the
 repository checkout. The complete historical changelog remains at
 <https://github.com/dragginzgame/ic-testkit/blob/main/CHANGELOG.md>.
 
+## [0.55.2]
+
+### Changed
+
+- Route native fixture Wasm encoding and full validation through published Host
+  0.29.0, retaining IC method policy, caller budgets and exact reply bytes
+  ([Host #208 — Core-Wasm encoding for Testkit reply fixtures](https://github.com/dragginzgame/ic-host-tooling/issues/208)).
+- Use Host filesystem allocation and cleanup for ephemeral directories and worker
+  output, removing direct `tempfile`, `wasm-encoder` and `wasmparser` dependencies.
+  Startup privacy, teardown cleanup and retained qualification evidence remain.
+
 ## [0.55.1] - 2026-10-19
 
 ### Changed

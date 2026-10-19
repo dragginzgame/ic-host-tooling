@@ -363,7 +363,7 @@ mod tests {
         child::OwnedChild,
         tool::{SuccessfulExit, communicate_child},
     };
-    use std::os::unix::fs::{PermissionsExt as _, symlink};
+    use std::os::unix::fs::symlink;
 
     fn run_in_subprocess() -> bool {
         let current = std::thread::current();
@@ -405,15 +405,19 @@ mod tests {
     }
 
     struct Fixture {
-        root: tempfile::TempDir,
+        root: ic_host_fs::owned_directory::OwnedDirectory,
     }
     impl Fixture {
         fn new() -> Self {
-            let root = tempfile::Builder::new()
-                .prefix("testkit-provision-")
-                .permissions(fs::Permissions::from_mode(0o700))
-                .tempdir_in(std::env::temp_dir().canonicalize().unwrap())
-                .unwrap();
+            let root = ic_host_fs::owned_directory::OwnedDirectory::new(
+                ic_host_fs::directory::create_unique_directory(
+                    &std::env::temp_dir().canonicalize().unwrap(),
+                    "testkit-provision",
+                    0o700,
+                    None,
+                )
+                .unwrap(),
+            );
             Self { root }
         }
     }
