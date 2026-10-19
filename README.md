@@ -320,6 +320,13 @@ also admits a directory descriptor for a caller-owned tree walk. Use
 allowance. Root custody, content validation, deadlines and concurrent writers
 remain caller-owned.
 
+Unix `capability::Directory` and `capability::FileEntry` retain no-follow directory
+capabilities for root-relative creation, selection, enumeration and unlink/sync.
+The cap-* backend stays private; callers choose permission masks, creation modes
+and entry ceilings. Handles compose with the existing bounded reader and durable
+writer rather than re-opening display paths. See the [capability guide](docs/capability-fs.md)
+for custody limits and consumer integration.
+
 On Unix, `read::hash_file_no_follow(path, max_bytes)` hashes regular files with
 constant working memory, rejecting final symlinks and opened special files.
 It shares the bounded stream hasher and preserves typed errors. Callers retain

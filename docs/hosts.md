@@ -190,3 +190,8 @@ successful build evidence to the installed artifact. Shared's sorter, pin checke
 and snapshot verification do not provide that admission. Further test-only catalog
 entries require explicit graph exclusions; comments alone do not activate them.
 Native macOS and deployment evidence remain distinct from graph checks.
+
+FS's [capability backend](capability-fs.md) selects cap-std/cap-fs-ext only on
+Unix. Feature-graph validation requires both on each native host and excludes
+them from the Wasm compile-only profile. New capability tests must run natively
+on Linux and both macOS architectures; a named-target graph is not execution.

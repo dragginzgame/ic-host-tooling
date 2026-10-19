@@ -11,6 +11,8 @@ readme = "../../README.md"
 publish = ["crates-io"]
 
 [target.'cfg(unix)'.dependencies]
+cap-fs-ext.workspace = true
+cap-std.workspace = true
 rustix.workspace = true
 
 [features]

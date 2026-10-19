@@ -75,7 +75,7 @@ msrv-workspace:
 dependency-pins-check:
 	+bash scripts/ci/check-dependency-pins.sh --cargo-inheritance
 check-doc-links:
-	perl scripts/ci/check-documentation-links.pl --root "$(CURDIR)" README.md AGENTS.md CHANGELOG.md $(wildcard docs/changelog/*.md) docs/extraction.md docs/hosts.md docs/file-cli.md $(wildcard docs/status/*.md) docs/publishing.md
+	perl scripts/ci/check-documentation-links.pl --root "$(CURDIR)" README.md AGENTS.md CHANGELOG.md $(wildcard docs/changelog/*.md) docs/extraction.md docs/hosts.md docs/file-cli.md docs/capability-fs.md $(wildcard docs/status/*.md) docs/publishing.md
 release-adapter-check:
 	+bash scripts/release/test-adapter.sh
 tooling-command-check:

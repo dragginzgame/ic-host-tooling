@@ -21,6 +21,8 @@ description = "Host-side artifact, filesystem, process and IC tooling"
 [workspace.dependencies]
 # Registry versions are compatible ranges; Cargo.lock records exact build selections.
 # Production dependencies
+cap-fs-ext = "4.0.2"
+cap-std = "4.0.2"
 # Shared production/test dependencies stay in this section.
 ciborium = "0.2.2"
 command-fds = "0.3.3"

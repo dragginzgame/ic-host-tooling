@@ -270,6 +270,27 @@
           "selection": "bounded ICRC-3 block value admission and contiguous-chain verification; caller retains tip authentication, ledger selection and transaction interpretation"
         }
       ]
+    },
+    {
+      "repository": "https://github.com/dragginzgame/ic-query",
+      "revision": "8f26582210581dada3573a5ee602dc9e629892b1",
+      "files": [
+        {
+          "path": "crates/ic-query/src/cache_file/confined/mod.rs",
+          "sha256": "0b8881ca8399312a85c110f672eb5f3b4852073d781583694838008949b26208",
+          "selection": "held no-follow root/parent capabilities, exclusive creation, directory admission and parent synchronization; explicit caller permission settings replace Query constants and existing Host engines retain reading/publication"
+        },
+        {
+          "path": "crates/ic-query/src/cache_file/confined/scan.rs",
+          "sha256": "ec77e634c7d0c2752354569b51f4279a24c9cb8e1ed2a553fc0e766e9343be34",
+          "selection": "descriptor-relative entry observation and unlink/sync mechanics; recursion, scan budgets, candidate selection, cache identities and public error projection remain Query-owned"
+        },
+        {
+          "path": "crates/ic-query/src/cache_file/confined/tests.rs",
+          "sha256": "ed62f46253dc3513faba50b2fd839f1dcf5ab3ba91b9cd0a789bee90633629f3",
+          "selection": "generic no-follow, mode, missing-path, retained-parent and create-race regressions adapted to Host fixture custody; Query cache/schema/lease tests remain consumer-owned"
+        }
+      ]
     }
   ]
 }

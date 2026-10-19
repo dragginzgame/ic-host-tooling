@@ -4,12 +4,34 @@
 
 Read [Cargo.toml](../../Cargo.toml), [CHANGELOG.md](../../CHANGELOG.md), Git tags,
 [AGENTS.md](../../AGENTS.md) and the exact [Shared snapshot](../../.shared-tooling.snapshot).
-Released Host 0.27.6 is delivered at `0c3acb8d52e8017dd7a3b39d0ae94443f90066a0`.
-Pending work belongs to [0.28.0](../changelog/0.28.md#0280);
-package versions, the index, Git delivery and releases remain user-owned.
+Host 0.28.0 is published from `b9c20de084a8f8176d8c73c61a3b30e740c8875c`.
+The unchanged `v0.28.0` tag selects `51501054365f4846a2050b687232ffc9deede5e2`;
+the published descendant includes the initial package-notice correction from
+[PR #202](https://github.com/dragginzgame/ic-host-tooling/pull/202).
+Pending work belongs to [0.28.1](../changelog/0.28.md#0281);
+package versions and further release effects remain user-owned.
 Sibling checkouts are read-only. GitHub issues are the sole follow-up tracker.
 
-## Prepared Candid isolation
+## Prepared capability backend
+
+FS owns the Unix [capability backend](../capability-fs.md), adapted from committed
+Query `8f26582210581dada3573a5ee602dc9e629892b1` with provenance recorded in the
+extraction manifest. Private cap-* dependencies supply held directories, no-follow
+traversal and relative create/scan/unlink/sync. Host's existing descriptor reader
+and publication engine remain canonical. Query retains cache policy and has not
+been edited or adopted this API. [Host #80](https://github.com/dragginzgame/ic-host-tooling/issues/80)
+owns the producer work; consumer adapter qualification remains separate.
+
+The focused Linux receipt is `/tmp/host-capability.lMs9IE/`: 12 capability cases
+pass on actual Rust 1.88, including AlreadyExists re-admission and original-cause
+preservation after completed unlink. All 188 FS library and 12 integration cases,
+strict FS Clippy/Rustdoc, metadata, links, native-target graphs and the actual
+1.88 non-Unix compile gate pass. An initial unchanged executable-fixture case
+reported Text file busy; its focused rerun and the full FS rerun passed, with the
+failed log and fixture retained. Native macOS qualification of this new source
+remains separate from the published 0.28.0 evidence below.
+
+## Published Candid isolation
 
 Tools Candid helpers require the explicit `candid` feature. Empty defaults and
 certificate-only, interface-only and combined certificate/interface normal/build
@@ -19,6 +41,16 @@ evidence select their required codec without the parser, while Registry selects
 Platform principal types alone. The prepared duration and MSRV CI fixes remain
 in this minor batch. Query owns its separate lockfile refresh and certificate-host
 graph verification after registry publication.
+
+All six registry packages are available at 0.28.0. The downloaded Tools archive
+matches the upload checksum and exact corrected source commit. Fresh registry
+consumers compile on Rust 1.88 for default, certificate, interface, their combined
+profile, Candid and all three combined; the four parser-free graphs contain
+neither Candid nor its parser. The publication receipt is
+`/tmp/host-028-release.74E1bj/`. The exact corrected source tree passed Linux,
+macOS 15 Intel/Apple Silicon and MSRV in
+[CI run 39222454102](https://github.com/dragginzgame/ic-host-tooling/actions/runs/39222454102).
+Query's manifest/lock and consumer qualification remain Query-owned.
 
 ## Ownership
 

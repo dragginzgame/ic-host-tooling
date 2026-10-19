@@ -359,7 +359,10 @@ prevent an external writer from changing bytes.
 The first import preserves implemented guarantees. It does not establish root
 confinement for following pathname APIs, immutable source bytes, process sandboxing,
 descendant cleanup, hardware-independent crash durability or safe paid-effect retries.
-Query's capability confinement and refresh leases remain consumer-owned.
+FS's [capability handles](capability-fs.md) own Query-derived no-follow traversal,
+relative creation, parent synchronization and bounded directory observations.
+Query retains cache paths, schemas, permissions, candidate selection, public error
+mapping and refresh leases; its adapter migration is separate from Host delivery.
 Backup's checksum records and admission policy, multi-file publication and
 journals remain consumer-owned; generic hashing and framing use the Host owners.
 `ic-host-process` opt-in testing also supplies an acknowledged direct-child crash
