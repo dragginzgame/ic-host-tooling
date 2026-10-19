@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.29.0]
+## [0.29.0] - 2026-10-19
 
 - Adopt Shared Tooling 0.25.1: IC Build owns release candidate rendering, source
   symlinks are rejected, prepared package licenses are verified before upload,
