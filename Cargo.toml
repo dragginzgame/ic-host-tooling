@@ -12,7 +12,7 @@ resolver = "3"
 [workspace.package]
 edition = "2024"
 rust-version = "1.88.0"
-version = "0.28.0"
+version = "0.28.1"
 license = "MIT"
 repository = "https://github.com/dragginzgame/ic-host-tooling"
 authors = ["borovan <84897664+borovan@users.noreply.github.com>"]
@@ -31,10 +31,10 @@ ic-host-fs = { path = "crates/ic-host-fs", version = "0.28", default-features = 
 ic-platform = { version = "0.1.11", default-features = false }
 leb128 = "0.2.5"
 libc = "0.2.190"
-minicbor = { version = "0.19.1", default-features = false, features = ["std"] }
 prost = "0.14.3"
 rustix = { version = "1.1.4", default-features = false, features = ["std", "fs"] }
 serde = { version = "1.0.228", default-features = false, features = ["std"] }
+serde_cbor = "0.11.2"
 serde_json = "1.0.150"
 serde_yaml_ng = "0.10"
 sha2 = "0.10.9"
@@ -47,7 +47,6 @@ wasmparser = { version = "0.261.0", default-features = false, features = ["std",
 
 # Tests and tooling only
 ic-host-process = { path = "crates/ic-host-process", version = "0.28", default-features = false }
-serde_cbor = "0.11.2"
 
 [workspace.lints.rust]
 missing_docs = "warn"

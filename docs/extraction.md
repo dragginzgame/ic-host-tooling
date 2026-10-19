@@ -234,24 +234,21 @@ Callers retain field names, semantic limits, transport and trust policy.
 The optional tools `certificate` feature owns strict CBOR decoding into owned
 certificate/delegation/hash-tree values supplied by `ic_platform::certification`.
 These retain upstream `ic-certification` type identities. It admits complete
-input bytes and selected CBOR nesting before returning a single fully consumed
-value. Private Minicbor primitives enforce actual array/byte kinds, exact tree tags
+input bytes before decoding with the IC Agent's `serde_cbor` codec and its
+built-in recursion limit, returning one fully consumed value. Host has no depth
+override or competing CBOR parser. Direct Serde visitors enforce actual array/byte kinds, exact tree tags
 and arities and 32-byte pruned digests without a generic CBOR payload tree.
 Certificate/delegation fields reject unknown, duplicate, missing or invalid
-values. Errors distinguish byte allowance, trailing data and CBOR/shape failures.
+values. These stricter schema adapters remain necessary: upstream storage
+deserialization also accepts text/integer-array byte projections and does not
+detect every duplicate-null field. Errors distinguish byte allowance, trailing
+data and CBOR/shape failures.
 Parser allocations use ordinary upstream Vec/Box storage; a byte bound is not a
 heap/CPU quota. No authentication is implied. Agent verification, network trust
 roots, combined certificate/witness budgets, witness commitment and application
 leaf interpretation remain consumer-owned. No Agent, transport, filesystem,
 process or text dependency enters this profile
 ([#109 — Owned certificate decoding](https://github.com/dragginzgame/ic-host-tooling/issues/109)).
-
-The backend reuses the already-selected Minicbor version without exposing its
-types in signatures. Explicit schema reads enforce the full caller-selected depth
-range; map/key tags are transparent and tree/scalar tags remain strict. Fixtures
-use independent dev-only serde_cbor encoding, preserving duplicate maps through
-the serializer rather than a map value that would collapse duplicate keys.
-Ciborium and its helper crates are absent from the selected workspace graph.
 
 Source tests move with their owner; public artifact projection tests belong to
 ic-host-artifacts. Runnable examples retain explicit dependencies on each owner.

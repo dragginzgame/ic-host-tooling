@@ -1,9 +1,6 @@
 use super::*;
 use serde_cbor::Value;
-const LIMITS: DecodeLimits = DecodeLimits {
-    bytes: 65_536,
-    depth: 32,
-};
+const LIMITS: DecodeLimits = DecodeLimits { bytes: 65_536 };
 
 fn encode(value: &impl serde::Serialize) -> Vec<u8> {
     serde_cbor::to_vec(value).unwrap()
@@ -91,18 +88,11 @@ fn strict_tags_arities_and_byte_kinds_refuse_malformed_trees() {
 }
 
 #[test]
-fn byte_and_nesting_bounds_and_complete_consumption_are_independent() {
+fn byte_admission_and_complete_consumption_are_independent() {
     let tree = labeled(b"one".to_vec(), labeled(b"two".to_vec(), leaf(vec![1])));
     let bytes = encode(&tree);
     assert_eq!(
-        decode_hash_tree(
-            &bytes,
-            DecodeLimits {
-                bytes: bytes.len(),
-                depth: 32
-            }
-        )
-        .unwrap(),
+        decode_hash_tree(&bytes, DecodeLimits { bytes: bytes.len() }).unwrap(),
         tree
     );
     assert!(matches!(
@@ -110,14 +100,9 @@ fn byte_and_nesting_bounds_and_complete_consumption_are_independent() {
             &bytes,
             DecodeLimits {
                 bytes: bytes.len() - 1,
-                depth: 0
             }
         ),
         Err(DecodeError::ByteLimit { .. })
-    ));
-    assert!(matches!(
-        decode_hash_tree(&bytes, DecodeLimits { depth: 1, ..LIMITS }),
-        Err(DecodeError::Cbor(_))
     ));
     for suffix in [vec![0], encode(&empty()), vec![0xff]] {
         let mut trailing = bytes.clone();
@@ -234,7 +219,7 @@ fn certificate_and_delegation_fields_are_strict_and_trailing_data_refuses() {
         Err(DecodeError::TrailingData)
     ));
     assert!(matches!(
-        decode_certificate(&bytes, DecodeLimits { bytes: 0, depth: 0 }),
+        decode_certificate(&bytes, DecodeLimits { bytes: 0 }),
         Err(DecodeError::ByteLimit { .. })
     ));
 }
@@ -247,72 +232,48 @@ fn parser_failure_retains_wrapped_source_and_sanitized_display() {
     let error = decode_certificate(&encode(&secret), LIMITS).unwrap_err();
     let wrapped = error.source().unwrap();
     assert!(wrapped.is::<ParseError>());
-    assert!(wrapped.source().unwrap().is::<minicbor::decode::Error>());
+    assert!(wrapped.source().unwrap().is::<serde_cbor::Error>());
     assert!(!error.to_string().contains(secret));
     assert!(!wrapped.to_string().contains(secret));
     assert!(DecodeError::TrailingData.source().is_none());
 }
 
 #[test]
-fn full_caller_depth_range_and_exact_container_boundaries_are_supported() {
-    std::thread::Builder::new()
-        .stack_size(32 * 1024 * 1024)
-        .spawn(|| {
-            for depth in [1_u8, 2, 127, 128, 129, 255] {
-                let mut bytes = [0x83, 2, 0x40].repeat(usize::from(depth - 1));
-                bytes.extend([0x81, 0]);
-                let limits = DecodeLimits {
-                    bytes: bytes.len(),
-                    depth,
-                };
-                assert!(decode_hash_tree(&bytes, limits).is_ok(), "depth {depth}");
-                assert!(matches!(
-                    decode_hash_tree(
-                        &bytes,
-                        DecodeLimits {
-                            depth: depth - 1,
-                            ..limits
-                        }
-                    ),
-                    Err(DecodeError::Cbor(_))
-                ));
-            }
-        })
-        .unwrap()
-        .join()
-        .unwrap();
-    let bytes = encode(&certificate(Value::Bytes(vec![])));
-    assert!(decode_certificate(&bytes, DecodeLimits { depth: 2, ..LIMITS }).is_ok());
-    assert!(matches!(
-        decode_certificate(&bytes, DecodeLimits { depth: 1, ..LIMITS }),
-        Err(DecodeError::Cbor(_))
-    ));
+fn codec_recursion_matches_the_ic_agent_decoder() {
+    for depth in [1, 2, 32, 126, 127, 128, 129, 255] {
+        let mut bytes = Vec::new();
+        for _ in 1..depth {
+            bytes.extend([0x83, 2, 0x40]);
+        }
+        bytes.extend([0x81, 0]);
+        let upstream = serde_cbor::from_slice::<HashTree>(&bytes);
+        let decoded = decode_hash_tree(&bytes, LIMITS);
+        assert_eq!(decoded.is_ok(), upstream.is_ok(), "depth {depth}");
+        if depth <= 32 {
+            assert_eq!(decoded.unwrap(), upstream.unwrap());
+        } else if depth >= 128 {
+            assert!(matches!(decoded, Err(DecodeError::Cbor(_))));
+            assert!(upstream.is_err());
+        }
+    }
 }
 
 #[test]
-fn tagged_maps_and_keys_preserve_the_existing_strict_wire_admission() {
-    let certificate = b"\xa2\x64tree\x81\0\x69signature\x40";
-    let mut tagged = [0xd9, 0xd9, 0xf7].repeat(150);
-    tagged.extend(certificate);
-    assert!(decode_certificate(&tagged, DecodeLimits { depth: 2, ..LIMITS }).is_ok());
-    let byte_keys = b"\xa2\x44tree\x81\0\x49signature\x40";
-    assert!(decode_certificate(byte_keys, LIMITS).is_ok());
-    let tagged_key = b"\xa2\xd9\xd9\xf7\x64tree\x81\0\x69signature\x40";
-    assert!(decode_certificate(tagged_key, LIMITS).is_ok());
-    for invalid in [
-        b"\xd9\xd9\xf7\x81\0".as_slice(),
-        b"\x81\xd9\xd9\xf7\0",
-        b"\x82\x03\xd9\xd9\xf7\x40",
-    ] {
-        assert!(matches!(
-            decode_hash_tree(invalid, LIMITS),
-            Err(DecodeError::Cbor(_))
-        ));
-    }
-    // Map keys must remain definite text/byte strings.
-    let indefinite_key = b"\xa2\x7f\x64tree\xff\x81\0\x69signature\x40";
+fn semantic_tags_follow_the_ic_agent_decoder() {
+    let expected = labeled(b"name".to_vec(), leaf(b"value".to_vec()));
+    let mut tagged = vec![0xd9, 0xd9, 0xf7];
+    tagged.extend(encode(&expected));
+    assert_eq!(
+        decode_hash_tree(&tagged, LIMITS).unwrap(),
+        serde_cbor::from_slice::<HashTree>(&tagged).unwrap()
+    );
+    assert_eq!(decode_hash_tree(&tagged, LIMITS).unwrap(), expected);
+    // The codec charges semantic tags to its own recursion budget.
+    let mut excessive = [0xd9, 0xd9, 0xf7].repeat(128);
+    excessive.extend([0x81, 0]);
+    assert!(serde_cbor::from_slice::<HashTree>(&excessive).is_err());
     assert!(matches!(
-        decode_certificate(indefinite_key, LIMITS),
+        decode_hash_tree(&excessive, LIMITS),
         Err(DecodeError::Cbor(_))
     ));
 }
@@ -321,12 +282,20 @@ fn tagged_maps_and_keys_preserve_the_existing_strict_wire_admission() {
 fn indefinite_containers_and_byte_chunks_remain_supported() {
     let tree = b"\x9f\x03\x5f\x42ab\x41c\xff\xff";
     assert_eq!(
-        decode_hash_tree(tree, DecodeLimits { depth: 1, ..LIMITS }).unwrap(),
+        decode_hash_tree(tree, LIMITS).unwrap(),
         leaf(b"abc".to_vec())
     );
+    assert_eq!(
+        decode_hash_tree(tree, LIMITS).unwrap(),
+        serde_cbor::from_slice::<HashTree>(tree).unwrap()
+    );
     let certificate = b"\xbf\x64tree\x9f\0\xff\x69signature\x5f\x41x\x41y\xff\xff";
-    let decoded = decode_certificate(certificate, DecodeLimits { depth: 2, ..LIMITS }).unwrap();
+    let decoded = decode_certificate(certificate, LIMITS).unwrap();
     assert_eq!(decoded.signature, b"xy");
+    assert_eq!(
+        decoded,
+        serde_cbor::from_slice::<Certificate>(certificate).unwrap()
+    );
     for bytes in [
         b"\x82\x03\x5f\x61x\xff".as_slice(),
         b"\x82\x03\x5f\x5f\xff\xff",
@@ -336,35 +305,4 @@ fn indefinite_containers_and_byte_chunks_remain_supported() {
             Err(DecodeError::Cbor(_))
         ));
     }
-}
-
-#[test]
-fn delegation_nulls_and_transparent_maps_preserve_their_depth_contract() {
-    let base = encode(&certificate(Value::Bytes(vec![])));
-    let delegation = Delegation {
-        subnet_id: vec![1],
-        certificate: vec![0xff, 0],
-    };
-    let mut tagged_map = vec![0xd9, 0xd9, 0xf7];
-    tagged_map.extend(encode(&delegation));
-    for value in [vec![0xf6], vec![0xf7], tagged_map] {
-        let mut bytes = base.clone();
-        bytes[0] = 0xa3;
-        bytes.extend(encode(&"delegation"));
-        bytes.extend(&value);
-        let certificate = decode_certificate(&bytes, DecodeLimits { depth: 2, ..LIMITS }).unwrap();
-        if value.len() == 1 {
-            assert!(certificate.delegation.is_none());
-        } else {
-            assert_eq!(certificate.delegation.unwrap(), delegation);
-        }
-    }
-    let mut invalid = base;
-    invalid[0] = 0xa3;
-    invalid.extend(encode(&"delegation"));
-    invalid.extend([0xd9, 0xd9, 0xf7, 0xf6]);
-    assert!(matches!(
-        decode_certificate(&invalid, LIMITS),
-        Err(DecodeError::Cbor(_))
-    ));
 }

@@ -26,12 +26,6 @@ Select one changed crate with `PACKAGE=<crate>` for `make check`, `make clippy`,
 and Wasm features; production filesystem dependencies select none of them.
 Check target-directory ownership before compilation. Preserve failure logs and artifacts.
 
-`make test-artifacts-wasm` exercises structural inspection without the full
-validator. All-feature Artifacts tests also exercise `wasm-validation`, including
-invalid instructions, result types and indices that inspection intentionally does
-not reject. Feature graphs enforce that only `wasm-validation` selects the upstream
-validator; native CI retains both profiles. Neither profile executes Wasm.
-
 `make test-artifacts-minimal` checks the artifact library without optional
 features. `make test-tools-default` checks response and ICP interpretation without
 Platform or Candid. `make test-tools-candid` checks opt-in Candid decoding/service
@@ -40,6 +34,14 @@ interpretation; `make test-tools-certificate` adds strict owned certificate/hash
 decoding. `make test PACKAGE=ic-host-text` checks bounded line normalization,
 escaping, progress frames and Unicode table alignment.
 `make test-tools-registry` checks golden Protobuf tags and shard admission.
+
+Certificate tests compare recursion refusal, semantic tags and indefinite byte
+chunks with the same `serde_cbor` decoder used by IC Agent. Strict Host field,
+array/byte-kind, trailing-input and redacted-error tests remain independent.
+Certificate normal/build graphs require serde_cbor and exclude Minicbor; every
+selected graph excludes Ciborium. The ledger profile retains its upstream
+Minicbor dependency. Native Linux and both macOS hosts must qualify new decoder
+source separately; named-target graph checks do not execute on those hosts.
 
 `make test-tools-agent` exercises native construction, exact binding and response
 ceilings. Its Wasm graph check observes dependency exclusion, not Tools execution.
@@ -197,6 +199,12 @@ and snapshot verification do not provide that admission. Further test-only catal
 entries require explicit graph exclusions; comments alone do not activate them.
 Native macOS and deployment evidence remain distinct from graph checks.
 
+`make test-artifacts-wasm` exercises structural inspection without the full
+validator. All-feature Artifacts tests also exercise `wasm-validation`, including
+invalid instructions, result types and indices that inspection intentionally does
+not reject. Feature graphs enforce that only `wasm-validation` selects the upstream
+validator; native CI retains both profiles. Neither profile executes Wasm.
+
 FS's [capability backend](capability-fs.md) selects cap-std/cap-fs-ext only on
 Unix. Feature-graph validation requires both on each native host and excludes
 them from the Wasm compile-only profile. New capability tests must run natively
@@ -206,9 +214,3 @@ Scoped named scratch files use tempfile only on Unix. Native dependency graphs
 require that backend; the Wasm compile-only graph excludes it. Qualify private
 modes, binary child input and scope/unwind/explicit cleanup on Linux and both
 macOS architectures. No new non-Unix filesystem execution support is implied.
-
-Certificate decoding uses Minicbor with explicit schema/container-depth admission.
-Graph checks require it for certificate profiles, keep the independent fixture
-encoder out of their normal/build graphs, and exclude Ciborium from every selected
-profile. Depth boundaries through 255 and tagged/indefinite wire cases require
-the same actual Rust 1.88 and native Linux/macOS qualification as other profiles.

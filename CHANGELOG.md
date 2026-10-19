@@ -1,23 +1,40 @@
 # Changelog
 
-## [0.28.1] - Unreleased
+## [0.29.0]
 
 - Add Unix directory capabilities backed by cap-*, preserving held-parent
-  operations without following symlinks. Callers retain permission and scan
-  policy; Query adoption is separate.
+  no-follow operations and caller-owned cache/permission policy
+  ([#80 — Capability-rooted filesystem extraction from Query](https://github.com/dragginzgame/ic-host-tooling/issues/80)).
+- Add opt-in full core Wasm validation to Artifacts, keeping structural
+  inspection independent and allowing consumers to remove direct wasmparser use.
+- Add scoped private argument files backed by tempfile in FS, retaining
+  caller-owned parent selection and child lifetime. Existing retained scratch
+  files keep their recovery contract. [Details](docs/changelog/0.29.md).
 
-- Add opt-in full core Wasm validation to Artifacts, allowing fixture consumers
-  to remove direct wasmparser dependencies without weakening type or instruction
-  checks. Structural inspection stays independent.
-  [Details](docs/changelog/0.28.md#0281).
+- **Breaking:** Align certificate decoding with IC Agent's `serde_cbor` codec
+  and built-in recursion limit. Remove `depth` from certificate `DecodeLimits`
+  initializers; strict schema and input-byte admission remain Host-owned
+  ([#201 — Replace the certificate Ciborium backend](https://github.com/dragginzgame/ic-host-tooling/issues/201)).
+  [Migration](docs/changelog/0.29.md).
+- Remove Ciborium and its helper packages without adding a direct Minicbor
+  dependency or another CBOR parser. Ledger dependencies remain upstream-owned.
+  [Details](docs/changelog/0.29.md).
 
-- Add scoped private argument files backed by tempfile in FS. Callers retain
-  parent selection and child lifetime; existing caller-retained scratch files
-  keep their recovery contract. [Details](docs/changelog/0.28.md#0281).
+## [0.28.1] - 2026-10-19
 
-- Remove Ciborium from certificate decoding, reusing Minicbor while preserving
-  strict schemas, caller-selected depth and public error categories. Reject
-  malformed nested byte-string chunks. [Details](docs/changelog/0.28.md#0281).
+Prepared in [PR #207 — Integrate the 0.28.1 batch](https://github.com/dragginzgame/ic-host-tooling/pull/207);
+merge the producer changes before releasing. [Adoption notes](docs/changelog/0.28.md#0281).
+
+- Add Unix directory capabilities backed by cap-*, sharing no-follow traversal,
+  descriptor-relative operations and bounded enumeration while keeping cache
+  policy with consumers ([#80 — Capability-rooted filesystem extraction from Query](https://github.com/dragginzgame/ic-host-tooling/issues/80)).
+- Add opt-in full core Wasm validation to Artifacts so consumers can remove direct
+  wasmparser dependencies without losing instruction or type checks.
+- Add scoped private temporary files to FS, with cleanup on drop and explicit
+  removal errors. Existing caller-retained scratch files keep their recovery contract.
+- Remove Ciborium from certificate decoding in favor of Minicbor, preserving
+  public APIs and caller-selected depth limits while rejecting malformed nested
+  byte-string chunks ([#201 — Replace the certificate Ciborium backend](https://github.com/dragginzgame/ic-host-tooling/issues/201)).
 
 ## [0.28.0] - 2026-10-19
 
