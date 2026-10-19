@@ -98,8 +98,9 @@ Package metadata uses the standard MIT SPDX identifier. Each selected package's
 `LICENSE` is a regular copy of the canonical root notice, compatible with the formatting
 hook and included in the package archive without redundant `license-file`
 metadata. Both publication commands reject missing, symlinked or differing
-notices before invoking Cargo. Update every selected package's copy when the root
-notice changes.
+notices before invoking Cargo. The CI publication fixture preserves real package
+notices, so the complete release gate observes source drift instead of synthesizing
+matching notices. Update every selected package's copy when the root notice changes.
 
 Before upload, review the dry run and confirm that the committed version is the
 intended registry release. Inspect current registry state for that exact version;
