@@ -1349,7 +1349,7 @@ dependencies = [
 
 [[package]]
 name = "ic-host-artifacts"
-version = "0.28.0"
+version = "0.28.1"
 dependencies = [
  "flate2",
  "leb128",
@@ -1361,7 +1361,7 @@ dependencies = [
 
 [[package]]
 name = "ic-host-fs"
-version = "0.28.0"
+version = "0.28.1"
 dependencies = [
  "ic-host-artifacts",
  "rustix",
@@ -1372,7 +1372,7 @@ dependencies = [
 
 [[package]]
 name = "ic-host-process"
-version = "0.28.0"
+version = "0.28.1"
 dependencies = [
  "command-fds",
  "ic-host-artifacts",
@@ -1383,14 +1383,14 @@ dependencies = [
 
 [[package]]
 name = "ic-host-text"
-version = "0.28.0"
+version = "0.28.1"
 dependencies = [
  "unicode-width 0.2.2",
 ]
 
 [[package]]
 name = "ic-host-tools"
-version = "0.28.0"
+version = "0.28.1"
 dependencies = [
  "ciborium",
  "ic-host-artifacts",
@@ -1409,7 +1409,7 @@ dependencies = [
 
 [[package]]
 name = "ic-host-wasm-inspect"
-version = "0.28.0"
+version = "0.28.1"
 dependencies = [
  "ic-host-artifacts",
  "ic-host-fs",

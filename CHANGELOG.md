@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.28.1]
+## [0.28.1] - 2026-10-19
 
 Prepared in [PR #207 — Integrate the 0.28.1 batch](https://github.com/dragginzgame/ic-host-tooling/pull/207);
 merge the producer changes before releasing. [Adoption notes](docs/changelog/0.28.md#0281).
