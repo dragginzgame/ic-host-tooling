@@ -3,7 +3,7 @@
 The 0.1.0 section preserves the original bootstrap notes. The published 0.1.0
 archive also includes the extracted artifact engine and Cargo grouping API.
 
-## [0.20.0]
+## [0.20.0] - 2026-10-19
 
 - Adopt Shared Tooling 0.25.0 and retire the Perl editors while preserving
   metadata rollback and independent Cargo checks. Local release commands select
