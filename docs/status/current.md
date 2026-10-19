@@ -4,10 +4,28 @@
 
 Read [Cargo.toml](../../Cargo.toml), [CHANGELOG.md](../../CHANGELOG.md), Git tags,
 [AGENTS.md](../../AGENTS.md) and the exact [Shared snapshot](../../.shared-tooling.snapshot).
-Released Host 0.27.6 is delivered at `0c3acb8d52e8017dd7a3b39d0ae94443f90066a0`.
-Pending work belongs to [0.28.0](../changelog/0.28.md#0280);
-package versions, the index, Git delivery and releases remain user-owned.
+Published Host 0.28.0 uses `b9c20de084a8f8176d8c73c61a3b30e740c8875c`, including
+the initial notice correction after the unchanged `v0.28.0` tag at `5150105`.
+Pending work belongs to [0.28.1](../changelog/0.28.md#0281);
+package versions and further release effects remain user-owned.
 Sibling checkouts are read-only. GitHub issues are the sole follow-up tracker.
+
+## Prepared scoped temporary files
+
+FS owns Unix `scratch::TemporaryFile` over a private tempfile 3.27 dependency.
+Callers select the existing parent/prefix, write through the standard descriptor
+and keep the guard alive through child completion. Drop attempts cleanup;
+explicit close returns original removal errors. Existing retained scratch files
+and panic-retaining directory fixtures preserve their different custody contracts.
+IcyDB's `icydb-cli/src/icp/call.rs` in read-only checkout `a1dc330` is the inspected
+consumer; its source and direct dependency remain unchanged pending adoption of
+a supplying Host release.
+
+Focused Linux receipt: `/tmp/host-tempfile.v8geXo/`. Actual Rust 1.88 passes all
+182 FS library tests and 12 integration cases, including six new scoped-file cases
+and the five retained scratch cases. Strict MSRV Clippy/Rustdoc and the non-Unix
+compile contract pass. Lock selection adds only tempfile 3.27.0; existing external
+package selections are unchanged. Native macOS execution remains separate.
 
 ## Prepared Candid isolation
 

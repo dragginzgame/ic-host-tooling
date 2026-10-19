@@ -190,3 +190,8 @@ successful build evidence to the installed artifact. Shared's sorter, pin checke
 and snapshot verification do not provide that admission. Further test-only catalog
 entries require explicit graph exclusions; comments alone do not activate them.
 Native macOS and deployment evidence remain distinct from graph checks.
+
+Scoped named scratch files use tempfile only on Unix. Native dependency graphs
+require that backend; the Wasm compile-only graph excludes it. Qualify private
+modes, binary child input and scope/unwind/explicit cleanup on Linux and both
+macOS architectures. No new non-Unix filesystem execution support is implied.

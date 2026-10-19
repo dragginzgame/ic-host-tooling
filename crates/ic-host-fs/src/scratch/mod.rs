@@ -1,4 +1,9 @@
-//! Private invocation files without durable publication or automatic retention policy.
+//! Private retained and scoped invocation files without durable publication.
+
+#[cfg(unix)]
+mod temporary;
+#[cfg(unix)]
+pub use temporary::TemporaryFile;
 
 #[cfg(unix)]
 use std::{
@@ -87,20 +92,13 @@ fn create_with_sequence(
     attempts: usize,
     mut sequence: impl FnMut() -> u64,
 ) -> Result<PathBuf, PrivateBytesError> {
-    use std::path::Component;
-    let mut components = Path::new(prefix).components();
-    if attempts == 0
-        || prefix.contains(['\0', '\r', '\n'])
-        || !matches!(
-            (components.next(), components.next()),
-            (Some(Component::Normal(name)), None) if name == std::ffi::OsStr::new(prefix)
-        )
-    {
+    if attempts == 0 {
         return Err(PrivateBytesError::BeforeCreation(io::Error::new(
             io::ErrorKind::InvalidInput,
             "invalid private scratch request",
         )));
     }
+    validate_prefix(prefix).map_err(PrivateBytesError::BeforeCreation)?;
     let parent = parent
         .canonicalize()
         .map_err(PrivateBytesError::BeforeCreation)?;
@@ -128,6 +126,24 @@ fn create_with_sequence(
         io::ErrorKind::AlreadyExists,
         "private scratch creation attempts exhausted",
     )))
+}
+
+#[cfg(unix)]
+fn validate_prefix(prefix: &str) -> io::Result<()> {
+    use std::path::Component;
+    let mut components = Path::new(prefix).components();
+    if prefix.contains(['\0', '\r', '\n'])
+        || !matches!(
+            (components.next(), components.next()),
+            (Some(Component::Normal(name)), None) if name == std::ffi::OsStr::new(prefix)
+        )
+    {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "invalid private scratch request",
+        ));
+    }
+    Ok(())
 }
 
 #[cfg(unix)]
