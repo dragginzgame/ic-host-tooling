@@ -1,6 +1,9 @@
 //! Local host filesystem reads, durable publication and descriptor locks.
+//!
+//! Optional Unix APIs: `capability` selects held directory/file capabilities;
+//! `temporary-file` selects scoped named scratch files. Defaults select neither.
 pub mod cache_tag;
-#[cfg(unix)]
+#[cfg(all(unix, feature = "capability"))]
 pub mod capability;
 pub mod directory;
 pub mod durable;

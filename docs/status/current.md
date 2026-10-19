@@ -4,13 +4,51 @@
 
 Read [Cargo.toml](../../Cargo.toml), [CHANGELOG.md](../../CHANGELOG.md), Git tags,
 [AGENTS.md](../../AGENTS.md) and the exact [Shared snapshot](../../.shared-tooling.snapshot).
-Host 0.28.1 is released at `a4c2bf48d520391cfd326f98ea9fda864241a1a5`
-and is available from the registry. That source still uses Ciborium: the producer
-changes described in its notes were not integrated before the release. The next
-draft is [0.29.0](../changelog/0.29.md#0290), selected for the explicit certificate
-depth-contract change below. Staging, commits, version changes,
+Host 0.29.0 is released at `ef1e632` and resolves from the registry in Blob's
+current lock. It includes the filesystem/Wasm backends and serde_cbor migration
+described below. The next draft is [0.30.0](../changelog/0.30.md#0300), selected
+for explicit filesystem feature admission. Staging, commits, version changes,
 Git release/push and registry publication remain user-owned.
 Sibling checkouts are read-only. GitHub issues are the sole follow-up tracker.
+
+## Optional filesystem backends
+
+FS now gates held capabilities behind `capability` and scoped named scratch files
+behind independent `temporary-file`, with empty defaults. Default FS, Process,
+the file CLI and inspector exclude both backends. Backend mechanics and ordinary
+filesystem APIs remain unchanged. The [0.30 notes](../changelog/0.30.md) identify
+verified Query, Testkit Dev and IcyDB CLI consumers that need explicit selection
+after publication. Those sibling checkouts remain unchanged. The qualification
+records below describe their named preceding source, not this feature cut.
+
+Receipt: `/tmp/host-fs-opt-in.Dwo44H/`. Actual Rust 1.88 passes 177 default,
+189 capability-only, 183 temporary-file-only and 195 combined FS unit cases,
+plus the all-feature CLI/integration tests. Process checks, strict MSRV/development
+Clippy and strict all-feature/default Rustdoc pass. The actual 1.88 non-Unix
+library/binary/unsupported-lock compile gate passes. Normal/build graphs pass for
+Linux and both macOS targets, including independent backend selection and their
+exclusion from FS defaults, CLI, Process and the inspector. Formatting, snapshot,
+pins, local links, symlink admission and ShellCheck pass. The incoming lockfile
+and index are unchanged; package versions remain 0.29.0. No full local gate,
+release, publication or native macOS execution ran.
+
+## Consumer adoption review
+
+Blob main `c80c51c230c467da681c11902124c486878a18c5` already selects released
+Build 0.21.0 and Testkit 0.55.2. Frozen normal/build graphs from an exact committed
+source archive contain only Host 0.29.0; its standalone canister Wasm graph
+excludes Host and the filesystem backends. No Blob dependency edit is needed.
+
+Query's pending work above `6c051236be4a1c96bcb379c49d8a51623d83655e` already
+replaces its competing agent cache with Host's binding and builder, retaining
+endpoint admission, response ceilings and historical expiry policy. An isolated
+captured-source review passes all six agent cases at Rust 1.91 and the complete
+library dependency-graph check. The body-limit case required a local loopback
+listener outside the socket-restricted sandbox. This is pending-source evidence,
+not committed adoption or native macOS qualification. Its existing
+[consumer issue](https://github.com/dragginzgame/ic-query/issues/82) owns delivery;
+the active working tree remains untouched. Receipt:
+`/tmp/host-consumer-adoption.CICUJf/` binds exact captured source hashes and logs.
 
 ## Shared Tooling 0.25.1 adoption
 

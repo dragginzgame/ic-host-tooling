@@ -7,6 +7,11 @@ mechanism, not cache configuration or a lifecycle owner.
 
 ## Selection and policy
 
+Enable `ic-host-fs`'s `capability` feature explicitly. It selects both private
+cap-* dependencies on Unix; defaults and the independent `cli` feature do not.
+Scoped `scratch::TemporaryFile` allocation instead requires `temporary-file`;
+neither feature selects the other. See the [0.30 migration](changelog/0.30.md).
+
 Open a root with explicit `DirectoryOptions`. `create_permissions: None` observes
 absence; `Some(mode)` permits missing directory creation subject to umask.
 `forbidden_permissions` is the caller's mask of disallowed low nine permission

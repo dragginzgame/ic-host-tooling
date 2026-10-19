@@ -1,8 +1,8 @@
 //! Private retained and scoped invocation files without durable publication.
 
-#[cfg(unix)]
+#[cfg(all(unix, feature = "temporary-file"))]
 mod temporary;
-#[cfg(unix)]
+#[cfg(all(unix, feature = "temporary-file"))]
 pub use temporary::TemporaryFile;
 
 #[cfg(unix)]

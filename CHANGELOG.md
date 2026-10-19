@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.30.0]
+
+- **Breaking:** Make FS's held-capability and scoped-tempfile APIs opt-in through
+  independent `capability` and `temporary-file` features. Default FS, Process and
+  file CLI builds no longer select either backend. Existing users of those APIs
+  must enable their feature explicitly. [Migration](docs/changelog/0.30.md).
+
 ## [0.29.0] - 2026-10-19
 
 - Adopt Shared Tooling 0.25.1: IC Build owns release candidate rendering, source

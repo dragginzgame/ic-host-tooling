@@ -51,7 +51,7 @@ check_graph registry ic-host-tools none registry 'ic-platform prost' \
 check_graph ic-interface ic-host-tools none ic-interface \
     'ic-host-artifacts wasmparser' '^(ic-platform|candid|candid_parser|ic-host-(fs|process|text)|serde_cbor|minicbor|wasm-encoder) '
 check_graph inspection ic-host-wasm-inspect default '' 'ic-host-artifacts ic-host-fs' \
-    '^(ic-host-process|ic-platform|candid_parser|serde_cbor|minicbor|wasm-encoder) '
+    '^(ic-host-process|ic-platform|candid_parser|serde_cbor|minicbor|wasm-encoder|cap-std|cap-fs-ext|tempfile) '
 check_graph certificate ic-host-tools none certificate 'ic-platform serde_cbor ic-certification' \
     '^(candid|candid_parser|ic-host-(artifacts|fs|process|text)|wasmparser|ic-agent|reqwest|minicbor) '
 check_graph tools-parser-free-combined ic-host-tools none ic-interface,certificate \
@@ -93,12 +93,18 @@ for profile in wasm wasm-validation wasm-encoding wasm-text wasm-encoding,wasm-v
             ;;
     esac
 done
-check_graph filesystem ic-host-fs default '' 'ic-host-artifacts cap-std cap-fs-ext tempfile' \
-    '^(ic-host-(process|tools|text)|ic-platform|candid|candid_parser|ic-agent|ic-certification|reqwest|serde_cbor|minicbor|clap) '
-check_graph filesystem-cli ic-host-fs none cli 'clap ic-host-artifacts cap-std cap-fs-ext tempfile' \
-    '^(ic-host-process|ic-platform|wasmparser|wasm-encoder) '
-check_graph process ic-host-process default '' 'ic-host-fs' '^(clap|ic-platform|wasmparser|wasm-encoder) '
-check_graph filesystem-non-unix ic-host-fs default '' ic-host-artifacts \
+check_graph filesystem ic-host-fs default '' ic-host-artifacts \
+    '^(ic-host-(process|tools|text)|ic-platform|candid|candid_parser|ic-agent|ic-certification|reqwest|serde_cbor|minicbor|clap|cap-std|cap-fs-ext|tempfile) '
+check_graph filesystem-capability ic-host-fs none capability 'ic-host-artifacts cap-std cap-fs-ext' \
+    '^(tempfile|clap|ic-host-process|ic-platform|wasmparser|wasm-encoder) '
+check_graph filesystem-temporary ic-host-fs none temporary-file 'ic-host-artifacts tempfile' \
+    '^(cap-std|cap-fs-ext|clap|ic-host-process|ic-platform|wasmparser|wasm-encoder) '
+check_graph filesystem-combined ic-host-fs none capability,temporary-file 'ic-host-artifacts cap-std cap-fs-ext tempfile' \
+    '^(clap|ic-host-process|ic-platform|wasmparser|wasm-encoder) '
+check_graph filesystem-cli ic-host-fs none cli 'clap ic-host-artifacts' \
+    '^(ic-host-process|ic-platform|wasmparser|wasm-encoder|cap-std|cap-fs-ext|tempfile) '
+check_graph process ic-host-process default '' 'ic-host-fs' '^(clap|ic-platform|wasmparser|wasm-encoder|cap-std|cap-fs-ext|tempfile) '
+check_graph filesystem-non-unix ic-host-fs none capability,temporary-file ic-host-artifacts \
     '^(cap-std|cap-fs-ext|tempfile|rustix|ic-host-process|ic-platform) ' wasm32-unknown-unknown
 check_graph agent ic-host-tools none agent 'ic-platform candid ic-agent reqwest url serde_cbor' \
     '^(candid_parser|ic-host-(artifacts|fs|process|text)|wasmparser) '
