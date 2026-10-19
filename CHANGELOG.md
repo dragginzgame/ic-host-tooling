@@ -3,7 +3,7 @@
 The 0.1.0 section preserves the original bootstrap notes. The published 0.1.0
 archive also includes the extracted artifact engine and Cargo grouping API.
 
-## [0.19.0]
+## [0.19.0] - 2026-10-19
 
 - **Breaking:** replace public `cargo::execution::communicate_cargo` with
   `CargoInvocation` and `execute_cargo`. Build renders typed graph choices,
