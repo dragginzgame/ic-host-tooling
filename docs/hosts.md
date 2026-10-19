@@ -35,6 +35,14 @@ decoding. `make test PACKAGE=ic-host-text` checks bounded line normalization,
 escaping, progress frames and Unicode table alignment.
 `make test-tools-registry` checks golden Protobuf tags and shard admission.
 
+Certificate tests compare recursion refusal, semantic tags and indefinite byte
+chunks with the same `serde_cbor` decoder used by IC Agent. Strict Host field,
+array/byte-kind, trailing-input and redacted-error tests remain independent.
+Certificate normal/build graphs require serde_cbor and exclude Minicbor; every
+selected graph excludes Ciborium. The ledger profile retains its upstream
+Minicbor dependency. Native Linux and both macOS hosts must qualify new decoder
+source separately; named-target graph checks do not execute on those hosts.
+
 `make test-tools-agent` exercises native construction, exact binding and response
 ceilings. Its Wasm graph check observes dependency exclusion, not Tools execution.
 
@@ -190,9 +198,3 @@ successful build evidence to the installed artifact. Shared's sorter, pin checke
 and snapshot verification do not provide that admission. Further test-only catalog
 entries require explicit graph exclusions; comments alone do not activate them.
 Native macOS and deployment evidence remain distinct from graph checks.
-
-Certificate decoding uses Minicbor with explicit schema/container-depth admission.
-Graph checks require it for certificate profiles, keep the independent fixture
-encoder out of their normal/build graphs, and exclude Ciborium from every selected
-profile. Depth boundaries through 255 and tagged/indefinite wire cases require
-the same actual Rust 1.88 and native Linux/macOS qualification as other profiles.

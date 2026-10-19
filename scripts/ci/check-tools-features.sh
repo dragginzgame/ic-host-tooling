@@ -53,41 +53,41 @@ check_graph() {
 }
 
 check_graph tools ic-host-tools default '' '' \
-    '^(ic-platform|candid|candid_parser|ic-host-(artifacts|fs|process|text)|wasmparser|ic-certification|ic-agent|reqwest|url) '
+    '^(ic-platform|candid|candid_parser|ic-host-(artifacts|fs|process|text)|wasmparser|ic-certification|ic-agent|reqwest|url|serde_cbor|minicbor) '
 check_graph tools-no-defaults ic-host-tools none '' '' \
-    '^(ic-platform|candid|candid_parser|ic-host-(artifacts|fs|process|text)|wasmparser|ic-certification|ic-agent|reqwest|url) '
+    '^(ic-platform|candid|candid_parser|ic-host-(artifacts|fs|process|text)|wasmparser|ic-certification|ic-agent|reqwest|url|serde_cbor|minicbor) '
 check_graph encoding ic-host-tools none encoding '' \
-    '^(ic-platform|candid|candid_parser|ic-host-(artifacts|fs|process|text)|wasmparser|ic-certification|ic-agent|reqwest|serde_yaml_ng) '
+    '^(ic-platform|candid|candid_parser|ic-host-(artifacts|fs|process|text)|wasmparser|ic-certification|ic-agent|reqwest|serde_yaml_ng|serde_cbor|minicbor) '
 check_graph icp-project ic-host-tools none icp-project 'serde_yaml_ng' \
-    '^(ic-platform|candid|candid_parser|ic-host-(artifacts|fs|process|text)|wasmparser|ic-certification|ic-agent|reqwest) '
+    '^(ic-platform|candid|candid_parser|ic-host-(artifacts|fs|process|text)|wasmparser|ic-certification|ic-agent|reqwest|serde_cbor|minicbor) '
 check_graph ledger-evidence ic-host-tools none ledger-evidence 'ic-platform candid icrc-ledger-types' \
     '^(candid_parser|ic-host-(artifacts|fs|process|text)|wasmparser|ic-agent|reqwest|ic-stable-structures|serde_yaml_ng) '
 check_graph registry ic-host-tools none registry 'ic-platform prost' \
     '^(candid|candid_parser|ic-host-(artifacts|fs|process|text)|wasmparser|ic-certification|ic-agent|reqwest|serde_yaml_ng) '
 check_graph ic-interface ic-host-tools none ic-interface \
-    'ic-host-artifacts wasmparser' '^(ic-platform|candid|candid_parser|ic-host-(fs|process|text)) '
+    'ic-host-artifacts wasmparser' '^(ic-platform|candid|candid_parser|ic-host-(fs|process|text)|serde_cbor|minicbor) '
 check_graph inspection ic-host-wasm-inspect default '' 'ic-host-artifacts ic-host-fs' \
-    '^(ic-host-process|ic-platform|candid_parser) '
-check_graph certificate ic-host-tools none certificate 'ic-platform minicbor ic-certification' \
-    '^(candid|candid_parser|ic-host-(artifacts|fs|process|text)|wasmparser|ic-agent|reqwest|serde_cbor) '
+    '^(ic-host-process|ic-platform|candid_parser|serde_cbor|minicbor) '
+check_graph certificate ic-host-tools none certificate 'ic-platform serde_cbor ic-certification' \
+    '^(candid|candid_parser|ic-host-(artifacts|fs|process|text)|wasmparser|ic-agent|reqwest|minicbor) '
 check_graph tools-parser-free-combined ic-host-tools none ic-interface,certificate \
-    'ic-platform minicbor ic-certification ic-host-artifacts wasmparser' \
-    '^(candid|candid_parser|ic-host-(fs|process|text)|ic-agent|reqwest|serde_cbor) '
+    'ic-platform serde_cbor ic-certification ic-host-artifacts wasmparser' \
+    '^(candid|candid_parser|ic-host-(fs|process|text)|ic-agent|reqwest|minicbor) '
 check_graph candid ic-host-tools none candid 'ic-platform candid candid_parser' \
-    '^(ic-host-(artifacts|fs|process|text)|wasmparser|ic-certification|ic-agent|reqwest) '
+    '^(ic-host-(artifacts|fs|process|text)|wasmparser|ic-certification|ic-agent|reqwest|serde_cbor|minicbor) '
 check_graph tools-combined ic-host-tools none candid,ic-interface,certificate \
-    'ic-platform candid_parser minicbor ic-certification ic-host-artifacts wasmparser' \
-    '^(ic-host-(fs|process|text)|ic-agent|reqwest) '
+    'ic-platform candid_parser serde_cbor ic-certification ic-host-artifacts wasmparser' \
+    '^(ic-host-(fs|process|text)|ic-agent|reqwest|minicbor) '
 check_graph tools-all ic-host-tools none agent,candid,certificate,encoding,ic-interface,icp-project,ledger-evidence,registry \
-    'ic-platform candid_parser minicbor ic-certification ic-host-artifacts wasmparser ic-agent reqwest icrc-ledger-types serde_yaml_ng prost' \
+    'ic-platform candid_parser serde_cbor ic-certification ic-host-artifacts wasmparser ic-agent reqwest icrc-ledger-types serde_yaml_ng prost' \
     '^(ic-host-(fs|process|text)|ic-stable-structures) '
 check_graph text ic-host-text default '' unicode-width \
-    '^(ic-host-(artifacts|fs|process|tools)|ic-platform|candid_parser|ic-agent|ic-certification) '
+    '^(ic-host-(artifacts|fs|process|tools)|ic-platform|candid_parser|ic-agent|ic-certification|serde_cbor|minicbor) '
 check_graph artifacts ic-host-artifacts default '' '' '^ic-host-process '
 check_graph filesystem ic-host-fs default '' ic-host-artifacts \
-    '^(ic-host-(process|tools|text)|ic-platform|candid|candid_parser|ic-agent|ic-certification|reqwest) '
-check_graph agent ic-host-tools none agent 'ic-platform candid ic-agent reqwest url' \
+    '^(ic-host-(process|tools|text)|ic-platform|candid|candid_parser|ic-agent|ic-certification|reqwest|serde_cbor|minicbor) '
+check_graph agent ic-host-tools none agent 'ic-platform candid ic-agent reqwest url serde_cbor' \
     '^(candid_parser|ic-host-(artifacts|fs|process|text)|wasmparser) '
 check_graph agent-wasm ic-host-tools none agent 'ic-platform' \
-    '^(ic-host-(artifacts|fs|process|text)|wasmparser|candid|candid_parser|ic-agent|reqwest|url) ' wasm32-unknown-unknown
+    '^(ic-host-(artifacts|fs|process|text)|wasmparser|candid|candid_parser|ic-agent|reqwest|url|serde_cbor|minicbor) ' wasm32-unknown-unknown
 printf 'tools/text feature dependency graphs passed for %s (normal/build)\n' "$target"

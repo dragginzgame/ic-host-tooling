@@ -120,17 +120,16 @@ overflowing, nonminimal and trailing encodings while inspecting at most ten byte
 Callers retain field names, semantic limits, transport and trust policy.
 
 The optional tools `certificate` feature exposes
-`certificate::{decode_certificate, decode_hash_tree}` with explicit input-byte and
-CBOR-depth limits. It returns owned certification values through Platform,
+`certificate::{decode_certificate, decode_hash_tree}` with an explicit input-byte
+allowance. It uses the IC Agent's `serde_cbor` codec and built-in recursion limit;
+there is no caller-selected depth override. It returns owned values through Platform,
 preserving `ic-certification` type identity, and rejects trailing
 data, malformed trees and invalid certificate fields. Parsing authenticates
 nothing: callers retain Agent verification, trust roots, combined evidence
 budgets, witness commitments and application leaf meanings. The feature adds no
 Agent transport, filesystem/process execution or Candid parser.
-
-Certificate CBOR uses private Minicbor primitives and preserves caller-selected
-depth across the full `u8` range. Map/key tags are transparent; byte-string chunks
-consume no container depth. Authentication and target policy remain caller-owned.
+When adopting 0.29, remove `depth` from certificate `DecodeLimits` initializers;
+see [the migration instructions](docs/changelog/0.29.md).
 
 The opt-in native `agent` feature exposes `agent::{agent_builder, EndpointAgent}`
 using upstream Agent identities through Platform. Pass a parsed `url::Url` and response-byte ceiling

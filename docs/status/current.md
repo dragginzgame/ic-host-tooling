@@ -4,33 +4,33 @@
 
 Read [Cargo.toml](../../Cargo.toml), [CHANGELOG.md](../../CHANGELOG.md), Git tags,
 [AGENTS.md](../../AGENTS.md) and the exact [Shared snapshot](../../.shared-tooling.snapshot).
-Published Host 0.28.0 uses `b9c20de084a8f8176d8c73c61a3b30e740c8875c`, including
-the initial notice correction after the unchanged `v0.28.0` tag at `5150105`.
-Pending work belongs to [0.28.1](../changelog/0.28.md#0281);
-package versions and further release effects remain user-owned.
+Host 0.28.1 is released at `a4c2bf48d520391cfd326f98ea9fda864241a1a5`
+and is available from the registry. That source still uses Ciborium: the producer
+changes described in its notes were not integrated before the release. The next
+draft is [0.29.0](../changelog/0.29.md#0290), selected for the explicit certificate
+depth-contract change below. Staging, commits, version changes,
+Git release/push and registry publication remain user-owned.
 Sibling checkouts are read-only. GitHub issues are the sole follow-up tracker.
 
-## Prepared Ciborium removal
+## IC Agent codec alignment
 
-Tools' sole production Ciborium caller was the optional certificate decoder;
-the remaining direct uses encoded its fixtures. The replacement reuses locked
-Minicbor 0.19.1 primitives and removes Serde schema wrappers/visitors. Existing
-public decode/error categories, exact tree/field/byte admission and the full
-caller-selected depth range remain. The independent fixture encoder uses dev-only
-serde_cbor; that codec cannot supply production depth admission without narrowing
-the released contract. [#201](https://github.com/dragginzgame/ic-host-tooling/issues/201)
-owns the backend work. Query's adapter/error projection remains unchanged.
+The maintainer selected serde_cbor, matching IC Agent, instead of the unmerged
+Minicbor proposal in PRs #206/#207. Tools retains strict schema and byte admission
+but removes `certificate::DecodeLimits.depth`; recursion and semantic-tag
+handling belong to the shared codec. Query is the verified consumer of that
+field; its source and lock are unchanged. The private parser error source becomes
+serde_cbor. Ciborium and its helpers plus unused half 2.x leave the lockfile;
+the existing upstream ledger Minicbor dependency remains separate.
 
-Focused Linux receipt: `/tmp/host-cbor-removal.Kr2SzJ/`. Actual Rust 1.88 passes
-25 certificate-profile tests, all 53 all-feature Tools cases, strict MSRV and
-development Clippy, warning-denied Rustdoc and the three native-target graphs.
-Default/interface/parser-free combined cases also pass. New depth/tag
-fixtures were also exercised against the original decoder: the depth-255 and
-transparent-tag cases pass, while a malformed nested indefinite byte chunk exposed
-old parser tolerance and now refuses as invalid CBOR. Valid chunked bytes still
-decode. The lock removes Ciborium and its two helpers plus unused half 2.x, with no
-new selected package/version. Native macOS qualification and publication of this
-new source remain separate from the already-published 0.28.0 release.
+Receipt: `/tmp/host-serde-cbor.bh63Mr/`. The selected SDK implementation is
+IC Agent 0.49.2 with serde_cbor 0.11.2. Actual Rust 1.88 passes all 24 Tools
+certificate-profile tests, all 52 Tools tests and default/interface/parser-free
+combined profiles. Strict Clippy passes on MSRV and development Rust; Rustdoc,
+formatting, dependency pins, links, ShellCheck and Linux/both macOS target graphs
+pass. Existing external versions/checksums remain selected; only four obsolete
+packages leave. Native macOS execution of this source remains separate; no full
+local workspace gate, release or publication ran.
+The old Minicbor PR heads do not implement this accepted direction.
 
 ## Prepared Candid isolation
 
