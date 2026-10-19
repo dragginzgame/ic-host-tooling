@@ -925,15 +925,15 @@ dependencies = [
 
 [[package]]
 name = "ic-metrics"
-version = "0.14.7"
+version = "0.14.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d9192c35a72e03e6a518ed73552f36387bcd15f6f74006561baf9713814829f9"
+checksum = "55d2ecdbe8dd28bf1677d6451dc759a0aaed31ee457a04a3813aa2c54c8c40aa"
 
 [[package]]
 name = "ic-platform"
-version = "0.2.1"
+version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "73506580e1ea0f78adacdd44560717eb9057e86274169e6525bbb024d1dd1c83"
+checksum = "b083e911eb9799daf15f501a883d50a76e709d300a51b25fb0c31cd0be0377bd"
 dependencies = [
  "candid",
  "ic-cdk-executor",
@@ -949,9 +949,9 @@ dependencies = [
 
 [[package]]
 name = "ic-platform-macros"
-version = "0.2.1"
+version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5fe30b668cc1c29e38d34b633de246f6db30ba39003dc5aef2edcb0ae2a3eadb"
+checksum = "32f4e533d81990b3c8b92ce161a12afe6d2e083cc3e3be466603c198a589b894"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -970,6 +970,7 @@ dependencies = [
  "ic-platform",
  "ic-wire",
  "libc",
+ "serde",
  "serde_json",
  "thiserror 2.0.18",
  "tokio",
@@ -1001,6 +1002,7 @@ dependencies = [
  "ic-platform",
  "ic-testkit",
  "ic-wire",
+ "serde",
 ]
 
 [[package]]
@@ -1023,9 +1025,9 @@ dependencies = [
 
 [[package]]
 name = "ic-wire"
-version = "0.4.10"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "72cf002f31f0016ae5da9460c0e44c0a4eef399470dcdce186679b2fcd065b9e"
+checksum = "bdfc9e7a6686d78854a2a06f408492313ce10c985a17976e7395fc6cef776479"
 dependencies = [
  "ic-wire-derive",
  "postcard",
@@ -1034,9 +1036,9 @@ dependencies = [
 
 [[package]]
 name = "ic-wire-derive"
-version = "0.4.10"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d45fc930d2dfa99f382c0b2987bc6cbe59816e3b05865131c93a575760f851c6"
+checksum = "4130f546bdba41fba60506d50fa4eed3d8885bf863569a271cf9b7beb75ce61e"
 dependencies = [
  "proc-macro2",
  "quote",

@@ -32,8 +32,8 @@ caller-selected limits. Existing registry releases serve older Testkit consumers
 they are not a second maintained decoder implementation.
 
 The optional native `wire` feature adds `pic::query_wire` and `pic::update_wire`.
-Select it with `ic-testkit = { version = "0.54", features = ["wire"] }` and declare
-`ic-wire` for your method contracts. Each helper takes an explicit target/caller
+Enable it on your Testkit dependency and declare `ic-wire = "0.5"` for your method
+contracts. Each helper takes an explicit target/caller
 and borrowed request; the Method owns the exact name, identity, types and finite
 limits. It executes one PocketIC operation without update retries; a refused reply
 does not prove absence of effects. It preserves
@@ -43,6 +43,9 @@ payloads resume. Display omits payloads; raw calls remain available for malforme
 requests and original-byte evidence. Reply admission follows PocketIC's allocation,
 so it supplies no network pre-allocation or peak-heap guarantee. The feature is off
 by default and adds no Wire dependency to the canister library graph.
+Requests may use borrowed bounded fields. Responses must implement
+`serde::de::DeserializeOwned` because the helper releases the received buffer
+before returning; generic callers must carry that bound alongside `M: Method`.
 
 This is the PocketIC package in the `ic-testkit` workspace. It provides:
 

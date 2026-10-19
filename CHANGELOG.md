@@ -6,6 +6,15 @@ documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.57.0]
+
+### Breaking
+
+- Adopt published IC Wire and derive 0.5.0. Wire callers must use the 0.5 method
+  and error identities; generic `query_wire`/`update_wire` callers must require
+  `M::Response: serde::de::DeserializeOwned`. Requests may borrow bounded fields.
+  Frame bytes, method IDs, caller budgets and single-attempt transport are unchanged.
+
 ## [0.56.0] - 2026-10-19
 
 ### Breaking

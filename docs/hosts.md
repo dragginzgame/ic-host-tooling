@@ -107,6 +107,12 @@ Testkit's entrypoint migration under [Platform #1 — CDK call and entrypoint bo
 other consumers retain their own acceptance. No runtime or codec is copied here.
 
 Native controlled-protocol callers may enable Testkit's optional `wire` feature.
+This selects published Wire/derive 0.5.0. Wire's decoding bound is explicit:
+the native helpers require an owned response, while requests may borrow bounded
+fields. The library enables its direct Serde dependency only with native `wire`.
+The private canister's generic decoder requires owned requests because it releases
+its input buffer.
+Method identities, frame bytes, all four budgets and transport policy are unchanged.
 Its query/update helpers use Wire's method types, identities and finite limits;
 the private workload and installed probe qualify their actual calls. Default native
 and all Wasm library graphs omit this optional dependency. The CI test target

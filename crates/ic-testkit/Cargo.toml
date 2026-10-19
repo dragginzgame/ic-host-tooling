@@ -15,7 +15,7 @@ categories.workspace = true
 [features]
 default = []
 reply-fixtures = ["ic-host-artifacts/wasm-encoding"]
-wire = ["dep:ic-wire"]
+wire = ["dep:ic-wire", "dep:serde"]
 
 [dependencies]
 ic-metrics = { workspace = true }
@@ -30,6 +30,7 @@ ic-host-fs = { workspace = true }
 ic-host-process = { workspace = true }
 ic-platform = { workspace = true, features = ["candid", "pocket-ic"] }
 ic-wire = { workspace = true, optional = true }
+serde = { workspace = true, optional = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
 

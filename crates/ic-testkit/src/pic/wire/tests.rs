@@ -12,6 +12,56 @@ const LIMITS: Limits = Limits {
     depth: 4,
 };
 
+#[test]
+fn borrowed_requests_return_owned_responses() {
+    use ic_wire::{Bytes, BytesRef};
+    use std::marker::PhantomData;
+
+    struct Borrowed<'a>(PhantomData<&'a ()>);
+    impl<'a> Method for Borrowed<'a> {
+        type Request = BytesRef<'a, 8>;
+        type Response = Bytes<8>;
+        const ID: u64 = 73;
+        const NAME: &'static str = "borrowed";
+        const REQUEST_LIMITS: Limits = LIMITS;
+        const RESPONSE_LIMITS: Limits = LIMITS;
+    }
+
+    let _ = super::query_wire::<Borrowed<'_>>;
+    let _ = super::update_wire::<Borrowed<'_>>;
+    let result = {
+        let payload = vec![1, 2, 3];
+        let request = BytesRef::new(&payload).unwrap();
+        let mut calls = 0;
+        let response = call_wire::<Borrowed<'_>>(
+            context::<Borrowed<'_>>(
+                "update_call",
+                Principal::anonymous(),
+                Principal::anonymous(),
+            ),
+            &request,
+            |frame| {
+                calls += 1;
+                assert_eq!(
+                    ic_wire::decode_request::<Borrowed<'_>>(&frame)
+                        .unwrap()
+                        .as_slice(),
+                    payload
+                );
+                Ok(
+                    ic_wire::encode_response::<Borrowed<'_>>(&Bytes::new(vec![3, 2, 1]).unwrap())
+                        .unwrap()
+                        .into_bytes(),
+                )
+            },
+        )
+        .unwrap();
+        assert_eq!(calls, 1);
+        response
+    };
+    assert_eq!(result.as_slice(), &[3, 2, 1]);
+}
+
 struct Sample;
 impl Method for Sample {
     type Request = u32;
