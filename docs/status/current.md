@@ -7,7 +7,8 @@ now require independent `capability` and `scoped-tempfile` features. Minimal FS,
 file CLI and Process graphs exclude both private backend trees. Their safety,
 permission, resource and lifetime implementations remain unchanged. Query's
 confined reader must enable the first feature; IcyDB's named argument file guard
-must enable the second when adopting a supplying published Host release.
+and Testkit's fixture worker output must enable the second when adopting a
+supplying published Host release.
 The graph matrix and native CI qualify core, each backend and combined selection.
 This contribution leaves package versions, sibling checkouts and releases alone.
 
@@ -23,8 +24,14 @@ An isolated Build 0.21 source qualifies this exact Host source via three tempora
 path overrides, retaining own package versions and other selected identities.
 Its Linux normal/build graph drops from 66 to 51 packages; all 156 focused
 Build cases and actual Rust 1.91 all-target/all-feature checking pass. Those
-overrides are qualification-only and are not delivered to consumers. Native
-macOS execution and complete release gates remain hosted/maintainer obligations.
+overrides are qualification-only and are not delivered to consumers.
+An isolated released Testkit 0.55.2 source passes all nineteen fixture-driver
+cases and actual Rust 1.91 library checking with explicit scoped-tempfile enabled.
+Its Linux normal/build graph drops from 243 to 233 identities: tempfile remains
+required while the unused capability tree disappears. The initial unmodified
+manifest correctly refused the now-gated TemporaryFile API; published adoption
+must carry the feature declaration. Native macOS execution and complete release
+gates remain hosted/maintainer obligations.
 Evidence: `/tmp/ic-build-fleet-followup.KGzFhf/`.
 
 ## Authoritative state
