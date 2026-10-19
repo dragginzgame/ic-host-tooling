@@ -83,7 +83,17 @@ check_graph tools-all ic-host-tools none agent,candid,certificate,encoding,ic-in
 check_graph text ic-host-text default '' unicode-width \
     '^(ic-host-(artifacts|fs|process|tools)|ic-platform|candid_parser|ic-agent|ic-certification|ciborium) '
 check_graph artifacts ic-host-artifacts default '' '' '^ic-host-process '
-check_graph filesystem ic-host-fs default '' 'ic-host-artifacts cap-std cap-fs-ext' \
+for profile in wasm wasm-validation; do
+    feature_graph="$(cargo tree -p ic-host-artifacts --no-default-features --features "$profile" \
+        --target "$target" --edges normal,build --prefix none --format '{p} features={f}' --locked --offline)" || exit
+    status=0
+    printf '%s\n' "$feature_graph" | rg '^wasmparser [^ ]+ features=([^, ]+,)*validate(,|$)' > /dev/null || status=$?
+    case "$profile:$status" in
+        wasm:1|wasm-validation:0) ;;
+        *) printf '%s has an unexpected Wasm validator feature selection (status %s)\n' "$profile" "$status" >&2; exit 1 ;;
+    esac
+done
+check_graph filesystem ic-host-fs default '' ic-host-artifacts \
     '^(ic-host-(process|tools|text)|ic-platform|candid|candid_parser|ic-agent|ic-certification|ciborium|reqwest) '
 check_graph filesystem-wasm ic-host-fs default '' ic-host-artifacts \
     '^(cap-std|cap-fs-ext|cap-primitives|rustix|ic-platform|candid|candid_parser) ' wasm32-unknown-unknown

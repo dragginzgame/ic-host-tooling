@@ -125,6 +125,11 @@ no longer owns an `ic-limits` profile or a reference-policy CLI example.
   including allocation-free visitation with caller-owned scratch and callbacks,
   optional gzip encoding/decoding, optional Wasm
   structural facts, encoded code/data statistics and bounded custom-section framing.
+  Opt-in `wasm-validation` additionally owns full core-module validation through
+  the private wasmparser backend. It checks all function bodies and returns Host
+  diagnostics; consumers retain target/install policy. Testkit's generated fixture
+  tests can replace direct Validator calls without weakening instruction/type
+  coverage. Inspection remains separate and does not imply validation.
 - ic-host-fs owns no-follow directory hashing and ordered sync/checksum traversal
   over caller-held descriptors,
   fresh child-directory allocation with explicit permissions and collision bounds,

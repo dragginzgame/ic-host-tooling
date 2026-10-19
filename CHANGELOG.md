@@ -5,6 +5,10 @@
 - Add Unix directory capabilities backed by cap-*, preserving held-parent
   operations without following symlinks. Callers retain permission and scan
   policy; Query adoption is separate.
+
+- Add opt-in full core Wasm validation to Artifacts, allowing fixture consumers
+  to remove direct wasmparser dependencies without weakening type or instruction
+  checks. Structural inspection stays independent.
   [Details](docs/changelog/0.28.md#0281).
 
 ## [0.28.0] - 2026-10-19

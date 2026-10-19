@@ -31,6 +31,23 @@ reported Text file busy; its focused rerun and the full FS rerun passed, with th
 failed log and fixture retained. Native macOS qualification of this new source
 remains separate from the published 0.28.0 evidence below.
 
+## Prepared full Wasm validation
+
+Artifacts' opt-in `wasm-validation` feature adds full core-module validation over
+the private existing wasmparser dependency. Structural inspection remains
+independent. The API admits caller-selected input bytes before validation, checks
+all function bodies and types, rejects components and returns Host diagnostics;
+IC target/admission policy remains consumer-owned. Testkit's two currently staged
+fixture-test Validator calls are the verified pending consumer; its source and
+direct dependency remain unchanged until it adopts a published supplying Host version.
+
+Focused Linux receipt: `/tmp/host-wasm-validation.ZH5CgD/`. Actual Rust 1.88 passes
+default (48), inspection (64 plus six public contracts), validation (69 plus seven)
+and all-feature (85 plus seven) Artifacts cases. Strict MSRV Clippy and Rustdoc
+pass, including inspection-only Rustdoc. The lockfile and dependency versions are
+unchanged. Native macOS execution and registry adoption of this new API remain
+separate qualification requirements.
+
 ## Published Candid isolation
 
 Tools Candid helpers require the explicit `candid` feature. Empty defaults and

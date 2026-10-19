@@ -5,6 +5,12 @@
 //! Inspection checks the function/data/export structures it reports, but is not
 //! instruction validation, type checking, feature admission, or IC install policy.
 //! Facts borrow source bytes; no metadata or export names are copied.
+//! Enable `wasm-validation` for separate full core-module validation via `validate`.
+
+#[cfg(feature = "wasm-validation")]
+mod validation;
+#[cfg(feature = "wasm-validation")]
+pub use validation::{ValidationError, validate};
 
 use std::{collections::BTreeMap, fmt};
 use wasmparser::{Encoding, ExternalKind, Operator, Parser, Payload, TypeRef};
@@ -38,7 +44,7 @@ pub enum InspectionResource {
     CustomSections,
 }
 
-/// A malformed Wasm structure, independent of the parser dependency's API.
+/// A malformed or invalid Wasm input, independent of the parser dependency's API.
 ///
 /// The parser and its diagnostic metadata remain private. Use [`Self::offset`]
 /// for the source position and [`Self::message`] for a human-readable diagnostic.
@@ -48,13 +54,13 @@ pub struct ParseError {
 }
 
 impl ParseError {
-    /// Byte offset in the original Wasm input where parsing failed.
+    /// Byte offset in the original Wasm input associated with the failure.
     #[must_use]
     pub fn offset(&self) -> u64 {
         self.source.offset()
     }
 
-    /// Human-readable parser diagnostic, without the formatted offset.
+    /// Human-readable parser or validator diagnostic, without the formatted offset.
     ///
     /// Diagnostic wording may change; it is not a machine-readable category.
     #[must_use]
