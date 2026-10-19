@@ -16,6 +16,7 @@ export YQ := $(CURDIR)/.tools/host/bin/yq
 help:
 	@echo 'Selected package: check, clippy, docs-check, test, msrv (PACKAGE=<crate>)'
 	@echo 'Artifact profiles: test-artifacts-minimal, test-artifacts-wasm, test-artifacts-encoding, test-artifacts-text'
+	@echo 'Filesystem profiles: test-fs-minimal, test-fs-capability, test-fs-scoped-tempfile'
 	@echo 'Unsupported-target compile contract: check-fs-non-unix (prepared Wasm target required)'
 	@echo 'Tools profiles: test-tools-default, test-tools-interface, test-tools-certificate, test-tools-candid, test-tools-combined, test-tools-agent, test-tools-encoding, test-tools-registry and tools-features-check'
 	@echo 'Formatting and metadata: fmt, fmt-check, shared-tooling-check, dependency-pins-check, check-doc-links, release-adapter-check'
@@ -48,6 +49,13 @@ test:
 	+cargo test -p $(PACKAGE) --all-targets --all-features --locked --offline
 test-artifacts-minimal:
 	+cargo test -p ic-host-artifacts --no-default-features --lib --locked --offline
+.PHONY: test-fs-minimal test-fs-capability test-fs-scoped-tempfile
+test-fs-minimal:
+	+cargo test -p ic-host-fs --no-default-features --lib --locked --offline
+test-fs-capability:
+	+cargo test -p ic-host-fs --no-default-features --features capability --lib capability:: --locked --offline
+test-fs-scoped-tempfile:
+	+cargo test -p ic-host-fs --no-default-features --features scoped-tempfile --lib scratch::temporary:: --locked --offline
 .PHONY: test-artifacts-wasm test-artifacts-encoding
 test-artifacts-wasm:
 	+cargo test -p ic-host-artifacts --no-default-features --features wasm --all-targets --locked --offline
@@ -119,6 +127,7 @@ ci:
 	+$(MAKE) --no-print-directory tooling-command-check
 	+$(MAKE) --no-print-directory publish-command-check
 	+$(MAKE) --no-print-directory test-artifacts-minimal
+	+$(MAKE) --no-print-directory test-fs-minimal test-fs-capability test-fs-scoped-tempfile
 	+$(MAKE) --no-print-directory test-artifacts-wasm
 	+$(MAKE) --no-print-directory test-artifacts-encoding
 	+$(MAKE) --no-print-directory test-artifacts-text

@@ -5,6 +5,9 @@ adapted from Query's confined cache backend. The backend types stay private;
 consumers use Host's directory and file-entry handles. This is filesystem
 mechanism, not cache configuration or a lifecycle owner.
 
+Select FS's `capability` feature explicitly. Defaults and the independent
+`scoped-tempfile` feature do not enable it; see the [0.30 migration](changelog/0.30.md).
+
 ## Selection and policy
 
 Open a root with explicit `DirectoryOptions`. `create_permissions: None` observes

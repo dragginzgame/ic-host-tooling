@@ -1,5 +1,32 @@
 # Current handoff
 
+## Optional filesystem backend boundary — pending 0.30.0
+
+Over released `ef1e632`, FS's existing Unix capability and scoped-tempfile APIs
+now require independent `capability` and `scoped-tempfile` features. Minimal FS,
+file CLI and Process graphs exclude both private backend trees. Their safety,
+permission, resource and lifetime implementations remain unchanged. Query's
+confined reader must enable the first feature; IcyDB's named argument file guard
+must enable the second when adopting a supplying published Host release.
+The graph matrix and native CI qualify core, each backend and combined selection.
+This contribution leaves package versions, sibling checkouts and releases alone.
+
+Focused Linux evidence: actual Rust 1.88 passes 177 minimal FS, twelve capability,
+six scoped-tempfile, 147 Process and eight file-CLI cases. Strict affected-package
+all-target/all-feature Clippy, Rust 1.88 checks, warning-denied FS Rustdoc and the
+all-feature unsupported-Wasm compile pass. Minimal/independent/combined/CLI/Process
+graph checks pass for Linux and both macOS target selections. Source-following
+ShellCheck, Actionlint, formatting and local links pass. A sandbox-only loopback
+EPERM affected the first Process run; the native-permission rerun passes.
+
+An isolated Build 0.21 source qualifies this exact Host source via three temporary
+path overrides, retaining own package versions and other selected identities.
+Its Linux normal/build graph drops from 66 to 51 packages; all 156 focused
+Build cases and actual Rust 1.91 all-target/all-feature checking pass. Those
+overrides are qualification-only and are not delivered to consumers. Native
+macOS execution and complete release gates remain hosted/maintainer obligations.
+Evidence: `/tmp/ic-build-fleet-followup.KGzFhf/`.
+
 ## Authoritative state
 
 Read [Cargo.toml](../../Cargo.toml), [CHANGELOG.md](../../CHANGELOG.md), Git tags,

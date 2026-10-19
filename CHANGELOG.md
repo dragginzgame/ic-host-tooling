@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.30.0]
+
+- **Breaking:** make FS's Unix held-directory capabilities and scoped temporary
+  files opt-in through `capability` and `scoped-tempfile`. Enable the relevant
+  feature when importing those APIs. Core filesystem, file CLI and Process
+  consumers no longer select the cap-* or tempfile backend trees. Existing
+  confinement, permission, lifetime and cleanup behavior is unchanged.
+  [Migration](docs/changelog/0.30.md).
+
 ## [0.29.0] - 2026-10-19
 
 - Adopt Shared Tooling 0.25.1: IC Build owns release candidate rendering, source

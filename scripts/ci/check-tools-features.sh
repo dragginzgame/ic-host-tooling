@@ -93,12 +93,20 @@ for profile in wasm wasm-validation wasm-encoding wasm-text wasm-encoding,wasm-v
             ;;
     esac
 done
-check_graph filesystem ic-host-fs default '' 'ic-host-artifacts cap-std cap-fs-ext tempfile' \
-    '^(ic-host-(process|tools|text)|ic-platform|candid|candid_parser|ic-agent|ic-certification|reqwest|serde_cbor|minicbor|clap) '
-check_graph filesystem-cli ic-host-fs none cli 'clap ic-host-artifacts cap-std cap-fs-ext tempfile' \
-    '^(ic-host-process|ic-platform|wasmparser|wasm-encoder) '
-check_graph process ic-host-process default '' 'ic-host-fs' '^(clap|ic-platform|wasmparser|wasm-encoder) '
+check_graph filesystem ic-host-fs default '' 'ic-host-artifacts' \
+    '^(cap-std|cap-fs-ext|tempfile|ic-host-(process|tools|text)|ic-platform|candid|candid_parser|ic-agent|ic-certification|reqwest|serde_cbor|minicbor|clap) '
+check_graph filesystem-capability ic-host-fs none capability 'ic-host-artifacts cap-std cap-fs-ext' \
+    '^(tempfile|clap|ic-host-process|ic-platform|wasmparser|wasm-encoder) '
+check_graph filesystem-scoped-tempfile ic-host-fs none scoped-tempfile 'ic-host-artifacts tempfile' \
+    '^(cap-std|cap-fs-ext|clap|ic-host-process|ic-platform|wasmparser|wasm-encoder) '
+check_graph filesystem-combined ic-host-fs none capability,scoped-tempfile 'ic-host-artifacts cap-std cap-fs-ext tempfile' \
+    '^(clap|ic-host-process|ic-platform|wasmparser|wasm-encoder) '
+check_graph filesystem-cli ic-host-fs none cli 'clap ic-host-artifacts' \
+    '^(cap-std|cap-fs-ext|tempfile|ic-host-process|ic-platform|wasmparser|wasm-encoder) '
+check_graph process ic-host-process default '' 'ic-host-fs' '^(cap-std|cap-fs-ext|tempfile|clap|ic-platform|wasmparser|wasm-encoder) '
 check_graph filesystem-non-unix ic-host-fs default '' ic-host-artifacts \
+    '^(cap-std|cap-fs-ext|tempfile|rustix|ic-host-process|ic-platform) ' wasm32-unknown-unknown
+check_graph filesystem-optional-non-unix ic-host-fs none capability,scoped-tempfile ic-host-artifacts \
     '^(cap-std|cap-fs-ext|tempfile|rustix|ic-host-process|ic-platform) ' wasm32-unknown-unknown
 check_graph agent ic-host-tools none agent 'ic-platform candid ic-agent reqwest url serde_cbor' \
     '^(candid_parser|ic-host-(artifacts|fs|process|text)|wasmparser) '

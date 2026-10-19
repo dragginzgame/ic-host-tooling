@@ -42,8 +42,12 @@ do not replace native qualification. Both new capabilities require actual Rust
 The direct-dependency policy restricts cap-std, cap-fs-ext and tempfile to FS,
 and wasmparser, wasm-encoder and wat to Artifacts, including dev/build and aliases.
 All normal/build profiles except explicitly selected text compilation exclude
-wat/wast. Native FS graphs require its cap/tempfile backends; the non-Unix graph
-excludes them. `make check-fs-non-unix` also compiles the unsupported-target contract.
+wat/wast. Native minimal FS, Process and file-CLI graphs exclude cap/tempfile backends.
+FS's independent `capability` and `scoped-tempfile` features select only their
+own backend; the combined graph selects both. Non-Unix graphs exclude both even
+when those features are selected. `make check-fs-non-unix` also compiles the unsupported-target contract.
+Use `make test-fs-minimal test-fs-capability test-fs-scoped-tempfile` for focused
+core and independent backend regression checks.
 FS tests cover held-parent operations, link/special-file refusal, bounded entries,
 temporary-file cleanup and the read-only no-follow descriptor opener.
 `make test-tools-default` checks response and ICP interpretation without

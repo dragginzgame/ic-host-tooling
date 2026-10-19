@@ -1,6 +1,6 @@
 //! Local host filesystem reads, durable publication and descriptor locks.
 pub mod cache_tag;
-#[cfg(unix)]
+#[cfg(all(unix, feature = "capability"))]
 pub mod capability;
 pub mod directory;
 pub mod durable;

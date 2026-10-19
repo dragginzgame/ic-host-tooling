@@ -99,13 +99,16 @@ does not prove instruction/type validity; select `wasm-validation` when needed.
 `wasm-text` selects neither Host's binary inspector nor validator. Defaults remain
 empty, and inspection-only consumers do not select the text compiler.
 
-On Unix, FS's [held capabilities](docs/capability-fs.md) own the cap-* backend,
+On Unix, FS's opt-in `capability` feature and
+[held capabilities](docs/capability-fs.md) own the cap-* backend,
 descriptor-relative traversal, creation and bounded enumeration. Consumers select
 roots, permission masks, names and scan policy. `read::open_regular_file_no_follow`
 returns an admitted standard descriptor without consuming bytes, sharing the
-existing nonblocking opener. `scratch::TemporaryFile` owns a named private file's
+existing nonblocking opener. With `scoped-tempfile`, `scratch::TemporaryFile` owns a named private file's
 scope and cleanup; `scratch::create_private_bytes` retains caller-owned files.
 Unnamed capture files and temporary directories have distinct custody contracts.
+Core FS and Process consumers select neither backend. See the
+[0.30 feature migration](docs/changelog/0.30.md).
 
 Process already supplies `signal::SignalActions` for explicit Unix signal action
 installation, rollback and restoration. Callers retain async-signal-safe callbacks,
