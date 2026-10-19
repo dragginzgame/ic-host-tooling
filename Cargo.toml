@@ -29,7 +29,7 @@ command-fds = "0.3.3"
 flate2 = { version = "1.1.10", default-features = false, features = ["rust_backend"] }
 ic-host-artifacts = { path = "crates/ic-host-artifacts", version = "0.30", default-features = false }
 ic-host-fs = { path = "crates/ic-host-fs", version = "0.30", default-features = false }
-ic-platform = { version = "0.1.11", default-features = false }
+ic-platform = { version = "0.2", default-features = false }
 leb128 = "0.2.5"
 libc = "0.2.190"
 prost = "0.14.3"
@@ -45,7 +45,7 @@ tokio = { version = "1.52.3", default-features = false }
 unicode-width = "0.2.2"
 url = "2.5.7"
 wasm-encoder = { version = "0.262", default-features = false }
-wasmparser = { version = "0.261.0", default-features = false, features = ["std", "features"] }
+wasmparser = { version = "0.262", default-features = false, features = ["std", "features"] }
 wat = { version = "1.262.0", default-features = false }
 
 # Tests and tooling only

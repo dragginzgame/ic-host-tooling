@@ -443,7 +443,13 @@ pub fn inspect(bytes: &[u8], limits: InspectionLimits) -> Result<WasmFacts<'_>, 
                     index.map_err(parse_error)?;
                 }
             }
-            Payload::CodeSectionStart { range, size, .. } => {
+            Payload::CodeSectionStart {
+                unchecked_range: range,
+                size,
+                ..
+            } => {
+                // The declared extent is admitted only after exhausting the
+                // parser below; truncated code must not return partial facts.
                 facts.code_section_bytes = host_size(range.end - range.start)?;
                 facts.code_body_bytes = host_size(u64::from(size))?;
             }

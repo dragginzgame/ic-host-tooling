@@ -4,12 +4,56 @@
 
 Read [Cargo.toml](../../Cargo.toml), [CHANGELOG.md](../../CHANGELOG.md), Git tags,
 [AGENTS.md](../../AGENTS.md) and the exact [Shared snapshot](../../.shared-tooling.snapshot).
-Host 0.29.0 is released at `ef1e632` and resolves from the registry in Blob's
-current lock. It includes the filesystem/Wasm backends and serde_cbor migration
-described below. The next draft is [0.30.0](../changelog/0.30.md#0300), selected
-for explicit filesystem feature admission. Staging, commits, version changes,
+Host 0.30.0 is released at `a407de0`, including the explicit filesystem feature
+admission described below. The next draft is
+[0.30.1](../changelog/0.30.md#0301) for compatible Platform and Wasm parser updates.
+Staging, commits, version changes,
 Git release/push and registry publication remain user-owned.
 Sibling checkouts are read-only. GitHub issues are the sole follow-up tracker.
+
+## Wasm parser 0.262.0 update
+
+Artifacts now selects wasmparser 0.262.0, consolidating the older 0.261.0 lock
+entry with the encoder's optional integration. The private payload match follows
+the upstream `unchecked_range` field rename; new malformed-code extent cases
+verify inspection still rejects truncated sections rather than returning partial
+facts. Public APIs, empty defaults and opt-in full validation remain unchanged.
+The incoming Platform 0.2.1 and Tokio 1.54.0 lock selections are preserved;
+only the older parser selection leaves the starting lockfile.
+
+Receipt: `/tmp/host-wasmparser-0262.TjUIrP/`. Actual Rust 1.88 passes default,
+inspection, validation, encoding, text and combined Artifacts profiles, all-feature
+Artifacts tests, interface-only Tools tests and the inspector's tests. Strict
+MSRV/development Clippy and strict Rustdoc pass. Linux and both macOS normal/build
+graph matrices pass, including a single-parser check. The real Blob Wasm's full
+inspection report is byte-identical to the preceding 0.261.0 output; its input
+digest is unchanged. Native macOS execution is not qualified by these checks.
+No full local workspace gate, package version change, release, index/HEAD change
+or sibling edit ran.
+
+## Platform 0.2.0 adoption
+
+The incoming catalog already requested compatible `0.2` with defaults disabled,
+and the lock already selected published Platform 0.2.0. Both are preserved,
+including unrelated pending crypto-common/generic-array selections. Registry index,
+archive SHA-256 and lock checksum agree. Source review uses released main
+`c7da516aef66d1f3623c85aa7cf304c17a5877d5`; the sibling's 0.2.1 notes are an
+unpublished documentation draft. Platform's exact released-source
+[CI passed](https://github.com/dragginzgame/ic-platform/actions/runs/39277031757).
+
+The five Platform modules consumed by Host are byte-identical to packaged 0.1.18.
+Host needs no CDK/endpoint source migration and selects none of those runtime
+features. Every graph profile now rejects CDK/runtime macros, executor and ic0.
+Host's public features, empty defaults and existing format contracts are unchanged.
+
+Receipt: `/tmp/host-platform-020.a8VGZl/`. Actual Rust 1.88 passes default,
+certificate-only, interface-only, parser-free combined, Candid, Agent, ledger and
+Registry profiles, plus all 52 all-feature Tools cases. The real local HTTP case
+passes separately with loopback socket permission. Strict MSRV/development Clippy,
+strict Rustdoc, formatting, pins, links, symlink and snapshot checks pass.
+Linux and both macOS normal/build graph matrices pass; native macOS execution
+of this Host source remains separate. No full local workspace gate, release,
+package version, index/HEAD change or sibling edit ran. Notes are under 0.30.1.
 
 ## Optional filesystem backends
 
@@ -197,7 +241,7 @@ and rendering. Tools owns IC format interpretation and its aggregate reply adapt
 The [Wasm inspector](../../apps/ic-host-wasm-inspect/README.md) composes Artifacts
 and FS and owns its arguments/output; it performs no build or tool installation.
 
-Platform 0.1.11 owns the upstream Candid/parser/certification dependency boundary;
+Platform 0.2.0 owns the upstream Candid/parser/certification dependency boundary;
 Host retains service projection, aggregate debit ordering and strict CBOR admission.
 Shared owns common development, CI and release mechanics. Host retains package
 eligibility, metadata projection, real integration checks and recovery decisions.

@@ -351,7 +351,12 @@ fn rejects_bad_headers_components_unknown_sections_and_invalid_lengths() {
         inspect(&unknown, LIMITS),
         Err(InspectionError::UnknownSection { id: 42, .. })
     ));
-    for tail in [&[1, 3, 0][..], &[1, 0x80, 0x80, 0x80, 0x80, 0x10][..]] {
+    for tail in [
+        &[1, 3, 0][..],
+        &[1, 0x80, 0x80, 0x80, 0x80, 0x10][..],
+        &[10, 0x7f, 0][..], // No functions, but declared code bytes are absent.
+        &[3, 2, 1, 0, 10, 0x7f, 1, 2, 0, 0x0b][..], // Body fits; section extent does not.
+    ] {
         assert!(matches!(
             inspect(&[HEADER, tail].concat(), LIMITS),
             Err(InspectionError::Parse(_))

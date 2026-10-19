@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.30.1]
+
+- Update the private Wasm parser/validator backend to wasmparser 0.262.0,
+  consolidating its lockfile versions while preserving opt-in full validation
+  and the Rust 1.88 floor.
+- Adopt Platform 0.2.0 for Agent, Candid/parser, certification and ledger
+  interoperability. Keep existing Host features and parser-free boundaries;
+  no CDK runtime or endpoint-codec migration is required here.
+
 ## [0.30.0] - 2026-10-19
 
 - **Breaking:** Make FS's held-capability and scoped-tempfile APIs opt-in through

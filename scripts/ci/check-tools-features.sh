@@ -26,6 +26,8 @@ check_graph() {
     [[ "$defaults" != none ]] || arguments+=(--no-default-features)
     [[ -z "$features" ]] || arguments+=(--features "$features")
     arguments+=(--forbid-pattern "${forbidden% }$" --forbid-pattern '^(ciborium|ciborium-io|ciborium-ll)$')
+    # Platform's runtime is independently selectable; no Host profile owns it.
+    arguments+=(--forbid-pattern '^(ic-cdk|ic-cdk-macros|ic-cdk-executor|ic-platform-macros|ic0)$')
     if [[ "$label" != artifacts-text ]]; then
         arguments+=(--forbid-pattern '^(wat|wast)$')
     fi

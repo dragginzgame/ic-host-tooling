@@ -4,7 +4,7 @@
 
 The maintainer's 2026-10-18 direction is one controlled dependency boundary for
 Candid and the CDK family, with IC Wire owning controlled application protocols.
-Host now consumes published `ic-platform` 0.1.11 for bounded Candid decoding,
+Host now consumes published `ic-platform` 0.2.0 for bounded Candid decoding,
 native parsing and optional certification types. Platform's `docs/migration.md`
 owns the fleet adoption contract. Host retains service-to-Wasm projections,
 strict certificate CBOR admission and the released aggregate-byte adapter.
@@ -17,8 +17,9 @@ The dedicated repository has one consumer-facing library, `ic-platform`:
 its scope includes runtime integration as well as Candid. Keep
 codec, host parser and executor/runtime capabilities separately selectable, with
 no default activation. An executor-only consumer must not acquire the parser or
-codec. Selecting today's upstream CDK still brings its Candid dependency; a facade
-alone cannot make that runtime Candid-free. Any necessary proc-macro implementation
+codec. Platform 0.2 owns the maintained Candid-free CDK adapters and explicit-codec
+entrypoints, while preserving the registry executor and raw system-call identities.
+Host enables none of those runtime features. Any necessary proc-macro implementation
 crate belongs to this same boundary repository, not to a second runtime owner.
 
 The boundary owns dependency selection, bounded Candid encoding/decoding,
