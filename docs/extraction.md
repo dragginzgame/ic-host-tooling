@@ -103,16 +103,18 @@ Dependencies point down from ic-host-process to ic-host-fs and from each to
 ic-host-artifacts. Tools selects Artifacts only for explicit Wasm profiles;
 its production graph has no filesystem or process dependency. No generic crate
 depends on Tools, Canic, IcyDB or an IC runtime. Test/example artifact features
-do not become production filesystem dependencies. Tools always includes
-Candid service inspection and response decoding, without generic Host dependencies.
+do not become production filesystem dependencies. Tools includes response interpretation without generic Host dependencies;
+Candid service inspection requires its explicit `candid` feature.
 Native extraction moves to IC Build's `artifacts::candid` for the 0.24 hard cut;
 the five Host crates retain their generic mechanics and IC interpretation roles.
 The 0.23 hard cut moved generic line normalization into
 `ic_host_text::normalize`.
-Candid service inspection and shared method identities are always available in
-Tools. Its Candid parser is a normal dependency. The optional `ic-interface`
-feature adds generic Wasm facts and export projection without filesystem/process
-dependencies. There is no separate `candid-service` feature.
+Shared method identities remain unconditional. Candid service inspection and
+bounded reply decoding require `candid`; Platform and its native parser are
+optional. The independent `certificate` feature selects certification without
+Candid. `ic-interface` adds generic Wasm facts and export projection without
+Platform, Candid or filesystem/process dependencies. Select both `candid` and
+`ic-interface` for service/export comparisons.
 Replica revision selection, install thresholds and resource-report policy belong
 to the consuming application. Host Artifacts retains generic Wasm facts; Tools
 no longer owns an `ic-limits` profile or a reference-policy CLI example.
@@ -254,8 +256,8 @@ heap, stack or CPU quota for the parser. `interface::exported_methods` borrows
 function export facts without reparsing Wasm. It preserves internal methods,
 empty names and mode differences for caller admission. Oneway remains distinct
 in Candid and maps explicitly to the update export namespace through `as_export`.
-Candid parsing and shared method identities are always available without Wasm
-support. Select `ic-interface` explicitly for export projection.
+Shared method identities remain available without Wasm or Candid support.
+Select `candid` for parsing and `ic-interface` for export projection.
 Expected interfaces, CDK allowlists, type compatibility, payload annotations and
 Canic endpoint presentation remain consumer policy. IC Build owns build/cache
 orchestration separately; these libraries do not install tools or build canisters.
