@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.28.0]
+## [0.28.0] - 2026-10-19
 
 - **Breaking:** Make Tools Candid helpers opt-in through `candid`. Existing
   helper consumers must enable it explicitly; empty defaults, certificate-only
