@@ -95,6 +95,12 @@ jobs:
           rustup toolchain install "$task_msrv" --profile minimal --no-self-update
       - name: Prepare the locked workspace dependency cache
         run: cargo fetch --locked 2>&1 | tee "$TMPDIR/dependencies-fetch.log"
+      - name: Prepare the published Cargo release editor
+        run: |
+          editor="$(bash scripts/dev/install-rust-tools.sh --package ic-build --version 0.19.0 --bin ic-build-release-metadata --profile debug)"
+          bash scripts/dev/install-rust-tools.sh --package ic-build --version 0.19.0 --bin ic-build-release-metadata --profile debug --check
+          echo "CARGO_RELEASE_METADATA_EDITOR=$editor" >> "$GITHUB_ENV"
+          echo "CARGO_RELEASE_METADATA_MAX_BYTES=8388608" >> "$GITHUB_ENV"
       - name: Run the bootstrap gate
         run: make ci
       - name: Retain failed validation and installer evidence

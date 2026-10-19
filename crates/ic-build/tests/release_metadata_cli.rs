@@ -50,6 +50,77 @@ fn context(root: &Path) -> serde_json::Value {
 }
 
 #[test]
+fn clap_help_version_and_argument_admission_do_not_read_inputs() {
+    let fixture = Fixture::new();
+    for arguments in [
+        vec!["--help"],
+        vec!["--version"],
+        vec!["manifest", "--help"],
+        vec!["lock", "--help"],
+    ] {
+        let output = Command::new(env!("CARGO_BIN_EXE_ic-build-release-metadata"))
+            .current_dir(&fixture.0)
+            .args(arguments)
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_ne!(output.stdout, [] as [u8; 0]);
+        assert_eq!(output.stderr, [] as [u8; 0]);
+    }
+    for arguments in [
+        vec!["--unknown"],
+        vec![
+            "--max-input-bytes",
+            "0",
+            "manifest",
+            "missing",
+            "0.1.0",
+            "0.2.0",
+        ],
+        vec![
+            "--max-input-bytes",
+            "not-a-number",
+            "manifest",
+            "missing",
+            "0.1.0",
+            "0.2.0",
+        ],
+        vec![
+            "--max-input-bytes",
+            "8192",
+            "lock",
+            "missing",
+            "0.1.0",
+            "0.2.0",
+        ],
+        vec![
+            "--max-input-bytes",
+            "8192",
+            "manifest",
+            "missing",
+            "0.1.0",
+            "0.2.0",
+            "context",
+            "extra",
+        ],
+    ] {
+        let output = Command::new(env!("CARGO_BIN_EXE_ic-build-release-metadata"))
+            .current_dir(&fixture.0)
+            .args(arguments)
+            .output()
+            .unwrap();
+        assert_eq!(output.status.code(), Some(2));
+        assert_eq!(output.stdout, [] as [u8; 0]);
+        assert!(String::from_utf8_lossy(&output.stderr).starts_with("error:"));
+    }
+    assert_eq!(fs::read_dir(&fixture.0).unwrap().count(), 0);
+}
+
+#[test]
 fn saved_and_live_identity_select_the_same_edits_without_reopening_saved_source() {
     let fixture = Fixture::new();
     fs::create_dir_all(fixture.0.join("source/core")).unwrap();

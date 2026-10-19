@@ -6,6 +6,9 @@ set -euo pipefail
 unset MAKEFLAGS MFLAGS MAKEOVERRIDES GNUMAKEFLAGS MAKEFILES
 unset VALIDATION_REPOSITORY_ROOT VALIDATION_RUNNER_SNAPSHOT_PATH
 unset RELEASE_KIND RELEASE_PREVIOUS RELEASE_VERSION RELEASE_DATE RELEASE_SOURCE RELEASE_COMMIT
+editor="${CARGO_RELEASE_METADATA_EDITOR:?prepare and select the published Cargo release editor}"
+limit="${CARGO_RELEASE_METADATA_MAX_BYTES:?select the release document byte allowance}"
+[[ "$editor" == /* && -f "$editor" && -x "$editor" && "$limit" =~ ^[1-9][0-9]*$ ]] || exit 2
 export RELEASE_DELIVERY=direct
 root="${BASH_SOURCE[0]}"
 [[ "$root" == /* ]] || root="$PWD/$root"
@@ -177,6 +180,16 @@ git show HEAD:README.md > README.md
 expect_failure make --no-print-directory release-preflight
 git reset --quiet HEAD -- README.md
 for path in Cargo.toml Cargo.lock CHANGELOG.md; do cp "$path" "$fixture/before-${path##*/}"; done
+for invalid in missing-editor relative-editor missing-limit zero-limit document-limit; do
+    case "$invalid" in
+        missing-editor) expect_failure env -u CARGO_RELEASE_METADATA_EDITOR make --no-print-directory release-prepare-version ;;
+        relative-editor) expect_failure env CARGO_RELEASE_METADATA_EDITOR=editor make --no-print-directory release-prepare-version ;;
+        missing-limit) expect_failure env -u CARGO_RELEASE_METADATA_MAX_BYTES make --no-print-directory release-prepare-version ;;
+        zero-limit) expect_failure env CARGO_RELEASE_METADATA_MAX_BYTES=0 make --no-print-directory release-prepare-version ;;
+        document-limit) expect_failure env CARGO_RELEASE_METADATA_MAX_BYTES=1 make --no-print-directory release-prepare-version ;;
+    esac
+    for path in Cargo.toml Cargo.lock CHANGELOG.md; do cmp "$path" "$fixture/before-${path##*/}"; done
+done
 expect_failure env IC_BUILD_TEST_FAIL_METADATA=1 make --no-print-directory release-prepare-version
 for path in Cargo.toml Cargo.lock CHANGELOG.md; do cmp "$path" "$fixture/before-${path##*/}"; done
 make --no-print-directory release-prepare-version > "$fixture/prepare.log" 2>&1
@@ -185,7 +198,7 @@ make --no-print-directory release-prepared-check > "$fixture/prepared.log" 2>&1
 # Lost preparation replies are idempotent at the saved candidate.
 make --no-print-directory release-prepare-version > "$fixture/reprepare.log" 2>&1
 cp Cargo.toml "$fixture/sorted-Cargo.toml"
-perl -0pi -e 's/^(cargo_metadata =[^\n]*\n)(ic-host-artifacts =[^\n]*\n)/$2$1/m' Cargo.toml
+perl -0pi -e 's/^(cargo_metadata =[^\n]*\n)(clap =[^\n]*\n)/$2$1/m' Cargo.toml
 if cmp -s Cargo.toml "$fixture/sorted-Cargo.toml"; then exit 1; fi
 cp Cargo.toml "$fixture/unsorted-Cargo.toml"
 expect_failure make --no-print-directory fmt-check
@@ -200,7 +213,7 @@ make --no-print-directory -s release-files > "$fixture/release-files"
 printf '%s\0' Cargo.toml Cargo.lock CHANGELOG.md > "$fixture/expected-files"
 cmp "$fixture/release-files" "$fixture/expected-files"
 git add -- Cargo.toml Cargo.lock CHANGELOG.md
-perl -0pi -e 's/^(cargo_metadata =[^\n]*\n)(ic-host-artifacts =[^\n]*\n)/$2$1/m' Cargo.toml
+perl -0pi -e 's/^(cargo_metadata =[^\n]*\n)(clap =[^\n]*\n)/$2$1/m' Cargo.toml
 git add -- Cargo.toml
 expect_failure make --no-print-directory release-commit-check
 cp "$fixture/sorted-Cargo.toml" Cargo.toml
@@ -211,7 +224,7 @@ export RELEASE_COMMIT
 RELEASE_COMMIT="$(git rev-parse HEAD)"
 make --no-print-directory release-committed-check > "$fixture/committed.log" 2>&1
 # Committed checks inspect the selected export, not the current manifest.
-perl -0pi -e 's/^(cargo_metadata =[^\n]*\n)(ic-host-artifacts =[^\n]*\n)/$2$1/m' Cargo.toml
+perl -0pi -e 's/^(cargo_metadata =[^\n]*\n)(clap =[^\n]*\n)/$2$1/m' Cargo.toml
 make --no-print-directory release-committed-check > "$fixture/committed-dirty-manifest.log" 2>&1
 git add -- Cargo.toml
 unsorted_commit="$(printf 'Unsorted fixture manifest\n' | git commit-tree "$(git write-tree)" -p HEAD)"

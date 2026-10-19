@@ -43,7 +43,9 @@ Source-qualified registry/Git references and all other fields remain intact.
 The independent semantic checker admits only that projection. The existing
 version-only projection API retains its stricter dependency-array contract.
 
-Exit 0 returns a complete candidate on stdout. Refusal returns 2 with diagnostics
+Clap owns argument admission, `--help` and `--version`; existing rendering command
+forms are unchanged. Help/version return 0 without reading inputs or emitting a
+candidate. Exit 0 from a rendering operation returns a complete candidate on stdout. Refusal returns 2 with diagnostics
 on stderr and no candidate. Output transport errors also fail. Filesystem and
 stream failures do not authorize retrying a release or upload. Callers admit the
 candidate with their real locked Cargo graph before replacing source, and retain

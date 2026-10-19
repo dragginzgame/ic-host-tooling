@@ -86,7 +86,7 @@ measurements without imposing a shared application optimization profile.
 
 ## Development
 
-Shared Tooling 0.24.0 is pinned in
+Shared Tooling 0.25.0 is pinned in
 [.shared-tooling.snapshot](.shared-tooling.snapshot); commands use this reviewed
 local snapshot. The [Make interface](docs/make-interface.md) owns common setup,
 formatting, hook installation and release entrypoints.
@@ -114,9 +114,10 @@ cargo fetch --locked
 make install-hooks
 ```
 
-Release preparation uses the shared workspace-version renderer and does not
-require an additional Cargo editor. Global Cargo plugins are not setup
-prerequisites.
+Release preparation and the isolated release-adapter checks require an explicitly
+prepared published Build editor and document byte allowance; see
+[release setup](docs/publishing.md). Common setup does not install that optional
+tool. Global Cargo plugins are not setup prerequisites.
 
 [rust-toolchain.toml](rust-toolchain.toml) selects Rust 1.99.1
 development compiler, rustfmt, Clippy and its Wasm target independently of the qualified Linux
@@ -169,7 +170,7 @@ The catalog labels production dependencies and test/tooling-only uses under
 [Shared Tooling's role rules](rules/cargo-dependencies.md#dependency-roles-and-deployment-checks).
 `ic-build` is the sole production package; every root dependency is used by its
 normal or Unix-specific normal code. Development edges add Host `test-support`
-features. Global `cargo sort --workspace` ordering applies in formatting hooks,
+features. Grouped `cargo sort --workspace --grouped` ordering applies in formatting hooks,
 CI and release metadata checks, including checks of selected committed source.
 The pin checker enforces selections and inheritance, not transitive role exclusions.
 This repository publishes a host library and has no deployable canister or

@@ -3,8 +3,8 @@
 Read [docs/status/current.md](docs/status/current.md), then
 [DRAGGINZGAME.md](DRAGGINZGAME.md) and the
 [ownership design](docs/design/build-ownership.md).
-The baseline is Shared Tooling 0.24.0 revision
-`cab12cd3dfa4fdb34846b25397f0d72881bb9ae0`, recorded with exact digests in
+The baseline is Shared Tooling 0.25.0 revision
+`2a79f5f93383f3d2a8a38d65406c7d52c2f77913`, recorded with exact digests in
 [.shared-tooling.snapshot](.shared-tooling.snapshot).
 
 - Mutate only this repository unless the maintainer expressly authorizes another
@@ -18,7 +18,7 @@ The baseline is Shared Tooling 0.24.0 revision
 - IC Build owns generic build/artifact mechanics. Consumers own recipes, budgets,
   tool selections, credentials, source custody, release identities and lifecycle.
   Keep Canic release admission and Testkit's PocketIC lifecycle outside this crate.
-- Use published IC Platform for any required Candid/CDK library capabilities;
+- Use published IC Platform for required external IC-specific library capabilities;
   `make check-boundary` enforces the direct dependency policy. The current engine
   needs none. Native extractor execution preserves opaque evidence through Host
   and does not introduce a Candid parser, codec or canister runtime dependency.

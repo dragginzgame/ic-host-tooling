@@ -17,6 +17,7 @@ rustix.workspace = true
 [dependencies]
 # Production dependencies
 cargo_metadata.workspace = true
+clap.workspace = true
 ic-host-artifacts.workspace = true
 ic-host-fs.workspace = true
 ic-host-process.workspace = true

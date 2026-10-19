@@ -3,9 +3,20 @@
 The maintainer operates releases through the pinned Shared Tooling runner:
 
 ```bash
+export CARGO_RELEASE_METADATA_EDITOR="$(bash scripts/dev/install-rust-tools.sh \
+  --package ic-build --version 0.19.0 --bin ic-build-release-metadata --profile debug)"
+export CARGO_RELEASE_METADATA_MAX_BYTES=8388608
 make release-patch
 make publish
 ```
+
+Prepare the released editor before adapter startup, including before
+`make check-release-adapters` or the full gate. The selected absolute executable
+and positive per-document allowance are required; 8 MiB is this repository's
+release metadata budget. CI prepares the same published identity on each host.
+No current-source executable, sibling fallback, PATH lookup or implicit tool
+installation runs during metadata preparation. The published editor's private
+dependency graph is separate from the library graph being released.
 
 Commit implementation and tooling changes before starting a release. Preflight
 allows only `Cargo.toml`, `Cargo.lock` and `CHANGELOG.md` as uncommitted release
@@ -29,7 +40,7 @@ release commit and annotated version tag, and atomically pushes the selected
 branch and tag. Normal release targets reconcile retained release intent;
 `make release-resume VERSION=X.Y.Z` selects only that saved release. Recovery
 checks use `RELEASE_COMMIT`, including when newer committed source exists.
-Metadata checks apply the same global manifest ordering as `make fmt-check`,
+Metadata checks apply the same grouped manifest ordering as `make fmt-check`,
 including staged preparation, lost-reply recovery and the selected commit export.
 Role annotations document dependency use; these checks do not enforce transitive
 deployment exclusions or admit downstream canister artifacts.

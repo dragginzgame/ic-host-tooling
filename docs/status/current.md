@@ -1,5 +1,53 @@
 # Current handoff
 
+## Shared Tooling 0.25 adoption — 2026-10-19
+
+Adopt committed Shared Tooling 0.25.0 revision
+`2a79f5f93383f3d2a8a38d65406c7d52c2f77913` through the canonical snapshot
+refresh. The producer's exact-source CI passes; its version is recorded in
+VERSION, without a v0.25.0 tag at inspection. Retired Perl editor roots leave the
+selection and their unchanged payloads are removed by the exporter. Shared's
+transaction owns candidate installation/restoration; the consumer adapter keeps
+source admission, release routing and publication policy.
+
+Release preparation and isolated adapter checks explicitly consume the published
+Build 0.19.0 editor plus a selected positive byte budget (8 MiB here). CI prepares
+and checks that pinned executable before validation. No implicit setup, current
+producer bootstrap or sibling fallback is introduced. Clap owns CLI argument,
+help and version admission; domain/path/read custody stays in the existing owner.
+Grouped formatting now agrees across hooks, CI and selected-source release checks.
+
+Incoming Cargo.toml/Cargo.lock Host 0.28.1 selections are preserved. Their exposed
+Host generation changes the next combined release boundary, so the tooling notes
+join pending 0.20.0; no own version change or release is performed. Build 0.19.0
+is published and its exact-source Linux, native macOS Intel/Apple Silicon and
+lint/optimizer CI has passed. This historical producer receipt does not qualify
+the pending Host graph or complete Canic's remaining adoption in #596.
+
+Direct dependency policy still rejects its enumerated Candid/CDK packages and
+aliases across dependency kinds/targets. No external IC-specific dependency is
+declared or resolved in this engine. The new broader Platform policy is not a
+universal package classifier: future unlisted IC package names require policy
+updates. This host-only workspace has no canister deployment gate; transitive
+deployment exclusions remain a downstream consumer obligation.
+
+Focused Linux qualification passes: all five release-editor integration tests on
+development Rust 1.99.1 and actual MSRV 1.91.0; warning-denied binary/integration
+Clippy; the real published-editor adapter fixture (including missing selections,
+document-limit refusal, restoration, selected-commit checks and substituted
+publication); snapshot integrity, pins, direct boundaries, grouped formatting,
+release routing, documentation links, ShellCheck and Actionlint. Resolved all-
+feature metadata contains no external IC-specific packages. Tracked modes and
+the actual Cargo package list expose no maintained symlink assets. Existing
+hook activation already selects `.githooks`.
+
+The only lock additions are Clap, clap_builder, clap_lex and anstyle. Every
+incoming package selection, checksum and dependency edge is preserved except
+the intended root Clap edge; in particular Host remains 0.28.1. Full release
+validation, native macOS and downstream integration were not run for these
+uncommitted changes. Before-images and logs: `/tmp/ic-build-shared025.bGKYDI/`.
+No own version, index, commit, ref, publication or release effect is included.
+
 ## Observed Cargo invocation hard cut — pending 0.19.0
 
 Starting source is released `73582d1` (0.18.0), preserving the incoming published

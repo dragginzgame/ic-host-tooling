@@ -1,3 +1,4 @@
+use clap::{Arg, Command, value_parser};
 use ic_build::cargo::{
     lock_projection::WorkspaceVersionProjection,
     release_metadata::{
@@ -8,35 +9,64 @@ use serde_json::Value;
 use std::{
     collections::HashMap,
     error::Error,
-    ffi::OsString,
     io::Write,
+    num::NonZeroUsize,
     path::{Component, Path, PathBuf},
 };
 
 type Result<T> = std::result::Result<T, Box<dyn Error>>;
 
 pub fn run() -> Result<()> {
-    let arguments: Vec<_> = std::env::args_os().skip(1).collect();
-    if arguments.len() < 6 || arguments[0] != "--max-input-bytes" {
-        return Err("usage: ic-build-release-metadata --max-input-bytes N manifest SOURCE PREVIOUS NEXT [WORKSPACE_INPUT_JSON] | lock SOURCE PREVIOUS NEXT PACKAGE...".into());
-    }
-    let limit: usize = text(&arguments[1])?.parse()?;
-    if limit == 0 {
-        return Err("input byte allowance must be positive".into());
-    }
-    let source = Path::new(&arguments[3]);
+    let common = [
+        Arg::new("source")
+            .required(true)
+            .value_parser(value_parser!(PathBuf)),
+        Arg::new("previous").required(true),
+        Arg::new("next").required(true),
+    ];
+    let arguments = Command::new("ic-build-release-metadata")
+        .about("Render read-only Cargo release candidates")
+        .version(env!("CARGO_PKG_VERSION"))
+        .arg(
+            Arg::new("max-input-bytes")
+                .long("max-input-bytes")
+                .required(true)
+                .help("Positive input byte allowance per document")
+                .value_parser(value_parser!(NonZeroUsize)),
+        )
+        .subcommand_required(true)
+        .subcommand(
+            Command::new("manifest")
+                .about("Render a workspace manifest candidate")
+                .args(common.clone())
+                .arg(Arg::new("workspace-input-json").value_parser(value_parser!(PathBuf))),
+        )
+        .subcommand(
+            Command::new("lock")
+                .about("Render a lockfile candidate for the selected local packages")
+                .args(common)
+                .arg(Arg::new("package").required(true).num_args(1..)),
+        )
+        .get_matches();
+    let limit = arguments
+        .get_one::<NonZeroUsize>("max-input-bytes")
+        .unwrap()
+        .get();
+    let (operation, selected) = arguments.subcommand().unwrap();
+    let source = selected.get_one::<PathBuf>("source").unwrap();
     check_path(source)?;
     let input = read(source, limit)?;
-    let previous = text(&arguments[4])?;
-    let next = text(&arguments[5])?;
-    let output = match text(&arguments[2])? {
-        "manifest" if matches!(arguments.len(), 6 | 7) => {
-            let dependencies = if arguments.len() == 7 {
-                let context: Value = serde_json::from_str(&read(Path::new(&arguments[6]), limit)?)?;
-                dependency_versions(source, &input, next, &context)?
-            } else {
-                Vec::new()
-            };
+    let previous = selected.get_one::<String>("previous").unwrap().as_str();
+    let next = selected.get_one::<String>("next").unwrap().as_str();
+    let output = match operation {
+        "manifest" => {
+            let dependencies =
+                if let Some(context) = selected.get_one::<PathBuf>("workspace-input-json") {
+                    let context: Value = serde_json::from_str(&read(context, limit)?)?;
+                    dependency_versions(source, &input, next, &context)?
+                } else {
+                    Vec::new()
+                };
             let projections: Vec<_> = dependencies
                 .iter()
                 .map(|(alias, previous, next)| DependencyVersionProjection {
@@ -47,28 +77,22 @@ pub fn run() -> Result<()> {
                 .collect();
             render_workspace_manifest(&input, previous, next, &projections)?
         }
-        "lock" if arguments.len() > 6 => {
-            let projections = arguments[6..]
-                .iter()
-                .map(|name| {
-                    Ok(WorkspaceVersionProjection {
-                        package: text(name)?,
-                        previous,
-                        next,
-                    })
+        "lock" => {
+            let projections = selected
+                .get_many::<String>("package")
+                .unwrap()
+                .map(|name| WorkspaceVersionProjection {
+                    package: name,
+                    previous,
+                    next,
                 })
-                .collect::<Result<Vec<_>>>()?;
+                .collect::<Vec<_>>();
             render_workspace_lock(&input, &projections)?
         }
-        _ => return Err("invalid rendering operation or arguments".into()),
+        _ => unreachable!("Clap admits only the declared subcommands"),
     };
     std::io::stdout().lock().write_all(output.as_bytes())?;
     Ok(())
-}
-fn text(value: &OsString) -> Result<&str> {
-    value
-        .to_str()
-        .ok_or_else(|| "expected UTF-8 argument".into())
 }
 fn check_path(path: &Path) -> Result<()> {
     if path
