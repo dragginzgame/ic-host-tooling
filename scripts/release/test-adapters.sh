@@ -6,13 +6,14 @@ set -euo pipefail
 unset MAKEFLAGS MFLAGS MAKEOVERRIDES GNUMAKEFLAGS MAKEFILES
 unset VALIDATION_REPOSITORY_ROOT VALIDATION_RUNNER_SNAPSHOT_PATH
 unset RELEASE_KIND RELEASE_PREVIOUS RELEASE_VERSION RELEASE_DATE RELEASE_SOURCE RELEASE_COMMIT
-editor="${CARGO_RELEASE_METADATA_EDITOR:?prepare and select the published Cargo release editor}"
-limit="${CARGO_RELEASE_METADATA_MAX_BYTES:?select the release document byte allowance}"
-[[ "$editor" == /* && -f "$editor" && -x "$editor" && "$limit" =~ ^[1-9][0-9]*$ ]] || exit 2
 export RELEASE_DELIVERY=direct
 root="${BASH_SOURCE[0]}"
 [[ "$root" == /* ]] || root="$PWD/$root"
 root="$(cd -P "${root%/*}/../.." && printf '%s/.' "$PWD")"; root="${root%/.}"
+export CARGO_RELEASE_METADATA_EDITOR
+CARGO_RELEASE_METADATA_EDITOR="$(bash "$root/scripts/release/editor.sh" check)"
+limit="${CARGO_RELEASE_METADATA_MAX_BYTES:?select the release document byte allowance}"
+[[ "$limit" =~ ^[1-9][0-9]*$ ]] || exit 2
 fixture="$(mktemp -d "${TMPDIR:-/tmp}/ic-build-release-adapters.XXXXXX")"
 complete=false
 failed_command=''
@@ -110,6 +111,36 @@ expect_failure() {
         echo 'adapter accepted an invalid fixture' >&2; exit 1
     fi
 }
+# Qualify the local selection boundary without installing a tool. Only explicit
+# prepare may omit --check, and failed admission never becomes a PATH fallback.
+mkdir -p "$fixture/editor-control/scripts/release" "$fixture/editor-control/scripts/dev"
+cp scripts/release/editor.sh "$fixture/editor-control/scripts/release/editor.sh"
+export IC_BUILD_TEST_EDITOR_CALLS="$fixture/editor.calls"
+export IC_BUILD_TEST_EDITOR="$CARGO_RELEASE_METADATA_EDITOR"
+cat > "$fixture/editor-control/scripts/dev/install-rust-tools.sh" <<'EDITOR'
+#!/usr/bin/env bash
+set -euo pipefail
+printf '%s\n' "$*" >> "$IC_BUILD_TEST_EDITOR_CALLS"
+[[ "${IC_BUILD_TEST_EDITOR_STATUS:-0}" == 0 ]] || exit "$IC_BUILD_TEST_EDITOR_STATUS"
+printf '%s\n' "$IC_BUILD_TEST_EDITOR"
+EDITOR
+for mode in check prepare; do
+    env -u CARGO_RELEASE_METADATA_EDITOR bash "$fixture/editor-control/scripts/release/editor.sh" "$mode" > "$fixture/editor-$mode"
+    [[ "$(cat "$fixture/editor-$mode")" == "$CARGO_RELEASE_METADATA_EDITOR" ]]
+done
+printf '%s\n' \
+    '--package ic-build --version 0.19.0 --bin ic-build-release-metadata --profile debug --check' \
+    '--package ic-build --version 0.19.0 --bin ic-build-release-metadata --profile debug' > "$fixture/editor-expected"
+cmp "$IC_BUILD_TEST_EDITOR_CALLS" "$fixture/editor-expected"
+status=0
+env -u CARGO_RELEASE_METADATA_EDITOR IC_BUILD_TEST_EDITOR_STATUS=43 \
+    bash "$fixture/editor-control/scripts/release/editor.sh" check > "$fixture/editor-refused" 2> "$fixture/editor-refused.log" || status=$?
+[[ "$status" == 43 && ! -s "$fixture/editor-refused" ]]
+cp "$IC_BUILD_TEST_EDITOR_CALLS" "$fixture/editor-before-override"
+bash "$fixture/editor-control/scripts/release/editor.sh" check > "$fixture/editor-override"
+[[ "$(cat "$fixture/editor-override")" == "$CARGO_RELEASE_METADATA_EDITOR" ]]
+expect_failure env CARGO_RELEASE_METADATA_EDITOR=relative bash "$fixture/editor-control/scripts/release/editor.sh" check
+cmp "$IC_BUILD_TEST_EDITOR_CALLS" "$fixture/editor-before-override"
 # The actual logger recursively loads this fixture's gate sentinels.
 # The verification adapter itself remains the production recipe.
 make --no-print-directory release-verify > "$fixture/gate.log" 2>&1
@@ -134,21 +165,23 @@ for mode in 0 1; do
     : > "$IC_BUILD_TEST_PREFLIGHT_EVENTS"
     IC_BUILD_RELEASE_CACHE_PREPARE="$mode" bash scripts/release/metadata.sh preflight > "$fixture/preflight-$mode.log" 2>&1
     if [[ "$mode" == 0 ]]; then
-        printf 'cargo:fetch --locked --offline\nmake:tools-check\n' > "$fixture/preflight.expected"
+        printf 'cargo:fetch --locked --offline\nmake:tools-check\nmake:release-tools-check\n' > "$fixture/preflight.expected"
     else
-        printf 'cargo:fetch --locked\nmake:install-tools\nmake:tools-check\n' > "$fixture/preflight.expected"
+        printf 'cargo:fetch --locked\nmake:install-tools\nmake:tools-check\nmake:install-release-tools\nmake:release-tools-check\n' > "$fixture/preflight.expected"
     fi
     cmp "$fixture/preflight.expected" "$IC_BUILD_TEST_PREFLIGHT_EVENTS"
 done
-cp ci/tool-versions.env "$fixture/preflight-pin"
-: > "$IC_BUILD_TEST_PREFLIGHT_EVENTS"
-status=0
-IC_BUILD_RELEASE_CACHE_PREPARE=1 IC_BUILD_TEST_CHANGE_PIN="$PWD/ci/tool-versions.env" \
-    bash scripts/release/metadata.sh preflight > "$fixture/preflight-pin.log" 2>&1 || status=$?
-cp "$fixture/preflight-pin" ci/tool-versions.env
-[[ "$status" == 1 ]]
-printf 'cargo:fetch --locked\nmake:install-tools\n' > "$fixture/preflight.expected"
-cmp "$fixture/preflight.expected" "$IC_BUILD_TEST_PREFLIGHT_EVENTS"
+for pin in ci/tool-versions.env scripts/release/editor.sh; do
+    cp "$pin" "$fixture/preflight-pin"
+    : > "$IC_BUILD_TEST_PREFLIGHT_EVENTS"
+    status=0
+    IC_BUILD_RELEASE_CACHE_PREPARE=1 IC_BUILD_TEST_CHANGE_PIN="$PWD/$pin" \
+        bash scripts/release/metadata.sh preflight > "$fixture/preflight-pin.log" 2>&1 || status=$?
+    cp "$fixture/preflight-pin" "$pin"
+    [[ "$status" == 1 ]]
+    printf 'cargo:fetch --locked\nmake:install-tools\n' > "$fixture/preflight.expected"
+    cmp "$fixture/preflight.expected" "$IC_BUILD_TEST_PREFLIGHT_EVENTS"
+done
 for kind in fetch make invalid; do
     : > "$IC_BUILD_TEST_PREFLIGHT_EVENTS"
     status=0
@@ -182,9 +215,9 @@ git reset --quiet HEAD -- README.md
 for path in Cargo.toml Cargo.lock CHANGELOG.md; do cp "$path" "$fixture/before-${path##*/}"; done
 for invalid in missing-editor relative-editor missing-limit zero-limit document-limit; do
     case "$invalid" in
-        missing-editor) expect_failure env -u CARGO_RELEASE_METADATA_EDITOR make --no-print-directory release-prepare-version ;;
+        missing-editor) expect_failure env -u CARGO_RELEASE_METADATA_EDITOR bash scripts/ci/cargo-release-metadata.sh prepare ic-build ;;
         relative-editor) expect_failure env CARGO_RELEASE_METADATA_EDITOR=editor make --no-print-directory release-prepare-version ;;
-        missing-limit) expect_failure env -u CARGO_RELEASE_METADATA_MAX_BYTES make --no-print-directory release-prepare-version ;;
+        missing-limit) expect_failure env -u CARGO_RELEASE_METADATA_MAX_BYTES bash scripts/ci/cargo-release-metadata.sh prepare ic-build ;;
         zero-limit) expect_failure env CARGO_RELEASE_METADATA_MAX_BYTES=0 make --no-print-directory release-prepare-version ;;
         document-limit) expect_failure env CARGO_RELEASE_METADATA_MAX_BYTES=1 make --no-print-directory release-prepare-version ;;
     esac

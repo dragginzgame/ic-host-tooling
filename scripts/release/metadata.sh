@@ -36,7 +36,10 @@ case "$operation" in
             -f scripts/ci/finalize-release-changelog.awk CHANGELOG.md > /dev/null
         bash "$root/scripts/ci/cargo-release-preflight.sh" "$root" "$release_cache_prepare" \
             --pin "$root/ci/tool-versions.env" \
-            --check tools-check --prepare install-tools --prepare tools-check
+            --pin "$root/scripts/release/editor.sh" \
+            --check tools-check --check release-tools-check \
+            --prepare install-tools --prepare tools-check \
+            --prepare install-release-tools --prepare release-tools-check
         ;;
     prepare)
         bash "$root/scripts/ci/check-release-source.sh" \
@@ -48,6 +51,8 @@ case "$operation" in
             exit
         fi
         [[ "$current_version" == "${RELEASE_PREVIOUS:?}" ]] || exit 1
+        export CARGO_RELEASE_METADATA_EDITOR
+        CARGO_RELEASE_METADATA_EDITOR="$(bash "$root/scripts/release/editor.sh" check)"
         bash "$root/scripts/ci/cargo-release-metadata.sh" prepare ic-build
         ;;
     check|commit-check)

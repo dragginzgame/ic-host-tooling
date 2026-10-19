@@ -1,5 +1,30 @@
 # Current handoff
 
+## Release editor selection repair — 2026-10-19
+
+At source `bd297d1`, full validation failed only because the release-adapter
+fixture required CARGO_RELEASE_METADATA_EDITOR from the shell. The native worker
+compilation error belonged to its successful negative integration test. Preserve
+the failed release state and logs; no release recovery or retry runs here.
+
+Local commands now select the pinned published Build 0.19.0 executable through
+the canonical tool-store check, before entering Shared's metadata adapter. Make
+supplies the 8 MiB default allowance; explicit overrides remain validated and
+invalid selections never fall back. `make install-release-tools` selects explicit
+preparation. Standard release preflight also prepares and checks after source
+admission, while standalone preflight and validation remain check-only/offline.
+The preflight observes both the common tool catalog and editor selection source.
+CI uses the same setup targets instead of repeating tool selection and exports.
+
+Focused Linux evidence: `make release-tools-check check-release-adapters` passes
+with both editor variables unset. Selection controls prove check-only admission,
+explicit preparation, preserved failure status and refusal without fallback.
+The complete adapter fixture passes default/override admission, both pin-change
+refusals, metadata/recovery and substituted publication. ShellCheck, Actionlint,
+snapshot integrity, release routing and documentation links pass. Rust sources
+and manifests are unchanged; no full gate, native macOS, root Git mutation or
+release retry ran. Evidence: `/tmp/ic-build-editor-repair.plCQNW/`.
+
 ## Shared Tooling 0.25 adoption — 2026-10-19
 
 Adopt committed Shared Tooling 0.25.0 revision

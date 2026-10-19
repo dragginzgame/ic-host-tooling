@@ -114,10 +114,11 @@ cargo fetch --locked
 make install-hooks
 ```
 
-Release preparation and the isolated release-adapter checks require an explicitly
-prepared published Build editor and document byte allowance; see
-[release setup](docs/publishing.md). Common setup does not install that optional
-tool. Global Cargo plugins are not setup prerequisites.
+Release preparation and the isolated release-adapter checks use the pinned
+published Build editor, prepared with `make install-release-tools`; see
+[release setup](docs/publishing.md). Local commands select the prepared tool and
+document allowance without manual exports. Common setup does not install that
+optional tool. Global Cargo plugins are not setup prerequisites.
 
 [rust-toolchain.toml](rust-toolchain.toml) selects Rust 1.99.1
 development compiler, rustfmt, Clippy and its Wasm target independently of the qualified Linux

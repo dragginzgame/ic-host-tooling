@@ -5,10 +5,11 @@ archive also includes the extracted artifact engine and Cargo grouping API.
 
 ## [0.20.0]
 
-- Adopt Shared Tooling 0.25.0. Release preparation and adapter checks now require
-  the explicitly prepared published Build 0.19.0 editor and an 8 MiB document
-  allowance; CI prepares the same tool on all supported hosts. Retire the Perl
-  editors while preserving metadata rollback and independent Cargo checks.
+- Adopt Shared Tooling 0.25.0 and retire the Perl editors while preserving
+  metadata rollback and independent Cargo checks. Local release commands select
+  the prepared published Build 0.19.0 editor and an 8 MiB document allowance
+  without manual exports. Explicit setup, standard release preflight and CI
+  prepare the pinned tool; standalone validation remains offline.
 - Use Clap for release-editor argument handling, with help/version output and
   positive byte-limit admission. Rendering operations, read-only input custody
   and candidate refusal behavior remain unchanged. Formatting and release

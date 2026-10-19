@@ -3,6 +3,7 @@ override SHARED_TOOLING_ROOT := $(CURDIR)
 export SHARED_TOOLING_ROOT
 export RELEASE_DELIVERY ?= direct
 export YQ := $(CURDIR)/.tools/host/bin/yq
+export CARGO_RELEASE_METADATA_MAX_BYTES ?= 8388608
 include make/consumer.mk
 
 .PHONY: help version tasks check ci check-doc-links check-workspace check-pins \
@@ -11,7 +12,7 @@ include make/consumer.mk
         check-workflows check-secrets release-version release-preflight \
         release-verify release-prepare-version release-prepared-check release-files \
         release-commit-check release-committed-check release-tagged-check release-push-check \
-        check-release-adapters package publish publish-check
+        check-release-adapters install-release-tools release-tools-check package publish publish-check
 
 _release_targets := release-patch release-minor release-major release-resume \
                     release-version release-preflight release-verify release-prepare-version \
@@ -31,6 +32,7 @@ help:
 	@echo 'version / tasks: workspace version and shared maintenance catalog'
 	@echo 'check / ci: snapshot, tools, docs, pins, formatting, package/MSRV checks and release routing'
 	@echo 'install-tools / tools-check: explicit shared setup and offline admission'
+	@echo 'install-release-tools / release-tools-check: prepare / admit the pinned published Cargo editor'
 	@echo 'fmt / fmt-check: sort Cargo manifests and format/check all workspace Rust source'
 	@echo 'install-hooks: activate the shared repository-local pre-commit formatter'
 	@echo 'check-package / clippy / docs-check / test / msrv: compile, lint, document and qualify the extracted engine'
@@ -100,6 +102,12 @@ check-release-commands:
 
 check-release-adapters:
 	bash scripts/release/test-adapters.sh
+
+install-release-tools:
+	@bash scripts/release/editor.sh prepare > /dev/null
+
+release-tools-check:
+	@bash scripts/release/editor.sh check > /dev/null
 
 install-validation-tools:
 	@bash -ec 'test "$$(uname -s):$$(uname -m)" = Linux:x86_64; \
