@@ -15,12 +15,12 @@ default = []
 yaml = ["dep:serde", "dep:serde_yaml"]
 
 [dependencies]
-serde = { workspace = true, optional = true }
+serde = { workspace = true, features = ["std"], optional = true }
 serde_yaml = { workspace = true, optional = true }
 unicode-width.workspace = true
 
 [dev-dependencies]
-serde = { workspace = true, features = ["derive"] }
+serde = { workspace = true, features = ["derive", "std"] }
 
 [lints]
 workspace = true

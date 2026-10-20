@@ -1,4 +1,12 @@
-# Host qualification
+# IC Tooling qualification
+
+Host profiles below remain independent. Build and Testkit share the root
+workspace and release matrix, with separate optimizer, browser-session and
+PocketIC lifecycle workflow jobs. `make testkit-check` runs focused Testkit
+qualification using the prepared server; `make testkit-wasm-check` and
+`make testkit-msrv` qualify deployed profiles. `make testkit-package-check`
+qualifies all nine public archives through Build. Private packages remain
+excluded from publication. Native macOS results must come from native runners.
 
 Required hosts are Linux x86-64 and macOS 15 on Intel and Apple Silicon.
 The FS package also owns the [native file CLI](file-cli.md). Its actual-executable
@@ -18,7 +26,7 @@ and native Build/Testkit harnesses. `make check-fs-non-unix` compiles the librar
 test-support feature and non-Unix lock admission test without executing them.
 It requires the Wasm standard-library target to be prepared explicitly; MSRV CI
 selects that target during its existing toolchain setup.
-That CI step scopes `RUSTUP_TOOLCHAIN=1.88.0` so Cargo uses the same compiler and
+That CI step scopes `RUSTUP_TOOLCHAIN=1.91.0` so Cargo uses the same compiler and
 target installation, rather than the repository's independent development pin.
 
 Select one changed crate with `PACKAGE=<crate>` for `make check`, `make clippy`,
@@ -44,7 +52,7 @@ validation of encoder fixtures. All-feature tests include both. The feature guar
 checks these profiles on Linux and both macOS target graphs, including exclusion
 of wasmparser's validation feature unless explicitly requested. These graph checks
 do not replace native qualification. Both new capabilities require actual Rust
-1.88 and native Linux/macOS evidence; native macOS remains separately reported.
+1.91 and native Linux/macOS evidence; native macOS remains separately reported.
 The direct-dependency policy restricts cap-std, cap-fs-ext and tempfile to FS,
 and wasmparser, wasm-encoder and wat to Artifacts, including dev/build and aliases.
 All normal/build profiles except explicitly selected text compilation exclude
@@ -66,8 +74,8 @@ decoding. `make test PACKAGE=ic-host-text` checks bounded line normalization,
 escaping, progress frames and Unicode table alignment.
 `make test-tools-registry` checks golden Protobuf tags and shard admission.
 
-Text's optional `yaml` feature and Tools' `icp-project` retain Rust 1.88.
-Qualify YAML with `cargo +1.88.0 test -p ic-host-text
+Text's optional `yaml` feature and Tools' `icp-project` retain Rust 1.91.
+Qualify YAML with `cargo +1.91.0 test -p ic-host-text
 --features yaml --all-targets --locked --offline` and the equivalent Tools
 `--features icp-project` selection. Tests cover ignored-field duplicate/tag/merge
 policy, UTF-8/byte admission, alias handling and no external expansion. The byte
@@ -75,7 +83,7 @@ allowance is not a parser memory/CPU budget; backend recursion/repetition checks
 are retained. The dependency guard confines serde_yaml to Text, rejects competing
 frontends and excludes YAML from defaults and unrelated profiles. serde_yaml's
 unsafe-libyaml backend remains selected in YAML-enabled graphs. All-feature MSRV
-checks, including YAML, use the same 1.88 compiler and existing CI lane.
+checks, including YAML, use the same 1.91 compiler and existing CI lane.
 
 Certificate tests compare recursion refusal, semantic tags and indefinite byte
 chunks with the same `serde_cbor` decoder used by IC Agent. Strict Host field,
@@ -100,7 +108,7 @@ Native CI includes these profiles. Only explicit `candid` selects Platform's par
 Agent and ledger evidence retain their required codec dependencies without it.
 Registry selects Platform principal types without the codec. `ic-interface` adds
 Host Artifacts and Wasm parsing. The standalone Wasm inspector
-retains its parser-free graph. These non-YAML profiles must qualify on Rust 1.88
+retains its parser-free graph. These non-YAML profiles must qualify on Rust 1.91
 and native Linux/macOS matrix as the existing libraries.
 
 Native CI prepares pinned Rust and the complete common toolsets, then verifies
@@ -158,7 +166,7 @@ install a toolchain or replace the offline verification of installed tools.
 Release preparation uses the admitted IC Build metadata editor with source-bound
 member identities, with rollback qualification in disposable release fixtures.
 `make install-tools` includes the pinned release-only editor; `make tools-check`
-admits it offline. The editor's Rust 1.91 floor is separate from Host's 1.88 MSRV.
+admits it offline. The editor's Rust 1.91 floor is separate from Host's 1.91 MSRV.
 Both native CI cache paths include its tool-store entries; its pin participates
 in the cache key. `make release-adapter-check` exercises actual rendering with
 substituted setup/Git effects, including first-use setup and offline refusal.
