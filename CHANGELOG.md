@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.62.1] - Unreleased
+## [0.62.1] - 2026-10-20
 
 - Publish crash-barrier markers atomically before allowing child termination.
 - Fetch locked dependencies before building the setup server and explain missing
