@@ -1,41 +1,49 @@
 [workspace]
 members = [
     "apps/ic-host-wasm-inspect",
+    "crates/ic-build",
     "crates/ic-host-artifacts",
     "crates/ic-host-fs",
     "crates/ic-host-process",
     "crates/ic-host-text",
     "crates/ic-host-tools",
+    "crates/ic-testkit",
+    "crates/ic-testkit-dev",
+    "crates/ic-testkit-native",
+    "crates/ic-testkit-perf-probe",
 ]
 resolver = "3"
 
 [workspace.package]
 edition = "2024"
-rust-version = "1.88.0"
-version = "0.32.0"
+rust-version = "1.91.0"
+version = "0.62.0"
 license = "MIT"
-repository = "https://github.com/dragginzgame/ic-host-tooling"
+repository = "https://github.com/dragginzgame/ic-tooling"
 authors = ["borovan <84897664+borovan@users.noreply.github.com>"]
 description = "Host-side artifact, filesystem, process and IC tooling"
 
 [workspace.dependencies]
-# Registry versions are compatible ranges; Cargo.lock records exact build selections.
 # Production dependencies
 # Shared production/test dependencies stay in this section.
 cap-fs-ext = "4.0.2"
 cap-std = "4.0.2"
-clap = { version = "4.6.7", default-features = false, features = ["std", "derive", "help", "usage", "error-context"] }
+cargo_metadata = "0.23.1"
+clap = { version = "4.6.7", default-features = false, features = ["std", "help", "usage", "error-context"] }
 command-fds = "0.3.3"
 flate2 = { version = "1.1.10", default-features = false, features = ["rust_backend"] }
-ic-host-artifacts = { path = "crates/ic-host-artifacts", version = "0.32", default-features = false }
-ic-host-fs = { path = "crates/ic-host-fs", version = "0.32", default-features = false }
-ic-host-text = { path = "crates/ic-host-text", version = "0.32", default-features = false }
+ic-host-artifacts = { path = "crates/ic-host-artifacts", version = "0.62", default-features = false }
+ic-host-fs = { path = "crates/ic-host-fs", version = "0.62", default-features = false }
+ic-host-process = { path = "crates/ic-host-process", version = "0.62", default-features = false }
+ic-host-text = { path = "crates/ic-host-text", version = "0.62", default-features = false }
+ic-metrics = "0.14"
 ic-platform = { version = "0.5", default-features = false }
+ic-wire = "0.5"
 leb128 = "0.2.5"
 libc = "0.2.190"
 prost = "0.14.3"
 rustix = { version = "1.1.4", default-features = false, features = ["std", "fs"] }
-serde = { version = "1.0.228", default-features = false, features = ["std"] }
+serde = { version = "1.0.228", default-features = false }
 serde_cbor = "0.11.2"
 serde_json = "1.0.150"
 serde_yaml = "0.9.34"
@@ -43,6 +51,8 @@ sha2 = "0.10.9"
 tempfile = "3.27.0"
 thiserror = "2.0.18"
 tokio = { version = "1.52.3", default-features = false }
+toml = "1"
+toml_edit = "0.25.17"
 unicode-width = "0.2.2"
 url = "2.5.7"
 wasm-encoder = { version = "0.262", default-features = false }
@@ -50,7 +60,9 @@ wasmparser = { version = "0.262", default-features = false, features = ["std", "
 wat = { version = "1.262.0", default-features = false }
 
 # Tests and tooling only
-ic-host-process = { path = "crates/ic-host-process", version = "0.32", default-features = false }
+ic-build = { path = "crates/ic-build", version = "0.62", default-features = false }
+ic-testkit = { path = "crates/ic-testkit", version = "0.62", default-features = false }
+ic-testkit-perf-probe = { path = "crates/ic-testkit-perf-probe" }
 
 [workspace.lints.rust]
 missing_docs = "warn"

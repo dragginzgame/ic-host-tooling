@@ -1,15 +1,16 @@
 .DEFAULT_GOAL := help
 PACKAGE ?= ic-host-artifacts
-MSRV ?= 1.88.0
+MSRV ?= 1.91.0
 RELEASE_DELIVERY ?= direct
 override RELEASE_DELIVERY_POLICY := $(CURDIR)/ci/release-delivery.txt
 # Host commands use this checkout's reviewed snapshot, including parse-time probes.
 override SHARED_TOOLING_ROOT := $(CURDIR)
 export SHARED_TOOLING_ROOT
-LOCAL_TOOL_INSTALL_TARGETS += install-release-editor
-LOCAL_TOOL_CHECK_TARGETS += release-editor-check
+LOCAL_TOOL_INSTALL_TARGETS += install-release-editor install-server
+LOCAL_TOOL_CHECK_TARGETS += release-editor-check server-check
 include ci/tool-versions.env
 include make/consumer.mk
+include make/testkit.mk
 export YQ := $(CURDIR)/.tools/host/bin/yq
 
 .PHONY: help check clippy docs-check test test-artifacts-minimal test-tools-default tools-features-check msrv ci install-hooks tooling-command-check shared-tooling-check dependency-pins-check check-doc-links release-adapter-check publish publish-check publish-command-check release-version release-preflight release-verify release-prepare-version release-prepared-check release-files release-commit-check release-committed-check release-tagged-check release-push-check
@@ -110,7 +111,7 @@ release-adapter-check:
 tooling-command-check:
 	+bash scripts/ci/test-host-fixture-retention.sh
 	+bash scripts/ci/test-make-snapshot.sh
-	+bash scripts/ci/check-release-commands.sh "$(CURDIR)" ci/tool-versions.env ci/release-delivery.txt make/consumer.mk make/tools.mk make/rust-format.mk make/release.mk make/execution.mk scripts/ci/check-make-execution.sh scripts/ci/check-release-delivery.sh scripts/ci/run-formatting.sh
+	+bash scripts/ci/check-release-commands.sh "$(CURDIR)" ci/tool-versions.env ci/release-delivery.txt make/consumer.mk make/tools.mk make/testkit.mk make/rust-format.mk make/release.mk make/execution.mk scripts/ci/check-make-execution.sh scripts/ci/check-release-delivery.sh scripts/ci/run-formatting.sh
 publish:
 	+bash scripts/publish/workspace.sh publish
 publish-check:
@@ -136,6 +137,9 @@ ci:
 	+$(MAKE) --no-print-directory test-artifacts-encoding
 	+$(MAKE) --no-print-directory test-artifacts-text
 	+$(MAKE) --no-print-directory tools-features-check
+	+$(MAKE) --no-print-directory testkit-graph-check testkit-wasm-check
+	+$(MAKE) --no-print-directory testkit-installed-check
+	+$(MAKE) --no-print-directory testkit-package-check
 	+$(MAKE) --no-print-directory test-tools-default
 	+$(MAKE) --no-print-directory test-tools-interface
 	+$(MAKE) --no-print-directory test-tools-certificate
@@ -147,7 +151,7 @@ ci:
 	+$(MAKE) --no-print-directory test-tools-registry
 	+$(MAKE) --no-print-directory test-wasm-inspection
 	+RUSTDOCFLAGS="-D warnings" cargo doc --workspace --all-features --locked --offline --no-deps
-	+cargo test --workspace --all-targets --all-features --locked --offline
+	+@server="$$("target/debug/ic-testkit-server" check)" && POCKET_IC_BIN="$$server" cargo test --workspace --all-targets --all-features --locked --offline
 release-version:
 	+@bash scripts/release/adapter.sh version
 release-preflight:
@@ -164,3 +168,29 @@ release-commit-check:
 	+@bash scripts/release/adapter.sh commit-check
 release-committed-check release-tagged-check release-push-check:
 	@bash scripts/release/adapter.sh committed-check
+
+# Preserve Build shell, workflow and history qualification gates.
+SHELLCHECK ?= $(CURDIR)/.tools/ci/bin/shellcheck
+ACTIONLINT ?= $(CURDIR)/.tools/ci/bin/actionlint
+GITLEAKS ?= $(CURDIR)/.tools/ci/bin/gitleaks
+.PHONY: install-validation-tools lint check-shell check-workflows check-secrets
+install-validation-tools:
+	@bash -ec 'test "$$(uname -s):$$(uname -m)" = Linux:x86_64; \
+		. ci/tool-versions.env; \
+		bash scripts/ci/install-ci-tool.sh shellcheck --version "$$SHARED_TOOLING_SHELLCHECK_VERSION" \
+			--sha256 "$$SHARED_TOOLING_SHELLCHECK_SHA256_LINUX_X86_64" --install-dir "$(CURDIR)/.tools/ci/bin"; \
+		bash scripts/ci/install-ci-tool.sh actionlint --version "$$SHARED_TOOLING_ACTIONLINT_VERSION" \
+			--sha256 "$$SHARED_TOOLING_ACTIONLINT_SHA256_LINUX_AMD64" --install-dir "$(CURDIR)/.tools/ci/bin"; \
+		bash scripts/ci/install-ci-tool.sh gitleaks --version "$$SHARED_TOOLING_GITLEAKS_VERSION" \
+			--sha256 "$$SHARED_TOOLING_GITLEAKS_SHA256_LINUX_X64" --install-dir "$(CURDIR)/.tools/ci/bin"'
+
+lint: check-shell check-workflows
+
+check-shell:
+	"$(SHELLCHECK)" -x -P SCRIPTDIR -P . scripts/ci/*.sh scripts/dev/*.sh scripts/release/*.sh .githooks/pre-commit
+
+check-workflows:
+	"$(ACTIONLINT)" .github/workflows/*.yml
+
+check-secrets:
+	"$(GITLEAKS)" git --redact=100 --no-banner --no-color --log-level error "$(CURDIR)"

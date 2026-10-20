@@ -1,4 +1,16 @@
-# IC Host Tooling
+# IC Tooling
+
+This workspace owns Host primitives (`ic-host-*`), build orchestration
+(`ic-build`) and test support (`ic-testkit`, `ic-testkit-native`).
+Build and Testkit use Host through explicit crate dependencies.
+Private test drivers and the Wasm probe remain unpublished.
+All packages use Rust 1.91 or newer.
+
+See [the consolidation inventory](docs/design/tooling-consolidation.md),
+[Build documentation](docs/build/README.md) and
+[Testkit documentation](docs/testkit/README.md).
+
+## Host libraries
 
 Host-side Rust libraries for artifact inspection, local filesystem safety,
 admitted process execution and IC-specific format handling.
@@ -460,8 +472,8 @@ decoded bytes exactly with an expected slice. All retain explicit input/payload
 bounds and strict single-member integrity checks; see the
 [gzip contract](docs/changelog/0.4.md#gzip-identities-and-exact-representation-comparison).
 
-The five crates support Linux x86-64 and macOS 15 on Intel and Apple Silicon,
-with Rust **1.88.0** as their MSRV. See [host qualification](docs/hosts.md) for
+The published libraries support Linux x86-64 and macOS 15 on Intel and Apple Silicon,
+with Rust **1.91.0** as their MSRV. See [host qualification](docs/hosts.md) for
 validation commands and native evidence requirements.
 
 For development, prepare the toolchain selected in
@@ -478,7 +490,7 @@ make test PACKAGE=ic-host-artifacts
 Setup is explicit; `tools-check` verifies prepared tools offline. Hook installation
 separately activates the repository-local formatter. Shared Tooling owns these
 [common commands](docs/make-interface.md) and executable installation; this
-workspace owns the five libraries, package checks and publication policy.
+workspace owns the Host, Build and Testkit libraries, package checks and publication policy.
 
 Use `make check`, `make clippy`, `make docs-check`, `make test` or `make msrv`
 with `PACKAGE=<crate>` for focused work. Follow the

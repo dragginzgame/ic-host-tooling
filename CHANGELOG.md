@@ -1,10 +1,20 @@
 # Changelog
 
-## [0.32.1]
+## [0.62.1]
 
-- Adopt Shared Tooling 0.25.9: refuse a new release increment past an
-  undelivered committed preparation, preserving its saved plan and evidence.
-  Tool pins, package APIs and dependency selections are unchanged.
+- Adopt Shared Tooling 0.25.9 release retry protection, refusing a second version
+  increment while a committed candidate has not completed Git delivery.
+
+## [0.62.0] - 2026-10-20
+
+- Consolidate Host, Build and Testkit into IC Tooling, retaining crate names
+  and original repository histories. Adopt Rust 1.91 as the common minimum.
+- Coordinate internal package requirements and publication, preserving optional
+  Host features, Testkit native/Wasm exclusions and private test packages.
+- Preserve real PocketIC, browser-session, optimizer and archive qualification.
+  Remove a Build test that assumed the source checkout’s directory depth;
+  independent workspace discovery fixtures remain.
+- See [the migration instructions](docs/changelog/0.62.md).
 
 ## [0.32.0] - 2026-10-20
 

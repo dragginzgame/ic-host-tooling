@@ -14,7 +14,7 @@ cargo metadata --manifest-path "$source_root/Cargo.toml" --no-deps \
     --format-version 1 --locked --offline > "$destination/source-metadata.json"
 jq -r '. as $m | .packages[] |
     select(.id as $id | $m.workspace_members | index($id)) |
-    .manifest_path, (.targets[] | select(.kind | index("lib") or index("bin")) | .src_path)' \
+    .manifest_path, (.targets[] | select(.kind | index("lib") or index("bin") or index("rlib") or index("cdylib")) | .src_path)' \
     "$destination/source-metadata.json" |
     while IFS= read -r path; do
         case "$path" in

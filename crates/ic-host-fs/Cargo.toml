@@ -29,14 +29,14 @@ rustix.workspace = true
 tempfile = { workspace = true, optional = true }
 
 [dependencies]
-clap = { workspace = true, optional = true }
+clap = { workspace = true, features = ["derive"], optional = true }
 ic-host-artifacts.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
-clap.workspace = true
+clap = { workspace = true, features = ["derive"] }
 ic-host-artifacts = { workspace = true, features = ["gzip"] }
-serde.workspace = true
+serde = { workspace = true, features = ["std"] }
 serde_json.workspace = true
 
 [lints]

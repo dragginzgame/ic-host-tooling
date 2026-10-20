@@ -1,0 +1,71 @@
+[package]
+publish = ["crates-io"]
+name = "ic-testkit"
+edition.workspace = true
+rust-version.workspace = true
+version.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "PocketIC-oriented test utilities for IC canister tests"
+readme = "README.md"
+homepage = "https://github.com/dragginzgame/ic-tooling"
+repository.workspace = true
+keywords = ["internet-computer", "canister", "dfinity", "icp", "testing"]
+categories = ["development-tools::testing", "wasm"]
+
+[features]
+default = []
+reply-fixtures = ["ic-host-artifacts/wasm-encoding"]
+wire = ["dep:ic-wire", "dep:serde"]
+
+[dependencies]
+ic-metrics = { workspace = true }
+ic-platform = { workspace = true }
+
+[target.'cfg(all(unix, not(target_arch = "wasm32")))'.dependencies]
+libc = { workspace = true }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+clap = { workspace = true, features = ["string"] }
+ic-host-artifacts = { workspace = true, features = ["gzip"] }
+ic-host-fs = { workspace = true }
+ic-host-process = { workspace = true }
+ic-platform = { workspace = true, features = ["candid", "pocket-ic"] }
+ic-wire = { workspace = true, optional = true }
+serde = { workspace = true, optional = true }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["net", "rt", "time"] }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+ic-platform = { workspace = true, features = ["ic0"] }
+
+[target.'cfg(all(unix, not(target_arch = "wasm32")))'.dev-dependencies]
+ic-host-process = { workspace = true, features = ["test-support"] }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+ic-host-artifacts = { workspace = true, features = ["wasm-validation"] }
+serde_json = { workspace = true }
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+nursery = { level = "warn", priority = -1 }
+missing_const_for_fn = "warn"
+must_use_candidate = "warn"
+redundant_clone = "warn"
+semicolon_if_nothing_returned = "warn"
+uninlined_format_args = "warn"
+use_self = "warn"
+doc_markdown = "allow"
+empty_line_after_doc_comments = "allow"
+enum_variant_names = "allow"
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
+module_inception = "allow"
+module_name_repetitions = "allow"
+needless_pass_by_value = "allow"
+option_if_let_else = "allow"
+significant_drop_tightening = "allow"
+struct_field_names = "allow"
+used_underscore_binding = "allow"
+wildcard_imports = "allow"

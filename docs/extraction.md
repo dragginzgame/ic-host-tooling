@@ -1,5 +1,16 @@
 # Crate ownership and extraction contract
 
+## Coordinated tooling workspace
+
+The Host primitives retain the five boundaries below. `ic-build` now shares
+this repository and owns generic Cargo execution, build input evidence and
+retained artifact caches. `ic-testkit` and `ic-testkit-native` own simulator
+integration and native test measurement. `ic-testkit-dev` and
+`ic-testkit-perf-probe` are private qualification packages. Build and Testkit
+depend on Host; Host does not depend on either. The private Testkit driver
+may also depend on Build. One workspace and release identity do not merge
+these capability boundaries or enable optional features for consumers.
+
 ## Fleet Candid/CDK boundary
 
 The maintainer's 2026-10-18 direction is one controlled dependency boundary for
@@ -166,7 +177,7 @@ no longer owns an `ic-limits` profile or a reference-policy CLI example.
   The private YAML backend is owned here; schemas, filesystem/includes and
   application configuration rules remain with consumers. Tools' `icp-project`
   selects this Text feature rather than another parser implementation. Its private
-  serde_yaml backend matches ICP CLI; all Text profiles retain Rust 1.88. Text also owns
+  serde_yaml backend matches ICP CLI; all Text profiles retain Rust 1.91. Text also owns
   explicit column clipping, Unicode display-width tables and pure single-line
   progress frames. Its `timestamp` module owns canonical UTC second spelling and
   Gregorian conversion, formatting unsigned Unix seconds and parsing zero through
