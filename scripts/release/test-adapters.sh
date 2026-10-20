@@ -54,8 +54,9 @@ export IC_BUILD_TEST_CARGO_CALLS="$fixture/cargo.calls"
 cat > "$fixture/bin/cargo" <<'CARGO'
 #!/usr/bin/env bash
 set -euo pipefail
-if [[ "$1" == publish ]]; then
+if [[ "$1" == publish || "$1" == package ]]; then
     printf '%s\n' "$*" >> "$IC_BUILD_TEST_CARGO_CALLS"
+    [[ "$1" != package ]] || exit 97
     exit "${IC_BUILD_TEST_PUBLISH_STATUS:-0}"
 fi
 if [[ "$1" == metadata && "${IC_BUILD_TEST_FAIL_METADATA:-0}" == 1 ]]; then exit 42; fi
@@ -83,18 +84,40 @@ chmod +x "$fixture/bin/cargo" "$fixture/bin/make"
 export PATH="$fixture/bin:$PATH"
 export GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null
 cd "$fixture/workspace"
-perl -0pi -e 's/^check ci:$/check:/m; s/^check-secrets:\n(?:\t[^\n]*\n)+//m; s/^check-shell:\n(?:\t[^\n]*\n)+//m; s/^check-workflows:\n(?:\t[^\n]*\n)+//m' Makefile
+# Exercise the production sequential gate under parallel Make before substituting
+# CI for the remaining transaction fixtures. No product compilation is dispatched.
+cp Makefile "$fixture/ordered-Makefile"
+cat >> Makefile <<GATES
+
+shared-tooling-check tools-check check-doc-links check-workspace check-pins check-boundary fmt-check:
+	@:
+clippy:
+	@printf 'clippy\n' >> '$fixture/ordered-gates'; exit 23
+check-package:
+	@printf 'unexpected-build\n' >> '$fixture/ordered-gates'; exit 97
+GATES
+if make --no-print-directory -j4 ci > "$fixture/ordered-ci.log" 2>&1; then exit 1; fi
+printf 'clippy\n' > "$fixture/expected-ordered-gates"
+cmp "$fixture/ordered-gates" "$fixture/expected-ordered-gates"
+if make --no-print-directory -j4 package > "$fixture/ordered-package.log" 2>&1; then exit 1; fi
+printf 'clippy\nclippy\n' > "$fixture/expected-ordered-gates"
+cmp "$fixture/ordered-gates" "$fixture/expected-ordered-gates"
+[[ ! -e "$IC_BUILD_TEST_CARGO_CALLS" ]]
+cp "$fixture/ordered-Makefile" Makefile
+perl -0pi -e 's/^check ci:$/check:/m; s/^clippy:\n(?:\t[^\n]*\n)+//m; s/^check-secrets:\n(?:\t[^\n]*\n)+//m; s/^check-shell:\n(?:\t[^\n]*\n)+//m; s/^check-workflows:\n(?:\t[^\n]*\n)+//m' Makefile
 cat >> Makefile <<GATES
 
 ci lint check-secrets:
 	@printf '%s\\n' '\$@' >> '$fixture/gates'
 check-shell check-workflows:
 	@:
+clippy:
+	@printf '%s\\n' '\$@' >> '$fixture/gates'; exit \$\${IC_BUILD_TEST_CLIPPY_STATUS:-0}
 GATES
 # The adapter fixture exercises a patch independently of the live release draft.
 fixture_previous="$(make --no-print-directory -s release-version)"
 fixture_version="$(bash scripts/ci/next-release-version.sh "$fixture_previous" patch)"
-printf '# Changelog\n\n## [%s]\n\n- Exercise the release adapter transaction.\n' "$fixture_version" > CHANGELOG.md
+printf '# Changelog\n\n## [%s] - Unreleased\n\n- Exercise the release adapter transaction.\n' "$fixture_version" > CHANGELOG.md
 git init --quiet --template=
 git config user.name Fixture
 git config user.email fixture@example.invalid
@@ -270,6 +293,9 @@ printf 'retained release artifact\n' > target/retained-artifact
 expect_failure make --no-print-directory publish
 [[ ! -e "$IC_BUILD_TEST_CARGO_CALLS" ]]
 git tag -a "v$RELEASE_VERSION" -m "Release $RELEASE_VERSION"
+expect_failure env IC_BUILD_TEST_CLIPPY_STATUS=23 make --no-print-directory -j4 publish
+expect_failure env IC_BUILD_TEST_CLIPPY_STATUS=23 make --no-print-directory -j4 publish-check
+[[ ! -e "$IC_BUILD_TEST_CARGO_CALLS" ]]
 make --no-print-directory publish-check > "$fixture/publish-check.log" 2>&1
 [[ "$(cat "$IC_BUILD_TEST_CARGO_CALLS")" == 'publish -p ic-build --locked --registry crates-io --dry-run' ]]
 make --no-print-directory publish > "$fixture/publish.log" 2>&1

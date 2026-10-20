@@ -30,8 +30,8 @@ roles, release identities or manifests.
 
 ## Implemented ownership
 
-Current source selects published Host 0.31 for artifact, filesystem and process
-mechanics. Pending Build 0.23 keeps metadata/tree command rendering and canonical
+Current source selects published Host 0.32 for artifact, filesystem and process
+mechanics. Build 0.23 keeps metadata/tree command rendering and canonical
 schema decoding in Build, while consumers execute through their own selected
 Host. Workspace discovery uses the same command/byte boundary, and feature-safe
 grouping receives a caller-owned tree observer. None of these process interfaces
@@ -39,6 +39,11 @@ exposes Host limits or process errors; observer errors pass through unchanged.
 Grouping still uses Host Artifacts' canonical label validation and error identity.
 The engine's execution and retained-artifact APIs still exchange Host values and
 require matching direct Host dependencies.
+Pending Build 0.24 moves those dependency identities from Host 0.31 to 0.32;
+consumers exchanging Host values must update their direct requirements together.
+The selected Artifacts, FS and Process implementations are unchanged. Host 0.32's
+Platform 0.5 migration affects Host Tools, which Build does not consume; it adds
+no Platform, Candid or CDK edge to this engine.
 Host FS 0.30 makes its Unix capability and scoped-tempfile backends independently
 optional through `capability` and `temporary-file`. Build needs neither and
 keeps them disabled, together with Host Wasm/encoding/text/gzip and file CLI.

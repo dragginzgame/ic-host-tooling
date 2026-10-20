@@ -48,8 +48,9 @@ still observe complete raw workspace manifests and lockfiles. Retained artifacts
 stamp formats and namespaces stay unchanged; this does not remove old entries.
 Metadata and builds receive the same feature and network selection. There is no
 arbitrary CLI argument escape hatch. Align direct Host dependencies with the
-0.29 family for pending Build 0.21 (0.28 for published Build 0.20) when passing
-Host values through Build's public APIs. Cargo progress
+0.32 family for pending Build 0.24 (0.31 for published Build 0.23) when passing
+Host values through Build's execution/artifact APIs. Command/byte observations
+do not exchange Host values. Cargo progress
 events carry `ic_host_process::tool::OutputStream` directly; remove imports of
 `WasmBuildOutputStream`.
 
@@ -147,7 +148,7 @@ retains isolated/combined probes and feature-equivalence checks. Every
 isolated and combined probe uses its features, locked and offline choices;
 the profile is not a Cargo tree argument. Canic's grouping adapter must pass
 the same graph selection that its compilation recipe uses when adopting 0.17.
-Pending Build 0.23 removes the combined capture/decoding functions. Consumers
+Build 0.23 removes the combined capture/decoding functions. Consumers
 execute the rendered command through their selected Host, keeping its limits and
 typed errors in that generation. Require success before completeness, preserving
 failed exits as primary, then decode complete JSON through `decode_metadata` or
@@ -1179,7 +1180,7 @@ Host 0.24 has removed its extraction module/feature; adopt the new Build owner
 when upgrading that graph ([#51](https://github.com/dragginzgame/ic-build/issues/51)).
 Structural Wasm inspection does not replace PocketIC's runtime validation.
 Current source requires compatible published IC Host 0.31 releases where the
-public engine boundary exchanges Host values. Pending Build 0.23 metadata/tree
+public engine boundary exchanges Host values. Build 0.23 metadata/tree
 rendering and metadata decoding use standard commands and bytes instead.
 Host FS's `capability` and `temporary-file` backends remain disabled here;
 direct consumers of those APIs enable the corresponding Host features explicitly.

@@ -53,7 +53,7 @@ tasks:
 check ci:
 	+@bash scripts/ci/run-validation-targets.sh --fail-fast \
 		shared-tooling-check tools-check check-doc-links check-workspace check-pins check-boundary \
-		fmt-check check-package clippy docs-check test msrv check-release-commands check-release-adapters
+		fmt-check clippy check-package docs-check test msrv check-release-commands check-release-adapters
 
 check-doc-links:
 	perl scripts/ci/check-documentation-links.pl --root "$(CURDIR)" \
@@ -152,7 +152,7 @@ release-files:
 release-commit-check:
 	+@bash scripts/release/metadata.sh commit-check
 
-package:
+package: clippy
 	+cargo package -p ic-build --locked
 
 publish publish-check:

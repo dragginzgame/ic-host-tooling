@@ -19,6 +19,7 @@ tag="refs/tags/v$version"
     echo "publication requires HEAD at release v$version" >&2; exit 1;
 }
 # Cargo also enforces the package's registry eligibility and credential selection.
+make --no-print-directory -C "$root" clippy
 arguments=(publish -p ic-build --locked --registry crates-io)
 [[ "$operation" != publish-check ]] || arguments+=(--dry-run)
 exec cargo "${arguments[@]}"

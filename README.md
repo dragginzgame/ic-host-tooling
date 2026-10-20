@@ -37,14 +37,19 @@ Batch label errors use `ic_host_artifacts::batch::BatchLabelError` in
 
 ## Use
 
-The published 0.20 API requires Rust 1.91.0 or newer:
+The published 0.23 API requires Rust 1.91.0 or newer:
 
 ```toml
 [dependencies]
-ic-build = "0.20"
+ic-build = "0.23"
 # Add matching direct Host dependencies when passing Host values through Build.
-ic-host-process = { version = "0.28", default-features = false }
+ic-host-process = { version = "0.31", default-features = false }
 ```
+
+Pending Build 0.24 selects published Host 0.32.0. Consumers passing Host values
+through the execution/artifact APIs must align their direct Artifacts, FS and
+Process dependencies to 0.32. The command/byte observation interfaces do not
+exchange Host values. Defaults stay disabled; Build needs no Platform dependency.
 
 The examples use the current API and are compiled as Cargo example targets.
 Release 0.19 replaces public raw Cargo-child communication with typed
@@ -73,7 +78,7 @@ cancellation, process-group custody and source admission where required.
 
 Current source selects the published Host 0.31 family; match direct Host
 dependencies when exchanging Host values with the execution/artifact engine.
-Pending Build 0.23 renders metadata/tree commands through each specification's
+Build 0.23 renders metadata/tree commands through each specification's
 `command` method and exposes canonical decoding. Workspace discovery uses
 `workspace_root_command` and `decode_workspace_root`; feature-safe grouping
 accepts a tree observer. All these observations execute through the caller's
@@ -95,7 +100,7 @@ measurements without imposing a shared application optimization profile.
 
 ## Development
 
-Shared Tooling 0.25.4 is pinned in
+Shared Tooling 0.25.8 is pinned in
 [.shared-tooling.snapshot](.shared-tooling.snapshot); commands use this reviewed
 local snapshot. The [Make interface](docs/make-interface.md) owns common setup,
 formatting, hook installation and release entrypoints.
@@ -156,7 +161,7 @@ use the prepared compiler even outside this repository's toolchain selection.
 | `make clippy` | Check the library, tests and examples with all features and warnings denied. |
 | `make test` | Run behavioral, cross-process retention/locking and documentation tests. |
 | `make msrv` | Compile the engine using the minimum compiler declared in Cargo.toml. |
-| `make check` / `make ci` | Run the full gate: snapshot, tools, links, metadata, dependency/pin checks, formatting, compilation/Clippy/rustdoc/tests/MSRV and isolated release routing. |
+| `make check` / `make ci` | Run the full gate: snapshot, tools, links, metadata, dependency/pin checks, formatting, Clippy before compilation/rustdoc/tests/MSRV, and isolated release routing. |
 | `make install-validation-tools` | Prepare pinned Linux x86-64 ShellCheck, actionlint and Gitleaks. |
 | `make lint check-secrets` | Check shell/workflow sources and scan committed history for secrets. |
 | `make check-release-adapters` | Test release metadata, recovery and publication routing in isolated fixtures. |

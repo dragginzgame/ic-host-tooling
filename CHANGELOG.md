@@ -3,6 +3,21 @@
 The 0.1.0 section preserves the original bootstrap notes. The published 0.1.0
 archive also includes the extracted artifact engine and Cargo grouping API.
 
+## [0.24.0]
+
+- **Breaking Rust dependency contract:** adopt published IC Host 0.32.0 for
+  Artifacts, FS and Process. Consumers exchanging Host values with Build's
+  execution/artifact APIs must align their direct Host requirements to 0.32.
+  Command/byte observation interfaces, retained formats and feature defaults
+  are unchanged; the engine still needs no Platform, Candid or CDK dependency.
+- Adopt Shared Tooling 0.25.8, retaining Cargo metadata failure evidence and
+  accepting numbered `Unreleased` changelog headings. Run the existing Clippy
+  gate before compilation, release packaging and publication; lint failure
+  stops later stages under parallel Make.
+- Clarify the published command/byte observation boundary and direct Host
+  requirements in consumer guidance. Distinguish producer qualification from
+  consumer integration and installed-artifact acceptance.
+
 ## [0.23.0] - 2026-10-20
 
 - **Breaking:** Cargo metadata and tree specifications now render commands for

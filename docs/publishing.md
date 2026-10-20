@@ -30,6 +30,9 @@ destination is `origin` on `main`. Only direct delivery is qualified here;
 
 The runner computes the candidate, admits the source/destination, and runs the
 same `make ci`, shell/workflow lint and history secret scan for every increment.
+The sequential CI runner runs the existing all-target, all-feature Clippy gate
+before compilation, rustdoc, tests, MSRV and adapter fixtures. Lint failure stops
+later stages even under parallel Make; the remaining full gate is still required.
 Standard entrypoints prepare the selected locked dependency cache and common
 toolset. The declared development compiler, its Wasm target, the declared MSRV
 and Linux validation tools must be prepared through the documented development
@@ -52,10 +55,11 @@ An interrupted partial metadata write that cannot pass the prepared check needs
 inspection of the retained backup; do not discard the release plan or artifacts.
 
 Publication is separate. `make publish` requires a clean checkout at the exact
-annotated tag for the workspace version, then invokes
-`cargo publish -p ic-build --locked --registry crates-io`. Cargo selects credentials
+annotated tag for the workspace version, then passes the same Clippy gate before
+invoking `cargo publish -p ic-build --locked --registry crates-io`. Cargo selects credentials
 and enforces registry eligibility. `make publish-check` uses the same admission
-with `--dry-run`; `make package` creates and verifies a local archive.
+with `--dry-run`; `make package` passes Clippy before creating and verifying a
+local archive. These entrypoints check prepared tools; they do not install them.
 Neither release nor publication invokes `cargo clean`. Retain release archives
 and failed evidence until publication/recovery work is complete; cleanup remains
 an explicit maintainer action.
