@@ -26,9 +26,21 @@ pub fn kill_child_at_acknowledged_barrier(
     let acknowledge_path = root.join("barrier-acknowledged");
     let armed_path = root.join("barrier-armed");
     let handshake = (|| {
-        wait_for_child_path(child, &ready_path, "child barrier", timeout)?;
+        wait_for_child_marker(
+            child,
+            &ready_path,
+            "child barrier",
+            timeout,
+            Some(b"ready\n"),
+        )?;
         fs::write(&acknowledge_path, b"acknowledged\n")?;
-        wait_for_child_path(child, &armed_path, "armed child barrier", timeout)
+        wait_for_child_marker(
+            child,
+            &armed_path,
+            "armed child barrier",
+            timeout,
+            Some(b"armed\n"),
+        )
     })();
     if let Err(error) = handshake {
         let _ = child.kill();
@@ -52,8 +64,14 @@ pub fn hold_at_acknowledged_barrier(root: &Path, timeout: Duration) -> ! {
     let acknowledge_path = root.join("barrier-acknowledged");
     let armed_path = root.join("barrier-armed");
     fs::write(&ready_path, b"ready\n").expect("signal child barrier");
-    wait_for_path(&acknowledge_path, "parent barrier acknowledgement", timeout)
-        .expect("wait for parent barrier acknowledgement");
+    wait_for_marker(
+        &acknowledge_path,
+        "parent barrier acknowledgement",
+        timeout,
+        Some(b"acknowledged\n"),
+        || Ok(()),
+    )
+    .expect("wait for parent barrier acknowledgement");
     fs::write(&armed_path, b"armed\n").expect("arm child crash");
     loop {
         thread::sleep(Duration::from_secs(1));
@@ -70,7 +88,17 @@ pub fn wait_for_child_path(
     description: &str,
     timeout: Duration,
 ) -> io::Result<()> {
-    wait_for_marker(path, description, timeout, || {
+    wait_for_child_marker(child, path, description, timeout, None)
+}
+
+fn wait_for_child_marker(
+    child: &mut Child,
+    path: &Path,
+    description: &str,
+    timeout: Duration,
+    expected: Option<&[u8]>,
+) -> io::Result<()> {
+    wait_for_marker(path, description, timeout, expected, || {
         if let Some(status) = child.try_wait()? {
             return Err(io::Error::new(
                 io::ErrorKind::UnexpectedEof,
@@ -86,17 +114,30 @@ pub fn wait_for_child_path(
 /// # Errors
 /// Returns a timeout when the marker does not appear by `timeout`.
 pub fn wait_for_path(path: &Path, description: &str, timeout: Duration) -> io::Result<()> {
-    wait_for_marker(path, description, timeout, || Ok(()))
+    wait_for_marker(path, description, timeout, None, || Ok(()))
 }
 
 fn wait_for_marker(
     path: &Path,
     description: &str,
     timeout: Duration,
+    expected: Option<&[u8]>,
     mut check_child: impl FnMut() -> io::Result<()>,
 ) -> io::Result<()> {
     let deadline = Instant::now() + timeout;
-    while !path.is_file() {
+    // Handshake markers are written in place. An existing file may still be
+    // empty or partial, so only complete bytes authorize the next handshake step.
+    let complete = || {
+        expected.map_or_else(
+            || Ok(path.is_file()),
+            |expected| match fs::read(path) {
+                Ok(bytes) => Ok(bytes == expected),
+                Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(false),
+                Err(error) => Err(error),
+            },
+        )
+    };
+    while !complete()? {
         check_child()?;
         if Instant::now() >= deadline {
             return Err(io::Error::new(

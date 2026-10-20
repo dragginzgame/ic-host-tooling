@@ -72,3 +72,34 @@ fn marker_precedes_child_exit_and_child_exit_precedes_timeout() {
     );
     assert!(!missing.exists());
 }
+
+#[test]
+fn handshake_requires_complete_marker_bytes_but_path_waits_keep_their_contract() {
+    let fixture = Fixture::new();
+    let marker = fixture.path().join("barrier-armed");
+    for bytes in [b"".as_slice(), b"arm", b"armed", b"wrong\n"] {
+        fs::write(&marker, bytes).unwrap();
+        wait_for_path(&marker, "existing file", Duration::ZERO).unwrap();
+        assert_eq!(
+            super::wait_for_marker(
+                &marker,
+                "armed child barrier",
+                Duration::ZERO,
+                Some(b"armed\n"),
+                || Ok(())
+            )
+            .unwrap_err()
+            .kind(),
+            io::ErrorKind::TimedOut,
+        );
+    }
+    fs::write(&marker, b"armed\n").unwrap();
+    super::wait_for_marker(
+        &marker,
+        "armed child barrier",
+        Duration::ZERO,
+        Some(b"armed\n"),
+        || panic!("complete marker precedes child observation"),
+    )
+    .unwrap();
+}

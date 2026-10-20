@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.62.1]
+
+- Admit complete crash-barrier handshake bytes before advancing or killing a
+  child, preventing partial marker writes from invalidating persistence tests.
+
 ## [0.62.0] - 2026-10-20
 
 - Consolidate Host, Build and Testkit into IC Tooling, retaining crate names
