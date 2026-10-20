@@ -8,6 +8,15 @@ This file ships in the crate archive so upgrades can be completed without the
 repository checkout. The complete historical changelog remains at
 <https://github.com/dragginzgame/ic-testkit/blob/main/CHANGELOG.md>.
 
+## [0.59.1]
+
+### Added
+
+- Add dependency-free `ic-testkit-native` allocation measurements with caller-owned
+  allocator selection, thread-local scopes, nesting refusal and unwind cleanup.
+  Workloads and report policy remain with consumers
+  ([#86 — Own lightweight native allocation measurement](https://github.com/dragginzgame/ic-testkit/issues/86)).
+
 ## [0.59.0] - 2026-10-20
 
 ## [0.58.0] - 2026-10-20

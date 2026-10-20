@@ -52,7 +52,7 @@ CI_TARGETS := shared-tooling-check no-symlinks-check tools-check format-tools-ch
 
 RELEASE_CHECK_TARGETS := $(CI_TARGETS) msrv
 VALIDATION_INPUTS := Makefile Cargo.toml Cargo.lock rust-toolchain.toml \
-	crates/ic-testkit/Cargo.toml crates/ic-testkit-dev/Cargo.toml crates/ic-testkit-perf-probe/Cargo.toml \
+	crates/ic-testkit/Cargo.toml crates/ic-testkit-dev/Cargo.toml crates/ic-testkit-native/Cargo.toml crates/ic-testkit-perf-probe/Cargo.toml \
 	ci/tool-versions.env ci/ic-tools.tsv ci/cargo-dependency-boundaries.json \
 	scripts/ci/check-cargo-graph.pl scripts/ci/check-no-symlinks.pl .shared-tooling.snapshot
 
@@ -110,6 +110,7 @@ test: build-server-cli
 	+@server="$$("$(SERVER_CLI)" check)" || exit $$?; \
 		POCKET_IC_BIN="$$server" cargo test -p ic-testkit --features wire,reply-fixtures --locked && \
 		POCKET_IC_BIN="$$server" cargo test -p ic-testkit-dev --locked && \
+		cargo test -p ic-testkit-native --locked && \
 		POCKET_IC_BIN="$$server" cargo test -p ic-testkit --locked --test server_runner real_server_runs_a_separate_process_using_environment_startup -- --ignored --exact
 
 build-test-canisters:
@@ -156,22 +157,22 @@ git-hooks-check: format-tools-check
 	bash scripts/ci/check-git-hooks.sh
 
 check:
-	+cargo check -p ic-testkit -p ic-testkit-dev --features ic-testkit/reply-fixtures --locked
+	+cargo check -p ic-testkit -p ic-testkit-dev -p ic-testkit-native --features ic-testkit/reply-fixtures --locked
 
 check-wasm:
-	+cargo check -p ic-testkit --features reply-fixtures --locked --target wasm32-unknown-unknown
+	+cargo check -p ic-testkit -p ic-testkit-native --features ic-testkit/reply-fixtures --locked --target wasm32-unknown-unknown
 
 clippy:
-	+cargo clippy -p ic-testkit -p ic-testkit-dev --all-targets --features ic-testkit/reply-fixtures --locked -- -D warnings
+	+cargo clippy -p ic-testkit -p ic-testkit-dev -p ic-testkit-native --all-targets --features ic-testkit/reply-fixtures --locked -- -D warnings
 
 docs-check:
-	+RUSTDOCFLAGS="-D warnings" cargo doc -p ic-testkit -p ic-testkit-dev --features ic-testkit/reply-fixtures --locked --no-deps
+	+RUSTDOCFLAGS="-D warnings" cargo doc -p ic-testkit -p ic-testkit-dev -p ic-testkit-native --features ic-testkit/reply-fixtures --locked --no-deps
 
 msrv:
 	rustc +$(MSRV) --version
 	cargo +$(MSRV) --version
 	+cargo +$(MSRV) check --workspace --all-targets --features ic-testkit/reply-fixtures --locked
-	+cargo +$(MSRV) check -p ic-testkit --features reply-fixtures --lib --target wasm32-unknown-unknown --locked
+	+cargo +$(MSRV) check -p ic-testkit -p ic-testkit-native --features ic-testkit/reply-fixtures --lib --target wasm32-unknown-unknown --locked
 	+cargo +$(MSRV) check -p ic-testkit-perf-probe --lib --target wasm32-unknown-unknown --locked
 
 installation-check:

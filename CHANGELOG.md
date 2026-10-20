@@ -6,6 +6,15 @@ documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.59.1]
+
+### Added
+
+- Add dependency-free `ic-testkit-native` allocation measurements with caller-owned
+  allocator selection, thread-local scopes, nesting refusal and unwind cleanup.
+  Workloads and report policy remain with consumers
+  ([#86 — Own lightweight native allocation measurement](https://github.com/dragginzgame/ic-testkit/issues/86)).
+
 ## [0.59.0] - 2026-10-20
 
 ## [0.58.0] - 2026-10-20
