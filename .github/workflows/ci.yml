@@ -117,9 +117,6 @@ jobs:
           name: native-failure-${{ matrix.runner }}-${{ github.run_attempt }}
           temp-root: ${{ runner.temp }}
           repository-root: ${{ github.workspace }}
-      - name: Retain product qualification evidence
-        if: ${{ failure() && !cancelled() }}
-        uses: ./.github/actions/retain-product-evidence
 
   msrv:
     runs-on: ubuntu-24.04
