@@ -2,8 +2,8 @@
 
 ## [0.62.1]
 
-- Admit complete crash-barrier handshake bytes before advancing or killing a
-  child, preventing partial marker writes from invalidating persistence tests.
+- Publish crash-barrier markers atomically through the existing filesystem
+  owner; preserve child cleanup when marker publication fails (#213).
 
 ## [0.62.0] - 2026-10-20
 

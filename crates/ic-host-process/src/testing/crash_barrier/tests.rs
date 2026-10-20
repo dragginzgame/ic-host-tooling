@@ -51,6 +51,24 @@ fn missing_marker_times_out_without_creating_it() {
 }
 
 #[test]
+fn marker_publication_failure_reaps_the_child() {
+    let fixture = Fixture::new();
+    super::publish_marker(&fixture.path().join("barrier-ready"), b"ready\n").unwrap();
+    fs::create_dir(fixture.path().join("barrier-acknowledged")).unwrap();
+    let mut child = Command::new("/bin/sh")
+        .args(["-c", "exec sleep 30"])
+        .spawn()
+        .unwrap();
+
+    assert!(
+        kill_child_at_acknowledged_barrier(&mut child, fixture.path(), Duration::from_secs(5))
+            .is_err()
+    );
+    assert!(child.try_wait().unwrap().is_some());
+    assert!(!fixture.path().join("barrier-armed").exists());
+}
+
+#[test]
 fn marker_precedes_child_exit_and_child_exit_precedes_timeout() {
     let fixture = Fixture::new();
     let marker = fixture.path().join("ready");
@@ -71,35 +89,4 @@ fn marker_precedes_child_exit_and_child_exit_precedes_timeout() {
         io::ErrorKind::UnexpectedEof
     );
     assert!(!missing.exists());
-}
-
-#[test]
-fn handshake_requires_complete_marker_bytes_but_path_waits_keep_their_contract() {
-    let fixture = Fixture::new();
-    let marker = fixture.path().join("barrier-armed");
-    for bytes in [b"".as_slice(), b"arm", b"armed", b"wrong\n"] {
-        fs::write(&marker, bytes).unwrap();
-        wait_for_path(&marker, "existing file", Duration::ZERO).unwrap();
-        assert_eq!(
-            super::wait_for_marker(
-                &marker,
-                "armed child barrier",
-                Duration::ZERO,
-                Some(b"armed\n"),
-                || Ok(())
-            )
-            .unwrap_err()
-            .kind(),
-            io::ErrorKind::TimedOut,
-        );
-    }
-    fs::write(&marker, b"armed\n").unwrap();
-    super::wait_for_marker(
-        &marker,
-        "armed child barrier",
-        Duration::ZERO,
-        Some(b"armed\n"),
-        || panic!("complete marker precedes child observation"),
-    )
-    .unwrap();
 }
