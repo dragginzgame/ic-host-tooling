@@ -1,5 +1,60 @@
 # Current handoff
 
+## Shared 0.25.4 documentation refresh — pending 0.22.1
+
+Refresh the existing 110-file snapshot from Shared 0.25.3 to committed 0.25.4,
+`db555ab6cf4a93af9a183f18d921d3b0ee97c725`, through the canonical exporter.
+The only payload change is verification-helpers.md: failed selector output is
+diagnostic evidence, redirected parent links are retained without traversal,
+and consumers keep their own log selection and hosted transport qualification.
+No installer, release adapter, executable helper or dependency policy changes.
+
+Preserve the incoming Host 0.30.1 lock selection, Process minimum, executable
+fixture fixes and pending 0.22.1 notes. Existing code/tool/release-adapter evidence
+below remains bound to unchanged executable bytes. This refresh passes snapshot,
+link, consistency and diff checks; no Rust test rerun or native qualification is
+implied. Root index/refs, package versions and sibling checkouts stay untouched.
+
+## Shared 0.25.3 and executable fixture completion — pending 0.22.1
+
+Released source is `83b3a2d` (Build 0.22.0). Preserve the incoming lock selection
+of Host 0.30.1. Adopt committed Shared Tooling 0.25.3 at
+`c55c1065c0061455dab7f0e2be8ddd04fdeb9910` through the canonical exporter;
+the existing 110-file entrypoint closure remains intact. Shared now binds explicit
+Cargo tool features into selection/build receipts and improves retained fixture
+and release-preparation evidence. This host engine owns no application endpoint
+requiring the strengthened Wire policy; no Platform/Candid/CDK graph is added.
+
+Execution fixtures now create and replace their remaining executable shims with
+Host Process's writer-process helper, preventing parent forks from inheriting
+writable executable descriptors. Ordinary script data and deliberate malformed
+inputs keep their existing owners. Require Process 0.30.1 for that fix; the incoming
+lock bytes and other package selections remain unchanged. This is a compatible
+test/tooling batch, so notes select 0.22.1 while own versions stay 0.22.0.
+
+Prepared the existing pinned Cargo tools and published Build 0.19 release editor
+under Shared's new build policy. Initial check-only admission correctly refused
+the old selections; explicit setup prepared new identities without removing old
+installations. Offline tool checks, snapshot integrity, formatting, pins, direct
+boundaries, locked metadata, full consumer release-adapter fixtures and shell/
+workflow lint pass. Seven execution tests pass plus five repeated parallel runs;
+strict all-target Clippy and actual Rust 1.91 all-target checks pass. No engine
+implementation, release identity or retained cache format changes.
+
+[Canic #596](https://github.com/dragginzgame/canic/pull/596), head `e8f72d473`,
+now also uses retained facts for embedded-peer tool evidence and prepares its
+three locked graphs before offline CI. It carries the maintainer's attributed
+IcOps trap repair, follows sourced shell helpers and exposes formatter failure
+logs. Thirty focused consumer cases and Rust 1.91 caller checks pass; hosted
+qualification, review and integration remain outstanding.
+
+The selected Shared producer run `39387644688` failed its native cross-checkout
+tool-reuse step on all three hosts. Local consumer checks do not turn that into
+native macOS qualification. Preserve this limitation and require the owner's
+hosted follow-through. Full Build release gates and installed-IC qualification
+remain separate. Root index/refs, sibling normal checkouts and release effects
+are untouched. Evidence: `/tmp/ic-build-followthrough.epj0I5/`.
+
 ## Published Host 0.30 adoption — pending 0.22.0
 
 Starting at released Build `c1a7488` (0.21.0), incoming Cargo.toml/Cargo.lock edits

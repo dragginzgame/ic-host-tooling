@@ -3,6 +3,15 @@
 The 0.1.0 section preserves the original bootstrap notes. The published 0.1.0
 archive also includes the extracted artifact engine and Cargo grouping API.
 
+## [0.22.1]
+
+- Adopt Shared Tooling 0.25.4, including explicit Cargo features in selected-tool
+  preparation and clarified failure-evidence collection. Rerun explicit tool setup
+  for the updated build policy; existing installations remain retained.
+- Use Host Process 0.30.1's writer-process helper for the remaining executable
+  test fixtures, preventing inherited writable descriptors from causing
+  intermittent `Text file busy` failures during parallel validation.
+
 ## [0.22.0] - 2026-10-19
 
 - **Breaking:** align exposed filesystem, artifact and process types with

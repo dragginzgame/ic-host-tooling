@@ -1,5 +1,7 @@
 use super::*;
 use crate::fs_fixture::unique_temp_directory;
+#[cfg(unix)]
+use ic_host_process::testing::write_executable_script;
 use ic_host_process::tool::{ExecutionFailure, OutputLimit};
 use std::{
     cell::Cell,
@@ -161,11 +163,9 @@ fn build_script_messages_and_raw_streams_survive_cancellation_and_failed_exit() 
 
 #[cfg(unix)]
 fn invocation_fixture() -> (PathBuf, CargoInvocation) {
-    use std::os::unix::fs::PermissionsExt;
     let root = unique_temp_directory("observed-cargo-invocation");
     let tool = root.join("tool");
-    fs::write(&tool, "#!/bin/sh\nset -eu\ncase \"$1\" in --version|-vV) printf '%s:%s:' \"$1\" \"$SELECTED\"; /bin/cat identity; printf probe-stderr >&2;; *) printf '%s\\n' \"$@\" > arguments; . ./build-script;; esac\n").unwrap();
-    fs::set_permissions(&tool, fs::Permissions::from_mode(0o755)).unwrap();
+    write_executable_script(&tool, "#!/bin/sh\nset -eu\ncase \"$1\" in --version|-vV) printf '%s:%s:' \"$1\" \"$SELECTED\"; /bin/cat identity; printf probe-stderr >&2;; *) printf '%s\\n' \"$@\" > arguments; . ./build-script;; esac\n").unwrap();
     fs::write(root.join("identity"), b"original").unwrap();
     fs::write(root.join("build-script"), "test -z \"${HOME+x}\"\nprintf '{\"reason\":\"build-finished\",\"success\":true}\\n'\nprintf drained >&2\n").unwrap();
     let invocation = CargoInvocation {
@@ -397,8 +397,8 @@ fn invocation_cancellation_and_probe_refusals_preserve_host_evidence() {
         matches!(error, ic_host_process::tool::ToolError::Execution(ref error) if matches!(error.failure, ExecutionFailure::Cancelled))
     );
     assert!(observed.facts.unwrap().is_none());
-    fs::write(
-        root.join("tool"),
+    write_executable_script(
+        &root.join("tool"),
         "#!/bin/sh\nprintf original-probe-error >&2\nexit 29\n",
     )
     .unwrap();

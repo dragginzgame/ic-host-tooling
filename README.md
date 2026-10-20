@@ -90,7 +90,7 @@ measurements without imposing a shared application optimization profile.
 
 ## Development
 
-Shared Tooling 0.25.0 is pinned in
+Shared Tooling 0.25.4 is pinned in
 [.shared-tooling.snapshot](.shared-tooling.snapshot); commands use this reviewed
 local snapshot. The [Make interface](docs/make-interface.md) owns common setup,
 formatting, hook installation and release entrypoints.
