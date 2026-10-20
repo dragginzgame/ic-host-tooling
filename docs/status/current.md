@@ -61,6 +61,9 @@ macOS qualification is claimed by these substitutes. No executable preparation,
 release or publication was run.
 Current evidence is retained at `/tmp/host-shared-0258/`; earlier snapshot evidence
 remains in `/tmp/host-shared-0256/`.
+The formatter-failure log in the Clippy-ordering fixture is now scoped to its
+owned scratch directory. The complete Host retention fixture and ShellCheck pass;
+the original leaked log is preserved. Evidence: `/tmp/host-format-retention-fix/`.
 
 ## Delivered repairs and consumer evidence
 

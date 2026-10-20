@@ -11,6 +11,8 @@
   expensive CI/release stages and publication packaging; failure stops later work.
   Numbered `- Unreleased` headings now finalize automatically to the release date.
   Tool pins are unchanged. [Details](docs/changelog/0.32.md#shared-tooling).
+- Keep deliberately failed formatter diagnostics inside the owning test fixture,
+  fixing the aliased-temporary-directory check in `tooling-command-check`.
 
 ## [0.31.2] - 2026-10-20
 

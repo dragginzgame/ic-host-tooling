@@ -246,7 +246,8 @@ STUB
 for lint_status in 23 0; do
     : > "$HOST_MAKE_EVENTS"
     status=0
-    PATH="$fixture/local:$PATH" HOST_MAKE_CLIPPY_STATUS="$lint_status" HOST_MAKE_FAIL=sort \
+    PATH="$fixture/local:$PATH" RUNNER_TEMP="$fixture" \
+        HOST_MAKE_CLIPPY_STATUS="$lint_status" HOST_MAKE_FAIL=sort \
         make "${jobserver_options[@]}" "MAKE=$(command -v make)" ci \
         > "$fixture/ci-lint-$lint_status.log" 2>&1 || status=$?
     [[ "$status" == 2 ]] || exit 1
