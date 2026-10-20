@@ -18,6 +18,19 @@ defaults:
     shell: /bin/bash --noprofile --norc -e -o pipefail {0}
 
 jobs:
+  lint-and-security:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Prepare pinned validation tools
+        run: make install-validation-tools
+      - name: Check shell and workflow sources and scan history
+        run: make lint check-secrets
+
   native:
     strategy:
       fail-fast: false
@@ -95,6 +108,8 @@ jobs:
         run: |
           mkdir -p "$TMPDIR"
           CARGO_NET_OFFLINE=true make ci
+      - name: Verify publication archives with registry access
+        run: make publish-check
       - name: Retain failure evidence
         if: ${{ failure() }}
         uses: ./.github/actions/retain-failure-evidence

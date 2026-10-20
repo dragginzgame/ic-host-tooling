@@ -46,3 +46,10 @@ Make entrypoint against this checkout's own admitted server. Native macOS and
 integration into main remain outstanding; sibling directories remain intact.
 The three remote default branches were rechecked and still match the import
 revisions. No remote repository was archived or source PR closed.
+
+Final CI review preserves Build’s Linux lint/security job and adds combined
+archive qualification to offline native CI. Publication dry-run verification
+runs separately with registry access in CI: the local offline attempt passed
+workspace Clippy, then refused an HTTP request. No upload was attempted.
+Original source refs, including Build’s stash, also survive under
+`refs/migration-archive/` in the original Host checkout.

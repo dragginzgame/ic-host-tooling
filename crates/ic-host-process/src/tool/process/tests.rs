@@ -27,7 +27,7 @@ fn communication_without_deadline_accepts_long_elapsed_time() {
                 timeout,
             },
             Instant::now()
-                .checked_sub(Duration::from_secs(3 * 60 * 60))
+                .checked_sub(Duration::from_hours(3))
                 .unwrap(),
             SuccessfulExit::Cleanup,
             || watchdog.elapsed() > Duration::from_secs(5),

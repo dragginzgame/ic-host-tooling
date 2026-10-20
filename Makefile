@@ -139,6 +139,7 @@ ci:
 	+$(MAKE) --no-print-directory tools-features-check
 	+$(MAKE) --no-print-directory testkit-graph-check testkit-wasm-check
 	+$(MAKE) --no-print-directory testkit-installed-check
+	+$(MAKE) --no-print-directory testkit-package-check
 	+$(MAKE) --no-print-directory test-tools-default
 	+$(MAKE) --no-print-directory test-tools-interface
 	+$(MAKE) --no-print-directory test-tools-certificate
@@ -167,3 +168,29 @@ release-commit-check:
 	+@bash scripts/release/adapter.sh commit-check
 release-committed-check release-tagged-check release-push-check:
 	@bash scripts/release/adapter.sh committed-check
+
+# Preserve Build shell, workflow and history qualification gates.
+SHELLCHECK ?= $(CURDIR)/.tools/ci/bin/shellcheck
+ACTIONLINT ?= $(CURDIR)/.tools/ci/bin/actionlint
+GITLEAKS ?= $(CURDIR)/.tools/ci/bin/gitleaks
+.PHONY: install-validation-tools lint check-shell check-workflows check-secrets
+install-validation-tools:
+	@bash -ec 'test "$$(uname -s):$$(uname -m)" = Linux:x86_64; \
+		. ci/tool-versions.env; \
+		bash scripts/ci/install-ci-tool.sh shellcheck --version "$$SHARED_TOOLING_SHELLCHECK_VERSION" \
+			--sha256 "$$SHARED_TOOLING_SHELLCHECK_SHA256_LINUX_X86_64" --install-dir "$(CURDIR)/.tools/ci/bin"; \
+		bash scripts/ci/install-ci-tool.sh actionlint --version "$$SHARED_TOOLING_ACTIONLINT_VERSION" \
+			--sha256 "$$SHARED_TOOLING_ACTIONLINT_SHA256_LINUX_AMD64" --install-dir "$(CURDIR)/.tools/ci/bin"; \
+		bash scripts/ci/install-ci-tool.sh gitleaks --version "$$SHARED_TOOLING_GITLEAKS_VERSION" \
+			--sha256 "$$SHARED_TOOLING_GITLEAKS_SHA256_LINUX_X64" --install-dir "$(CURDIR)/.tools/ci/bin"'
+
+lint: check-shell check-workflows
+
+check-shell:
+	"$(SHELLCHECK)" -x -P SCRIPTDIR -P . scripts/ci/*.sh scripts/dev/*.sh scripts/release/*.sh .githooks/pre-commit
+
+check-workflows:
+	"$(ACTIONLINT)" .github/workflows/*.yml
+
+check-secrets:
+	"$(GITLEAKS)" git --redact=100 --no-banner --no-color --log-level error "$(CURDIR)"
