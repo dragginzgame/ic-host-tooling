@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.31.0]
+## [0.31.0] - 2026-10-20
 
 - **Breaking:** Adopt Platform 0.3.0. Registry shard helpers now use Platform-owned
   Principals; convert explicitly when calling external SDK/Candid interfaces.
