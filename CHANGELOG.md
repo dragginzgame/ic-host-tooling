@@ -6,7 +6,24 @@ documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.59.1]
+
+### Added
+
+- Add dependency-free `ic-testkit-native` allocation measurements with caller-owned
+  allocator selection, thread-local scopes, nesting refusal and unwind cleanup.
+  Workloads and report policy remain with consumers
+  ([#86 — Own lightweight native allocation measurement](https://github.com/dragginzgame/ic-testkit/issues/86)).
+
 ## [0.59.0] - 2026-10-20
+
+### Release tooling
+
+- This release carries the 0.58.0 changes below after a recovery retry
+  incorrectly incremented the committed prepared version again. The fix is
+  proposed in [Shared Tooling PR #293](https://github.com/dragginzgame/shared-tooling/pull/293)
+  and awaits upstream integration and snapshot adoption
+  ([Shared Tooling #292 — Prevent committed release preparation from silently incrementing twice](https://github.com/dragginzgame/shared-tooling/issues/292)).
 
 ## [0.58.0] - 2026-10-20
 
