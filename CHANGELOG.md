@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.32.0]
+## [0.32.0] - 2026-10-20
 
 - **Breaking Rust dependency contract:** adopt published IC Platform 0.5.0.
   Registry callers must align their direct Platform dependency to 0.5 for the
