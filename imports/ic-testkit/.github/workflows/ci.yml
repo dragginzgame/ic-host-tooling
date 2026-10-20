@@ -1,0 +1,310 @@
+name: CI
+
+env:
+  IC_TESTKIT_MSRV: 1.91.0
+  IC_TESTKIT_INTERNAL_TOOLCHAIN: 1.99.1
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  # A newer run replaces queued and running checks for this workflow and ref.
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  # Atomic releases push main and its tag at the same SHA. Main owns source
+  # qualification; a second tag matrix would repeat every heavy native gate.
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  msrv:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15, macos-15-intel]
+    runs-on: ${{ matrix.os }}
+    steps:
+      # actions/checkout v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+      # dtolnay/rust-toolchain v1
+      - uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9
+        with:
+          toolchain: ${{ env.IC_TESTKIT_MSRV }}
+          targets: wasm32-unknown-unknown
+      - name: Pin cargo/rustc to MSRV
+        shell: bash
+        run: echo "RUSTUP_TOOLCHAIN=$IC_TESTKIT_MSRV" >> "$GITHUB_ENV"
+      # Swatinem/rust-cache v2
+      - uses: Swatinem/rust-cache@42dc69e1aa15d09112580998cf2ef0119e2e91ae
+      - name: Check MSRV
+        run: make msrv
+
+  checks:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15, macos-15-intel]
+    runs-on: ${{ matrix.os }}
+    steps:
+      # actions/checkout v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          clean: true
+          fetch-depth: 0
+      # dtolnay/rust-toolchain v1
+      - uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9
+        with:
+          toolchain: ${{ env.IC_TESTKIT_INTERNAL_TOOLCHAIN }}
+          components: rustfmt, clippy
+          targets: wasm32-unknown-unknown
+      - name: Pin cargo/rustc to internal toolchain
+        shell: bash
+        run: echo "RUSTUP_TOOLCHAIN=$IC_TESTKIT_INTERNAL_TOOLCHAIN" >> "$GITHUB_ENV"
+      # Swatinem/rust-cache v2
+      - uses: Swatinem/rust-cache@42dc69e1aa15d09112580998cf2ef0119e2e91ae
+      - name: Prepare host tools and identify Cargo tool cache
+        id: cargo-tool-cache-key
+        shell: bash
+        run: |
+          make install-host-tools
+          make host-tools-check
+          export PATH="$GITHUB_WORKSPACE/.tools/host/bin:$PATH"
+          bash scripts/ci/cargo-tool-cache-key.sh ci/tool-versions.env >> "$GITHUB_OUTPUT"
+      - name: Restore Cargo tool builds
+        id: cargo-tool-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        timeout-minutes: 3
+        continue-on-error: true
+        env:
+          SEGMENT_DOWNLOAD_TIMEOUT_MINS: 2
+        with:
+          path: |
+            ${{ steps.cargo-tool-cache-key.outputs.root }}/cargo-cache
+            ${{ steps.cargo-tool-cache-key.outputs.root }}/rust-*
+          key: cargo-tools-${{ runner.os }}-${{ runner.arch }}-${{ steps.cargo-tool-cache-key.outputs.key }}
+      - name: Prepare complete common and product tools
+        shell: bash
+        run: |
+          make install-tools 2>&1 | tee "$RUNNER_TEMP/ic-testkit-tools-install.log"
+          make rust-tools-check
+          printf '%s\n' "$GITHUB_WORKSPACE/.tools/host/bin" "$GITHUB_WORKSPACE/.tools/rust/common/bin" >> "$GITHUB_PATH"
+          server="$(target/debug/ic-testkit-server check)"
+          echo "POCKET_IC_BIN=$server" >> "$GITHUB_ENV"
+      - name: Save verified Cargo tool builds
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.cargo-tool-cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        timeout-minutes: 3
+        continue-on-error: true
+        with:
+          path: |
+            ${{ steps.cargo-tool-cache-key.outputs.root }}/cargo-cache
+            ${{ steps.cargo-tool-cache-key.outputs.root }}/rust-*
+          key: cargo-tools-${{ runner.os }}-${{ runner.arch }}-${{ steps.cargo-tool-cache-key.outputs.key }}
+      - name: Prepare selected dependencies
+        run: cargo fetch --locked
+      - name: Run complete CI gate with portable shell and path context
+        shell: /bin/bash --noprofile --norc -e -u -o pipefail {0}
+        run: |
+          mkdir -p "$RUNNER_TEMP/ic-testkit-check-fixtures"
+          export TMPDIR="$RUNNER_TEMP/ic-testkit-check-fixtures"
+          export CDPATH="$PWD"
+          export PATH="/bin:$PATH"
+          make ci 2>&1 | tee "$RUNNER_TEMP/ic-testkit-validation.log"
+      - name: Archive failed validation and installer evidence
+        if: failure()
+        id: checks-evidence
+        shell: /bin/bash --noprofile --norc -e -u -o pipefail {0}
+        env:
+          IC_TESTKIT_FAILURE_STEPS: ${{ toJSON(steps) }}
+        run: |
+          status=0
+          archive="$(bash scripts/ci/collect-failure-evidence.sh checks)" || status=$?
+          if [[ -n "$archive" ]]; then echo "archive=$archive" >> "$GITHUB_OUTPUT"; fi
+          exit "$status"
+      - name: Retain failed validation and installer evidence
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: checks-failure-${{ matrix.os }}
+          path: ${{ steps.checks-evidence.outputs.archive }}
+          retention-days: 14
+          if-no-files-found: error
+
+  portable-hosts:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15, macos-15-intel]
+    runs-on: ${{ matrix.os }}
+    steps:
+      # actions/checkout v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+      # dtolnay/rust-toolchain v1
+      - uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9
+        with:
+          toolchain: ${{ env.IC_TESTKIT_INTERNAL_TOOLCHAIN }}
+          components: rustfmt
+      - name: Pin cargo/rustc to internal toolchain
+        shell: bash
+        run: echo "RUSTUP_TOOLCHAIN=$IC_TESTKIT_INTERNAL_TOOLCHAIN" >> "$GITHUB_ENV"
+      # Swatinem/rust-cache v2
+      - uses: Swatinem/rust-cache@42dc69e1aa15d09112580998cf2ef0119e2e91ae
+      - name: Prepare host tools and identify Cargo tool cache
+        id: cargo-tool-cache-key
+        shell: /bin/bash --noprofile --norc -e -u -o pipefail {0}
+        run: |
+          make install-host-tools
+          make host-tools-check
+          export PATH="$GITHUB_WORKSPACE/.tools/host/bin:$PATH"
+          bash scripts/ci/cargo-tool-cache-key.sh ci/tool-versions.env >> "$GITHUB_OUTPUT"
+      - name: Restore Cargo tool builds
+        id: cargo-tool-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        timeout-minutes: 3
+        continue-on-error: true
+        env:
+          SEGMENT_DOWNLOAD_TIMEOUT_MINS: 2
+        with:
+          path: |
+            ${{ steps.cargo-tool-cache-key.outputs.root }}/cargo-cache
+            ${{ steps.cargo-tool-cache-key.outputs.root }}/rust-*
+          key: cargo-tools-${{ runner.os }}-${{ runner.arch }}-${{ steps.cargo-tool-cache-key.outputs.key }}
+      - name: Prepare complete common and product tools with the system Bash
+        shell: /bin/bash --noprofile --norc -e -u -o pipefail {0}
+        run: |
+          make install-tools 2>&1 | tee "$RUNNER_TEMP/ic-testkit-tools-install.log"
+          make rust-tools-check
+          printf '%s\n' "$GITHUB_WORKSPACE/.tools/host/bin" "$GITHUB_WORKSPACE/.tools/rust/common/bin" >> "$GITHUB_PATH"
+          server="$(target/debug/ic-testkit-server check)"
+          echo "POCKET_IC_BIN=$server" >> "$GITHUB_ENV"
+      - name: Save verified Cargo tool builds
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.cargo-tool-cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        timeout-minutes: 3
+        continue-on-error: true
+        with:
+          path: |
+            ${{ steps.cargo-tool-cache-key.outputs.root }}/cargo-cache
+            ${{ steps.cargo-tool-cache-key.outputs.root }}/rust-*
+          key: cargo-tools-${{ runner.os }}-${{ runner.arch }}-${{ steps.cargo-tool-cache-key.outputs.key }}
+      - name: Select system Bash on macOS
+        if: runner.os == 'macOS'
+        run: echo /bin >> "$GITHUB_PATH"
+      - name: Prepare selected dependencies
+        run: cargo fetch --locked
+      - name: Verify portable operator tooling with the system Bash
+        shell: /bin/bash --noprofile --norc -e -u -o pipefail {0}
+        env:
+          TMPDIR: ${{ runner.temp }}/ic-testkit-portable-fixtures
+        run: |
+          mkdir -p "$TMPDIR"
+          # Shared Tooling owns the synthetic implementation matrix. Qualify
+          # our real selections here; consumer recovery guards run in make ci.
+          CDPATH="$PWD" make shared-tooling-check tools-check dependency-pins-check
+      - name: Qualify failure evidence archives
+        shell: /bin/bash --noprofile --norc -e -u -o pipefail {0}
+        env:
+          IC_TESTKIT_ARCHIVE_PROOF_DIR: ${{ runner.temp }}/ic-testkit-archive-proof
+          TMPDIR: ${{ runner.temp }}/ic-testkit-portable-fixtures
+        run: CDPATH="$PWD" /bin/bash scripts/ci/test-failure-evidence.sh
+      - name: Upload archive qualification artifact
+        id: archive-upload
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: evidence-qualification-${{ matrix.os }}
+          path: ${{ runner.temp }}/ic-testkit-archive-proof/evidence.tar.gz
+          retention-days: 1
+          if-no-files-found: error
+      - name: Download and verify exact archive qualification artifact
+        id: archive-discovery
+        timeout-minutes: 2
+        shell: /bin/bash --noprofile --norc -e -u -o pipefail {0}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVIDENCE_REPOSITORY: ${{ github.repository }}
+          EVIDENCE_RUN: ${{ github.run_id }}
+          EVIDENCE_ARTIFACT: ${{ steps.archive-upload.outputs.artifact-id }}
+          EVIDENCE_DIGEST: ${{ steps.archive-upload.outputs.artifact-digest }}
+        run: |
+          bash scripts/ci/download-evidence.sh "$EVIDENCE_REPOSITORY" "$EVIDENCE_RUN" "$EVIDENCE_ARTIFACT" "$EVIDENCE_DIGEST" "$RUNNER_TEMP/ic-testkit-archive-downloaded"
+      - name: Verify downloaded evidence archive
+        shell: /bin/bash --noprofile --norc -e -u -o pipefail {0}
+        env:
+          TMPDIR: ${{ runner.temp }}/ic-testkit-portable-fixtures
+        run: CDPATH="$PWD" /bin/bash scripts/ci/test-failure-evidence.sh verify-upload "$RUNNER_TEMP/ic-testkit-archive-downloaded"
+      - name: Check opt-in raw reply canister fixtures
+        run: cargo test -p ic-testkit --features reply-fixtures --locked --offline --lib pic::fixtures
+      - name: Check Platform reply integration
+        run: cargo test -p ic-testkit --locked --offline --lib pic::calls::tests
+      - name: Check native fixture benchmark driver and sampler
+        run: cargo test -p ic-testkit-dev --locked --offline --lib
+      - name: Archive failed portable and installer evidence
+        if: failure()
+        id: portable-evidence
+        shell: /bin/bash --noprofile --norc -e -u -o pipefail {0}
+        env:
+          IC_TESTKIT_FAILURE_STEPS: ${{ toJSON(steps) }}
+        run: |
+          status=0
+          archive="$(bash scripts/ci/collect-failure-evidence.sh portable)" || status=$?
+          if [[ -n "$archive" ]]; then echo "archive=$archive" >> "$GITHUB_OUTPUT"; fi
+          exit "$status"
+      - name: Retain failed portable and installer evidence
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: portable-failure-${{ matrix.os }}
+          path: ${{ steps.portable-evidence.outputs.archive }}
+          retention-days: 14
+          if-no-files-found: error
+
+  pocket-ic-concurrency:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15, macos-15-intel]
+    runs-on: ${{ matrix.os }}
+    steps:
+      # actions/checkout v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+      # dtolnay/rust-toolchain v1
+      - uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9
+        with:
+          toolchain: ${{ env.IC_TESTKIT_INTERNAL_TOOLCHAIN }}
+      - name: Pin cargo/rustc to internal toolchain
+        shell: bash
+        run: echo "RUSTUP_TOOLCHAIN=$IC_TESTKIT_INTERNAL_TOOLCHAIN" >> "$GITHUB_ENV"
+      # Swatinem/rust-cache v2
+      - uses: Swatinem/rust-cache@42dc69e1aa15d09112580998cf2ef0119e2e91ae
+      - name: Prepare complete common and product tools
+        shell: bash
+        run: |
+          make install-tools
+          make tools-check
+          server="$(target/debug/ic-testkit-server check)"
+          echo "POCKET_IC_BIN=$server" >> "$GITHUB_ENV"
+      - name: Prepare selected dependencies
+        run: cargo fetch --locked
+      - name: Qualify real owned sync and async instance lifetimes
+        run: cargo test -p ic-testkit --locked --offline --lib pic::startup::tests -- --ignored
+      - name: Qualify standalone pool failed recovery
+        run: cargo test -p ic-testkit --locked --offline --test pocket_ic_concurrency standalone_dead_transport_preserves_failed_recovery_and_can_build_again -- --ignored --exact
+      - name: Qualify baseline pool dedicated-server recovery
+        run: cargo test -p ic-testkit --locked --offline --test pocket_ic_baseline_pool killed_dedicated_server_rebuilds_on_a_fresh_server -- --ignored --exact
+      - name: Qualify provisioning and managed launch without consumer pins
+        run: cargo test -p ic-testkit --locked --offline --test server_runner provisioned_cli_runs_a_real_instance_without_consumer_server_selection -- --ignored --exact
+      - name: Qualify idle lifetime during pre-client work
+        run: cargo test -p ic-testkit --locked --offline --test server_runner managed_idle_ttl_allows_preclient_work_beyond_server_default -- --ignored --exact
+      - name: Retain idle lifetime evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: idle-lifetime-${{ matrix.os }}
+          path: target/idle-lifetime-*
+          retention-days: 14
+          if-no-files-found: warn

@@ -1,0 +1,26 @@
+[package]
+name = "ic-testkit-dev"
+edition.workspace = true
+rust-version.workspace = true
+version.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+clap = { workspace = true }
+ic-build = { workspace = true }
+ic-host-artifacts = { workspace = true }
+ic-host-fs = { workspace = true, features = ["temporary-file"] }
+ic-host-process = { workspace = true }
+ic-host-text = { workspace = true }
+ic-platform = { workspace = true }
+ic-testkit = { workspace = true, features = ["wire"] }
+ic-testkit-perf-probe = { workspace = true }
+ic-wire = { workspace = true }
+libc = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+
+[lints]
+workspace = true

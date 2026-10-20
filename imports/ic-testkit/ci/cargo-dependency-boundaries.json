@@ -1,0 +1,19 @@
+[
+  {"dependency": "pocket-ic", "allowed_packages": []},
+  {"dependency": "candid", "allowed_packages": []},
+  {"dependency": "candid_parser", "allowed_packages": []},
+  {"dependency": "ic0", "allowed_packages": []},
+  {"dependency": "ic-platform-macros", "allowed_packages": []},
+  {"dependency": "ic-cdk", "allowed_packages": []},
+  {"dependency": "ic-cdk-macros", "allowed_packages": []},
+  {"dependency": "ic-cdk-executor", "allowed_packages": []},
+  {"dependency": "ic-cdk-timers", "allowed_packages": []},
+  {"dependency": "ic-cdk-management-canister", "allowed_packages": []},
+  {"dependency": "ic-agent", "allowed_packages": []},
+  {"dependency": "ic_principal", "allowed_packages": []},
+  {"dependency": "ic-management-canister-types", "allowed_packages": []},
+  {"dependency": "ic-stable-structures", "allowed_packages": []},
+  {"dependency": "ic-certification", "allowed_packages": []},
+  {"dependency": "ic-transport-types", "allowed_packages": []},
+  {"dependency": "ic-error-types", "allowed_packages": []}
+]

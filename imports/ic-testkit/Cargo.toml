@@ -1,0 +1,68 @@
+[workspace]
+# Production packages: ic-testkit and ic-testkit-native.
+# Tests and tooling packages: ic-testkit-dev and ic-testkit-perf-probe.
+members = [
+    "crates/ic-testkit",
+    "crates/ic-testkit-dev",
+    "crates/ic-testkit-native",
+    "crates/ic-testkit-perf-probe",
+]
+resolver = "2"
+
+[workspace.package]
+edition = "2024"
+rust-version = "1.91.0"
+version = "0.60.0"
+license = "MIT"
+authors = ["borovan <84897664+borovan@users.noreply.github.com>"]
+description = "PocketIC-oriented test utilities for IC canister tests"
+repository = "https://github.com/dragginzgame/ic-testkit"
+homepage = "https://github.com/dragginzgame/ic-testkit"
+keywords = ["internet-computer", "canister", "dfinity", "icp", "testing"]
+categories = ["development-tools::testing", "wasm"]
+readme = "README.md"
+
+[workspace.dependencies]
+# Production dependencies
+clap = { version = "4.6", default-features = false, features = ["std", "help", "usage", "error-context", "string"] }
+ic-host-artifacts = "0.31"
+ic-host-fs = "0.31"
+ic-host-process = "0.31"
+ic-metrics = "0.14"
+ic-platform = { version = "0.5", default-features = false }
+ic-wire = "0.5"
+libc = "0.2"
+serde = { version = "1.0", default-features = false }
+serde_json = "1.0"
+thiserror = "=2.0.18"
+tokio = { version = "1", features = ["net", "rt", "time"] }
+
+# Tests and tooling only
+ic-build = { version = "0.23" }
+ic-host-text = { version = "0.31", default-features = false }
+ic-testkit = { path = "crates/ic-testkit" }
+ic-testkit-perf-probe = { path = "crates/ic-testkit-perf-probe" }
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+nursery = { level = "warn", priority = -1 }
+missing_const_for_fn = "warn"
+must_use_candidate = "warn"
+redundant_clone = "warn"
+semicolon_if_nothing_returned = "warn"
+uninlined_format_args = "warn"
+use_self = "warn"
+doc_markdown = "allow"
+empty_line_after_doc_comments = "allow"
+enum_variant_names = "allow"
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
+module_inception = "allow"
+module_name_repetitions = "allow"
+needless_pass_by_value = "allow"
+option_if_let_else = "allow"
+significant_drop_tightening = "allow"
+struct_field_names = "allow"
+used_underscore_binding = "allow"
+wildcard_imports = "allow"
