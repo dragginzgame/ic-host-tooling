@@ -3,7 +3,7 @@
 The 0.1.0 section preserves the original bootstrap notes. The published 0.1.0
 archive also includes the extracted artifact engine and Cargo grouping API.
 
-## [0.24.0]
+## [0.24.0] - 2026-10-20
 
 - **Breaking Rust dependency contract:** adopt published IC Host 0.32.0 for
   Artifacts, FS and Process. Consumers exchanging Host values with Build's
