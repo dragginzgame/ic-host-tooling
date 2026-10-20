@@ -9,6 +9,7 @@ case "$1" in
     cargo run -p ic-testkit-dev --bin check_packages --locked --offline
     ;;
   publish-dry-run)
+    cargo publish -p ic-testkit-native --locked --dry-run --allow-dirty
     cargo publish -p ic-testkit --locked --dry-run --allow-dirty
     ;;
   *) echo 'expected package or publish-dry-run' >&2; exit 2 ;;

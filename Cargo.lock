@@ -988,6 +988,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "ic-testkit-native"
+version = "0.59.1"
+
+[[package]]
 name = "ic-testkit-perf-probe"
 version = "0.59.1"
 dependencies = [

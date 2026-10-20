@@ -348,6 +348,7 @@ if [[ "$operation" == test ]]; then
       [[ "${POCKET_IC_BIN:-}" == /prepared/server ]] || exit 97
       operation=test:ic-testkit
       ;;
+    *' -p ic-testkit-native '*) operation=test:ic-testkit-native ;;
     *) exit 97 ;;
   esac
 fi
@@ -412,9 +413,9 @@ STUB
   : > "$TOOL_TRACE"
   "$make_bin" --no-print-directory -j4 -C "$TOOL_ROOT" test > "$TOOL_ROOT/test.log" 2>&1
   printf '%s\n' cargo:build server:check \
-    cargo:test:ic-testkit cargo:test:ic-testkit-dev cargo:test:ic-testkit > "$TOOL_ROOT/expected"
+    cargo:test:ic-testkit cargo:test:ic-testkit-dev cargo:test:ic-testkit-native cargo:test:ic-testkit > "$TOOL_ROOT/expected"
   cmp "$TOOL_TRACE" "$TOOL_ROOT/expected" || fail 'full test target omitted separate-process qualification'
-  for stage in server:check cargo:test:ic-testkit cargo:test:ic-testkit-dev; do
+  for stage in server:check cargo:test:ic-testkit cargo:test:ic-testkit-dev cargo:test:ic-testkit-native; do
     : > "$TOOL_TRACE"
     status=0
     TOOL_FAIL="$stage" "$make_bin" --no-print-directory -j4 -C "$TOOL_ROOT" test > "$TOOL_ROOT/test-failure-${stage//:/-}.log" 2>&1 || status=$?
@@ -424,6 +425,7 @@ STUB
     case "$stage" in
       cargo:test:ic-testkit) printf '%s\n' cargo:test:ic-testkit >> "$TOOL_ROOT/expected" ;;
       cargo:test:ic-testkit-dev) printf '%s\n' cargo:test:ic-testkit cargo:test:ic-testkit-dev >> "$TOOL_ROOT/expected" ;;
+      cargo:test:ic-testkit-native) printf '%s\n' cargo:test:ic-testkit cargo:test:ic-testkit-dev cargo:test:ic-testkit-native >> "$TOOL_ROOT/expected" ;;
     esac
     cmp "$TOOL_TRACE" "$TOOL_ROOT/expected" || fail 'failed test dispatched later Cargo work'
   done

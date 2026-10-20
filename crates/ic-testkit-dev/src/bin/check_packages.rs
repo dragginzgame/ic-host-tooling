@@ -30,11 +30,18 @@ fn main() -> Result<(), Box<dyn Error>> {
         workspace,
         &target.join("package"),
         &evidence,
-        &[PackageArchiveSpec {
-            name: "ic-testkit",
-            version,
-            patch_registry: true,
-        }],
+        &[
+            PackageArchiveSpec {
+                name: "ic-testkit-native",
+                version,
+                patch_registry: true,
+            },
+            PackageArchiveSpec {
+                name: "ic-testkit",
+                version,
+                patch_registry: true,
+            },
+        ],
         PackageQualificationLimits {
             process: OutputLimits {
                 stdout: OutputLimit::Terminate(64 * 1024 * 1024),

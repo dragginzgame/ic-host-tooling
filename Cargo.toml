@@ -1,5 +1,12 @@
 [workspace]
-members = ["crates/ic-testkit", "crates/ic-testkit-dev", "crates/ic-testkit-perf-probe"]
+# Production packages: ic-testkit and ic-testkit-native.
+# Tests and tooling packages: ic-testkit-dev and ic-testkit-perf-probe.
+members = [
+    "crates/ic-testkit",
+    "crates/ic-testkit-dev",
+    "crates/ic-testkit-native",
+    "crates/ic-testkit-perf-probe",
+]
 resolver = "2"
 
 [workspace.package]

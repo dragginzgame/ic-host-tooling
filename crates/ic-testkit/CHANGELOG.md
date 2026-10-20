@@ -8,7 +8,11 @@ This file ships in the crate archive so upgrades can be completed without the
 repository checkout. The complete historical changelog remains at
 <https://github.com/dragginzgame/ic-testkit/blob/main/CHANGELOG.md>.
 
+<<<<<<< HEAD
 ## [0.59.1] - 2026-10-20
+=======
+## [0.59.1]
+>>>>>>> 7e9116b850b5aa65e5d0d32e426373e88bfbe6d5
 
 ### Added
 
