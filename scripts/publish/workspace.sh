@@ -78,6 +78,9 @@ done
 repository="$(jq -r '.packages[0].repository' "$attempt/metadata.json")"
 version="$(jq -r '.packages[0].version' "$attempt/metadata.json")"
 [[ "$version" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]] || fail 'expected a stable workspace version'
+# Source admission precedes the existing full lint gate. Refusal must stop
+# packaging and registry effects; this path never prepares missing tools.
+make --no-print-directory clippy-workspace
 # Persist Host's admitted package/provenance selection before package preparation.
 # Shared Tooling records the exact Cargo command in its separate fresh attempt.
 printf '%s\n' publication-1 "$mode" "$source" "$version" crates-io \

@@ -725,15 +725,18 @@ bash "$adapter" prepare > history-only-prepare.log 2>&1
 printf '# Changelog\n\n## [%s] - %s\n\n## [%s]\n\n- Undated imported history.\n' "$RELEASE_VERSION" "$RELEASE_DATE" "$RELEASE_PREVIOUS" > expected-notes
 cmp expected-notes CHANGELOG.md
 
-# Horizontal whitespace is accepted without changing historical bytes or adding
-# a final newline. Admission and preparation must agree on the same candidate.
-cp source/Cargo.toml source/Cargo.lock .
-printf '# Changelog\n\n##\t [%s] \t\n\n- Candidate.\n\n## [%s]\n\n- History without final LF.' "$RELEASE_VERSION" "$RELEASE_PREVIOUS" > CHANGELOG.md
-bash "$adapter" preflight > whitespace-preflight.log 2>&1
-bash "$adapter" verify > whitespace-verify.log 2>&1
-bash "$adapter" prepare > whitespace-prepare.log 2>&1
-printf '# Changelog\n\n## [%s] - %s\n\n- Candidate.\n\n## [%s]\n\n- History without final LF.' "$RELEASE_VERSION" "$RELEASE_DATE" "$RELEASE_PREVIOUS" > expected-notes
-cmp expected-notes CHANGELOG.md
+# Both pending spellings and horizontal whitespace finalize through the actual
+# adapter without changing history or adding a final newline.
+for pending_suffix in '' ' - Unreleased'; do
+    cp source/Cargo.toml source/Cargo.lock .
+    printf '# Changelog\n\n##\t [%s]%s \t\n\n- Candidate.\n\n## [%s]\n\n- History without final LF.' \
+        "$RELEASE_VERSION" "$pending_suffix" "$RELEASE_PREVIOUS" > CHANGELOG.md
+    bash "$adapter" preflight > whitespace-preflight.log 2>&1
+    bash "$adapter" verify > whitespace-verify.log 2>&1
+    bash "$adapter" prepare > whitespace-prepare.log 2>&1
+    printf '# Changelog\n\n## [%s] - %s\n\n- Candidate.\n\n## [%s]\n\n- History without final LF.' "$RELEASE_VERSION" "$RELEASE_DATE" "$RELEASE_PREVIOUS" > expected-notes
+    cmp expected-notes CHANGELOG.md
+done
 # The actual Host adapter must advance aliased requirements and preserve their
 # operators/precision across a major release, including saved-payload recovery.
 (

@@ -26,6 +26,12 @@ Select one changed crate with `PACKAGE=<crate>` for `make check`, `make clippy`,
 and Wasm features; production filesystem dependencies select none of them.
 Check target-directory ownership before compilation. Preserve failure logs and artifacts.
 
+`make clippy-workspace` is the existing full-workspace, all-target/all-feature
+warning-denied lint gate. CI/release validation runs it before expensive tests
+and builds after prerequisite admission. Publication and its dry run use that
+same gate before packaging or registry dispatch; ordinary package checks keep
+their selected scope. These entrypoint rules do not authorize a full local gate.
+
 `make test-artifacts-minimal` checks the artifact library without optional
 features. `make test-artifacts-wasm` checks inspection without the encoder or
 validator. `make test-artifacts-encoding` checks encoding alone; its normal/build

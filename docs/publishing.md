@@ -37,6 +37,12 @@ inputs offline and requires the runner's selected release environment; it is not
 a standalone release command. Neither cache preparation nor validation changes
 the selected dependency versions.
 
+The complete gate runs `make clippy-workspace` after prerequisite admission and
+before expensive tests or builds, with the existing workspace/all-target/all-feature
+scope and warnings denied. Failure stops later stages under parallel Make too.
+Both numbered pending-heading spellings, `## [X.Y.Z]` and
+`## [X.Y.Z] - Unreleased`, are finalized to the saved UTC date during preparation.
+
 Follow the [shared recovery procedure](releases.md#source-changes-after-saved-preparation-intent)
 for interrupted preparation and exact-version resume. Host preserves prior
 validation receipts, notes and logs before fresh verification. Retain unfinished
@@ -55,6 +61,10 @@ before committing. It can access the registry; set `CARGO_NET_OFFLINE=true` for
 an offline attempt against already prepared caches. Registry lookup can require
 network access even with cached dependencies. Offline failure never triggers an
 online retry.
+
+Both publication modes require prepared dependencies and pass the same offline
+`make clippy-workspace` gate after source admission, before packaging or registry
+effects. The wrapper never installs tools or fetches missing lint dependencies.
 
 `make publish` uploads the current committed workspace version to crates.io.
 It requires a clean working tree, synchronized selected publishable packages and
@@ -86,7 +96,7 @@ and retrieved objects are retained in the admission attempt's `provenance/`
 directory. This guard is a remote-read effect of the
 explicit upload command; it never pushes a ref or creates a commit.
 
-The single Shared 0.24.2 snapshot supplies this helper and the
+The [reviewed Shared snapshot](../.shared-tooling.snapshot) supplies this helper and the
 [selected-source reader](../scripts/ci/read-cargo-source-context.sh), alongside
 the existing release metadata/receipt custody. Host selects packages, manifests,
 versions and recovery; Shared owns exact commit retrieval, archive provenance

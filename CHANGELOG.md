@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.32.0]
+
+- **Breaking Rust dependency contract:** adopt published IC Platform 0.5.0.
+  Registry callers must align their direct Platform dependency to 0.5 for the
+  shared owned Principal identity. External wire bytes and feature defaults are
+  unchanged. [Migration](docs/changelog/0.32.md).
+
+- Adopt Shared Tooling 0.25.8. Run the existing full-workspace Clippy gate before
+  expensive CI/release stages and publication packaging; failure stops later work.
+  Numbered `- Unreleased` headings now finalize automatically to the release date.
+  Tool pins are unchanged. [Details](docs/changelog/0.32.md#shared-tooling).
+
 ## [0.31.2] - 2026-10-20
 
 - Restore independent native FS core, capability and temporary-file checks in CI,

@@ -26,7 +26,7 @@ help:
 	@echo 'Offline setup checks: tools-check (complete set), host-tools-check, ic-tools-check, rust-tools-check'
 	@echo 'Individual setup: install-host-tools, install-ic-tools, install-rust-tools'
 	@echo 'Source reports: cloc (this workspace); fleet reports run in Shared Tooling'
-	@echo 'Full release validation: ci, msrv-workspace; focused MSRV: msrv PACKAGE=<crate>'
+	@echo 'Full release validation: ci (workspace Clippy first), msrv-workspace; focused MSRV: msrv PACKAGE=<crate>'
 	@echo 'Maintainer releases: release-patch, release-minor, release-major, release-resume VERSION=X.Y.Z'
 	@echo 'crates.io publication: publish-check (dry run), publish (upload); offline fixture: publish-command-check'
 .PHONY: formatting-hook-check
@@ -43,6 +43,9 @@ check:
 	+cargo check -p $(PACKAGE) --all-targets --all-features --locked --offline
 clippy:
 	+cargo clippy -p $(PACKAGE) --all-targets --all-features --locked --offline -- -D warnings
+.PHONY: clippy-workspace
+clippy-workspace:
+	+cargo clippy --workspace --all-targets --all-features --locked --offline -- -D warnings
 docs-check:
 	+RUSTDOCFLAGS="-D warnings" cargo doc -p $(PACKAGE) --all-features --locked --offline --no-deps
 test:
@@ -120,6 +123,7 @@ ci:
 	+$(MAKE) --no-print-directory check-no-symlinks
 	+$(MAKE) --no-print-directory tools-check
 	+$(MAKE) --no-print-directory dependency-pins-check
+	+$(MAKE) --no-print-directory clippy-workspace
 	+$(MAKE) --no-print-directory fmt-check
 	+$(MAKE) --no-print-directory formatting-hook-check
 	+$(MAKE) --no-print-directory check-doc-links
@@ -142,7 +146,6 @@ ci:
 	+$(MAKE) --no-print-directory test-tools-encoding
 	+$(MAKE) --no-print-directory test-tools-registry
 	+$(MAKE) --no-print-directory test-wasm-inspection
-	+cargo clippy --workspace --all-targets --all-features --locked --offline -- -D warnings
 	+RUSTDOCFLAGS="-D warnings" cargo doc --workspace --all-features --locked --offline --no-deps
 	+cargo test --workspace --all-targets --all-features --locked --offline
 release-version:

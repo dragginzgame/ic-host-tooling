@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Real locked/offline Cargo metadata; Git observations and publication are
+# Real locked/offline Cargo metadata; Git, workspace lint and publication are
 # substitutes. No registry requests, commits, tags or uploads occur.
 root="${BASH_SOURCE[0]}"
 [[ "$root" == /* ]] || root="$PWD/$root"
@@ -46,8 +46,9 @@ bash "$root/scripts/ci/prepare-workspace-fixture.sh" "$fixture" "$projected"
 cmp "$notice_directory/LICENSE" "$projected/$notice_directory/LICENSE"
 mv notice-before "$notice_directory/LICENSE"
 cp Cargo.toml original-Cargo.toml
-export PUBLISH_FIXTURE="$fixture" REAL_PUBLISH_TEE
+export PUBLISH_FIXTURE="$fixture" REAL_PUBLISH_TEE REAL_PUBLISH_MAKE
 REAL_PUBLISH_TEE="$(command -v tee)"
+REAL_PUBLISH_MAKE="$(command -v make)"
 cat > bin/git <<'STUB'
 #!/usr/bin/env bash
 set -euo pipefail
@@ -133,12 +134,22 @@ case "$1" in
     *) echo "Unexpected Cargo operation: $*" >&2; exit 2 ;;
 esac
 STUB
+cat > bin/make <<'STUB'
+#!/usr/bin/env bash
+set -euo pipefail
+if [[ "$*" == '--no-print-directory -f - MAKEFILES=' ]]; then
+    exec "$REAL_PUBLISH_MAKE" "$@"
+fi
+[[ "$*" == '--no-print-directory clippy-workspace' ]] || exit 1
+printf 'clippy\n' >> "$PUBLISH_FIXTURE/calls"
+exit "${PUBLISH_CLIPPY_RESULT:-0}"
+STUB
 cat > bin/tee <<'STUB'
 #!/usr/bin/env bash
 "$REAL_PUBLISH_TEE" "$@"
 exit "${PUBLISH_LOG_RESULT:-0}"
 STUB
-chmod +x bin/git bin/cargo bin/tee
+chmod +x bin/git bin/cargo bin/make bin/tee
 export PATH="$fixture/bin:$PATH"
 mkdir target
 printf 'consumer artifact\n' > target/retained
@@ -176,6 +187,16 @@ for scenario in missing changed symlink; do
     rm -f "$notice"
     cp LICENSE "$notice"
 done
+# Both public modes refuse a failed full lint gate before package/attempt intent.
+for mode in check publish; do
+    : > calls
+    status=0
+    PUBLISH_CLIPPY_RESULT=29 invoke "$mode" > "clippy-$mode.log" 2>&1 || status=$?
+    [[ "$status" == 29 && ! -e target/publish/lock ]] || exit 1
+    printf 'metadata\nclippy\n' > expected-calls
+    cmp expected-calls calls
+    if rg --files target/publish | grep '/intent$'; then exit 1; fi
+done
 PUBLISH_DIRTY=1 invoke check > check.log 2>&1
 version="$(jq -r '.packages[0].version' metadata.json)"
 selectors=()
@@ -194,7 +215,7 @@ printf '%s\0' publish --locked --registry crates-io "${selectors[@]}" \
     --manifest-path "$fixture/Cargo.toml" --target-dir "$fixture/target" \
     --all-features > expected-arguments
 cmp expected-arguments arguments
-printf 'metadata\npackage\npublish\n' > expected-calls
+printf 'metadata\nclippy\npackage\npublish\n' > expected-calls
 cmp expected-calls calls
 printf '%s\0' package --manifest-path "$fixture/Cargo.toml" --workspace \
     --registry crates-io --all-features --locked --no-verify --target-dir "$fixture/target" > expected-package-arguments
@@ -213,10 +234,10 @@ admission="target/publish/admission/${attempt##*/}"
 for scenario in missing changed linked; do
     : > calls
     if PUBLISH_ARCHIVE_LICENSE="$scenario" invoke publish > "archive-license-$scenario.log" 2>&1; then exit 1; fi
-    printf 'metadata\npackage\n' > expected-calls
+    printf 'metadata\nclippy\npackage\n' > expected-calls
     cmp expected-calls calls
 done
-printf 'metadata\npackage\npublish\n' > expected-calls
+printf 'metadata\nclippy\npackage\npublish\n' > expected-calls
 
 # Stop at Cargo's failure and retain the attempt's intent, log and artifacts.
 : > calls
@@ -307,7 +328,7 @@ for scenario in package-failed vcs-missing vcs-dirty vcs-mismatch vcs-path fetch
         source-changed) PUBLISH_CHANGE_SOURCE=1 invoke publish > "$scenario.log" 2>&1 || status=$? ;;
     esac
     [[ "$status" != 0 ]] || exit 1
-    printf 'metadata\npackage\n' > expected-calls
+    printf 'metadata\nclippy\npackage\n' > expected-calls
     cmp expected-calls calls
     [[ ! -e target/publish/lock ]] || exit 1
     rm -f source-changed
@@ -325,7 +346,7 @@ for mode in check publish; do
             [[ "$status" == 23 ]] || { echo 'Failed Git observation was not propagated' >&2; exit 1; }
             : > expected-calls
             if [[ "$occurrence" != 1 ]]; then
-                printf 'metadata\n' >> expected-calls
+                printf 'metadata\nclippy\n' >> expected-calls
                 if [[ "$mode" == publish ]]; then printf 'package\n' >> expected-calls; fi
                 admission="$(sed -n 's/^Publication admission evidence: //p' observation-failure.log)"
                 core="$(cat "$admission/publication-attempt")"
@@ -348,7 +369,7 @@ done
 status=0
 PUBLISH_CORE_RACE=1 invoke check > core-race.log 2>&1 || status=$?
 [[ "$status" == 2 && -f target/publish/.cargo-publication.lock/owner ]] || exit 1
-printf 'metadata\n' > expected-race-calls
+printf 'metadata\nclippy\n' > expected-race-calls
 cmp expected-race-calls calls
 refuse publish
 [[ -f target/publish/.cargo-publication.lock/owner ]] || exit 1

@@ -47,6 +47,9 @@ case "$*" in
     'fmt --version') echo rustfmt ;;
     *)
         printf '%s\n' "$*" >> "$HOST_MAKE_EVENTS"
+        if [[ "$1" == clippy && "$*" == *--workspace* ]]; then
+            exit "${HOST_MAKE_CLIPPY_STATUS:-0}"
+        fi
         if [[ "${HOST_MAKE_FAIL:-}" == sort && "$1" == sort ]]; then
             echo 'formatter stdout evidence'
             echo 'formatter stderr evidence' >&2
@@ -224,7 +227,7 @@ jobserver_options=(--no-print-directory -j4)
 if make --help | grep -q -- --jobserver-style; then
     jobserver_options+=(--jobserver-style=pipe)
 fi
-cargo_targets=(check clippy docs-check test test-artifacts-minimal check-fs-non-unix
+cargo_targets=(check clippy clippy-workspace docs-check test test-artifacts-minimal check-fs-non-unix
     test-tools-default test-tools-interface
     test-wasm-inspection msrv msrv-workspace)
 helper_targets=(publish publish-check dependency-pins-check
@@ -234,6 +237,28 @@ for target in "${cargo_targets[@]}" "${helper_targets[@]}"; do
     PATH="$fixture/local:$PATH" HOST_MAKE_VERIFY_JOBSERVER=1 make "${jobserver_options[@]}" "$target" \
         > "$fixture/jobserver-$target.log" 2>&1
     [[ -s "$HOST_MAKE_EVENTS" ]] || exit 1
+done
+# Exercise CI's real sequential recipes under parallel Make. A lint refusal
+# stops before formatting/tests; a passing lint reaches the next stage exactly once.
+cat > "$fixture/local/scripts/ci/check-no-symlinks.pl" <<'STUB'
+exec 'cargo', 'fixture-no-symlinks';
+STUB
+for lint_status in 23 0; do
+    : > "$HOST_MAKE_EVENTS"
+    status=0
+    PATH="$fixture/local:$PATH" HOST_MAKE_CLIPPY_STATUS="$lint_status" HOST_MAKE_FAIL=sort \
+        make "${jobserver_options[@]}" "MAKE=$(command -v make)" ci \
+        > "$fixture/ci-lint-$lint_status.log" 2>&1 || status=$?
+    [[ "$status" == 2 ]] || exit 1
+    grep -Fx 'clippy --workspace --all-targets --all-features --locked --offline -- -D warnings' \
+        "$HOST_MAKE_EVENTS" > "$fixture/clippy-events"
+    [[ "$(wc -l < "$fixture/clippy-events")" -eq 1 ]] || exit 1
+    if [[ "$lint_status" == 23 ]]; then
+        [[ "$(tail -n 1 "$HOST_MAKE_EVENTS")" == clippy\ --workspace\ * ]] || exit 1
+        if grep -E '^(sort |fmt )' "$HOST_MAKE_EVENTS"; then exit 1; fi
+    else
+        [[ "$(tail -n 1 "$HOST_MAKE_EVENTS")" == 'sort --workspace --grouped --check' ]] || exit 1
+    fi
 done
 # Every package retains the same floor, including optional YAML.
 for package in ic-host-text ic-host-tools; do
