@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.31.1]
+## [0.31.1] - 2026-10-20
 
 - Adopt Platform 0.4.0 while preserving Host's existing Principal, Agent, Candid
   and certificate interfaces. Its runtime/signature hard cuts affect features Host
