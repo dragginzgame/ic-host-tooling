@@ -16,7 +16,16 @@ REAL_CP="$(command -v cp)"
 export REAL_CP
 REAL_GIT="$(command -v git)"
 export REAL_GIT
+REAL_TEE="$(command -v tee)"
+export REAL_TEE
 mkdir "$fixture/bin"
+cat > "$fixture/bin/tee" <<'TEE'
+#!/usr/bin/env bash
+set -euo pipefail
+"$REAL_TEE" "$@"
+exit "${LOGGER_FAILURE:-0}"
+TEE
+chmod +x "$fixture/bin/tee"
 cat > "$fixture/bin/cargo" <<'STUB'
 #!/usr/bin/env bash
 set -euo pipefail
@@ -149,6 +158,50 @@ for admission in missing-editor relative-editor missing-file missing-limit zero-
 done
 (cd "$fixture/success" && bash "$helper" prepare primary > "$fixture/success.log" 2>&1)
 (cd "$fixture/success" && bash "$helper" check primary)
+# Check both live entrypoints with complete/empty failed output and logger
+# failure, retaining independent root inputs without changing the live bytes.
+for operation in check check-graph; do
+    root="$fixture/diagnostics-$operation"
+    cp -Rp "$fixture/success" "$root"
+    [[ "$operation" != check-graph ]] || rm "$root/CHANGELOG.md"
+    for failure in output empty logger both-output both-empty; do
+        attempts="$fixture/diagnostics-$operation-$failure"
+        mkdir "$attempts"
+        cargo_case=graph-failure cargo_status=37 logger_status=0
+        case "$failure" in
+            empty|both-empty) cargo_case=graph-empty-failure ;;
+            logger) cargo_case=success cargo_status=0 ;;
+        esac
+        case "$failure" in logger|both-*) logger_status=41 ;; esac
+        expected="$cargo_status"
+        [[ "$expected" != 0 ]] || expected="$logger_status"
+        status=0
+        (cd "$root" && CASE="$cargo_case" LOGGER_FAILURE="$logger_status" TMPDIR="$attempts" \
+            bash "$helper" "$operation" primary) > "$attempts/result.log" 2>&1 || status=$?
+        [[ "$status" == "$expected" ]] || exit 1
+        retained=("$attempts"/cargo-release-check.*)
+        [[ "${#retained[@]}" == 1 && -d "${retained[0]}" ]] || exit 1
+        saved="${retained[0]}"
+        [[ "$(cat "$saved/cargo-status")" == "$cargo_status" &&
+           "$(cat "$saved/log-status")" == "$logger_status" &&
+           "$(cat "$saved/root")" == "$root" ]] || exit 1
+        if [[ "$cargo_case" == graph-empty-failure ]]; then
+            [[ -f "$saved/metadata.json" && ! -s "$saved/metadata.json" ]] || exit 1
+        else
+            jq -e '.packages | length > 0' "$saved/metadata.json" > /dev/null
+        fi
+        if [[ "$cargo_status" != 0 ]]; then
+            grep -qx 'injected offline metadata failure' "$saved/metadata.stderr"
+            grep -qx 'injected offline metadata failure' "$attempts/result.log"
+        fi
+        for file in Cargo.toml Cargo.lock; do
+            cmp "$root/$file" "$saved/inputs/$file"
+            cmp "$root/$file" "$fixture/success/$file"
+            perl -e 'exit((stat($ARGV[0]))[2] != (stat($ARGV[1]))[2])' \
+                "$root/$file" "$saved/inputs/$file"
+        done
+    done
+done
 for ordering in --manifest-order --manifest-order-grouped; do
     events="$fixture/current-$ordering.events"
     (cd "$fixture/success" && ORDER_EVENTS="$events" bash "$helper" check primary "$ordering")
@@ -288,10 +341,11 @@ grep -Fqx 'version = "1.2.3"' "$fixture/success/Cargo.toml"
 [[ "$(perl -e 'printf "%o", (stat($ARGV[0]))[2]&07777' "$fixture/success/Cargo.toml")" == 640 ]] || exit 1
 
 # Generic notes and failure restoration belong to the metadata producer.
-for mode in undated-history history-no-lf dated-notes conflicting-date conflicting-notes restore-failure missing-date missing-version; do
+for mode in unreleased undated-history history-no-lf dated-notes conflicting-date conflicting-notes restore-failure missing-date missing-version; do
     root="$fixture/$mode"
     make_workspace "$root"
     case "$mode" in
+        unreleased) perl -pi -e 's/^## \[1\.2\.4\]$/## [1.2.4] - Unreleased/' "$root/CHANGELOG.md" ;;
         undated-history) perl -pi -e 's/## \[1\.2\.3\] - 2026-10-12/## [1.2.3]/' "$root/CHANGELOG.md" ;;
         history-no-lf) perl -0pi -e 's/\n\z//' "$root/CHANGELOG.md" ;;
         dated-notes) perl -pi -e 's/## \[1\.2\.4\]/## [1.2.4] - 2026-10-13/' "$root/CHANGELOG.md" ;;
@@ -307,9 +361,9 @@ for mode in undated-history history-no-lf dated-notes conflicting-date conflicti
         *) (cd "$root" && CASE="$mode" TMPDIR="$root/attempts" bash "$helper" prepare primary) ;;
     esac > "$fixture/$mode.log" 2>&1 || status=$?
     case "$mode" in
-        undated-history|history-no-lf)
+        unreleased|undated-history|history-no-lf)
             [[ "$status" == 0 ]] || exit 1
-            perl -pe 's/## \[1\.2\.4\](?: - 2026-10-13)?/## [1.2.4] - 2026-10-13/' \
+            perl -pe 's/## \[1\.2\.4\](?: - (?:Unreleased|2026-10-13))?/## [1.2.4] - 2026-10-13/' \
                 "$root/originals/CHANGELOG.md" > "$root/expected-notes"
             cmp "$root/expected-notes" "$root/CHANGELOG.md"
             (cd "$root" && bash "$helper" check primary)
@@ -345,7 +399,7 @@ RELEASE_COMMIT="$commit" bash "$helper" check primary
 # Selected-source admission and retention belong to this helper, not every
 # consumer adapter. Keep each attempt separate so an old receipt cannot pass.
 blob="$(git rev-parse "$commit:Cargo.toml")"
-for failure in type export missing-version missing-date wrong-version wrong-date short-commit absent-commit blob; do
+for failure in type export missing-version missing-date wrong-version wrong-date short-commit absent-commit blob metadata; do
     attempts="$fixture/selected-$failure"
     mkdir "$attempts"
     events="$attempts/cargo-events"
@@ -363,11 +417,12 @@ for failure in type export missing-version missing-date wrong-version wrong-date
             short-commit) export RELEASE_COMMIT=abcdef0 ;;
             absent-commit) export RELEASE_COMMIT=0000000000000000000000000000000000000000 ;;
             blob) export RELEASE_COMMIT="$blob" ;;
+            metadata) export CASE=graph-failure ;;
         esac
         bash "$helper" check primary --manifest-order
     ) > "$attempts/result.log" 2>&1 || status=$?
     expected=1
-    case "$failure" in type|export) expected=43 ;; absent-commit) expected=128 ;; esac
+    case "$failure" in type|export) expected=43 ;; absent-commit) expected=128 ;; metadata) expected=37 ;; esac
     [[ "$status" == "$expected" ]] || exit 1
     case "$failure" in
         type|short-commit|absent-commit|blob)
@@ -381,12 +436,22 @@ for failure in type export missing-version missing-date wrong-version wrong-date
                 git show "$commit:$path" > "$attempts/expected-input"
                 cmp "$attempts/expected-input" "${retained[0]}/source/$path"
             done
+            if [[ "$failure" == metadata ]]; then
+                for path in Cargo.toml Cargo.lock; do
+                    cmp "${retained[0]}/source/$path" "${retained[0]}/inputs/$path"
+                done
+                [[ "$(cat "${retained[0]}/root")" == "${retained[0]}/source" &&
+                   "$(cat "${retained[0]}/cargo-status")" == 37 &&
+                   "$(cat "${retained[0]}/log-status")" == 0 ]] || exit 1
+                grep -qx 'injected offline metadata failure' "${retained[0]}/metadata.stderr"
+            fi
             if [[ "$failure" == export ]]; then
                 [[ ! -e "$events" ]] || exit 1
             else
                 printf 'sort --workspace --check\n' > "$attempts/expected-events"
                 printf 'locate-project --workspace --message-format plain --manifest-path %s/source/Cargo.toml\n' \
                     "${retained[0]}" >> "$attempts/expected-events"
+                [[ "$failure" != metadata ]] || printf 'metadata --locked --offline --format-version 1\n' >> "$attempts/expected-events"
                 cmp "$attempts/expected-events" "$events"
             fi ;;
     esac

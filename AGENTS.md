@@ -42,8 +42,8 @@ host matrix. Formatting and
 manifest ordering follow `rules/git-hooks.md`; `make fmt-check` is the focused,
 non-mutating check. Validation never installs formatter tools implicitly.
 
-The recorded Shared Tooling 0.25.4 revision
-`db555ab6cf4a93af9a183f18d921d3b0ee97c725` includes the
+The recorded Shared Tooling 0.25.8 revision
+`0a2d2ee3b5e0ae77755c2915ac28836d4d5ba359` includes the
 [canonical validation policy](DRAGGINZGAME.md#validation-and-evidence).
 Local guidance supplies commands and product qualification requirements;
 configured CI and release gates remain unchanged.

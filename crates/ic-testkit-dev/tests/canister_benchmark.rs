@@ -1,11 +1,14 @@
 use ic_build::{
     artifacts::{WasmBuildSpec, build_wasm_canisters_cached},
-    cargo::{observation::workspace_root_for, selection::CargoSelection},
+    cargo::{
+        observation::{decode_workspace_root, workspace_root_command},
+        selection::CargoSelection,
+    },
 };
 use ic_host_fs::read::read_file;
 use ic_host_process::{
     child::{CleanupPolicy, OwnedChild},
-    tool::{OutputLimit, OutputLimits},
+    tool::{CompletedExecution, OutputLimit, OutputLimits, capture_command},
 };
 use ic_platform::principal::ExternalPrincipal as Principal;
 use ic_testkit::{
@@ -27,16 +30,23 @@ use std::process::Command;
 const PERF_PROBE_PACKAGE: &str = "ic-testkit-perf-probe";
 
 fn install_probe() -> StandaloneCanisterFixture {
-    let workspace = workspace_root_for(
+    let mut workspace = workspace_root_command(
         env!("CARGO_MANIFEST_DIR"),
+        Command::new(std::env::var_os("CARGO").unwrap_or_else(|| env!("CARGO").into())),
+    )
+    .expect("render Cargo workspace discovery");
+    let workspace = capture_command(
+        &mut workspace,
         OutputLimits {
             stdout: OutputLimit::Terminate(64 * 1024),
             stderr: OutputLimit::Terminate(64 * 1024),
             timeout: None,
         },
-        Command::new(std::env::var_os("CARGO").unwrap_or_else(|| env!("CARGO").into())),
     )
-    .expect("resolve Cargo workspace");
+    .and_then(CompletedExecution::require_success)
+    .and_then(CompletedExecution::require_complete)
+    .expect("observe complete Cargo workspace discovery");
+    let workspace = decode_workspace_root(&workspace.stdout).expect("resolve Cargo workspace");
     assert!(
         workspace
             .join("crates/ic-testkit-perf-probe/Cargo.toml")

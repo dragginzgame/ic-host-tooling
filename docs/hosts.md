@@ -37,6 +37,8 @@ not leak into the published Wasm library. The maintained feature contracts are:
 
 | Package and target | Feature selection | Required boundary |
 | --- | --- | --- |
+| Native `ic-testkit-native` | All features (currently none) | Only its own package identity; no normal/build dependencies |
+| Wasm `ic-testkit-native` | All features (currently none) | No exported APIs or normal/build dependencies |
 | Native `ic-testkit` | Default | PocketIC/Candid allowed; no Wire, executor, Build, Host Text, Agent, parser or full CDK |
 | Native `ic-testkit` | All features (currently `wire,reply-fixtures`) | One Wire identity; otherwise the same native exclusions |
 | Native `ic-testkit-dev` | All features | One Build, Platform, PocketIC and each Host package identity; tooling is intentional |
@@ -53,6 +55,8 @@ cargo tree --locked --offline -p ic-testkit --edges normal,build
 cargo tree --locked --offline -p ic-testkit --all-features --edges normal,build
 cargo tree --locked --offline -p ic-testkit --all-features --target wasm32-unknown-unknown --edges normal,build
 cargo tree --locked --offline -p ic-testkit-perf-probe --target wasm32-unknown-unknown --edges normal,build
+cargo tree --locked --offline -p ic-testkit-native --all-features --edges normal,build
+cargo tree --locked --offline -p ic-testkit-native --all-features --target wasm32-unknown-unknown --edges normal,build
 ```
 
 `make dependency-pins-check` now runs the direct declaration checks followed by
@@ -74,22 +78,27 @@ or installed-IC consumer journeys.
 
 ### Host and Build type boundary
 
-The selected Host Artifacts, FS, Process and Text packages are published 0.31.1.
+The Host Artifacts, FS, Process and Text requirements select the 0.31 family;
+the current lock selects published 0.31.2.
 Their APIs used here retain the previous behavior, but public startup/cleanup
-errors have the new Host package identities. Consumers naming them select Host
-0.31 alongside the pending Testkit 0.58 release.
+errors expose Host package identities. Consumers naming them select Host 0.31
+alongside Testkit 0.58 and later.
 
 The private developer package passes Host limits and owned children into Build.
-Require published Build 0.22.1, whose exposed Host boundary is 0.31; Build 0.22.0
-still selects 0.30 and causes compile-time type mismatches. The lock must have
-one Host identity per family package after this adoption, without aliases or
+It selects published Build 0.23.0, whose exposed Host boundary is 0.31. The lock
+must have one Host identity per family package, without aliases or
 conversion wrappers. The native developer graph check enforces that requirement
 alongside its single Build and Platform identities. The selected release editor follows that same Build lock
 entry. This requirement does not add Build to the published library or Wasm.
 
+Build renders the workspace-discovery command and decodes its complete response.
+The benchmark driver captures it through Host with the existing 64 KiB per-stream
+limits and no elapsed-time deadline. Failed invocations retain their original
+typed Host cause and I/O error classification; incomplete output is never decoded.
+
 ### Published Platform boundary
 
-Testkit selects registry `ic-platform` 0.4.0 with no default features. Its native
+Testkit selects registry `ic-platform` 0.5.0 with no default features. Its native
 target enables `candid` and `pocket-ic`; the Wasm library selects `ic0` for marker logging,
 execution counters and stable-page counts alongside the unconditional external principal identity. Candid, CDK
 and host parsing stay out of that graph. The published library selects no executor,
@@ -97,7 +106,7 @@ certification, Agent, management DTO or `candid-parser` feature. Native PocketIC
 require transitive Candid; removing direct declarations does not remove that code.
 
 The published archive checksum is
-`3baf34ec6f65d10d78271159d1edc0feb61940816cc95af51bfce3f8dcfa4355`,
+`071793369ed93c3a42dae9a19eedfa76856ca2d0b31f03de7167ae7905bdc4f4`,
 matching Cargo's registry index. The archive provides the argument traits,
 encoders, bounded decoders, five explicit limits and typed error sources used
 here. Its decoder implementation matches the former local implementation; no
@@ -111,8 +120,9 @@ behavior are unchanged. Consumers of Testkit 0.55.2 and earlier still need the
 older identity until they adopt the published Testkit release
 ([#133 — Align public decoder-limit identities with published Platform 0.2](https://github.com/dragginzgame/ic-testkit/issues/133)).
 
-The pending 0.58.0 batch adopts Platform 0.4. Its `DecodeLimits` and typed
-Candid errors belong to that new package identity, so callers select Platform 0.4.
+Testkit 0.58 and 0.59 use Platform 0.4. The pending 0.60.0 batch adopts Platform
+0.5. Its `DecodeLimits` and typed Candid errors have that package identity, so
+callers exchanging these values select Platform 0.5.
 PocketIC, Candid DTOs and `Fake` retain `principal::ExternalPrincipal` (the
 original upstream type); the distinct application `ic_platform::Principal` is
 converted explicitly at an application/simulator boundary. No DTO, wire bytes,
@@ -133,7 +143,7 @@ and host transport; the test probe's runtime graph is a separate intentional sel
 Testkit 0.55.0 narrowed the former complete upstream re-export. Published Platform
 0.2.2 supplies the placement, effective-principal, message-ID, HTTP gateway and
 HTTP response identities used by Backup and Canic. The manifest minimum now
-requires 0.4.0, which retains those exports. The server-free `pocket_ic_platform` integration tests
+requires 0.5.0, which retains those exports. The server-free `pocket_ic_platform` integration tests
 compile pending-ingress, chunked-install and HTTP fixture client signatures
 through `ic_testkit::pocket_ic`, preserving PocketIC's management 0.8 identity.
 Platform's separate management feature selects a different upstream DTO family;
@@ -317,8 +327,8 @@ Passing Linux checks or cross-compilation does not qualify native macOS.
 
 ## Shared tooling qualification boundary
 
-The current snapshot selects Shared Tooling 0.25.4 at
-`db555ab6cf4a93af9a183f18d921d3b0ee97c725`. Clap 4.6.7, already selected in the
+The current snapshot selects Shared Tooling 0.25.8 at
+`0a2d2ee3b5e0ae77755c2915ac28836d4d5ba359`. Clap 4.6.7, already selected in the
 lockfile, owns all maintained Rust CLI schemas, typed values, defaults, help,
 version and parse diagnostics. Testkit retains server admission/lifecycle and
 exit-status policy; the private benchmark retains workload relationships such as
@@ -337,6 +347,13 @@ The release-adapter fixture copies its declared helper closure through Shared's
 canonical fixture preparer. The adapter's companion declaration owns that inventory;
 a new shared helper no longer requires another manually copied file list here.
 The graph observer and fixture preparer are explicit snapshot entrypoints.
+
+The ordered CI/release gate runs the existing Clippy selection after tool,
+dependency and formatting admission, before guard fixtures, product checks,
+tests and package verification. Publication performs source/tag admission and
+then that same Clippy gate before registry observation or upload. Sequential
+recipes preserve refusal under parallel Make; lint success does not replace
+the remaining release checks.
 
 The locked IC Build 0.22.1 release editor replaces Shared's retired Perl
 manifest/lock renderers. `make install-tools` prepares the selected executable;

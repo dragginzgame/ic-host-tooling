@@ -6,6 +6,34 @@ documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.60.0]
+
+### Breaking
+
+- Adopt published Platform 0.5.0. Native Candid call helpers now expose its 0.5
+  decoder-limit and decode-error identities; callers exchanging these values
+  must select Platform 0.5. Reply bytes, caller-selected limits and PocketIC
+  identities are unchanged.
+
+### Changed
+
+- Adopt Shared Tooling 0.25.8, retaining failed Cargo metadata diagnostics and
+  accepting numbered `- Unreleased` headings. Run the existing Clippy gate before
+  expensive release validation and before publication; lint failure stops later
+  work even under parallel Make.
+- Include `ic-testkit-native` in coordinated workspace checks, archive
+  qualification and publication alongside `ic-testkit`
+  ([#86 — Own lightweight native allocation measurement](https://github.com/dragginzgame/ic-testkit/issues/86)).
+- Enforce the native measurement package's dependency-free normal/build graph
+  on native and Wasm targets through the existing CI and release graph gate.
+
+### Fixed
+
+- Restore fixture benchmark preparation with the selected Build 0.23 release,
+  retaining bounded workspace discovery and typed Cargo failure evidence.
+- Restore the packaged migration guide after a merge left conflict markers and
+  duplicate release headings around the 0.59.1 notes.
+
 ## [0.59.1] - 2026-10-20
 
 ### Added

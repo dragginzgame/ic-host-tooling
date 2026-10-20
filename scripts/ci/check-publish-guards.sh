@@ -21,6 +21,7 @@ main_registry_event="registry https://crates.io/api/v1/crates/ic-testkit/$versio
 native_registry_event="registry https://crates.io/api/v1/crates/ic-testkit-native/$version"
 native_upload=$'cargo publish --locked --registry crates-io -p ic-testkit-native\n'
 main_upload=$'cargo publish --locked --registry crates-io -p ic-testkit\n'
+lint=$'cargo clippy -p ic-testkit -p ic-testkit-dev -p ic-testkit-native --all-targets --features ic-testkit/reply-fixtures --locked -- -D warnings\n'
 cat > "$work_dir/bin/curl" <<'STUB'
 #!/usr/bin/env bash
 set -euo pipefail
@@ -42,6 +43,10 @@ cat > "$work_dir/bin/cargo" <<'STUB'
 #!/usr/bin/env bash
 set -euo pipefail
 if [[ "${1:-}" == locate-project ]]; then exec "$QUALIFICATION_CARGO" "$@"; fi
+if [[ "${1:-}" == clippy ]]; then
+  printf 'cargo %s\n' "$*" >> "$TRACE_FILE"
+  exit "${CLIPPY_STATUS:-0}"
+fi
 case "$*" in
   'publish --locked --registry crates-io -p ic-testkit'|'publish --locked --registry crates-io -p ic-testkit-native') ;;
   *) exit 98 ;;
@@ -154,12 +159,19 @@ run_admitted_publish() (
     GIT_TRACE_FILE="$work_dir/git-trace" STATE_DIR="$work_dir/state" \
     EXPECTED_VERSION="$version" CARGO_NET_OFFLINE=false \
     MAKEFLAGS='' MAKEOVERRIDES='' MFLAGS='' \
-    "$real_make" --no-print-directory -f "$repo_root/Makefile" publish
+    "$real_make" --no-print-directory -f "$repo_root/Makefile" "$@" publish
 )
 : > "$work_dir/trace"
-run_admitted_publish > "$work_dir/annotated-tag.log" 2>&1
-expect_trace "$native_registry_event"$'\n'"$native_upload$main_registry_event"$'\n'"$main_upload"
+run_admitted_publish -j4 > "$work_dir/annotated-tag.log" 2>&1
+expect_trace "$lint$native_registry_event"$'\n'"$native_upload$main_registry_event"$'\n'"$main_upload"
 rm "$work_dir/state/ic-testkit" "$work_dir/state/ic-testkit-native"
+: > "$work_dir/trace"
+status=0
+CLIPPY_STATUS=37 run_admitted_publish -j4 > "$work_dir/lint-failure.log" 2>&1 || status=$?
+[[ "$status" == 2 ]] || fail 'Make did not preserve lint refusal'
+expect_trace "$lint"
+[[ ! -e "$work_dir/state/ic-testkit" && ! -e "$work_dir/state/ic-testkit-native" ]] \
+  || fail 'lint failure reached publication'
 for invalid in lightweight missing wrong-commit invalid-head failed-head failed-type failed-tag; do
   : > "$work_dir/trace"
   status=0

@@ -44,10 +44,17 @@ ci_targets_block="$(awk '
   found { print }
   found && $0 !~ /\\$/ { exit }
 ' "${repo_root}/Makefile")"
+lint_seen=false
 for ci_target in ${ci_targets_block//\\/}; do
   [[ "${ci_target}" != "clean" ]] \
     || fail "the standalone clean target is reachable from make ci"
+  case "$ci_target" in
+    clippy) lint_seen=true ;;
+    publish-guards-check|release-guards-check|git-hooks-check|check|check-wasm|docs-check|test|package|publish-dry-run)
+      [[ "$lint_seen" == true ]] || fail "Clippy must precede $ci_target" ;;
+  esac
 done
+[[ "$lint_seen" == true ]] || fail 'CI/release gate omits Clippy'
 
 installation_case="${work_dir}/installation"
 mkdir -p "${installation_case}/crates/ic-testkit" \
@@ -177,9 +184,10 @@ chmod +x "${sequence_case}/bin/make" "${sequence_case}/bin/git"
 # Inject failure at every stage to prove ordering and fail-closed execution.
 check_make_sequence() {
   local target="$1" stages="$2" failed_stage stage status expected
-  local -a ordered_stages
+  local -a ordered_stages failures
   read -r -a ordered_stages <<<"${stages}"
-  for failed_stage in "" "${ordered_stages[@]}"; do
+  if [[ $# == 3 ]]; then failures=("$3"); else failures=("" "${ordered_stages[@]}"); fi
+  for failed_stage in "${failures[@]}"; do
     : >"${sequence_case}/trace"
     status=0
     (
@@ -207,6 +215,11 @@ check_make_sequence() {
 
 check_make_sequence ci "check-first check-second check-third"
 check_make_sequence release-check "check-first check-second check-third"
+release_stages="${ci_targets_block#*:=}"
+release_stages="${release_stages//\\/}"
+release_stages="${release_stages//$'\n'/ }"
+# Observe the actual selected gate order, substituting every stage, under -j4.
+check_make_sequence release-check "$release_stages msrv" clippy
 
 # The actual gates select prepared inputs; drift or disappearance must stop the
 # next stage and retain the observation, independently of target success.

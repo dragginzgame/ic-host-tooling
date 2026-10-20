@@ -46,8 +46,8 @@ server-check:
 	"$(SERVER_CLI)" check
 
 MSRV ?= 1.91.0
-CI_TARGETS := shared-tooling-check no-symlinks-check tools-check format-tools-check dependency-pins-check installation-check publish-guards-check \
-	release-guards-check git-hooks-check fmt-check check check-wasm clippy docs-check test \
+CI_TARGETS := shared-tooling-check no-symlinks-check tools-check format-tools-check dependency-pins-check installation-check fmt-check clippy \
+	publish-guards-check release-guards-check git-hooks-check check check-wasm docs-check test \
 	package publish-dry-run
 
 RELEASE_CHECK_TARGETS := $(CI_TARGETS) msrv
@@ -132,6 +132,9 @@ CARGO_GRAPH_POLICY = --consumer "$(REPO_ROOT)" --require ic-platform=1 \
 
 dependency-graph-check:
 	@set -e; host="$$(rustc -vV | sed -n 's/^host: //p')"; test -n "$$host"; \
+		perl scripts/ci/check-cargo-graph.pl --consumer "$(REPO_ROOT)" \
+			--package ic-testkit-native --target "$$host" --all-features \
+			--require ic-testkit-native=1 --forbid-pattern '^(?!ic-testkit-native$$)'; \
 		perl scripts/ci/check-cargo-graph.pl $(CARGO_GRAPH_POLICY) \
 			--package ic-testkit --target "$$host" --forbid ic-wire --forbid ic-cdk-executor --require pocket-ic=1; \
 		perl scripts/ci/check-cargo-graph.pl $(CARGO_GRAPH_POLICY) \
@@ -142,6 +145,9 @@ dependency-graph-check:
 			--require ic-build=1 --require ic-platform=1 --require pocket-ic=1 \
 			--require ic-host-artifacts=1 --require ic-host-fs=1 \
 			--require ic-host-process=1 --require ic-host-text=1
+	perl scripts/ci/check-cargo-graph.pl --consumer "$(REPO_ROOT)" \
+		--package ic-testkit-native --target wasm32-unknown-unknown --all-features \
+		--require ic-testkit-native=1 --forbid-pattern '^(?!ic-testkit-native$$)'
 	perl scripts/ci/check-cargo-graph.pl $(CARGO_GRAPH_POLICY) --package ic-testkit \
 		--target wasm32-unknown-unknown --all-features --forbid-pattern '^ic-host-' \
 		--forbid candid --forbid candid_derive --forbid pocket-ic --forbid ic-wire --forbid clap \
@@ -198,6 +204,7 @@ release-check:
 	+@bash scripts/ci/run-validation-targets.sh --fail-fast $(addprefix --input ,$(VALIDATION_INPUTS)) $(RELEASE_CHECK_TARGETS)
 
 publish: ensure-clean release-tag-check
+	+$(MAKE) --no-print-directory clippy
 	+bash scripts/release/publish-workspace.sh
 
 release-version:

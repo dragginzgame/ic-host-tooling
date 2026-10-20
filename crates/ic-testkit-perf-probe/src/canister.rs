@@ -13,7 +13,6 @@ thread_local! {
 
 // Deterministic snapshot-contained state for the opt-in fixture benchmark.
 #[update(
-    hidden = true,
     guard = "guard",
     decode_with = "decode::<SeedState>",
     encode_with = "encode_unit::<SeedState>"
@@ -23,7 +22,6 @@ fn fixture_seed_state(bytes: u32) {
 }
 
 #[update(
-    hidden = true,
     guard = "guard",
     decode_with = "decode::<MutateState>",
     encode_with = "encode_unit::<MutateState>"
@@ -38,7 +36,6 @@ fn fixture_mutate_state() {
 }
 
 #[query(
-    hidden = true,
     guard = "guard",
     decode_with = "decode::<InspectState>",
     encode_with = "encode::<InspectState>"
@@ -52,7 +49,6 @@ fn fixture_state() -> State {
 }
 
 #[query(
-    hidden = true,
     guard = "guard",
     decode_with = "decode::<Ping>",
     encode_with = "encode::<Ping>"
@@ -62,7 +58,6 @@ fn ping() -> Text<4> {
 }
 
 #[update(
-    hidden = true,
     guard = "guard",
     decode_with = "decode::<BenchmarkOnce>",
     encode_with = "encode::<BenchmarkOnce>"
@@ -80,7 +75,6 @@ fn benchmark_once() -> u64 {
 }
 
 #[update(
-    hidden = true,
     guard = "guard",
     decode_with = "decode::<BenchmarkTrap>",
     encode_with = "encode_unit::<BenchmarkTrap>"
@@ -91,7 +85,6 @@ fn benchmark_start_then_trap() {
 }
 
 #[query(
-    hidden = true,
     guard = "guard",
     decode_with = "decode::<QueryCaller>",
     encode_with = "encode::<QueryCaller>"
@@ -102,7 +95,6 @@ fn fixture_query_caller() -> Bytes<29> {
 }
 
 #[update(
-    hidden = true,
     guard = "guard",
     decode_with = "decode::<UpdateCaller>",
     encode_with = "encode::<UpdateCaller>"

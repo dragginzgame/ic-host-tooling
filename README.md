@@ -109,8 +109,11 @@ Host-side test crates normally add:
 ```toml
 [dev-dependencies]
 ic-testkit = "0.59"
-ic-platform = { version = "0.4", default-features = false, features = ["candid"] }
 ```
+
+For native Candid budgets, also add `ic-platform` with default features disabled
+and its `candid` feature enabled. Match Platform 0.4 with Testkit 0.58/0.59,
+or Platform 0.5 with Testkit 0.60; the decoder-limit types must match.
 
 Canister crates that emit benchmark markers can add the same version under
 `[dependencies]` and use `ic_testkit::performance`.

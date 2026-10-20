@@ -9,8 +9,11 @@ PocketIC-oriented test utilities for Internet Computer canister tests.
 ```toml
 [dev-dependencies]
 ic-testkit = "0.59"
-ic-platform = { version = "0.4", default-features = false, features = ["candid"] }
 ```
+
+For native Candid budgets, also add `ic-platform` with default features disabled
+and its `candid` feature enabled. Match Platform 0.4 with Testkit 0.58/0.59,
+or Platform 0.5 with Testkit 0.60; the decoder-limit types must match.
 
 The published MSRV is Rust 1.91, and the selected PocketIC line is 16.
 Canisters using benchmark markers can add the crate under `[dependencies]`.

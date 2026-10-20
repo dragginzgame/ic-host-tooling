@@ -24,7 +24,7 @@ use ic_build::{
     artifacts::{WasmBuildError, WasmBuildOutcome, WasmBuildSpec, build_wasm_canisters_cached},
     cargo::{
         native::{NativeExecutableSpec, NativeTargetKind, build_native_executable},
-        observation::workspace_root_for,
+        observation::{decode_workspace_root, workspace_root_command},
         selection::CargoSelection,
     },
 };
@@ -44,8 +44,9 @@ use ic_host_process::{
     sampling,
     signal::{SignalActionError, SignalActions},
     tool::{
-        AdmittedTool, CompletedExecution, ExecutionContext, OutputLimit, OutputLimits,
-        ResolutionError, ToolError, VersionSpec, resolve_executable, run_group_command,
+        AdmittedTool, CompletedExecution, ExecutionContext, ExecutionFailure, OutputLimit,
+        OutputLimits, ResolutionError, ToolError, VersionSpec, capture_command, resolve_executable,
+        run_group_command,
     },
 };
 use ic_host_text::table::{self, Alignment};
@@ -342,11 +343,22 @@ fn cargo_command(cargo: &Path, root: &Path, rustc: Option<&Path>) -> Command {
 fn prepare(options: &Options) -> Result<Inputs, Error> {
     let cargo = tool_program(std::env::var_os("CARGO").unwrap_or_else(|| OsString::from("cargo")))?;
     let rustc = std::env::var_os("RUSTC").map(tool_program).transpose()?;
-    let root = workspace_root_for(
+    let mut workspace = workspace_root_command(
         env!("CARGO_MANIFEST_DIR"),
-        WORKSPACE_DISCOVERY_LIMITS,
         cargo_command(&cargo, &std::env::current_dir()?, rustc.as_deref()),
     )?;
+    let output = capture_command(&mut workspace, WORKSPACE_DISCOVERY_LIMITS)
+        .and_then(CompletedExecution::require_success)
+        .and_then(CompletedExecution::require_complete)
+        .map_err(|error| {
+            let kind = match error.execution_error().map(|execution| &execution.failure) {
+                Some(ExecutionFailure::Io { source, .. }) => source.kind(),
+                Some(ExecutionFailure::ExitStatus) => io::ErrorKind::InvalidInput,
+                _ => io::ErrorKind::Other,
+            };
+            io::Error::new(kind, error)
+        })?;
+    let root = decode_workspace_root(&output.stdout)?;
     if !root
         .join("crates/ic-testkit-perf-probe/Cargo.toml")
         .is_file()
@@ -926,17 +938,17 @@ mod tests {
         )
         .unwrap();
         fs::write(root.join("probe.wasm"), b"\0asm\x01\0\0\0").unwrap();
+        let mut workspace =
+            super::workspace_root_command(env!("CARGO_MANIFEST_DIR"), Command::new(env!("CARGO")))
+                .unwrap();
+        let workspace = super::capture_command(&mut workspace, super::WORKSPACE_DISCOVERY_LIMITS)
+            .and_then(super::CompletedExecution::require_success)
+            .and_then(super::CompletedExecution::require_complete)
+            .unwrap();
+        let workspace = super::decode_workspace_root(&workspace.stdout).unwrap();
         fs::write(
             root.join("workspace.json"),
-            serde_json::to_vec(&json!({"root":
-                ic_build::cargo::observation::workspace_root_for(
-                    env!("CARGO_MANIFEST_DIR"),
-                    super::WORKSPACE_DISCOVERY_LIMITS,
-                    Command::new(env!("CARGO")),
-                )
-                    .unwrap().join("Cargo.toml")
-            }))
-            .unwrap(),
+            serde_json::to_vec(&json!({"root": workspace.join("Cargo.toml")})).unwrap(),
         )
         .unwrap();
     }
