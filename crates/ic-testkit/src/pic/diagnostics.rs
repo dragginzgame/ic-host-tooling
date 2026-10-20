@@ -4,8 +4,8 @@ use std::{
     time::{Duration, Instant},
 };
 
-use ic_platform::Principal;
 use ic_platform::pocket_ic::{CanisterLogRecord, CanisterStatusResult, PocketIc};
+use ic_platform::principal::ExternalPrincipal as Principal;
 
 use super::{
     PocketIcCallFailure,
@@ -498,8 +498,8 @@ fn render_log_records(
 mod tests {
     use std::cell::Cell;
 
-    use ic_platform::Principal;
     use ic_platform::pocket_ic::CanisterLogRecord;
+    use ic_platform::principal::ExternalPrincipal as Principal;
 
     use super::{
         CanisterDiagnosticsBatchContractError, CanisterDiagnosticsReport,

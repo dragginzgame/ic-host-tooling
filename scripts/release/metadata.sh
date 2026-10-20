@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Shared companions: scripts/dev/install-rust-tools.sh ci/tool-versions.env scripts/ci/check-release-source.sh scripts/ci/check-format-tools.sh scripts/ci/cargo-release-metadata.sh scripts/ci/check-installation-version.sh scripts/ci/next-release-version.sh scripts/ci/read-cargo-workspace-version.sh
 set -euo pipefail
 
 # Consumer-owned metadata and evidence. The reviewed shared runner alone owns
@@ -152,8 +153,10 @@ case "$mode" in
     cargo fetch --manifest-path "$cache_manifest" --locked
     # Source admission and saved-graph reconciliation precede setup. Reuse the
     # consumer's common and registered product tool owners.
-    make --no-print-directory install-tools
-    make --no-print-directory tools-check
+    RELEASE_EDITOR_LOCKFILE="$(cd "$(dirname "$cache_manifest")" && pwd -P)/Cargo.lock" \
+      make --no-print-directory install-tools
+    RELEASE_EDITOR_LOCKFILE="$(cd "$(dirname "$cache_manifest")" && pwd -P)/Cargo.lock" \
+      make --no-print-directory tools-check
     make --no-print-directory format-tools-check
     ;;
   verify)
@@ -184,6 +187,12 @@ case "$mode" in
     if [[ ! -f "$prepared/ready" ]]; then
       current_input="$(input_digest)"
       [[ "$current_input" == "$validated_input" ]] || fail "inputs changed after validation"
+      # Admit the selected published editor before allocating or rendering metadata.
+      # The helper is offline; only admitted fresh preflight performs setup.
+      editor="$(bash "$script_dir/../dev/install-rust-tools.sh" --consumer "$PWD" \
+        --package ic-build --lockfile "$PWD/Cargo.lock" \
+        --bin ic-build-release-metadata --profile debug --check)" \
+        || fail "release editor unavailable; run make install-release-editor"
       mkdir -p "$prepared/old" "$prepared/new"
       for file in "${files[@]}"; do
         mkdir -p "$prepared/old/$(dirname "$file")" "$prepared/new/$(dirname "$file")"
@@ -204,7 +213,8 @@ case "$mode" in
       # workspace. Live files remain unchanged until every extra view is ready.
       (
         cd "$prepared/new" || fail "cannot enter saved Cargo workspace"
-        bash "$script_dir/../ci/cargo-release-metadata.sh" prepare ic-testkit \
+        CARGO_RELEASE_METADATA_EDITOR="$editor" CARGO_RELEASE_METADATA_MAX_BYTES=8388608 \
+          bash "$script_dir/../ci/cargo-release-metadata.sh" prepare ic-testkit \
           || fail "cannot prepare saved Cargo metadata"
       ) || fail "saved Cargo preparation failed"
       bash "$script_dir/../ci/check-format-tools.sh" "$SHARED_TOOLING_CARGO_SORT_VERSION"

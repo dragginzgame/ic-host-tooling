@@ -1,7 +1,7 @@
 use std::{num::NonZeroUsize, time::Duration};
 
-use ic_platform::Principal;
 use ic_platform::pocket_ic::{ErrorCode, PocketIc, RejectResponse};
+use ic_platform::principal::ExternalPrincipal as Principal;
 
 use super::{CanisterInstallError, transport::capture_operation};
 

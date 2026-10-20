@@ -22,6 +22,12 @@ REAL_CAT="$(command -v cat)"
 export REAL_CARGO
 REAL_CARGO="$(command -v cargo)"
 real_make="$(command -v make)"
+# Prepare with make install-release-editor; fixtures only admit and reuse it.
+export REAL_RELEASE_EDITOR
+REAL_RELEASE_EDITOR="$(bash "$repo_root/scripts/dev/install-rust-tools.sh" \
+  --consumer "$repo_root" --package ic-build --lockfile "$repo_root/Cargo.lock" \
+  --bin ic-build-release-metadata --profile debug --check)" || exit "$?"
+
 mkdir -p "$work_dir/bin"
 cat > "$work_dir/bin/git" <<'STUB'
 #!/usr/bin/env bash
@@ -91,10 +97,12 @@ cat > "$work_dir/bin/make" <<'STUB'
 set -euo pipefail
 case "$*" in
   '--no-print-directory install-tools')
+    printf '%s\n' "${RELEASE_EDITOR_LOCKFILE-unset}" >> editor-lock-trace
     printf '%s\n' "$*" >> tool-trace
     printf '%s\n' "$*" >> preparation-trace
     exit "${ADAPTER_SETUP_STATUS:-0}" ;;
   '--no-print-directory tools-check' | '--no-print-directory format-tools-check')
+    printf '%s\n' "${RELEASE_EDITOR_LOCKFILE-unset}" >> editor-lock-trace
     printf '%s\n' "$*" >> tool-trace
     printf '%s\n' "$*" >> preparation-trace
     exit "${ADAPTER_TOOLS_STATUS:-0}" ;;
@@ -149,11 +157,20 @@ new_fixture() {
   # Exercise the consumer's actual Make callbacks with local copies of their
   # inputs. Only the complete validation gate and Git effects are substituted.
   mkdir -p scripts/release scripts/ci ci
-  cp "$repo_root/scripts/release/metadata.sh" scripts/release/
-  for helper in StableVersion.pm cargo-release-metadata.sh cargo-workspace-members.jq compare-stable-versions.pl check-release-source.sh read-cargo-workspace-version.sh next-release-version.sh validate-release-inputs.pl check-format-tools.sh check-installation-version.sh finalize-release-changelog.awk render-cargo-workspace-version.pl rewrite-local-lock-versions.pl; do
-    cp "$repo_root/scripts/ci/$helper" scripts/ci/
-  done
-  cp "$repo_root/ci/tool-versions.env" ci/
+  bash "$repo_root/scripts/ci/prepare-script-fixture.sh" "$repo_root" "$PWD" \
+    scripts/release/metadata.sh
+  # Keep real candidate rendering, substituting only the selection-store boundary.
+  cat > scripts/dev/install-rust-tools.sh <<'STUB'
+#!/usr/bin/env bash
+set -euo pipefail
+[[ $# == 11 && "$1" == --consumer && "$2" == "$PWD" &&
+   "$3" == --package && "$4" == ic-build && "$5" == --lockfile &&
+   "$6" == "$PWD/Cargo.lock" && "$7" == --bin &&
+   "$8" == ic-build-release-metadata && "$9" == --profile &&
+   "${10}" == debug && "${11}" == --check ]] || exit 97
+printf '%s\n' "$REAL_RELEASE_EDITOR"
+exit "${ADAPTER_EDITOR_STATUS:-0}"
+STUB
   for file in Cargo.toml Cargo.lock CHANGELOG.md crates/ic-testkit/CHANGELOG.md README.md crates/ic-testkit/README.md rust-toolchain.toml; do
     mkdir -p "$(dirname "$file")"
     cp "$repo_root/$file" "$file"
@@ -215,6 +232,14 @@ expect_failure() {
   fi
 }
 
+# A failed admission may print a plausible executable; its status still wins.
+new_fixture failed-editor-admission
+adapter verify
+ADAPTER_EDITOR_STATUS=23 expect_failure prepare
+[[ ! -e ".release-state/$RELEASE_VERSION.metadata" ]] || fail 'failed editor admission began preparation'
+cmp "$repo_root/Cargo.toml" Cargo.toml || fail 'failed editor admission changed manifest'
+cmp "$repo_root/Cargo.lock" Cargo.lock || fail 'failed editor admission changed lock'
+
 # Setup/check ordering belongs to the actual consumer adapter. Effects are
 # substituted; these cases do not install tools or run a complete gate.
 new_fixture tool-ordering
@@ -222,6 +247,8 @@ ADAPTER_PARALLEL=true adapter preflight || fail 'selected tool preparation faile
 printf '%s\n' '--no-print-directory install-tools' '--no-print-directory tools-check' \
   '--no-print-directory format-tools-check' > expected-tools
 cmp expected-tools tool-trace || fail 'selected tool preparation order changed'
+printf '%s\n' "$PWD/Cargo.lock" "$PWD/Cargo.lock" unset > expected-editor-locks
+cmp expected-editor-locks editor-lock-trace || fail 'fresh tool setup used another lock'
 printf 'fetch\n' > expected-preparation
 cat expected-tools >> expected-preparation
 cmp expected-preparation preparation-trace || fail 'tools prepared before locked cache'
@@ -431,7 +458,7 @@ printf '/.release-state/\n' > .git/info/exclude
   crates/ic-testkit-dev/Cargo.toml crates/ic-testkit-dev/src/lib.rs \
   crates/ic-testkit-native/Cargo.toml crates/ic-testkit-native/src/lib.rs \
   crates/ic-testkit-perf-probe/Cargo.toml crates/ic-testkit-perf-probe/src/lib.rs \
-  artifact gate-trace gate-environment tool-trace preparation-trace rejected.log scripts ci
+  artifact gate-trace gate-environment tool-trace editor-lock-trace preparation-trace rejected.log scripts ci
 printf 'interrupted root staging bytes\n' > .release-metadata.fixture
 printf 'interrupted package staging bytes\n' > crates/ic-testkit/.release-metadata.fixture
 ADAPTER_REAL_UNTRACKED=true adapter preflight || fail "tracked fixture preflight rejected"
@@ -824,6 +851,8 @@ for file in Cargo.toml Cargo.lock CHANGELOG.md crates/ic-testkit/CHANGELOG.md RE
 done
 export ADAPTER_FETCH_STATUS=0
 CARGO_NET_OFFLINE=false adapter preflight
+printf '%s\n' unset unset "$PWD/$retained/new/Cargo.lock" "$PWD/$retained/new/Cargo.lock" unset > expected-editor-locks
+cmp expected-editor-locks editor-lock-trace || fail 'recovery tool admission used the mixed live lock'
 [[ "$(wc -l < fetch-trace)" -eq 2 ]] || fail 'cache fetch retried implicitly'
 cmp cache-ready "$retained/ready"
 cmp cache-receipt "$receipt"

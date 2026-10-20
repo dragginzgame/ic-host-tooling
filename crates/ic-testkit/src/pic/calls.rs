@@ -2,8 +2,8 @@ use super::{CandidCallContext, CandidCallError, PocketIcCallFailure, transport};
 use ic_platform::candid::{DecodeError, DecodeLimits, decode_args};
 use ic_platform::pocket_ic::{PocketIc, RejectResponse};
 use ic_platform::{
-    Principal,
     candid::contract::{ArgumentDecoder, ArgumentEncoder, encode_args},
+    principal::ExternalPrincipal as Principal,
 };
 
 #[derive(Clone, Copy)]
@@ -126,8 +126,8 @@ where
 
 #[cfg(test)]
 mod tests {
-    use ic_platform::Principal;
     use ic_platform::candid::{DecodeError, DecodeLimits, decode_args};
+    use ic_platform::principal::ExternalPrincipal as Principal;
 
     use super::{CallContext, CandidCallError, call_candid, run_raw_call};
 

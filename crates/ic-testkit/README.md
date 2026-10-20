@@ -8,14 +8,15 @@ PocketIC-oriented test utilities for Internet Computer canister tests.
 
 ```toml
 [dev-dependencies]
-ic-testkit = "0.57"
-ic-platform = { version = "0.2.1", default-features = false, features = ["candid"] }
+ic-testkit = "0.59"
+ic-platform = { version = "0.4", default-features = false, features = ["candid"] }
 ```
 
 The published MSRV is Rust 1.91, and the selected PocketIC line is 16.
 Canisters using benchmark markers can add the crate under `[dependencies]`.
 The Wasm library uses Platform's raw counters and marker logging,
-without a canister SDK or Candid; `Fake` uses the shared Principal type through `ic_platform::Principal`.
+without a canister SDK or Candid; `Fake` retains PocketIC’s principal identity through
+`ic_platform::principal::ExternalPrincipal`, without enabling Candid on Wasm.
 `pocket_ic` and `pic` are host-only. `performance` is Wasm-only;
 `benchmark` counters, parsing and aggregation, and `Fake` are available on both
 targets. Native CSV and Markdown directory output lives in the repository's

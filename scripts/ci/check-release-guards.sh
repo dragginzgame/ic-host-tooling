@@ -317,6 +317,7 @@ STUB
 #!/usr/bin/env bash
 set -euo pipefail
 name="${0##*/}"; name="${name#install-}"; name="${name%-tools.sh}"
+[[ " $* " != *' --package ic-build '* ]] || name=editor
 mode=setup
 [[ "${*: -1}" != --check ]] || mode=check
 [[ "${*: -1}" != --preflight ]] || mode=preflight
@@ -389,12 +390,12 @@ STUB
   [[ "$status" == 2 && "$(cat "$TOOL_TRACE")" == host:check ]] || fail 'missing common tool check installed or continued'
   : > "$TOOL_TRACE"
   "$make_bin" --no-print-directory -j4 -C "$TOOL_ROOT" install-tools > "$TOOL_ROOT/install.log" 2>&1
-  printf '%s\n' rust:preflight host:setup rust:setup cargo:build server:setup > "$TOOL_ROOT/expected"
+  printf '%s\n' rust:preflight host:setup rust:setup editor:setup cargo:build server:setup > "$TOOL_ROOT/expected"
   cmp "$TOOL_TRACE" "$TOOL_ROOT/expected" || fail 'complete setup ordering changed'
   cp "$TOOL_ROOT/server-bytes" "$TOOL_ROOT/retained-server"
   : > "$TOOL_TRACE"
   "$make_bin" --no-print-directory -j4 -C "$TOOL_ROOT" tools-check > "$TOOL_ROOT/check.log" 2>&1
-  printf '%s\n' host:check rust:check server:check > "$TOOL_ROOT/expected"
+  printf '%s\n' host:check rust:check editor:check server:check > "$TOOL_ROOT/expected"
   cmp "$TOOL_TRACE" "$TOOL_ROOT/expected" || fail 'complete offline check rebuilt or installed'
   cmp "$TOOL_ROOT/server-bytes" "$TOOL_ROOT/retained-server"
   # The real product recipes must pass Make's jobserver to every Cargo build,
@@ -458,11 +459,26 @@ STUB
   [[ "$status" == 2 ]] || fail 'preflight failure status lost'
   cmp "$TOOL_TRACE" "$TOOL_ROOT/expected" || fail 'preflight failure dispatched setup'
   cmp "$TOOL_ROOT/server-bytes" "$TOOL_ROOT/retained-server"
+  for phase in setup check; do
+    : > "$TOOL_TRACE"
+    status=0
+    target=install-tools
+    [[ "$phase" != check ]] || target=tools-check
+    TOOL_FAIL="editor:$phase" "$make_bin" --no-print-directory -j4 -C "$TOOL_ROOT" "$target" \
+      > "$TOOL_ROOT/editor-$phase.log" 2>&1 || status=$?
+    [[ "$status" == 2 ]] || fail 'editor admission/setup failure status lost'
+    if [[ "$phase" == setup ]]; then
+      printf '%s\n' rust:preflight host:setup rust:setup editor:setup > "$TOOL_ROOT/expected"
+    else
+      printf '%s\n' host:check rust:check editor:check > "$TOOL_ROOT/expected"
+    fi
+    cmp "$TOOL_TRACE" "$TOOL_ROOT/expected" || fail 'editor failure dispatched later tools'
+  done
   rm "$TOOL_ROOT/target/debug/ic-testkit-server"
   : > "$TOOL_TRACE"
   status=0
   "$make_bin" --no-print-directory -j4 -C "$TOOL_ROOT" tools-check > "$TOOL_ROOT/missing-cli.log" 2>&1 || status=$?
-  printf '%s\n' host:check rust:check > "$TOOL_ROOT/expected"
+  printf '%s\n' host:check rust:check editor:check > "$TOOL_ROOT/expected"
   [[ "$status" == 2 ]] || fail 'missing owner CLI was accepted'
   cmp "$TOOL_TRACE" "$TOOL_ROOT/expected" || fail 'missing CLI check compiled or installed'
 )

@@ -220,7 +220,6 @@ mod tests {
             ]
             .map(Into::into),
         )
-        .unwrap()
         .unwrap();
         let run = MeasuredRun::from_worker(
             serde_json::from_value(Value::Object(worker_report())).unwrap(),
@@ -289,7 +288,6 @@ mod tests {
             ]
             .map(Into::into),
         )
-        .unwrap()
         .unwrap();
         let mut metrics: crate::fixture_reuse_report::WorkerReport =
             serde_json::from_value(Value::Object(worker_report())).unwrap();
@@ -334,7 +332,6 @@ mod tests {
             ]
             .map(Into::into),
         )
-        .unwrap()
         .unwrap();
         let case = options.benchmark_cases().remove(0);
         let admit = |raw| {

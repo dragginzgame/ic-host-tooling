@@ -2,7 +2,7 @@
 
 mod support;
 
-use ic_platform::Principal;
+use ic_platform::principal::ExternalPrincipal as Principal;
 use ic_testkit::pic::{
     CanisterInstallExt, InstallSpec,
     fixtures::{RawReplyLimits, RawReplyMethod, ReplyMode, raw_reply_canister},

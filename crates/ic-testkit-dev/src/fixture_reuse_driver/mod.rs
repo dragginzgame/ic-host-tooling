@@ -52,7 +52,7 @@ use ic_host_text::table::{self, Alignment};
 use serde_json::{Value, json};
 
 use crate::fixture_reuse_protocol::{Mode, WorkerArguments};
-use arguments::{HELP, Options, parse_arguments};
+use arguments::{Options, parse_arguments};
 use report::{DriverReport, MeasuredRun, Summary, summarize};
 
 const WORKSPACE_DISCOVERY_LIMITS: OutputLimits = OutputLimits {
@@ -67,6 +67,8 @@ static INTERRUPTED: AtomicBool = AtomicBool::new(false);
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
+    #[error("{0}")]
+    Arguments(#[from] clap::Error),
     #[error("invalid benchmark argument: {0}")]
     InvalidArgument(String),
     #[error("invalid benchmark data: {0}")]
@@ -517,10 +519,7 @@ fn provenance(
 }
 
 pub fn run() -> Result<(), Error> {
-    let Some(options) = parse_arguments(std::env::args_os().skip(1))? else {
-        println!("{HELP}");
-        return Ok(());
-    };
+    let options = parse_arguments(std::env::args_os().skip(1))?;
     if !cfg!(any(target_os = "linux", target_os = "macos")) {
         return Err(Error::InvalidArgument(
             "native sampling requires Linux or macOS".into(),
@@ -767,7 +766,6 @@ mod tests {
             OsString::from("--server"),
             root.join("server").into_os_string(),
         ])
-        .unwrap()
         .unwrap();
         if missing {
             assert!(

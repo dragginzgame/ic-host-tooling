@@ -1,7 +1,7 @@
 //! Native typed transport; IC Wire remains the sole frame and codec owner.
 
 use super::{PocketIc, PocketIcCallFailure, RejectResponse, transport};
-use ic_platform::Principal;
+use ic_platform::principal::ExternalPrincipal as Principal;
 use ic_wire::Method;
 use serde::de::DeserializeOwned;
 

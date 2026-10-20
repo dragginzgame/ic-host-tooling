@@ -1,12 +1,6 @@
 //! Repository-local worker invocation; callers retain workload and report admission.
 
-use std::{
-    ffi::{OsStr, OsString},
-    io,
-    num::NonZeroUsize,
-    path::PathBuf,
-    str::FromStr,
-};
+use std::{ffi::OsString, num::NonZeroUsize, path::PathBuf};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -22,13 +16,15 @@ impl Mode {
             Self::Pooled => "pooled",
         }
     }
+}
 
-    pub fn parse(value: &OsStr) -> Option<Self> {
-        match value.to_str()? {
-            "fresh" => Some(Self::Fresh),
-            "pooled" => Some(Self::Pooled),
-            _ => None,
-        }
+impl clap::ValueEnum for Mode {
+    fn value_variants<'a>() -> &'a [Self] {
+        &[Self::Fresh, Self::Pooled]
+    }
+
+    fn to_possible_value(&self) -> Option<clap::builder::PossibleValue> {
+        Some(clap::builder::PossibleValue::new(self.as_str()))
     }
 }
 
@@ -42,44 +38,63 @@ pub struct WorkerArguments {
     pub server: PathBuf,
 }
 
-fn invalid_arguments() -> io::Error {
-    io::Error::new(
-        io::ErrorKind::InvalidInput,
-        "expected MODE CAPACITY ITERATIONS WORKERS STATE_BYTES WASM SERVER; positive counts, fresh/pooled mode, and workers <= iterations",
-    )
-}
-
-fn number<T: FromStr>(value: &OsStr) -> io::Result<T> {
-    value
-        .to_str()
-        .and_then(|value| value.parse().ok())
-        .ok_or_else(invalid_arguments)
-}
-
 impl TryFrom<Vec<OsString>> for WorkerArguments {
-    type Error = io::Error;
+    type Error = clap::Error;
 
-    fn try_from(args: Vec<OsString>) -> io::Result<Self> {
-        let [
-            mode,
-            capacity,
-            iterations,
-            workers,
-            state_bytes,
-            wasm,
-            server,
-        ]: [OsString; 7] = args.try_into().map_err(|_| invalid_arguments())?;
+    fn try_from(args: Vec<OsString>) -> Result<Self, Self::Error> {
+        use clap::{Arg, Command, error::ErrorKind, value_parser};
+        let mut command = Command::new("fixture_reuse_benchmark")
+            .about("Run one fixture-reuse benchmark workload")
+            .version(env!("CARGO_PKG_VERSION"))
+            .no_binary_name(true)
+            .arg(
+                Arg::new("mode")
+                    .required(true)
+                    .value_parser(value_parser!(Mode)),
+            )
+            .args(["capacity", "iterations", "workers"].map(|name| {
+                Arg::new(name)
+                    .required(true)
+                    .value_parser(value_parser!(NonZeroUsize))
+            }))
+            .arg(
+                Arg::new("state_bytes")
+                    .required(true)
+                    .value_parser(value_parser!(u32)),
+            )
+            .args(["wasm", "server"].map(|name| {
+                Arg::new(name)
+                    .required(true)
+                    .value_parser(value_parser!(PathBuf))
+                    .allow_hyphen_values(true)
+            }));
+        let mut matches = command.try_get_matches_from_mut(args)?;
         let result = Self {
-            mode: Mode::parse(&mode).ok_or_else(invalid_arguments)?,
-            capacity: number(&capacity)?,
-            iterations: number(&iterations)?,
-            workers: number(&workers)?,
-            state_bytes: number(&state_bytes)?,
-            wasm: wasm.into(),
-            server: server.into(),
+            mode: matches.remove_one::<Mode>("mode").expect("mode required"),
+            capacity: matches
+                .remove_one::<NonZeroUsize>("capacity")
+                .expect("capacity required"),
+            iterations: matches
+                .remove_one::<NonZeroUsize>("iterations")
+                .expect("iterations required"),
+            workers: matches
+                .remove_one::<NonZeroUsize>("workers")
+                .expect("workers required"),
+            state_bytes: matches
+                .remove_one::<u32>("state_bytes")
+                .expect("state bytes required"),
+            wasm: matches
+                .remove_one::<PathBuf>("wasm")
+                .expect("Wasm required"),
+            server: matches
+                .remove_one::<PathBuf>("server")
+                .expect("server required"),
         };
         if result.workers > result.iterations {
-            return Err(invalid_arguments());
+            return Err(command.error(
+                ErrorKind::ValueValidation,
+                "workers must not exceed iterations",
+            ));
         }
         Ok(result)
     }
@@ -102,7 +117,7 @@ impl From<WorkerArguments> for [OsString; 7] {
 #[cfg(test)]
 mod tests {
     use super::{Mode, WorkerArguments};
-    use std::{ffi::OsString, io};
+    use std::ffi::OsString;
 
     #[test]
     fn worker_invocation_admits_both_modes_and_zero_state() {
@@ -113,8 +128,8 @@ mod tests {
                 "4",
                 "2",
                 "0",
-                "probe wasm",
-                "server path",
+                "-probe wasm",
+                "-server path",
             ]
             .map(OsString::from);
             let parsed = WorkerArguments::try_from(args.to_vec()).unwrap();
@@ -143,7 +158,7 @@ mod tests {
                 WorkerArguments::try_from(args.into_iter().map(OsString::from).collect::<Vec<_>>())
                     .err()
                     .unwrap();
-            assert_eq!(error.kind(), io::ErrorKind::InvalidInput);
+            assert_eq!(error.exit_code(), 2);
         }
     }
 

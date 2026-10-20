@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
+# Shared companions: scripts/ci/collect-tool-evidence.sh scripts/ci/formatting-evidence.sh
 set -euo pipefail
 
-# Testkit owns CI roots/retention; shared helpers select tool evidence and archive it.
+# Testkit owns CI roots/retention; Shared owns tool selection and archive orchestration.
 # Requires Bash 3.2, tar/gzip and the CI workspace/temp/outcome environment.
 [[ $# -eq 1 ]] || { echo 'expected checks or portable evidence selection' >&2; exit 2; }
 mode="$1"
@@ -16,7 +17,7 @@ temporary="$(cd -P "$temporary" && printf '%s/.' "$PWD")"
 temporary="${temporary%/.}"
 archiver="$0"
 [[ "$archiver" == /* ]] || archiver="$PWD/$archiver"
-archiver="${archiver%/*}/archive-evidence.sh"
+helpers="${archiver%/*}"
 outcomes="${IC_TESTKIT_FAILURE_STEPS:?}"
 bundle="$temporary/ic-testkit-$mode-failure"
 # A previous attempt is evidence, not an output to overwrite.
@@ -36,7 +37,7 @@ for name in "${names[@]}"; do
 done
 # Shared formatter failures retain exact logs under the workflow temp root.
 # shellcheck source=scripts/ci/formatting-evidence.sh
-source "${archiver%/*}/formatting-evidence.sh"
+source "$helpers/formatting-evidence.sh"
 select_formatting_evidence "$temporary"
 arguments+=(${formatting_evidence[@]+"${formatting_evidence[@]}"})
 # Retain a redirected parent itself and unrelated logs, without traversing it.
@@ -56,32 +57,16 @@ if [[ ! -L "$workspace/target" ]] &&
 fi
 diagnostics="$bundle/tool-evidence"
 mkdir "$diagnostics"
-selector_status=0
-bash "${archiver%/*}/select-tool-evidence.sh" compact "$workspace" "$diagnostics" \
+# Shared owns selection receipts, failed-selector admission and archive status.
+# Keep Testkit's original outcomes and linked-parent diagnostic as explicit inputs.
+tool_status=0
+TAR_OPTIONS='' bash "$helpers/collect-tool-evidence.sh" \
+    "$bundle/evidence.tar.gz.partial" "$workspace" "$diagnostics" compact \
     "$workspace/ci/tool-versions.env" "$workspace/ci/ic-tools.tsv" \
-    > "$diagnostics/selections.nul" 2> "$diagnostics/selection.log" || selector_status=$?
-printf '%s\n' "$selector_status" > "$diagnostics/selection-status"
-if [[ "$selector_status" == 0 ]]; then
-    while IFS= read -r -d '' selected_root && IFS= read -r -d '' selected_path; do
-        arguments+=("$selected_root" "$selected_path")
-    done < "$diagnostics/selections.nul"
-else
-    # A failed selector's partial output is diagnostic data, never authority to
-    # traverse a store. Retain the physical checkout's tools and links themselves.
-    printf 'shared_collection=incomplete\n' > "$diagnostics/collection-status"
-    cat "$diagnostics/selection.log" >&2
-    echo 'Shared evidence collection incomplete; retaining local evidence and diagnostics.' >&2
-    if [[ ! -L "$workspace/.tools" && -d "$workspace/.tools" ]]; then arguments+=("$workspace" .tools); fi
-fi
-if [[ "$selector_status" != 0 || -d "$diagnostics/host" || -d "$diagnostics/ic" ]]; then
-    arguments+=("$bundle" tool-evidence)
-fi
-# Never follow links or include Git metadata. Failed archives and all source
-# evidence remain available; the uploader selects only the completed filename.
-TAR_OPTIONS='' bash "$archiver" \
-    "$bundle/evidence.tar.gz.partial" "${arguments[@]}" >/dev/null
+    "${arguments[@]}" >/dev/null || tool_status=$?
+[[ "$tool_status" != 2 ]] || exit "$tool_status"
 mv "$bundle/evidence.tar.gz.partial" "$bundle/evidence.tar.gz"
 printf '%s\n' "$bundle/evidence.tar.gz"
-# CI publishes the archive path before propagating this failure to the step.
-[[ "$selector_status" == 0 ]] || exit "$selector_status"
+# CI publishes the archive path before propagating incomplete collection.
+[[ "$tool_status" == 0 ]] || exit "$tool_status"
 exit "$collection_status"

@@ -3,42 +3,14 @@
 use ic_host_process::tool::{OutputLimit, OutputLimits};
 use std::{ffi::OsString, num::NonZeroUsize, path::PathBuf};
 
-use super::Error;
 use crate::fixture_reuse_protocol::Mode;
-
-const VALUE_OPTIONS: &[&str] = &[
-    "--server",
-    "--iterations",
-    "--workers",
-    "--repeats",
-    "--state-bytes",
-    "--profile",
-    "--output",
-    "--rss-stdout-bytes",
-    "--rss-stderr-bytes",
-];
+use clap::{Arg, Command, error::ErrorKind, value_parser};
 
 pub(super) const RSS_COMMAND_LIMITS: OutputLimits = OutputLimits {
     stdout: OutputLimit::Terminate(16 * 1024 * 1024),
     stderr: OutputLimit::Terminate(64 * 1024),
     timeout: None,
 };
-
-pub(super) const HELP: &str = "Fixture reuse benchmark (Linux/macOS)
-Required: --server PATH (exact PocketIC 16 binary)
-Options:
-  --iterations N       Total tasks per mode/run (default: 100)
-  --workers N          Same concurrency in all modes (default: 2)
-  --repeats N          Rotating repeats (default: 3)
-  --modes MODE...      fresh and/or pooled (default: fresh pooled)
-  --capacities N...    Pool capacities (default: 1 2)
-  --state-bytes N      Heap bytes per canister, fitting u32 (default: 1048576)
-  --profile PROFILE   Workload host profile: release or dev (default: release)
-  --rss-stdout-bytes N  macOS process-table byte limit (default: 16777216)
-  --rss-stderr-bytes N  macOS process-command diagnostic limit (default: 65536)
-  --output PATH        Save provenance, raw runs, and summaries as JSON
-  --help               Show this help
-Builds use the selected lockfile and prepared offline caches; no server download.";
 
 pub(super) struct Options {
     pub(super) server: PathBuf,
@@ -83,137 +55,193 @@ impl Options {
     }
 }
 
-fn positive(value: &OsString) -> Result<NonZeroUsize, Error> {
-    value
-        .to_str()
-        .and_then(|value| value.parse().ok())
-        .ok_or_else(|| {
-            Error::InvalidArgument(format!(
-                "expected a positive integer, got {}",
-                value.display()
-            ))
-        })
-}
-
-fn parse_modes(values: &[OsString]) -> Result<Vec<Mode>, Error> {
-    let modes = values
-        .iter()
-        .map(|value| {
-            Mode::parse(value)
-                .ok_or_else(|| Error::InvalidArgument(format!("invalid mode: {}", value.display())))
-        })
-        .collect::<Result<Vec<_>, _>>()?;
-    for (index, value) in modes.iter().enumerate() {
-        if modes[..index].contains(value) {
-            return Err(Error::InvalidArgument(
-                "each mode must be selected only once".into(),
-            ));
-        }
-    }
-    Ok(modes)
+fn cli() -> Command {
+    Command::new("fixture_reuse_benchmark_driver")
+        .about("Fixture reuse benchmark for Linux/macOS")
+        .after_help(
+            "Builds use the selected lockfile and prepared offline caches; no server download.",
+        )
+        .version(env!("CARGO_PKG_VERSION"))
+        .no_binary_name(true)
+        .args_override_self(true)
+        .arg(
+            Arg::new("server")
+                .long("server")
+                .required(true)
+                .help("Exact PocketIC server binary")
+                .value_parser(value_parser!(PathBuf))
+                .allow_hyphen_values(true),
+        )
+        .args(
+            [("iterations", "100"), ("workers", "2"), ("repeats", "3")].map(|(name, default)| {
+                Arg::new(name)
+                    .long(name)
+                    .default_value(default)
+                    .value_parser(value_parser!(NonZeroUsize))
+            }),
+        )
+        .arg(
+            Arg::new("modes")
+                .long("modes")
+                .num_args(1..)
+                .default_values(["fresh", "pooled"])
+                .value_parser(value_parser!(Mode)),
+        )
+        .arg(
+            Arg::new("capacities")
+                .long("capacities")
+                .num_args(1..)
+                .default_values(["1", "2"])
+                .value_parser(value_parser!(NonZeroUsize)),
+        )
+        .arg(
+            Arg::new("state-bytes")
+                .long("state-bytes")
+                .default_value("1048576")
+                .value_parser(value_parser!(u32)),
+        )
+        .arg(
+            Arg::new("profile")
+                .long("profile")
+                .default_value("release")
+                .value_parser(["release", "dev"]),
+        )
+        .arg(
+            Arg::new("output")
+                .long("output")
+                .value_parser(value_parser!(PathBuf))
+                .allow_hyphen_values(true),
+        )
+        .args(
+            [
+                (
+                    "rss-stdout-bytes",
+                    RSS_COMMAND_LIMITS.stdout.retained_bytes(),
+                ),
+                (
+                    "rss-stderr-bytes",
+                    RSS_COMMAND_LIMITS.stderr.retained_bytes(),
+                ),
+            ]
+            .map(|(name, default)| {
+                Arg::new(name)
+                    .long(name)
+                    .default_value(default.to_string())
+                    .value_parser(value_parser!(NonZeroUsize))
+            }),
+        )
 }
 
 pub(super) fn parse_arguments(
     args: impl IntoIterator<Item = OsString>,
-) -> Result<Option<Options>, Error> {
-    let mut options = Options {
-        server: PathBuf::new(),
-        iterations: NonZeroUsize::new(100).expect("positive default"),
-        workers: NonZeroUsize::new(2).expect("positive default"),
-        repeats: NonZeroUsize::new(3).expect("positive default"),
-        modes: vec![Mode::Fresh, Mode::Pooled],
-        capacities: vec![
-            NonZeroUsize::new(1).expect("positive default"),
-            NonZeroUsize::new(2).expect("positive default"),
-        ],
-        state_bytes: 1024 * 1024,
-        profile: "release".into(),
-        output: None,
-        rss_limits: RSS_COMMAND_LIMITS,
+) -> Result<Options, clap::Error> {
+    let mut command = cli();
+    let mut matches = command.try_get_matches_from_mut(args)?;
+    let options = Options {
+        server: matches
+            .remove_one::<PathBuf>("server")
+            .expect("server required"),
+        iterations: matches
+            .remove_one::<NonZeroUsize>("iterations")
+            .expect("default iterations"),
+        workers: matches
+            .remove_one::<NonZeroUsize>("workers")
+            .expect("default workers"),
+        repeats: matches
+            .remove_one::<NonZeroUsize>("repeats")
+            .expect("default repeats"),
+        modes: matches
+            .remove_many::<Mode>("modes")
+            .expect("default modes")
+            .collect(),
+        capacities: matches
+            .remove_many::<NonZeroUsize>("capacities")
+            .expect("default capacities")
+            .collect(),
+        state_bytes: matches
+            .remove_one::<u32>("state-bytes")
+            .expect("default state bytes"),
+        profile: matches
+            .remove_one::<String>("profile")
+            .expect("default profile"),
+        output: matches.remove_one::<PathBuf>("output"),
+        rss_limits: OutputLimits {
+            stdout: OutputLimit::Terminate(
+                matches
+                    .remove_one::<NonZeroUsize>("rss-stdout-bytes")
+                    .expect("default stdout limit")
+                    .get(),
+            ),
+            stderr: OutputLimit::Terminate(
+                matches
+                    .remove_one::<NonZeroUsize>("rss-stderr-bytes")
+                    .expect("default stderr limit")
+                    .get(),
+            ),
+            timeout: RSS_COMMAND_LIMITS.timeout,
+        },
     };
-    let mut args = args.into_iter().peekable();
-    while let Some(option) = args.next() {
-        let name = option
-            .to_str()
-            .ok_or_else(|| Error::InvalidArgument("option is not UTF-8".into()))?;
-        if matches!(name, "--help" | "-h") {
-            return Ok(None);
-        }
-        if matches!(name, "--modes" | "--capacities") {
-            let mut values = Vec::new();
-            while args
-                .peek()
-                .is_some_and(|value| !value.to_string_lossy().starts_with("--"))
-            {
-                values.push(args.next().expect("peeked value"));
-            }
-            if values.is_empty() {
-                return Err(Error::InvalidArgument(format!(
-                    "{name} requires at least one value"
-                )));
-            }
-            if name == "--capacities" {
-                options.capacities = values.iter().map(positive).collect::<Result<_, _>>()?;
-                for (index, value) in options.capacities.iter().enumerate() {
-                    if options.capacities[..index].contains(value) {
-                        return Err(Error::InvalidArgument(
-                            "each capacity must be selected only once".into(),
-                        ));
-                    }
-                }
-            } else {
-                options.modes = parse_modes(&values)?;
-            }
-            continue;
-        }
-        if !VALUE_OPTIONS.contains(&name) {
-            return Err(Error::InvalidArgument(format!("unknown option: {name}")));
-        }
-        let value = args
-            .next()
-            .filter(|value| !value.to_string_lossy().starts_with("--"))
-            .ok_or_else(|| Error::InvalidArgument(format!("{name} requires a value")))?;
-        match name {
-            "--server" => options.server = value.into(),
-            "--iterations" => options.iterations = positive(&value)?,
-            "--workers" => options.workers = positive(&value)?,
-            "--repeats" => options.repeats = positive(&value)?,
-            "--output" => options.output = Some(value.into()),
-            "--rss-stdout-bytes" => {
-                options.rss_limits.stdout = OutputLimit::Terminate(positive(&value)?.get());
-            }
-            "--rss-stderr-bytes" => {
-                options.rss_limits.stderr = OutputLimit::Terminate(positive(&value)?.get());
-            }
-            "--state-bytes" => {
-                options.state_bytes = value
-                    .to_str()
-                    .and_then(|value| value.parse().ok())
-                    .ok_or_else(|| Error::InvalidArgument("state-bytes must fit u32".into()))?;
-            }
-            "--profile" => {
-                if !matches!(value.to_str(), Some("release" | "dev")) {
-                    return Err(Error::InvalidArgument(
-                        "profile must be release or dev".into(),
-                    ));
-                }
-                options.profile = value.to_string_lossy().into_owned();
-            }
-            _ => unreachable!("validated option"),
-        }
-    }
-    if options.server.as_os_str().is_empty() || options.workers > options.iterations {
-        return Err(Error::InvalidArgument(
-            "server is required; workers must not exceed iterations".into(),
+    // Clap owns parsing and individual value constraints. These relationships
+    // compare independently typed values and select a unique workload matrix.
+    if options.workers > options.iterations {
+        return Err(command.error(
+            ErrorKind::ValueValidation,
+            "workers must not exceed iterations",
         ));
     }
-    Ok(Some(options))
+    if options
+        .modes
+        .iter()
+        .enumerate()
+        .any(|(index, value)| options.modes[..index].contains(value))
+        || options
+            .capacities
+            .iter()
+            .enumerate()
+            .any(|(index, value)| options.capacities[..index].contains(value))
+    {
+        return Err(command.error(
+            ErrorKind::ValueValidation,
+            "each mode and capacity must be selected only once",
+        ));
+    }
+    Ok(options)
 }
 
 #[cfg(test)]
 mod tests {
     use super::parse_arguments;
-    use crate::fixture_reuse_driver::Error;
+
+    #[test]
+    fn help_is_owned_by_clap_before_workload_admission() {
+        let error = parse_arguments(["--help"].map(Into::into))
+            .err()
+            .expect("display help");
+        assert_eq!(error.kind(), clap::error::ErrorKind::DisplayHelp);
+        assert_eq!(error.exit_code(), 0);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn last_selection_and_native_path_bytes_are_preserved() {
+        use std::{ffi::OsString, os::unix::ffi::OsStringExt as _};
+        let server = OsString::from_vec(vec![b's', 255]);
+        let output = OsString::from_vec(vec![b'o', 254]);
+        let args = [
+            OsString::from("--server"),
+            server.clone(),
+            "--output".into(),
+            output.clone(),
+            "--workers".into(),
+            "3".into(),
+            "--workers".into(),
+            "2".into(),
+        ];
+        let options = parse_arguments(args).unwrap();
+        assert_eq!(options.server.as_os_str(), &server);
+        assert_eq!(options.output.unwrap().as_os_str(), &output);
+        assert_eq!(options.workers.get(), 2);
+    }
 
     #[test]
     fn capacity_sweep_preserves_order_and_one_fresh_control() {
@@ -236,7 +264,6 @@ mod tests {
             ]
             .map(Into::into),
         )
-        .unwrap()
         .unwrap();
         let cases = options
             .benchmark_cases()
@@ -257,9 +284,7 @@ mod tests {
 
     #[test]
     fn default_and_fresh_only_selection() {
-        let options = parse_arguments(["--server", "/unused/pocket-ic"].map(Into::into))
-            .unwrap()
-            .unwrap();
+        let options = parse_arguments(["--server", "/unused/pocket-ic"].map(Into::into)).unwrap();
         assert_eq!(options.rss_limits, super::RSS_COMMAND_LIMITS);
         assert_eq!(
             options
@@ -280,7 +305,6 @@ mod tests {
             ]
             .map(Into::into),
         )
-        .unwrap()
         .unwrap();
         assert_eq!(options.benchmark_cases().len(), 1);
         assert_eq!(options.benchmark_cases()[0].capacity.get(), 2);
@@ -299,7 +323,6 @@ mod tests {
             ]
             .map(Into::into),
         )
-        .unwrap()
         .unwrap();
         assert_eq!(
             options.rss_limits.stdout,
@@ -331,10 +354,8 @@ mod tests {
                 .into_iter()
                 .chain(selection)
                 .map(Into::into);
-            assert!(matches!(
-                parse_arguments(args),
-                Err(Error::InvalidArgument(_))
-            ));
+            let error = parse_arguments(args).err().expect("invalid selection");
+            assert_eq!(error.exit_code(), 2);
         }
         assert!(
             parse_arguments(["--server", "/unused", "--state-bytes", "0"].map(Into::into)).is_ok()

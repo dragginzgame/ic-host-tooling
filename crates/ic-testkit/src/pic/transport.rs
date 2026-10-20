@@ -378,7 +378,7 @@ mod tests {
 
     #[test]
     fn snapshot_and_install_wrappers_preserve_transport_causes() {
-        let canister_id = ic_platform::Principal::anonymous();
+        let canister_id = ic_platform::principal::ExternalPrincipal::anonymous();
         for message in [REFUSED, RESET, "unrelated application panic"] {
             let expected = message != "unrelated application panic";
             let capture = ControllerSnapshotError::CaptureFailed {
@@ -472,8 +472,8 @@ mod tests {
     fn contextual_call_errors_use_their_structured_kind() {
         let context = super::super::CandidCallContext::new(
             "query_call",
-            ic_platform::Principal::anonymous(),
-            ic_platform::Principal::anonymous(),
+            ic_platform::principal::ExternalPrincipal::anonymous(),
+            ic_platform::principal::ExternalPrincipal::anonymous(),
             "get",
         );
         let error = super::super::CandidCallError::Transport {
@@ -495,8 +495,8 @@ mod tests {
     fn io_wrappers_preserve_contextual_call_error_kinds() {
         let context = super::super::CandidCallContext::new(
             "query_call",
-            ic_platform::Principal::anonymous(),
-            ic_platform::Principal::anonymous(),
+            ic_platform::principal::ExternalPrincipal::anonymous(),
+            ic_platform::principal::ExternalPrincipal::anonymous(),
             "get",
         );
         for (error, expected) in [

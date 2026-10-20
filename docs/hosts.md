@@ -32,50 +32,96 @@ Headed dependency groups use grouped Cargo ordering: `make fmt`, `make fmt-check
 and the release adapter's `--manifest-order-grouped` check use the same policy. Labels do
 not change Cargo resolution or enforce dependency exclusions.
 
-For the Platform adoption, inspect the locked default-feature normal/build graph
-on native Linux and `wasm32-unknown-unknown` separately. Testkit excludes
-`ic-build`, `ic-cdk` and `ic-host-text`. The local `ic-testkit`
-catalog entry serves the private harness/probe; exclude the selected root itself
-when inspecting its product graph. Reproduce the inspection with:
+Review each locked normal/build graph separately; native test dependencies must
+not leak into the published Wasm library. The maintained feature contracts are:
+
+| Package and target | Feature selection | Required boundary |
+| --- | --- | --- |
+| Native `ic-testkit` | Default | PocketIC/Candid allowed; no Wire, executor, Build, Host Text, Agent, parser or full CDK |
+| Native `ic-testkit` | All features (currently `wire,reply-fixtures`) | One Wire identity; otherwise the same native exclusions |
+| Native `ic-testkit-dev` | All features | One Build, Platform, PocketIC and each Host package identity; tooling is intentional |
+| Wasm `ic-testkit` | All features | One Platform/ic0 identity; no Candid, PocketIC, Wire, Host, Build, Agent, parser, full CDK or executor |
+| Wasm `ic-testkit-perf-probe` | Default | One Platform/Wire/executor/ic0 identity; no Candid, PocketIC, Host, Build, Agent, parser or full CDK |
+
+Platform's private entrypoint macros are intentional in the probe graph. The
+library's Wasm graph must also omit those macros. Check each selected native host
+rather than assuming a Linux graph qualifies macOS. Cargo's reproducible inputs
+are the lockfile, selected package, target, features and normal/build edges:
 
 ```bash
 cargo tree --locked --offline -p ic-testkit --edges normal,build
-cargo tree --locked --offline -p ic-testkit --target wasm32-unknown-unknown --edges normal,build
+cargo tree --locked --offline -p ic-testkit --all-features --edges normal,build
+cargo tree --locked --offline -p ic-testkit --all-features --target wasm32-unknown-unknown --edges normal,build
+cargo tree --locked --offline -p ic-testkit-perf-probe --target wasm32-unknown-unknown --edges normal,build
 ```
 
-**Enforcement gap:** this repository has publication and test-canister workflows,
-not an application deployment gate. `dependency-pins-check` checks declarations
-and inheritance plus the explicit direct-dependency policy, not transitive role exclusions. Neither formatting nor snapshot
-integrity closes that gap. Deploying consumers must enforce exclusions for their
-own target/features and bind locked build evidence and the final artifact digest
-to deployed bytes. This inspection does not qualify macOS graphs or consumer
-deployments; the probe intentionally includes Platform's maintained runtime and
-the qualified executor for its test-canister role.
+`make dependency-pins-check` now runs the direct declaration checks followed by
+`make dependency-graph-check`, which applies this matrix through Shared Tooling's
+canonical locked, offline graph observer. The native target comes from the selected
+`rustc` host, and CI runs the gate on Linux and both supported macOS architectures.
+Wasm graphs also exclude the native Clap command-line parser. CI and the release
+gate already call the dependency policy target and explicitly prepare locked caches.
+For a focused local run, prepare missing sources with `cargo fetch --locked` first;
+the checks never fetch, resolve upgrades or install tools themselves
+([#134 — Enforce selected library and probe resolved dependency graphs](https://github.com/dragginzgame/ic-testkit/issues/134)).
+
+**Deployment boundary:** this repository has publication and test-canister
+workflows, not an application deployment gate. Graph observation does not prove
+which bytes were deployed. Deploying consumers must enforce their own target and
+feature profiles, then bind locked build evidence and the final artifact digest
+to deployed bytes. Linux and Wasm cross-compilation do not qualify native macOS
+or installed-IC consumer journeys.
+
+### Host and Build type boundary
+
+The selected Host Artifacts, FS, Process and Text packages are published 0.31.1.
+Their APIs used here retain the previous behavior, but public startup/cleanup
+errors have the new Host package identities. Consumers naming them select Host
+0.31 alongside the pending Testkit 0.58 release.
+
+The private developer package passes Host limits and owned children into Build.
+Require published Build 0.22.1, whose exposed Host boundary is 0.31; Build 0.22.0
+still selects 0.30 and causes compile-time type mismatches. The lock must have
+one Host identity per family package after this adoption, without aliases or
+conversion wrappers. The native developer graph check enforces that requirement
+alongside its single Build and Platform identities. The selected release editor follows that same Build lock
+entry. This requirement does not add Build to the published library or Wasm.
 
 ### Published Platform boundary
 
-Testkit selects registry `ic-platform` 0.2.1 with no default features. Its native
+Testkit selects registry `ic-platform` 0.4.0 with no default features. Its native
 target enables `candid` and `pocket-ic`; the Wasm library selects `ic0` for marker logging,
-execution counters and stable-page counts alongside the unconditional Principal identity. Candid, CDK
+execution counters and stable-page counts alongside the unconditional external principal identity. Candid, CDK
 and host parsing stay out of that graph. The published library selects no executor,
 certification, Agent, management DTO or `candid-parser` feature. Native PocketIC and other dependencies still
 require transitive Candid; removing direct declarations does not remove that code.
 
 The published archive checksum is
-`73506580e1ea0f78adacdd44560717eb9057e86274169e6525bbb024d1dd1c83`,
+`3baf34ec6f65d10d78271159d1edc0feb61940816cc95af51bfce3f8dcfa4355`,
 matching Cargo's registry index. The archive provides the argument traits,
 encoders, bounded decoders, five explicit limits and typed error sources used
 here. Its decoder implementation matches the former local implementation; no
 compatibility crate remains. External consumers must adopt Platform's limits
 and error identities with Testkit 0.54; prior published packages remain available.
 
-The pending Testkit 0.56 release changes those authored limits and error identities
-to Platform 0.2.1. Native callers must select Platform 0.2 for both their limits
-and typed error matching; the prior 0.1 identity is incompatible even though all
-five budgets and decoder behavior are unchanged. Published Testkit 0.55.2 still
-uses Platform 0.1, so downstream removal of temporary old-limit selections must
-wait for Testkit publication and normal registry qualification
+Testkit 0.56 changed those authored limits and error identities to Platform 0.2.
+Those 0.56/0.57 callers select Platform 0.2 for limits and typed error matching;
+the prior 0.1 identity is incompatible even though all five budgets and decoder
+behavior are unchanged. Consumers of Testkit 0.55.2 and earlier still need the
+older identity until they adopt the published Testkit release
 ([#133 — Align public decoder-limit identities with published Platform 0.2](https://github.com/dragginzgame/ic-testkit/issues/133)).
+
+The pending 0.58.0 batch adopts Platform 0.4. Its `DecodeLimits` and typed
+Candid errors belong to that new package identity, so callers select Platform 0.4.
+PocketIC, Candid DTOs and `Fake` retain `principal::ExternalPrincipal` (the
+original upstream type); the distinct application `ic_platform::Principal` is
+converted explicitly at an application/simulator boundary. No DTO, wire bytes,
+reply budget, executor or persisted representation changes here.
+
+Platform 0.4 separates raw runtime calls from Candid codec helpers and owns
+runtime reject codes. Testkit's probe already supplies explicit Wire codecs;
+its PocketIC-facing reject codes and DTOs retain the original external identities.
+The signature features are not selected. No local replacement API is needed.
 
 Platform also owns the native PocketIC client and DTO dependency; Testkit forwards
 its explicit module rather than the complete upstream crate. Testkit retains
@@ -84,15 +130,16 @@ fixture policy. The upstream client remains 16.1.0, with its own management DTOs
 0.8.0. The library's Wasm normal/build graph must exclude PocketIC, Candid, CDK
 and host transport; the test probe's runtime graph is a separate intentional selection.
 
-Testkit 0.55.0 narrows the former complete upstream re-export. Observed sibling callers in
-Backup and Canic require additional Platform exports: placement, effective
-principal, message IDs, HTTP gateway configuration and HTTP response fixtures.
-Their adoption is blocked by
-[Platform #27 — Complete PocketIC exports used by Testkit consumers in Backup and Canic](https://github.com/dragginzgame/ic-platform/issues/27).
-The supplying exports are prepared in
-[Platform PR #28 — Complete PocketIC fixture exports for Testkit consumers](https://github.com/dragginzgame/ic-platform/pull/28);
-normal adoption still requires publication. The local caller migration does not
-establish those siblings' qualification.
+Testkit 0.55.0 narrowed the former complete upstream re-export. Published Platform
+0.2.2 supplies the placement, effective-principal, message-ID, HTTP gateway and
+HTTP response identities used by Backup and Canic. The manifest minimum now
+requires 0.4.0, which retains those exports. The server-free `pocket_ic_platform` integration tests
+compile pending-ingress, chunked-install and HTTP fixture client signatures
+through `ic_testkit::pocket_ic`, preserving PocketIC's management 0.8 identity.
+Platform's separate management feature selects a different upstream DTO family;
+those identities are not interchangeable. These checks qualify Testkit's public
+forwarding, not the siblings' installed-IC journeys or native macOS execution
+([#132 — Adopt published PocketIC fixture exports and enforce their minimum](https://github.com/dragginzgame/ic-testkit/issues/132)).
 
 The private probe selects Platform's `cdk` feature and entrypoint macros, with
 IC Wire framing and shared private method contracts for its native callers. Its
@@ -135,14 +182,15 @@ against `ci/cargo-dependency-boundaries.json`. It checks canonical package names
 members. The adopted checker does not scan unused root catalog entries, arbitrary
 future `ic-cdk-*` names, independent workspaces or transitive feature reachability.
 The current repository has one workspace and no generated Candid DTOs/templates;
-its root catalog and resolved native/Wasm feature graphs require separate review.
+unused catalog entries and new externally maintained IC package families still require review;
+the graph gate separately enforces the selected native/Wasm profiles above.
 
 | Target | Required qualification |
 | --- | --- |
 | Linux x86-64 | Native builds, PocketIC lifecycle, provisioning and operator workflows; CI uses Ubuntu 24.04 |
 | macOS 15 Apple Silicon | The same native contracts; CI uses `macos-15` |
 | macOS 15 Intel | The same native contracts; CI uses `macos-15-intel` |
-| `wasm32-unknown-unknown` | Portable benchmark/principal APIs and Candid decoding; the private probe qualifies real canister marker emission |
+| `wasm32-unknown-unknown` | Portable benchmark/principal APIs; the private probe qualifies canister markers and Wire calls |
 
 Use Bash 3.2 or newer, GNU Make, Git, Perl and the native Unix utilities named in
 [Shared Tooling's setup prerequisites](local-setup.md#bootstrap-prerequisites).
@@ -176,20 +224,20 @@ including unwind; caller-selected external startup logs survive teardown.
 Qualification evidence uses unguarded allocated paths for intentional retention.
 Worker capture uses Host's scoped `TemporaryFile`, cloning its descriptor and
 closing/unlinking its name before spawning the worker. The private development
-package explicitly selects FS 0.30's `temporary-file` feature. The published
+package explicitly selects FS's `temporary-file` feature. The published
 library needs neither that feature nor `capability`; these empty-default
 backends are selected only by actual callers. Testkit declares none of
 `tempfile`, `wasm-encoder` or `wasmparser` directly; these remain transitive Host
 implementation dependencies.
 
 The public startup probe failure and command/server cleanup references expose
-Host Process 0.30 types. Consumers naming those types must select the matching
-Host minor with Testkit 0.56. Server compatibility, deadlines, retained output
+Host Process 0.31 types in the pending 0.58 batch. Released Testkit 0.56/0.57
+uses Host 0.30; consumers select the matching family when naming those types. Server compatibility, deadlines, retained output
 and cleanup behavior are unchanged. Qualification uses the selected registry
 lock; source compilation and cross-target graphs do not establish native macOS
 or deployed consumer acceptance.
 
-The private driver now consumes registry Build 0.22 with the same Host 0.30
+The private driver now consumes registry Build 0.22.1 with the same Host 0.31
 child and output-limit identities. Its actual Cargo selections, renamed probe
 build and installed marker test qualify this caller without a compatibility
 layer or unpublished source override. Other consumers retain their acceptance
@@ -237,6 +285,7 @@ change. Use this workspace's `target/`.
 | Platform Candid integration | `cargo test -p ic-testkit --lib --locked pic::calls::tests`; `cargo test -p ic-testkit --lib --locked pic::transport::tests` |
 | Canister library | `cargo check -p ic-testkit --lib --target wasm32-unknown-unknown --locked` |
 | Development build/report adapter | `cargo check -p ic-testkit-dev --all-targets --locked`; `cargo test -p ic-testkit-dev --lib --locked` |
+| Operator and private CLI parsing | `cargo test -p ic-testkit --bin ic-testkit-server --locked`; `cargo test -p ic-testkit --test server_runner --locked`; `cargo test -p ic-testkit-dev --lib --locked arguments`; `cargo test -p ic-testkit-dev --lib --locked fixture_reuse_protocol` |
 | Benchmark parser and example | `cargo test -p ic-testkit --test benchmark --locked`; `cargo test -p ic-testkit --example benchmark_report --locked` |
 | Shared snapshot and real tooling callers | `make shared-tooling-check`; `make tools-check dependency-pins-check`; select the affected hook/release-adapter checks from the Makefile |
 | Formatting and API documentation | `make fmt-check`; `RUSTDOCFLAGS="-D warnings" cargo doc -p ic-testkit --no-deps --locked`; `cargo test -p ic-testkit --doc --locked` |
@@ -267,6 +316,41 @@ the release gate. Release execution retains separate maintainer authority.
 Passing Linux checks or cross-compilation does not qualify native macOS.
 
 ## Shared tooling qualification boundary
+
+The current snapshot selects Shared Tooling 0.25.4 at
+`db555ab6cf4a93af9a183f18d921d3b0ee97c725`. Clap 4.6.7, already selected in the
+lockfile, owns all maintained Rust CLI schemas, typed values, defaults, help,
+version and parse diagnostics. Testkit retains server admission/lifecycle and
+exit-status policy; the private benchmark retains workload relationships such as
+workers not exceeding iterations and distinct modes/capacities. Native path bytes,
+empty child arguments and the private worker's positional protocol remain intact.
+Clap is a native-only product dependency and stays out of library/probe Wasm graphs.
+
+CI failure collection uses Shared's `collect-tool-evidence.sh` orchestrator.
+Testkit selects outcomes, product logs and linked-parent diagnostics; Shared owns
+selector/archiver receipts and refusal of failed selector output as path authority.
+`selection-status` retains the original tool failure; collection returns nonzero
+for incomplete evidence. Testkit's archive/upload/download fixture retains checks
+for redirected parents, partial archives, exact payload bytes and hosted bindings.
+
+The release-adapter fixture copies its declared helper closure through Shared's
+canonical fixture preparer. The adapter's companion declaration owns that inventory;
+a new shared helper no longer requires another manually copied file list here.
+The graph observer and fixture preparer are explicit snapshot entrypoints.
+
+The locked IC Build 0.22.1 release editor replaces Shared's retired Perl
+manifest/lock renderers. `make install-tools` prepares the selected executable;
+`make tools-check` and release preparation admit it offline. Standard release
+commands select it without per-shell exports. Fresh preflight prepares tools
+after source admission; saved recovery uses its admitted lock. The low-level
+renderer has an explicit 8 MiB allowance per metadata document, not a Cargo
+build-output or execution deadline. Testkit retains metadata originals,
+publication ordering and same-contract interruption recovery.
+
+The canonical no-symlink checker covers indexed and tracked/nonignored working
+paths through `make no-symlinks-check`, including the CI/release roster. Package
+archives are checked separately during adoption; graph admission alone does not
+prove the contents or dependency closure of deployed Wasm.
 
 The portable CI job admits this checkout's prepared tools, dependency selections
 and snapshot through its real Make targets under the system Bash and its declared
