@@ -8,7 +8,7 @@ PocketIC-oriented test utilities for Internet Computer canister tests.
 
 ```toml
 [dev-dependencies]
-ic-testkit = "0.60"
+ic-testkit = "0.61"
 ```
 
 For native Candid budgets, also add `ic-platform` with default features disabled
