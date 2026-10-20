@@ -1,9 +1,18 @@
 # Changelog
 
-## [0.62.1]
+## [0.62.2]
 
 - Adopt Shared Tooling 0.25.9 release retry protection, refusing a second version
   increment while a committed candidate has not completed Git delivery.
+
+## [0.62.1] - 2026-10-20
+
+- Publish crash-barrier markers atomically before allowing child termination.
+- Fetch locked dependencies before building the setup server and explain missing
+  release parsers. Share native and Wasm MSRV qualification between CI and releases.
+- Retain product qualification artifacts on CI failure and check links in the
+  imported Build/Testkit guides and package/browser documentation.
+- See [the patch details](docs/changelog/0.62.md).
 
 ## [0.62.0] - 2026-10-20
 

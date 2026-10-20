@@ -26,6 +26,9 @@ select_editor() {
 }
 version() {
     local observed
+    if ! command -v "${YQ:-yq}" >/dev/null 2>&1 || ! command -v jq >/dev/null 2>&1; then
+        fail 'host parsers are not prepared; run make install-tools && make tools-check before releasing'
+    fi
     observed="$(bash "$tooling_root/scripts/ci/read-cargo-workspace-version.sh" --stable Cargo.toml)" || return
     printf '%s\n' "$observed"
 }
@@ -234,7 +237,7 @@ case "$operation" in
             {
                 receipt_header
                 CARGO_NET_OFFLINE=true make --no-print-directory ci
-                CARGO_NET_OFFLINE=true make --no-print-directory msrv-workspace
+                CARGO_NET_OFFLINE=true make --no-print-directory msrv-qualification
             } 2>&1 | tee -a "$receipt.log"
             observed_source="$(git rev-parse HEAD)" || exit $?
             after="$(git diff --binary HEAD | git hash-object --stdin)" || exit $?

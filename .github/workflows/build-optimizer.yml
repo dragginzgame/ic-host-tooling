@@ -47,3 +47,6 @@ jobs:
           name: wasm-optimizer-${{ matrix.os }}-${{ github.run_attempt }}
           temp-root: ${{ runner.temp }}/wasm-qualification
           repository-root: ${{ github.workspace }}
+      - name: Retain product qualification evidence
+        if: ${{ failure() && !cancelled() }}
+        uses: ./.github/actions/retain-product-evidence

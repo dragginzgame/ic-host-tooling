@@ -51,6 +51,24 @@ fn missing_marker_times_out_without_creating_it() {
 }
 
 #[test]
+fn marker_publication_failure_reaps_the_child() {
+    let fixture = Fixture::new();
+    super::publish_marker(&fixture.path().join("barrier-ready"), b"ready\n").unwrap();
+    fs::create_dir(fixture.path().join("barrier-acknowledged")).unwrap();
+    let mut child = Command::new("/bin/sh")
+        .args(["-c", "exec sleep 30"])
+        .spawn()
+        .unwrap();
+
+    assert!(
+        kill_child_at_acknowledged_barrier(&mut child, fixture.path(), Duration::from_secs(5))
+            .is_err()
+    );
+    assert!(child.try_wait().unwrap().is_some());
+    assert!(!fixture.path().join("barrier-armed").exists());
+}
+
+#[test]
 fn marker_precedes_child_exit_and_child_exit_precedes_timeout() {
     let fixture = Fixture::new();
     let marker = fixture.path().join("ready");

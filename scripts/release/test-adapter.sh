@@ -155,12 +155,13 @@ cat > "$fixture/bin/make" <<'STUB'
 #!/usr/bin/env bash
 set -euo pipefail
 case "$*" in
-    '--no-print-directory install-tools'|'--no-print-directory tools-check'|'--no-print-directory dependency-pins-check'|'--no-print-directory ci'|'--no-print-directory msrv-workspace')
+    '--no-print-directory install-tools'|'--no-print-directory tools-check'|'--no-print-directory dependency-pins-check'|'--no-print-directory ci'|'--no-print-directory msrv-qualification')
         printf 'make %s\n' "$*" >> "$ADAPTER_EVENTS"
         if [[ "$*" == '--no-print-directory install-tools' && -n "${ADAPTER_EDITOR_CACHE:-}" ]]; then
             : > "$ADAPTER_EDITOR_CACHE"
         fi
-        if [[ "$*" == '--no-print-directory ci' ]]; then exit "${ADAPTER_GATE_RESULT:-0}"; fi ;;
+        if [[ "$*" == '--no-print-directory ci' ]]; then exit "${ADAPTER_GATE_RESULT:-0}"; fi
+        if [[ "$*" == '--no-print-directory msrv-qualification' ]]; then exit "${ADAPTER_MSRV_RESULT:-0}"; fi ;;
     *) echo "Unexpected Make operation: $*" >&2; exit 2 ;;
 esac
 STUB
@@ -197,6 +198,13 @@ chmod +x "$fixture/bin/bash" "$fixture/bin/yq"
 export YQ="$fixture/bin/yq"
 export PATH="$fixture/bin:$PATH"
 cd "$fixture"
+
+# Version observation stays read-only and points a fresh checkout at explicit
+# setup instead of failing with an unexplained missing parser path.
+: > "$ADAPTER_EVENTS"
+if YQ="$fixture/missing-yq" bash "$adapter" version > missing-tools.log 2>&1; then exit 1; fi
+grep -F 'run make install-tools && make tools-check before releasing' missing-tools.log >/dev/null
+[[ ! -s "$ADAPTER_EVENTS" ]] || exit 1
 
 # A failed shared reader must not leak plausible version stdout into admission.
 mkdir failed-parser-bin
@@ -508,7 +516,7 @@ for query in 'rev-parse HEAD' 'diff --binary HEAD' 'hash-object --stdin'; do
         if [[ "$occurrence" == 1 ]]; then
             if grep -E '^make .* (ci|msrv)' "$ADAPTER_EVENTS"; then exit 1; fi
         else
-            grep -Fx 'make --no-print-directory msrv-workspace' "$ADAPTER_EVENTS" > /dev/null
+            grep -Fx 'make --no-print-directory msrv-qualification' "$ADAPTER_EVENTS" > /dev/null
             [[ -f "release-state/$RELEASE_VERSION.validation.log" ]] || exit 1
         fi
         cmp source/Cargo.toml Cargo.toml
@@ -520,6 +528,12 @@ done
 # Verification qualifies the source without installing tools. The gate and
 # MSRV checks are substitutes; saved notes and receipt handling are real.
 : > "$ADAPTER_EVENTS"
+status=0
+ADAPTER_MSRV_RESULT=73 bash "$adapter" verify > failed-msrv.log 2>&1 || status=$?
+[[ "$status" == 73 && ! -e "release-state/$RELEASE_VERSION.validation" &&
+    ! -e "release-state/$RELEASE_VERSION.validation.notes" ]] || exit 1
+grep -Fx 'make --no-print-directory msrv-qualification' "$ADAPTER_EVENTS" >/dev/null
+: > "$ADAPTER_EVENTS"
 bash "$adapter" verify > verified.log 2>&1
 cat > expected <<'EVENTS'
 cargo locate-project --workspace --message-format plain --manifest-path Cargo.toml
@@ -529,7 +543,7 @@ cargo sort --workspace --grouped --check
 make --no-print-directory dependency-pins-check
 cargo fetch --locked --offline
 make --no-print-directory ci
-make --no-print-directory msrv-workspace
+make --no-print-directory msrv-qualification
 EVENTS
 cmp expected "$ADAPTER_EVENTS"
 receipt="release-state/$RELEASE_VERSION.validation"
