@@ -1,0 +1,1674 @@
+use super::{
+    ArtifactCacheError, ArtifactCacheOutcome, ArtifactCachePreparation, ArtifactCacheSpec,
+    ArtifactOutputValidation, entry_directory, namespace_directory, prepare_artifact_cache,
+    prune_artifact_cache, resolve_key,
+};
+use crate::artifacts::{
+    ArtifactCacheMaintenance, CacheRetentionLimits, WasmBuildSpec, resolve_cargo_build_inputs,
+};
+use crate::fs_fixture::unique_temp_directory;
+use std::{
+    ffi::OsString,
+    fs,
+    panic::{AssertUnwindSafe, catch_unwind},
+    path::Path,
+    process::Command,
+    sync::{
+        Arc, Barrier,
+        atomic::{AtomicUsize, Ordering},
+    },
+    thread,
+    time::Duration,
+};
+
+#[cfg(unix)]
+use std::{
+    fs::FileTimes,
+    os::unix::{
+        ffi::OsStringExt as _,
+        fs::{MetadataExt as _, PermissionsExt as _, symlink},
+    },
+    time::UNIX_EPOCH,
+};
+
+#[test]
+fn artifact_error_lists_preserve_exact_text_and_order() {
+    for (paths, expected) in [
+        (vec![], ""),
+        (vec!["a λ"], "a λ"),
+        (vec!["z", "a λ"], "z, a λ"),
+    ] {
+        let error = crate::artifacts::WasmBuildError::MissingArtifacts {
+            paths: paths.iter().map(std::path::PathBuf::from).collect(),
+        };
+        assert_eq!(
+            error.to_string(),
+            format!("cargo build succeeded without producing: {expected}")
+        );
+    }
+    for (outputs, expected) in [
+        (vec![], ""),
+        (vec![("first", "a λ")], "first (a λ)"),
+        (vec![("z", "z"), ("a", "a λ")], "z (z), a (a λ)"),
+    ] {
+        let error = ArtifactCacheError::InvalidOutputs {
+            outputs: outputs
+                .into_iter()
+                .map(|(name, path)| (name.into(), path.into()))
+                .collect(),
+        };
+        assert_eq!(
+            error.to_string(),
+            format!("artifact transaction has missing or invalid outputs: {expected}")
+        );
+    }
+}
+
+#[test]
+#[cfg(unix)]
+fn failed_commit_retains_primary_and_cleanup_errors_and_remaining_staging() {
+    let root = unique_temp_directory("transaction-cleanup-failure");
+    if fs::metadata(&root).unwrap().uid() == 0 {
+        fs::remove_dir_all(root).unwrap();
+        return;
+    }
+    let spec = ArtifactCacheSpec::new(&root.join("cache"), "cleanup", "recipe/v1")
+        .with_output("output", &root.join("published"));
+    let ArtifactCachePreparation::Build(transaction) = prepare_artifact_cache(&spec).unwrap()
+    else {
+        panic!("expected a fresh transaction");
+    };
+    let stage = transaction.staging_directory().to_owned();
+    let parent = stage.parent().unwrap();
+    let permissions = fs::metadata(parent).unwrap().permissions();
+    fs::set_permissions(parent, fs::Permissions::from_mode(0o500)).unwrap();
+    let error = transaction.commit().unwrap_err();
+    fs::set_permissions(parent, permissions).unwrap();
+    let ArtifactCacheError::FailedTransactionCleanup {
+        transaction_error,
+        path,
+        source,
+    } = error
+    else {
+        panic!("expected both transaction and cleanup failures");
+    };
+    assert!(matches!(
+        *transaction_error,
+        ArtifactCacheError::InvalidOutputs { .. }
+    ));
+    assert_eq!(source.kind(), std::io::ErrorKind::PermissionDenied);
+    assert_eq!(path, stage);
+    assert!(stage.exists());
+    assert!(!root.join("published").exists());
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn os_native_argument_and_environment_builders_affect_identity() {
+    let root = unique_temp_directory("os-native-identity");
+    let input = root.join("input");
+    fs::write(&input, b"input").expect("write OS-native identity input");
+    let base = ArtifactCacheSpec::new(&root.join("cache"), "native", "recipe/v1")
+        .with_input("input", &input)
+        .with_output("output", &root.join("output"));
+    let arguments = base.clone().with_arguments([OsString::from("--exact")]);
+    let environment = base
+        .clone()
+        .with_environment([(OsString::from("MODE"), OsString::from("exact"))]);
+    let unset = base
+        .clone()
+        .with_unset_environment([OsString::from("MODE")]);
+
+    let base_key = resolve_key(&base).unwrap().key;
+    assert_ne!(base_key, resolve_key(&arguments).unwrap().key);
+    assert_ne!(base_key, resolve_key(&environment).unwrap().key);
+    assert_ne!(base_key, resolve_key(&unset).unwrap().key);
+    fs::remove_dir_all(root).expect("remove OS-native identity test directory");
+}
+
+#[test]
+fn cargo_snapshot_keys_semantic_identity_and_guards_raw_workspace_inputs() {
+    let root = unique_temp_directory("transaction-semantic-cargo-input");
+    for (package, dependency) in [
+        ("canister", ""),
+        (
+            "host",
+            "\n[dependencies]\nhost_dep = { workspace = true }\n",
+        ),
+        ("host_dep_a", ""),
+        ("host_dep_b", ""),
+    ] {
+        let directory = root.join(package);
+        fs::create_dir_all(directory.join("src")).expect("create Cargo snapshot package");
+        fs::write(
+            directory.join("Cargo.toml"),
+            format!(
+                "[package]\nname = \"{package}\"\nversion = \"0.0.0\"\nedition = \"2024\"\n{dependency}"
+            ),
+        )
+        .expect("write Cargo snapshot package manifest");
+        fs::write(directory.join("src/lib.rs"), "pub fn value() {}\n")
+            .expect("write Cargo snapshot package source");
+    }
+    let workspace_manifest = root.join("Cargo.toml");
+    let write_workspace = |dependency: &str| {
+        fs::write(
+            &workspace_manifest,
+            format!(
+                "[workspace]\nmembers = [\"canister\", \"host\"]\nexclude = [\"host_dep_a\", \"host_dep_b\"]\nresolver = \"2\"\n\n[workspace.dependencies]\nhost_dep = {{ package = \"{dependency}\", path = \"{dependency}\" }}\n"
+            ),
+        )
+        .expect("write Cargo snapshot workspace manifest");
+    };
+    write_workspace("host_dep_a");
+    let build_spec = WasmBuildSpec::new(
+        &root,
+        &root.join("target"),
+        &["canister"],
+        crate::cargo_fixture::environment(),
+    );
+    let before = resolve_cargo_build_inputs(&build_spec).expect("resolve first Cargo snapshot");
+    let artifact_spec = |resolved| {
+        ArtifactCacheSpec::new(&root.join("cache"), "post-link", "recipe/v1")
+            .with_cargo_build_inputs("post-link", &build_spec, resolved)
+            .with_cargo_build_inputs("canister", &build_spec, resolved)
+            .with_output("output", &root.join("output"))
+    };
+    let before_spec = artifact_spec(&before);
+    let reordered = ArtifactCacheSpec::new(&root.join("cache"), "post-link", "recipe/v1")
+        .with_cargo_build_inputs("canister", &build_spec, &before)
+        .with_cargo_build_inputs("post-link", &build_spec, &before)
+        .with_output("output", &root.join("output"));
+    assert_eq!(before_spec, reordered);
+    let before_key = resolve_key(&before_spec)
+        .expect("resolve first artifact key")
+        .key;
+    assert_eq!(before_key, resolve_key(&reordered).unwrap().key);
+    let duplicate = before_spec
+        .clone()
+        .with_cargo_build_inputs("canister", &build_spec, &before)
+        .with_cargo_build_inputs("aaa", &build_spec, &before);
+    expect_invalid_spec(prepare_artifact_cache(&duplicate));
+    assert!(
+        !root.join("cache").exists(),
+        "duplicate Cargo input labels must fail before cache initialization"
+    );
+
+    write_workspace("host_dep_b");
+    assert!(matches!(
+        resolve_key(&before_spec),
+        Err(ArtifactCacheError::CargoBuildInputsChanged { .. })
+    ));
+    let after = resolve_cargo_build_inputs(&build_spec).expect("resolve second Cargo snapshot");
+    assert_eq!(before.fingerprint(), after.fingerprint());
+    let after_key = resolve_key(&artifact_spec(&after))
+        .expect("resolve second artifact key")
+        .key;
+    assert_eq!(before_key, after_key);
+    fs::remove_dir_all(root).expect("remove semantic Cargo transaction fixture");
+}
+
+#[test]
+#[cfg(unix)]
+fn non_utf8_argument_bytes_affect_artifact_identity_exactly() {
+    let root = unique_temp_directory("non-utf8-identity");
+    let input = root.join("input");
+    fs::write(&input, b"input").expect("write non-UTF-8 identity input");
+    let base = ArtifactCacheSpec::new(&root.join("cache"), "native", "recipe/v1")
+        .with_input("input", &input)
+        .with_output("output", &root.join("output"));
+    let first = base
+        .clone()
+        .with_arguments([OsString::from_vec(vec![b'a', 0xff])]);
+    let second = base.with_arguments([OsString::from_vec(vec![b'a', 0xfe])]);
+
+    assert_ne!(
+        resolve_key(&first).unwrap().key,
+        resolve_key(&second).unwrap().key
+    );
+    fs::remove_dir_all(root).expect("remove non-UTF-8 identity test directory");
+}
+
+#[test]
+fn one_output_is_built_materialized_repaired_and_reused() {
+    let root = unique_temp_directory("one-output");
+    let input = root.join("input.wasm");
+    let destination = root.join("public/optimized.wasm");
+    fs::write(&input, b"raw-wasm").expect("write input");
+    let spec = ArtifactCacheSpec::new(&root.join("cache"), "optimizer", "pipeline/v1")
+        .with_input("raw-wasm", &input)
+        .with_arguments(["-O3", "--strip-debug"])
+        .with_output("optimized.wasm", &destination);
+    assert!(!destination.starts_with(spec.cache_root()));
+
+    let transaction = expect_build(prepare_artifact_cache(&spec).expect("prepare miss"));
+    fs::write(
+        transaction
+            .output_path("optimized.wasm")
+            .expect("declared output path"),
+        b"optimized-wasm",
+    )
+    .expect("write staged output");
+    let built = transaction.commit().expect("commit artifact transaction");
+
+    assert!(matches!(built, ArtifactCacheOutcome::Built(_)));
+    assert_eq!(fs::read(&destination).unwrap(), b"optimized-wasm");
+    fs::write(&destination, b"tampered-public-output").expect("tamper public output");
+
+    let reused = prepare_artifact_cache(&spec).expect("prepare exact reuse");
+    let record = reused.reused_record().expect("expected exact reuse");
+    assert_eq!(record.key(), built.record().key());
+    assert_eq!(record.artifacts()[0].name(), "optimized.wasm");
+    assert_eq!(fs::read(&destination).unwrap(), b"optimized-wasm");
+    assert!(record.timings().caller_build().is_none());
+    fs::remove_dir_all(root).expect("remove one-output test directory");
+}
+
+#[cfg(unix)]
+#[test]
+fn warm_outputs_preserve_matching_files_and_repair_changed_or_missing_files() {
+    let root = unique_temp_directory("matching-public-outputs");
+    let mut spec = ArtifactCacheSpec::new(&root.join("cache"), "outputs", "recipe/v1");
+    for name in ["matching", "changed", "missing"] {
+        spec = spec.with_output(name, &root.join(name));
+    }
+    spec = spec.with_output_validation(
+        "empty",
+        &root.join("empty"),
+        ArtifactOutputValidation::RegularFile,
+    );
+    let transaction = expect_build(prepare_artifact_cache(&spec).unwrap());
+    for name in ["matching", "changed", "missing", "empty"] {
+        fs::write(
+            transaction.output_path(name).unwrap(),
+            if name == "empty" {
+                b""
+            } else {
+                b"cached".as_slice()
+            },
+        )
+        .unwrap();
+    }
+    let old_time = UNIX_EPOCH + Duration::from_secs(3600);
+    let matching = root.join("matching");
+    fs::write(&matching, b"cached").unwrap();
+    fs::File::open(&matching)
+        .unwrap()
+        .set_times(FileTimes::new().set_modified(old_time))
+        .unwrap();
+    let before_commit = fs::metadata(&matching).unwrap();
+    let built = transaction.commit().unwrap();
+    assert_ne!(fs::metadata(&matching).unwrap().ino(), before_commit.ino());
+    let unchanged = ["matching", "empty"].map(|name| {
+        let path = root.join(name);
+        fs::File::open(&path)
+            .unwrap()
+            .set_times(FileTimes::new().set_modified(old_time))
+            .unwrap();
+        (path.clone(), fs::metadata(path).unwrap())
+    });
+    // Equal length forces content verification, rather than a length-only hit.
+    fs::write(root.join("changed"), b"edited").unwrap();
+    fs::remove_file(root.join("missing")).unwrap();
+
+    let reused = prepare_artifact_cache(&spec).unwrap();
+    let record = reused
+        .reused_record()
+        .expect("reuse the verified cache entry");
+    assert_eq!(record.key(), built.record().key());
+    for (path, before) in unchanged {
+        let after = fs::metadata(path).unwrap();
+        assert_eq!((after.dev(), after.ino()), (before.dev(), before.ino()));
+        assert_eq!(after.modified().unwrap(), old_time);
+    }
+    for name in ["matching", "changed", "missing"] {
+        assert_eq!(fs::read(root.join(name)).unwrap(), b"cached");
+    }
+    assert_eq!(fs::read(root.join("empty")).unwrap(), b"");
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[cfg(unix)]
+#[test]
+fn warm_output_repair_detaches_links_and_replaces_restricted_files() {
+    for replacement in [
+        "symlink",
+        "cyclic-symlink",
+        "dangling-symlink",
+        "cache-hardlink",
+        "input-hardlink",
+        "readonly",
+        "write-only",
+        "executable",
+    ] {
+        let root = unique_temp_directory("public-output-ownership");
+        let input = root.join("input");
+        let destination = root.join("output");
+        fs::write(&input, b"cached").unwrap();
+        let spec = ArtifactCacheSpec::new(&root.join("cache"), "output", "recipe/v1")
+            .with_input("input", &input)
+            .with_output("output", &destination);
+        let built = build_output(&spec, b"cached");
+        let cached = built.record().artifacts()[0].path();
+        match replacement {
+            "symlink" | "cyclic-symlink" | "dangling-symlink" | "cache-hardlink"
+            | "input-hardlink" => {
+                fs::remove_file(&destination).unwrap();
+                match replacement {
+                    "symlink" => symlink(cached, &destination).unwrap(),
+                    "cyclic-symlink" => symlink(&destination, &destination).unwrap(),
+                    "dangling-symlink" => symlink(root.join("missing"), &destination).unwrap(),
+                    "cache-hardlink" => fs::hard_link(cached, &destination).unwrap(),
+                    "input-hardlink" => fs::hard_link(&input, &destination).unwrap(),
+                    _ => unreachable!(),
+                }
+            }
+            mode => {
+                let bits = match mode {
+                    "readonly" => 0o444,
+                    "write-only" => 0o200,
+                    "executable" => 0o755,
+                    _ => unreachable!(),
+                };
+                fs::set_permissions(&destination, fs::Permissions::from_mode(bits)).unwrap();
+            }
+        }
+
+        let reused = prepare_artifact_cache(&spec).unwrap();
+        assert!(reused.reused_record().is_some(), "{replacement}");
+        let metadata = fs::symlink_metadata(&destination).unwrap();
+        assert!(metadata.file_type().is_file(), "{replacement}");
+        assert_eq!(metadata.permissions().mode() & 0o7111, 0, "{replacement}");
+        assert_eq!(
+            metadata.permissions().mode() & 0o600,
+            0o600,
+            "{replacement}"
+        );
+        assert_eq!(fs::read(&destination).unwrap(), b"cached", "{replacement}");
+        fs::write(&destination, b"mutated").unwrap();
+        assert_eq!(fs::read(cached).unwrap(), b"cached", "{replacement}");
+        assert_eq!(fs::read(&input).unwrap(), b"cached", "{replacement}");
+        fs::remove_dir_all(root).unwrap();
+    }
+}
+
+#[test]
+fn multi_output_commit_is_complete_and_name_order_independent() {
+    let root = unique_temp_directory("multi-output");
+    let input = root.join("source");
+    fs::write(&input, b"source").expect("write input");
+    let spec = ArtifactCacheSpec::new(&root.join("cache"), "release-set", "recipe/v1")
+        .with_input("source", &input)
+        .with_identity_bytes("optimizer", b"optimize")
+        .with_identity_bytes("encoder", b"encode")
+        .with_identity_bytes("stripper", b"strip")
+        .with_output("role-b.wasm", &root.join("public/role-b.wasm"))
+        .with_output("metadata.json", &root.join("public/metadata.json"))
+        .with_output("root.wasm", &root.join("public/root.wasm"));
+    let reordered = ArtifactCacheSpec::new(&root.join("cache"), "release-set", "recipe/v1")
+        .with_input("source", &input)
+        .with_identity_bytes("stripper", b"strip")
+        .with_identity_bytes("optimizer", b"optimize")
+        .with_identity_bytes("encoder", b"encode")
+        .with_output("root.wasm", &root.join("public/root.wasm"))
+        .with_output("role-b.wasm", &root.join("public/role-b.wasm"))
+        .with_output("metadata.json", &root.join("public/metadata.json"));
+    assert_eq!(spec, reordered);
+    assert_eq!(
+        resolve_key(&spec).unwrap().key,
+        resolve_key(&reordered).unwrap().key
+    );
+    let transaction = expect_build(prepare_artifact_cache(&spec).expect("prepare miss"));
+    for name in ["aaa", "role-c.wasm", "zzz"] {
+        assert!(matches!(
+            transaction.output_path(name),
+            Err(ArtifactCacheError::UnknownOutput { name: unknown }) if unknown == name
+        ));
+    }
+    for (name, contents) in [
+        ("root.wasm", b"root".as_slice()),
+        ("role-b.wasm", b"role-b".as_slice()),
+        ("metadata.json", b"{}".as_slice()),
+    ] {
+        fs::write(transaction.output_path(name).unwrap(), contents).expect("write staged output");
+    }
+
+    let outcome = transaction.commit().expect("commit complete output set");
+
+    assert_eq!(
+        outcome
+            .record()
+            .artifacts()
+            .iter()
+            .map(super::ArtifactCacheArtifact::name)
+            .collect::<Vec<_>>(),
+        ["metadata.json", "role-b.wasm", "root.wasm"],
+    );
+    assert!(matches!(
+        prepare_artifact_cache(&reordered).unwrap(),
+        ArtifactCachePreparation::Reused(_)
+    ));
+    fs::remove_dir_all(root).expect("remove multi-output test directory");
+}
+
+#[test]
+fn incomplete_output_set_fails_and_removes_staging() {
+    let root = unique_temp_directory("incomplete-output");
+    let input = root.join("input");
+    fs::write(&input, b"input").expect("write input");
+    let spec = ArtifactCacheSpec::new(&root.join("cache"), "batch", "recipe/v1")
+        .with_input("input", &input)
+        .with_output("first", &root.join("first"))
+        .with_output("second", &root.join("second"));
+    let transaction = expect_build(prepare_artifact_cache(&spec).expect("prepare miss"));
+    assert!(matches!(
+        transaction.output_path("undeclared"),
+        Err(ArtifactCacheError::UnknownOutput { .. })
+    ));
+    fs::write(transaction.output_path("first").unwrap(), b"first")
+        .expect("write only first output");
+    let missing = transaction.output_path("second").unwrap();
+    let staging = transaction.staging_directory().to_owned();
+    let undeclared = [
+        staging.join("outputs/extra-a"),
+        staging.join("outputs/extra-b"),
+        staging.join("build-a.log"),
+        staging.join("build-b.log"),
+    ];
+    for path in &undeclared {
+        fs::write(path, b"unexpected").unwrap();
+    }
+
+    let error = transaction
+        .commit()
+        .expect_err("partial transaction must fail");
+
+    let ArtifactCacheError::InvalidOutputs { outputs } = error else {
+        panic!("expected complete invalid-output diagnostics: {error}");
+    };
+    assert_eq!(outputs.len(), 5);
+    assert_eq!(
+        outputs
+            .into_iter()
+            .collect::<std::collections::BTreeSet<_>>(),
+        std::iter::once(("second".to_owned(), missing))
+            .chain(undeclared.map(|path| ("<undeclared>".to_owned(), path)))
+            .collect(),
+    );
+    assert!(!staging.exists());
+    assert!(matches!(
+        prepare_artifact_cache(&spec).unwrap(),
+        ArtifactCachePreparation::Build(_)
+    ));
+    fs::remove_dir_all(root).expect("remove incomplete-output test directory");
+}
+
+#[test]
+fn preparation_input_race_refuses_once_and_preserves_retained_output() {
+    let root = unique_temp_directory("preparation-input-race");
+    let input = root.join("input");
+    fs::write(&input, b"before").unwrap();
+    let spec = ArtifactCacheSpec::new(&root.join("cache"), "race", "recipe/v1")
+        .with_input("input", &input)
+        .with_output("output", &root.join("output"));
+    let retained = build_output(&spec, b"retained");
+    let before = retained.record().input_digest();
+    let lock_path = super::content_lock_path(&spec, retained.record().key());
+    // Only this fixture owns the idle content lock. A newly created file then
+    // proves preparation has captured the original key, before namespace lookup.
+    fs::remove_file(&lock_path).unwrap();
+    let (namespace_lock, _) = super::lock_cache_file(&super::namespace_lock_path(&spec)).unwrap();
+    let worker_spec = spec.clone();
+    let worker = thread::spawn(move || prepare_artifact_cache(&worker_spec).map(|_| ()));
+    let started = std::time::Instant::now();
+    while !lock_path.exists() {
+        assert!(
+            !worker.is_finished(),
+            "preparation returned before contention"
+        );
+        assert!(
+            started.elapsed() < Duration::from_secs(10),
+            "wait for captured key"
+        );
+        thread::sleep(Duration::from_millis(1));
+    }
+    fs::write(&input, b"after").unwrap();
+    drop(namespace_lock);
+    let after = resolve_key(&spec).unwrap().input_digest;
+    let error = worker
+        .join()
+        .unwrap()
+        .expect_err("mutation must not retry into a new miss");
+    assert!(
+        matches!(error, ArtifactCacheError::InputsChangedDuringPreparation {
+        before: observed_before, after: observed_after
+    } if observed_before == before && observed_after == after)
+    );
+    assert_eq!(
+        fs::read(retained.record().artifacts()[0].path()).unwrap(),
+        b"retained"
+    );
+    // Recovery is explicit, under a fresh caller-owned source boundary.
+    expect_build(prepare_artifact_cache(&spec).unwrap())
+        .abort()
+        .unwrap();
+    drop(retained);
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn changed_inputs_reject_commit_and_remove_staging() {
+    let root = unique_temp_directory("changed-inputs");
+    let input = root.join("input");
+    fs::write(&input, b"before").expect("write original input");
+    let spec = ArtifactCacheSpec::new(&root.join("cache"), "transform", "recipe/v1")
+        .with_input("input", &input)
+        .with_output("output", &root.join("output"));
+    let transaction = expect_build(prepare_artifact_cache(&spec).expect("prepare miss"));
+    fs::write(transaction.output_path("output").unwrap(), b"output").expect("write staged output");
+    let staging = transaction.staging_directory().to_owned();
+    fs::write(&input, b"after").expect("change input during transaction");
+
+    let error = transaction
+        .commit()
+        .expect_err("input race must reject commit");
+
+    assert!(matches!(
+        error,
+        ArtifactCacheError::InputsChangedDuringAcquisition { .. }
+    ));
+    assert!(!staging.exists());
+    fs::remove_dir_all(root).expect("remove changed-inputs test directory");
+}
+
+#[test]
+fn dropped_and_panicked_transactions_remove_staging() {
+    let root = unique_temp_directory("dropped-transactions");
+    let input = root.join("input");
+    fs::write(&input, b"input").expect("write input");
+    let spec = ArtifactCacheSpec::new(&root.join("cache"), "drop", "recipe/v1")
+        .with_input("input", &input)
+        .with_output("output", &root.join("output"));
+
+    let transaction = expect_build(prepare_artifact_cache(&spec).expect("prepare miss"));
+    let dropped_staging = transaction.staging_directory().to_owned();
+    drop(transaction);
+    assert!(!dropped_staging.exists());
+
+    let panicked_staging = Arc::new(std::sync::Mutex::new(None));
+    let captured_staging = Arc::clone(&panicked_staging);
+    let result = catch_unwind(AssertUnwindSafe(|| {
+        let transaction = expect_build(prepare_artifact_cache(&spec).expect("prepare miss"));
+        *captured_staging.lock().unwrap() = Some(transaction.staging_directory().to_owned());
+        panic!("synthetic caller panic");
+    }));
+    assert!(result.is_err());
+    assert!(!panicked_staging.lock().unwrap().as_ref().unwrap().exists());
+    fs::remove_dir_all(root).expect("remove dropped-transactions test directory");
+}
+
+#[test]
+fn every_declared_identity_dimension_changes_the_content_key() {
+    let root = unique_temp_directory("identity-dimensions");
+    let input = root.join("input");
+    let tool = root.join("tool");
+    fs::write(&input, b"input-v1").expect("write input");
+    fs::write(&tool, b"tool-v1").expect("write tool");
+    let base = ArtifactCacheSpec::new(&root.join("cache"), "identity", "recipe/v1")
+        .with_input("input", &input)
+        .with_tool("optimizer", &tool)
+        .with_arguments(["-O2"])
+        .with_environment([("MODE", "release")])
+        .with_identity_bytes("pipeline", b"one")
+        .with_output("output", &root.join("output"));
+    let original = resolve_key(&base).unwrap().key;
+    let mut changed_namespace_spec = base.clone();
+    changed_namespace_spec.namespace = "identity-other".to_owned();
+    let changed_namespace = resolve_key(&changed_namespace_spec).unwrap().key;
+    let changed_argument = resolve_key(&base.clone().with_arguments(["-O3"]))
+        .unwrap()
+        .key;
+    let changed_environment =
+        resolve_key(&base.clone().with_environment([("MODE", "size-optimized")]))
+            .unwrap()
+            .key;
+    let changed_unset_environment = resolve_key(&base.clone().with_unset_environment(["MODE"]))
+        .unwrap()
+        .key;
+    let changed_recipe = resolve_key(&ArtifactCacheSpec {
+        recipe_id: "recipe/changed".to_owned(),
+        ..base.clone()
+    })
+    .unwrap()
+    .key;
+    let mut changed_identity_spec = base.clone();
+    changed_identity_spec.identities[0].value = b"two".to_vec();
+    let changed_identity = resolve_key(&changed_identity_spec).unwrap().key;
+    let mut changed_input_label_spec = base.clone();
+    changed_input_label_spec.inputs[0].label = "renamed-input".to_owned();
+    let changed_input_label = resolve_key(&changed_input_label_spec).unwrap().key;
+    let mut changed_tool_label_spec = base.clone();
+    changed_tool_label_spec.tools[0].label = "renamed-optimizer".to_owned();
+    let changed_tool_label = resolve_key(&changed_tool_label_spec).unwrap().key;
+    let mut changed_output_schema_spec = base.clone();
+    changed_output_schema_spec.outputs[0].validation = ArtifactOutputValidation::RegularFile;
+    let changed_output_schema = resolve_key(&changed_output_schema_spec).unwrap().key;
+    let mut changed_output_name_spec = base.clone();
+    changed_output_name_spec.outputs[0].name = "renamed-output".to_owned();
+    let changed_output_name = resolve_key(&changed_output_name_spec).unwrap().key;
+    fs::write(&tool, b"changed-tool").expect("change tool bytes");
+    let changed_tool = resolve_key(&base).unwrap().key;
+    fs::write(&tool, b"tool-v1").expect("restore tool bytes");
+    fs::write(&input, b"changed-input").expect("change input bytes");
+    let changed_input = resolve_key(&base).unwrap().key;
+
+    for changed in [
+        changed_namespace,
+        changed_argument,
+        changed_environment,
+        changed_unset_environment,
+        changed_recipe,
+        changed_identity,
+        changed_input_label,
+        changed_tool_label,
+        changed_output_schema,
+        changed_output_name,
+        changed_tool,
+        changed_input,
+    ] {
+        assert_ne!(original, changed);
+    }
+
+    fs::write(&input, b"input-v1").expect("restore input bytes");
+    let mut unkeyed_changes = base;
+    unkeyed_changes.coordination_scope = "another-lock".to_owned();
+    unkeyed_changes.outputs[0].destination = root.join("another-output");
+    assert_eq!(original, resolve_key(&unkeyed_changes).unwrap().key);
+    fs::remove_dir_all(root).expect("remove identity-dimensions test directory");
+}
+
+#[test]
+fn tampered_cache_entry_is_rebuilt_instead_of_reused() {
+    let root = unique_temp_directory("tampered-entry");
+    let input = root.join("input");
+    fs::write(&input, b"input").expect("write input");
+    let spec = ArtifactCacheSpec::new(&root.join("cache"), "tamper", "recipe/v1")
+        .with_input("input", &input)
+        .with_output("output", &root.join("output"));
+    let transaction = expect_build(prepare_artifact_cache(&spec).expect("prepare miss"));
+    fs::write(transaction.output_path("output").unwrap(), b"valid").expect("write staged output");
+    let outcome = transaction.commit().expect("commit valid entry");
+    let entry = entry_directory(&namespace_directory(&spec), outcome.record().key());
+    drop(outcome);
+    fs::write(entry.join("outputs/0000.artifact"), b"tampered").expect("tamper cached output");
+
+    let rebuilt = prepare_artifact_cache(&spec).expect("prepare after corruption");
+
+    assert!(matches!(rebuilt, ArtifactCachePreparation::Build(_)));
+    fs::remove_dir_all(root).expect("remove tampered-entry test directory");
+}
+
+#[test]
+fn manifest_read_bound_preserves_writer_widths_and_byte_lengths() {
+    use crate::artifacts::digest::{FileDigest, digest_bytes};
+    let key = digest_bytes("manifest-bound-test", b"identity");
+    let mut spec = ArtifactCacheSpec::new(Path::new("cache"), "bound", "recipe");
+    for count in [0, 1, 9, 10, 11, 99, 100, 101, 999, 1000, 1001] {
+        spec.outputs = (0..count)
+            .map(|index| super::OutputSpec {
+                name: format!("{index}-{}", "λ".repeat(index % 128)),
+                destination: Path::new("unused").to_owned(),
+                validation: if index % 2 == 0 {
+                    ArtifactOutputValidation::RegularFile
+                } else {
+                    ArtifactOutputValidation::NonEmptyFile
+                },
+            })
+            .collect();
+        let maximum = super::maximum_manifest_len(&spec).unwrap();
+        for bytes in [0, 9, 10, 99, 100, u64::MAX] {
+            let encoded = super::manifest_contents(
+                key,
+                &spec,
+                std::iter::repeat(FileDigest { bytes, digest: key }),
+            );
+            assert!(encoded.len() <= maximum, "{count} outputs, {bytes} bytes");
+            if bytes == u64::MAX {
+                assert_eq!(encoded.len(), maximum);
+            }
+        }
+    }
+    let mut insufficient = &mut [0_u8; 1][..];
+    let error = super::write_manifest(
+        &mut insufficient,
+        key,
+        &spec,
+        std::iter::repeat(FileDigest {
+            bytes: 0,
+            digest: key,
+        }),
+    )
+    .unwrap_err();
+    assert_eq!(error.kind(), std::io::ErrorKind::WriteZero);
+}
+
+#[test]
+fn malformed_manifests_and_nondirectory_entries_are_rebuilt() {
+    let root = unique_temp_directory("malformed-entry");
+    let input = root.join("input");
+    fs::write(&input, b"input").expect("write input");
+    let spec = ArtifactCacheSpec::new(&root.join("cache"), "malformed", "recipe/v1")
+        .with_input("input", &input)
+        .with_output("output", &root.join("output"));
+    let outcome = build_output(&spec, b"valid");
+    let entry = entry_directory(&namespace_directory(&spec), outcome.record().key());
+    drop(outcome);
+    let manifest_path = entry.join(super::MANIFEST_FILE);
+    let manifest = fs::read_to_string(&manifest_path).expect("read valid manifest");
+    let output = entry.join("outputs/0000.artifact");
+    let output_digest = crate::artifacts::digest::digest_bytes("artifact-set-output-v1", b"valid");
+    assert_eq!(
+        manifest,
+        format!(
+            "ic-testkit-artifact-set-v1\nkey:{}\noutput:0:output:nonempty-file:5:{output_digest}\n",
+            resolve_key(&spec).unwrap().key,
+        ),
+    );
+    let invalid_manifests = [
+        vec![0xff, 0xfe],
+        manifest.as_bytes()[..manifest.len() - 1].to_vec(),
+        manifest
+            .replace("ic-testkit-artifact-set-v1", "invalid-format")
+            .into_bytes(),
+        manifest
+            .replace(&resolve_key(&spec).unwrap().key.to_hex(), &"0".repeat(64))
+            .into_bytes(),
+        manifest
+            .replace("output:0:output:", "output:0:other:")
+            .into_bytes(),
+        format!("{manifest}extra\n").into_bytes(),
+    ];
+    for invalid in invalid_manifests {
+        fs::write(&manifest_path, invalid).expect("write malformed manifest");
+        let transaction =
+            expect_build(prepare_artifact_cache(&spec).expect("prepare after malformed manifest"));
+        assert!(!entry.exists());
+        fs::write(transaction.output_path("output").unwrap(), b"valid").unwrap();
+        drop(transaction.commit().expect("restore valid cache entry"));
+        assert_eq!(fs::read(&output).unwrap(), b"valid");
+    }
+
+    fs::write(&manifest_path, &manifest).expect("write matching manifest prefix");
+    fs::OpenOptions::new()
+        .write(true)
+        .open(&manifest_path)
+        .expect("open oversized manifest")
+        .set_len(1024 * 1024 * 1024)
+        .expect("extend oversized manifest");
+    let transaction =
+        expect_build(prepare_artifact_cache(&spec).expect("prepare after oversized manifest"));
+    assert!(!entry.exists());
+    fs::write(transaction.output_path("output").unwrap(), b"valid").unwrap();
+    drop(transaction.commit().expect("replace oversized manifest"));
+    assert!(matches!(
+        prepare_artifact_cache(&spec).expect("reuse repaired entry"),
+        ArtifactCachePreparation::Reused(_),
+    ));
+
+    fs::remove_dir_all(&entry).expect("remove restored cache entry");
+    fs::write(&entry, b"not a directory").expect("write nondirectory cache entry");
+    let transaction =
+        expect_build(prepare_artifact_cache(&spec).expect("prepare after nondirectory entry"));
+    assert!(!entry.exists());
+    transaction.abort().expect("abort nondirectory recovery");
+    fs::remove_dir_all(root).expect("remove malformed-entry test directory");
+}
+
+#[test]
+fn undeclared_entry_root_files_are_never_published_or_reused() {
+    let root = unique_temp_directory("undeclared-entry-root");
+    let input = root.join("input");
+    fs::write(&input, b"input").expect("write input");
+    let spec = ArtifactCacheSpec::new(&root.join("cache"), "root-schema", "recipe/v1")
+        .with_input("input", &input)
+        .with_output("output", &root.join("output"));
+    let transaction = expect_build(prepare_artifact_cache(&spec).expect("prepare miss"));
+    fs::write(transaction.output_path("output").unwrap(), b"output").expect("write staged output");
+    fs::write(transaction.staging_directory().join("build.log"), b"log")
+        .expect("write undeclared root file");
+    assert!(matches!(
+        transaction.commit(),
+        Err(ArtifactCacheError::InvalidOutputs { .. })
+    ));
+
+    let transaction = expect_build(prepare_artifact_cache(&spec).expect("prepare next miss"));
+    fs::remove_dir_all(transaction.staging_directory().join("outputs"))
+        .expect("remove staging output directory");
+    fs::write(
+        transaction.staging_directory().join("outputs"),
+        b"not a directory",
+    )
+    .expect("replace staging output directory");
+    assert!(matches!(
+        transaction.commit(),
+        Err(ArtifactCacheError::InvalidOutputs { .. })
+    ));
+
+    let outcome = build_output(&spec, b"valid");
+    let entry = entry_directory(&namespace_directory(&spec), outcome.record().key());
+    drop(outcome);
+    fs::write(entry.join("unexpected"), b"extra").expect("write corrupt root file");
+    let transaction =
+        expect_build(prepare_artifact_cache(&spec).expect("prepare after root-schema corruption"));
+    assert!(!entry.exists());
+    transaction.abort().expect("abort root-schema recovery");
+    fs::remove_dir_all(root).expect("remove undeclared-entry-root test directory");
+}
+
+#[test]
+fn pruning_protects_active_entry_and_removes_older_key() {
+    let root = unique_temp_directory("transaction-pruning");
+    let input = root.join("input");
+    fs::write(&input, b"input").expect("write input");
+    let base = ArtifactCacheSpec::new(&root.join("cache"), "prune", "recipe/v1")
+        .with_input("input", &input)
+        .with_output("output", &root.join("output"));
+    build_output(&base.clone().with_arguments(["old"]), b"old");
+    let active = base
+        .clone()
+        .with_arguments(["active"])
+        .with_prune_policy(CacheRetentionLimits::new().with_max_size_bytes(0));
+
+    let outcome = build_output(&active, b"active");
+    let report = outcome
+        .record()
+        .maintenance()
+        .and_then(ArtifactCacheMaintenance::prune_report)
+        .expect("successful configured pruning");
+
+    assert_eq!(report.entries_scanned(), 2);
+    assert_eq!(report.entries_removed(), 1);
+    assert_eq!(report.entries_retained(), 1);
+    assert!(matches!(
+        prepare_artifact_cache(&base.with_arguments(["old"])).unwrap(),
+        ArtifactCachePreparation::Build(_)
+    ));
+    assert!(matches!(
+        prepare_artifact_cache(&active).unwrap(),
+        ArtifactCachePreparation::Reused(_)
+    ));
+    drop(outcome);
+    let strict = prune_artifact_cache(
+        active.cache_root(),
+        active.namespace(),
+        CacheRetentionLimits::new().with_max_size_bytes(0),
+    )
+    .expect("strict namespace pruning");
+    assert_eq!(strict.entries_removed(), 1);
+    assert!(matches!(
+        prepare_artifact_cache(&active).unwrap(),
+        ArtifactCachePreparation::Build(_)
+    ));
+    fs::remove_dir_all(root).expect("remove transaction-pruning test directory");
+}
+
+#[test]
+fn scheduled_pruning_skips_an_immediate_second_acquisition() {
+    let root = unique_temp_directory("scheduled-transaction-pruning");
+    let input = root.join("input");
+    fs::write(&input, b"input").expect("write input");
+    let spec = ArtifactCacheSpec::new(&root.join("cache"), "scheduled", "recipe/v1")
+        .with_input("input", &input)
+        .with_output("output", &root.join("output"))
+        .with_prune_policy_at_most_every(CacheRetentionLimits::new(), Duration::from_hours(1));
+
+    let built = build_output(&spec, b"output");
+    assert!(built.record().maintenance().is_some());
+    let reused = prepare_artifact_cache(&spec).expect("reuse scheduled artifact");
+    let record = reused
+        .reused_record()
+        .expect("scheduled artifact should hit");
+    assert!(record.maintenance().is_none());
+    assert!(record.timings().maintenance().is_some());
+
+    let changed_policy = spec.clone().with_prune_policy_at_most_every(
+        CacheRetentionLimits::new().with_max_size_bytes(0),
+        Duration::from_hours(1),
+    );
+    let reused = prepare_artifact_cache(&changed_policy).expect("reuse under changed policy");
+    assert!(
+        reused
+            .reused_record()
+            .expect("changed policy should still hit")
+            .maintenance()
+            .is_some(),
+        "a changed retention policy must not inherit another policy's interval"
+    );
+    for explicit_zero in [false, true] {
+        let always = if explicit_zero {
+            spec.clone()
+                .with_prune_policy_at_most_every(CacheRetentionLimits::new(), Duration::ZERO)
+        } else {
+            spec.clone().with_prune_policy(CacheRetentionLimits::new())
+        };
+        let marker = namespace_directory(&always).join(".ic-testkit-last-maintenance");
+        fs::write(&marker, [0xff]).unwrap();
+        let reused = prepare_artifact_cache(&always).unwrap();
+        let record = reused.reused_record().unwrap();
+        assert!(matches!(
+            record.maintenance(),
+            Some(ArtifactCacheMaintenance::Pruned(_))
+        ));
+        assert!(fs::read_to_string(marker).is_ok());
+    }
+    fs::remove_dir_all(root).expect("remove scheduled-pruning test directory");
+}
+
+#[test]
+fn pruning_removes_abandoned_staging_without_touching_active_transactions() {
+    const CHILD_ENV: &str = "IC_TESTKIT_STAGING_PRUNING_CHILD";
+    if std::env::var_os(CHILD_ENV).is_none() {
+        // Control every holder of this fixture's lock. Other parallel tests
+        // can briefly inherit its descriptor when spawning before exec.
+        let output = Command::new(std::env::current_exe().unwrap())
+            .args([
+                "--exact",
+                "artifacts::transaction::tests::pruning_removes_abandoned_staging_without_touching_active_transactions",
+                "--test-threads=1",
+            ])
+            .env(CHILD_ENV, "1")
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "isolated staging pruning failed: {}{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        return;
+    }
+
+    let root = unique_temp_directory("staging-pruning");
+    let input = root.join("input");
+    fs::write(&input, b"input").expect("write input");
+    let spec = ArtifactCacheSpec::new(&root.join("cache"), "staging-prune", "recipe/v1")
+        .with_input("input", &input)
+        .with_output("output", &root.join("output"));
+    let transaction = expect_build(prepare_artifact_cache(&spec).expect("prepare miss"));
+    let active_staging = transaction.staging_directory().to_owned();
+
+    let active_report = prune_artifact_cache(
+        spec.cache_root(),
+        spec.namespace(),
+        CacheRetentionLimits::new(),
+    )
+    .expect("prune around active transaction");
+    assert_eq!(active_report.uncommitted_directories_removed(), 0);
+    assert!(active_staging.exists());
+    #[cfg(unix)]
+    #[expect(
+        clippy::used_underscore_binding,
+        reason = "duplicate the RAII content lock to qualify pruning custody"
+    )]
+    let retained_content_lock = transaction
+        ._content_lock
+        .try_clone()
+        .expect("duplicate the content lock as an inheriting child would");
+    transaction.abort().expect("abort active transaction");
+
+    let key = resolve_key(&spec).unwrap().key;
+    let orphan = namespace_directory(&spec)
+        .join("staging")
+        .join(format!("{key}-terminated-0"));
+    fs::create_dir_all(orphan.join("outputs")).expect("create orphan staging");
+    fs::write(orphan.join("outputs/payload"), b"abandoned").expect("write orphan payload");
+
+    #[cfg(unix)]
+    {
+        // Aborting the transaction closes its handle, but a duplicate keeps
+        // the native flock alive. Pruning must respect that remaining holder.
+        let held_report = prune_artifact_cache(
+            spec.cache_root(),
+            spec.namespace(),
+            CacheRetentionLimits::new(),
+        )
+        .expect("prune while the duplicate content lock remains open");
+        assert_eq!(held_report.uncommitted_directories_removed(), 0);
+        assert!(orphan.exists());
+        drop(retained_content_lock);
+    }
+
+    let report = prune_artifact_cache(
+        spec.cache_root(),
+        spec.namespace(),
+        CacheRetentionLimits::new(),
+    )
+    .expect("prune abandoned staging");
+    assert_eq!(report.uncommitted_directories_removed(), 1);
+    assert!(report.uncommitted_bytes_removed() >= 9);
+    assert!(!orphan.exists());
+    fs::remove_dir_all(root).expect("remove staging-pruning test directory");
+}
+
+#[test]
+fn overlapping_exact_acquisitions_build_once() {
+    let root = unique_temp_directory("overlapping-acquisitions");
+    let input = root.join("input");
+    fs::write(&input, b"input").expect("write input");
+    let spec = Arc::new(
+        ArtifactCacheSpec::new(&root.join("cache"), "concurrent", "recipe/v1")
+            .with_input("input", &input)
+            .with_output("output", &root.join("output")),
+    );
+    let start = Arc::new(Barrier::new(3));
+    let builds = Arc::new(AtomicUsize::new(0));
+    let workers = std::array::from_fn::<_, 2, _>(|_| {
+        let spec = Arc::clone(&spec);
+        let start = Arc::clone(&start);
+        let builds = Arc::clone(&builds);
+        thread::spawn(move || {
+            start.wait();
+            match prepare_artifact_cache(&spec).expect("prepare overlapping acquisition") {
+                ArtifactCachePreparation::Reused(record) => record.key(),
+                ArtifactCachePreparation::Build(transaction) => {
+                    builds.fetch_add(1, Ordering::SeqCst);
+                    fs::write(transaction.output_path("output").unwrap(), b"built")
+                        .expect("write concurrent staged output");
+                    transaction
+                        .commit()
+                        .expect("commit concurrent output")
+                        .record()
+                        .key()
+                }
+            }
+        })
+    });
+    start.wait();
+    let keys = workers.map(|worker| worker.join().expect("worker must not panic"));
+
+    assert_eq!(keys[0], keys[1]);
+    assert_eq!(builds.load(Ordering::SeqCst), 1);
+    fs::remove_dir_all(root).expect("remove overlapping-acquisitions test directory");
+}
+
+#[test]
+fn different_keys_sharing_a_coordination_scope_do_not_overlap() {
+    let root = unique_temp_directory("shared-coordination");
+    let input = root.join("input");
+    fs::write(&input, b"input").expect("write input");
+    let base = ArtifactCacheSpec::new(&root.join("cache"), "coordinated", "recipe/v1")
+        .with_coordination_scope("shared-external-tree")
+        .with_input("input", &input)
+        .with_output("output", &root.join("output"));
+    let start = Arc::new(Barrier::new(3));
+    let active = Arc::new(AtomicUsize::new(0));
+    let maximum = Arc::new(AtomicUsize::new(0));
+    let workers = ["first", "second"].map(|argument| {
+        let spec = base.clone().with_arguments([argument]);
+        let start = Arc::clone(&start);
+        let active = Arc::clone(&active);
+        let maximum = Arc::clone(&maximum);
+        thread::spawn(move || {
+            start.wait();
+            let transaction = expect_build(
+                prepare_artifact_cache(&spec).expect("prepare coordinated transaction"),
+            );
+            let current = active.fetch_add(1, Ordering::SeqCst) + 1;
+            maximum.fetch_max(current, Ordering::SeqCst);
+            thread::sleep(std::time::Duration::from_millis(20));
+            fs::write(transaction.output_path("output").unwrap(), argument)
+                .expect("write coordinated output");
+            active.fetch_sub(1, Ordering::SeqCst);
+            transaction.commit().expect("commit coordinated output");
+        })
+    });
+    start.wait();
+    for worker in workers {
+        worker.join().expect("coordinated worker must not panic");
+    }
+
+    assert_eq!(maximum.load(Ordering::SeqCst), 1);
+    fs::remove_dir_all(root).expect("remove shared-coordination test directory");
+}
+
+#[test]
+fn content_identity_is_independent_of_checkout_and_destination_paths() {
+    let first = unique_temp_directory("checkout-first");
+    let second = unique_temp_directory("checkout-second");
+    for root in [&first, &second] {
+        fs::create_dir_all(root.join("source")).expect("create source directory");
+        fs::write(root.join("source/input"), b"same input").expect("write input");
+        fs::write(root.join("tool"), b"same tool").expect("write tool");
+    }
+    let spec = |root: &Path| {
+        ArtifactCacheSpec::new(&root.join("cache"), "portable", "recipe/v1")
+            .with_input("source", &root.join("source"))
+            .with_tool("optimizer", &root.join("tool"))
+            .with_arguments(["--exact"])
+            .with_output("output", &root.join("different/public/output"))
+    };
+
+    let first_key = resolve_key(&spec(&first)).unwrap();
+    let second_key = resolve_key(&spec(&second)).unwrap();
+
+    assert_eq!(first_key.key, second_key.key);
+    assert_eq!(first_key.input_digest, second_key.input_digest);
+    fs::remove_dir_all(first).expect("remove first checkout");
+    fs::remove_dir_all(second).expect("remove second checkout");
+}
+
+#[test]
+fn import_helper_and_debug_output_do_not_expose_identity_values() {
+    let root = unique_temp_directory("import-output");
+    let input = root.join("input");
+    let external = root.join("fixed-build-location/output");
+    fs::create_dir_all(external.parent().unwrap()).expect("create fixed output directory");
+    fs::write(&input, b"input").expect("write input");
+    fs::write(&external, b"external-output").expect("write external output");
+    let spec = ArtifactCacheSpec::new(&root.join("cache"), "import", "recipe/v1")
+        .with_input("input", &input)
+        .with_environment([("SECRET_TOKEN", "do-not-render")])
+        .with_identity_bytes("private-ish", b"also-do-not-render")
+        .with_output("output", &root.join("public/output"));
+    for (debug, expected_names, expected_labels) in [
+        (
+            format!("{spec:?}"),
+            "environment_names: [\"SECRET_TOKEN\"]",
+            "identity_labels: [\"private-ish\"]",
+        ),
+        (
+            format!("{spec:#?}"),
+            "environment_names: [\n        \"SECRET_TOKEN\",\n    ]",
+            "identity_labels: [\n        \"private-ish\",\n    ]",
+        ),
+    ] {
+        assert!(debug.contains(expected_names));
+        assert!(debug.contains(expected_labels));
+        assert!(debug.contains("cargo_build_input_labels: []"));
+        assert!(!debug.contains("do-not-render"));
+        assert!(!debug.contains("also-do-not-render"));
+    }
+    let transaction = expect_build(prepare_artifact_cache(&spec).unwrap());
+
+    transaction
+        .import_output("output", &external)
+        .expect("import external output");
+    let outcome = transaction.commit().expect("commit imported output");
+
+    assert_eq!(
+        fs::read(outcome.record().artifacts()[0].path()).unwrap(),
+        b"external-output"
+    );
+    fs::remove_dir_all(root).expect("remove import-output test directory");
+}
+
+#[test]
+fn undeclared_output_names_reject_staging_and_cached_entries() {
+    let root = unique_temp_directory("undeclared-output");
+    let input = root.join("input");
+    fs::write(&input, b"input").expect("write input");
+    let spec = ArtifactCacheSpec::new(&root.join("cache"), "extra", "recipe/v1")
+        .with_input("input", &input)
+        .with_output("output", &root.join("output"));
+    let names = [
+        "extra",
+        "0000.artifactλ",
+        "0001.artifact",
+        "+0000.artifact",
+        "00000.artifact",
+        "0.artifact",
+        "184467440737095516160.artifact",
+    ]
+    .into_iter()
+    .map(OsString::from);
+    #[cfg(target_os = "linux")]
+    let names = names.chain([OsString::from_vec(b"0000.artifact\xff".to_vec())]);
+    for name in names {
+        let transaction = expect_build(prepare_artifact_cache(&spec).unwrap());
+        fs::write(transaction.output_path("output").unwrap(), b"declared")
+            .expect("write declared output");
+        let extra = transaction.staging_directory().join("outputs").join(&name);
+        fs::write(&extra, b"undeclared").expect("write undeclared staged output");
+        let staging = transaction.staging_directory().to_owned();
+        let error = transaction
+            .commit()
+            .expect_err("reject undeclared staged output");
+        assert!(
+            matches!(error, ArtifactCacheError::InvalidOutputs { outputs }
+            if outputs == [("<undeclared>".to_owned(), extra)])
+        );
+        assert!(!staging.exists());
+
+        let outcome = build_output(&spec, b"declared");
+        let entry = entry_directory(&namespace_directory(&spec), outcome.record().key());
+        drop(outcome);
+        fs::write(entry.join("outputs").join(&name), b"undeclared")
+            .expect("write undeclared cached output");
+        let transaction = expect_build(prepare_artifact_cache(&spec).unwrap());
+        assert!(
+            !entry.exists(),
+            "invalid cached name {name:?} must force rebuilding"
+        );
+        transaction.abort().unwrap();
+    }
+    fs::remove_dir_all(root).expect("remove undeclared-output test directory");
+}
+
+#[test]
+fn empty_output_requires_explicit_regular_file_validation() {
+    let root = unique_temp_directory("empty-output");
+    let input = root.join("input");
+    fs::write(&input, b"input").expect("write input");
+    let default_spec = ArtifactCacheSpec::new(&root.join("cache"), "empty", "recipe/v1")
+        .with_input("input", &input)
+        .with_output("output", &root.join("output"));
+    let transaction = expect_build(prepare_artifact_cache(&default_spec).unwrap());
+    fs::write(transaction.output_path("output").unwrap(), b"").expect("write empty output");
+    assert!(matches!(
+        transaction.commit(),
+        Err(ArtifactCacheError::InvalidOutputs { .. })
+    ));
+
+    let regular_spec = ArtifactCacheSpec::new(&root.join("cache"), "empty", "recipe/v1")
+        .with_input("input", &input)
+        .with_output_validation(
+            "output",
+            &root.join("output"),
+            ArtifactOutputValidation::RegularFile,
+        );
+    let transaction = expect_build(prepare_artifact_cache(&regular_spec).unwrap());
+    fs::write(transaction.output_path("output").unwrap(), b"").expect("write empty output");
+    transaction
+        .commit()
+        .expect("commit explicitly valid empty file");
+    fs::remove_dir_all(root).expect("remove empty-output test directory");
+}
+
+#[test]
+fn invalid_specifications_are_rejected_before_acquisition() {
+    let root = unique_temp_directory("invalid-specifications");
+    let input = root.join("input");
+    let tool = root.join("tool");
+    let output = root.join("output");
+    fs::write(&input, b"input").expect("write input");
+    fs::write(&tool, b"tool").expect("write tool");
+    let cache = root.join("cache");
+    let specs = [
+        ArtifactCacheSpec::new(&cache, "namespace", "recipe/v1").with_input("input", &input),
+        ArtifactCacheSpec::new(&cache, "namespace", "recipe/v1")
+            .with_input("bad label", &input)
+            .with_output("output", &output),
+        ArtifactCacheSpec::new(&cache, "namespace", "recipe/v1")
+            .with_input("input", &input)
+            .with_input("input", &input)
+            .with_output("output", &output),
+        ArtifactCacheSpec::new(&cache, "namespace", "recipe/v1")
+            .with_tool("tool", &tool)
+            .with_tool("tool", &tool)
+            .with_output("output", &output),
+        ArtifactCacheSpec::new(&cache, "namespace", "recipe/v1")
+            .with_identity_bytes("identity", b"one")
+            .with_identity_bytes("identity", b"two")
+            .with_identity_bytes("aaa", b"earlier")
+            .with_output("output", &output),
+        ArtifactCacheSpec::new(&cache, "namespace", "recipe/v1")
+            .with_environment([("", "value")])
+            .with_output("output", &output),
+        ArtifactCacheSpec::new(&cache, "namespace", "recipe/v1")
+            .with_output("same", &output)
+            .with_output("aaa", &root.join("earlier"))
+            .with_output("same", &root.join("other")),
+        ArtifactCacheSpec::new(&cache, "namespace", "recipe/v1")
+            .with_output("first", &output)
+            .with_output("second", &output),
+        ArtifactCacheSpec::new(&cache, "namespace", "recipe/v1").with_output(".", &output),
+        ArtifactCacheSpec::new(&cache, "namespace", "recipe/v1")
+            .with_output("output", Path::new("")),
+        ArtifactCacheSpec::new(&cache, "", "recipe/v1").with_output("output", &output),
+        ArtifactCacheSpec::new(&cache, "namespace", "").with_output("output", &output),
+        ArtifactCacheSpec::new(&cache, "namespace", "recipe/v1")
+            .with_coordination_scope("")
+            .with_output("output", &output),
+        ArtifactCacheSpec::new(Path::new(""), "namespace", "recipe/v1")
+            .with_output("output", &output),
+    ];
+
+    for spec in specs {
+        expect_invalid_spec(prepare_artifact_cache(&spec));
+    }
+    assert!(
+        !cache.exists(),
+        "invalid specs must fail before cache initialization"
+    );
+    let shared_label = ArtifactCacheSpec::new(&cache, "namespace", "recipe/v1")
+        .with_input("shared", &input)
+        .with_tool("shared", &tool)
+        .with_output("output", &output);
+    expect_build(
+        prepare_artifact_cache(&shared_label).expect("input and tool labels are separate"),
+    )
+    .abort()
+    .expect("abort label namespace check");
+    fs::remove_dir_all(root).expect("remove invalid-specification test directory");
+}
+
+#[test]
+fn filesystem_boundaries_reject_cache_inputs_and_destination_aliases() {
+    let root = unique_temp_directory("filesystem-boundaries");
+    let cache = root.join("cache");
+    fs::create_dir_all(&cache).expect("create cache root");
+    let cache_input = cache.join("input");
+    let cache_tool = cache.join("tool");
+    let input = root.join("input");
+    let input_directory = root.join("source");
+    fs::write(&cache_input, b"cache input").expect("write cache input");
+    fs::write(&cache_tool, b"cache tool").expect("write cache tool");
+    fs::write(&input, b"input").expect("write input");
+    fs::create_dir_all(&input_directory).expect("create input directory");
+    fs::write(input_directory.join("source"), b"source").expect("write source input");
+
+    let invalid = [
+        ArtifactCacheSpec::new(&cache, "cache-input", "recipe/v1")
+            .with_input("input", &cache_input)
+            .with_output("output", &root.join("public/cache-input")),
+        ArtifactCacheSpec::new(&cache, "cache-tool", "recipe/v1")
+            .with_tool("tool", &cache_tool)
+            .with_output("output", &root.join("public/cache-tool")),
+        ArtifactCacheSpec::new(&cache, "cache-output", "recipe/v1")
+            .with_input("input", &input)
+            .with_output("output", &cache.join("public-output")),
+        ArtifactCacheSpec::new(&cache, "input-output", "recipe/v1")
+            .with_input("input", &input)
+            .with_output("output", &input),
+        ArtifactCacheSpec::new(&cache, "directory-output", "recipe/v1")
+            .with_input("source", &input_directory)
+            .with_output("output", &input_directory.join("generated")),
+        ArtifactCacheSpec::new(&cache, "alias-output", "recipe/v1")
+            .with_input("input", &input)
+            .with_output("first", &root.join("public/result"))
+            .with_output("second", &root.join("public/nested/../result")),
+        ArtifactCacheSpec::new(&cache, "directory-destination", "recipe/v1")
+            .with_input("input", &input)
+            .with_output("output", &input_directory),
+        ArtifactCacheSpec::new(&cache, "nested-output", "recipe/v1")
+            .with_output("first", &root.join("nested-output"))
+            .with_output("second", &root.join("nested-output/inner")),
+        ArtifactCacheSpec::new(&cache, "nested-output-reversed", "recipe/v1")
+            .with_output("first", &root.join("other-output/inner"))
+            .with_output("second", &root.join("other-output")),
+    ];
+    for spec in invalid {
+        expect_invalid_spec(prepare_artifact_cache(&spec));
+    }
+
+    #[cfg(unix)]
+    {
+        let public = root.join("symlink-public");
+        fs::create_dir_all(&public).expect("create symlink destination directory");
+        let alias = root.join("symlink-alias");
+        symlink(&public, &alias).expect("create destination-directory symlink");
+        let spec = ArtifactCacheSpec::new(&cache, "symlink-output", "recipe/v1")
+            .with_input("input", &input)
+            .with_output("first", &public.join("result"))
+            .with_output("second", &alias.join("result"));
+        expect_invalid_spec(prepare_artifact_cache(&spec));
+    }
+
+    let source = root.join("ancestor-source");
+    fs::create_dir_all(&source).expect("create ancestor source");
+    fs::write(source.join("source"), b"source").expect("write ancestor source");
+    let allowed =
+        ArtifactCacheSpec::new(&source.join("nested-cache"), "ancestor-input", "recipe/v1")
+            .with_input("source", &source)
+            .with_output("output", &root.join("outside-source/output"));
+    expect_build(prepare_artifact_cache(&allowed).expect("prepare ancestor input"))
+        .abort()
+        .expect("abort ancestor input transaction");
+
+    fs::remove_dir_all(root).expect("remove filesystem-boundary test directory");
+}
+
+#[test]
+#[cfg(unix)]
+fn cargo_boundary_observations_are_lazy_and_scoped_to_one_validation() {
+    let (root, build) =
+        crate::artifacts::test_support::fake_wasm_build_spec("boundary-observations");
+    let resolved = resolve_cargo_build_inputs(&build).unwrap();
+    let outside = root.join("published");
+    let mut observations = super::CargoInputBoundaries::default();
+    assert!(!observations.watches(&resolved, &outside).unwrap());
+    fs::remove_file(root.join("Cargo.toml")).unwrap();
+    assert!(!observations.watches(&resolved, &outside).unwrap());
+
+    // Generated-state exclusions must still avoid inspecting missing inputs.
+    let mut fresh = super::CargoInputBoundaries::default();
+    assert!(
+        !fresh
+            .watches(&resolved, &resolved.exclusions()[0].join("output"))
+            .unwrap()
+    );
+    assert!(matches!(
+        fresh.watches(&resolved, &outside),
+        Err(ArtifactCacheError::Io { source, .. }) if source.kind() == std::io::ErrorKind::NotFound
+    ));
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[cfg(unix)]
+#[test]
+fn symlink_destination_boundaries_validate_the_replaced_entry() {
+    let root = unique_temp_directory("symlink-destination-boundaries");
+    let cache = root.join("cache");
+    let public = root.join("public");
+    let input = root.join("input");
+    fs::create_dir_all(&cache).expect("create cache root");
+    fs::create_dir_all(&public).expect("create public outputs");
+    fs::write(&input, b"input").expect("write input");
+    let cache_link = cache.join("output-link");
+    symlink(&input, &cache_link).expect("create cache-internal output symlink");
+    let spec = ArtifactCacheSpec::new(&cache, "symlink-cache-output", "recipe/v1")
+        .with_output("output", &cache_link);
+    expect_invalid_spec(prepare_artifact_cache(&spec));
+    assert!(
+        fs::symlink_metadata(&cache_link)
+            .unwrap()
+            .file_type()
+            .is_symlink()
+    );
+
+    let input_link = root.join("input-link");
+    symlink(&input, &input_link).expect("create declared input symlink");
+    let spec = ArtifactCacheSpec::new(&cache, "replace-input-link", "recipe/v1")
+        .with_input("input", &input_link)
+        .with_output("output", &input_link);
+    expect_invalid_spec(prepare_artifact_cache(&spec));
+
+    let public_link = public.join("replaceable-link");
+    symlink(&input, &public_link).expect("create replaceable public symlink");
+    let spec = ArtifactCacheSpec::new(&cache, "public-output-link", "recipe/v1")
+        .with_input("input", &input)
+        .with_output("output", &public_link);
+    let transaction =
+        expect_build(prepare_artifact_cache(&spec).expect("prepare public symlink output"));
+    fs::write(transaction.output_path("output").unwrap(), b"published")
+        .expect("populate symlink output transaction");
+    let outcome = transaction.commit().expect("replace public symlink entry");
+    assert_eq!(fs::read(&public_link).unwrap(), b"published");
+    assert_eq!(fs::read(&input).unwrap(), b"input");
+    assert!(
+        !fs::symlink_metadata(&public_link)
+            .unwrap()
+            .file_type()
+            .is_symlink()
+    );
+    drop(outcome);
+    let cyclic_link = public.join("cyclic-output-link");
+    symlink(&cyclic_link, &cyclic_link).expect("create cyclic public symlink");
+    let spec = ArtifactCacheSpec::new(&cache, "cyclic-public-output", "recipe/v1")
+        .with_input("input", &input)
+        .with_output("output", &cyclic_link);
+    let outcome = build_output(&spec, b"published");
+    assert!(
+        fs::symlink_metadata(&cyclic_link)
+            .unwrap()
+            .file_type()
+            .is_file()
+    );
+    assert_eq!(fs::read(&cyclic_link).unwrap(), b"published");
+    assert_eq!(fs::read(&input).unwrap(), b"input");
+    drop(outcome);
+    let directory_link = public.join("directory-link");
+    symlink(&public, &directory_link).expect("create directory output link");
+    let spec = ArtifactCacheSpec::new(&cache, "directory-link-output", "recipe/v1")
+        .with_output("parent", &directory_link)
+        .with_output("child", &directory_link.join("child"));
+    expect_invalid_spec(prepare_artifact_cache(&spec));
+    assert!(
+        fs::symlink_metadata(&directory_link)
+            .unwrap()
+            .file_type()
+            .is_symlink()
+    );
+    let cyclic_parent = root.join("cyclic-parent");
+    symlink(&cyclic_parent, &cyclic_parent).expect("create cyclic parent symlink");
+    let spec = ArtifactCacheSpec::new(&cache, "cyclic-parent-output", "recipe/v1")
+        .with_output("output", &cyclic_parent.join("output"));
+    assert!(matches!(
+        prepare_artifact_cache(&spec),
+        Err(ArtifactCacheError::Io {
+            operation: "resolve artifact output destination",
+            ..
+        })
+    ));
+    fs::remove_dir_all(root).expect("remove symlink output fixture");
+}
+
+fn expect_build(preparation: ArtifactCachePreparation) -> super::ArtifactBuildTransaction {
+    match preparation {
+        ArtifactCachePreparation::Build(transaction) => transaction,
+        ArtifactCachePreparation::Reused(_) => panic!("expected a cache miss transaction"),
+    }
+}
+
+fn expect_invalid_spec(result: Result<ArtifactCachePreparation, ArtifactCacheError>) {
+    assert!(result.is_err_and(|error| matches!(error, ArtifactCacheError::InvalidSpec { .. })));
+}
+
+fn build_output(spec: &ArtifactCacheSpec, contents: &[u8]) -> ArtifactCacheOutcome {
+    let transaction = expect_build(prepare_artifact_cache(spec).expect("prepare build"));
+    fs::write(transaction.output_path("output").unwrap(), contents).expect("write staged output");
+    transaction.commit().expect("commit output")
+}
+
+#[test]
+fn retained_corrupt_entry_fails_closed_until_consumer_releases_it() {
+    let root = unique_temp_directory("retained-corrupt-entry");
+    let spec = ArtifactCacheSpec::new(&root.join("cache"), "retained", "recipe/v1")
+        .with_output("output", &root.join("output"));
+    let outcome = build_output(&spec, b"valid");
+    let retained = outcome.record().clone();
+    assert_eq!(&retained, outcome.record());
+    for debug in [format!("{retained:?}"), format!("{retained:#?}")] {
+        assert!(debug.contains("artifacts: ["));
+        assert!(debug.contains("ArtifactCacheArtifact {"));
+    }
+    let path = retained.artifacts()[0].path().to_owned();
+    drop(outcome);
+    // Simulate external corruption: recovery must not replace a live entry.
+    fs::write(&path, b"corrupt").unwrap();
+    assert!(matches!(prepare_artifact_cache(&spec),
+        Err(ArtifactCacheError::Io { source, .. }) if source.kind() == std::io::ErrorKind::WouldBlock));
+    assert_eq!(fs::read(&path).unwrap(), b"corrupt");
+    fs::write(&path, b"valid").unwrap();
+    let manifest =
+        entry_directory(&namespace_directory(&spec), retained.key()).join(super::MANIFEST_FILE);
+    let original_manifest = fs::read(&manifest).unwrap();
+    fs::write(&manifest, b"invalid manifest").unwrap();
+    assert!(matches!(prepare_artifact_cache(&spec),
+        Err(ArtifactCacheError::Io { source, .. }) if source.kind() == std::io::ErrorKind::WouldBlock));
+    assert_eq!(fs::read(&path).unwrap(), b"valid");
+    assert_eq!(fs::read(&manifest).unwrap(), b"invalid manifest");
+    fs::write(&manifest, original_manifest).unwrap();
+    fs::OpenOptions::new()
+        .write(true)
+        .open(&manifest)
+        .unwrap()
+        .set_len(1024 * 1024 * 1024)
+        .unwrap();
+    assert!(matches!(prepare_artifact_cache(&spec),
+        Err(ArtifactCacheError::Io { source, .. }) if source.kind() == std::io::ErrorKind::WouldBlock));
+    assert_eq!(fs::read(&path).unwrap(), b"valid");
+    assert_eq!(fs::metadata(&manifest).unwrap().len(), 1024 * 1024 * 1024);
+    drop(retained);
+    expect_build(prepare_artifact_cache(&spec).unwrap())
+        .abort()
+        .unwrap();
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn missing_declared_input_and_tool_errors_include_the_failed_path() {
+    for tool in [false, true] {
+        let root = unique_temp_directory("missing-declared-path");
+        let missing = root.join(if tool { "optimizer" } else { "input.wasm" });
+        fs::write(&missing, b"input").unwrap();
+        let spec = ArtifactCacheSpec::new(&root.join("cache"), "missing", "recipe/v1")
+            .with_output("output", &root.join("output"));
+        let spec = if tool {
+            spec.with_tool("tool", &missing)
+        } else {
+            spec.with_input("input", &missing)
+        };
+        let transaction = expect_build(prepare_artifact_cache(&spec).unwrap());
+        fs::write(transaction.output_path("output").unwrap(), b"output").unwrap();
+        let staging = transaction.staging_directory().to_owned();
+        fs::remove_file(&missing).unwrap();
+        let error = transaction.commit().unwrap_err();
+        assert!(matches!(&error, ArtifactCacheError::Io { source, .. }
+            if source.kind() == std::io::ErrorKind::NotFound));
+        // The nested failed input path is currently diagnostic context, not the
+        // outer cache path. This assertion covers that display contract.
+        assert!(
+            error.to_string().contains(&missing.display().to_string()),
+            "{error}"
+        );
+        assert!(!staging.exists());
+        fs::remove_dir_all(root).unwrap();
+    }
+}
+
+#[test]
+fn cache_timing_accumulation_preserves_optional_presence_and_saturates() {
+    for (left, right, expected) in [
+        (None, None, None),
+        (Some(Duration::ZERO), None, Some(Duration::ZERO)),
+        (
+            None,
+            Some(Duration::from_secs(2)),
+            Some(Duration::from_secs(2)),
+        ),
+        (
+            Some(Duration::from_secs(2)),
+            None,
+            Some(Duration::from_secs(2)),
+        ),
+        (
+            Some(Duration::MAX),
+            Some(Duration::from_nanos(1)),
+            Some(Duration::MAX),
+        ),
+    ] {
+        let left = super::ArtifactCacheTimings {
+            caller_build: left,
+            maintenance: left,
+            ..Default::default()
+        };
+        let right = super::ArtifactCacheTimings {
+            caller_build: right,
+            maintenance: right,
+            ..Default::default()
+        };
+        let total = left.saturating_add(right);
+        assert_eq!([total.caller_build(), total.maintenance()], [expected; 2]);
+    }
+}

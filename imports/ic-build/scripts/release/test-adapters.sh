@@ -1,0 +1,312 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Real Git histories, metadata edits and tags stay inside this disposable fixture.
+# Registry calls are strict substitutes. No source-checkout index/ref effects.
+unset MAKEFLAGS MFLAGS MAKEOVERRIDES GNUMAKEFLAGS MAKEFILES
+unset VALIDATION_REPOSITORY_ROOT VALIDATION_RUNNER_SNAPSHOT_PATH
+unset RELEASE_KIND RELEASE_PREVIOUS RELEASE_VERSION RELEASE_DATE RELEASE_SOURCE RELEASE_COMMIT
+export RELEASE_DELIVERY=direct
+root="${BASH_SOURCE[0]}"
+[[ "$root" == /* ]] || root="$PWD/$root"
+root="$(cd -P "${root%/*}/../.." && printf '%s/.' "$PWD")"; root="${root%/.}"
+export CARGO_RELEASE_METADATA_EDITOR
+CARGO_RELEASE_METADATA_EDITOR="$(bash "$root/scripts/release/editor.sh" check)"
+limit="${CARGO_RELEASE_METADATA_MAX_BYTES:?select the release document byte allowance}"
+[[ "$limit" =~ ^[1-9][0-9]*$ ]] || exit 2
+fixture="$(mktemp -d "${TMPDIR:-/tmp}/ic-build-release-adapters.XXXXXX")"
+complete=false
+failed_command=''
+finish() {
+    local status=$? log latest=''
+    [[ "$complete" == true || "$status" != 0 ]] || status=1
+    if [[ "$status" == 0 ]]; then rm -rf "$fixture"
+    else
+        echo "Release adapter fixture retained: $fixture" >&2
+        printf 'Failed adapter command: %.2000s\n' "$failed_command" >&2
+        for log in "$fixture"/*.log; do
+            [[ -f "$log" ]] || continue
+            if [[ -z "$latest" || "$log" -nt "$latest" ]]; then latest="$log"; fi
+        done
+        if [[ -n "$latest" ]]; then
+            printf 'Last adapter log (up to 80 lines): %s\n' "$latest" >&2
+            tail -n 80 "$latest" | awk '{ print substr($0, 1, 1000) }' >&2 || :
+        fi
+    fi
+    exit "$status"
+}
+trap finish EXIT
+trap 'failed_command=$BASH_COMMAND' ERR
+mkdir -p "$fixture/workspace" "$fixture/bin" "$fixture/tmp"
+export TMPDIR="$fixture/tmp"
+for path in Cargo.toml Cargo.lock CHANGELOG.md README.md LICENSE Makefile .gitignore rust-toolchain.toml crates scripts make ci; do
+    cp -R "$root/$path" "$fixture/workspace/$path"
+done
+mkdir -p "$fixture/workspace/.tools"
+cp -P "$root"/.tools/host* "$fixture/workspace/.tools/"
+cp -R "$root/.tools/rust" "$fixture/workspace/.tools/rust"
+export YQ="$root/.tools/host/bin/yq"
+export PATH="$root/.tools/host/bin:$root/.tools/rust/common/bin:$PATH"
+export IC_BUILD_TEST_REAL_CARGO IC_BUILD_TEST_REAL_MAKE
+IC_BUILD_TEST_REAL_CARGO="$(command -v cargo)"
+IC_BUILD_TEST_REAL_MAKE="$(command -v make)"
+export IC_BUILD_TEST_CARGO_CALLS="$fixture/cargo.calls"
+cat > "$fixture/bin/cargo" <<'CARGO'
+#!/usr/bin/env bash
+set -euo pipefail
+if [[ "$1" == publish || "$1" == package ]]; then
+    printf '%s\n' "$*" >> "$IC_BUILD_TEST_CARGO_CALLS"
+    [[ "$1" != package ]] || exit 97
+    exit "${IC_BUILD_TEST_PUBLISH_STATUS:-0}"
+fi
+if [[ "$1" == metadata && "${IC_BUILD_TEST_FAIL_METADATA:-0}" == 1 ]]; then exit 42; fi
+if [[ "$1" == fetch && "${IC_BUILD_TEST_PREFLIGHT:-0}" == 1 ]]; then
+    [[ -z "${IC_BUILD_RELEASE_CACHE_PREPARE+x}" ]] || exit 99
+    printf 'cargo:%s\n' "$*" >> "$IC_BUILD_TEST_PREFLIGHT_EVENTS"
+    exit "${IC_BUILD_TEST_FETCH_STATUS:-0}"
+fi
+exec "$IC_BUILD_TEST_REAL_CARGO" "$@"
+CARGO
+cat > "$fixture/bin/make" <<'MAKE'
+#!/usr/bin/env bash
+set -euo pipefail
+if [[ "${IC_BUILD_TEST_PREFLIGHT:-0}" == 1 && $# == 4 && "$1" == --no-print-directory && "$2" == -C ]]; then
+    [[ "$3" == "$IC_BUILD_TEST_PREFLIGHT_ROOT" && -z "${IC_BUILD_RELEASE_CACHE_PREPARE+x}" ]] || exit 99
+    printf 'make:%s\n' "$4" >> "$IC_BUILD_TEST_PREFLIGHT_EVENTS"
+    if [[ -n "${IC_BUILD_TEST_CHANGE_PIN:-}" ]]; then
+        printf '\n# changed during preflight\n' >> "$IC_BUILD_TEST_CHANGE_PIN"
+    fi
+    exit "${IC_BUILD_TEST_MAKE_STATUS:-0}"
+fi
+exec "$IC_BUILD_TEST_REAL_MAKE" "$@"
+MAKE
+chmod +x "$fixture/bin/cargo" "$fixture/bin/make"
+export PATH="$fixture/bin:$PATH"
+export GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null
+cd "$fixture/workspace"
+# Exercise the production sequential gate under parallel Make before substituting
+# CI for the remaining transaction fixtures. No product compilation is dispatched.
+cp Makefile "$fixture/ordered-Makefile"
+cat >> Makefile <<GATES
+
+shared-tooling-check tools-check check-doc-links check-workspace check-pins check-boundary fmt-check:
+	@:
+clippy:
+	@printf 'clippy\n' >> '$fixture/ordered-gates'; exit 23
+check-package:
+	@printf 'unexpected-build\n' >> '$fixture/ordered-gates'; exit 97
+GATES
+if make --no-print-directory -j4 ci > "$fixture/ordered-ci.log" 2>&1; then exit 1; fi
+printf 'clippy\n' > "$fixture/expected-ordered-gates"
+cmp "$fixture/ordered-gates" "$fixture/expected-ordered-gates"
+if make --no-print-directory -j4 package > "$fixture/ordered-package.log" 2>&1; then exit 1; fi
+printf 'clippy\nclippy\n' > "$fixture/expected-ordered-gates"
+cmp "$fixture/ordered-gates" "$fixture/expected-ordered-gates"
+[[ ! -e "$IC_BUILD_TEST_CARGO_CALLS" ]]
+cp "$fixture/ordered-Makefile" Makefile
+perl -0pi -e 's/^check ci:$/check:/m; s/^clippy:\n(?:\t[^\n]*\n)+//m; s/^check-secrets:\n(?:\t[^\n]*\n)+//m; s/^check-shell:\n(?:\t[^\n]*\n)+//m; s/^check-workflows:\n(?:\t[^\n]*\n)+//m' Makefile
+cat >> Makefile <<GATES
+
+ci lint check-secrets:
+	@printf '%s\\n' '\$@' >> '$fixture/gates'
+check-shell check-workflows:
+	@:
+clippy:
+	@printf '%s\\n' '\$@' >> '$fixture/gates'; exit \$\${IC_BUILD_TEST_CLIPPY_STATUS:-0}
+GATES
+# The adapter fixture exercises a patch independently of the live release draft.
+fixture_previous="$(make --no-print-directory -s release-version)"
+fixture_version="$(bash scripts/ci/next-release-version.sh "$fixture_previous" patch)"
+printf '# Changelog\n\n## [%s] - Unreleased\n\n- Exercise the release adapter transaction.\n' "$fixture_version" > CHANGELOG.md
+git init --quiet --template=
+git config user.name Fixture
+git config user.email fixture@example.invalid
+git config core.hooksPath /dev/null
+git add -- Cargo.toml Cargo.lock CHANGELOG.md README.md LICENSE Makefile .gitignore rust-toolchain.toml crates scripts make ci
+git commit --quiet -m 'Adapter fixture baseline'
+export RELEASE_SOURCE RELEASE_PREVIOUS RELEASE_VERSION RELEASE_DATE RELEASE_KIND
+RELEASE_SOURCE="$(git rev-parse HEAD)"
+RELEASE_PREVIOUS="$(make --no-print-directory -s release-version)"
+RELEASE_KIND=patch RELEASE_DATE=2026-10-12
+RELEASE_VERSION="$(bash scripts/ci/next-release-version.sh "$RELEASE_PREVIOUS" patch)"
+expect_failure() {
+    if "$@" > "$fixture/refusal.log" 2>&1; then
+        echo 'adapter accepted an invalid fixture' >&2; exit 1
+    fi
+}
+# Qualify the local selection boundary without installing a tool. Only explicit
+# prepare may omit --check, and failed admission never becomes a PATH fallback.
+mkdir -p "$fixture/editor-control/scripts/release" "$fixture/editor-control/scripts/dev"
+cp scripts/release/editor.sh "$fixture/editor-control/scripts/release/editor.sh"
+export IC_BUILD_TEST_EDITOR_CALLS="$fixture/editor.calls"
+export IC_BUILD_TEST_EDITOR="$CARGO_RELEASE_METADATA_EDITOR"
+cat > "$fixture/editor-control/scripts/dev/install-rust-tools.sh" <<'EDITOR'
+#!/usr/bin/env bash
+set -euo pipefail
+printf '%s\n' "$*" >> "$IC_BUILD_TEST_EDITOR_CALLS"
+[[ "${IC_BUILD_TEST_EDITOR_STATUS:-0}" == 0 ]] || exit "$IC_BUILD_TEST_EDITOR_STATUS"
+printf '%s\n' "$IC_BUILD_TEST_EDITOR"
+EDITOR
+for mode in check prepare; do
+    env -u CARGO_RELEASE_METADATA_EDITOR bash "$fixture/editor-control/scripts/release/editor.sh" "$mode" > "$fixture/editor-$mode"
+    [[ "$(cat "$fixture/editor-$mode")" == "$CARGO_RELEASE_METADATA_EDITOR" ]]
+done
+printf '%s\n' \
+    '--package ic-build --version 0.19.0 --bin ic-build-release-metadata --profile debug --check' \
+    '--package ic-build --version 0.19.0 --bin ic-build-release-metadata --profile debug' > "$fixture/editor-expected"
+cmp "$IC_BUILD_TEST_EDITOR_CALLS" "$fixture/editor-expected"
+status=0
+env -u CARGO_RELEASE_METADATA_EDITOR IC_BUILD_TEST_EDITOR_STATUS=43 \
+    bash "$fixture/editor-control/scripts/release/editor.sh" check > "$fixture/editor-refused" 2> "$fixture/editor-refused.log" || status=$?
+[[ "$status" == 43 && ! -s "$fixture/editor-refused" ]]
+cp "$IC_BUILD_TEST_EDITOR_CALLS" "$fixture/editor-before-override"
+bash "$fixture/editor-control/scripts/release/editor.sh" check > "$fixture/editor-override"
+[[ "$(cat "$fixture/editor-override")" == "$CARGO_RELEASE_METADATA_EDITOR" ]]
+expect_failure env CARGO_RELEASE_METADATA_EDITOR=relative bash "$fixture/editor-control/scripts/release/editor.sh" check
+cmp "$IC_BUILD_TEST_EDITOR_CALLS" "$fixture/editor-before-override"
+# The actual logger recursively loads this fixture's gate sentinels.
+# The verification adapter itself remains the production recipe.
+make --no-print-directory release-verify > "$fixture/gate.log" 2>&1
+printf 'ci\nlint\ncheck-secrets\n' > "$fixture/expected-gates"
+cmp "$fixture/gates" "$fixture/expected-gates"
+cp Makefile "$fixture/pass-Makefile"
+cat >> Makefile <<'GATES'
+
+ci:
+	@exit 23
+lint check-secrets:
+	@exit 97
+GATES
+expect_failure make --no-print-directory release-verify
+cp "$fixture/pass-Makefile" Makefile
+
+make --no-print-directory release-preflight > "$fixture/preflight.log" 2>&1
+# Exercise this adapter's common catalog selection and authority boundary.
+export IC_BUILD_TEST_PREFLIGHT=1 IC_BUILD_TEST_PREFLIGHT_ROOT="$PWD"
+export IC_BUILD_TEST_PREFLIGHT_EVENTS="$fixture/preflight.events"
+for mode in 0 1; do
+    : > "$IC_BUILD_TEST_PREFLIGHT_EVENTS"
+    IC_BUILD_RELEASE_CACHE_PREPARE="$mode" bash scripts/release/metadata.sh preflight > "$fixture/preflight-$mode.log" 2>&1
+    if [[ "$mode" == 0 ]]; then
+        printf 'cargo:fetch --locked --offline\nmake:tools-check\nmake:release-tools-check\n' > "$fixture/preflight.expected"
+    else
+        printf 'cargo:fetch --locked\nmake:install-tools\nmake:tools-check\nmake:install-release-tools\nmake:release-tools-check\n' > "$fixture/preflight.expected"
+    fi
+    cmp "$fixture/preflight.expected" "$IC_BUILD_TEST_PREFLIGHT_EVENTS"
+done
+for pin in ci/tool-versions.env scripts/release/editor.sh; do
+    cp "$pin" "$fixture/preflight-pin"
+    : > "$IC_BUILD_TEST_PREFLIGHT_EVENTS"
+    status=0
+    IC_BUILD_RELEASE_CACHE_PREPARE=1 IC_BUILD_TEST_CHANGE_PIN="$PWD/$pin" \
+        bash scripts/release/metadata.sh preflight > "$fixture/preflight-pin.log" 2>&1 || status=$?
+    cp "$fixture/preflight-pin" "$pin"
+    [[ "$status" == 1 ]]
+    printf 'cargo:fetch --locked\nmake:install-tools\n' > "$fixture/preflight.expected"
+    cmp "$fixture/preflight.expected" "$IC_BUILD_TEST_PREFLIGHT_EVENTS"
+done
+for kind in fetch make invalid; do
+    : > "$IC_BUILD_TEST_PREFLIGHT_EVENTS"
+    status=0
+    case "$kind" in
+        fetch)
+            IC_BUILD_TEST_FETCH_STATUS=43 IC_BUILD_RELEASE_CACHE_PREPARE=1 \
+                bash scripts/release/metadata.sh preflight > "$fixture/preflight-fetch.log" 2>&1 || status=$?
+            [[ "$status" == 43 ]]
+            printf 'cargo:fetch --locked\n' > "$fixture/preflight.expected" ;;
+        make)
+            IC_BUILD_TEST_MAKE_STATUS=49 IC_BUILD_RELEASE_CACHE_PREPARE=1 \
+                bash scripts/release/metadata.sh preflight > "$fixture/preflight-make.log" 2>&1 || status=$?
+            [[ "$status" == 49 ]]
+            printf 'cargo:fetch --locked\nmake:install-tools\n' > "$fixture/preflight.expected" ;;
+        invalid)
+            IC_BUILD_RELEASE_CACHE_PREPARE=2 bash scripts/release/metadata.sh preflight > "$fixture/preflight-invalid.log" 2>&1 || status=$?
+            [[ "$status" == 2 ]]
+            : > "$fixture/preflight.expected" ;;
+    esac
+    cmp "$fixture/preflight.expected" "$IC_BUILD_TEST_PREFLIGHT_EVENTS"
+done
+unset IC_BUILD_TEST_PREFLIGHT
+printf '\n// unrelated\n' >> crates/ic-build/src/lib.rs
+expect_failure make --no-print-directory release-preflight
+git restore -- crates/ic-build/src/lib.rs
+printf '\nunrelated\n' >> README.md
+git add -- README.md
+git show HEAD:README.md > README.md
+expect_failure make --no-print-directory release-preflight
+git reset --quiet HEAD -- README.md
+for path in Cargo.toml Cargo.lock CHANGELOG.md; do cp "$path" "$fixture/before-${path##*/}"; done
+for invalid in missing-editor relative-editor missing-limit zero-limit document-limit; do
+    case "$invalid" in
+        missing-editor) expect_failure env -u CARGO_RELEASE_METADATA_EDITOR bash scripts/ci/cargo-release-metadata.sh prepare ic-build ;;
+        relative-editor) expect_failure env CARGO_RELEASE_METADATA_EDITOR=editor make --no-print-directory release-prepare-version ;;
+        missing-limit) expect_failure env -u CARGO_RELEASE_METADATA_MAX_BYTES bash scripts/ci/cargo-release-metadata.sh prepare ic-build ;;
+        zero-limit) expect_failure env CARGO_RELEASE_METADATA_MAX_BYTES=0 make --no-print-directory release-prepare-version ;;
+        document-limit) expect_failure env CARGO_RELEASE_METADATA_MAX_BYTES=1 make --no-print-directory release-prepare-version ;;
+    esac
+    for path in Cargo.toml Cargo.lock CHANGELOG.md; do cmp "$path" "$fixture/before-${path##*/}"; done
+done
+expect_failure env IC_BUILD_TEST_FAIL_METADATA=1 make --no-print-directory release-prepare-version
+for path in Cargo.toml Cargo.lock CHANGELOG.md; do cmp "$path" "$fixture/before-${path##*/}"; done
+make --no-print-directory release-prepare-version > "$fixture/prepare.log" 2>&1
+[[ "$(make --no-print-directory -s release-version)" == "$RELEASE_VERSION" ]]
+make --no-print-directory release-prepared-check > "$fixture/prepared.log" 2>&1
+# Lost preparation replies are idempotent at the saved candidate.
+make --no-print-directory release-prepare-version > "$fixture/reprepare.log" 2>&1
+cp Cargo.toml "$fixture/sorted-Cargo.toml"
+perl -0pi -e 's/^(cargo_metadata =[^\n]*\n)(clap =[^\n]*\n)/$2$1/m' Cargo.toml
+if cmp -s Cargo.toml "$fixture/sorted-Cargo.toml"; then exit 1; fi
+cp Cargo.toml "$fixture/unsorted-Cargo.toml"
+expect_failure make --no-print-directory fmt-check
+expect_failure make --no-print-directory release-prepared-check
+expect_failure make --no-print-directory release-prepare-version
+cmp Cargo.toml "$fixture/unsorted-Cargo.toml"
+cp "$fixture/sorted-Cargo.toml" Cargo.toml
+"$YQ" -p toml -o json '.' "$fixture/before-Cargo.lock" | jq '[.package[] | select(.source != null)]' > "$fixture/external-before"
+"$YQ" -p toml -o json '.' Cargo.lock | jq '[.package[] | select(.source != null)]' > "$fixture/external-after"
+cmp "$fixture/external-before" "$fixture/external-after"
+make --no-print-directory -s release-files > "$fixture/release-files"
+printf '%s\0' Cargo.toml Cargo.lock CHANGELOG.md > "$fixture/expected-files"
+cmp "$fixture/release-files" "$fixture/expected-files"
+git add -- Cargo.toml Cargo.lock CHANGELOG.md
+perl -0pi -e 's/^(cargo_metadata =[^\n]*\n)(clap =[^\n]*\n)/$2$1/m' Cargo.toml
+git add -- Cargo.toml
+expect_failure make --no-print-directory release-commit-check
+cp "$fixture/sorted-Cargo.toml" Cargo.toml
+git add -- Cargo.toml
+make --no-print-directory release-commit-check > "$fixture/commit-check.log" 2>&1
+git commit --quiet -m "Release $RELEASE_VERSION"
+export RELEASE_COMMIT
+RELEASE_COMMIT="$(git rev-parse HEAD)"
+make --no-print-directory release-committed-check > "$fixture/committed.log" 2>&1
+# Committed checks inspect the selected export, not the current manifest.
+perl -0pi -e 's/^(cargo_metadata =[^\n]*\n)(clap =[^\n]*\n)/$2$1/m' Cargo.toml
+make --no-print-directory release-committed-check > "$fixture/committed-dirty-manifest.log" 2>&1
+git add -- Cargo.toml
+unsorted_commit="$(printf 'Unsorted fixture manifest\n' | git commit-tree "$(git write-tree)" -p HEAD)"
+cp "$fixture/sorted-Cargo.toml" Cargo.toml
+git add -- Cargo.toml
+expect_failure env RELEASE_COMMIT="$unsorted_commit" make --no-print-directory release-committed-check
+make --no-print-directory release-committed-check > "$fixture/committed-restored.log" 2>&1
+mkdir -p target
+printf 'retained release artifact\n' > target/retained-artifact
+expect_failure make --no-print-directory publish
+[[ ! -e "$IC_BUILD_TEST_CARGO_CALLS" ]]
+git tag -a "v$RELEASE_VERSION" -m "Release $RELEASE_VERSION"
+expect_failure env IC_BUILD_TEST_CLIPPY_STATUS=23 make --no-print-directory -j4 publish
+expect_failure env IC_BUILD_TEST_CLIPPY_STATUS=23 make --no-print-directory -j4 publish-check
+[[ ! -e "$IC_BUILD_TEST_CARGO_CALLS" ]]
+make --no-print-directory publish-check > "$fixture/publish-check.log" 2>&1
+[[ "$(cat "$IC_BUILD_TEST_CARGO_CALLS")" == 'publish -p ic-build --locked --registry crates-io --dry-run' ]]
+make --no-print-directory publish > "$fixture/publish.log" 2>&1
+[[ "$(tail -n 1 "$IC_BUILD_TEST_CARGO_CALLS")" == 'publish -p ic-build --locked --registry crates-io' ]]
+expect_failure env IC_BUILD_TEST_PUBLISH_STATUS=24 make --no-print-directory publish
+printf '\nnewer source\n' >> README.md
+git add -- README.md
+git commit --quiet -m 'Newer source'
+expect_failure make --no-print-directory publish
+# Late recovery validates the selected release commit, not the newer branch tip.
+make --no-print-directory release-committed-check > "$fixture/older-commit.log" 2>&1
+[[ "$(cat target/retained-artifact)" == 'retained release artifact' ]]
+complete=true
+echo 'IC Build metadata, gate routing, recovery and publication fixtures passed (no live release effects).'
