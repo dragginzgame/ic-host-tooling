@@ -120,7 +120,10 @@ fn guard() -> Result<(), String> {
     }
 }
 
-fn decode<M: Method>(bytes: Vec<u8>) -> M::Request {
+fn decode<M: Method>(bytes: Vec<u8>) -> M::Request
+where
+    M::Request: serde::de::DeserializeOwned,
+{
     ic_wire::decode_request::<M>(&bytes).expect("bounded perf probe Wire request")
 }
 

@@ -108,8 +108,8 @@ Host-side test crates normally add:
 
 ```toml
 [dev-dependencies]
-ic-testkit = "0.55"
-ic-platform = { version = "0.1.16", default-features = false, features = ["candid"] }
+ic-testkit = "0.57"
+ic-platform = { version = "0.2.1", default-features = false, features = ["candid"] }
 ```
 
 Canister crates that emit benchmark markers can add the same version under
@@ -252,13 +252,16 @@ controlled application protocols. Add `ic-wire` alongside it:
 
 ```toml
 [dev-dependencies]
-ic-wire = "0.4.1"
+ic-wire = "0.5"
 ```
 
 Both helpers accept an explicit canister, caller and borrowed request. The selected
 `ic_wire::Method` owns the exported name, method identity, request/response types
 and finite limits. One call encodes once, executes one PocketIC operation and
 decodes the exact response; application-level results are returned unchanged.
+Requests may use Wire's borrowed bounded fields. Responses must implement
+`serde::de::DeserializeOwned`, because the helper releases the reply buffer before
+returning. Generic callers must carry that response bound alongside `M: Method`.
 Updates are never retried; a refused reply does not prove absence of effects.
 `WireCallError` distinguishes encoding, call and decode
 failures, retaining typed codec causes and complete structured rejections. Known

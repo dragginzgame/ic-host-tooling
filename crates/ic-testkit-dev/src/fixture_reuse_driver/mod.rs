@@ -42,6 +42,7 @@ use ic_host_process::{
         GitError, GitObservations, IgnoreSubmodules, StatusOptions, UntrackedFiles, capture_git,
     },
     sampling,
+    signal::{SignalActionError, SignalActions},
     tool::{
         AdmittedTool, CompletedExecution, ExecutionContext, OutputLimit, OutputLimits,
         ResolutionError, ToolError, VersionSpec, resolve_executable, run_group_command,
@@ -87,6 +88,8 @@ pub enum Error {
     #[error("{0}")]
     Sampling(#[from] sampling::SamplingError),
     #[error("{0}")]
+    Signal(#[from] SignalActionError),
+    #[error("{0}")]
     Tool(#[source] ToolError),
     #[error("{0}")]
     Git(#[source] GitError),
@@ -100,41 +103,18 @@ pub enum Error {
 }
 
 #[cfg(unix)]
-struct InterruptHandler(libc::sigaction);
-
-#[cfg(unix)]
 extern "C" fn mark_interrupted(_signal: libc::c_int) {
     // The handler performs only a lock-free flag update, never I/O or teardown.
     INTERRUPTED.store(true, Ordering::Relaxed);
 }
 
 #[cfg(unix)]
-impl InterruptHandler {
-    fn install() -> Result<Self, Error> {
-        INTERRUPTED.store(false, Ordering::Relaxed);
-        // SAFETY: sigaction is a C value with valid zero-initialized fields.
-        let mut action: libc::sigaction = unsafe { std::mem::zeroed() };
-        // SAFETY: the set is writable; sigemptyset initializes it for sigaction.
-        if unsafe { libc::sigemptyset(&raw mut action.sa_mask) } != 0 {
-            return Err(io::Error::last_os_error().into());
-        }
-        action.sa_sigaction = mark_interrupted as *const () as libc::sighandler_t;
-        // SAFETY: previous is writable; the handler has the required C ABI and
-        // remains valid for this process. Only this standalone driver installs it.
-        let mut previous: libc::sigaction = unsafe { std::mem::zeroed() };
-        if unsafe { libc::sigaction(libc::SIGINT, &raw const action, &raw mut previous) } != 0 {
-            return Err(io::Error::last_os_error().into());
-        }
-        Ok(Self(previous))
-    }
-}
-
-#[cfg(unix)]
-impl Drop for InterruptHandler {
-    fn drop(&mut self) {
-        // SAFETY: this is the exact previous action returned by sigaction.
-        let _ = unsafe { libc::sigaction(libc::SIGINT, &raw const self.0, std::ptr::null_mut()) };
-    }
+fn install_interrupt_handler() -> Result<SignalActions, SignalActionError> {
+    INTERRUPTED.store(false, Ordering::Relaxed);
+    // SAFETY: this standalone driver exclusively owns SIGINT through guard
+    // drop. Nested test guards restore in reverse order in an isolated process.
+    // The static callback only stores a lock-free atomic flag.
+    unsafe { SignalActions::install(&[libc::SIGINT], mark_interrupted) }
 }
 
 fn check_interrupted() -> Result<(), Error> {
@@ -366,7 +346,7 @@ fn prepare(options: &Options) -> Result<Inputs, Error> {
         cargo_command(&cargo, &std::env::current_dir()?, rustc.as_deref()),
     )?;
     if !root
-        .join("crates/ic_testkit_perf_probe/Cargo.toml")
+        .join("crates/ic-testkit-perf-probe/Cargo.toml")
         .is_file()
     {
         return Err(Error::InvalidArgument(
@@ -416,7 +396,7 @@ fn prepare(options: &Options) -> Result<Inputs, Error> {
     let spec = WasmBuildSpec::new(
         &root,
         &target.join("ic-testkit-fixture-benchmark-wasm"),
-        &["ic_testkit_perf_probe"],
+        &["ic-testkit-perf-probe"],
         environment,
     )
     .with_cargo_program(cargo)
@@ -547,7 +527,7 @@ pub fn run() -> Result<(), Error> {
         ));
     }
     #[cfg(unix)]
-    let _interrupt_handler = InterruptHandler::install()?;
+    let _interrupt_handler = install_interrupt_handler()?;
     let inputs = prepare(&options)?;
     let cases = options.benchmark_cases();
     let mut runs: BTreeMap<String, Vec<MeasuredRun>> = cases
@@ -620,7 +600,7 @@ mod tests {
     use ic_host_process::tool::{ExecutionFailure, OutputStream, ToolError};
 
     #[cfg(unix)]
-    use super::InterruptHandler;
+    use super::install_interrupt_handler;
     use serde_json::{Value, json};
     use std::{
         ffi::OsString,
@@ -898,7 +878,7 @@ mod tests {
             .as_array()
             .unwrap()
             .iter()
-            .find(|package| package["name"] == "ic_testkit_perf_probe")
+            .find(|package| package["name"] == "ic-testkit-perf-probe")
             .unwrap();
         let artifact = json!({
             "reason": "compiler-artifact",
@@ -1413,7 +1393,7 @@ esac
             );
             return;
         }
-        let _handler = InterruptHandler::install().unwrap();
+        let _handler = install_interrupt_handler().unwrap();
         let scratch = fixture_directory();
         let finished = scratch.path().join("finished");
         let result = measure(
@@ -1431,7 +1411,7 @@ esac
         assert_eq!(fs::read(finished).unwrap(), b"done");
 
         for capture_text in [true, false] {
-            let _command_handler = InterruptHandler::install().unwrap();
+            let _command_handler = install_interrupt_handler().unwrap();
             let pid_path = scratch.path().join("preparation.pid");
             let mut command = Command::new("/bin/sh");
             command
@@ -1465,7 +1445,7 @@ esac
             assert_eq!(io::Error::last_os_error().raw_os_error(), Some(libc::ESRCH));
         }
 
-        let _publication_handler = InterruptHandler::install().unwrap();
+        let _publication_handler = install_interrupt_handler().unwrap();
         let report = scratch.path().join("report.json");
         fs::write(&report, b"previous complete report").unwrap();
         let before = fs::read_dir(scratch.path()).unwrap().count();

@@ -1,12 +1,15 @@
 use std::{
     ffi::OsString,
-    io,
     path::PathBuf,
     process::{Command, ExitCode},
     sync::atomic::{AtomicI32, Ordering},
     time::Duration,
 };
 
+use ic_host_process::{
+    signal::{SignalActionError, SignalActions},
+    status::shell_status_code,
+};
 use ic_testkit::pic::{PocketIcStartupConfig, server_assets};
 
 static INTERRUPTED: AtomicI32 = AtomicI32::new(0);
@@ -31,39 +34,10 @@ extern "C" fn interrupted(signal: libc::c_int) {
     INTERRUPTED.store(signal, Ordering::Relaxed);
 }
 
-struct Signals {
-    previous: Vec<(libc::c_int, libc::sigaction)>,
-}
-
-impl Signals {
-    fn install() -> io::Result<Self> {
-        let mut signals = Self {
-            previous: Vec::new(),
-        };
-        for signal in [libc::SIGINT, libc::SIGTERM, libc::SIGHUP] {
-            // SAFETY: sigaction is a C structure; zero is valid initialization.
-            let mut action: libc::sigaction = unsafe { std::mem::zeroed() };
-            action.sa_sigaction = interrupted as *const () as usize;
-            // SAFETY: action's signal mask and previous action are writable.
-            let mut previous = unsafe { std::mem::zeroed() };
-            if unsafe { libc::sigemptyset(&raw mut action.sa_mask) } != 0
-                || unsafe { libc::sigaction(signal, &raw const action, &raw mut previous) } != 0
-            {
-                return Err(io::Error::last_os_error());
-            }
-            signals.previous.push((signal, previous));
-        }
-        Ok(signals)
-    }
-}
-
-impl Drop for Signals {
-    fn drop(&mut self) {
-        for (signal, previous) in &self.previous {
-            // SAFETY: restore only the actions saved by this CLI process.
-            unsafe { libc::sigaction(*signal, previous, std::ptr::null_mut()) };
-        }
-    }
+fn install_signals() -> Result<SignalActions, SignalActionError> {
+    // SAFETY: this standalone CLI exclusively owns these dispositions through
+    // guard drop. The static handler only stores a lock-free atomic value.
+    unsafe { SignalActions::install(&[libc::SIGINT, libc::SIGTERM, libc::SIGHUP], interrupted) }
 }
 
 fn path_argument(arguments: &mut impl Iterator<Item = OsString>) -> Result<PathBuf, String> {
@@ -179,7 +153,7 @@ pub fn main() -> ExitCode {
     };
     let arguments = match arguments {
         Arguments::Setup(directory) => {
-            return match Signals::install() {
+            return match install_signals() {
                 Ok(_signals) => report_provisioning(server_assets::setup(&directory, || {
                     INTERRUPTED.load(Ordering::Relaxed) != 0
                 })),
@@ -200,7 +174,7 @@ pub fn main() -> ExitCode {
         mut command,
     } = *arguments;
     let result = (|| {
-        let _signals = Signals::install()?;
+        let _signals = install_signals()?;
         let environment_selected = std::env::var_os("IC_TESTKIT_POCKET_IC_URL").is_some()
             || std::env::var_os("POCKET_IC_BIN").is_some();
         let mut config = if directory.is_some() || !environment_selected {
@@ -293,15 +267,7 @@ fn report_provisioning(result: Result<PathBuf, Box<dyn std::error::Error>>) -> E
 }
 
 fn command_exit_code(status: std::process::ExitStatus) -> ExitCode {
-    use std::os::unix::process::ExitStatusExt as _;
-    ExitCode::from(
-        u8::try_from(
-            status
-                .code()
-                .unwrap_or_else(|| 128 + status.signal().unwrap_or(1)),
-        )
-        .unwrap_or(1),
-    )
+    ExitCode::from(u8::try_from(shell_status_code(status).unwrap_or(129)).unwrap_or(1))
 }
 
 fn failure_exit_code(failure: &ic_testkit::pic::PocketIcStartupFailure) -> ExitCode {

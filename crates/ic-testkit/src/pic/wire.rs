@@ -3,6 +3,7 @@
 use super::{PocketIc, PocketIcCallFailure, RejectResponse, transport};
 use ic_platform::Principal;
 use ic_wire::Method;
+use serde::de::DeserializeOwned;
 
 /// Target, caller and method identity attached to a Wire call failure.
 #[non_exhaustive]
@@ -107,12 +108,17 @@ impl std::error::Error for WireCallError {
 /// Method owns the exact name, types, identity and finite request/response limits.
 /// Explicit anonymous callers are permitted. Application-level results are returned
 /// unchanged. Known PocketIC transport failures are captured; unrelated panics resume.
+/// Requests may borrow their input; responses must own their decoded data because
+/// the helper releases PocketIC's reply buffer before returning.
 pub fn query_wire<M: Method>(
     pic: &PocketIc,
     canister_id: Principal,
     caller: Principal,
     request: &M::Request,
-) -> Result<M::Response, WireCallError> {
+) -> Result<M::Response, WireCallError>
+where
+    M::Response: DeserializeOwned,
+{
     call_wire::<M>(
         context::<M>("query_call", canister_id, caller),
         request,
@@ -130,7 +136,10 @@ pub fn update_wire<M: Method>(
     canister_id: Principal,
     caller: Principal,
     request: &M::Request,
-) -> Result<M::Response, WireCallError> {
+) -> Result<M::Response, WireCallError>
+where
+    M::Response: DeserializeOwned,
+{
     call_wire::<M>(
         context::<M>("update_call", canister_id, caller),
         request,
@@ -156,7 +165,10 @@ fn call_wire<M: Method>(
     context: WireCallContext,
     request: &M::Request,
     call: impl FnOnce(Vec<u8>) -> Result<Vec<u8>, RejectResponse>,
-) -> Result<M::Response, WireCallError> {
+) -> Result<M::Response, WireCallError>
+where
+    M::Response: DeserializeOwned,
+{
     let request =
         ic_wire::encode_request::<M>(request).map_err(|source| WireCallError::Encode {
             context: Box::new(context.clone()),
