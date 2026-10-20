@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.31.2]
+
+- Restore independent native FS core, capability and temporary-file checks in CI,
+  retaining the final opt-in feature names
+  ([PR #210 — Make filesystem backends opt-in](https://github.com/dragginzgame/ic-host-tooling/pull/210)).
+- Correct the 0.28.1 preparation guidance: its registry archive did not supply
+  the advertised extraction batch; 0.29.0 is the supplying release
+  ([#209 — Release notes advertise absent scoped temporary files](https://github.com/dragginzgame/ic-host-tooling/issues/209)).
+
 ## [0.31.1] - 2026-10-20
 
 - Adopt Platform 0.4.0 while preserving Host's existing Principal, Agent, Candid

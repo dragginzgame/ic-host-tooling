@@ -2,63 +2,80 @@
 
 ## Authoritative state
 
-Host 0.31.0 is released at `ee03594`; package versions remain 0.31.0.
-[Cargo.toml](../../Cargo.toml), [CHANGELOG.md](../../CHANGELOG.md), Git tags and
-[AGENTS.md](../../AGENTS.md) own release state and local rules. The next draft is
-[0.31.1](../changelog/0.31.md#0311) for compatible Platform 0.4 adoption.
-Staging, commits, package versions, release/push and registry publication remain
-user-owned. Sibling checkouts are read-only; GitHub issues own follow-up tracking.
+Host 0.31.1 is released at `950669df9d2c91497e99ae1e3f1c5a77f8f80ef8`;
+package versions remain 0.31.1. [Cargo.toml](../../Cargo.toml),
+[CHANGELOG.md](../../CHANGELOG.md), Git tags and [AGENTS.md](../../AGENTS.md)
+own release state and local rules. Pending [0.31.2 notes](../changelog/0.31.md#0312)
+cover FS profile qualification and publication-guidance corrections. Real index,
+HEAD, versions, release/push and publication remain user-owned.
 
-## Ownership boundary
+## Boundary and released qualification
 
-The five crates retain the [extraction contract](../extraction.md): Artifacts owns
-byte/Wasm mechanics; FS owns filesystem mechanics; Process owns bounded native
-execution; Text owns generic text/decoding; Tools owns IC-specific interpretation.
-Platform owns external IC dependencies; Build owns native extraction/release
-rendering. Callers retain schemas, byte budgets, targets and effect recovery.
+The [five-crate contract](../extraction.md) remains: Artifacts owns byte/Wasm
+mechanics; FS owns filesystem mechanics; Process owns bounded execution; Text owns
+generic decoding/rendering; Tools owns IC interpretation. Platform owns external
+IC dependencies and Build owns native extraction/release rendering. Consumers
+retain schemas, budgets, targets and effect recovery. HTTP extraction remains
+an ownership decision in [#117](https://github.com/dragginzgame/ic-host-tooling/issues/117);
+no sixth crate or competing body reader is introduced.
 
-Released 0.31.0 owns the YAML and Principal migrations. Text's optional YAML uses
-serde_yaml 0.9.34+deprecated to align with ICP CLI, retaining its unsafe-libyaml
-maintenance limitation and backend checks. Byte admission is not a configurable
-parser memory/CPU ceiling. Registry uses Platform-owned principals; SDK/Candid
-DTOs retain external principals with explicit conversions. See [migration notes](../changelog/0.31.md#0310).
-Completed work and earlier qualification receipts remain in the committed handoff
-at `ee03594`; do not restore its superseded pending-state narrative.
+Platform 0.4/defaults-off remains selected. Its runtime/signature hard cuts do not
+enter Host's selected capabilities. The 0.31.1 [exact-source CI](https://github.com/dragginzgame/ic-host-tooling/actions/runs/39395970099)
+passes Linux, both macOS hosts and MSRV. This qualifies that released source,
+not the pending Make changes. Earlier adoption evidence remains committed at
+`950669d:docs/status/current.md`, including `/tmp/host-platform-040.1OEwh5/`.
 
-## Platform 0.4.0 adoption
+## Pending local 0.31.2 repairs
 
-The incoming manifest and lock already selected published Platform 0.4.0, defaults
-disabled. Preserve that selection and all unrelated dependency/artifact state.
-The live registry index and cached archive match the lock checksum; released
-source is `26a07c510ab74413ec30779cd69af84db13cff11`.
+Review of the old producer PRs found their implementation bodies delivered, but
+PR #210's independent FS feature dispatch had not carried forward. Make CI now
+runs core, capability-only and temporary-file-only cases using the final feature
+names. Actual Rust 1.88 passes those three profiles; the Host Make-routing fixture
+passes. Native execution of the updated CI dispatch remains separate.
 
-The release's raw-call, RejectCode and signature ownership cuts are outside Host's
-selected capabilities. Host-consumed Agent, certification, parser, decoder,
-contract bodies, ledger exports, Principal and Account sources match 0.3.0.
-The Candid facade adds `encode_args_ref`; existing Host uses remain compatible.
-No Rust implementation change or Host public contract cut is required. The lock
-changes only the selected Platform version/checksum from the released base.
+The 0.28.1 guide now has an explicit publication correction: the advertised batch
+was preparation, while 0.29 supplied capability/scoped-file/full-validation APIs
+and the final serde_cbor decoder. Existing archives and historical proposal text
+remain intact. A fresh registry-only 0.31.1 consumer on Rust 1.88 passes private
+permissions, binary child access, normal/unwind cleanup, explicit-close failure,
+core encoding/full validation and response decoding without a sibling override.
 
-Receipt: `/tmp/host-platform-040.1OEwh5/`. It preserves incoming source/index/HEAD,
-registry/source review and focused qualification logs. Rust 1.88 passes all 52
-Tools tests, including loopback HTTP, and independent default, certificate,
-interface/combined, Candid, Agent, ledger and Registry profiles. Strict MSRV and
-development Clippy, Rustdoc, metadata, formatting, snapshot, pins and links pass.
-Linux and both macOS graph matrices pass. Exact-source Platform hosted checks were
-running at source admission; do not claim they passed.
+Keep [#209](https://github.com/dragginzgame/ic-host-tooling/issues/209) and
+[PR #210](https://github.com/dragginzgame/ic-host-tooling/pull/210) open until these
+repairs reach main. Superseded producer PRs #203–#207 were closed without claiming
+merges. Producer issues #76/#80/#200/#201 are complete; remaining consumer
+acceptance belongs to [Auth #78](https://github.com/dragginzgame/ic-auth/issues/78)
+and [Query #87](https://github.com/dragginzgame/ic-query/issues/87).
+Testkit's encoder adoption closes #208: default source `96c01242` resolves Host
+Artifacts 0.31.1 and [native CI](https://github.com/dragginzgame/ic-testkit/actions/runs/39401962713)
+passes fixture/PocketIC query/update execution and MSRV on all three hosts.
 
-## Shared baseline and qualification limits
+## Isolated cross-repository work
 
-The [Shared snapshot](../../.shared-tooling.snapshot) remains 0.25.3 at
-`c55c1065c0061455dab7f0e2be8ddd04fdeb9910`, 125 files. Its explicit-feature tool
-installer, unchanged pins and existing prepared tools are retained.
-The prior adoption receipt `/tmp/host-shared-0253.dNBj5e/` records passing focused
-snapshot, installer, formatting/hook, Make and release-adapter checks. At that
-review, the [upstream run](https://github.com/dragginzgame/shared-tooling/actions/runs/39387644688)
-failed cross-checkout tool reuse on Linux/Apple Silicon; Intel was incomplete.
-Diagnostics were retained upstream; root cause was not verified in this checkout.
+[Shared PR #290](https://github.com/dragginzgame/shared-tooling/pull/290) gives the
+scratch reuse consumer the declared compiler and supplies that input to its
+portable fixture. The previously failing native reuse step passes all three
+hosts; the companion fixture fix passes locally. Complete updated hosted checks
+pass on Linux and Apple Silicon; Intel macOS and owner review remain before integration.
+Host's snapshot remains 0.25.3 at
+`c55c1065c0061455dab7f0e2be8ddd04fdeb9910`; this PR is not silently adopted here.
 
-No full local workspace/release gate, native macOS execution, package-version
-change, real index/HEAD mutation, release or sibling edit ran as part of this
-adoption. Named-target graphs do not qualify native macOS. Release execution and
-native host qualification remain with the maintainer's authorized workflow.
+[Auth PR #80](https://github.com/dragginzgame/ic-auth/pull/80) removes local file
+commands/batching in favor of pinned, offline-admitted Host CLI 0.31.1 with `cli`.
+Contract generation/lock admission and Auth recovery policy stay there. Eleven
+Rust 1.91 tooling cases, strict Clippy and the real local/mocked release fixture
+pass on Auth's merged 0.11.0 base. A later hosted Linux failure exposed the Testkit
+caller fixture's old tool roster. PR head `0384ddb` fixes that fixture and seals
+the file-tool pin/delegation inputs across CI, with focused ordering/drift checks
+passing locally. Updated hosted native checks and owner review remain with its PR.
+Normal sibling checkouts were read-only; all contribution edits used isolated clones.
+
+## Evidence and remaining limits
+
+Receipt: `/tmp/host-followups.oBBZP6/` retains source comparisons, original failed
+Shared artifacts, local tests, registry probes, PRs and closure records.
+`/tmp/host-audit-20261020/` holds the follow-up failure/consumer logs and closures. Focused
+Host formatting, snapshot, pins, links and Make checks pass. No full local
+workspace/release gate or release/publication was run. The Host index, HEAD,
+versions and other artifacts are preserved. An unrelated concurrent lock update
+to rustls-webpki 0.103.16 was left intact; this tooling work does not qualify it.
