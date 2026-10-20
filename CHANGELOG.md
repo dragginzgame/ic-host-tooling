@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.31.2]
+## [0.31.2] - 2026-10-20
 
 - Restore independent native FS core, capability and temporary-file checks in CI,
   retaining the final opt-in feature names
