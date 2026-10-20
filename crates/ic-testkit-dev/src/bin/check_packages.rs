@@ -8,6 +8,10 @@ use ic_build::cargo::packages::{
 use ic_host_process::tool::{OutputLimit, OutputLimits};
 
 fn main() -> Result<(), Box<dyn Error>> {
+    clap::Command::new("check_packages")
+        .about("Qualify the selected workspace package archives through IC Build")
+        .version(env!("CARGO_PKG_VERSION"))
+        .get_matches();
     let workspace = Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
         .and_then(Path::parent)

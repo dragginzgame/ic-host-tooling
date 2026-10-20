@@ -1,3 +1,3 @@
-fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+fn main() -> std::process::ExitCode {
     ic_testkit_dev::worker_main()
 }

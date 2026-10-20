@@ -12,7 +12,7 @@ use std::{
 };
 
 use crate::fixture_reuse_report::{Phases, Sample, WorkerReport};
-use ic_platform::Principal;
+use ic_platform::principal::ExternalPrincipal as Principal;
 use ic_testkit::pic::{
     BaselinePoolDisposition, BaselinePoolTimings, BaselinePreparationStage, CachedPocketIcBaseline,
     CachedPocketIcBaselinePool, CanisterSnapshotTarget, FailureDisposition, PocketIc,
@@ -280,7 +280,7 @@ fn run_tasks(
     })
 }
 
-pub fn worker_main() -> Result<()> {
+pub fn run(arguments: WorkerArguments) -> Result<()> {
     let WorkerArguments {
         mode,
         capacity,
@@ -289,7 +289,7 @@ pub fn worker_main() -> Result<()> {
         state_bytes,
         wasm,
         server,
-    } = WorkerArguments::try_from(std::env::args_os().skip(1).collect::<Vec<_>>())?;
+    } = arguments;
     let startup = Instant::now();
     let server = PocketIcStartupConfig::Spawn {
         server_binary: (&server).into(),

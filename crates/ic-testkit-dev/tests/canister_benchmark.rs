@@ -7,7 +7,7 @@ use ic_host_process::{
     child::{CleanupPolicy, OwnedChild},
     tool::{OutputLimit, OutputLimits},
 };
-use ic_platform::Principal;
+use ic_platform::principal::ExternalPrincipal as Principal;
 use ic_testkit::{
     benchmark::{
         BenchmarkEventSource, BenchmarkParserConfig, pair_benchmark_spans,

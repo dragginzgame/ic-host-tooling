@@ -13,7 +13,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use ic_platform::Principal;
+use ic_platform::principal::ExternalPrincipal as Principal;
 use ic_testkit::pic::{
     BaselinePoolDisposition, BaselinePoolError, BaselinePoolPreparationError,
     BaselinePreparationStage, CachedPocketIcBaselinePool, ControllerSnapshotError, InstallSpec,

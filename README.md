@@ -105,7 +105,7 @@ Host-side test crates normally add:
 ```toml
 [dev-dependencies]
 ic-testkit = "0.57"
-ic-platform = { version = "0.2.1", default-features = false, features = ["candid"] }
+ic-platform = { version = "0.4", default-features = false, features = ["candid"] }
 ```
 
 Canister crates that emit benchmark markers can add the same version under
@@ -115,7 +115,8 @@ The crate supports Rust 1.91 and uses PocketIC 16. The `pocket_ic` and `pic`
 modules are host-only; `performance` emits markers on Wasm. Benchmark counters,
 marker parsing, aggregation and `Fake` are available on native and Wasm targets.
 The Wasm library uses Platform's raw counters and marker logging,
-without a canister SDK or Candid; `Fake` uses the shared Principal type through `ic_platform::Principal`.
+without a canister SDK or Candid; `Fake` retains PocketIC’s principal identity through
+`ic_platform::principal::ExternalPrincipal`, without enabling Candid on Wasm.
 Native CSV/Markdown directory output is provided by the repository's
 `benchmark_report` example; applications own provenance and output policy.
 
@@ -201,13 +202,13 @@ and PocketIC types remain explicit imports.
 Each test normally constructs and directly owns one fresh `PocketIc`:
 
 ```rust,no_run
-use ic_platform::Principal;
+use ic_platform::principal::ExternalPrincipal as Principal;
 use ic_testkit::pic::{PocketIc, query_candid_args};
 
 fn read_counter(pocket_ic: &PocketIc, canister_id: Principal, limits: ic_platform::candid::DecodeLimits)
     -> Result<u64, ic_testkit::pic::CandidCallError>
 {
-    let (value,): (u64,) = query_candid_args(pocket_ic, canister_id, ic_platform::Principal::anonymous(), "get", (), limits)?;
+    let (value,): (u64,) = query_candid_args(pocket_ic, canister_id, ic_platform::principal::ExternalPrincipal::anonymous(), "get", (), limits)?;
     Ok(value)
 }
 ```
@@ -279,13 +280,13 @@ work, skipping, type entries and header bytes. These budgets govern reply
 decoding; transport deadlines remain with the caller and PocketIC:
 
 ```rust,no_run
-use ic_platform::Principal;
+use ic_platform::principal::ExternalPrincipal as Principal;
 use ic_testkit::pic::{query_candid_args, update_candid_args, PocketIc};
 
 fn increment_counter(pocket_ic: &PocketIc, canister_id: Principal, limits: ic_platform::candid::DecodeLimits)
     -> Result<(), ic_testkit::pic::CandidCallError>
 {
-    let ((),) = update_candid_args(pocket_ic, canister_id, ic_platform::Principal::anonymous(), "increment", (), limits)?;
+    let ((),) = update_candid_args(pocket_ic, canister_id, ic_platform::principal::ExternalPrincipal::anonymous(), "increment", (), limits)?;
     let (value,): (u64,) = query_candid_args(
         pocket_ic,
         canister_id,
@@ -579,7 +580,7 @@ the active endpoint.
 `InstallSpec` carries Wasm, initialization bytes, funding and an optional error label:
 
 ```rust,no_run
-use ic_platform::Principal;
+use ic_platform::principal::ExternalPrincipal as Principal;
 use ic_testkit::pic::{
     query_candid_args, InstallSpec, PocketIcBuilder, PocketIcStartupConfig, StandaloneCanisterFixture,
 };
@@ -594,7 +595,7 @@ fn install_counter(wasm: Vec<u8>, init_bytes: Vec<u8>, limits: ic_platform::cand
         InstallSpec { wasm, init_bytes, cycles: 1_000_000_000_000, install_sender: Some(Principal::anonymous()), label: Some("counter" .into()) },
     )?;
 
-    let (_value,): (u64,) = query_candid_args(fixture.pocket_ic(), fixture.canister_id(), ic_platform::Principal::anonymous(), "get", (), limits)?;
+    let (_value,): (u64,) = query_candid_args(fixture.pocket_ic(), fixture.canister_id(), ic_platform::principal::ExternalPrincipal::anonymous(), "get", (), limits)?;
     Ok(fixture)
 }
 ```
@@ -649,7 +650,7 @@ order, and cleans up earlier snapshots if a later capture fails. Restore reuses
 those captured senders and requires an explicit cycle-funding policy:
 
 ```rust,no_run
-use ic_platform::Principal;
+use ic_platform::principal::ExternalPrincipal as Principal;
 use ic_testkit::pic::{
     CanisterSnapshotTarget, PocketIc, PocketIcSnapshotExt, SnapshotRestoreFunding,
 };
@@ -718,7 +719,7 @@ static POOL: LazyLock<
 # fn build_fixture() -> std::io::Result<StandaloneCanisterFixture> { unimplemented!() }
 fn read_pooled_counter(limits: ic_platform::candid::DecodeLimits) -> Result<u64, Box<dyn std::error::Error>> {
     let (baseline, _outcome) = POOL.acquire()?;
-    let (value,): (u64,) = query_candid_args(baseline.pocket_ic(), *baseline.metadata(), ic_platform::Principal::anonymous(), "get", (), limits)?;
+    let (value,): (u64,) = query_candid_args(baseline.pocket_ic(), *baseline.metadata(), ic_platform::principal::ExternalPrincipal::anonymous(), "get", (), limits)?;
     Ok(value)
 }
 ```
@@ -869,7 +870,7 @@ independent principals for canister status and log access. It attempts both
 operations even if one fails and returns their results independently:
 
 ```rust,no_run
-use ic_platform::Principal;
+use ic_platform::principal::ExternalPrincipal as Principal;
 use ic_testkit::pic::{
     CanisterDiagnosticsRequest, CanisterLogRenderLimits, PocketIc, PocketIcDiagnosticsExt,
 };
@@ -1156,6 +1157,7 @@ the pinned checkout-local Rust tool bundle, and the reviewed repository-local ho
 rustup component add rustfmt
 make install-tools
 make install-hooks
+cargo fetch --locked
 make tools-check dependency-pins-check
 ```
 

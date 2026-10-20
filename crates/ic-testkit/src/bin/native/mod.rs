@@ -6,6 +6,10 @@ use std::{
     time::Duration,
 };
 
+use clap::{
+    Arg, Command as CliCommand, builder::OsStringValueParser, error::ErrorKind, value_parser,
+};
+
 use ic_host_process::{
     signal::{SignalActionError, SignalActions},
     status::shell_status_code,
@@ -13,7 +17,6 @@ use ic_host_process::{
 use ic_testkit::pic::{PocketIcStartupConfig, server_assets};
 
 static INTERRUPTED: AtomicI32 = AtomicI32::new(0);
-const USAGE: &str = "usage: ic-testkit-server setup|check [--directory DIRECTORY]\n       ic-testkit-server run [--directory DIRECTORY] [--ttl SECONDS] [--idle-ttl SECONDS] [--startup-timeout SECONDS] [--server-stdout NEW-FILE --server-stderr NEW-FILE] -- COMMAND [ARG...]";
 
 enum Arguments {
     Setup(PathBuf),
@@ -40,115 +43,115 @@ fn install_signals() -> Result<SignalActions, SignalActionError> {
     unsafe { SignalActions::install(&[libc::SIGINT, libc::SIGTERM, libc::SIGHUP], interrupted) }
 }
 
-fn path_argument(arguments: &mut impl Iterator<Item = OsString>) -> Result<PathBuf, String> {
-    arguments
-        .next()
-        .filter(|value| !value.is_empty())
-        .map(PathBuf::from)
-        .ok_or_else(|| USAGE.to_owned())
+fn cli() -> CliCommand {
+    let directory = Arg::new("directory")
+        .long("directory")
+        .value_name("DIRECTORY")
+        .value_parser(value_parser!(PathBuf))
+        .allow_hyphen_values(true);
+    CliCommand::new("ic-testkit-server")
+        .about("Explicit PocketIC setup, offline admission and command-scoped ownership")
+        .version(env!("CARGO_PKG_VERSION"))
+        .subcommand_required(true)
+        .arg_required_else_help(true)
+        .subcommands(["setup", "check"].map(|name| {
+            CliCommand::new(name).arg(
+                directory
+                    .clone()
+                    .default_value(server_assets::DEFAULT_DIRECTORY),
+            )
+        }))
+        .subcommand(
+            CliCommand::new("run")
+                .arg(directory)
+                .args(["ttl", "idle-ttl", "startup-timeout"].map(|name| {
+                    let arg = Arg::new(name)
+                        .long(name)
+                        .value_name("SECONDS")
+                        .value_parser(value_parser!(u64).range(1..));
+                    if name == "startup-timeout" {
+                        arg.default_value("30")
+                    } else {
+                        arg
+                    }
+                }))
+                .arg(
+                    Arg::new("server-stdout")
+                        .long("server-stdout")
+                        .value_name("NEW-FILE")
+                        .value_parser(value_parser!(PathBuf))
+                        .allow_hyphen_values(true)
+                        .requires("server-stderr"),
+                )
+                .arg(
+                    Arg::new("server-stderr")
+                        .long("server-stderr")
+                        .value_name("NEW-FILE")
+                        .value_parser(value_parser!(PathBuf))
+                        .allow_hyphen_values(true)
+                        .requires("server-stdout"),
+                )
+                .arg(
+                    Arg::new("command")
+                        .last(true)
+                        .required(true)
+                        .num_args(1..)
+                        .value_name("COMMAND")
+                        .value_parser(OsStringValueParser::new()),
+                ),
+        )
 }
 
-fn parse(mut arguments: impl Iterator<Item = OsString>) -> Result<Arguments, String> {
-    let action = arguments.next().ok_or(USAGE)?;
-    if action == "setup" || action == "check" {
-        let directory = match arguments.next() {
-            None => PathBuf::from(server_assets::DEFAULT_DIRECTORY),
-            Some(flag) if flag == "--directory" => path_argument(&mut arguments)?,
-            _ => return Err(USAGE.to_owned()),
-        };
-        if arguments.next().is_some() {
-            return Err(USAGE.to_owned());
-        }
-        return Ok(if action == "setup" {
-            Arguments::Setup(directory)
-        } else {
-            Arguments::Check(directory)
-        });
-    }
-    if action != "run" {
-        return Err(USAGE.to_owned());
-    }
-    let mut directory = None;
-    let mut timeout = Duration::from_secs(30);
-    let mut ttl = None;
-    let mut idle_ttl = None;
-    let mut selected_timeout = false;
-    let mut stdout = None;
-    let mut stderr = None;
-    while let Some(argument) = arguments.next() {
-        if argument == "--" {
-            let executable = arguments
-                .next()
-                .filter(|value| !value.is_empty())
-                .ok_or(USAGE)?;
-            let mut command = Command::new(executable);
-            command.args(arguments);
-            let output_files = match (stdout, stderr) {
-                (Some(stdout), Some(stderr)) => Some((stdout, stderr)),
-                (None, None) => None,
-                _ => {
-                    return Err(
-                        "--server-stdout and --server-stderr must be selected together".to_owned(),
-                    );
-                }
-            };
-            return Ok(Arguments::Run(Box::new(RunArguments {
-                directory,
-                timeout,
-                ttl,
-                idle_ttl,
-                output_files,
-                command,
-            })));
-        }
-        if argument == "--directory" && directory.is_none() {
-            directory = Some(path_argument(&mut arguments)?);
-            continue;
-        }
-        if argument == "--server-stdout" || argument == "--server-stderr" {
-            let selection = if argument == "--server-stdout" {
-                &mut stdout
-            } else {
-                &mut stderr
-            };
-            if selection.is_some() {
-                return Err(USAGE.to_owned());
+fn parse(arguments: impl Iterator<Item = OsString>) -> Result<Arguments, clap::Error> {
+    let mut cli = cli().no_binary_name(true);
+    let mut matches = cli.try_get_matches_from_mut(arguments)?;
+    let (name, mut matches) = matches.remove_subcommand().expect("subcommand required");
+    let directory = matches.remove_one::<PathBuf>("directory");
+    match name.as_str() {
+        "setup" => Ok(Arguments::Setup(directory.expect("default directory"))),
+        "check" => Ok(Arguments::Check(directory.expect("default directory"))),
+        "run" => {
+            let mut values = matches
+                .remove_many::<OsString>("command")
+                .expect("command required");
+            let executable = values.next().expect("command has at least one value");
+            // Clap captures one variadic argument so empty child arguments survive.
+            // Only the executable, rather than every child argument, must be nonempty.
+            if executable.is_empty() {
+                return Err(cli.error(
+                    ErrorKind::ValueValidation,
+                    "command executable must not be empty",
+                ));
             }
-            *selection = Some(path_argument(&mut arguments)?);
-            continue;
+            let mut command = Command::new(executable);
+            command.args(values);
+            let stdout = matches.remove_one::<PathBuf>("server-stdout");
+            let stderr = matches.remove_one::<PathBuf>("server-stderr");
+            Ok(Arguments::Run(Box::new(RunArguments {
+                directory,
+                timeout: Duration::from_secs(
+                    matches
+                        .remove_one::<u64>("startup-timeout")
+                        .expect("default timeout"),
+                ),
+                ttl: matches.remove_one::<u64>("ttl").map(Duration::from_secs),
+                idle_ttl: matches
+                    .remove_one::<u64>("idle-ttl")
+                    .map(Duration::from_secs),
+                output_files: stdout.zip(stderr),
+                command,
+            })))
         }
-        let is_ttl = argument == "--ttl";
-        let is_idle_ttl = argument == "--idle-ttl";
-        if !(is_ttl && ttl.is_none()
-            || is_idle_ttl && idle_ttl.is_none()
-            || argument == "--startup-timeout" && !selected_timeout)
-        {
-            return Err(USAGE.to_owned());
-        }
-        let seconds = arguments
-            .next()
-            .and_then(|value| value.into_string().ok())
-            .and_then(|value| value.parse::<u64>().ok())
-            .filter(|value| *value > 0)
-            .ok_or("timeouts must be positive whole seconds")?;
-        if is_ttl {
-            ttl = Some(Duration::from_secs(seconds));
-        } else if is_idle_ttl {
-            idle_ttl = Some(Duration::from_secs(seconds));
-        } else {
-            timeout = Duration::from_secs(seconds);
-            selected_timeout = true;
-        }
+        _ => unreachable!("Clap admits only declared subcommands"),
     }
-    Err(USAGE.to_owned())
 }
 
 pub fn main() -> ExitCode {
     let arguments = match parse(std::env::args_os().skip(1)) {
         Ok(arguments) => arguments,
         Err(error) => {
-            eprintln!("{error}");
-            return ExitCode::from(2);
+            let _ = error.print();
+            return ExitCode::from(u8::try_from(error.exit_code()).unwrap_or(2));
         }
     };
     let arguments = match arguments {
@@ -285,6 +288,112 @@ mod tests {
     use super::{ExitCode, command_exit_code, failure_exit_code};
     use ic_testkit::pic::PocketIcStartupFailure;
     use std::os::unix::process::ExitStatusExt as _;
+
+    #[test]
+    fn command_arguments_preserve_native_paths_empty_values_and_limits() {
+        use std::{ffi::OsString, os::unix::ffi::OsStringExt as _, time::Duration};
+        let executable = OsString::from_vec(vec![b'p', 255]);
+        let child_argument = OsString::from_vec(vec![b'a', 254]);
+        let mut arguments = [
+            "run",
+            "--ttl",
+            "90",
+            "--idle-ttl",
+            "10",
+            "--startup-timeout",
+            "7",
+            "--server-stdout",
+            "stdout path",
+            "--server-stderr",
+            "stderr path",
+            "--",
+        ]
+        .map(OsString::from)
+        .to_vec();
+        arguments.extend([
+            executable.clone(),
+            "--help".into(),
+            "".into(),
+            child_argument.clone(),
+        ]);
+        let super::Arguments::Run(arguments) = super::parse(arguments.into_iter()).unwrap() else {
+            panic!("run arguments required");
+        };
+        assert_eq!(arguments.command.get_program(), &executable);
+        assert_eq!(
+            arguments.command.get_args().collect::<Vec<_>>(),
+            [
+                std::ffi::OsStr::new("--help"),
+                std::ffi::OsStr::new(""),
+                child_argument.as_os_str()
+            ]
+        );
+        assert_eq!(arguments.timeout, Duration::from_secs(7));
+        assert_eq!(arguments.ttl, Some(Duration::from_secs(90)));
+        assert_eq!(arguments.idle_ttl, Some(Duration::from_secs(10)));
+        assert_eq!(
+            arguments.output_files,
+            Some(("stdout path".into(), "stderr path".into()))
+        );
+    }
+
+    #[test]
+    fn malformed_server_arguments_refuse_before_server_admission() {
+        for arguments in [
+            vec!["run", "--", ""],
+            vec!["run", "command"],
+            vec!["run", "--ttl", "0", "--", "command"],
+            vec!["run", "--ttl", "1", "--ttl", "2", "--", "command"],
+            vec!["run", "--server-stdout", "stdout", "--", "command"],
+            vec!["run", "--server-stderr", "stderr", "--", "command"],
+            vec!["check", "--directory", ""],
+        ] {
+            let error = super::parse(arguments.into_iter().map(Into::into))
+                .err()
+                .expect("invalid arguments");
+            assert_eq!(error.exit_code(), 2);
+        }
+    }
+
+    #[test]
+    fn server_help_and_defaults_are_admitted_without_provisioning() {
+        for arguments in [vec!["--help"], vec!["--version"], vec!["run", "--help"]] {
+            let error = super::parse(arguments.into_iter().map(Into::into))
+                .err()
+                .expect("display request");
+            assert_eq!(error.exit_code(), 0);
+        }
+        let super::Arguments::Check(directory) = super::parse(
+            ["check", "--directory", "-store"]
+                .map(Into::into)
+                .into_iter(),
+        )
+        .unwrap() else {
+            panic!("check arguments required");
+        };
+        assert_eq!(directory, std::path::Path::new("-store"));
+        let super::Arguments::Check(directory) =
+            super::parse(["check"].map(Into::into).into_iter()).unwrap()
+        else {
+            panic!("check arguments required");
+        };
+        assert_eq!(
+            directory,
+            std::path::Path::new(super::server_assets::DEFAULT_DIRECTORY)
+        );
+        let super::Arguments::Run(arguments) =
+            super::parse(["run", "--", "command"].map(Into::into).into_iter()).unwrap()
+        else {
+            panic!("run arguments required");
+        };
+        assert_eq!(arguments.timeout, std::time::Duration::from_secs(30));
+        assert!(
+            arguments.directory.is_none()
+                && arguments.ttl.is_none()
+                && arguments.idle_ttl.is_none()
+                && arguments.output_files.is_none()
+        );
+    }
 
     #[test]
     fn secondary_server_cleanup_preserves_failed_command_status() {

@@ -4,7 +4,7 @@
 mod support;
 
 use ic_host_process::testing::http::{HttpContentLength, capture_http_request};
-use ic_platform::Principal;
+use ic_platform::principal::ExternalPrincipal as Principal;
 use ic_testkit::pic::{
     CandidCallError, CanisterDiagnosticsRequest, CanisterInstallError, CanisterLogRenderLimits,
     InstallSpec, PocketIc, PocketIcBuilder, PocketIcCallFailure, PocketIcDiagnosticsExt,
@@ -216,7 +216,7 @@ fn refused_instance_request_probe() {
     let error = query_candid_args::<(u64,), _>(
         pic,
         Principal::anonymous(),
-        ic_platform::Principal::anonymous(),
+        ic_platform::principal::ExternalPrincipal::anonymous(),
         "get",
         (),
         support::REPLY_LIMITS,

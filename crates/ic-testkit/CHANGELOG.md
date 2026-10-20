@@ -8,6 +8,52 @@ This file ships in the crate archive so upgrades can be completed without the
 repository checkout. The complete historical changelog remains at
 <https://github.com/dragginzgame/ic-testkit/blob/main/CHANGELOG.md>.
 
+## [0.58.0]
+
+### Breaking
+
+- Align public startup and cleanup errors with published Host 0.31.1. Callers
+  exchanging Host types must use Host 0.31; provisioning, cleanup and retained
+  server policy are unchanged.
+
+- Adopt published Platform 0.4.0. Native Candid call helpers now expose its 0.4
+  `DecodeLimits` and decode-error identities; select Platform 0.4 in callers.
+  Keep PocketIC parameters, Candid DTOs and `Fake` on Platform's explicit
+  `principal::ExternalPrincipal`, preserving the original principal identity,
+  fixture bytes and simulator behavior. The new application `Principal` is a
+  distinct type; convert explicitly when crossing the simulator boundary.
+
+### Fixed
+
+- Require published Platform 0.4.0 so Testkit’s PocketIC module exposes the
+  placement, pending-ingress and HTTP fixture identities used by Backup and Canic.
+  Compile the original client method signatures through Testkit’s public export
+  without starting a server
+  ([#132 — Adopt published PocketIC fixture exports and enforce their minimum](https://github.com/dragginzgame/ic-testkit/issues/132)).
+
+### Changed
+
+- Require published Build 0.22.1 for developer tools and the selected release
+  editor so their exposed Host values match the 0.31 family. Older Build 0.22.0
+  retains Host 0.30 and cannot be exchanged with the new direct Host types.
+
+- Adopt Shared Tooling 0.25.4 and enforce the selected native and Wasm dependency
+  graphs in CI and release checks, including exclusion of native CLI dependencies
+  from Wasm. Shared Tooling owns graph observation and fixture-helper discovery;
+  Testkit keeps its profile and release policies
+  ([#134 — Enforce selected library and probe resolved dependency graphs](https://github.com/dragginzgame/ic-testkit/issues/134)).
+- Replace Shared's retired Perl release renderers with the locked, published
+  IC Build editor. Tool setup prepares it; release preparation selects the
+  admitted executable offline without shell exports. Retain Testkit's metadata
+  custody and interruption recovery. Reject source symlinks in CI/release checks.
+- Delegate CI failure-evidence selection and archiving to Shared's orchestrator.
+  Preserve Testkit's selected logs, original tool statuses, redirected parent links
+  and hosted artifact verification; incomplete collection remains a failing step.
+- Use Clap for the server, fixture benchmark worker/driver, package qualifier and
+  report example. Keep command names, successful output, native paths, workload
+  defaults and server lifecycle behavior; help, version and argument diagnostics
+  come from Clap. Prepare locked caches before offline dependency checks.
+
 ## [0.57.0] - 2026-10-19
 
 ### Breaking

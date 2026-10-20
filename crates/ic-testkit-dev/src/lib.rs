@@ -7,8 +7,6 @@ mod fixture_reuse_report;
 mod statistics;
 mod workload;
 
-pub use workload::worker_main;
-
 use std::process::ExitCode;
 
 use fixture_reuse_driver::Error;
@@ -18,6 +16,10 @@ use fixture_reuse_driver::Error;
 pub fn driver_main() -> ExitCode {
     match fixture_reuse_driver::run() {
         Ok(()) => ExitCode::SUCCESS,
+        Err(Error::Arguments(error)) => {
+            let _ = error.print();
+            ExitCode::from(u8::try_from(error.exit_code()).unwrap_or(2))
+        }
         Err(error) => {
             eprintln!("error: {error}");
             match error {
@@ -31,6 +33,27 @@ pub fn driver_main() -> ExitCode {
                 }
                 _ => ExitCode::FAILURE,
             }
+        }
+    }
+}
+
+/// Run the private benchmark worker with Clap-owned argument diagnostics.
+#[must_use]
+pub fn worker_main() -> ExitCode {
+    let arguments = match fixture_reuse_protocol::WorkerArguments::try_from(
+        std::env::args_os().skip(1).collect::<Vec<_>>(),
+    ) {
+        Ok(arguments) => arguments,
+        Err(error) => {
+            let _ = error.print();
+            return ExitCode::from(u8::try_from(error.exit_code()).unwrap_or(2));
+        }
+    };
+    match workload::run(arguments) {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(error) => {
+            eprintln!("error: {error}");
+            ExitCode::FAILURE
         }
     }
 }

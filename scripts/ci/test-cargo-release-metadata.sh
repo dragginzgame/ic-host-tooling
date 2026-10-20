@@ -1,20 +1,15 @@
 #!/usr/bin/env bash
-# Shared companions: scripts/ci/cargo-release-metadata.sh
+# Shared companions: scripts/ci/cargo-release-metadata.sh scripts/ci/fixture-lifecycle.sh
 set -Eeuo pipefail
 ROOT="${BASH_SOURCE[0]}"
 [[ "$ROOT" == /* ]] || ROOT="$PWD/$ROOT"
 ROOT="$(cd -P "${ROOT%/*}/../.." && printf '%s/.' "$PWD")"
 ROOT="${ROOT%/.}"
-fixture="$(mktemp -d "${TMPDIR:-/tmp}/cargo-release-metadata-test.XXXXXX")"
-complete=false
-finish() {
-    local status=$?
-    [[ "$complete" == true || "$status" != 0 ]] || status=1
-    if [[ "$status" == 0 ]]; then rm -rf "$fixture"
-    else printf 'failed Cargo metadata fixture retained: %s\n' "$fixture" >&2; fi
-    exit "$status"
-}
-trap finish EXIT
+# shellcheck source=scripts/ci/fixture-lifecycle.sh
+source "$ROOT/scripts/ci/fixture-lifecycle.sh"
+fixture="$(fixture_create "${TMPDIR:-/tmp}/cargo-release-metadata-test.XXXXXX")"
+fixture_complete=false
+trap 'fixture_finish "$?" "$fixture" "failed Cargo metadata fixture retained"' EXIT
 REAL_CARGO="$(command -v cargo)"
 export REAL_CARGO
 REAL_CP="$(command -v cp)"
@@ -72,25 +67,30 @@ chmod +x "$fixture/bin/git"
 cat > "$fixture/bin/cp" <<'CP'
 #!/usr/bin/env bash
 set -euo pipefail
-if [[ "${CASE:-}" == restore-failure && "$1" == -p && "$2" == */cargo-release-backup.*/Cargo.lock ]]; then
+if [[ "${CASE:-}" == restore-failure && "$1" == -p && "$2" == -- && "$3" == */cargo-release-backup.*/original/Cargo.lock ]]; then
     echo 'controlled lockfile restoration failure' >&2
     exit 43
+fi
+if [[ "$1" == -- && "$2" == */candidate/* ]]; then
+    [[ -z "${INSTALL_EVENTS:-}" ]] || printf '%s\n' "$2" >> "$INSTALL_EVENTS"
+    if [[ "${CASE:-}" == install-failure && "$2" == */candidate/Cargo.lock ]]; then exit 29; fi
 fi
 exec "$REAL_CP" "$@"
 CP
 chmod +x "$fixture/bin/cp"
-REAL_PERL="$(command -v perl)"
-export REAL_PERL
-cat > "$fixture/bin/perl" <<'PERL'
+REAL_EDITOR="${CARGO_RELEASE_METADATA_EDITOR:?select the actual compiled editor for qualification}"
+export REAL_EDITOR
+cat > "$fixture/bin/editor" <<'EDITOR'
 #!/usr/bin/env bash
 set -euo pipefail
-case "${1:-}" in
-    */render-cargo-workspace-version.pl)
-        if [[ "${CASE:-}" == renderer-failure ]]; then "$REAL_PERL" "$@"; exit 23; fi ;;
+case "${CASE:-}:${3:-}" in
+    renderer-failure:manifest|lock-renderer-failure:lock) "$REAL_EDITOR" "$@"; exit 23 ;;
 esac
-exec "$REAL_PERL" "$@"
-PERL
-chmod +x "$fixture/bin/perl"
+exec "$REAL_EDITOR" "$@"
+EDITOR
+chmod +x "$fixture/bin/editor"
+export CARGO_RELEASE_METADATA_EDITOR="$fixture/bin/editor"
+export CARGO_RELEASE_METADATA_MAX_BYTES=8388608
 export PATH="$fixture/bin:$PATH"
 export RELEASE_PREVIOUS=1.2.3 RELEASE_VERSION=1.2.4 RELEASE_DATE=2026-10-13
 helper="$ROOT/scripts/ci/cargo-release-metadata.sh"
@@ -122,6 +122,31 @@ TOML
 }
 mkdir "$fixture/success"
 make_workspace "$fixture/success"
+# Tool/allowance admission must refuse before a preparation transaction or write.
+cp "$fixture/success/Cargo.toml" "$fixture/unchanged.toml"
+cp "$fixture/success/Cargo.lock" "$fixture/unchanged.lock"
+cp "$fixture/success/CHANGELOG.md" "$fixture/unchanged.md"
+mkdir "$fixture/admission-temp"
+for admission in missing-editor relative-editor missing-file missing-limit zero-limit invalid-limit; do
+    if (
+        cd "$fixture/success"
+        case "$admission" in
+            missing-editor) unset CARGO_RELEASE_METADATA_EDITOR ;;
+            relative-editor) export CARGO_RELEASE_METADATA_EDITOR=editor ;;
+            missing-file) export CARGO_RELEASE_METADATA_EDITOR="$fixture/no-editor" ;;
+            missing-limit) unset CARGO_RELEASE_METADATA_MAX_BYTES ;;
+            zero-limit) export CARGO_RELEASE_METADATA_MAX_BYTES=0 ;;
+            invalid-limit) export CARGO_RELEASE_METADATA_MAX_BYTES=1.5 ;;
+        esac
+        TMPDIR="$fixture/admission-temp" bash "$helper" prepare primary
+    ) > "$fixture/admission-$admission.log" 2>&1; then
+        echo "invalid editor admission accepted: $admission" >&2; exit 1
+    fi
+    cmp "$fixture/unchanged.toml" "$fixture/success/Cargo.toml"
+    cmp "$fixture/unchanged.lock" "$fixture/success/Cargo.lock"
+    cmp "$fixture/unchanged.md" "$fixture/success/CHANGELOG.md"
+    [[ -z "$(ls -A "$fixture/admission-temp")" ]]
+done
 (cd "$fixture/success" && bash "$helper" prepare primary > "$fixture/success.log" 2>&1)
 (cd "$fixture/success" && bash "$helper" check primary)
 for ordering in --manifest-order --manifest-order-grouped; do
@@ -226,10 +251,12 @@ if (cd "$root" && RELEASE_VERSION=1.3.0 bash "$helper" prepare primary) > "$fixt
     echo 'restrictive local range admitted' >&2; exit 1
 fi
 for file in Cargo.toml Cargo.lock CHANGELOG.md; do cmp "$root/$file" "$root/originals/$file"; done
-for mode in renderer-failure check-failure interrupt literal-version unknown-local missing-member; do
+for mode in renderer-failure lock-renderer-failure input-limit install-failure check-failure interrupt literal-version unknown-local missing-member; do
     root="$fixture/$mode"
     make_workspace "$root"
+    allowance=8388608
     case "$mode" in
+        input-limit) allowance=1 ;;
         literal-version) sed 's/version.workspace = true/version = "1.2.3"/' "$root/secondary/Cargo.toml" > "$fixture/literal"; cp "$fixture/literal" "$root/secondary/Cargo.toml" ;;
         unknown-local) printf '\n[[package]]\nname = "outside"\nversion = "1.2.3"\n' >> "$root/Cargo.lock" ;;
         missing-member) mv "$root/secondary/Cargo.toml" "$root/secondary/retained.toml" ;;
@@ -237,12 +264,22 @@ for mode in renderer-failure check-failure interrupt literal-version unknown-loc
     mkdir "$root/originals"
     for file in Cargo.toml Cargo.lock CHANGELOG.md; do cp -p "$root/$file" "$root/originals/$file"; done
     status=0
-    (cd "$root" && CASE="$mode" bash "$helper" prepare primary) > "$fixture/$mode.log" 2>&1 || status=$?
+    (
+        cd "$root"
+        CASE="$mode" INSTALL_EVENTS="$root/install.events" CARGO_RELEASE_METADATA_MAX_BYTES="$allowance" \
+            bash "$helper" prepare primary
+    ) > "$fixture/$mode.log" 2>&1 || status=$?
     [[ "$status" != 0 ]] || { echo "metadata failure case accepted: $mode" >&2; exit 1; }
-    case "$mode" in renderer-failure) [[ "$status" == 23 ]] ;; interrupt) [[ "$status" == 143 ]] ;; check-failure) [[ "$status" == 25 ]] ;; esac
+    case "$mode" in
+        renderer-failure|lock-renderer-failure) [[ "$status" == 23 && ! -e "$root/install.events" ]] ;;
+        input-limit) [[ ! -e "$root/install.events" ]] ;;
+        install-failure) [[ "$status" == 29 && -s "$root/install.events" ]] ;;
+        interrupt) [[ "$status" == 143 ]] ;;
+        check-failure) [[ "$status" == 25 ]] ;;
+    esac
     for file in Cargo.toml Cargo.lock CHANGELOG.md; do cmp "$root/$file" "$root/originals/$file"; done
     if [[ "$mode" != missing-member ]]; then
-        grep -F 'evidence retained:' "$fixture/$mode.log" > /dev/null
+        grep -F 'Failed preparation; originals retained:' "$fixture/$mode.log" > /dev/null
     fi
 done
 # Successful preparation preserves all unrelated bytes and metadata modes.
@@ -283,9 +320,9 @@ for mode in undated-history history-no-lf dated-notes conflicting-date conflicti
             if cmp -s "$root/originals/Cargo.lock" "$root/Cargo.lock"; then exit 1; fi
             set -- "$root/attempts/"cargo-release-backup.*
             [[ $# == 1 ]] || exit 1
-            cmp "$1/candidate.lock" "$root/Cargo.lock"
-            for file in Cargo.toml Cargo.lock CHANGELOG.md; do cmp "$root/originals/$file" "$1/$file"; done
-            grep -F 'metadata restoration incomplete; originals retained:' "$fixture/$mode.log" > /dev/null
+            cmp "$1/candidate/Cargo.lock" "$root/Cargo.lock"
+            for file in Cargo.toml Cargo.lock CHANGELOG.md; do cmp "$root/originals/$file" "$1/original/$file"; done
+            grep -F 'Metadata restoration failed: Cargo.lock' "$fixture/$mode.log" > /dev/null
             ;;
         *)
             [[ "$status" != 0 ]] || exit 1
@@ -448,5 +485,5 @@ for mode in mixed-version resolved-primary-version stale-primary stale-secondary
     for file in Cargo.toml Cargo.lock; do cmp "$root/$file" "$root/$file.before"; done
     [[ ! -e "$root/CHANGELOG.md" ]] || exit 1
 done
-echo 'Cargo metadata preparation, restoration, workspace admission and selected-commit checks passed (literal rendering; no manifest mutation tools).'
-complete=true
+echo 'Cargo metadata preparation, restoration, workspace admission and selected-commit checks passed (selected IC Build editor; no manifest mutation tools).'
+fixture_complete=true

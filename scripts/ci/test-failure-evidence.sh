@@ -64,11 +64,9 @@ verify_archive() {
     tar -xzf "$1" -C "$fixture/unpacked"
     cmp -s "$fixture/unpacked/tool-evidence/selection-status" <(printf '%s\n' "$selector_status") || exit 1
     if [[ "$selector_status" == 1 ]]; then
-        cmp -s "$fixture/unpacked/tool-evidence/collection-status" <(printf 'shared_collection=incomplete\n') || exit 1
         [[ -s "$fixture/unpacked/tool-evidence/selection.log" ]] || exit 1
-    else
-        [[ ! -e "$fixture/unpacked/tool-evidence/collection-status" ]] || exit 1
     fi
+    cmp -s "$fixture/unpacked/tool-evidence/archive-status" <(printf '0\n') || exit 1
     if [[ "$mode" == portable ]]; then
         local payload="$fixture/unpacked/ic-testkit-portable-fixtures/Linux:x86_64/"$'line\nbreak'
         cmp -s "$payload" <(printf retained) || exit 1
@@ -319,14 +317,15 @@ for mode in checks portable; do
     [[ "$(cat "$rejected/ic-testkit-tools-install.log")" == failed ]] || exit 1
     [[ "$(cat "$rejected/step-outcomes.json")" == "$IC_TESTKIT_FAILURE_STEPS" ]] || exit 1
     [[ "$(cat "$rejected/tool-evidence/selection-status")" == 1 ]] || exit 1
-    [[ "$(cat "$rejected/tool-evidence/collection-status")" == shared_collection=incomplete ]] || exit 1
+    [[ "$(cat "$rejected/tool-evidence/archive-status")" == 0 ]] || exit 1
     [[ -s "$rejected/tool-evidence/selection.log" ]] || exit 1
 done
 # A failed selector may emit partial pairs: archive them as diagnostics, never
 # use them to read even an otherwise accessible outside payload.
 mkdir "$fixture/partial-collector" "$fixture/partial-temp" "$fixture/partial-unpacked"
-cp "$collector" "$root/scripts/ci/archive-evidence.sh" "$root/scripts/ci/formatting-evidence.sh" "$fixture/partial-collector/"
-cat > "$fixture/partial-collector/select-tool-evidence.sh" <<'SELECTOR'
+bash "$root/scripts/ci/prepare-script-fixture.sh" "$root" "$fixture/partial-collector" \
+    scripts/ci/collect-failure-evidence.sh
+cat > "$fixture/partial-collector/scripts/ci/select-tool-evidence.sh" <<'SELECTOR'
 #!/usr/bin/env bash
 printf '%s\0%s\0' "$IC_TESTKIT_EVIDENCE_OUTSIDE" unrelated
 echo 'injected selection failure' >&2
@@ -334,8 +333,8 @@ exit 23
 SELECTOR
 status=0
 partial="$(IC_TESTKIT_EVIDENCE_OUTSIDE="$GITHUB_WORKSPACE" RUNNER_TEMP="$fixture/partial-temp" \
-    bash "$fixture/partial-collector/collect-failure-evidence.sh" checks)" || status=$?
-[[ "$status" == 23 ]] || exit 1
+    bash "$fixture/partial-collector/scripts/ci/collect-failure-evidence.sh" checks)" || status=$?
+[[ "$status" == 1 ]] || exit 1
 tar -xzf "$partial" -C "$fixture/partial-unpacked"
 [[ ! -e "$fixture/partial-unpacked/unrelated" ]] || exit 1
 [[ -s "$fixture/partial-unpacked/tool-evidence/selections.nul" ]] || exit 1
@@ -451,8 +450,7 @@ for parent in target .tools; do
             selected_collector="$collector"
             expected_status=1
             if [[ "$selector" == failed ]]; then
-                selected_collector="$fixture/partial-collector/collect-failure-evidence.sh"
-                expected_status=23
+                selected_collector="$fixture/partial-collector/scripts/ci/collect-failure-evidence.sh"
             fi
             status=0
             linked="$(IC_TESTKIT_EVIDENCE_OUTSIDE="$GITHUB_WORKSPACE" RUNNER_TEMP="$temporary" \

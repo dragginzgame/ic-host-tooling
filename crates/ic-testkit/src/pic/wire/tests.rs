@@ -2,7 +2,7 @@ use super::{WireCallError, call_wire, context};
 use crate::pic::{
     ErrorCode, PocketIcCallFailure, RejectCode, RejectResponse, is_dead_pocket_ic_transport_error,
 };
-use ic_platform::Principal;
+use ic_platform::principal::ExternalPrincipal as Principal;
 use ic_wire::{Limits, Method};
 
 const LIMITS: Limits = Limits {

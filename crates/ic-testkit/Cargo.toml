@@ -25,6 +25,7 @@ ic-platform = { workspace = true }
 libc = { workspace = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+clap = { workspace = true }
 ic-host-artifacts = { workspace = true, features = ["gzip"] }
 ic-host-fs = { workspace = true }
 ic-host-process = { workspace = true }

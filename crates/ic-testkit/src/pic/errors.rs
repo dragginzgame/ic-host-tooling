@@ -1,5 +1,5 @@
-use ic_platform::Principal;
 use ic_platform::pocket_ic::{PocketIc, RejectResponse};
+use ic_platform::principal::ExternalPrincipal as Principal;
 
 use super::{PocketIcInstance, PocketIcOperationError};
 
@@ -242,7 +242,7 @@ impl std::error::Error for StandaloneCanisterInstallError {
 
 #[cfg(test)]
 mod tests {
-    use ic_platform::Principal;
+    use ic_platform::principal::ExternalPrincipal as Principal;
 
     use super::CanisterInstallError;
 

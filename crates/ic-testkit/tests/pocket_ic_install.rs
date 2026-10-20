@@ -1,6 +1,6 @@
 mod support;
 
-use ic_platform::Principal;
+use ic_platform::principal::ExternalPrincipal as Principal;
 use ic_testkit::pic::{
     CanisterDiagnosticsRequest, CanisterInstallError, CanisterInstallExt, CanisterLogRenderLimits,
     InstallSpec, PocketIcDiagnosticsExt, StandaloneCanisterFixture,
