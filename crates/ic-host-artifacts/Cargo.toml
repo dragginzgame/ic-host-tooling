@@ -27,8 +27,8 @@ wasmparser = { workspace = true, optional = true }
 wat = { workspace = true, optional = true }
 
 [dev-dependencies]
-clap.workspace = true
-serde.workspace = true
+clap = { workspace = true, features = ["derive"] }
+serde = { workspace = true, features = ["std"] }
 serde_json.workspace = true
 wasmparser.workspace = true
 

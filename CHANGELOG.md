@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.62.0] - Unreleased
+
+- Consolidate Host, Build and Testkit into IC Tooling, retaining crate names
+  and original repository histories. Adopt Rust 1.91 as the common minimum.
+- Coordinate internal package requirements and publication, preserving optional
+  Host features, Testkit native/Wasm exclusions and private test packages.
+- Preserve real PocketIC, browser-session, optimizer and archive qualification.
+  Remove a Build test that assumed the source checkout’s directory depth;
+  independent workspace discovery fixtures remain.
+- See [the migration instructions](docs/changelog/0.62.md).
+
 ## [0.32.0] - 2026-10-20
 
 - **Breaking Rust dependency contract:** adopt published IC Platform 0.5.0.

@@ -20,7 +20,7 @@ export TMPDIR="${fixture%/*}"
 mkdir -p "$fixture/local"
 bash "$root/scripts/ci/prepare-script-fixture.sh" "$root" "$fixture/local" \
     make/consumer.mk scripts/ci/check-pipe-jobserver.pl scripts/release/editor.sh
-for input in Makefile ci/tool-versions.env ci/release-delivery.txt scripts/ci/check-format-tools.sh; do
+for input in Makefile make/testkit.mk ci/tool-versions.env ci/release-delivery.txt scripts/ci/check-format-tools.sh; do
     parent=.
     [[ "$input" != */* ]] || parent="${input%/*}"
     mkdir -p "$fixture/local/$parent"
@@ -41,6 +41,9 @@ cat > "$fixture/local/cargo" <<'STUB'
 set -euo pipefail
 if [[ "${HOST_MAKE_VERIFY_JOBSERVER:-}" == 1 ]]; then
     perl "$HOST_MAKE_JOBSERVER_PROBE"
+fi
+if [[ "${HOST_MAKE_ASSERT_POCKET_IC:-0}" == 1 && "$1" == test ]]; then
+    [[ "${POCKET_IC_BIN:-}" == '/prepared/pocket ic' ]] || exit 91
 fi
 case "$*" in
     'sort --version') printf 'cargo-sort %s\n' "$HOST_MAKE_SORT_VERSION" ;;
@@ -145,13 +148,23 @@ printf '%s %s\n' "$name" "$mode" >> "$HOST_MAKE_EVENTS"
 if [[ "${HOST_MAKE_TOOL_FAIL:-}" == "$name" && "${HOST_MAKE_TOOL_FAIL_MODE:-}" == "$mode" ]]; then exit 23; fi
 STUB
 done
+mkdir -p "$fixture/local/target/debug"
+cat > "$fixture/local/target/debug/ic-testkit-server" <<'STUB'
+#!/usr/bin/env bash
+set -euo pipefail
+mode=install
+if [[ "$1" == check ]]; then mode=check; printf '%s\n' '/prepared/pocket ic'; fi
+printf 'install-server-tools.sh %s\n' "$mode" >> "$HOST_MAKE_EVENTS"
+if [[ "${HOST_MAKE_TOOL_FAIL:-}" == install-server-tools.sh && "${HOST_MAKE_TOOL_FAIL_MODE:-}" == "$mode" ]]; then exit 23; fi
+STUB
+chmod +x "$fixture/local/target/debug/ic-testkit-server"
 for mode in install check; do
     target=install-tools
     [[ "$mode" != check ]] || target=tools-check
-    for failed in none host rust editor; do
+    for failed in none host rust editor server; do
         : > "$HOST_MAKE_EVENTS"
         status=0
-        HOST_MAKE_TOOL_FAIL="install-$failed-tools.sh" HOST_MAKE_TOOL_FAIL_MODE="$mode" make --no-print-directory -j4 "$target" \
+        PATH="$fixture/local:$PATH" HOST_MAKE_TOOL_FAIL="install-$failed-tools.sh" HOST_MAKE_TOOL_FAIL_MODE="$mode" make --no-print-directory -j4 "$target" "MAKE=$(command -v make)" \
             "SHARED_TOOLING_ROOT=$fixture/external" > "$fixture/$target-$failed.log" 2>&1 || status=$?
         if [[ "$failed" == none ]]; then [[ "$status" == 0 ]] || exit 1;
         else [[ "$status" == 2 ]] || exit 1; fi
@@ -163,13 +176,22 @@ for mode in install check; do
             printf 'install-%s-tools.sh %s\n' "$tool" "$mode" >> "$fixture/expected"
             [[ "$tool" != "$failed" ]] || break
         done
-        if [[ "$failed" == none || "$failed" == editor ]]; then
+        if [[ "$failed" == none || "$failed" == editor || "$failed" == server ]]; then
             printf 'install-editor-tools.sh %s\n' "$mode" >> "$fixture/expected"
+        fi
+        if [[ "$failed" == none || "$failed" == server ]]; then
+            if [[ "$mode" == install ]]; then
+                printf '%s\n' 'build -p ic-testkit --locked --offline --bin ic-testkit-server' >> "$fixture/expected"
+            fi
+            printf 'install-server-tools.sh %s\n' "$mode" >> "$fixture/expected"
         fi
         cmp "$fixture/expected" "$HOST_MAKE_EVENTS"
         [[ ! -e "$HOST_MAKE_EXTERNAL" ]] || exit 1
     done
 done
+# Exercise the actual Make shell/environment handoff, including a space in the admitted path.
+PATH="$fixture/local:$PATH" HOST_MAKE_ASSERT_POCKET_IC=1 make --no-print-directory \
+    "MAKE=$(command -v make)" testkit-installed-check > "$fixture/server-environment.log" 2>&1
 # Keep the actual Host LOC caller, argument selection and failure propagation
 # qualified without replaying Shared's synthetic workspace/parser matrix.
 cat > "$fixture/local/scripts/dev/cloc.sh" <<'STUB'
@@ -265,11 +287,11 @@ done
 for package in ic-host-text ic-host-tools; do
     : > "$HOST_MAKE_EVENTS"
     PATH="$fixture/local:$PATH" make --no-print-directory msrv "PACKAGE=$package" > "$fixture/msrv-$package.log" 2>&1
-    grep -F -- "+1.88.0 check -p $package --all-targets --all-features" "$HOST_MAKE_EVENTS" >/dev/null
+    grep -F -- "+1.91.0 check -p $package --all-targets --all-features" "$HOST_MAKE_EVENTS" >/dev/null
 done
 : > "$HOST_MAKE_EVENTS"
 PATH="$fixture/local:$PATH" make --no-print-directory msrv-workspace > "$fixture/msrv-workspace.log" 2>&1
-grep -F -- '+1.88.0 check --workspace --all-targets --all-features' "$HOST_MAKE_EVENTS" >/dev/null
+grep -F -- '+1.91.0 check --workspace --all-targets --all-features' "$HOST_MAKE_EVENTS" >/dev/null
 # Actual Host formatting stops after sorter failure and points at complete logs.
 for target in fmt fmt-check; do
     : > "$HOST_MAKE_EVENTS"

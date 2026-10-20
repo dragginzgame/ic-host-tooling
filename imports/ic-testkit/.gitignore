@@ -1,7 +1,0 @@
-/target/
-/.tools/
-/.shared-tooling-refresh.*/
-.shared-tooling-payload.*
-# Atomic release publication stages beside files in these two directories.
-/.release-metadata.*
-/crates/ic-testkit/.release-metadata.*

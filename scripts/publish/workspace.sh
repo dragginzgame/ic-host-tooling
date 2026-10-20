@@ -15,7 +15,7 @@ tooling_root="${BASH_SOURCE[0]}"
 tooling_root="$(cd -P "${tooling_root%/*}/../.." && printf '%s/.' "$PWD")"
 tooling_root="${tooling_root%/.}"
 # Publication eligibility is explicit policy, distinct from workspace membership.
-packages=(ic-host-artifacts ic-host-fs ic-host-process ic-host-text ic-host-tools ic-host-wasm-inspect)
+packages=(ic-build ic-host-artifacts ic-host-fs ic-host-process ic-host-text ic-host-tools ic-host-wasm-inspect ic-testkit ic-testkit-native)
 package_path() {
     jq -er --arg package "$1" --arg prefix "$root/" '
         .packages[] | select(.name == $package) | .manifest_path
@@ -59,10 +59,10 @@ cargo metadata --manifest-path "$root/Cargo.toml" --no-deps --format-version 1 \
 jq -e '
     . as $workspace
     | [.packages[] | select(.id as $id | $workspace.workspace_members | index($id))] as $packages
-    | ($packages | map(.name) | sort) == ($ARGS.positional | sort)
+    | ($packages | map(select(.publish != [])) | map(.name) | sort) == ($ARGS.positional | sort)
       and ($packages | map(.version) | unique | length) == 1
-      and ($packages | all(.publish == ["crates-io"]))
-      and ($packages | all(.repository == "https://github.com/dragginzgame/ic-host-tooling"))
+      and ($packages | all(.publish == ["crates-io"] or (.publish == [] and (.name == "ic-testkit-dev" or .name == "ic-testkit-perf-probe"))))
+      and ($packages | all(.repository == "https://github.com/dragginzgame/ic-tooling"))
       and ($packages | any(.name == "ic-host-wasm-inspect" and
           any(.targets[]; .name == "ic-host-wasm-inspect" and (.kind | index("bin")))))
 ' "$attempt/metadata.json" --args "${packages[@]}" > /dev/null || fail 'expected selected synchronized crates.io packages'
@@ -89,8 +89,9 @@ if [[ "$mode" == publish ]]; then
     # Inspect Cargo's actual package provenance before upload. Package preparation
     # resolves dependencies but does not upload or build; publish still owns
     # compilation, dependency order and all registry effects.
-    package_arguments=(package --manifest-path "$root/Cargo.toml" --workspace \
-        --registry crates-io --all-features --locked --no-verify --target-dir "$root/target")
+    package_arguments=(package --manifest-path "$root/Cargo.toml")
+    for package in "${packages[@]}"; do package_arguments+=(--package "$package@$version"); done
+    package_arguments+=(--registry crates-io --all-features --locked --no-verify --target-dir "$root/target")
     printf '%s\0' "${package_arguments[@]}" > "$attempt/package-arguments"
     cargo "${package_arguments[@]}" > "$attempt/package.log" 2>&1 || fail 'package preparation failed; no upload attempted'
     provenance_arguments=()

@@ -1,0 +1,193 @@
+<p align="center">
+  <img src="https://raw.githubusercontent.com/dragginzgame/shared-assets/main/ic-testkit/ic-testkit-readme-header.svg" alt="IC Testkit — Internet Computer helper library" width="100%">
+</p>
+
+# ic-testkit
+
+PocketIC-oriented test utilities for Internet Computer canister tests.
+
+```toml
+[dev-dependencies]
+ic-testkit = "0.62"
+```
+
+For native Candid budgets, also add `ic-platform` with default features disabled
+and its `candid` feature enabled. Match Platform 0.4 with Testkit 0.58/0.59,
+or Platform 0.5 with Testkit 0.60/0.61/0.62; the decoder-limit types must match.
+
+The published MSRV is Rust 1.91, and the selected PocketIC line is 16.
+Canisters using benchmark markers can add the crate under `[dependencies]`.
+The Wasm library uses Platform's raw counters and marker logging,
+without a canister SDK or Candid; `Fake` retains PocketIC’s principal identity through
+`ic_platform::principal::ExternalPrincipal`, without enabling Candid on Wasm.
+`pocket_ic` and `pic` are host-only. `performance` is Wasm-only;
+`benchmark` counters, parsing and aggregation, and `Fake` are available on both
+targets. Native CSV and Markdown directory output lives in the repository's
+`benchmark_report` example. Candid calls require an explicit principal and caller-selected
+`ic_platform::candid::DecodeLimits` and return contextual errors with typed decode
+causes; add `ic-platform` with its `candid` feature directly to select those budgets. Choose caller-side
+`expect` when a fixture must panic. Standalone recipe builders return
+`std::io::Result<StandaloneCanisterFixture>`.
+
+`ic-testkit-candid` is retired and is no longer released from this workspace.
+For Testkit 0.54 and later, use `ic_platform::candid` with Platform's `candid`
+feature. Upgrade Testkit and replace the decoder dependency together, preserving
+caller-selected limits. Existing registry releases serve older Testkit consumers;
+they are not a second maintained decoder implementation.
+
+The optional native `wire` feature adds `pic::query_wire` and `pic::update_wire`.
+Enable it on your Testkit dependency and declare `ic-wire = "0.5"` for your method
+contracts. Each helper takes an explicit target/caller
+and borrowed request; the Method owns the exact name, identity, types and finite
+limits. It executes one PocketIC operation without update retries; a refused reply
+does not prove absence of effects. It preserves
+application-level results. `WireCallError` retains typed codec causes, complete
+structured rejections and the existing transport classification. Unrelated panic
+payloads resume. Display omits payloads; raw calls remain available for malformed
+requests and original-byte evidence. Reply admission follows PocketIC's allocation,
+so it supplies no network pre-allocation or peak-heap guarantee. The feature is off
+by default and adds no Wire dependency to the canister library graph.
+Requests may use borrowed bounded fields. Responses must implement
+`serde::de::DeserializeOwned` because the helper releases the received buffer
+before returning; generic callers must carry that bound alongside `M: Method`.
+
+This is the PocketIC package in the `ic-testkit` workspace. It provides:
+
+- direct re-exports of `PocketIc` and `PocketIcBuilder`
+- Platform's explicit host-only client surface at `ic_testkit::pocket_ic`
+- typed Candid query/update helpers with contextual, structured errors
+- `try_pocket_ic_operation` for recognized synchronous transport panics, preserving
+  upstream results and unrelated panics without automatic replay
+- canister install and retry helpers
+- explicit PocketIC startup, retained server/instance ownership, fallible async construction, and
+  structured child/readiness failures
+- explicit authenticated `ic-testkit-server setup`, offline `check`, and a shared
+  environment startup contract with `ic-testkit-server run -- COMMAND`
+  for suites spanning several test processes
+- one recipe baseline pool for single- and multi-canister PocketIC reuse
+- deterministic fake principals
+- controller-aware, caller-labeled collect-all diagnostics
+- explicit diagnostic reporting to a caller-selected writer, containing secondary
+  collection and output panics
+- compact benchmark marker parsing, aggregation and comparison
+- canister-side `Performance::measure` marker emission
+
+`ic-testkit` does not wrap the PocketIC simulator API or serialize independent
+instances. `pic::server_assets` owns explicit server provisioning and offline
+verification for Rust callers and the published CLI; tests never install implicitly.
+Rust fixtures call `server_assets::check(&directory)` and pass the returned
+absolute executable path to `PocketIcStartupConfig::Spawn`, without invoking the CLI.
+Explicit `server_assets::setup` takes a caller-owned cancellation predicate.
+Tests normally retain one
+`PocketIcInstance<PocketIc>` and use `owned.instance` for simulator operations;
+focused extension traits provide reusable harness behavior. Less common
+upstream client and DTO identities come from `ic_platform::pocket_ic`, forwarded
+at `ic_testkit::pocket_ic`. Platform owns additions to that explicit surface.
+
+```bash
+cargo install --locked ic-testkit
+ic-testkit-server setup
+ic-testkit-server check
+ic-testkit-server run -- cargo test --locked
+```
+
+Setup selects Testkit's reviewed PocketIC 16.1.0 archive for Linux x86-64,
+macOS Intel or macOS Apple Silicon. It authenticates the archive's pinned digest,
+bounds decompression and admits executable bytes/version before publication.
+Setup/check print the absolute executable path; diagnostics go to stderr.
+`--directory DIRECTORY` selects a physical root (default
+`.tools/ic-testkit-server` in the working directory). Checks and run never
+download, update or repair a server. Failed attempts and previous bundles remain
+retained; a changed installation requires a fresh selected root.
+
+Run uses that prepared selection when neither `POCKET_IC_BIN` nor
+`IC_TESTKIT_POCKET_IC_URL` is selected, and exports the executable and managed
+URL to the command. Explicit binary overrides admit stable 16.x servers,
+independently of the Rust client's latest download constant. URL mode borrows an
+existing server. For long pre-client work, select `run --idle-ttl SECONDS -- COMMAND`
+or the `Spawn` variant's `server_idle_ttl` field. This selects operation-idle
+lifetime independently of `--ttl`'s hard limit; omitted idle selection retains
+PocketIC's default. Both options require owned-server mode and positive seconds.
+
+Most users should read the
+[repository README](https://github.com/dragginzgame/ic-testkit#readme) for
+setup, examples, local checks, and release notes.
+The [documentation index](https://github.com/dragginzgame/ic-testkit/blob/main/docs/README.md)
+links current usage guidance and historical design records.
+
+Startup failures expose `PocketIcStartupError::failure()`
+and `PocketIcStartupFailure` for cause matching. Read bounded server excerpts
+through `output()`, and inspect typed secondary failures through
+`command_cleanup()` and `server_cleanup()`. The original cause remains primary;
+raw output files remain caller-owned.
+
+Use direct `ic-host-artifacts`, `ic-host-fs` and `ic-host-process` dependencies
+for generic artifact streams, filesystem operations and process custody. Testkit
+selects gzip for its reviewed PocketIC server assets; its normal dependency graph
+does not select Host's Wasm-inspection feature. Consumers select the capabilities
+they use rather than inheriting them through Testkit.
+
+The published archive includes [`CHANGELOG.md`](CHANGELOG.md) for historical
+upgrade actions. Current build and artifact-cache contracts belong to IC Build;
+historical Testkit artifact imports are not current entry points.
+
+The repository also includes a complete
+[multi-canister baseline recipe](https://github.com/dragginzgame/ic-testkit/blob/main/crates/ic-testkit/examples/multi_canister_baseline_pool.rs)
+compiled by the crate's normal all-target checks. The
+[transactional external-artifact example](https://github.com/dragginzgame/ic-build/blob/main/crates/ic-build/examples/transactional_artifact_cache.rs)
+is compiled and maintained by IC Build.
+
+Benchmark aggregate/comparison rows and aggregate errors expose
+`scope: BenchmarkScope::{Suite, All}` for their identity; `average(scale)` returns
+checked floor-rounded `u128` means through
+IC Metrics. `compare_benchmark_aggregates(current, previous, scale)` returns
+current/previous means and run counts, preserving missing rows and measured zero.
+Approximate percentage fields are removed. Aggregate CSV/text uses scale one in
+original counter units; comparison CSV includes both scales. Exact totals remain
+available, and zero runs/scaled overflow return typed errors. Write the changed
+columns to new report directories; retained reports are not reinterpreted.
+Baseline recipes construct `ResetRequirements { funding, policies }` with the
+fixed optional fields in `ResetPolicies`. Their resets independently report
+`ResetReceipt { policies }`; absence differs from an explicit irrelevant policy. The pool
+restores the captured snapshots with the selected funding; successful manual
+restoration returns unit. `ResetReceipt` covers non-snapshot guarantees. These are source API hard cuts.
+
+Generic Cargo/Wasm builds, retained artifact caches and freshness APIs belong to
+[IC Build](https://github.com/dragginzgame/ic-build). Depend on it directly and use
+`ic_build::artifacts`; Testkit keeps PocketIC lifecycle and benchmark policy.
+
+Pass `fixture.pocket_ic()` and `fixture.canister_id()` explicitly to
+`query_candid_args` or `update_candid_args`. The standalone fixture owns installation
+and lifetime; bounded argument-sequence calls own encoding, invocation and decoding.
+Use `(T,)` for one reply and `()` for no replies; a single tuple reply uses `((T, U),)`.
+See the [packaged migration notes](CHANGELOG.md#0530---2026-10-17).
+
+Benchmark commands own run identities, provenance, history selection and any
+metadata sidecars. The repository's `benchmark_report` example renders supplied
+measurements as CSV and Markdown; it has no metadata schema, reader or
+history-discovery policy.
+
+### Raw reply canister fixtures
+
+Enable `ic-testkit`'s `reply-fixtures` feature to use
+`pic::fixtures::raw_reply_canister`. Supply exact raw reply bytes and explicit
+aggregate method-count, UTF-8 method-name and reply-byte ceilings. Empty or
+control-containing names, duplicate exports and unsupported Wasm32 extents are
+rejected before encoding. Method names must be unique across query and update exports.
+The generated memory has a fixed maximum and can hold replies spanning pages.
+This helper does not decode Candid, install canisters, select principals or fund
+instances; keep product reply catalogs and assertions in the consuming tests.## Toolchains and checks
+
+Testkit is part of the IC Tooling workspace. Use the root
+[host guide](../../docs/hosts.md) and [publication guide](../../docs/publishing.md)
+for setup and coordinated releases.
+
+- `make testkit-check`: Testkit libraries and private driver with the prepared server.
+- `make testkit-wasm-check` and `make testkit-msrv`: deployed profiles.
+- `make testkit-package-check`: all coordinated public archives, including tests.
+- `make testkit-browser-check`: browser-session support.
+
+The [0.62 migration](../../docs/changelog/0.62.md) replaces the old independent
+Testkit release flow. The root changelog owns new releases; the package changelog
+retains published history. Neither package checking nor ordinary validation
+authorizes downloads, publication or artifact cleanup.

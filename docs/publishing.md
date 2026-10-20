@@ -26,7 +26,7 @@ transaction, receipts and rollback. `make install-tools` includes the release
 editor; `make tools-check`/`make release-editor-check` admit it offline. Preflight
 can prepare a missing editor after source admission without per-shell exports;
 standalone verification never installs. The editor requires Rust 1.91 or later;
-Host libraries retain MSRV 1.88. No Cargo-edit command renders release metadata.
+Host libraries retain MSRV 1.91. No Cargo-edit command renders release metadata.
 
 The read-only `make release-version` query needs prepared host parsers and never
 installs them. Selected release preflight prepares the complete toolset and
@@ -55,8 +55,9 @@ old evidence as validation of new source. Native qualification belongs to the
 `make publish-check` runs Cargo's publication checks with all features
 and `--locked --registry crates-io --dry-run`. It packages and verifies the selected
 workspace packages through exact `--package NAME@VERSION` selectors without
-uploading: five libraries and the `ic-host-wasm-inspect`
-CLI. It admits working edits so packaging can be reviewed
+uploading: the five Host libraries, `ic-build`, `ic-testkit`,
+`ic-testkit-native` and the `ic-host-wasm-inspect` CLI. The development driver
+and Wasm probe remain private. It admits working edits so packaging can be reviewed
 before committing. It can access the registry; set `CARGO_NET_OFFLINE=true` for
 an offline attempt against already prepared caches. Registry lookup can require
 network access even with cached dependencies. Offline failure never triggers an
@@ -76,7 +77,8 @@ creates commits, changes versions, creates tags or pushes Git refs. Git release
 commands never invoke publication automatically.
 
 Before any upload, the wrapper prepares all selected archives with `cargo package
---workspace --all-features --locked --no-verify`. This step resolves package
+--package NAME@VERSION` for every selected public package, with
+`--all-features --locked --no-verify`. This step resolves package
 dependencies but does not compile or upload; the final Cargo publication still
 verifies packages. Each archive's `.cargo_vcs_info.json` must name the selected
 clean `HEAD` and the package directory recorded by admitted Cargo metadata.
@@ -84,7 +86,7 @@ Package paths must be physical directories beneath the checkout, without parent
 traversal or CR/LF. License notices are checked in those same directories after
 metadata admission and before package preparation or upload. The explicit package
 allowlist remains separate from workspace membership. All package metadata must
-declare `https://github.com/dragginzgame/ic-host-tooling` as the repository.
+declare `https://github.com/dragginzgame/ic-tooling` as the repository.
 
 Shared's [canonical provenance helper](../scripts/ci/check-cargo-package-provenance.sh)
 checks the prepared archives and fetches that exact commit from the declared HTTPS repository
@@ -107,7 +109,7 @@ evidence remain part of admission; replacing the helper owner removes no check.
 `publish-check` retains its dirty-worktree dry-run contract and does not claim
 remote provenance verification. The upload guard does not establish CI success
 or native host qualification, and callers must keep source stable throughout
-packaging/publication. See [#7](https://github.com/dragginzgame/ic-host-tooling/issues/7).
+packaging/publication. See [#7](https://github.com/dragginzgame/ic-tooling/issues/7).
 
 Package metadata uses the standard MIT SPDX identifier. Each selected package's
 `LICENSE` is a regular copy of the canonical root notice, compatible with the formatting

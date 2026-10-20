@@ -1,15 +1,16 @@
 .DEFAULT_GOAL := help
 PACKAGE ?= ic-host-artifacts
-MSRV ?= 1.88.0
+MSRV ?= 1.91.0
 RELEASE_DELIVERY ?= direct
 override RELEASE_DELIVERY_POLICY := $(CURDIR)/ci/release-delivery.txt
 # Host commands use this checkout's reviewed snapshot, including parse-time probes.
 override SHARED_TOOLING_ROOT := $(CURDIR)
 export SHARED_TOOLING_ROOT
-LOCAL_TOOL_INSTALL_TARGETS += install-release-editor
-LOCAL_TOOL_CHECK_TARGETS += release-editor-check
+LOCAL_TOOL_INSTALL_TARGETS += install-release-editor install-server
+LOCAL_TOOL_CHECK_TARGETS += release-editor-check server-check
 include ci/tool-versions.env
 include make/consumer.mk
+include make/testkit.mk
 export YQ := $(CURDIR)/.tools/host/bin/yq
 
 .PHONY: help check clippy docs-check test test-artifacts-minimal test-tools-default tools-features-check msrv ci install-hooks tooling-command-check shared-tooling-check dependency-pins-check check-doc-links release-adapter-check publish publish-check publish-command-check release-version release-preflight release-verify release-prepare-version release-prepared-check release-files release-commit-check release-committed-check release-tagged-check release-push-check
@@ -136,6 +137,8 @@ ci:
 	+$(MAKE) --no-print-directory test-artifacts-encoding
 	+$(MAKE) --no-print-directory test-artifacts-text
 	+$(MAKE) --no-print-directory tools-features-check
+	+$(MAKE) --no-print-directory testkit-graph-check testkit-wasm-check
+	+$(MAKE) --no-print-directory testkit-installed-check
 	+$(MAKE) --no-print-directory test-tools-default
 	+$(MAKE) --no-print-directory test-tools-interface
 	+$(MAKE) --no-print-directory test-tools-certificate
@@ -147,7 +150,7 @@ ci:
 	+$(MAKE) --no-print-directory test-tools-registry
 	+$(MAKE) --no-print-directory test-wasm-inspection
 	+RUSTDOCFLAGS="-D warnings" cargo doc --workspace --all-features --locked --offline --no-deps
-	+cargo test --workspace --all-targets --all-features --locked --offline
+	+@server="$$("target/debug/ic-testkit-server" check)" && POCKET_IC_BIN="$$server" cargo test --workspace --all-targets --all-features --locked --offline
 release-version:
 	+@bash scripts/release/adapter.sh version
 release-preflight:

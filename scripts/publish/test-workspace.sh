@@ -26,7 +26,7 @@ real_cargo="$(command -v cargo)"
 capture_metadata() {
     "$real_cargo" metadata --no-deps --format-version 1 --locked --offline > metadata.json
     jq -r --arg root "$fixture/" '
-    . as $m | [.packages[] | select(.id as $id | $m.workspace_members | index($id))]
+    . as $m | [.packages[] | select((.id as $id | $m.workspace_members | index($id)) and .publish != [])]
     | sort_by(.name)[]
     | [.name, (.manifest_path | if startswith($root) then
         ltrimstr($root) | rtrimstr("/Cargo.toml") else error("fixture manifest escapes root") end)]
@@ -63,7 +63,7 @@ case "$*" in
         if [[ "${PUBLISH_DIRTY:-0}" == 1 ]]; then echo ' M Cargo.toml'; fi ;;
     init\ --bare\ --object-format=sha1\ *) mkdir -p "$4" ;;
     -C\ *\ fetch\ --no-tags\ --depth=1\ *)
-        [[ "$6" == -- && "$7" == https://github.com/dragginzgame/ic-host-tooling &&
+        [[ "$6" == -- && "$7" == https://github.com/dragginzgame/ic-tooling &&
            "$8" == 0000000000000000000000000000000000000000 ]] || exit 1
         printf '%s\n' "$*" >> "$PUBLISH_FIXTURE/fetch-calls"
         exit "${PUBLISH_FETCH_RESULT:-0}" ;;
@@ -113,7 +113,7 @@ case "$1" in
         [[ -f "${intents[0]}" ]] || exit 1
         for intent in "${intents[@]}"; do
             tail -n +6 "$intent" | LC_ALL=C sort > "$PUBLISH_FIXTURE/intent-packages"
-            jq -r '. as $m | .packages[] | select(.id as $id | $m.workspace_members | index($id)) | .name' \
+            jq -r '. as $m | .packages[] | select((.id as $id | $m.workspace_members | index($id)) and .publish != []) | .name' \
                 "$PUBLISH_FIXTURE/metadata.json" | LC_ALL=C sort > "$PUBLISH_FIXTURE/metadata-packages"
             cmp "$PUBLISH_FIXTURE/intent-packages" "$PUBLISH_FIXTURE/metadata-packages"
         done
@@ -122,7 +122,7 @@ case "$1" in
         for intent in "${core_intents[@]}"; do
             tail -n +4 "$intent" | LC_ALL=C sort > "$PUBLISH_FIXTURE/core-packages"
             version="$(jq -r '.packages[0].version' "$PUBLISH_FIXTURE/metadata.json")"
-            sed "s/\$/@$version/" "$PUBLISH_FIXTURE/metadata-packages" > "$PUBLISH_FIXTURE/exact-packages"
+            sed "s/\$/@$version/" "$PUBLISH_FIXTURE/metadata-packages" | LC_ALL=C sort > "$PUBLISH_FIXTURE/exact-packages"
             cmp "$PUBLISH_FIXTURE/core-packages" "$PUBLISH_FIXTURE/exact-packages"
         done
         printf '%s\0' "$@" > "$PUBLISH_FIXTURE/arguments"
@@ -217,7 +217,7 @@ printf '%s\0' publish --locked --registry crates-io "${selectors[@]}" \
 cmp expected-arguments arguments
 printf 'metadata\nclippy\npackage\npublish\n' > expected-calls
 cmp expected-calls calls
-printf '%s\0' package --manifest-path "$fixture/Cargo.toml" --workspace \
+printf '%s\0' package --manifest-path "$fixture/Cargo.toml" "${selectors[@]}" \
     --registry crates-io --all-features --locked --no-verify --target-dir "$fixture/target" > expected-package-arguments
 cmp expected-package-arguments package-arguments
 attempts=(target/publish/publish.*)
