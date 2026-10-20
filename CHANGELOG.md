@@ -6,6 +6,21 @@ documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.61.0]
+
+### Breaking
+
+- Adopt published Host 0.32.0. Startup probe failures and command/server cleanup
+  evidence now expose Host 0.32 types; callers naming or exchanging those types
+  must select the same family. Server admission, timeouts and cleanup policy are
+  unchanged.
+
+### Changed
+
+- Align developer builds, package qualification and the selected release editor
+  with published Build 0.24.0 so their Host values share the 0.32 identities.
+  Existing capture limits, feature selections and retained formats are unchanged.
+
 ## [0.60.0] - 2026-10-20
 
 ### Breaking

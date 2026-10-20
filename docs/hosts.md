@@ -78,14 +78,15 @@ or installed-IC consumer journeys.
 
 ### Host and Build type boundary
 
-The Host Artifacts, FS, Process and Text requirements select the 0.31 family;
-the current lock selects published 0.31.2.
-Their APIs used here retain the previous behavior, but public startup/cleanup
-errors expose Host package identities. Consumers naming them select Host 0.31
-alongside Testkit 0.58 and later.
+The Host Artifacts, FS, Process and Text requirements select the 0.32 family;
+the current lock selects published 0.32.0. Testkit 0.58 through 0.60 expose Host
+0.31 startup/cleanup identities; the pending 0.61 release exposes Host 0.32.
+Callers naming version-probe errors or command/server cleanup errors must align
+their direct Host Process selection. The existing admission and cleanup policies
+remain unchanged.
 
 The private developer package passes Host limits and owned children into Build.
-It selects published Build 0.23.0, whose exposed Host boundary is 0.31. The lock
+It selects published Build 0.24.0, whose exposed Host boundary is 0.32. The lock
 must have one Host identity per family package, without aliases or
 conversion wrappers. The native developer graph check enforces that requirement
 alongside its single Build and Platform identities. The selected release editor follows that same Build lock
