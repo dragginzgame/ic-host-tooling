@@ -108,7 +108,7 @@ Host-side test crates normally add:
 
 ```toml
 [dev-dependencies]
-ic-testkit = "0.59"
+ic-testkit = "0.60"
 ```
 
 For native Candid budgets, also add `ic-platform` with default features disabled
