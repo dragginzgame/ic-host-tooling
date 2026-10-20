@@ -3,7 +3,7 @@
 The 0.1.0 section preserves the original bootstrap notes. The published 0.1.0
 archive also includes the extracted artifact engine and Cargo grouping API.
 
-## [0.22.1]
+## [0.22.1] - 2026-10-20
 
 - Adopt Shared Tooling 0.25.4, including explicit Cargo features in selected-tool
   preparation and clarified failure-evidence collection. Rerun explicit tool setup
