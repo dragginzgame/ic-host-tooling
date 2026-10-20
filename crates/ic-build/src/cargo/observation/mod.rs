@@ -1,4 +1,4 @@
-//! Bounded Cargo catalog, resolved-graph and package-tree observations.
+//! Cargo catalog, resolved-graph and package-tree command rendering and decoding.
 //!
 //! Callers own the selected command/environment, graph policy and output budgets.
 //! Cargo's canonical Rust schema owns metadata decoding; consumers interpret it.
@@ -8,17 +8,22 @@
 mod tests;
 
 mod workspace;
-pub use workspace::workspace_root_for;
+pub use workspace::{decode_workspace_root, workspace_root_command};
 
 /// Canonical Cargo metadata and build-message types, without consumer mirrors.
 pub use cargo_metadata as schema;
 
 use super::selection::{CargoFeatureSelection, graph_arguments};
-use ic_host_process::tool::{CompletedExecution, OutputLimits, capture_command};
 use std::{path::Path, process::Command};
 
-// Decode complete captured bytes once through Cargo's canonical schema.
-pub(crate) fn decode_metadata(bytes: &[u8]) -> Result<schema::Metadata, serde_json::Error> {
+/// Decode complete Cargo metadata JSON through Cargo's canonical schema.
+///
+/// The caller must first admit successful, complete output through its selected
+/// process runner. This function neither executes Cargo nor admits partial output.
+///
+/// # Errors
+/// Returns the canonical schema's JSON error for malformed or incomplete metadata.
+pub fn decode_metadata(bytes: &[u8]) -> Result<schema::Metadata, serde_json::Error> {
     serde_json::from_slice(bytes)
 }
 
@@ -58,83 +63,81 @@ pub struct CargoTreeSpec<'a> {
     pub features: &'a CargoFeatureSelection,
 }
 
-/// Observe Cargo metadata through the caller's selected command and capture limits.
-///
-/// The command carries the executable, complete environment and any caller-bound
-/// launcher arguments. This adds the metadata subcommand and recipe arguments,
-/// selects the manifest's parent as the working directory and sets no deadline
-/// beyond `limits.timeout`. Output must be complete before canonical decoding.
-///
-/// # Errors
-/// Returns the original typed Host spawn/capture/exit failure (including bounded
-/// diagnostics and truncation evidence), or the canonical schema's JSON error.
-pub fn observe_metadata(
-    spec: &CargoMetadataSpec<'_>,
-    limits: OutputLimits,
-    mut command: Command,
-) -> Result<schema::Metadata, Box<dyn std::error::Error>> {
-    command.args(["metadata", "--format-version=1"]);
-    configure(
-        &mut command,
-        spec.manifest_path,
-        spec.locked,
-        spec.offline,
-        spec.features,
-    )?;
-    if !spec.include_dependencies {
-        command.arg("--no-deps");
+impl CargoMetadataSpec<'_> {
+    /// Render metadata arguments onto a caller-selected command without executing it.
+    ///
+    /// Preserves the executable, launcher arguments and environment; selects the
+    /// manifest's parent as the working directory. Capture policy and admission of
+    /// successful, complete output belong to the caller, before [`decode_metadata`].
+    ///
+    /// # Errors
+    /// Returns an I/O error if a relative manifest cannot be anchored to the current directory.
+    pub fn command(&self, mut command: Command) -> std::io::Result<Command> {
+        command.args(["metadata", "--format-version=1"]);
+        configure(
+            &mut command,
+            self.manifest_path,
+            self.locked,
+            self.offline,
+            self.features,
+        )?;
+        if !self.include_dependencies {
+            command.arg("--no-deps");
+        }
+        if let Some(target) = self.filter_platform {
+            command.arg("--filter-platform").arg(target);
+        }
+        Ok(command)
     }
-    if let Some(target) = spec.filter_platform {
-        command.arg("--filter-platform").arg(target);
-    }
-    let output = capture(&mut command, limits)?;
-    Ok(decode_metadata(&output.stdout)?)
 }
 
-/// Observe a depth-prefixed, non-deduplicated package-selected Cargo tree.
-///
-/// Capture, environment and deadline semantics match [`observe_metadata`]. The
-/// text is complete UTF-8; package/alias correlation remains caller-owned.
-///
-/// # Errors
-/// Returns typed Host spawn/capture/exit failures or invalid UTF-8. Cargo itself
-/// rejects invalid selectors, feature combinations and tree formatting options.
-pub fn observe_tree(
-    spec: &CargoTreeSpec<'_>,
-    limits: OutputLimits,
-    mut command: Command,
-) -> Result<String, Box<dyn std::error::Error>> {
-    if spec.packages.is_empty() || spec.packages.iter().any(|package| package.is_empty()) {
-        return Err("Cargo tree requires nonempty package selectors".into());
+impl CargoTreeSpec<'_> {
+    /// Render a depth-prefixed, non-deduplicated tree command without executing it.
+    ///
+    /// Preserves the selected executable, launcher arguments and environment, as
+    /// [`CargoMetadataSpec::command`] does. Admit successful, complete output
+    /// through the caller's runner before `String::from_utf8`; alias and role
+    /// correlation remain caller-owned. This method adds no timeout.
+    ///
+    /// # Errors
+    /// Returns `InvalidInput` for empty package selectors, or an I/O error if a
+    /// relative manifest cannot be anchored. Cargo diagnoses invalid selectors,
+    /// feature combinations and formatting options when the caller executes it.
+    pub fn command(&self, mut command: Command) -> std::io::Result<Command> {
+        if self.packages.is_empty() || self.packages.iter().any(|package| package.is_empty()) {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "Cargo tree requires nonempty package selectors",
+            ));
+        }
+        command.args([
+            "tree",
+            "--color",
+            "never",
+            "--target",
+            self.target,
+            "--edges",
+            self.edges,
+            "--prefix",
+            "depth",
+            "--no-dedupe",
+            "--charset",
+            "ascii",
+            "--format",
+            self.format,
+        ]);
+        configure(
+            &mut command,
+            self.manifest_path,
+            self.locked,
+            self.offline,
+            self.features,
+        )?;
+        for package in self.packages {
+            command.arg("--package").arg(package);
+        }
+        Ok(command)
     }
-    command.args([
-        "tree",
-        "--color",
-        "never",
-        "--target",
-        spec.target,
-        "--edges",
-        spec.edges,
-        "--prefix",
-        "depth",
-        "--no-dedupe",
-        "--charset",
-        "ascii",
-        "--format",
-        spec.format,
-    ]);
-    configure(
-        &mut command,
-        spec.manifest_path,
-        spec.locked,
-        spec.offline,
-        spec.features,
-    )?;
-    for package in spec.packages {
-        command.arg("--package").arg(package);
-    }
-    let output = capture(&mut command, limits)?;
-    Ok(String::from_utf8(output.stdout)?)
 }
 
 fn configure(
@@ -153,13 +156,4 @@ fn configure(
     command.arg("--manifest-path").arg(manifest);
     command.args(graph_arguments(features, locked, offline));
     Ok(())
-}
-
-fn capture(
-    command: &mut Command,
-    limits: OutputLimits,
-) -> Result<CompletedExecution, ic_host_process::tool::ToolError> {
-    capture_command(command, limits)
-        .and_then(CompletedExecution::require_success)
-        .and_then(CompletedExecution::require_complete)
 }

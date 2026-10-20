@@ -1,7 +1,34 @@
 use super::*;
 use crate::fs_fixture::unique_temp_directory;
-use ic_host_process::tool::{ExecutionFailure, OutputLimit, ToolError};
+use ic_host_process::tool::{
+    CompletedExecution, ExecutionFailure, OutputLimit, OutputLimits, ToolError, capture_command,
+};
 use std::{collections::BTreeSet, fs, path::PathBuf};
+
+fn capture(command: &mut Command, limits: OutputLimits) -> Result<CompletedExecution, ToolError> {
+    capture_command(command, limits)
+        .and_then(CompletedExecution::require_success)
+        .and_then(CompletedExecution::require_complete)
+}
+
+// Test the consumer composition: Build renders/decodes, Host admits execution.
+fn execute_metadata(
+    spec: &CargoMetadataSpec<'_>,
+    limits: OutputLimits,
+    command: Command,
+) -> Result<schema::Metadata, Box<dyn std::error::Error>> {
+    let output = capture(&mut spec.command(command)?, limits)?;
+    Ok(decode_metadata(&output.stdout)?)
+}
+
+fn execute_tree(
+    spec: &CargoTreeSpec<'_>,
+    limits: OutputLimits,
+    command: Command,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let output = capture(&mut spec.command(command)?, limits)?;
+    Ok(String::from_utf8(output.stdout)?)
+}
 
 fn limits() -> OutputLimits {
     OutputLimits {
@@ -59,7 +86,7 @@ fn actual_catalog_and_resolved_graph_preserve_ids_aliases_and_feature_selection(
         offline: true,
         features: &features,
     };
-    let catalog = observe_metadata(&spec, limits(), selected_cargo()).unwrap();
+    let catalog = execute_metadata(&spec, limits(), selected_cargo()).unwrap();
     assert!(catalog.resolve.is_none());
     let app = catalog
         .packages
@@ -71,7 +98,7 @@ fn actual_catalog_and_resolved_graph_preserve_ids_aliases_and_feature_selection(
     let id = app.id.clone();
 
     spec.include_dependencies = true;
-    let disabled = observe_metadata(&spec, limits(), selected_cargo()).unwrap();
+    let disabled = execute_metadata(&spec, limits(), selected_cargo()).unwrap();
     let app_node = disabled
         .resolve
         .unwrap()
@@ -92,7 +119,7 @@ fn actual_catalog_and_resolved_graph_preserve_ids_aliases_and_feature_selection(
             features: &enabled_features,
             ..spec
         };
-        let enabled = observe_metadata(&selected, limits(), selected_cargo()).unwrap();
+        let enabled = execute_metadata(&selected, limits(), selected_cargo()).unwrap();
         let graph = enabled.resolve.unwrap();
         let app_node = graph.nodes.iter().find(|n| n.id == id).unwrap();
         assert_eq!(app_node.deps[0].name, "renamed");
@@ -112,7 +139,7 @@ fn actual_catalog_and_resolved_graph_preserve_ids_aliases_and_feature_selection(
                 .id
         );
 
-        let tree = observe_tree(
+        let tree = execute_tree(
             &CargoTreeSpec {
                 manifest_path: &manifest,
                 packages: &[&id.repr],
@@ -252,7 +279,7 @@ fn caller_command_and_environment_are_preserved() {
         .env("OBSERVATION_ARGS", &args)
         .env("SELECTED_CARGO", selected_cargo().get_program());
     let features = CargoFeatureSelection::default();
-    let metadata = observe_metadata(
+    let metadata = execute_metadata(
         &CargoMetadataSpec {
             manifest_path: &manifest,
             include_dependencies: false,
@@ -295,7 +322,7 @@ fn incomplete_output_and_failed_exit_keep_typed_host_evidence() {
         stdout: OutputLimit::Truncate(5),
         ..limits()
     };
-    let error = observe_metadata(
+    let error = execute_metadata(
         &spec,
         bounded,
         shell("printf 'large stdout'; printf 'cause' >&2; exit 23"),
@@ -310,13 +337,13 @@ fn incomplete_output_and_failed_exit_keep_typed_host_evidence() {
     assert!(error.evidence.stdout_truncated);
     assert_eq!(error.evidence.stderr, b"cause");
 
-    let error = observe_metadata(&spec, bounded, shell("printf 'large stdout'")).unwrap_err();
+    let error = execute_metadata(&spec, bounded, shell("printf 'large stdout'")).unwrap_err();
     assert!(
         matches!(error.downcast_ref::<ToolError>(), Some(ToolError::Execution(error))
         if error.evidence.stdout_truncated)
     );
     let error =
-        observe_metadata(&spec, limits(), Command::new("/absent/cargo-observation")).unwrap_err();
+        execute_metadata(&spec, limits(), Command::new("/absent/cargo-observation")).unwrap_err();
     assert!(
         matches!(error.downcast_ref::<ToolError>(), Some(ToolError::Execution(error))
         if matches!(error.failure, ExecutionFailure::Io { .. }))
@@ -326,7 +353,7 @@ fn incomplete_output_and_failed_exit_keep_typed_host_evidence() {
         stdout: OutputLimit::Terminate(5),
         ..limits()
     };
-    let error = observe_metadata(&spec, terminated, shell("printf 'large stdout'")).unwrap_err();
+    let error = execute_metadata(&spec, terminated, shell("printf 'large stdout'")).unwrap_err();
     assert!(error.downcast_ref::<ToolError>().is_some());
 }
 
@@ -343,7 +370,7 @@ fn malformed_metadata_missing_fields_and_invalid_tree_text_are_rejected() {
         features: &features,
     };
     for script in ["printf 'not json'", "printf '{}'", "printf ''"] {
-        let error = observe_metadata(&spec, limits(), shell(script)).unwrap_err();
+        let error = execute_metadata(&spec, limits(), shell(script)).unwrap_err();
         assert!(error.downcast_ref::<serde_json::Error>().is_some());
     }
     let mut tree = CargoTreeSpec {
@@ -356,8 +383,25 @@ fn malformed_metadata_missing_fields_and_invalid_tree_text_are_rejected() {
         offline: false,
         features: &features,
     };
-    let error = observe_tree(&tree, limits(), shell("printf '\\377'")).unwrap_err();
+    let error = execute_tree(&tree, limits(), shell("printf '\\377'")).unwrap_err();
     assert!(error.downcast_ref::<std::string::FromUtf8Error>().is_some());
+    // Rendering neither spawns the selected program nor reads a graph.
+    let rendered = tree
+        .command(Command::new("/absent/cargo-observation"))
+        .unwrap();
+    assert_eq!(rendered.get_program(), "/absent/cargo-observation");
     tree.packages = &[];
-    assert!(observe_tree(&tree, limits(), Command::new("/absent/cargo-observation")).is_err());
+    assert_eq!(
+        tree.command(Command::new("/absent/cargo-observation"))
+            .unwrap_err()
+            .kind(),
+        std::io::ErrorKind::InvalidInput
+    );
+    tree.packages = &[""];
+    assert_eq!(
+        tree.command(Command::new("/absent/cargo-observation"))
+            .unwrap_err()
+            .kind(),
+        std::io::ErrorKind::InvalidInput
+    );
 }

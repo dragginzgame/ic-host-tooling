@@ -23,31 +23,34 @@ pub mod release_metadata;
 pub mod selection;
 
 use ic_host_artifacts::batch::validate_labels;
-use ic_host_process::tool::OutputLimits;
-use std::{collections::BTreeMap, path::Path, process::Command};
+use std::{collections::BTreeMap, path::Path};
 
 /// Partition packages without changing their resolved normal/build dependency trees.
 ///
-/// The caller supplies the recipe's Cargo selection, selected command, complete
-/// environment, target, source custody and output/deadline policy. Every isolated
+/// The caller supplies the recipe's Cargo selection, target and tree observer.
+/// The observer executes each specification with the selected command, complete
+/// environment, source custody and output/deadline policy. It must admit success
+/// and completeness before returning UTF-8 text. Every isolated
 /// and combined observation uses that selection's features, lock and network
 /// choices. Profiles do not affect Cargo tree and are not rendered here.
 /// This does not publish artifacts or
 /// establish a consumer's release validity.
 /// Package names must be nonempty and unique; invalid inputs are rejected before
-/// invoking the command factory, with zero-based indices in the error. An empty
-/// package list returns an empty plan without invoking the factory.
+/// invoking the observer, with zero-based indices in the error. An empty
+/// package list returns an empty plan without invoking the observer.
 ///
 /// # Errors
-/// Returns invalid package input, the original typed Host process/capture failure
-/// (including status and bounded diagnostics), or invalid dependency-tree evidence.
+/// Returns invalid package input, the observer's original boxed error without
+/// conversion, or invalid dependency-tree evidence. Capture error identities
+/// belong to the observer's runner, independently of Build's Host generation.
 pub fn compatible_package_groups(
     workspace: &Path,
     packages: &[String],
     target: &str,
     selection: &selection::CargoSelection,
-    limits: OutputLimits,
-    mut cargo_command: impl FnMut() -> Command,
+    mut observe_tree: impl FnMut(
+        &observation::CargoTreeSpec<'_>,
+    ) -> Result<String, Box<dyn std::error::Error>>,
 ) -> Result<Vec<Vec<String>>, Box<dyn std::error::Error>> {
     validate_labels(packages.iter().map(String::as_str))?;
     let mut isolated = BTreeMap::new();
@@ -58,8 +61,7 @@ pub fn compatible_package_groups(
             &[package.as_str()],
             target,
             selection,
-            limits,
-            &mut cargo_command,
+            &mut observe_tree,
         )?;
         if tree.len() != 1 {
             return Err("Cargo returned additional isolated package roots".into());
@@ -75,14 +77,8 @@ pub fn compatible_package_groups(
                 .map(String::as_str)
                 .chain(std::iter::once(package.as_str()))
                 .collect::<Vec<_>>();
-            let combined = resolved_trees(
-                workspace,
-                &candidate,
-                target,
-                selection,
-                limits,
-                &mut cargo_command,
-            )?;
+            let combined =
+                resolved_trees(workspace, &candidate, target, selection, &mut observe_tree)?;
             if preserves_individual_trees(&isolated, &combined, &candidate) {
                 selected_group = Some(index);
                 break;
@@ -102,24 +98,21 @@ fn resolved_trees(
     packages: &[&str],
     target: &str,
     selection: &selection::CargoSelection,
-    limits: OutputLimits,
-    cargo_command: &mut impl FnMut() -> Command,
+    observe_tree: &mut impl FnMut(
+        &observation::CargoTreeSpec<'_>,
+    ) -> Result<String, Box<dyn std::error::Error>>,
 ) -> Result<BTreeMap<String, String>, Box<dyn std::error::Error>> {
     let manifest = workspace.join("Cargo.toml");
-    let tree = observation::observe_tree(
-        &observation::CargoTreeSpec {
-            manifest_path: &manifest,
-            packages,
-            target,
-            edges: "normal,build",
-            format: "{p}\t{f}",
-            locked: selection.locked,
-            offline: selection.offline,
-            features: &selection.features,
-        },
-        limits,
-        cargo_command(),
-    )?;
+    let tree = observe_tree(&observation::CargoTreeSpec {
+        manifest_path: &manifest,
+        packages,
+        target,
+        edges: "normal,build",
+        format: "{p}\t{f}",
+        locked: selection.locked,
+        offline: selection.offline,
+        features: &selection.features,
+    })?;
     parse_trees(&tree)
 }
 

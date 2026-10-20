@@ -1,8 +1,9 @@
 //! Filesystem discovery of the nearest explicit Cargo workspace declaration.
 //!
 //! This is not Cargo membership resolution: standalone packages without a
-//! `[workspace]` return no match. Use `observation::workspace_root_for` for
-//! Cargo-resolved membership (including `package.workspace`).
+//! `[workspace]` return no match. Use `observation::workspace_root_command` and
+//! `observation::decode_workspace_root` for Cargo-resolved membership (including
+//! `package.workspace`), executing through the caller's process runner.
 
 use std::fmt;
 use std::{

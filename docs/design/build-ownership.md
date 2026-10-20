@@ -30,8 +30,15 @@ roles, release identities or manifests.
 
 ## Implemented ownership
 
-Pending Build 0.22 selects published Host 0.30, including exposed artifact,
-filesystem and process types; published Build 0.21 retains Host 0.29.
+Current source selects published Host 0.31 for artifact, filesystem and process
+mechanics. Pending Build 0.23 keeps metadata/tree command rendering and canonical
+schema decoding in Build, while consumers execute through their own selected
+Host. Workspace discovery uses the same command/byte boundary, and feature-safe
+grouping receives a caller-owned tree observer. None of these process interfaces
+exposes Host limits or process errors; observer errors pass through unchanged.
+Grouping still uses Host Artifacts' canonical label validation and error identity.
+The engine's execution and retained-artifact APIs still exchange Host values and
+require matching direct Host dependencies.
 Host FS 0.30 makes its Unix capability and scoped-tempfile backends independently
 optional through `capability` and `temporary-file`. Build needs neither and
 keeps them disabled, together with Host Wasm/encoding/text/gzip and file CLI.

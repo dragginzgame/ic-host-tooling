@@ -71,16 +71,21 @@ mutable target custody remains with the caller. Both select their Host spawner
 explicitly and add no elapsed-time deadline. Applications supply their own
 cancellation, process-group custody and source admission where required.
 
-Published Build 0.21 uses the Host 0.29 family. The pending 0.22 source selects
-published Host 0.30.0; adopt matching direct Host dependencies when exchanging
-Host values after that Build release becomes available.
+Current source selects the published Host 0.31 family; match direct Host
+dependencies when exchanging Host values with the execution/artifact engine.
+Pending Build 0.23 renders metadata/tree commands through each specification's
+`command` method and exposes canonical decoding. Workspace discovery uses
+`workspace_root_command` and `decode_workspace_root`; feature-safe grouping
+accepts a tree observer. All these observations execute through the caller's
+selected runner, preserving its Host generation, budgets and typed failures.
+Admit successful, complete output before decoding.
 Build uses neither Host FS's `capability` nor `temporary-file` features; both
 remain disabled. Consumers using those optional APIs select them explicitly.
 `cargo::discovery::declared_workspace_root_from` finds the nearest explicit
 `[workspace]` from an existing file or directory without invoking Cargo. It follows
 file symlinks and refuses invalid manifests, non-file markers and dangling links.
 This is distinct from Cargo membership or `package.workspace` resolution through
-`cargo::observation::workspace_root_for`; consumers retain no-match fallback.
+`cargo::observation::workspace_root_command`; consumers retain no-match fallback.
 
 Cargo owns compiler freshness; Build admits exact artifacts from Cargo messages
 without filename inference. Native Candid extraction uses an admitted tool and

@@ -3,6 +3,19 @@
 The 0.1.0 section preserves the original bootstrap notes. The published 0.1.0
 archive also includes the extracted artifact engine and Cargo grouping API.
 
+## [0.23.0]
+
+- **Breaking:** Cargo metadata and tree specifications now render commands for
+  the consumer's own process runner. Replace the combined observation functions
+  with command rendering, successful/complete output admission and canonical
+  metadata decoding (or standard UTF-8 tree decoding). Observation callers can
+  keep their selected Host generation, budgets and typed failures.
+- **Breaking:** workspace discovery follows the same command/byte boundary;
+  replace combined discovery with command rendering, caller-owned capture and
+  workspace-response decoding. Feature-safe grouping takes a tree observer
+  instead of Host limits and a command factory, keeping execution policy and
+  typed runner failures with consumers while preserving feature equivalence.
+
 ## [0.22.1] - 2026-10-20
 
 - Adopt Shared Tooling 0.25.4, including explicit Cargo features in selected-tool

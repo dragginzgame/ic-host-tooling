@@ -128,25 +128,48 @@ Cargo starts with null stdin; the spawner may override it. Input probes delegate
 capture to Host Process with their separate caller-selected policy; compilation
 has no finite default deadline.
 
-`cargo::observation::observe_metadata` accepts a `CargoMetadataSpec`, caller-selected
-`Command` and Host `OutputLimits`. The command retains its executable, launcher
-arguments and complete environment. The specification selects the manifest,
+`cargo::observation::CargoMetadataSpec::command` renders onto a caller-selected
+standard `Command`, retaining its executable, launcher arguments and complete
+environment. The specification selects the manifest,
 dependency inclusion, optional target filter, lock/offline policy and features.
 No-dependency catalogs and resolved graphs are distinct observations; a catalog
 or union graph does not prove role-specific dependency activation.
 
-`observe_tree` uses the same complete-output capture with caller-selected package
-ID specifications, target, edge kinds, format and features. It returns depth-
-prefixed, non-deduplicated UTF-8 text; consumers own alias/role correlation.
-Feature-safe grouping also uses this observer. Pass the recipe's existing
-`CargoSelection` after `target` to `cargo::compatible_package_groups`. Every
+`CargoTreeSpec::command` renders caller-selected package ID specifications,
+target, edge kinds, format and features. Cargo produces depth-prefixed,
+non-deduplicated text; consumers own UTF-8 decoding and alias/role correlation.
+Feature-safe grouping also uses this renderer. Pass the recipe's existing
+`CargoSelection` after `target` to `cargo::compatible_package_groups`, followed by
+a closure taking `&CargoTreeSpec` and returning admitted UTF-8 tree text. The
+closure selects the command, applies the consumer environment, captures through
+its runner and requires success then completeness before UTF-8 decoding. Build
+retains isolated/combined probes and feature-equivalence checks. Every
 isolated and combined probe uses its features, locked and offline choices;
 the profile is not a Cargo tree argument. Canic's grouping adapter must pass
 the same graph selection that its compilation recipe uses when adopting 0.17.
-Both observations retain typed Host
-spawn, capture and unsuccessful-exit errors, including bounded diagnostic and
-truncation evidence. Successful truncated output is rejected before parsing.
-There is no default elapsed-time deadline; callers select any timeout in the limits.
+Pending Build 0.23 removes the combined capture/decoding functions. Consumers
+execute the rendered command through their selected Host, keeping its limits and
+typed errors in that generation. Require success before completeness, preserving
+failed exits as primary, then decode complete JSON through `decode_metadata` or
+tree bytes through `String::from_utf8`. Keep the existing output budgets and
+optional timeout; rendering neither executes nor adds a deadline. For example:
+
+```rust,ignore
+use ic_build::cargo::observation::decode_metadata;
+use ic_host_process::tool::capture_command;
+
+let mut command = metadata_spec.command(selected_cargo_command)?;
+let output = capture_command(&mut command, selected_limits)?
+    .require_success()?
+    .require_complete()?;
+let metadata = decode_metadata(&output.stdout)?;
+```
+
+The command/byte interface allows different Host generations for these callers.
+Grouping forwards the observer's boxed errors unchanged; no Build-owned process
+limit or error mirror is introduced. Execution/artifact APIs still exchange Host
+values. Empty tree package selections are refused with
+`io::ErrorKind::InvalidInput` before execution.
 
 Wasm publication carries each cache path, public path and verified digest together.
 All public copies finish before public stamps are written, including failure
@@ -542,11 +565,19 @@ The host-only `artifacts` module provides content-addressed build coordination,
 retained outputs and exact generated-artifact freshness checks. Consumers select
 their own test target directories.
 
-`cargo::observation::workspace_root_for` asks caller-selected prepared Cargo for
-actual workspace membership and returns `io::Result<PathBuf>`. Supply a command
-and output limits as with other Cargo observations. It supports App layouts,
+`cargo::observation::workspace_root_command` renders an offline `locate-project`
+onto the caller's selected Cargo command, preserving launcher arguments, working
+directory and environment, while disabling toolchain auto-installation. It
+canonicalizes the supplied crate directory before rendering its manifest path.
+Execute with the caller's existing capture budgets and admit success then
+completeness before `decode_workspace_root`, which validates the absolute Cargo
+manifest response and returns `io::Result<PathBuf>`. It supports App layouts,
 exclusions and independent workspaces without guessing from directory names or
-resolving dependencies, and always selects offline discovery.
+resolving dependencies. Consumers retaining an I/O facade should keep the original
+typed Host error as its source: preserve the source I/O kind for spawn failures,
+use `InvalidInput` for nonzero exits and `Other` for other capture refusals.
+Malformed workspace responses remain `InvalidData`. No compatibility discovery
+executor remains in Build.
 `WasmBuildSpec::new` shares `<workspace>/target/ic-testkit-incremental` compiler
 state across fingerprints by default. Exact final artifacts remain independently
 cached. Select `with_isolated_builds()` only when separate compiler state is
@@ -561,20 +592,28 @@ use ic_build::artifacts::{
     CacheRetentionLimits, WasmBuildOutcome, WasmBuildSpec,
     build_wasm_canisters_cached,
 };
-use ic_build::cargo::{observation::workspace_root_for, selection::CargoSelection};
-use ic_host_process::tool::{OutputLimit, OutputLimits};
+use ic_build::cargo::{
+    observation::{workspace_root_command, decode_workspace_root},
+    selection::CargoSelection,
+};
+use ic_host_process::tool::{OutputLimit, OutputLimits, capture_command};
 use std::{process::Command, time::Duration};
 
-let workspace = workspace_root_for(
+let mut command = workspace_root_command(
     env!("CARGO_MANIFEST_DIR"),
+    Command::new("cargo"),
+)?;
+let output = capture_command(
+    &mut command,
     OutputLimits {
         stdout: OutputLimit::Terminate(64 * 1024),
         stderr: OutputLimit::Terminate(64 * 1024),
         timeout: None,
     },
-    Command::new("cargo"),
-)
-    .expect("resolve the crate's Cargo workspace");
+)?
+    .require_success()?
+    .require_complete()?;
+let workspace = decode_workspace_root(&output.stdout)?;
 let target = workspace.join("target").join("pic-wasm");
 
 let spec = WasmBuildSpec::new(
@@ -1139,8 +1178,9 @@ text/grammar separately; before/after digests cannot rule out transient writes.
 Host 0.24 has removed its extraction module/feature; adopt the new Build owner
 when upgrading that graph ([#51](https://github.com/dragginzgame/ic-build/issues/51)).
 Structural Wasm inspection does not replace PocketIC's runtime validation.
-Pending IC Build 0.22 requires compatible published IC Host 0.30 releases at the
-public dependency boundary; published Build 0.21 requires Host 0.29.
+Current source requires compatible published IC Host 0.31 releases where the
+public engine boundary exchanges Host values. Pending Build 0.23 metadata/tree
+rendering and metadata decoding use standard commands and bytes instead.
 Host FS's `capability` and `temporary-file` backends remain disabled here;
 direct consumers of those APIs enable the corresponding Host features explicitly.
 Host Artifacts/FS supply stream visitation and fresh-directory allocation; FS also owns shared

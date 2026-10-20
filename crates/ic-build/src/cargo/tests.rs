@@ -1,14 +1,21 @@
 use super::*;
 use ic_host_artifacts::batch::BatchLabelError;
-use ic_host_process::tool::OutputLimit;
+use ic_host_process::tool::{OutputLimit, OutputLimits, capture_command};
+use std::process::Command;
+
+fn execute_tree(
+    spec: &observation::CargoTreeSpec<'_>,
+    limits: OutputLimits,
+    command: Command,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let output = capture_command(&mut spec.command(command)?, limits)?
+        .require_success()?
+        .require_complete()?;
+    Ok(String::from_utf8(output.stdout)?)
+}
 
 #[test]
 fn invalid_package_inputs_reject_before_command_effects() {
-    let limits = OutputLimits {
-        stdout: OutputLimit::Terminate(4096),
-        stderr: OutputLimit::Terminate(4096),
-        timeout: None,
-    };
     for (packages, expected) in [
         (
             vec!["left", "", "right"],
@@ -29,8 +36,7 @@ fn invalid_package_inputs_reject_before_command_effects() {
             &packages,
             "wasm32-unknown-unknown",
             &selection::CargoSelection::default(),
-            limits,
-            || panic!("invalid package inputs must not invoke the command factory"),
+            |_| panic!("invalid package inputs must not invoke the observer"),
         )
         .unwrap_err();
         assert_eq!(error.downcast_ref::<BatchLabelError>(), Some(&expected));
@@ -40,8 +46,7 @@ fn invalid_package_inputs_reject_before_command_effects() {
         &[],
         "wasm32-unknown-unknown",
         &selection::CargoSelection::default(),
-        limits,
-        || panic!("an empty plan must not invoke the command factory"),
+        |_| panic!("an empty plan must not invoke the observer"),
     )
     .unwrap();
     assert_eq!(groups, Vec::<Vec<String>>::new());
@@ -62,8 +67,7 @@ fn unsuccessful_tree_commands_preserve_status_and_bounded_diagnostics() {
             &["role".to_string()],
             "wasm32-unknown-unknown",
             &selection::CargoSelection::default(),
-            limits,
-            || {
+            |spec| {
                 let mut command = Command::new("/bin/sh");
                 command.args([
                     "-c",
@@ -71,7 +75,7 @@ fn unsuccessful_tree_commands_preserve_status_and_bounded_diagnostics() {
                     "probe",
                     stdout,
                 ]);
-                command
+                execute_tree(spec, limits, command)
             },
         )
         .unwrap_err();
@@ -93,11 +97,10 @@ fn unsuccessful_tree_commands_preserve_status_and_bounded_diagnostics() {
         &["role".to_string()],
         "wasm32-unknown-unknown",
         &selection::CargoSelection::default(),
-        limits,
-        || {
+        |spec| {
             let mut command = Command::new("/bin/sh");
             command.args(["-c", "printf '1dependency'"]);
-            command
+            execute_tree(spec, limits, command)
         },
     )
     .unwrap_err();
@@ -123,11 +126,10 @@ fn incomplete_tree_capture_and_spawn_failures_preserve_typed_host_errors() {
         &packages,
         "wasm32-unknown-unknown",
         &selection::CargoSelection::default(),
-        limits,
-        || {
+        |spec| {
             let mut command = Command::new("/bin/sh");
             command.args(["-c", "printf '0role v0.1.0\\t\\n1shared v0.1.0\\tbase\\n'"]);
-            command
+            execute_tree(spec, limits, command)
         },
     )
     .unwrap_err();
@@ -141,8 +143,7 @@ fn incomplete_tree_capture_and_spawn_failures_preserve_typed_host_errors() {
         &packages,
         "wasm32-unknown-unknown",
         &selection::CargoSelection::default(),
-        limits,
-        || Command::new(root.join("missing-cargo")),
+        |spec| execute_tree(spec, limits, Command::new(root.join("missing-cargo"))),
     )
     .unwrap_err();
     assert!(
@@ -220,13 +221,12 @@ fn real_cargo_resolution_batches_peers_and_splits_feature_growth() {
             &packages,
             "wasm32-unknown-unknown",
             &selection,
-            limits,
-            || {
+            |spec| {
                 let mut command = Command::new(&cargo);
                 command
                     .env("RUSTUP_AUTO_INSTALL", "0")
                     .env("CARGO_NET_OFFLINE", "true");
-                command
+                execute_tree(spec, limits, command)
             },
         )
         .unwrap();
@@ -293,8 +293,7 @@ fn grouping_forwards_recipe_graph_choices_to_every_observation() {
         &["left".into(), "right".into()],
         "wasm32-unknown-unknown",
         &selection,
-        limits,
-        || {
+        |spec| {
             observations += 1;
             let mut command = Command::new("/bin/sh");
             command.args([
@@ -321,7 +320,7 @@ done
 "#,
                 "tree-fixture",
             ]);
-            command
+            execute_tree(spec, limits, command)
         },
     )
     .unwrap();
