@@ -1458,6 +1458,8 @@ dependencies = [
 name = "ic-host-text"
 version = "0.30.1"
 dependencies = [
+ "serde",
+ "serde_yaml",
  "unicode-width 0.2.2",
 ]
 
@@ -1469,13 +1471,13 @@ dependencies = [
  "ic-host-artifacts",
  "ic-host-fs",
  "ic-host-process",
+ "ic-host-text",
  "ic-platform",
  "leb128",
  "prost",
  "serde",
  "serde_cbor",
  "serde_json",
- "serde_yaml_ng",
  "thiserror 2.0.21",
  "tokio",
  "url",
@@ -1492,12 +1494,14 @@ dependencies = [
 
 [[package]]
 name = "ic-platform"
-version = "0.2.2"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b083e911eb9799daf15f501a883d50a76e709d300a51b25fb0c31cd0be0377bd"
+checksum = "a01558df9cef88b1841fbfbd7c8dd1cae2ba23b9861346f68faf3e3c3f106837"
 dependencies = [
  "candid",
  "candid_parser",
+ "crc32fast",
+ "data-encoding",
  "ic-agent",
  "ic-certification",
  "ic_principal",
@@ -2948,10 +2952,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "serde_yaml_ng"
-version = "0.10.0"
+name = "serde_yaml"
+version = "0.9.34+deprecated"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7b4db627b98b36d4203a7b458cf3573730f2bb591b28871d916dfa9efabfd41f"
+checksum = "6a8b1a1a2ebf674015cc02edccce75287f1a0130d394307b36743c2f5d504b47"
 dependencies = [
  "indexmap",
  "itoa",
@@ -3719,9 +3723,9 @@ dependencies = [
 
 [[package]]
 name = "webpki-root-certs"
-version = "1.0.9"
+version = "1.0.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b96554aa2acc8ccdb7e1c9a58a7a68dd5d13bccc69cd124cb09406db612a1c9b"
+checksum = "58ec80e73fd8baf57bf0d9615554c75348bda990d6d5bbeab964dd068319fecb"
 dependencies = [
  "rustls-pki-types",
 ]

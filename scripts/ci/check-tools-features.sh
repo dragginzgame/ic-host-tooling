@@ -28,6 +28,11 @@ check_graph() {
     arguments+=(--forbid-pattern "${forbidden% }$" --forbid-pattern '^(ciborium|ciborium-io|ciborium-ll)$')
     # Platform's runtime is independently selectable; no Host profile owns it.
     arguments+=(--forbid-pattern '^(ic-cdk|ic-cdk-macros|ic-cdk-executor|ic-platform-macros|ic0)$')
+    arguments+=(--forbid-pattern '^(serde_yaml_ng|serde_yml|serde-saphyr|granit-parser)$')
+    case "$label" in
+        icp-project|tools-all|text-yaml) ;;
+        *) arguments+=(--forbid-pattern '^(serde_yaml|unsafe-libyaml)$') ;;
+    esac
     if [[ "$label" != artifacts-text ]]; then
         arguments+=(--forbid-pattern '^(wat|wast)$')
     fi
@@ -43,13 +48,13 @@ check_graph tools ic-host-tools default '' '' \
 check_graph tools-no-defaults ic-host-tools none '' '' \
     '^(ic-platform|candid|candid_parser|ic-host-(artifacts|fs|process|text)|wasmparser|ic-certification|ic-agent|reqwest|url|serde_cbor|minicbor) '
 check_graph encoding ic-host-tools none encoding '' \
-    '^(ic-platform|candid|candid_parser|ic-host-(artifacts|fs|process|text)|wasmparser|ic-certification|ic-agent|reqwest|serde_yaml_ng|serde_cbor|minicbor) '
-check_graph icp-project ic-host-tools none icp-project 'serde_yaml_ng' \
     '^(ic-platform|candid|candid_parser|ic-host-(artifacts|fs|process|text)|wasmparser|ic-certification|ic-agent|reqwest|serde_cbor|minicbor) '
+check_graph icp-project ic-host-tools none icp-project 'ic-host-text serde_yaml unsafe-libyaml' \
+    '^(ic-platform|candid|candid_parser|ic-host-(artifacts|fs|process)|wasmparser|ic-certification|ic-agent|reqwest|serde_cbor|minicbor) '
 check_graph ledger-evidence ic-host-tools none ledger-evidence 'ic-platform candid icrc-ledger-types' \
-    '^(candid_parser|ic-host-(artifacts|fs|process|text)|wasmparser|ic-agent|reqwest|ic-stable-structures|serde_yaml_ng) '
+    '^(candid_parser|ic-host-(artifacts|fs|process|text)|wasmparser|ic-agent|reqwest|ic-stable-structures) '
 check_graph registry ic-host-tools none registry 'ic-platform prost' \
-    '^(candid|candid_parser|ic-host-(artifacts|fs|process|text)|wasmparser|ic-certification|ic-agent|reqwest|serde_yaml_ng) '
+    '^(candid|candid_parser|ic-host-(artifacts|fs|process|text)|wasmparser|ic-certification|ic-agent|reqwest) '
 check_graph ic-interface ic-host-tools none ic-interface \
     'ic-host-artifacts wasmparser' '^(ic-platform|candid|candid_parser|ic-host-(fs|process|text)|serde_cbor|minicbor|wasm-encoder) '
 check_graph inspection ic-host-wasm-inspect default '' 'ic-host-artifacts ic-host-fs' \
@@ -65,10 +70,12 @@ check_graph tools-combined ic-host-tools none candid,ic-interface,certificate \
     'ic-platform candid_parser serde_cbor ic-certification ic-host-artifacts wasmparser' \
     '^(ic-host-(fs|process|text)|ic-agent|reqwest|minicbor) '
 check_graph tools-all ic-host-tools none agent,candid,certificate,encoding,ic-interface,icp-project,ledger-evidence,registry \
-    'ic-platform candid_parser serde_cbor ic-certification ic-host-artifacts wasmparser ic-agent reqwest icrc-ledger-types serde_yaml_ng prost' \
-    '^(ic-host-(fs|process|text)|ic-stable-structures) '
+    'ic-platform candid_parser serde_cbor ic-certification ic-host-artifacts wasmparser ic-agent reqwest icrc-ledger-types ic-host-text serde_yaml unsafe-libyaml prost' \
+    '^(ic-host-(fs|process)|ic-stable-structures) '
 check_graph text ic-host-text default '' unicode-width \
-    '^(ic-host-(artifacts|fs|process|tools)|ic-platform|candid_parser|ic-agent|ic-certification|serde_cbor|minicbor) '
+    '^(ic-host-(artifacts|fs|process|tools)|ic-platform|candid_parser|ic-agent|ic-certification|serde_cbor|minicbor|serde) '
+check_graph text-yaml ic-host-text none yaml 'unicode-width serde serde_yaml unsafe-libyaml' \
+    '^(ic-host-(artifacts|fs|process|tools)|ic-platform|candid|candid_parser|ic-agent|ic-certification|serde_cbor|minicbor) '
 check_graph artifacts ic-host-artifacts default '' '' '^(ic-host-process|wasm-encoder|wasmparser|clap) '
 check_graph artifacts-wasm ic-host-artifacts none wasm wasmparser '^wasm-encoder '
 check_graph artifacts-encoding ic-host-artifacts none wasm-encoding wasm-encoder \

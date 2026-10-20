@@ -8,7 +8,7 @@ admitted process execution and IC-specific format handling.
 | ic-host-artifacts | Bounded streams and hashing writers, exact byte comparison, SHA-256, gzip encoding/decoding, generic Wasm facts, validation and encoding |
 | ic-host-fs | Regular/no-follow reads, missing-suffix path resolution, streamed durable publication, private files and observed descriptor locks |
 | ic-host-process | Executable resolution, digest/version admission, bounded capture, explicit child/group cleanup and Git observations |
-| ic-host-text | Pure line normalization, decimal/UTC text, terminal-safe rendering, Unicode tables and progress frames |
+| ic-host-text | Optional YAML decoding with byte admission, line normalization, decimal/UTC text, terminal-safe rendering, Unicode tables and progress frames |
 | ic-host-tools | Candid service facts, optional IC export facts, ICP command syntax, response decoding and certificate decoding |
 
 The FS package's explicit `cli` feature supplies [native `ic-host-file` commands](docs/file-cli.md)
@@ -145,13 +145,24 @@ The optional Tools `registry` feature shares focused Registry Protobuf
 projections and canister-range shard key/interval checks. These are partial
 projections, with normal Prost unknown-field behavior. Callers retain budgets,
 complete/sorted/disjoint range checks, trust, discovery and replay policy.
-Principal identities come from Platform; no direct IC dependency is introduced.
+Shard helpers take and return Platform-owned `ic_platform::Principal`. Convert
+explicitly to `ic_platform::principal::ExternalPrincipal` for external SDK calls
+and required Candid DTOs. Identity bytes remain unchanged; no direct IC dependency
+is introduced. See the [0.31 migration](docs/changelog/0.31.md).
 
 The optional `icp-project` feature exposes
 `icp_project::environment_network` over bounded `icp project show` YAML.
 ICP resolves implicit environments and recipes; the parser preserves exact names
 and refuses malformed or ambiguous facts. Callers retain executable selection,
-capture limits, funding and lifecycle. The YAML parser is absent from defaults.
+capture limits, funding and lifecycle. Its byte-limit argument is unchanged; the
+parser is absent from defaults. See the [0.31 migration](docs/changelog/0.31.md).
+
+Text's opt-in `yaml` feature provides `yaml::from_slice::<T>` with caller-selected
+input-byte admission and tag/merge policy. It uses ICP CLI's serde_yaml backend,
+checks the complete document before projecting an owned Serde schema, and performs
+no IO or external expansion. Parser types stay private; applications retain
+schemas, configuration discovery, redaction and public errors. The byte allowance
+is not a ceiling on parser memory or CPU; backend recursion/repetition checks remain.
 
 The optional tools `encoding` feature decodes a complete canonical unsigned
 `u64` LEB128 value without allocation or new dependencies. It rejects truncated,

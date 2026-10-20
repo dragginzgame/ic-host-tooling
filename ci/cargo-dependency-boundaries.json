@@ -1,4 +1,8 @@
 [
+  {"dependency": "serde_yaml", "allowed_packages": ["ic-host-text"]},
+  {"dependency": "serde-saphyr", "allowed_packages": []},
+  {"dependency": "serde_yaml_ng", "allowed_packages": []},
+  {"dependency": "serde_yml", "allowed_packages": []},
   {"dependency": "cap-fs-ext", "allowed_packages": ["ic-host-fs"]},
   {"dependency": "cap-std", "allowed_packages": ["ic-host-fs"]},
   {"dependency": "tempfile", "allowed_packages": ["ic-host-fs"]},

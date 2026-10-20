@@ -6,12 +6,21 @@ version.workspace = true
 license.workspace = true
 repository.workspace = true
 authors.workspace = true
-description = "Pure bounded line normalization and terminal-safe Unicode text rendering"
+description = "Pure bounded text decoding, normalization and terminal-safe Unicode rendering"
 readme = "../../README.md"
 publish = ["crates-io"]
 
+[features]
+default = []
+yaml = ["dep:serde", "dep:serde_yaml"]
+
 [dependencies]
+serde = { workspace = true, optional = true }
+serde_yaml = { workspace = true, optional = true }
 unicode-width.workspace = true
+
+[dev-dependencies]
+serde = { workspace = true, features = ["derive"] }
 
 [lints]
 workspace = true

@@ -4,7 +4,7 @@
 
 The maintainer's 2026-10-18 direction is one controlled dependency boundary for
 Candid and the CDK family, with IC Wire owning controlled application protocols.
-Host now consumes published `ic-platform` 0.2.0 for bounded Candid decoding,
+Host now consumes published `ic-platform` 0.3.0 for bounded Candid decoding,
 native parsing and optional certification types. Platform's `docs/migration.md`
 owns the fleet adoption contract. Host retains service-to-Wasm projections,
 strict certificate CBOR admission and the released aggregate-byte adapter.
@@ -27,8 +27,10 @@ external-protocol type integration and the supported CDK/executor interface.
 It must expose explicit supported operations rather than a blanket upstream
 re-export. Where generic external DTOs need Candid traits or derives, a deliberately
 supported trait/macro surface is necessary and remains upstream-coupled until
-replaced. Identity-only consumers can use Platform's unconditional `Principal`,
-which preserves the existing upstream identity without a new wrapper or codec.
+replaced. Identity-only consumers use Platform's unconditional owned `Principal`.
+Registry shard APIs use that type; external SDKs and required Candid DTOs retain
+`principal::ExternalPrincipal`, with explicit byte-preserving conversions. Neither
+the owned principal nor the new owned Account selects a Candid codec or trait.
 Canic retains dispatch, authentication and lifecycle policy; Timers retains
 scheduling; Query retains NNS/SNS/ledger operations and schemas; Testkit retains
 PocketIC lifecycle; Build retains native extraction execution. Host's five crates
@@ -104,7 +106,8 @@ Dependencies point down from ic-host-process to ic-host-fs and from each to
 ic-host-artifacts. Tools selects Artifacts only for explicit Wasm profiles;
 its production graph has no filesystem or process dependency. No generic crate
 depends on Tools, Canic, IcyDB or an IC runtime. Test/example artifact features
-do not become production filesystem dependencies. Tools includes response interpretation without generic Host dependencies;
+do not become production filesystem dependencies. Tools' default response
+interpretation adds no generic Host dependencies; `icp-project` selects Text.
 Candid service inspection requires its explicit `candid` feature.
 Native extraction moves to IC Build's `artifacts::candid` for the 0.24 hard cut;
 the five Host crates retain their generic mechanics and IC interpretation roles.
@@ -159,6 +162,11 @@ no longer owns an `ic-limits` profile or a reference-policy CLI example.
   durable identity records, wait settings, command/effect admission and recovery;
   custody neither kills processes nor implies a remote effect outcome.
 - ic-host-text owns bounded UTF-8 line normalization, pure terminal-safe escaping,
+  and optional typed YAML decoding with input-byte and tag/merge admission.
+  The private YAML backend is owned here; schemas, filesystem/includes and
+  application configuration rules remain with consumers. Tools' `icp-project`
+  selects this Text feature rather than another parser implementation. Its private
+  serde_yaml backend matches ICP CLI; all Text profiles retain Rust 1.88. Text also owns
   explicit column clipping, Unicode display-width tables and pure single-line
   progress frames. Its `timestamp` module owns canonical UTC second spelling and
   Gregorian conversion, formatting unsigned Unix seconds and parsing zero through
@@ -629,10 +637,10 @@ Default TSV output remains stable, and the filesystem development profile no
 longer selects the Wasm parser for that example.
 
 The optional `icp-project` tools profile parses bounded effective YAML produced by
-`icp project show` and projects exact environment/network facts. It adds only
-the optional Serde YAML parser; the default tools graph excludes that parser. ICP
+`icp project show` and projects exact environment/network facts. It selects Text's
+optional YAML decoder; the default tools graph excludes Text and that parser. ICP
 owns implicit-environment and recipe resolution. Callers retain command execution,
-input budgets, selected identities, local funding and lifecycle. This module does
+input-byte budgets, selected identities, local funding and lifecycle. This module does
 not reconstruct effective configuration from raw manifests.
 
 The opt-in `ic-host-process::testing::http` module owns bounded synthetic request

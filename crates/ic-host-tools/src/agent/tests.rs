@@ -88,10 +88,11 @@ async fn native_transport_enforces_the_selected_response_ceiling() {
     )
     .expect("response fixture");
     let source = EndpointAgent::default();
+    let canister = ic_platform::principal::ExternalPrincipal::from(Principal::anonymous());
     let error = source
         .get(fixture.endpoint(), 64)
         .unwrap()
-        .query(&Principal::anonymous(), "bounded_response")
+        .query(&canister, "bounded_response")
         .call_without_verification()
         .await
         .expect_err("body exceeds the selected ceiling");

@@ -1,4 +1,6 @@
-//! Pure text normalization, terminal-safe rendering and tables; callers own output.
+//! Pure text decoding, normalization, terminal-safe rendering and tables.
+//!
+//! Callers own schemas, input-byte allowances and output.
 pub mod decimal;
 pub mod duration;
 pub mod escape;
@@ -7,3 +9,5 @@ pub mod progress;
 pub mod table;
 pub mod timestamp;
 pub mod width;
+#[cfg(feature = "yaml")]
+pub mod yaml;

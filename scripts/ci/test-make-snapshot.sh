@@ -235,6 +235,15 @@ for target in "${cargo_targets[@]}" "${helper_targets[@]}"; do
         > "$fixture/jobserver-$target.log" 2>&1
     [[ -s "$HOST_MAKE_EVENTS" ]] || exit 1
 done
+# Every package retains the same floor, including optional YAML.
+for package in ic-host-text ic-host-tools; do
+    : > "$HOST_MAKE_EVENTS"
+    PATH="$fixture/local:$PATH" make --no-print-directory msrv "PACKAGE=$package" > "$fixture/msrv-$package.log" 2>&1
+    grep -F -- "+1.88.0 check -p $package --all-targets --all-features" "$HOST_MAKE_EVENTS" >/dev/null
+done
+: > "$HOST_MAKE_EVENTS"
+PATH="$fixture/local:$PATH" make --no-print-directory msrv-workspace > "$fixture/msrv-workspace.log" 2>&1
+grep -F -- '+1.88.0 check --workspace --all-targets --all-features' "$HOST_MAKE_EVENTS" >/dev/null
 # Actual Host formatting stops after sorter failure and points at complete logs.
 for target in fmt fmt-check; do
     : > "$HOST_MAKE_EVENTS"

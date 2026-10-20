@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.31.0]
+
+- **Breaking:** Adopt Platform 0.3.0. Registry shard helpers now use Platform-owned
+  Principals; convert explicitly when calling external SDK/Candid interfaces.
+  Identity bytes and Registry Protobuf projections are unchanged.
+  [Migration](docs/changelog/0.31.md).
+- Adopt Shared Tooling 0.25.3 with explicit feature selection for installed Cargo
+  tools and actionable admission diagnostics.
+  Tool pins are unchanged; run `make install-tools` once for the new build-helper
+  fingerprint before offline checks. [Details](docs/changelog/0.31.md).
+- Add opt-in YAML decoding in Host Text through serde_yaml, matching ICP CLI's
+  backend. Keep empty defaults and Rust 1.88 support throughout.
+- **Breaking:** Tools' ICP project parser returns Host-owned YAML errors and
+  rejects duplicate keys throughout the document, including ignored content.
+  Its byte-limit argument remains unchanged. [Migration](docs/changelog/0.31.md).
+
 ## [0.30.1] - 2026-10-19
 
 - Update the private Wasm parser/validator backend to wasmparser 0.262.0,

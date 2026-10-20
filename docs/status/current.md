@@ -2,357 +2,100 @@
 
 ## Authoritative state
 
-Read [Cargo.toml](../../Cargo.toml), [CHANGELOG.md](../../CHANGELOG.md), Git tags,
-[AGENTS.md](../../AGENTS.md) and the exact [Shared snapshot](../../.shared-tooling.snapshot).
-Host 0.30.0 is released at `a407de0`, including the explicit filesystem feature
-admission described below. The next draft is
-[0.30.1](../changelog/0.30.md#0301) for compatible Platform and Wasm parser updates.
-Staging, commits, version changes,
-Git release/push and registry publication remain user-owned.
-Sibling checkouts are read-only. GitHub issues are the sole follow-up tracker.
+Host 0.30.1 is released at `391a2dfe63c994473fc68135d62900b9a38861a2`.
+[Cargo.toml](../../Cargo.toml), [CHANGELOG.md](../../CHANGELOG.md), Git tags and
+[AGENTS.md](../../AGENTS.md) own release state and local rules. The next draft is
+[0.31.0](../changelog/0.31.md#0310), with YAML and Platform-owned principals.
+Package versions remain 0.30.1. Staging, commits, version changes, release/push
+and registry publication remain user-owned. Sibling checkouts are read-only;
+GitHub issues are the sole follow-up tracker.
 
-## Wasm parser 0.262.0 update
+## Ownership and pending work
 
-Artifacts now selects wasmparser 0.262.0, consolidating the older 0.261.0 lock
-entry with the encoder's optional integration. The private payload match follows
-the upstream `unchecked_range` field rename; new malformed-code extent cases
-verify inspection still rejects truncated sections rather than returning partial
-facts. Public APIs, empty defaults and opt-in full validation remain unchanged.
-The incoming Platform 0.2.1 and Tokio 1.54.0 lock selections are preserved;
-only the older parser selection leaves the starting lockfile.
+The five crates retain the [extraction contract](../extraction.md): Artifacts owns
+byte/Wasm mechanics; FS owns filesystem mechanics; Process owns bounded native
+execution; Text owns generic text/decoding; Tools owns IC-specific interpretation.
+Platform owns upstream IC interoperability; Build owns native extraction/release
+rendering. Callers retain schemas, byte budgets, targets and effect recovery.
 
-Receipt: `/tmp/host-wasmparser-0262.TjUIrP/`. Actual Rust 1.88 passes default,
-inspection, validation, encoding, text and combined Artifacts profiles, all-feature
-Artifacts tests, interface-only Tools tests and the inspector's tests. Strict
-MSRV/development Clippy and strict Rustdoc pass. Linux and both macOS normal/build
-graph matrices pass, including a single-parser check. The real Blob Wasm's full
-inspection report is byte-identical to the preceding 0.261.0 output; its input
-digest is unchanged. Native macOS execution is not qualified by these checks.
-No full local workspace gate, package version change, release, index/HEAD change
-or sibling edit ran.
+Preserve all pending YAML source, manifests, graph checks, documentation and
+Cargo.lock changes. Preserve unrelated incoming lock selections, including
+webpki-root-certs 1.0.10, and all previous source/build/evidence artifacts. No new
+API hard cut was justified by the Shared adoption review. The distinct filesystem
+custody adapters and Platform aggregate-reply adapter preserve supported contracts.
 
-## Platform 0.2.0 adoption
+## Optional YAML boundary
 
-The incoming catalog already requested compatible `0.2` with defaults disabled,
-and the lock already selected published Platform 0.2.0. Both are preserved,
-including unrelated pending crypto-common/generic-array selections. Registry index,
-archive SHA-256 and lock checksum agree. Source review uses released main
-`c7da516aef66d1f3623c85aa7cf304c17a5877d5`; the sibling's 0.2.1 notes are an
-unpublished documentation draft. Platform's exact released-source
-[CI passed](https://github.com/dragginzgame/ic-platform/actions/runs/39277031757).
+Text owns `yaml::from_slice` through independent, default-off `yaml` and private
+serde_yaml 0.9.34+deprecated, matching ICP CLI main
+`0ea5fc5f0198b01f0d8491182647e62503adf6a5`'s `0.9.34` requirement. The maintainer
+selected package alignment, retaining unsafe-libyaml's maintenance limitation.
 
-The five Platform modules consumed by Host are byte-identical to packaged 0.1.18.
-Host needs no CDK/endpoint source migration and selects none of those runtime
-features. Every graph profile now rejects CDK/runtime macros, executor and ic0.
-Host's public features, empty defaults and existing format contracts are unchanged.
+Byte admission precedes one private-tree parse. Duplicate keys and default
+non-core-tag/`<<` refusals cover ignored content and quoted `<<` keys before owned
+schema projection. Callers retain schemas, redaction, IO and configuration policy.
+Host exposes no configurable depth/event/alias budgets or memory/CPU ceiling;
+backend checks remain. No external includes or property expansion run.
 
-Receipt: `/tmp/host-platform-020.a8VGZl/`. Actual Rust 1.88 passes default,
-certificate-only, interface-only, parser-free combined, Candid, Agent, ledger and
-Registry profiles, plus all 52 all-feature Tools cases. The real local HTTP case
-passes separately with loopback socket permission. Strict MSRV/development Clippy,
-strict Rustdoc, formatting, pins, links, symlink and snapshot checks pass.
-Linux and both macOS normal/build graph matrices pass; native macOS execution
-of this Host source remains separate. No full local workspace gate, release,
-package version, index/HEAD change or sibling edit ran. Notes are under 0.30.1.
+Tools retains actual-map/key/name admission and effective ICP meaning, delegating
+decoding to Text. Its original byte-limit argument is preserved; its upstream
+error payload becomes Host-owned. [Migration](../changelog/0.31.md) describes the
+breaking error/duplicate-key contract. Rust 1.88 remains the floor for all features;
+the single MSRV lane is retained. Canic's raw-manifest schema and public errors
+remain local; adoption can follow publication and focused consumer verification.
 
-## Optional filesystem backends
+## Platform 0.3.0
 
-FS now gates held capabilities behind `capability` and scoped named scratch files
-behind independent `temporary-file`, with empty defaults. Default FS, Process,
-the file CLI and inspector exclude both backends. Backend mechanics and ordinary
-filesystem APIs remain unchanged. The [0.30 notes](../changelog/0.30.md) identify
-verified Query, Testkit Dev and IcyDB CLI consumers that need explicit selection
-after publication. Those sibling checkouts remain unchanged. The qualification
-records below describe their named preceding source, not this feature cut.
+Manifest and lock select published 0.3.0 with defaults disabled. Registry shard
+APIs now use Platform-owned principals; SDK/Candid DTOs retain external principals
+with explicit conversions. The Agent fixture converts at its SDK call; Registry
+tests preserve golden identity bytes and round trips. See the [migration](../changelog/0.31.md).
+Registry's public type identity changes; byte formats and admission are unchanged.
+Receipt: `/tmp/host-platform-030.yodwBG/`. The live index/archive/lock checksums
+agree; released source is `390644fe75fc0421efa98dc0319db34101639e64`.
+Rust 1.88 all-feature tests (52), independent profiles, strict MSRV/development
+Clippy, Rustdoc and Linux/both macOS graphs pass. Incoming selections are preserved.
 
-Receipt: `/tmp/host-fs-opt-in.Dwo44H/`. Actual Rust 1.88 passes 177 default,
-189 capability-only, 183 temporary-file-only and 195 combined FS unit cases,
-plus the all-feature CLI/integration tests. Process checks, strict MSRV/development
-Clippy and strict all-feature/default Rustdoc pass. The actual 1.88 non-Unix
-library/binary/unsupported-lock compile gate passes. Normal/build graphs pass for
-Linux and both macOS targets, including independent backend selection and their
-exclusion from FS defaults, CLI, Process and the inspector. Formatting, snapshot,
-pins, local links, symlink admission and ShellCheck pass. The incoming lockfile
-and index are unchanged; package versions remain 0.29.0. No full local gate,
-release, publication or native macOS execution ran.
+## Shared Tooling 0.25.3
 
-## Consumer adoption review
+The [snapshot](../../.shared-tooling.snapshot) admits 125 files from pushed source
+`c55c1065c0061455dab7f0e2be8ddd04fdeb9910`, VERSION 0.25.3. Tool pins are unchanged.
+Selected Cargo tools accept explicit features on setup/check, binding canonical
+sets to immutable installations and Cargo receipts. Defaults stay enabled.
+Featureless Host formatters/editor keep their selections; the helper fingerprint
+requires explicit setup again. Old generations stay retained; checks never repair.
 
-Blob main `c80c51c230c467da681c11902124c486878a18c5` already selects released
-Build 0.21.0 and Testkit 0.55.2. Frozen normal/build graphs from an exact committed
-source archive contain only Host 0.29.0; its standalone canister Wasm graph
-excludes Host and the filesystem backends. No Blob dependency edit is needed.
+The adopted Wire endpoint and imported runtime/crypto rules do not relocate Host's
+external-protocol helpers. Host owns no canister endpoints or IC runtime. The
+handoff is now a current-state summary rather than accumulated release history.
+Historical completed work remains in the committed handoff at `391a2df` and the
+existing [archive](archive-2026-10-18.md); do not append old narratives here.
 
-Query's pending work above `6c051236be4a1c96bcb379c49d8a51623d83655e` already
-replaces its competing agent cache with Host's binding and builder, retaining
-endpoint admission, response ceilings and historical expiry policy. An isolated
-captured-source review passes all six agent cases at Rust 1.91 and the complete
-library dependency-graph check. The body-limit case required a local loopback
-listener outside the socket-restricted sandbox. This is pending-source evidence,
-not committed adoption or native macOS qualification. Its existing
-[consumer issue](https://github.com/dragginzgame/ic-query/issues/82) owns delivery;
-the active working tree remains untouched. Receipt:
-`/tmp/host-consumer-adoption.CICUJf/` binds exact captured source hashes and logs.
+## Validation and next action
 
-## Shared Tooling 0.25.1 adoption
+YAML receipt: `/tmp/host-yaml-ic.l0TcwB/`. Actual Rust 1.88 passed Text's 40 and
+Tools' 52 all-feature unit cases, including the local HTTP case with loopback
+permission, plus focused/default profiles. Strict MSRV/development Clippy and
+Rustdoc passed. Linux and both macOS graph matrices passed, including backend
+ownership and default/unrelated-profile exclusion. Formatting, pins, snapshot,
+links, ShellCheck and Make routing passed. Saphyr-only packages were removed;
+serde_yaml, Ryu and unsafe-libyaml replaced them without changing other selections.
 
-The snapshot now selects committed main
-`d57c631206e3618755e45bebf2c88c673564ddc1` (0.25.1), verified against GitHub
-main. The sibling started unrelated edits during review; export used a clean
-isolated checkout of that exact commit. No sibling edits were copied or changed.
-The 125-file snapshot adds canonical graph, symlink and license admission and
-retires the two Perl Cargo renderers. Host's graph matrix delegates package
-observation/counting while keeping its targets, profiles and enabled-feature checks.
+Shared adoption receipt: `/tmp/host-shared-0253.dNBj5e/`. It retains the complete
+incoming source, preview/refresh and focused check logs. Unchanged formatter/editor
+selections were explicitly prepared offline. A competing install lock cleared
+without intervention; the refused attempt is retained. Snapshot, pins, links,
+symlinks, tools, formatting/hooks, ShellCheck, explicit-feature/path-context fixtures
+and Host Make routing pass. Release-adapter fixtures pass with real offline
+rendering and substituted setup, qualification and Git effects.
+The exact-source [hosted run](https://github.com/dragginzgame/shared-tooling/actions/runs/39387644688)
+failed cross-checkout native-tool reuse on Linux and Apple Silicon; Intel is still
+running. Detailed diagnostics are in its retained artifacts; root cause remains
+unverified. Earlier evidence stays in `/tmp/host-shared-0252.KXQmMF/`.
 
-Host release candidate rendering now uses released IC Build 0.18.0's admitted
-editor and the positive 8-MiB per-document allowance in `ci/release-editor.env`.
-The optional release tool is prepared through Shared's verified store and local
-setup extensions, with offline checks and a pin-sensitive CI cache key. Source
-custody, exact receipts and metadata transaction/rollback remain Host/Shared-owned.
-First-use preflight prepares a missing editor after source admission; verification
-and saved-plan recovery never install. Saved-plan preflight admits dependencies
-offline. Its Rust 1.91 tool floor does not raise Host's 1.88 MSRV.
-
-Maintained binaries and argument-taking examples use Clap. FS's `ic-host-file`
-requires the explicit `cli` feature so normal library graphs remain Clap-free.
-Report/operation bytes and refusal exit code 1 remain; Clap owns typed arguments,
-help, version and diagnostics. The [0.29 notes](../changelog/0.29.md) document the
-installation change. Required Candid helpers still target external Candid/DID
-interoperability through Platform; Host owns no canister RPC to migrate to Wire.
-
-Receipt: `/tmp/host-shared-025.a3okEz/`. Actual Rust 1.88 passes both CLI suites
-and compiles every changed example. Strict Clippy passes MSRV/development Rust
-for affected packages, and the actual MSRV non-Unix compile gate passes. The
-inspector's existing oversized integration test was split at the argument-refusal
-boundary to satisfy its pre-existing MSRV Clippy complexity failure, preserving
-coverage. Real IC Build rendering/rollback/first-use/offline adapter fixtures and
-publication/license rejection fixtures pass with Git/upload/setup substituted.
-Make routing covers the local editor extension; Linux/both macOS graph profiles
-pass. The 125-file snapshot, source-symlink checks, grouped formatting, real hook
-preservation/installation, pins, local links, ShellCheck and retained-fixture
-contract checks pass. Package selections/checksums are preserved; only five Clap-family packages
-are added. No full local workspace gate, Git/release or real publication ran.
-Shared 0.25.0's CI was superseded; 0.25.1's exact-revision CI was still running
-at review. Local Linux and graph
-checks do not qualify native macOS. Prior source/artifacts and the index are retained.
-
-## Consolidated filesystem and Wasm tooling
-
-The approved capability API from PR #203 and scoped-tempfile API from PR #205 are
-now present in this working checkout, preserving the existing backends and generic
-regression coverage. FS privately owns Unix cap-std/cap-fs-ext and tempfile;
-non-Unix graphs exclude them. `read::open_regular_file_no_follow` shares the
-existing read-only opener and returns an admitted standard file without consuming
-bytes, supporting consumer reference synchronization and lock inspection.
-
-Artifacts adds independent `wasm-text` through wat 1.262.0 with components disabled,
-owned limits/errors and source/output-byte admission. Compilation remains distinct
-from full validation. Text-only production graphs exclude wasmparser; defaults,
-inspection and encoding-only graphs exclude wat/wast. The lock retains an optional
-encoder/parser integration selection without compiling it in text-only profiles.
-All existing selected dependency versions/checksums are preserved. Direct backend
-declarations are now checked against their owning Host crate in every dependency
-kind, alias and target, alongside the existing Platform rules.
-
-Receipt: `/tmp/host-boundary-cleanup.70rMhG/`. Actual Rust 1.88 passes 52
-text-only Artifacts cases, 95 all-feature unit plus eight integration cases,
-195 FS unit plus 12 integration cases and both isolated signal-action cases.
-Strict Clippy passes on MSRV/development Rust for the changed packages; strict
-Rustdoc passes all features and text-only. Formatting, pins, links, ShellCheck and
-Linux/both macOS normal/build graph profiles pass. The actual 1.88 non-Unix FS
-library/binary/unsupported-lock compile gate passes. This does not qualify native
-macOS behavior. No full local gate, release, index/HEAD change or sibling edit ran.
-
-The [0.29 notes](../changelog/0.29.md) describe Query capability/discovery and
-Testkit encoder/validator adoption, Backup's WAT calls, Query's replacement of
-generated WAT with Testkit fixtures, and consumers of the existing signal guard
-and no-follow opener. These remain consumer-owned migrations after the supplying
-release. IcyDB already uses caller-retained scratch files without tempfile.
-Testkit temporary directories/unnamed captures and Canic cooperative signal-hook
-callbacks keep their distinct custody/registration contracts. No new signal facade
-or broad tempfile replacement was introduced. The earlier qualification receipts
-below describe their own preceding source, rather than this expanded batch.
-
-## Private Wasm encoder boundary
-
-Artifacts now prepares independent `wasm-encoding` with owned call-module inputs
-and a private wasm-encoder 0.262.0 backend. It supports the fixed-memory,
-i32/void import-call mechanics demonstrated by Testkit's raw-reply fixtures;
-Testkit retains all IC names, reply/layout budgets, error mapping and lifecycle.
-That sibling remains read-only (inspected HEAD
-`76f20411a368a230a282f7c445026f009b31fe4c`, with its existing dirty lockfile).
-The full validator already prepared in PR #204 is also present locally through
-`wasm-validation`; released 0.28.1 source did not integrate that earlier proposal.
-The next draft remains 0.29.0, with both codec and Wasm adoption instructions.
-
-Receipt: `/tmp/host-wasm-encoding.F8Zi5R/`. Actual Rust 1.88 passes default,
-inspection-only, validation-only, encoding-only and encoding/validation tests;
-the all-feature profile passes 90 unit and eight integration cases. Strict Clippy
-passes on MSRV and development Rust; strict Rustdoc passes for encoding,
-inspection and combined validation. Formatting, dependency pins, links,
-ShellCheck and Linux/both macOS target graphs pass. Encoding-only normal/build
-graphs exclude the parser; inspection-only graphs exclude encoder and validator.
-Only wasm-encoder and leb128fmt are added; existing package selections/checksums
-are unchanged. The parser remains 0.261.0. Native macOS execution of this source
-is not qualified by these graph checks. No full local gate or release ran.
-Testkit adoption requires the supplying registry release and its focused fixture
-checks before removing its direct encoder/parser declarations. No sibling changed.
-
-## IC Agent codec alignment
-
-The maintainer selected serde_cbor, matching IC Agent, instead of the unmerged
-Minicbor proposal in PRs #206/#207. Tools retains strict schema and byte admission
-but removes `certificate::DecodeLimits.depth`; recursion and semantic-tag
-handling belong to the shared codec. Query is the verified consumer of that
-field; its source and lock are unchanged. The private parser error source becomes
-serde_cbor. Ciborium and its helpers plus unused half 2.x leave the lockfile;
-the existing upstream ledger Minicbor dependency remains separate.
-
-Receipt: `/tmp/host-serde-cbor.bh63Mr/`. The selected SDK implementation is
-IC Agent 0.49.2 with serde_cbor 0.11.2. Actual Rust 1.88 passes all 24 Tools
-certificate-profile tests, all 52 Tools tests and default/interface/parser-free
-combined profiles. Strict Clippy passes on MSRV and development Rust; Rustdoc,
-formatting, dependency pins, links, ShellCheck and Linux/both macOS target graphs
-pass. Existing external versions/checksums remain selected; only four obsolete
-packages leave. Native macOS execution of this source remains separate; no full
-local workspace gate, release or publication ran.
-The replacement is prepared for decoder PR #206 and combined producer PR #207;
-their superseded Minicbor heads are not qualification of this new contract.
-
-## Prepared Candid isolation
-
-Tools Candid helpers require the explicit `candid` feature. Empty defaults and
-certificate-only, interface-only and combined certificate/interface normal/build
-graphs exclude both Candid and its parser. Independent interface projection tests
-remain enabled; only the DID comparison requires `candid`. Agent and ledger
-evidence select their required codec without the parser, while Registry selects
-Platform principal types alone. The prepared duration and MSRV CI fixes remain
-in this minor batch. Query owns its separate lockfile refresh and certificate-host
-graph verification after registry publication.
-
-## Ownership
-
-The [extraction contract](../extraction.md) owns the five library boundaries.
-Artifacts owns bounded bytes, identities, checksum framing, batch admission and
-optional gzip/Wasm facts. FS owns path/descriptor admission, traversal, allocation,
-publication and explicitly selected cleanup custody. Process owns execution,
-child/descriptor custody and native observations. Text owns pure normalization
-and rendering. Tools owns IC format interpretation and its aggregate reply adapter.
-The [Wasm inspector](../../apps/ic-host-wasm-inspect/README.md) composes Artifacts
-and FS and owns its arguments/output; it performs no build or tool installation.
-
-Platform 0.2.0 owns the upstream Candid/parser/certification dependency boundary;
-Host retains service projection, aggregate debit ordering and strict CBOR admission.
-Shared owns common development, CI and release mechanics. Host retains package
-eligibility, metadata projection, real integration checks and recovery decisions.
-IC Build owns native Candid extraction and build/cache orchestration; Testkit owns
-PocketIC lifecycle. Consumers retain schemas, tool pins, budgets, credentials,
-targets, retries, authentication and paid-operation recovery.
-
-## Current qualification
-
-Released 0.27.4 passed Linux x86-64, macOS 15 Intel/Apple Silicon and MSRV in
-[its exact-source CI run](https://github.com/dragginzgame/ic-host-tooling/actions/runs/39125028075).
-Consumer adoption remains distinct from that producer qualification.
-
-Delivered 0.27.5 preparation has the following focused Linux evidence. Its
-exact-source native CI was still running when the Canic issue pass began:
-
-- [#194 — Lock platform guards](https://github.com/dragginzgame/ic-host-tooling/issues/194):
-  18 lock cases pass on current Rust and actual 1.88, with directory and fixture
-  cases, strict native Clippy and Rustdoc. The library/test-support/non-Unix test
-  compiles on actual 1.88 for Wasm; this is not Wasm test or filesystem execution.
-  Optional Wasm Clippy reports target-specific uninhabited-File/const lints outside
-  the compile-only gate. Receipt: `/tmp/host-lock-cfg.5k9tgx/`.
-- [PR #135 — Bounded traversal and directory allocation](https://github.com/dragginzgame/ic-host-tooling/pull/135):
-  61 artifact, 15 directory/custody and five fixture cases pass on current Rust
-  and actual 1.88, plus seven integration cases, strict Clippy/Rustdoc and the
-  non-Unix compile gate. The earlier Build rehearsal qualifies only its named
-  source; [Build #45](https://github.com/dragginzgame/ic-build/issues/45) owns adoption.
-  Receipt: `/tmp/host-build-mechanics.8823nY/`.
-- Platform 0.1.11: all 29 Tools cases pass on current Rust and actual 1.88, with
-  strict Clippy, boundary/feature graphs, pins, links and changelog admission.
-  Codec/parser/certification features are unchanged. Receipt:
-  `/tmp/host-platform-011.q74eWi/`. Platform's own CI was still running at review.
-
-Use [the host guide](../hosts.md) and the
-[shared validation policy](../../DRAGGINZGAME.md#validation-and-evidence).
-Focused passing evidence does not claim a full local release gate, publication,
-deployment or native macOS execution of pending bytes.
-
-## Retained integration boundaries
-
-PR #162's duration implementation and six tests are reconciled unchanged with
-Host 0.27.6 for pending 0.27.7. All 34 Text tests and both duration doctests pass
-on actual Rust 1.88; current Text tests, strict Clippy/Rustdoc, Rustfmt, links and
-feature graphs pass. Both truncating and rounded displays remain explicit.
-Receipt: `/tmp/host-duration-pr.BQDRsO/`. Consumer adoption stays with Query #71
-and Canic #458. Native qualification of the refreshed PR remains separate; the
-current release's non-Unix CI toolchain mismatch is tracked under Host #194.
-
-The 0.27.6 MSRV job passed native compilation but its non-Unix step selected the
-1.99 development pin after installing the Wasm target only for 1.88, causing E0463.
-The prepared fix scopes that step to `RUSTUP_TOOLCHAIN=1.88.0`; no target download,
-compiler upgrade or product portability change is involved. Host #194 retains
-source/native qualification; this corrects CI invocation ownership.
-
-The Canic producer pass brought #97's reviewed ICP command/status implementation
-and four tests from PR #101 (`38b114bb30f12e9a6e255ccd85d6b7344331d763`) into
-now-delivered 0.27.6. All 33 Tools cases pass on current Rust and actual 1.88, including
-the four ICP cases separately on the minimal profile. Strict Tools Clippy/Rustdoc,
-Rustfmt, feature boundaries, pins, snapshot and links pass. No dependency, feature,
-manifest, lockfile or sibling source changed. Receipt:
-`/tmp/host-canic-issues.t1JUg3/`. Integration/publication and native qualification
-of this new source remain separate; Canic #458 and IcyDB #307 own adoption.
-
-The preceding adoption selected reviewed Shared main
-`86464be41588182be6c979070a26ea9dfa5aa566` (0.24.3 in its changelog; committed
-`VERSION` and canonical snapshot label remain 0.24.2). Its canonical source helpers
-coexist
-with byte-identical release metadata/receipt custody, resolving
-[#193's supplier prerequisite](https://github.com/dragginzgame/ic-host-tooling/issues/193).
-Both local source-evidence adapters are removed and callers use Shared directly.
-The former contribution PR remains open, but committed source and successful
-Shared 0.24.2 Linux/macOS CI establish helper availability. Formatting/hooks and every release
-manifest check use grouped sorting. No tool version or installed bundle changes.
-
-That preceding refresh adopted Shared's external IC dependency rule and extended the
-direct-dependency guard to known Agent, Principal, PocketIC, system, signature,
-ledger/management and storage packages. The finite name policy still needs review
-for new IC package identities and generated imports. Snapshot, pins, Linux/macOS
-feature graphs, links and changelog admission pass; 30 substituted aliased,
-optional/platform normal/dev/build cases reject while a Serde control passes.
-These graphs are not native macOS execution. Shared's exact-revision CI was still
-running at adoption. Receipt: `/tmp/host-shared-adoption.4eu0Td/`. The snapshot's
-executable payloads, tool pins, Host Rust source, manifests and lockfile are
-unchanged by this refresh; Host already uses the shared metadata transaction.
-
-The Platform aggregate adapter retains Host's published limits/errors and charges
-admitted malformed replies before decoding; it is not a competing decoder.
-The FS gzip example is an intentional FS/Artifacts integration caller, which
-explains the dev-only gzip feature. Private fixed-size reads retain stack storage
-and permission/link admission. Read-only and ordered-sync tree visitors share a
-checksum collector while preserving different effects. These remain supported.
-
-## Audit evidence and history
-
-The architectural cleanup uses the pinned Shared flow-convergence/module-surface
-methods against `bcc37e7` plus the captured incoming 0.27.5 work. Receipt:
-`/tmp/host-sediment-final.kVbk8M/`. Incoming source, artifacts, manifests' release
-versions, lock selection and index are preserved; changes cover catalog cleanup,
-canonical source-evidence adoption and matching documentation/formatting checks.
-Actual consumers were inspected in available Build, Backup, Query, Testkit and
-Platform siblings; their mutable checkouts are evidence, not published adoption.
-The member/dependency metadata is byte-identical before and after cleanup; the
-lockfile is unchanged. Selected Process/Text/Tools builds, direct/feature boundary
-checks, pins and the 119-file snapshot pass. Real Host release/publication fixtures,
-Make routing, formatting/hook preservation, ShellCheck, links and changelog
-admission pass with substituted Git/upload/setup effects. No release or native
-macOS execution of pending Host bytes ran. Completed 0.27.4 producer issues #138/
-#140 and superseded PRs #139/#142/#147/#184 were closed after direct remote source,
-tag and full native/MSRV CI verification; publication/adoption remain separate.
-
-The [complete preceding handoff](archive-2026-10-18-02.md) retains every prior
-receipt and source identity verbatim, including completed 0.27.3/0.27.4 preparation
-and earlier qualification observations. It links the older archives. Historical
-0.28 proposals and earlier adoption-pending claims do not change current contracts.
+No full local workspace/release gate, native macOS execution, package version
+change, index/HEAD change, release or sibling edit ran in these pending tasks.
+Graph checks do not qualify native macOS. Reassess upstream CI before release.
+Leave release execution and native host qualification to the maintainer's
+authorized workflow. Earlier receipts remain evidence,
+not substitute qualification of this pending source.

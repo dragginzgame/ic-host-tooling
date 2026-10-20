@@ -77,7 +77,11 @@ fn certified_tree_and_large_value_alternatives_preserve_golden_tags() {
 
 #[test]
 fn keys_require_canonical_routable_ids_and_shards_respect_interval_bounds() {
-    let lower = canister_range_start_from_key("ranges_", "ranges_00000000000000000101").unwrap();
+    let lower: Principal =
+        canister_range_start_from_key("ranges_", "ranges_00000000000000000101").unwrap();
+    let external = ic_platform::principal::ExternalPrincipal::from(lower);
+    assert_eq!(external.as_slice(), &[0, 0, 0, 0, 0, 0, 0, 0, 1, 1]);
+    assert_eq!(Principal::from(external), lower);
     let next = Principal::from_slice(&canister(10).principal_id.unwrap().raw);
     // A shard need not start exactly at its key's lower bound.
     validate_routing_table_shard_bounds("key", &lower, &shard(2, 9), Some(&next)).unwrap();

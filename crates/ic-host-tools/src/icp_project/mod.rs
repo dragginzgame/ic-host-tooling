@@ -4,8 +4,9 @@
 //! module only interprets the resulting document. Callers own executable admission,
 //! capture limits, selected targets, credentials, funding and network lifecycle.
 
-use std::{collections::BTreeSet, fmt};
+use std::fmt;
 
+use ic_host_text::yaml::{self, DecodePolicy};
 use serde::Deserialize;
 
 /// Refusal to interpret one effective ICP project document.
@@ -19,7 +20,7 @@ pub enum ProjectParseError {
         maximum: usize,
     },
     /// YAML syntax or the required environment field types were invalid.
-    InvalidYaml(serde_yaml_ng::Error),
+    InvalidYaml(yaml::DecodeError),
     /// An environment name or network name was empty.
     EmptyEnvironmentField {
         /// Zero-based environment position in the effective document.
@@ -71,8 +72,8 @@ struct Network {
     name: String,
 }
 
-// BTreeMap deserialization would overwrite duplicate keys. Retain input order
-// and reject duplicate or contradictory identities before selecting a network.
+// The YAML boundary rejects duplicate keys throughout the document. This visitor
+// retains input order and checks the ICP-specific key/name identity contract.
 fn deserialize_environments<'de, D: serde::Deserializer<'de>>(
     deserializer: D,
 ) -> Result<Vec<Environment>, D::Error> {
@@ -87,21 +88,18 @@ fn deserialize_environments<'de, D: serde::Deserializer<'de>>(
             mut map: A,
         ) -> Result<Self::Value, A::Error> {
             use serde::de::Error as _;
-            let mut names = BTreeSet::new();
             let mut environments = Vec::new();
             while let Some((key, environment)) = map.next_entry::<String, Environment>()? {
                 if key != environment.name {
                     return Err(A::Error::custom("environment key and name disagree"));
-                }
-                if !names.insert(key) {
-                    return Err(A::Error::custom("duplicate environment identity"));
                 }
                 environments.push(environment);
             }
             Ok(environments)
         }
     }
-    deserializer.deserialize_map(EnvironmentVisitor)
+    // Require an actual environment mapping, including when empty.
+    deserializer.deserialize_any(EnvironmentVisitor)
 }
 
 /// Return the network of one exact environment in effective ICP project YAML.
@@ -114,7 +112,8 @@ fn deserialize_environments<'de, D: serde::Deserializer<'de>>(
 /// # Errors
 /// Rejects input above `maximum_input_bytes` before YAML parsing, malformed or
 /// multiple documents, missing/invalid fields, empty names and duplicate
-/// environment identities. Callers retain their domain-specific failure policy.
+/// environment identities. Unknown tags in ignored effective fields are allowed;
+/// merge keys are not expanded. Callers retain their domain-specific failure policy.
 pub fn environment_network(
     yaml: &[u8],
     environment: &str,
@@ -126,8 +125,15 @@ pub fn environment_network(
             maximum: maximum_input_bytes,
         });
     }
-    let project: EffectiveProject =
-        serde_yaml_ng::from_slice(yaml).map_err(ProjectParseError::InvalidYaml)?;
+    let project: EffectiveProject = yaml::from_slice(
+        yaml,
+        maximum_input_bytes,
+        DecodePolicy {
+            ignore_unknown_tags: true,
+            preserve_merge_keys: true,
+        },
+    )
+    .map_err(ProjectParseError::InvalidYaml)?;
     for (index, item) in project.environments.iter().enumerate() {
         if item.name.trim().is_empty() || item.network.name.trim().is_empty() {
             return Err(ProjectParseError::EmptyEnvironmentField { index });

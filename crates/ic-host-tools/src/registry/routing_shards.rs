@@ -6,6 +6,8 @@ use ic_platform::Principal;
 /// Decode one nonempty lowercase-hex key suffix into a routable canister principal.
 ///
 /// The caller supplies the prefix and owns namespace selection and Registry trust.
+/// Returns Platform's owned principal; convert explicitly to
+/// [`ic_platform::principal::ExternalPrincipal`] for external SDK calls.
 /// # Errors
 /// Refuses malformed suffixes and non-routable principal encodings.
 pub fn canister_range_start_from_key(prefix: &str, key: &str) -> Result<Principal, String> {

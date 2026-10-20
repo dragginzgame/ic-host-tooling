@@ -60,6 +60,17 @@ decoding. `make test PACKAGE=ic-host-text` checks bounded line normalization,
 escaping, progress frames and Unicode table alignment.
 `make test-tools-registry` checks golden Protobuf tags and shard admission.
 
+Text's optional `yaml` feature and Tools' `icp-project` retain Rust 1.88.
+Qualify YAML with `cargo +1.88.0 test -p ic-host-text
+--features yaml --all-targets --locked --offline` and the equivalent Tools
+`--features icp-project` selection. Tests cover ignored-field duplicate/tag/merge
+policy, UTF-8/byte admission, alias handling and no external expansion. The byte
+allowance is not a parser memory/CPU budget; backend recursion/repetition checks
+are retained. The dependency guard confines serde_yaml to Text, rejects competing
+frontends and excludes YAML from defaults and unrelated profiles. serde_yaml's
+unsafe-libyaml backend remains selected in YAML-enabled graphs. All-feature MSRV
+checks, including YAML, use the same 1.88 compiler and existing CI lane.
+
 Certificate tests compare recursion refusal, semantic tags and indefinite byte
 chunks with the same `serde_cbor` decoder used by IC Agent. Strict Host field,
 array/byte-kind, trailing-input and redacted-error tests remain independent.
@@ -83,7 +94,7 @@ Native CI includes these profiles. Only explicit `candid` selects Platform's par
 Agent and ledger evidence retain their required codec dependencies without it.
 Registry selects Platform principal types without the codec. `ic-interface` adds
 Host Artifacts and Wasm parsing. The standalone Wasm inspector
-retains its parser-free graph. These profiles must qualify on the same Rust 1.88
+retains its parser-free graph. These non-YAML profiles must qualify on Rust 1.88
 and native Linux/macOS matrix as the existing libraries.
 
 Native CI prepares pinned Rust and the complete common toolsets, then verifies
