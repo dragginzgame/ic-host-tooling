@@ -3,7 +3,7 @@
 The 0.1.0 section preserves the original bootstrap notes. The published 0.1.0
 archive also includes the extracted artifact engine and Cargo grouping API.
 
-## [0.23.0]
+## [0.23.0] - 2026-10-20
 
 - **Breaking:** Cargo metadata and tree specifications now render commands for
   the consumer's own process runner. Replace the combined observation functions
