@@ -27,7 +27,7 @@ help:
 	@echo 'Offline setup checks: tools-check (complete set), host-tools-check, ic-tools-check, rust-tools-check'
 	@echo 'Individual setup: install-host-tools, install-ic-tools, install-rust-tools'
 	@echo 'Source reports: cloc (this workspace); fleet reports run in Shared Tooling'
-	@echo 'Full release validation: ci (workspace Clippy first), msrv-workspace; focused MSRV: msrv PACKAGE=<crate>'
+	@echo 'Full release validation: ci (workspace Clippy first), msrv-qualification; focused MSRV: msrv PACKAGE=<crate>'
 	@echo 'Maintainer releases: release-patch, release-minor, release-major, release-resume VERSION=X.Y.Z'
 	@echo 'crates.io publication: publish-check (dry run), publish (upload); offline fixture: publish-command-check'
 .PHONY: formatting-hook-check
@@ -102,13 +102,19 @@ msrv:
 .PHONY: msrv-workspace
 msrv-workspace:
 	+cargo +$(MSRV) check --workspace --all-targets --all-features --locked --offline
+.PHONY: msrv-qualification
+msrv-qualification:
+	+$(MAKE) --no-print-directory msrv-workspace
+	+$(MAKE) --no-print-directory testkit-msrv
+	+RUSTUP_TOOLCHAIN="$(MSRV)" $(MAKE) --no-print-directory check-fs-non-unix
 dependency-pins-check:
 	+bash scripts/ci/check-dependency-pins.sh --cargo-inheritance
 check-doc-links:
-	perl scripts/ci/check-documentation-links.pl --root "$(CURDIR)" README.md AGENTS.md CHANGELOG.md $(wildcard docs/changelog/*.md) docs/extraction.md docs/hosts.md docs/file-cli.md docs/capability-fs.md $(wildcard docs/status/*.md) docs/publishing.md
+	bash scripts/ci/check-product-doc-links.sh
 release-adapter-check:
 	+bash scripts/release/test-adapter.sh
 tooling-command-check:
+	+bash scripts/ci/test-product-evidence.sh
 	+bash scripts/ci/test-host-fixture-retention.sh
 	+bash scripts/ci/test-make-snapshot.sh
 	+bash scripts/ci/check-release-commands.sh "$(CURDIR)" ci/tool-versions.env ci/release-delivery.txt make/consumer.mk make/tools.mk make/testkit.mk make/rust-format.mk make/release.mk make/execution.mk scripts/ci/check-make-execution.sh scripts/ci/check-release-delivery.sh scripts/ci/run-formatting.sh

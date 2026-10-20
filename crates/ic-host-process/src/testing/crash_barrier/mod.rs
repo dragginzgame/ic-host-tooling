@@ -1,12 +1,28 @@
 //! Opt-in acknowledged crash barriers for direct-child persistence tests.
 
 use std::{
-    fs, io,
+    io,
     path::Path,
     process::Child,
     thread,
     time::{Duration, Instant},
 };
+
+use ic_host_fs::durable::{PublicationMode, WriteOptions, write_bytes};
+
+// Existence is the handshake signal, so publish complete bytes atomically.
+// The caller exclusively owns this fixture namespace and its retained files.
+fn publish_marker(path: &Path, contents: &[u8]) -> io::Result<()> {
+    write_bytes(
+        path,
+        WriteOptions {
+            mode: PublicationMode::Replace,
+            permissions: 0o600,
+        },
+        contents,
+    )
+    .map_err(io::Error::other)
+}
 
 /// Kill and reap a direct test child after a three-marker acknowledgement.
 ///
@@ -27,7 +43,7 @@ pub fn kill_child_at_acknowledged_barrier(
     let armed_path = root.join("barrier-armed");
     let handshake = (|| {
         wait_for_child_path(child, &ready_path, "child barrier", timeout)?;
-        fs::write(&acknowledge_path, b"acknowledged\n")?;
+        publish_marker(&acknowledge_path, b"acknowledged\n")?;
         wait_for_child_path(child, &armed_path, "armed child barrier", timeout)
     })();
     if let Err(error) = handshake {
@@ -51,10 +67,10 @@ pub fn hold_at_acknowledged_barrier(root: &Path, timeout: Duration) -> ! {
     let ready_path = root.join("barrier-ready");
     let acknowledge_path = root.join("barrier-acknowledged");
     let armed_path = root.join("barrier-armed");
-    fs::write(&ready_path, b"ready\n").expect("signal child barrier");
+    publish_marker(&ready_path, b"ready\n").expect("signal child barrier");
     wait_for_path(&acknowledge_path, "parent barrier acknowledgement", timeout)
         .expect("wait for parent barrier acknowledgement");
-    fs::write(&armed_path, b"armed\n").expect("arm child crash");
+    publish_marker(&armed_path, b"armed\n").expect("arm child crash");
     loop {
         thread::sleep(Duration::from_secs(1));
     }

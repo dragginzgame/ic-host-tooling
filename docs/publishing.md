@@ -29,7 +29,9 @@ standalone verification never installs. The editor requires Rust 1.91 or later;
 Host libraries retain MSRV 1.91. No Cargo-edit command renders release metadata.
 
 The read-only `make release-version` query needs prepared host parsers and never
-installs them. Selected release preflight prepares the complete toolset and
+installs them; missing parsers direct the caller to `make install-tools` and
+`make tools-check`. Explicit server setup fetches locked dependencies before
+building its setup CLI offline. Selected release preflight prepares the complete toolset and
 fetches the selected dependencies with `cargo fetch --locked` before offline
 validation. Cargo honours explicit offline settings: missing inputs stop the
 release without an online retry. Standalone `make release-verify` checks prepared
@@ -40,6 +42,8 @@ the selected dependency versions.
 The complete gate runs `make clippy-workspace` after prerequisite admission and
 before expensive tests or builds, with the existing workspace/all-target/all-feature
 scope and warnings denied. Failure stops later stages under parallel Make too.
+Release verification and CI both use `make msrv-qualification` for native
+workspace, Testkit Wasm and unsupported-filesystem compilation at Rust 1.91.
 Both numbered pending-heading spellings, `## [X.Y.Z]` and
 `## [X.Y.Z] - Unreleased`, are finalized to the saved UTC date during preparation.
 

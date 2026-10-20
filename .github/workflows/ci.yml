@@ -117,6 +117,9 @@ jobs:
           name: native-failure-${{ matrix.runner }}-${{ github.run_attempt }}
           temp-root: ${{ runner.temp }}
           repository-root: ${{ github.workspace }}
+      - name: Retain product qualification evidence
+        if: ${{ failure() && !cancelled() }}
+        uses: ./.github/actions/retain-product-evidence
 
   msrv:
     runs-on: ubuntu-24.04
@@ -131,6 +134,4 @@ jobs:
       - name: Prepare locked dependency cache
         run: cargo fetch --locked
       - name: Check declared MSRV
-        run: CARGO_NET_OFFLINE=true make msrv-workspace testkit-msrv
-      - name: Check non-Unix filesystem compilation
-        run: CARGO_NET_OFFLINE=true RUSTUP_TOOLCHAIN=1.91.0 make check-fs-non-unix
+        run: CARGO_NET_OFFLINE=true make msrv-qualification
