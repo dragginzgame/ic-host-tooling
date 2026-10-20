@@ -4,7 +4,7 @@
 
 The maintainer's 2026-10-18 direction is one controlled dependency boundary for
 Candid and the CDK family, with IC Wire owning controlled application protocols.
-Host now consumes published `ic-platform` 0.3.0 for bounded Candid decoding,
+Host now consumes published `ic-platform` 0.4.0 for bounded Candid decoding,
 native parsing and optional certification types. Platform's `docs/migration.md`
 owns the fleet adoption contract. Host retains service-to-Wasm projections,
 strict certificate CBOR admission and the released aggregate-byte adapter.

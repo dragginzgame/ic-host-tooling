@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.31.1]
+
+- Adopt Platform 0.4.0 while preserving Host's existing Principal, Agent, Candid
+  and certificate interfaces. Its runtime/signature hard cuts affect features Host
+  does not select. [Details](docs/changelog/0.31.md#0311).
+
 ## [0.31.0] - 2026-10-20
 
 - **Breaking:** Adopt Platform 0.3.0. Registry shard helpers now use Platform-owned

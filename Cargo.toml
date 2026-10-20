@@ -30,7 +30,7 @@ flate2 = { version = "1.1.10", default-features = false, features = ["rust_backe
 ic-host-artifacts = { path = "crates/ic-host-artifacts", version = "0.31", default-features = false }
 ic-host-fs = { path = "crates/ic-host-fs", version = "0.31", default-features = false }
 ic-host-text = { path = "crates/ic-host-text", version = "0.31", default-features = false }
-ic-platform = { version = "0.3", default-features = false }
+ic-platform = { version = "0.4", default-features = false }
 leb128 = "0.2.5"
 libc = "0.2.190"
 prost = "0.14.3"
