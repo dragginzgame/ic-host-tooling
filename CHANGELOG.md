@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.62.0] - Unreleased
+## [0.62.0] - 2026-10-20
 
 - Consolidate Host, Build and Testkit into IC Tooling, retaining crate names
   and original repository histories. Adopt Rust 1.91 as the common minimum.
