@@ -18,6 +18,19 @@ defaults:
     shell: /bin/bash --noprofile --norc -e -o pipefail {0}
 
 jobs:
+  lint-and-security:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Prepare pinned validation tools
+        run: make install-validation-tools
+      - name: Check shell and workflow sources and scan history
+        run: make lint check-secrets
+
   native:
     strategy:
       fail-fast: false
@@ -54,6 +67,7 @@ jobs:
         with:
           toolchain: 1.99.1
           components: rustfmt, clippy
+          targets: wasm32-unknown-unknown
       - name: Prepare locked dependency cache
         run: cargo fetch --locked
       - name: Prepare host tools and identify Cargo tool cache
@@ -94,6 +108,8 @@ jobs:
         run: |
           mkdir -p "$TMPDIR"
           CARGO_NET_OFFLINE=true make ci
+      - name: Verify publication archives with registry access
+        run: make publish-check
       - name: Retain failure evidence
         if: ${{ failure() }}
         uses: ./.github/actions/retain-failure-evidence
@@ -110,11 +126,11 @@ jobs:
       # dtolnay/rust-toolchain v1
       - uses: dtolnay/rust-toolchain@7e38f4b43b4db5c8dd498af069a4f6196df1d067
         with:
-          toolchain: 1.88.0
+          toolchain: 1.91.0
           targets: wasm32-unknown-unknown
       - name: Prepare locked dependency cache
         run: cargo fetch --locked
       - name: Check declared MSRV
-        run: CARGO_NET_OFFLINE=true make msrv-workspace
+        run: CARGO_NET_OFFLINE=true make msrv-workspace testkit-msrv
       - name: Check non-Unix filesystem compilation
-        run: CARGO_NET_OFFLINE=true RUSTUP_TOOLCHAIN=1.88.0 make check-fs-non-unix
+        run: CARGO_NET_OFFLINE=true RUSTUP_TOOLCHAIN=1.91.0 make check-fs-non-unix

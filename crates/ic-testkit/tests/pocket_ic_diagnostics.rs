@@ -1,0 +1,86 @@
+mod support;
+
+use ic_platform::pocket_ic::CanisterSettings;
+use ic_platform::principal::ExternalPrincipal as Principal;
+use ic_testkit::pic::{
+    CanisterDiagnosticsRequest, CanisterLogRenderLimits, LabeledCanisterDiagnosticsRequest,
+    PocketIcCallFailure, PocketIcDiagnosticsExt, is_dead_pocket_ic_transport_error,
+};
+
+#[test]
+fn diagnostics_use_independent_exact_senders_and_preserve_both_outcomes() {
+    let owned = support::pocket_ic();
+    let pocket_ic = &owned.instance;
+    let status_sender = Principal::from_slice(&[41]);
+    let log_sender = Principal::from_slice(&[42]);
+    let outsider = Principal::from_slice(&[43]);
+    let canister_id = pocket_ic.create_canister_with_settings(
+        None,
+        Some(CanisterSettings {
+            controllers: Some(vec![status_sender, log_sender]),
+            ..CanisterSettings::default()
+        }),
+    );
+
+    let request = CanisterDiagnosticsRequest {
+        canister_id,
+        status_sender,
+        log_sender,
+        log_limits: CanisterLogRenderLimits::default(),
+    };
+    let report = pocket_ic.collect_canister_diagnostics(request);
+
+    assert_eq!(report.request, request);
+    assert!(report.status.is_ok(), "{report}");
+    assert!(report.logs.is_ok(), "{report}");
+    let compact = report.to_string();
+    assert!(compact.contains("status=ok(state="));
+    assert!(compact.contains("logs=<empty>"));
+
+    let batch = pocket_ic
+        .collect_canister_diagnostics_batch(&[
+            LabeledCanisterDiagnosticsRequest {
+                label: "denied".into(),
+                request: CanisterDiagnosticsRequest {
+                    canister_id,
+                    status_sender: outsider,
+                    log_sender: outsider,
+                    log_limits: CanisterLogRenderLimits::default(),
+                },
+            },
+            LabeledCanisterDiagnosticsRequest {
+                label: "controller".into(),
+                request,
+            },
+        ])
+        .expect("valid labeled diagnostics batch");
+    assert_eq!(batch.entries.len(), 2);
+    assert_eq!(batch.entries[0].label, "denied");
+    assert_eq!(batch.entries[1].label, "controller");
+    assert!(
+        batch
+            .entries
+            .iter()
+            .all(|entry| entry.entry_elapsed <= batch.total)
+    );
+    let denied = &batch.entries[0].report;
+    assert!(matches!(
+        denied.status.as_ref(),
+        Err(PocketIcCallFailure::Rejected(_))
+    ));
+    assert!(matches!(
+        denied.logs.as_ref(),
+        Err(PocketIcCallFailure::Rejected(_))
+    ));
+    for error in [
+        denied.status.as_ref().unwrap_err(),
+        denied.logs.as_ref().unwrap_err(),
+    ] {
+        assert!(
+            !is_dead_pocket_ic_transport_error(error),
+            "controller rejection must not be interpreted as a dead transport",
+        );
+    }
+    assert!(batch.entries[1].is_success());
+    assert_eq!(batch.failures().count(), 1);
+}

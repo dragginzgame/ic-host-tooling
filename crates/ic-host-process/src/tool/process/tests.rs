@@ -26,9 +26,7 @@ fn communication_without_deadline_accepts_long_elapsed_time() {
                 stderr: crate::tool::OutputLimit::Terminate(0),
                 timeout,
             },
-            Instant::now()
-                .checked_sub(Duration::from_secs(3 * 60 * 60))
-                .unwrap(),
+            Instant::now().checked_sub(Duration::from_hours(3)).unwrap(),
             SuccessfulExit::Cleanup,
             || watchdog.elapsed() > Duration::from_secs(5),
             |_, _| Ok(()),
