@@ -8,6 +8,10 @@ qualification using the prepared server; `make testkit-wasm-check` and
 qualifies all nine public archives through Build. Private packages remain
 excluded from publication. Native macOS results must come from native runners.
 
+`make msrv-qualification` is the shared CI/release MSRV gate. It runs the native
+workspace, deployed Testkit Wasm profiles and unsupported-filesystem compilation
+sequentially on Rust 1.91. Prepare that toolchain and its Wasm target first.
+
 Required hosts are Linux x86-64 and macOS 15 on Intel and Apple Silicon.
 The FS package also owns the [native file CLI](file-cli.md). Its actual-executable
 fixture uses the focused command in that guide; native CI includes it through

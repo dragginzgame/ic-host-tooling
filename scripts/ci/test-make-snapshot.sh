@@ -50,6 +50,10 @@ case "$*" in
     'fmt --version') echo rustfmt ;;
     *)
         printf '%s\n' "$*" >> "$HOST_MAKE_EVENTS"
+        if [[ "$1" == fetch ]]; then exit "${HOST_MAKE_FETCH_STATUS:-0}"; fi
+        if [[ "${HOST_MAKE_ASSERT_MSRV:-0}" == 1 && "$1" == check ]]; then
+            [[ "${RUSTUP_TOOLCHAIN:-}" == 1.91.0 ]] || exit 92
+        fi
         if [[ "$1" == clippy && "$*" == *--workspace* ]]; then
             exit "${HOST_MAKE_CLIPPY_STATUS:-0}"
         fi
@@ -181,6 +185,7 @@ for mode in install check; do
         fi
         if [[ "$failed" == none || "$failed" == server ]]; then
             if [[ "$mode" == install ]]; then
+                printf '%s\n' 'fetch --locked' >> "$fixture/expected"
                 printf '%s\n' 'build -p ic-testkit --locked --offline --bin ic-testkit-server' >> "$fixture/expected"
             fi
             printf 'install-server-tools.sh %s\n' "$mode" >> "$fixture/expected"
@@ -189,6 +194,15 @@ for mode in install check; do
         [[ ! -e "$HOST_MAKE_EXTERNAL" ]] || exit 1
     done
 done
+# A fetch refusal stops explicit server setup before the offline build, even
+# under parallel Make. The complete successful order is checked above.
+: > "$HOST_MAKE_EVENTS"
+status=0
+PATH="$fixture/local:$PATH" HOST_MAKE_FETCH_STATUS=73 make --no-print-directory -j4 \
+    install-server "MAKE=$(command -v make)" > "$fixture/server-fetch-failure.log" 2>&1 || status=$?
+[[ "$status" == 2 ]] || exit 1
+printf '%s\n' 'fetch --locked' > "$fixture/expected"
+cmp "$fixture/expected" "$HOST_MAKE_EVENTS"
 # Exercise the actual Make shell/environment handoff, including a space in the admitted path.
 PATH="$fixture/local:$PATH" HOST_MAKE_ASSERT_POCKET_IC=1 make --no-print-directory \
     "MAKE=$(command -v make)" testkit-installed-check > "$fixture/server-environment.log" 2>&1
@@ -251,12 +265,12 @@ if make --help | grep -q -- --jobserver-style; then
 fi
 cargo_targets=(check clippy clippy-workspace docs-check test test-artifacts-minimal check-fs-non-unix
     test-tools-default test-tools-interface
-    test-wasm-inspection msrv msrv-workspace)
+    test-wasm-inspection msrv msrv-workspace msrv-qualification)
 helper_targets=(publish publish-check dependency-pins-check
     release-adapter-check tooling-command-check publish-command-check)
 for target in "${cargo_targets[@]}" "${helper_targets[@]}"; do
     : > "$HOST_MAKE_EVENTS"
-    PATH="$fixture/local:$PATH" HOST_MAKE_VERIFY_JOBSERVER=1 make "${jobserver_options[@]}" "$target" \
+    PATH="$fixture/local:$PATH" HOST_MAKE_VERIFY_JOBSERVER=1 make "${jobserver_options[@]}" "MAKE=$(command -v make)" "$target" \
         > "$fixture/jobserver-$target.log" 2>&1
     [[ -s "$HOST_MAKE_EVENTS" ]] || exit 1
 done
@@ -292,6 +306,17 @@ done
 : > "$HOST_MAKE_EVENTS"
 PATH="$fixture/local:$PATH" make --no-print-directory msrv-workspace > "$fixture/msrv-workspace.log" 2>&1
 grep -F -- '+1.91.0 check --workspace --all-targets --all-features' "$HOST_MAKE_EVENTS" >/dev/null
+# CI and release share the same native, Testkit Wasm and unsupported FS floor.
+: > "$HOST_MAKE_EVENTS"
+PATH="$fixture/local:$PATH" HOST_MAKE_ASSERT_MSRV=1 make --no-print-directory -j4 \
+    msrv-qualification "MAKE=$(command -v make)" > "$fixture/msrv-qualification.log" 2>&1
+cat > "$fixture/expected" <<'EVENTS'
++1.91.0 check --workspace --all-targets --all-features --locked --offline
++1.91.0 check -p ic-testkit -p ic-testkit-native --features ic-testkit/reply-fixtures --locked --offline --target wasm32-unknown-unknown
++1.91.0 check -p ic-testkit-perf-probe --locked --offline --target wasm32-unknown-unknown
+check -p ic-host-fs --lib --bins --test unsupported_lock --all-features --target wasm32-unknown-unknown --locked --offline
+EVENTS
+cmp "$fixture/expected" "$HOST_MAKE_EVENTS"
 # Actual Host formatting stops after sorter failure and points at complete logs.
 for target in fmt fmt-check; do
     : > "$HOST_MAKE_EVENTS"

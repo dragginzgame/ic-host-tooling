@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.62.1]
+
+- Prepare locked dependencies before explicit server setup, diagnose missing
+  release parsers, and share complete MSRV qualification between CI and releases.
+
 ## [0.62.0] - 2026-10-20
 
 - Consolidate Host, Build and Testkit into IC Tooling, retaining crate names

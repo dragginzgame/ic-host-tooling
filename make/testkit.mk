@@ -4,7 +4,9 @@ SERVER_CLI := $(CURDIR)/target/debug/ic-testkit-server
 .PHONY: build-server-cli install-server server-check testkit-graph-check testkit-wasm-check testkit-msrv testkit-check testkit-browser-check testkit-package-check testkit-installed-check
 build-server-cli:
 	+cargo build -p ic-testkit --locked --offline --bin ic-testkit-server
-install-server: build-server-cli
+install-server:
+	+cargo fetch --locked
+	+$(MAKE) --no-print-directory build-server-cli
 	"$(SERVER_CLI)" setup
 server-check:
 	@test -x "$(SERVER_CLI)" || { echo 'Run make install-server during explicit setup.' >&2; exit 1; }
