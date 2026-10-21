@@ -130,18 +130,6 @@ pub(super) fn capture_call<T>(
     }
 }
 
-// Typed codec adapters share one transport policy: retain structured rejection,
-// classify known transport unwinds and resume every unrelated original payload.
-pub(super) fn call_or_resume<T>(
-    call: impl FnOnce() -> Result<T, RejectResponse>,
-) -> Result<T, PocketIcCallFailure> {
-    match try_pocket_ic_operation(call) {
-        Ok(Ok(value)) => Ok(value),
-        Ok(Err(response)) => Err(PocketIcCallFailure::Rejected(response)),
-        Err(source) => Err(PocketIcCallFailure::Operation(source)),
-    }
-}
-
 // Extract a stable string message from one panic payload.
 pub(super) fn panic_payload_to_string(payload: &(dyn Any + Send)) -> String {
     if let Some(message) = payload.downcast_ref::<String>() {
@@ -159,7 +147,7 @@ pub(super) fn panic_payload_to_string(payload: &(dyn Any + Send)) -> String {
 /// The complete error source chain is inspected so a recipe can classify its
 /// own wrapper error as [`super::RebuildReason::DeadPocketIcTransport`]. This
 /// preserves the classification already captured by testkit's structured errors.
-/// Testkit [`super::CandidCallError`], [`super::PocketIcCallFailure`], and
+/// Testkit's optional Wire call errors, [`super::PocketIcCallFailure`], and
 /// [`PocketIcOperationError`] causes retain their transport classification through
 /// contextual display wrappers, including nested [`std::io::Error`] values.
 /// Snapshot and installation failures expose their operation cause through
@@ -179,10 +167,19 @@ pub(super) fn panic_payload_to_string(payload: &(dyn Any + Send)) -> String {
 pub fn is_dead_pocket_ic_transport_error(error: &(dyn std::error::Error + 'static)) -> bool {
     let mut current = Some(error);
     while let Some(candidate) = current {
-        // Decoder diagnostics may quote arbitrary reply content. Reaching a
-        // typed decode failure proves this branch is not a transport failure.
-        if candidate.is::<ic_platform::candid::DecodeError>() {
-            return false;
+        // Owned codec errors and canister rejections are not transport failures.
+        #[cfg(feature = "wire")]
+        if let Some(error) = candidate.downcast_ref::<super::WireCallError>() {
+            return match error {
+                super::WireCallError::Encode { .. } | super::WireCallError::Decode { .. } => false,
+                super::WireCallError::Call { source, .. } => matches!(
+                    source.as_ref(),
+                    PocketIcCallFailure::Operation(error) if error.is_transport()
+                ),
+            };
+        }
+        if let Some(failure) = candidate.downcast_ref::<PocketIcCallFailure>() {
+            return matches!(failure, PocketIcCallFailure::Operation(error) if error.is_transport());
         }
         if candidate
             .downcast_ref::<PocketIcOperationError>()
@@ -468,59 +465,59 @@ mod tests {
         assert!(is_dead_instance_transport_error(&message));
     }
 
+    #[cfg(feature = "wire")]
     #[test]
     fn contextual_call_errors_use_their_structured_kind() {
-        let context = super::super::CandidCallContext::new(
-            "query_call",
-            ic_platform::principal::ExternalPrincipal::anonymous(),
-            ic_platform::principal::ExternalPrincipal::anonymous(),
-            "get",
-        );
-        let error = super::super::CandidCallError::Transport {
-            context: Box::new(context.clone()),
-            source: PocketIcOperationError::new(REFUSED),
+        use super::super::{WireCallContext, WireCallError};
+        let context = WireCallContext {
+            operation: "query_call",
+            canister_id: ic_platform::principal::ExternalPrincipal::anonymous(),
+            caller: ic_platform::principal::ExternalPrincipal::anonymous(),
+            method: REFUSED,
+            method_id: 1,
         };
-        assert!(is_dead_pocket_ic_transport_error(&error));
-        let error = super::super::CandidCallError::Decode {
-            context: Box::new(context),
-            bytes: 0,
-            source: Box::new(ic_platform::candid::DecodeError::Candid(
-                ic_platform::candid::contract::Error::msg("channel closed"),
-            )),
-        };
-        assert!(!is_dead_pocket_ic_transport_error(&error));
-    }
-
-    #[test]
-    fn io_wrappers_preserve_contextual_call_error_kinds() {
-        let context = super::super::CandidCallContext::new(
-            "query_call",
-            ic_platform::principal::ExternalPrincipal::anonymous(),
-            ic_platform::principal::ExternalPrincipal::anonymous(),
-            "get",
-        );
         for (error, expected) in [
             (
-                super::super::CandidCallError::Transport {
+                WireCallError::Call {
                     context: Box::new(context.clone()),
-                    source: PocketIcOperationError::new(REFUSED),
+                    source: Box::new(PocketIcCallFailure::Operation(PocketIcOperationError::new(
+                        REFUSED,
+                    ))),
                 },
                 true,
             ),
             (
-                super::super::CandidCallError::Decode {
-                    context: Box::new(context),
+                WireCallError::Decode {
+                    context: Box::new(context.clone()),
                     bytes: 0,
-                    source: Box::new(ic_platform::candid::DecodeError::Candid(
-                        ic_platform::candid::contract::Error::msg(REFUSED),
+                    source: ic_wire::Error::Malformed,
+                },
+                false,
+            ),
+            (
+                WireCallError::Encode {
+                    context: Box::new(context.clone()),
+                    source: ic_wire::Error::Limit,
+                },
+                false,
+            ),
+            (
+                WireCallError::Call {
+                    context: Box::new(context),
+                    source: Box::new(PocketIcCallFailure::Rejected(
+                        ic_platform::pocket_ic::RejectResponse {
+                            reject_code: ic_platform::pocket_ic::RejectCode::CanisterReject,
+                            reject_message: REFUSED.into(),
+                            error_code: ic_platform::pocket_ic::ErrorCode::CanisterRejectedMessage,
+                            certified: false,
+                        },
                     )),
                 },
                 false,
             ),
         ] {
-            let inner = std::io::Error::other(error);
-            assert_eq!(is_dead_pocket_ic_transport_error(&inner), expected);
-            let wrapped = WrapperError(std::io::Error::other(inner));
+            assert_eq!(is_dead_pocket_ic_transport_error(&error), expected);
+            let wrapped = WrapperError(std::io::Error::other(std::io::Error::other(error)));
             assert_eq!(is_dead_pocket_ic_transport_error(&wrapped), expected);
         }
     }

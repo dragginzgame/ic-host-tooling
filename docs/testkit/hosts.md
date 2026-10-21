@@ -16,7 +16,7 @@ The private test-canister package is `ic-testkit-perf-probe` under
 and Cargo's generated `ic_testkit_perf_probe.wasm` retain underscores.
 
 The private fixture reporter owns complete-sample floating-point statistics;
-IC Metrics remains the owner of the public benchmark's checked integer ratios.
+Testkit owns the public benchmark's checked integer averages.
 Focused reporter qualification runs the `statistics::tests` and
 `fixture_reuse_driver::report::tests` selections with
 `cargo test -p ic-testkit-dev --lib --locked --offline`.
@@ -299,7 +299,7 @@ change. Use this workspace's `target/`.
 | Platform Candid integration | `cargo test -p ic-testkit --lib --locked pic::calls::tests`; `cargo test -p ic-testkit --lib --locked pic::transport::tests` |
 | Canister library | `cargo check -p ic-testkit --lib --target wasm32-unknown-unknown --locked` |
 | Development build/report adapter | `cargo check -p ic-testkit-dev --all-targets --locked`; `cargo test -p ic-testkit-dev --lib --locked` |
-| Operator and private CLI parsing | `cargo test -p ic-testkit --bin ic-testkit-server --locked`; `cargo test -p ic-testkit --test server_runner --locked`; `cargo test -p ic-testkit-dev --lib --locked arguments`; `cargo test -p ic-testkit-dev --lib --locked fixture_reuse_protocol` |
+| Operator and private CLI parsing | `cargo test -p ic-testkit --features cli --bin ic-testkit-server --locked`; `cargo test -p ic-testkit --features cli --test server_runner --locked`; `cargo test -p ic-testkit-dev --lib --locked arguments`; `cargo test -p ic-testkit-dev --lib --locked fixture_reuse_protocol` |
 | Benchmark parser and example | `cargo test -p ic-testkit --test benchmark --locked`; `cargo test -p ic-testkit --example benchmark_report --locked` |
 | Shared snapshot and real tooling callers | `make shared-tooling-check`; `make tools-check dependency-pins-check`; select the affected hook/release-adapter checks from the Makefile |
 | Formatting and API documentation | `make fmt-check`; `RUSTDOCFLAGS="-D warnings" cargo doc -p ic-testkit --no-deps --locked`; `cargo test -p ic-testkit --doc --locked` |

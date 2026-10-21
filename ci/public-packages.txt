@@ -1,0 +1,9 @@
+ic-build
+ic-host-artifacts
+ic-host-fs
+ic-host-process
+ic-host-text
+ic-host-tools
+ic-host-wasm-inspect
+ic-testkit
+ic-testkit-native

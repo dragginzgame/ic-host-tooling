@@ -31,7 +31,6 @@ pub mod server_assets;
 mod baseline;
 mod baseline_pool;
 mod bounded_pool;
-mod calls;
 mod diagnostics;
 mod errors;
 mod lifecycle;
@@ -52,16 +51,13 @@ pub use baseline_pool::{
     FailureDisposition, PocketIcBaselineRecipe, PreparedBaseline, RebuildReason, ResetDomainKind,
     ResetPolicies, ResetReceipt, ResetRequirements, StateResetPolicy, TimeResetPolicy,
 };
-pub use calls::{query_candid_args, update_candid_args};
 pub use diagnostics::{
     CanisterDiagnosticLogRecord, CanisterDiagnosticLogs, CanisterDiagnosticsBatchContractError,
     CanisterDiagnosticsBatchEntry, CanisterDiagnosticsBatchReport, CanisterDiagnosticsReport,
     CanisterDiagnosticsRequest, CanisterLogRenderLimits, DEFAULT_CANISTER_LOG_BYTE_LIMIT,
     DEFAULT_CANISTER_LOG_RECORD_LIMIT, LabeledCanisterDiagnosticsRequest, PocketIcDiagnosticsExt,
 };
-pub use errors::{
-    CandidCallContext, CandidCallError, CanisterInstallError, StandaloneCanisterInstallError,
-};
+pub use errors::{CanisterInstallError, StandaloneCanisterInstallError};
 pub use lifecycle::{CanisterInstallExt, InstallSpec, RetryPolicy};
 pub use snapshot::{
     CanisterSnapshotTarget, ControllerSnapshotError, ControllerSnapshots, PocketIcSnapshotExt,

@@ -14,8 +14,12 @@ tooling_root="${BASH_SOURCE[0]}"
 [[ "$tooling_root" == /* ]] || tooling_root="$PWD/$tooling_root"
 tooling_root="$(cd -P "${tooling_root%/*}/../.." && printf '%s/.' "$PWD")"
 tooling_root="${tooling_root%/.}"
-# Publication eligibility is explicit policy, distinct from workspace membership.
-packages=(ic-build ic-host-artifacts ic-host-fs ic-host-process ic-host-text ic-host-tools ic-host-wasm-inspect ic-testkit ic-testkit-native)
+# Publication and archive qualification share this consumer-owned selection.
+# Shared companions: ci/public-packages.txt
+packages=()
+while IFS= read -r package || [[ -n "$package" ]]; do
+    packages+=("$package")
+done < "$tooling_root/ci/public-packages.txt"
 package_path() {
     jq -er --arg package "$1" --arg prefix "$root/" '
         .packages[] | select(.name == $package) | .manifest_path

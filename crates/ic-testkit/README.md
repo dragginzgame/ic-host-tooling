@@ -11,9 +11,8 @@ PocketIC-oriented test utilities for Internet Computer canister tests.
 ic-testkit = "0.62"
 ```
 
-For native Candid budgets, also add `ic-platform` with default features disabled
-and its `candid` feature enabled. Match Platform 0.4 with Testkit 0.58/0.59,
-or Platform 0.5 with Testkit 0.60/0.61/0.62; the decoder-limit types must match.
+For typed application calls, enable the `wire` feature and depend directly on
+`ic-wire` for method contracts. Testkit does not own Candid codecs or call helpers.
 
 The published MSRV is Rust 1.91, and the selected PocketIC line is 16.
 Canisters using benchmark markers can add the crate under `[dependencies]`.
@@ -23,17 +22,13 @@ without a canister SDK or Candid; `Fake` retains PocketIC’s principal identity
 `pocket_ic` and `pic` are host-only. `performance` is Wasm-only;
 `benchmark` counters, parsing and aggregation, and `Fake` are available on both
 targets. Native CSV and Markdown directory output lives in the repository's
-`benchmark_report` example. Candid calls require an explicit principal and caller-selected
-`ic_platform::candid::DecodeLimits` and return contextual errors with typed decode
-causes; add `ic-platform` with its `candid` feature directly to select those budgets. Choose caller-side
-`expect` when a fixture must panic. Standalone recipe builders return
+`benchmark_report` example. Standalone recipe builders return
 `std::io::Result<StandaloneCanisterFixture>`.
 
-`ic-testkit-candid` is retired and is no longer released from this workspace.
-For Testkit 0.54 and later, use `ic_platform::candid` with Platform's `candid`
-feature. Upgrade Testkit and replace the decoder dependency together, preserving
-caller-selected limits. Existing registry releases serve older Testkit consumers;
-they are not a second maintained decoder implementation.
+External interfaces that require Candid remain caller-owned: use a direct
+Platform dependency for encoding/decoding and PocketIC's raw byte operations.
+PocketIC retains its upstream Candid dependencies; Testkit's Wasm profile remains
+Candid-free.
 
 The optional native `wire` feature adds `pic::query_wire` and `pic::update_wire`.
 Enable it on your Testkit dependency and declare `ic-wire = "0.5"` for your method
@@ -55,7 +50,7 @@ This is the PocketIC package in the `ic-testkit` workspace. It provides:
 
 - direct re-exports of `PocketIc` and `PocketIcBuilder`
 - Platform's explicit host-only client surface at `ic_testkit::pocket_ic`
-- typed Candid query/update helpers with contextual, structured errors
+- optional typed Wire query/update helpers with contextual, structured errors
 - `try_pocket_ic_operation` for recognized synchronous transport panics, preserving
   upstream results and unrelated panics without automatic replay
 - canister install and retry helpers
@@ -85,10 +80,19 @@ upstream client and DTO identities come from `ic_platform::pocket_ic`, forwarded
 at `ic_testkit::pocket_ic`. Platform owns additions to that explicit surface.
 
 ```bash
-cargo install --locked ic-testkit
+cargo install --locked --features cli ic-testkit
 ic-testkit-server setup
 ic-testkit-server check
 ic-testkit-server run -- cargo test --locked
+```
+
+The `cli` feature builds the server command; library-only consumers omit it.
+For Shared Tooling's lockfile-selected installer, also pass `--features cli`:
+
+```bash
+bash scripts/dev/install-rust-tools.sh --consumer "$PWD" \
+  --package ic-testkit --lockfile Cargo.lock --bin ic-testkit-server \
+  --profile release --features cli
 ```
 
 Setup selects Testkit's reviewed PocketIC 16.1.0 archive for Linux x86-64,
@@ -139,8 +143,8 @@ is compiled and maintained by IC Build.
 
 Benchmark aggregate/comparison rows and aggregate errors expose
 `scope: BenchmarkScope::{Suite, All}` for their identity; `average(scale)` returns
-checked floor-rounded `u128` means through
-IC Metrics. `compare_benchmark_aggregates(current, previous, scale)` returns
+checked floor-rounded `u128` means with Testkit's `BenchmarkAverageError`.
+`compare_benchmark_aggregates(current, previous, scale)` returns
 current/previous means and run counts, preserving missing rows and measured zero.
 Approximate percentage fields are removed. Aggregate CSV/text uses scale one in
 original counter units; comparison CSV includes both scales. Exact totals remain
@@ -157,10 +161,9 @@ Generic Cargo/Wasm builds, retained artifact caches and freshness APIs belong to
 `ic_build::artifacts`; Testkit keeps PocketIC lifecycle and benchmark policy.
 
 Pass `fixture.pocket_ic()` and `fixture.canister_id()` explicitly to
-`query_candid_args` or `update_candid_args`. The standalone fixture owns installation
-and lifetime; bounded argument-sequence calls own encoding, invocation and decoding.
-Use `(T,)` for one reply and `()` for no replies; a single tuple reply uses `((T, U),)`.
-See the [packaged migration notes](CHANGELOG.md#0530---2026-10-17).
+`query_wire` or `update_wire` with the `wire` feature. The standalone fixture owns
+installation and lifetime; Wire owns method contracts and codec limits.
+See the [packaged migration notes](CHANGELOG.md).
 
 Benchmark commands own run identities, provenance, history selection and any
 metadata sidecars. The repository's `benchmark_report` example renders supplied

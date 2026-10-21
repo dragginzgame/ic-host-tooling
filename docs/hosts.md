@@ -219,7 +219,7 @@ The consolidated repository owns Build's optimizer qualification in
 Make's `IC_TOOLS` and the direct installer's `--tool wasm-opt` admission.
 Native/release common setup remains independent of the IC executable target.
 Full failure retention keeps previous bundles, failed attempts and product
-evidence. The draft Shared 0.26.1 adoption must remain unintegrated until its
+evidence. The draft Shared 0.26.2 adoption must remain unintegrated until its
 producer and actual consumer native qualification pass.
 Pin changes use explicit IC setup, preserving old bundles, and need native
 acceptance independently of snapshot integrity.

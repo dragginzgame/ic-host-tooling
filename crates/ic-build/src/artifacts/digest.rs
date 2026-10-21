@@ -4,7 +4,6 @@ use std::{
     borrow::Cow,
     collections::BTreeSet,
     ffi::{OsStr, OsString},
-    fmt::Write as _,
     fs::{self, File},
     io,
     path::{Path, PathBuf},
@@ -57,9 +56,7 @@ impl InputDigest {
     /// Render the digest as lowercase hexadecimal.
     #[must_use]
     pub fn to_hex(self) -> String {
-        let mut hex = String::with_capacity(64);
-        write!(hex, "{self}").expect("writing to a String cannot fail");
-        hex
+        self.to_string()
     }
 }
 

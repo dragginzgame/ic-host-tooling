@@ -115,8 +115,7 @@ impl<T, R> BoundedSlotPool<T, R> {
         self.state.get_or_init(|| PoolState {
             slots: (0..self.capacity.get())
                 .map(|_| Mutex::new(Slot::Empty))
-                .collect::<Vec<_>>()
-                .into_boxed_slice(),
+                .collect(),
             coordinator: Mutex::new(Coordinator {
                 available: (0..self.capacity.get()).collect(),
                 waiters: VecDeque::new(),

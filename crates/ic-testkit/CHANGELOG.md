@@ -8,6 +8,22 @@ This file ships in the crate archive so upgrades can be completed without the
 repository checkout. The complete historical changelog remains at
 <https://github.com/dragginzgame/ic-testkit/blob/main/CHANGELOG.md>.
 
+## [0.63.0] - Unreleased
+
+- **Breaking:** install or build `ic-testkit-server` with `--features cli`.
+  Library-only consumers no longer pull in Clap by default.
+- **Breaking:** averages and comparisons return `benchmark::BenchmarkAverageError`
+  instead of Metrics' `MeasurementRatioError`. Checked arithmetic is unchanged;
+  Testkit no longer depends on IC Metrics.
+- **Breaking:** remove `query_candid_args`, `update_candid_args`, `CandidCallError`
+  and `CandidCallContext`. Enable `wire` and migrate owned endpoints to
+  `query_wire`/`update_wire` with matching Wire method contracts. For external
+  Candid interfaces, consumers encode and decode through their own Platform
+  dependency around raw PocketIC calls. Testkit no longer enables a Candid codec
+  feature; PocketIC still requires Candid internally. Codec failures belong
+  outside the raw transport panic boundary and consumer recovery classification.
+- [Full migration guide](https://github.com/dragginzgame/ic-tooling/blob/main/docs/changelog/0.63.md).
+
 ## [0.61.0] - 2026-10-20
 
 ### Breaking

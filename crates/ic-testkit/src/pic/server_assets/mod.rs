@@ -134,7 +134,8 @@ fn admit(executable: &Path, digest: Sha256Digest) -> Result<()> {
 }
 
 fn check_bundle(bundle: &Path, asset: &Asset) -> Result<PathBuf> {
-    if !fs::symlink_metadata(bundle)?.is_dir() || fs::symlink_metadata(bundle)?.is_symlink() {
+    let metadata = fs::symlink_metadata(bundle)?;
+    if !metadata.is_dir() || metadata.is_symlink() {
         return Err("PocketIC bundle must be a physical directory".into());
     }
     let bytes = authenticated_archive(&bundle.join("archive.gz"), asset.digest)?;

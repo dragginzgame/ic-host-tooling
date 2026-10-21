@@ -1,12 +1,26 @@
 # Changelog
 
-## [0.62.2]
+## [0.63.1]
 
-- Select only `wasm-opt` for Build optimizer qualification through Shared 0.26.1,
+- Select only `wasm-opt` for Build optimizer qualification through Shared 0.26.2,
   preserving native/release setup scope and retained evidence.
-  [Details](docs/changelog/0.62.md#0622).
-- Adopt Shared Tooling 0.25.9 release retry protection, refusing a second version
-  increment while a committed candidate has not completed Git delivery.
+  [Details](docs/changelog/0.63.md#0631).
+
+## [0.63.0] - 2026-10-21
+
+- **Breaking:** Build and Testkit binaries require `--features cli`; default
+  library dependencies no longer include Clap.
+- **Breaking:** remove Testkit's IC Metrics dependency; benchmark averages and
+  comparisons now return Testkit's `BenchmarkAverageError`.
+- **Breaking:** remove Testkit-owned Candid call helpers and error types. Migrate
+  application calls to Wire; callers own codecs for external Candid protocols.
+  PocketIC retains its upstream dependencies. [Migration](docs/changelog/0.63.md).
+
+- Adopt Shared Tooling 0.25.9 release-retry protection: committed but undelivered
+  preparation refuses another version increment. Tool pins are unchanged.
+- Adopt IC Platform 0.6 with explicit principal features for registry and Testkit.
+- Share the public package selection between publication and archive checks;
+  use declared compiler/Node versions in CI and limit runtime setup to PocketIC.
 
 ## [0.62.1] - 2026-10-20
 

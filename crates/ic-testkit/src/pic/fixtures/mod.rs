@@ -23,7 +23,7 @@ pub enum ReplyMode {
 ///
 /// RawReplyMethod
 ///
-/// One method and its unmodified reply, including malformed Candid when required.
+/// One method and its unmodified reply, including malformed frames when required.
 ///
 
 #[derive(Clone, Copy, Debug)]
@@ -87,7 +87,7 @@ pub enum RawReplyError {
 
 /// Build a canister whose selected query/update methods return exact caller bytes.
 ///
-/// No startup, installation, Candid policy or funding is selected. Reply storage
+/// No startup, installation, codec policy or funding is selected. Reply storage
 /// is contiguous and memory cannot grow. The caller owns all method/payload policy.
 /// All caller ceilings and Wasm32 extents are checked before encoding the module.
 ///

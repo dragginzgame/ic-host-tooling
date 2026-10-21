@@ -5,6 +5,11 @@ Consumers supply recipes, tools, complete environments, output budgets, source
 custody and maintenance policy. Build never installs tools, starts PocketIC or
 admits an application release.
 
+The release-metadata binary is optional. Install it with
+`cargo install --locked --features cli ic-build`, or build it from this workspace
+with `cargo build -p ic-build --features cli --bin ic-build-release-metadata`.
+Library-only consumers do not enable `cli` and do not depend on Clap.
+
 The public entry points are:
 
 - `ic_build::artifacts`: exact Cargo input resolution, Wasm acquisition,

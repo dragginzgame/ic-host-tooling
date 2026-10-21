@@ -9,7 +9,7 @@ use super::{CanisterInstallError, transport::capture_operation};
 pub struct InstallSpec {
     /// Wasm module installed into the newly created canister.
     pub wasm: Vec<u8>,
-    /// Raw Candid or application-specific initialization bytes.
+    /// Raw initialization bytes encoded by the caller.
     pub init_bytes: Vec<u8>,
     /// Extra cycles added after PocketIC creates the canister and before install.
     pub cycles: u128,

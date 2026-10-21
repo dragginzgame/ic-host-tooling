@@ -13,28 +13,33 @@ repository.workspace = true
 keywords = ["internet-computer", "canister", "dfinity", "icp", "testing"]
 categories = ["development-tools::testing", "wasm"]
 
+[[bin]]
+name = "ic-testkit-server"
+path = "src/bin/ic-testkit-server.rs"
+required-features = ["cli"]
+
 [features]
 default = []
+cli = ["dep:clap"]
 reply-fixtures = ["ic-host-artifacts/wasm-encoding"]
 wire = ["dep:ic-wire", "dep:serde"]
 
 [dependencies]
-ic-metrics = { workspace = true }
-ic-platform = { workspace = true }
+ic-platform = { workspace = true, features = ["principal"] }
 
 [target.'cfg(all(unix, not(target_arch = "wasm32")))'.dependencies]
 libc = { workspace = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-clap = { workspace = true, features = ["string"] }
+clap = { workspace = true, features = ["string"], optional = true }
 ic-host-artifacts = { workspace = true, features = ["gzip"] }
 ic-host-fs = { workspace = true }
 ic-host-process = { workspace = true }
-ic-platform = { workspace = true, features = ["candid", "pocket-ic"] }
+ic-platform = { workspace = true, features = ["pocket-ic"] }
 ic-wire = { workspace = true, optional = true }
 serde = { workspace = true, optional = true }
 thiserror = { workspace = true }
-tokio = { workspace = true, features = ["net", "rt", "time"] }
+tokio = { workspace = true, features = ["time"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 ic-platform = { workspace = true, features = ["ic0"] }
@@ -43,8 +48,14 @@ ic-platform = { workspace = true, features = ["ic0"] }
 ic-host-process = { workspace = true, features = ["test-support"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+clap = { workspace = true, features = ["string"] }
 ic-host-artifacts = { workspace = true, features = ["wasm-validation"] }
 serde_json = { workspace = true }
+tokio = { workspace = true, features = ["net", "rt"] }
+
+[[test]]
+name = "server_runner"
+required-features = ["cli"]
 
 [lints.clippy]
 all = { level = "warn", priority = -1 }

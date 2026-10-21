@@ -56,6 +56,10 @@ old evidence as validation of new source. Native qualification belongs to the
 
 ## Registry publication
 
+The consumer-owned [public package list](../ci/public-packages.txt) selects both
+publication and coordinated archive qualification. Publication checks it against
+Cargo metadata before running lint or packaging; private test packages stay out.
+
 `make publish-check` runs Cargo's publication checks with all features
 and `--locked --registry crates-io --dry-run`. It packages and verifies the selected
 workspace packages through exact `--package NAME@VERSION` selectors without
