@@ -211,6 +211,14 @@ does not establish trust. Block/node/byte/depth budgets, tip authentication and
 transaction interpretation remain caller-owned. This feature performs no IO and
 does not enable certificate decoding or Agent transport.
 
+Enable Tools' independent `icp-ledger` feature for
+`ic_host_tools::icp_ledger::decode_transfer(bytes, index, maximum_bytes)`.
+It admits only canonical ICP protobuf Send blocks with complete metadata,
+32-byte account identifiers and the selected genesis/parent shape. Returned
+fields carry no certification or spending authority. The caller retains block
+selection, certificate checks and exact transfer-intent comparison. This profile
+uses Prost without selecting Platform, Candid, Agent or filesystem/process APIs.
+
 `ic-host-tools::response::decode` accepts explicitly selected JSON envelopes or
 plain hex. CLI presentation labels, preambles and any broader whitespace policy
 belong to callers; the codec does not infer or strip them. See the

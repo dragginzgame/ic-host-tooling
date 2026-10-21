@@ -2,6 +2,8 @@
 
 ## [0.63.2] - Unreleased
 
+- Add opt-in bounded ICP protobuf Send-block decoding. Certificate checks and
+  expected-payment policy remain caller-owned ([#228](https://github.com/dragginzgame/ic-tooling/issues/228)).
 - Refresh Shared Tooling to 0.26.2 and select only wasm-opt for Build optimizer
   setup and admission ([#224](https://github.com/dragginzgame/ic-tooling/issues/224)).
 - Add opt-in Testkit native memory IO observations through Platform 0.6.2,
