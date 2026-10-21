@@ -8,6 +8,9 @@ pub mod certificate;
 #[cfg(feature = "encoding")]
 pub mod encoding;
 pub mod icp;
+/// Bounded ICP Ledger protobuf transfer fields; authentication stays with callers.
+#[cfg(feature = "icp-ledger")]
+pub mod icp_ledger;
 /// Bounded effective project facts; ICP retains configuration resolution.
 #[cfg(feature = "icp-project")]
 pub mod icp_project;

@@ -77,6 +77,10 @@ interpretation; `make test-tools-certificate` adds strict owned certificate/hash
 decoding. `make test PACKAGE=ic-host-text` checks bounded line normalization,
 escaping, progress frames and Unicode table alignment.
 `make test-tools-registry` checks golden Protobuf tags and shard admission.
+For Tools' independent `icp-ledger` profile, run `cargo test -p ic-host-tools
+--no-default-features --features icp-ledger --lib icp_ledger::tests --locked
+--offline` and the same selection on Rust 1.91. Its fixtures encode the official
+fields independently; the feature graph excludes Platform, Candid and Agent.
 
 Text's optional `yaml` feature and Tools' `icp-project` retain Rust 1.91.
 Qualify YAML with `cargo +1.91.0 test -p ic-host-text

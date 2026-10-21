@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.63.2]
+
+- Add opt-in bounded ICP protobuf Send-block decoding. Keep certificate and
+  expected-payment policy with callers; the standalone profile excludes Candid
+  and Agent. [Details](docs/changelog/0.63.md)
+
 ## [0.63.1] - 2026-10-21
 
 - Explicitly install the Wasm target for the declared development compiler before
