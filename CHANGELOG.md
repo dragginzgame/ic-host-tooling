@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.63.0] - Unreleased
+## [0.63.0] - 2026-10-21
 
 - **Breaking:** Build and Testkit binaries require `--features cli`; default
   library dependencies no longer include Clap.
