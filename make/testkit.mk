@@ -3,7 +3,7 @@ REPO_ROOT := $(CURDIR)/
 SERVER_CLI := $(CURDIR)/target/debug/ic-testkit-server
 .PHONY: build-server-cli install-server server-check testkit-graph-check testkit-wasm-check testkit-msrv testkit-check testkit-browser-check testkit-package-check testkit-installed-check
 build-server-cli:
-	+cargo build -p ic-testkit --locked --offline --bin ic-testkit-server
+	+cargo build -p ic-testkit --features cli --locked --offline --bin ic-testkit-server
 install-server:
 	+cargo fetch --locked
 	+$(MAKE) --no-print-directory build-server-cli
@@ -22,12 +22,12 @@ testkit-browser-check:
 testkit-check: build-server-cli
 	+@server="$$("$(SERVER_CLI)" check)" && POCKET_IC_BIN="$$server" cargo test -p ic-testkit -p ic-testkit-dev -p ic-testkit-native --all-features --locked --offline
 testkit-installed-check: build-server-cli
-	+@server="$$("$(SERVER_CLI)" check)" && POCKET_IC_BIN="$$server" cargo test -p ic-testkit --locked --offline --test server_runner real_server_runs_a_separate_process_using_environment_startup -- --ignored --exact
+	+@server="$$("$(SERVER_CLI)" check)" && POCKET_IC_BIN="$$server" cargo test -p ic-testkit --features cli --locked --offline --test server_runner real_server_runs_a_separate_process_using_environment_startup -- --ignored --exact
 testkit-package-check: build-server-cli
 	+@server="$$("$(SERVER_CLI)" check)" && POCKET_IC_BIN="$$server" cargo run -p ic-testkit-dev --bin check_packages --locked --offline
 # Shared owns observation mechanics; these are Testkit's supported profiles.
 TESTKIT_CARGO_GRAPH_POLICY = --consumer "$(REPO_ROOT)" --require ic-platform=1 \
-	--forbid ic-build --forbid ic-host-text --forbid ic-agent --forbid candid_parser \
+	--forbid ic-build --forbid ic-host-text --forbid ic-metrics --forbid ic-agent --forbid candid_parser \
 	--forbid-pattern '^ic-cdk(?!-executor$$)'
 
 testkit-graph-check:
@@ -36,10 +36,10 @@ testkit-graph-check:
 			--package ic-testkit-native --target "$$host" --all-features \
 			--require ic-testkit-native=1 --forbid-pattern '^(?!ic-testkit-native$$)'; \
 		perl scripts/ci/check-cargo-graph.pl $(TESTKIT_CARGO_GRAPH_POLICY) \
-			--package ic-testkit --target "$$host" --forbid ic-wire --forbid ic-cdk-executor --require pocket-ic=1; \
+			--package ic-testkit --target "$$host" --forbid clap --forbid ic-wire --forbid ic-cdk-executor --require pocket-ic=1; \
 		perl scripts/ci/check-cargo-graph.pl $(TESTKIT_CARGO_GRAPH_POLICY) \
 			--package ic-testkit --target "$$host" --all-features \
-			--require ic-wire=1 --forbid ic-cdk-executor --require pocket-ic=1; \
+			--require clap=1 --require ic-wire=1 --forbid ic-cdk-executor --require pocket-ic=1; \
 		perl scripts/ci/check-cargo-graph.pl --consumer "$(REPO_ROOT)" \
 			--package ic-testkit-dev --target "$$host" --all-features \
 			--require ic-build=1 --require ic-platform=1 --require pocket-ic=1 \

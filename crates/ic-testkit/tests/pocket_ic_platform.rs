@@ -14,21 +14,7 @@ fn placement_gateway_and_http_fixture_identities() {
     // Fixture generation must retain the client/DTO principal identity when
     // Platform's application Principal changes independently.
     let fixture: ic_platform::principal::ExternalPrincipal = ic_testkit::Fake::principal(7);
-    let encoded = ic_platform::candid::contract::encode_one(fixture).unwrap();
-    let (decoded,): (ic_platform::principal::ExternalPrincipal,) =
-        ic_platform::candid::decode_args(
-            &encoded,
-            ic_platform::candid::DecodeLimits {
-                reply_bytes: 1024,
-                decoding_quota: 1_000_000,
-                skipping_quota: 10_000,
-                type_entries: 128,
-                header_bytes: 1024,
-            },
-        )
-        .unwrap();
-    assert_eq!(decoded, fixture);
-    let canister = ic_platform::principal::ExternalPrincipal::management_canister();
+    let canister = fixture;
     let params = CreateCanisterParams {
         placement: Some(CreateCanisterPlacement::SubnetId(canister)),
         ..CreateCanisterParams::default()

@@ -26,26 +26,19 @@ fn main() -> Result<(), Box<dyn Error>> {
     )?;
     eprintln!("Package qualification evidence: {}", evidence.display());
     let version = env!("CARGO_PKG_VERSION");
-    qualify_package_archives(
-        workspace,
-        &target.join("package"),
-        &evidence,
-        &[
-            "ic-host-artifacts",
-            "ic-host-fs",
-            "ic-host-process",
-            "ic-host-text",
-            "ic-host-tools",
-            "ic-host-wasm-inspect",
-            "ic-build",
-            "ic-testkit-native",
-            "ic-testkit",
-        ]
+    let packages = include_str!("../../../../ci/public-packages.txt")
+        .lines()
         .map(|name| PackageArchiveSpec {
             name,
             version,
             patch_registry: true,
-        }),
+        })
+        .collect::<Vec<_>>();
+    qualify_package_archives(
+        workspace,
+        &target.join("package"),
+        &evidence,
+        &packages,
         PackageQualificationLimits {
             process: OutputLimits {
                 stdout: OutputLimit::Terminate(64 * 1024 * 1024),

@@ -3,8 +3,6 @@ on:
   pull_request:
   push:
     branches: [main]
-env:
-  IC_TESTKIT_INTERNAL_TOOLCHAIN: 1.99.1
 permissions:
   contents: read
 concurrency:
@@ -20,22 +18,14 @@ jobs:
     steps:
       # actions/checkout v6
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
-      # dtolnay/rust-toolchain v1
-      - uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9
-        with:
-          toolchain: ${{ env.IC_TESTKIT_INTERNAL_TOOLCHAIN }}
-      - name: Pin cargo/rustc to internal toolchain
-        shell: bash
-        run: echo "RUSTUP_TOOLCHAIN=$IC_TESTKIT_INTERNAL_TOOLCHAIN" >> "$GITHUB_ENV"
+      - name: Prepare declared development compiler
+        run: rustup toolchain install --profile minimal --no-self-update
       # Swatinem/rust-cache v2
       - uses: Swatinem/rust-cache@42dc69e1aa15d09112580998cf2ef0119e2e91ae
-      - name: Prepare selected dependencies
-        run: cargo fetch --locked
-      - name: Prepare complete common and product tools
+      - name: Prepare and admit PocketIC
         shell: bash
         run: |
-          make install-tools
-          make tools-check
+          make install-server
           server="$(target/debug/ic-testkit-server check)"
           echo "POCKET_IC_BIN=$server" >> "$GITHUB_ENV"
       - name: Qualify real owned sync and async instance lifetimes
@@ -45,9 +35,9 @@ jobs:
       - name: Qualify baseline pool dedicated-server recovery
         run: cargo test -p ic-testkit --locked --offline --test pocket_ic_baseline_pool killed_dedicated_server_rebuilds_on_a_fresh_server -- --ignored --exact
       - name: Qualify provisioning and managed launch without consumer pins
-        run: cargo test -p ic-testkit --locked --offline --test server_runner provisioned_cli_runs_a_real_instance_without_consumer_server_selection -- --ignored --exact
+        run: cargo test -p ic-testkit --features cli --locked --offline --test server_runner provisioned_cli_runs_a_real_instance_without_consumer_server_selection -- --ignored --exact
       - name: Qualify idle lifetime during pre-client work
-        run: cargo test -p ic-testkit --locked --offline --test server_runner managed_idle_ttl_allows_preclient_work_beyond_server_default -- --ignored --exact
+        run: cargo test -p ic-testkit --features cli --locked --offline --test server_runner managed_idle_ttl_allows_preclient_work_beyond_server_default -- --ignored --exact
       - name: Retain idle lifetime evidence
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

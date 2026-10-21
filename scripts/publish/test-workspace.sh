@@ -282,6 +282,23 @@ for scenario in disabled mixed-version extra-package wrong-repository; do
     cmp expected-calls calls
 done
 cp original-metadata.json metadata.json
+# The shared consumer selection must match metadata before lint/package effects.
+policy="$FIXTURE_ROOT/policy"
+mkdir -p "$policy/scripts/publish" "$policy/ci"
+cp "$root/scripts/publish/workspace.sh" "$policy/scripts/publish/"
+for scenario in missing extra private duplicate; do
+    cp "$root/ci/public-packages.txt" "$policy/ci/public-packages.txt"
+    case "$scenario" in
+        missing) sed '$d' "$root/ci/public-packages.txt" > "$policy/ci/public-packages.txt" ;;
+        extra) printf 'unexpected-owner\n' >> "$policy/ci/public-packages.txt" ;;
+        private) printf 'ic-testkit-dev\n' >> "$policy/ci/public-packages.txt" ;;
+        duplicate) head -n 1 "$root/ci/public-packages.txt" >> "$policy/ci/public-packages.txt" ;;
+    esac
+    : > calls
+    if bash "$policy/scripts/publish/workspace.sh" check > "$scenario-selection.log" 2>&1; then exit 1; fi
+    cmp expected-calls calls
+    grep -F 'expected selected synchronized crates.io packages' "$scenario-selection.log" >/dev/null
+done
 # Package directories follow real Cargo observations after an allowed layout move.
 mv crates/ic-host-artifacts 'apps/relocated artifacts'
 sed 's|crates/ic-host-artifacts|apps/relocated artifacts|g' original-Cargo.toml > Cargo.toml

@@ -24,7 +24,7 @@ ledger-evidence = [
     "ic-platform/icrc-ledger-types",
     "serde/derive",
 ]
-registry = ["dep:ic-platform", "dep:prost"]
+registry = ["dep:ic-platform", "ic-platform/principal", "dep:prost"]
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
 url = { workspace = true, optional = true }

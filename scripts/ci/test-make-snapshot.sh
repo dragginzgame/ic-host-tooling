@@ -186,7 +186,7 @@ for mode in install check; do
         if [[ "$failed" == none || "$failed" == server ]]; then
             if [[ "$mode" == install ]]; then
                 printf '%s\n' 'fetch --locked' >> "$fixture/expected"
-                printf '%s\n' 'build -p ic-testkit --locked --offline --bin ic-testkit-server' >> "$fixture/expected"
+                printf '%s\n' 'build -p ic-testkit --features cli --locked --offline --bin ic-testkit-server' >> "$fixture/expected"
             fi
             printf 'install-server-tools.sh %s\n' "$mode" >> "$fixture/expected"
         fi

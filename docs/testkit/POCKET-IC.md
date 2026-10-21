@@ -29,9 +29,8 @@ readiness predicates and performance thresholds remain caller-owned.
 
 The [repository ownership map](overview.md#scope-boundaries) identifies the other
 owners: IC Build supplies generic build/cache and package qualification mechanics;
-Host supplies streams, filesystem and process primitives; IC Metrics supplies
-measurement arithmetic. Those capabilities are not PocketIC workarounds and are
-not reimplemented here.
+Host supplies streams, filesystem and process primitives. Testkit owns its
+benchmark averages without depending on Canic capabilities such as IC Metrics.
 
 ## Server selection and provisioning
 
@@ -125,16 +124,13 @@ receipts; they are not fresh qualification of every selected server release.
 
 ## Calls, installation and diagnostics
 
-PocketIC already has typed Candid helpers. Testkit's `query_candid_args` and
-`update_candid_args` add explicit callers, finite reply-decoding budgets and
-contextual encode/decode/rejection/transport errors. They delegate reply decoding
-to `ic-platform` with its `candid` feature. Top-level reply arity stays explicit: `(T,)` requests one
-reply, `((),)` one unit value, and `()` no reply values. Unrelated panic payloads
-continue unwinding rather than becoming transport failures.
+PocketIC's upstream Candid helpers remain upstream APIs. Testkit offers optional
+method-bound Wire calls for owned application endpoints and raw operations for
+caller-owned external protocol adapters. It does not add a Candid codec layer.
 
 Some upstream operations still panic instead of returning structured failures.
 Testkit owns `try_pocket_ic_operation` as the maintained boundary for recognized
-synchronous transport panics. Candid calls use that same boundary; callers can
+synchronous transport panics. Wire calls use that same boundary; callers can
 also apply it to raw operations without mirroring the simulator API. It returns
 the original successful value, preserves upstream returned rejections and resumes
 unrelated panic payloads. The closure runs once, with no automatic update replay.
@@ -194,7 +190,7 @@ artifact caches and application deployment recovery.
 Testkit owns the `ICTK` marker format, span pairing and counter interpretation.
 Canister-side `Performance` reads the system API through `ic0`; the private probe
 uses CDK entrypoint macros to qualify actual marker emission and trap handling.
-IC Metrics owns ratio/statistical arithmetic. The native report example and
+Testkit owns checked benchmark averages. The native report example and
 private benchmark programs own output schemas, files and workload policy.
 
 Callers that need runtime provenance should retain the exact selected path,

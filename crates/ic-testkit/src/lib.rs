@@ -2,7 +2,7 @@
 //!
 //! `pocket_ic` forwards Platform's explicit native PocketIC surface, preserving
 //! upstream client and DTO identities. `pic` retains convenient runtime type
-//! re-exports and adds bounded Candid call functions, extension traits for
+//! re-exports and adds optional typed Wire calls, extension traits for
 //! installation, diagnostics and snapshots, startup errors, caller-owned
 //! managed-server startup and bounded readiness polling. It does not provide a
 //! simulator wrapper or a host-wide runtime lock.

@@ -7,14 +7,51 @@
 //! producers can use [`format_marker`] on the host or
 //! `ic_testkit::performance::Performance` in canister code.
 //!
-//! Totals and run counts remain exact integers. Means use IC Metrics' exact
+//! Totals and run counts remain exact integers. Means use Testkit's exact
 //! scaled integer projection, rounded down. Callers choose the scale and handle
 //! projection errors; reports use scale one in the original counter units.
 //! Comparisons retain current and previous means instead of percentage estimates.
 
 use std::collections::{BTreeMap, btree_map::Entry};
 
-use ic_metrics::{MeasurementRatioError, checked_scaled_ratio};
+/// Why a benchmark's scaled average cannot be represented.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum BenchmarkAverageError {
+    /// A mean is undefined when the run count is zero, even at scale zero.
+    ZeroDenominator,
+    /// The scaled average exceeds `u128::MAX`.
+    Overflow,
+}
+
+impl std::fmt::Display for BenchmarkAverageError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(match self {
+            Self::ZeroDenominator => "benchmark run count is zero",
+            Self::Overflow => "scaled benchmark average exceeds u128",
+        })
+    }
+}
+
+impl std::error::Error for BenchmarkAverageError {}
+
+fn checked_scaled_average(
+    total: u128,
+    runs: u64,
+    scale: u64,
+) -> Result<u128, BenchmarkAverageError> {
+    if runs == 0 {
+        return Err(BenchmarkAverageError::ZeroDenominator);
+    }
+    let runs = u128::from(runs);
+    let scale = u128::from(scale);
+    // Split before multiplying: only the final average must fit. The remainder
+    // and scale are at most u64::MAX, so their product always fits in u128.
+    let fraction = (total % runs) * scale / runs;
+    (total / runs)
+        .checked_mul(scale)
+        .and_then(|whole| whole.checked_add(fraction))
+        .ok_or(BenchmarkAverageError::Overflow)
+}
 
 /// Default prefix for benchmark marker lines.
 pub const DEFAULT_PREFIX: &str = "ICTK";
@@ -262,13 +299,13 @@ pub struct BenchmarkComparisonRow {
 
 impl BenchmarkAggregateRow {
     /// Project exact totals at the caller's scale, rounding down.
-    /// Zero runs and unrepresentable scaled results return IC Metrics' typed error.
-    pub fn average(&self, scale: u64) -> Result<BenchmarkAverages, MeasurementRatioError> {
+    /// Zero runs and unrepresentable scaled results return [`BenchmarkAverageError`].
+    pub fn average(&self, scale: u64) -> Result<BenchmarkAverages, BenchmarkAverageError> {
         Ok(BenchmarkAverages {
             scale,
-            instructions: checked_scaled_ratio(self.total.instructions, self.runs, scale)?,
-            heap_bytes: checked_scaled_ratio(self.total.heap_bytes, self.runs, scale)?,
-            memory_bytes: checked_scaled_ratio(self.total.memory_bytes, self.runs, scale)?,
+            instructions: checked_scaled_average(self.total.instructions, self.runs, scale)?,
+            heap_bytes: checked_scaled_average(self.total.heap_bytes, self.runs, scale)?,
+            memory_bytes: checked_scaled_average(self.total.memory_bytes, self.runs, scale)?,
         })
     }
 }
@@ -405,7 +442,7 @@ pub fn compare_benchmark_aggregates(
     current: &[BenchmarkAggregateRow],
     previous: &[BenchmarkAggregateRow],
     scale: u64,
-) -> Result<Vec<BenchmarkComparisonRow>, MeasurementRatioError> {
+) -> Result<Vec<BenchmarkComparisonRow>, BenchmarkAverageError> {
     let mut rows = BTreeMap::new();
     for row in current {
         rows.insert((&row.scope, row.span_label.as_str()), (Some(row), None));
@@ -415,7 +452,7 @@ pub fn compare_benchmark_aggregates(
             .or_insert((None, None))
             .1 = Some(row);
     }
-    let measurement = |row: &BenchmarkAggregateRow| -> Result<_, MeasurementRatioError> {
+    let measurement = |row: &BenchmarkAggregateRow| -> Result<_, BenchmarkAverageError> {
         Ok(BenchmarkMeasurement {
             runs: row.runs,
             average: row.average(scale)?,

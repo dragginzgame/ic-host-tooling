@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.63.0] - Unreleased
+
+- **Breaking:** Build and Testkit binaries require `--features cli`; default
+  library dependencies no longer include Clap.
+- **Breaking:** remove Testkit's IC Metrics dependency; benchmark averages and
+  comparisons now return Testkit's `BenchmarkAverageError`.
+- **Breaking:** remove Testkit-owned Candid call helpers and error types. Migrate
+  application calls to Wire; callers own codecs for external Candid protocols.
+  PocketIC retains its upstream dependencies. [Migration](docs/changelog/0.63.md).
+
+- Adopt Shared Tooling 0.25.9 release-retry protection: committed but undelivered
+  preparation refuses another version increment. Tool pins are unchanged.
+- Adopt IC Platform 0.6 with explicit principal features for registry and Testkit.
+- Share the public package selection between publication and archive checks;
+  use declared compiler/Node versions in CI and limit runtime setup to PocketIC.
+
 ## [0.62.1] - 2026-10-20
 
 - Publish crash-barrier markers atomically before allowing child termination.

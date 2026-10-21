@@ -380,7 +380,7 @@ fn wide_means_preserve_integer_differences_and_explicit_projection_errors() {
     row.runs = 0;
     assert_eq!(
         row.average(1),
-        Err(ic_metrics::MeasurementRatioError::ZeroDenominator)
+        Err(ic_testkit::benchmark::BenchmarkAverageError::ZeroDenominator)
     );
     assert!(compare_benchmark_aggregates(&aggregate, &[], 1).is_err());
     let row = &mut aggregate[0];
@@ -388,7 +388,15 @@ fn wide_means_preserve_integer_differences_and_explicit_projection_errors() {
     row.total.instructions = u128::MAX;
     assert_eq!(
         row.average(2),
-        Err(ic_metrics::MeasurementRatioError::Overflow)
+        Err(ic_testkit::benchmark::BenchmarkAverageError::Overflow)
+    );
+    assert_eq!(row.average(0).unwrap().instructions, 0);
+    row.runs = u64::MAX;
+    assert_eq!(row.average(u64::MAX).unwrap().instructions, u128::MAX);
+    row.runs = 0;
+    assert_eq!(
+        row.average(0),
+        Err(ic_testkit::benchmark::BenchmarkAverageError::ZeroDenominator)
     );
 }
 

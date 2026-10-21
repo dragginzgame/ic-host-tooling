@@ -174,12 +174,13 @@ where
             context: Box::new(context.clone()),
             source,
         })?;
-    let reply = transport::call_or_resume(|| call(request.into_bytes())).map_err(|source| {
-        WireCallError::Call {
+    let reply = transport::try_pocket_ic_operation(|| call(request.into_bytes()))
+        .map_err(PocketIcCallFailure::Operation)
+        .and_then(|reply| reply.map_err(PocketIcCallFailure::Rejected))
+        .map_err(|source| WireCallError::Call {
             context: Box::new(context.clone()),
             source: Box::new(source),
-        }
-    })?;
+        })?;
     let response = if reply.len() > M::RESPONSE_LIMITS.bytes {
         Err(ic_wire::Error::Limit)
     } else {
