@@ -1,12 +1,16 @@
 # Changelog
 
-## [0.63.1]
+## [0.63.2]
 
 - Select only `wasm-opt` for Build optimizer qualification through Shared 0.26.2,
-  preserving native/release setup scope and retained evidence.
-  [Details](docs/changelog/0.63.md#0631).
-- Explicitly install the development compiler's Wasm target before native CI
-  reaches Testkit's deployed-profile checks.
+  preserving native/release setup scope and retained evidence
+  ([#224 — Select only wasm-opt for Build optimizer qualification after Shared 0.26](https://github.com/dragginzgame/ic-tooling/issues/224)).
+  [Details](docs/changelog/0.63.md#0632).
+
+## [0.63.1] - 2026-10-21
+
+- Explicitly install the Wasm target for the declared development compiler before
+  native CI ([#222](https://github.com/dragginzgame/ic-tooling/issues/222)).
 
 ## [0.63.0] - 2026-10-21
 
