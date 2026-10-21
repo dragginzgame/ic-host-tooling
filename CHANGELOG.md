@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.63.2] - Unreleased
+## [0.63.2] - 2026-10-21
 
 - Add opt-in bounded ICP protobuf Send-block decoding. Certificate checks and
   expected-payment policy remain caller-owned ([#228](https://github.com/dragginzgame/ic-tooling/issues/228)).
