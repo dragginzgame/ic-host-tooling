@@ -17,6 +17,7 @@ candid = ["dep:ic-platform", "ic-platform/candid", "ic-platform/candid-parser"]
 certificate = ["dep:ic-platform", "dep:serde_cbor", "ic-platform/certification"]
 encoding = []
 ic-interface = ["dep:ic-host-artifacts", "ic-host-artifacts/wasm"]
+icp-ledger = ["dep:prost"]
 icp-project = ["dep:ic-host-text", "ic-host-text/yaml", "serde/derive"]
 ledger-evidence = [
     "dep:ic-platform",

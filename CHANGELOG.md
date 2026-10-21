@@ -7,6 +7,10 @@
   ([#224 — Select only wasm-opt for Build optimizer qualification after Shared 0.26](https://github.com/dragginzgame/ic-tooling/issues/224)).
   [Details](docs/changelog/0.63.md#0632).
 
+- Add opt-in bounded ICP protobuf Send-block decoding. Keep certificate and
+  expected-payment policy with callers; the standalone profile excludes Candid
+  and Agent. [Details](docs/changelog/0.63.md)
+
 ## [0.63.1] - 2026-10-21
 
 - Explicitly install the Wasm target for the declared development compiler before

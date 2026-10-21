@@ -57,6 +57,8 @@ check_graph icp-project ic-host-tools none icp-project 'ic-host-text serde_yaml 
     '^(ic-platform|candid|candid_parser|ic-host-(artifacts|fs|process)|wasmparser|ic-certification|ic-agent|reqwest|serde_cbor|minicbor) '
 check_graph ledger-evidence ic-host-tools none ledger-evidence 'ic-platform candid icrc-ledger-types' \
     '^(candid_parser|ic-host-(artifacts|fs|process|text)|wasmparser|ic-agent|reqwest|ic-stable-structures) '
+check_graph icp-ledger ic-host-tools none icp-ledger prost \
+    '^(ic-platform|candid|candid_parser|ic-host-(artifacts|fs|process|text)|wasmparser|ic-certification|ic-agent|reqwest|serde_cbor|minicbor) '
 check_graph registry ic-host-tools none registry 'ic-platform prost' \
     '^(candid|candid_parser|ic-host-(artifacts|fs|process|text)|wasmparser|ic-certification|ic-agent|reqwest) '
 check_graph ic-interface ic-host-tools none ic-interface \
@@ -73,7 +75,7 @@ check_graph candid ic-host-tools none candid 'ic-platform candid candid_parser' 
 check_graph tools-combined ic-host-tools none candid,ic-interface,certificate \
     'ic-platform candid_parser serde_cbor ic-certification ic-host-artifacts wasmparser' \
     '^(ic-host-(fs|process|text)|ic-agent|reqwest|minicbor) '
-check_graph tools-all ic-host-tools none agent,candid,certificate,encoding,ic-interface,icp-project,ledger-evidence,registry \
+check_graph tools-all ic-host-tools none agent,candid,certificate,encoding,ic-interface,icp-project,icp-ledger,ledger-evidence,registry \
     'ic-platform candid_parser serde_cbor ic-certification ic-host-artifacts wasmparser ic-agent reqwest icrc-ledger-types ic-host-text serde_yaml unsafe-libyaml prost' \
     '^(ic-host-(fs|process)|ic-stable-structures) '
 check_graph text ic-host-text default '' unicode-width \
