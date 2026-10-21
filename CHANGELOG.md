@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.63.3] - Unreleased
+## [0.63.3] - 2026-10-21
 
 - Reduce repeated CI test execution while retaining isolated Host feature
   compilation and workspace publication recovery checks. Reuse shared fixture
