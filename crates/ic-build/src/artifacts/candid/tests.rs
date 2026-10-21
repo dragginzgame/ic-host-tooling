@@ -27,7 +27,7 @@ fn extraction_rejects_missing_relative_and_oversized_sources_before_invocation()
     let fixture = Fixture::new();
     let source = fixture.source();
     let tool = fixture.tool();
-    let marker = fixture.root.join("invocations");
+    let marker = fixture.root.path().join("invocations");
     let environment = [(
         OsString::from("FIXTURE_MARKER"),
         marker.as_os_str().to_owned(),
@@ -44,7 +44,13 @@ fn extraction_rejects_missing_relative_and_oversized_sources_before_invocation()
         }))
     ));
     assert!(matches!(
-        extract(&tool, &fixture.root.join("missing"), &context, 8, LIMITS),
+        extract(
+            &tool,
+            &fixture.root.path().join("missing"),
+            &context,
+            8,
+            LIMITS
+        ),
         Err(ExtractionError::Input(ArtifactError::Io(_)))
     ));
     assert!(!marker.exists());
@@ -174,8 +180,8 @@ fn source_paths_with_spaces_shell_characters_and_non_utf8_are_literal_arguments(
         let fixture = Fixture::new();
         let tool = fixture.tool();
         let non_utf8 = name.to_str().is_none();
-        let source = fixture.root.join(name);
-        let marker = fixture.root.join("invocations");
+        let source = fixture.root.path().join(name);
+        let marker = fixture.root.path().join("invocations");
         let environment = [
             (
                 OsString::from("FIXTURE_MARKER"),

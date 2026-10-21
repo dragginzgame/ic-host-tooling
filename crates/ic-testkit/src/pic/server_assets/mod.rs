@@ -406,19 +406,15 @@ mod tests {
     }
 
     struct Fixture {
-        root: ic_host_fs::owned_directory::OwnedDirectory,
+        root: ic_host_fs::testing::FixtureDirectory,
     }
     impl Fixture {
         fn new() -> Self {
-            let root = ic_host_fs::owned_directory::OwnedDirectory::new(
-                ic_host_fs::directory::create_unique_directory(
-                    &std::env::temp_dir().canonicalize().unwrap(),
-                    "testkit-provision",
-                    0o700,
-                    None,
-                )
-                .unwrap(),
-            );
+            let root = ic_host_fs::testing::FixtureDirectory::new(
+                &std::env::temp_dir(),
+                "testkit-provision",
+            )
+            .unwrap();
             Self { root }
         }
     }

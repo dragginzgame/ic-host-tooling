@@ -1,7 +1,5 @@
 #![cfg(unix)]
 
-mod support;
-
 use ic_host_process::testing::write_executable_script;
 
 use std::{
@@ -12,10 +10,16 @@ use std::{
     time::{Duration, Instant},
 };
 
-struct Fixture(ic_host_fs::owned_directory::OwnedDirectory);
+struct Fixture(ic_host_fs::testing::FixtureDirectory);
 impl Fixture {
     fn new() -> Self {
-        let fixture = Self(support::unique_temp_directory("ic-testkit-server-runner-"));
+        let fixture = Self(
+            ic_host_fs::testing::FixtureDirectory::new(
+                &std::env::temp_dir(),
+                "ic-testkit-server-runner-",
+            )
+            .unwrap(),
+        );
         write_executable_script(
             &fixture.0.path().join("server"),
             format!(

@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.63.3] - Unreleased
+
+- Reduce repeated CI test execution while retaining isolated Host feature
+  compilation and workspace publication recovery checks. Reuse shared fixture
+  cleanup in Build/Testkit tests and simplify the private benchmark CLI with Clap derives.
+  [Details](docs/changelog/0.63.md).
+- Reuse completed artifact-copy digests for Wasm evidence receipts, avoiding a
+  second full read/hash of the staged file
+  ([#231 — Review duplicate hashing in captured Wasm evidence export](https://github.com/dragginzgame/ic-tooling/issues/231)).
+
 ## [0.63.2] - 2026-10-21
 
 - Add opt-in bounded ICP protobuf Send-block decoding. Certificate checks and

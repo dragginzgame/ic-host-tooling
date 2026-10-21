@@ -4,39 +4,25 @@
 use std::{
     fs,
     os::unix::fs::symlink,
-    path::{Path, PathBuf},
+    path::Path,
     process::{Command, Output},
-    sync::atomic::{AtomicU64, Ordering},
 };
 
-struct Fixture(PathBuf);
+struct Fixture(ic_host_fs::testing::FixtureDirectory);
 impl Fixture {
     fn new() -> Self {
-        static NEXT: AtomicU64 = AtomicU64::new(0);
-        let root = std::env::temp_dir().join(format!(
-            "build-release-cli-{}-{}",
-            std::process::id(),
-            NEXT.fetch_add(1, Ordering::Relaxed)
-        ));
-        fs::create_dir(&root).unwrap();
-        Self(root)
+        Self(
+            ic_host_fs::testing::FixtureDirectory::new(&std::env::temp_dir(), "build-release-cli")
+                .unwrap(),
+        )
     }
     fn run(&self, limit: usize, arguments: &[&str]) -> Output {
         Command::new(env!("CARGO_BIN_EXE_ic-build-release-metadata"))
-            .current_dir(&self.0)
+            .current_dir(self.0.path())
             .args(["--max-input-bytes", &limit.to_string()])
             .args(arguments)
             .output()
             .unwrap()
-    }
-}
-impl Drop for Fixture {
-    fn drop(&mut self) {
-        if std::thread::panicking() {
-            eprintln!("Release CLI fixture retained: {}", self.0.display());
-        } else {
-            fs::remove_dir_all(&self.0).unwrap();
-        }
     }
 }
 fn write(path: impl AsRef<Path>, content: &str) {
@@ -59,7 +45,7 @@ fn clap_help_version_and_argument_admission_do_not_read_inputs() {
         vec!["lock", "--help"],
     ] {
         let output = Command::new(env!("CARGO_BIN_EXE_ic-build-release-metadata"))
-            .current_dir(&fixture.0)
+            .current_dir(fixture.0.path())
             .args(arguments)
             .output()
             .unwrap();
@@ -109,7 +95,7 @@ fn clap_help_version_and_argument_admission_do_not_read_inputs() {
         ],
     ] {
         let output = Command::new(env!("CARGO_BIN_EXE_ic-build-release-metadata"))
-            .current_dir(&fixture.0)
+            .current_dir(fixture.0.path())
             .args(arguments)
             .output()
             .unwrap();
@@ -117,25 +103,25 @@ fn clap_help_version_and_argument_admission_do_not_read_inputs() {
         assert_eq!(output.stdout, [] as [u8; 0]);
         assert!(String::from_utf8_lossy(&output.stderr).starts_with("error:"));
     }
-    assert_eq!(fs::read_dir(&fixture.0).unwrap().count(), 0);
+    assert_eq!(fs::read_dir(fixture.0.path()).unwrap().count(), 0);
 }
 
 #[test]
 fn saved_and_live_identity_select_the_same_edits_without_reopening_saved_source() {
     let fixture = Fixture::new();
-    fs::create_dir_all(fixture.0.join("source/core")).unwrap();
+    fs::create_dir_all(fixture.0.path().join("source/core")).unwrap();
     write(
-        fixture.0.join("source/core/Cargo.toml"),
+        fixture.0.path().join("source/core/Cargo.toml"),
         "[package]\nname='core'\nversion='0.18.6'\n",
     );
-    write(fixture.0.join("source/Cargo.toml"), manifest());
-    let root = fixture.0.join("source").canonicalize().unwrap();
+    write(fixture.0.path().join("source/Cargo.toml"), manifest());
+    let root = fixture.0.path().join("source").canonicalize().unwrap();
     let saved = context(&root);
     let mut live = saved.clone();
     live.as_object_mut().unwrap().remove("source_root");
-    write(fixture.0.join("saved.json"), &saved.to_string());
-    write(fixture.0.join("live.json"), &live.to_string());
-    write(fixture.0.join("archive.toml"), manifest());
+    write(fixture.0.path().join("saved.json"), &saved.to_string());
+    write(fixture.0.path().join("live.json"), &live.to_string());
+    write(fixture.0.path().join("archive.toml"), manifest());
     let a = fixture.run(
         8192,
         &[
@@ -147,7 +133,7 @@ fn saved_and_live_identity_select_the_same_edits_without_reopening_saved_source(
         ],
     );
     assert!(a.status.success(), "{}", String::from_utf8_lossy(&a.stderr));
-    fs::rename(&root, fixture.0.join("retained")).unwrap();
+    fs::rename(&root, fixture.0.path().join("retained")).unwrap();
     let b = fixture.run(
         8192,
         &["manifest", "archive.toml", "0.18.6", "0.19.0", "saved.json"],
@@ -161,7 +147,7 @@ fn saved_and_live_identity_select_the_same_edits_without_reopening_saved_source(
             .replace("version='^0.18'", "version=\"^0.19\"")
     );
     assert_eq!(
-        fs::read_to_string(fixture.0.join("archive.toml")).unwrap(),
+        fs::read_to_string(fixture.0.path().join("archive.toml")).unwrap(),
         manifest()
     );
     let missing = fixture.run(
@@ -175,7 +161,7 @@ fn saved_and_live_identity_select_the_same_edits_without_reopening_saved_source(
 #[test]
 fn malformed_context_and_conflicting_ownership_never_publish_partial_candidates() {
     let fixture = Fixture::new();
-    write(fixture.0.join("Cargo.toml"), manifest());
+    write(fixture.0.path().join("Cargo.toml"), manifest());
     let original = context(Path::new("/saved/é source"));
     let mut invalids = vec![serde_json::Value::Null];
     let mut duplicate = original.clone();
@@ -196,7 +182,7 @@ fn malformed_context_and_conflicting_ownership_never_publish_partial_candidates(
     changed["manifest"]["workspace"]["dependencies"]["renamed"]["version"] = "^0.17".into();
     invalids.push(changed);
     for value in invalids {
-        write(fixture.0.join("context.json"), &value.to_string());
+        write(fixture.0.path().join("context.json"), &value.to_string());
         let output = fixture.run(
             8192,
             &["manifest", "Cargo.toml", "0.18.6", "0.19.0", "context.json"],
@@ -204,7 +190,7 @@ fn malformed_context_and_conflicting_ownership_never_publish_partial_candidates(
         assert_eq!(output.status.code(), Some(2));
         assert_eq!(output.stdout, [] as [u8; 0]);
     }
-    write(fixture.0.join("context.json"), &original.to_string());
+    write(fixture.0.path().join("context.json"), &original.to_string());
     let valid = fixture.run(
         8192,
         &["manifest", "Cargo.toml", "0.18.6", "0.19.0", "context.json"],
@@ -214,7 +200,10 @@ fn malformed_context_and_conflicting_ownership_never_publish_partial_candidates(
         "{}",
         String::from_utf8_lossy(&valid.stderr)
     );
-    write(fixture.0.join("context.json"), &format!("{original} {{}}"));
+    write(
+        fixture.0.path().join("context.json"),
+        &format!("{original} {{}}"),
+    );
     assert_eq!(
         fixture
             .run(
@@ -229,8 +218,8 @@ fn malformed_context_and_conflicting_ownership_never_publish_partial_candidates(
 #[test]
 fn byte_limits_symlinks_directories_and_invalid_arguments_refuse_before_output() {
     let fixture = Fixture::new();
-    write(fixture.0.join("Cargo.toml"), manifest());
-    symlink("Cargo.toml", fixture.0.join("alias")).unwrap();
+    write(fixture.0.path().join("Cargo.toml"), manifest());
+    symlink("Cargo.toml", fixture.0.path().join("alias")).unwrap();
     for (limit, source) in [
         (0, "Cargo.toml"),
         (manifest().len() - 1, "Cargo.toml"),
@@ -243,17 +232,17 @@ fn byte_limits_symlinks_directories_and_invalid_arguments_refuse_before_output()
         assert_eq!(output.stdout, [] as [u8; 0]);
     }
     for suffix in ['\r', '\n'] {
-        let bad = fixture.0.join(format!("bad{suffix}"));
+        let bad = fixture.0.path().join(format!("bad{suffix}"));
         fs::create_dir(&bad).unwrap();
         write(bad.join("Cargo.toml"), manifest());
-        symlink(&bad, fixture.0.join("physical-alias")).unwrap();
+        symlink(&bad, fixture.0.path().join("physical-alias")).unwrap();
         let output = fixture.run(
             8192,
             &["manifest", "physical-alias/Cargo.toml", "0.18.6", "0.19.0"],
         );
         assert_eq!(output.status.code(), Some(2));
         assert_eq!(output.stdout, [] as [u8; 0]);
-        fs::remove_file(fixture.0.join("physical-alias")).unwrap();
+        fs::remove_file(fixture.0.path().join("physical-alias")).unwrap();
         let output = Command::new(env!("CARGO_BIN_EXE_ic-build-release-metadata"))
             .current_dir(&bad)
             .args([
@@ -294,27 +283,27 @@ fn byte_limits_symlinks_directories_and_invalid_arguments_refuse_before_output()
 fn real_cargo_accepts_the_local_only_release_without_rewriting_the_lock() {
     let fixture = Fixture::new();
     for name in ["a", "b"] {
-        fs::create_dir_all(fixture.0.join(name).join("src")).unwrap();
-        write(fixture.0.join(name).join("src/lib.rs"), "");
+        fs::create_dir_all(fixture.0.path().join(name).join("src")).unwrap();
+        write(fixture.0.path().join(name).join("src/lib.rs"), "");
         let dependency = if name == "a" {
             "[dependencies]\nb={path='../b'}\n"
         } else {
             ""
         };
         write(
-            fixture.0.join(name).join("Cargo.toml"),
+            fixture.0.path().join(name).join("Cargo.toml"),
             &format!(
                 "[package]\nname='{name}'\nversion.workspace=true\nedition='2024'\n{dependency}"
             ),
         );
     }
     write(
-        fixture.0.join("Cargo.toml"),
+        fixture.0.path().join("Cargo.toml"),
         "[workspace]\nmembers=['a','b']\nresolver='3'\n[workspace.package]\nversion=\"0.1.0\"\n",
     );
     let cargo = std::env::var_os("CARGO").unwrap_or_else(|| "cargo".into());
     let initial = Command::new(&cargo)
-        .current_dir(&fixture.0)
+        .current_dir(fixture.0.path())
         .env("RUSTUP_AUTO_INSTALL", "0")
         .args(["generate-lockfile", "--offline"])
         .output()
@@ -330,12 +319,12 @@ fn real_cargo_accepts_the_local_only_release_without_rewriting_the_lock() {
         "{}",
         String::from_utf8_lossy(&rendered.stderr)
     );
-    fs::write(fixture.0.join("Cargo.lock"), &rendered.stdout).unwrap();
+    fs::write(fixture.0.path().join("Cargo.lock"), &rendered.stdout).unwrap();
     let manifest = fixture.run(8192, &["manifest", "Cargo.toml", "0.1.0", "0.2.0"]);
     assert!(manifest.status.success());
-    fs::write(fixture.0.join("Cargo.toml"), manifest.stdout).unwrap();
+    fs::write(fixture.0.path().join("Cargo.toml"), manifest.stdout).unwrap();
     let metadata = Command::new(cargo)
-        .current_dir(&fixture.0)
+        .current_dir(fixture.0.path())
         .env("RUSTUP_AUTO_INSTALL", "0")
         .args(["metadata", "--locked", "--offline", "--format-version", "1"])
         .output()
@@ -346,7 +335,7 @@ fn real_cargo_accepts_the_local_only_release_without_rewriting_the_lock() {
         String::from_utf8_lossy(&metadata.stderr)
     );
     assert_eq!(
-        fs::read(fixture.0.join("Cargo.lock")).unwrap(),
+        fs::read(fixture.0.path().join("Cargo.lock")).unwrap(),
         rendered.stdout
     );
 }

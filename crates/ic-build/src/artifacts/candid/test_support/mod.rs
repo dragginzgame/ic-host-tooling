@@ -14,12 +14,12 @@ pub const LIMITS: OutputLimits = OutputLimits {
 pub const VERSION: &str = "test-host-tool version 1";
 
 pub struct Fixture {
-    pub root: PathBuf,
+    pub root: ic_host_fs::testing::FixtureDirectory,
 }
 
 impl Fixture {
     pub fn new() -> Self {
-        let root = ic_host_fs::testing::create_fixture_directory(
+        let root = ic_host_fs::testing::FixtureDirectory::new(
             &std::env::temp_dir(),
             "ic-build-candid-test",
         )
@@ -29,7 +29,7 @@ impl Fixture {
 
     pub fn context<'a>(&'a self, environment: &'a [(OsString, OsString)]) -> ExecutionContext<'a> {
         ExecutionContext {
-            current_dir: &self.root,
+            current_dir: self.root.path(),
             environment,
         }
     }
@@ -55,18 +55,8 @@ impl Fixture {
     }
 
     pub fn source(&self) -> PathBuf {
-        let source = self.root.join("source.wasm");
+        let source = self.root.path().join("source.wasm");
         fs::write(&source, b"\0asm\x01\0\0\0").unwrap();
         source
-    }
-}
-
-impl Drop for Fixture {
-    fn drop(&mut self) {
-        if std::thread::panicking() {
-            eprintln!("Failed Candid fixture retained: {}", self.root.display());
-            return;
-        }
-        let _ = fs::remove_dir_all(&self.root);
     }
 }

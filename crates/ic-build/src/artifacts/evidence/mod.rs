@@ -3,7 +3,6 @@ use super::{
     CapturedArtifact, ResolvedCargoBuildInputs, WasmBuildOutcome, WasmBuildSpec,
     build_wasm_canisters_cached, resolve_cargo_build_inputs,
 };
-use ic_host_artifacts::artifact::hash_reader;
 use ic_host_process::child::OwnedChild;
 use serde::Serialize;
 use std::{fs, io, path::Path, process::Command};
@@ -81,6 +80,8 @@ impl WasmBuildEvidence {
     /// Existing destinations follow `CapturedArtifact::retain_to` replacement
     /// semantics. The destination must be outside this build's exact cache entry.
     /// Copies stream through bounded scratch; no full-Wasm allocation is needed.
+    /// The receipt reuses the completed copy's digest; it is not an independent
+    /// storage read-back check. The staged file must still be readable.
     /// Keep this owner alive and verify freshness after measurement as well.
     ///
     /// # Errors
@@ -110,9 +111,10 @@ impl WasmBuildEvidence {
                 "destination is inside retained cache",
             ));
         }
-        let captured = CapturedArtifact::capture(source, parent, maximum_bytes)?;
-        let identity = hash_reader(fs::File::open(captured.path())?, maximum_bytes as u64)
-            .map_err(io::Error::from)?;
+        let (captured, identity) =
+            CapturedArtifact::capture_with_identity(source, parent, maximum_bytes)?;
+        // Preserve unreadable-stage refusal without hashing the same bytes again.
+        fs::File::open(captured.path())?;
         self.verify_current()?;
         captured.retain_to(destination).map_err(io::Error::other)?;
         Ok(WasmArtifactReceipt {

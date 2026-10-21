@@ -11,7 +11,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use ic_host_artifacts::artifact::{ArtifactError, CopyError, copy_reader};
+use ic_host_artifacts::artifact::{ArtifactError, ArtifactIdentity, CopyError, copy_reader};
 use ic_host_fs::{
     directory::create_unique_directory,
     durable::{NamedWriteError, PublicationMode, WriteOptions, write_with},
@@ -87,6 +87,16 @@ impl CapturedArtifact {
     /// Returns the source read/byte-limit, staging allocation or durable-write
     /// error. An unsuccessful capture performs best-effort staging cleanup.
     pub fn capture(source: &Path, parent: &Path, maximum_bytes: usize) -> io::Result<Self> {
+        Self::capture_with_identity(source, parent, maximum_bytes).map(|(captured, _)| captured)
+    }
+
+    // Identity describes bytes accepted by the completed, synchronized copy.
+    // It is not a live observation after callers modify the captured pathname.
+    pub(super) fn capture_with_identity(
+        source: &Path,
+        parent: &Path,
+        maximum_bytes: usize,
+    ) -> io::Result<(Self, ArtifactIdentity)> {
         let source = open_regular_file(source).map_err(io::Error::from)?;
         let limit = maximum_bytes as u64;
         if source.metadata()?.len() > limit {
@@ -94,13 +104,13 @@ impl CapturedArtifact {
         }
         let staging = staging_directory(parent)?;
         let path = staging.path().join("input.artifact");
-        write_with(
+        let identity = write_with(
             &path,
             WriteOptions {
                 mode: PublicationMode::Replace,
                 permissions: 0o666,
             },
-            |file| copy_reader(source, file, limit).map(|_| ()),
+            |file| copy_reader(source, file, limit),
         )
         .map_err(|error| match error {
             NamedWriteError::Producer {
@@ -109,7 +119,7 @@ impl CapturedArtifact {
             } => io::Error::from(source),
             other => io::Error::other(other),
         })?;
-        Ok(Self { staging, path })
+        Ok((Self { staging, path }, identity))
     }
 
     /// Borrow the exact captured bytes while this record owns their lifetime.

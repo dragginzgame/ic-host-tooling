@@ -13,17 +13,3 @@ pub fn pocket_ic() -> ic_testkit::pic::PocketIcInstance<ic_testkit::pic::PocketI
         .build_instance(ic_testkit::pic::PocketIcBuilder::new().with_application_subnet())
         .expect("construct explicitly configured test instance")
 }
-
-pub fn unique_temp_directory(label: &str) -> ic_host_fs::owned_directory::OwnedDirectory {
-    ic_host_fs::owned_directory::OwnedDirectory::new(
-        ic_host_fs::directory::create_unique_directory(
-            &std::env::temp_dir()
-                .canonicalize()
-                .expect("resolve test temporary root"),
-            label,
-            0o700,
-            None,
-        )
-        .expect("create private test directory"),
-    )
-}

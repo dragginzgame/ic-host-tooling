@@ -79,6 +79,9 @@ interpretation; `make test-tools-certificate` adds strict owned certificate/hash
 decoding. `make test PACKAGE=ic-host-text` checks bounded line normalization,
 escaping, progress frames and Unicode table alignment.
 `make test-tools-registry` checks golden Protobuf tags and shard admission.
+Single-feature Tools targets compile all targets under their isolated feature
+selection, then run that feature's tests. Default and combined profiles retain
+their complete suites; shared response/ICP cases need not repeat in each feature.
 For Tools' independent `icp-ledger` profile, run `cargo test -p ic-host-tools
 --no-default-features --features icp-ledger --lib icp_ledger::tests --locked
 --offline` and the same selection on Rust 1.91. Its fixtures encode the official
@@ -198,6 +201,10 @@ The Process alias is a test-only dependency of Tools' HTTP fixture and is exclud
 from the other packages' normal/build graphs. Process itself remains a production
 package. Tokio stays in the production category because Agent transport also
 uses it transitively, although Host's direct Tokio declaration is dev-only.
+`make publish-command-check` exercises the workspace's real publication adapter,
+including package selection, provenance, Cargo/log failures, interruption and
+retained attempt locks. Shared Tooling owns the generic publication-runner
+regression matrix; this consumer does not replay it separately.
 Host's direct-dependency guard covers the known external IC package families in
 `ci/cargo-dependency-boundaries.json`, including renamed, development, optional and
 target-specific declarations. The broader Platform boundary also requires review

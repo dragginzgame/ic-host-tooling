@@ -300,6 +300,9 @@ consumer's responsibility; guards cannot detect edits reverted between checks.
 entry, preserves prior output on admission/capture refusal and returns identities
 for the exact exported bytes. Retention failures preserve their existing recovery
 paths. Retain the evidence owner through consumption; a receipt carries no lease.
+The receipt reuses the digest computed while durably capturing the bytes. Export
+still refuses an unreadable staging file but does not independently reread it
+to check storage contents. Caller custody excludes concurrent stage mutation.
 
 `cargo::diagnostics` selects bounded library/proc-macro artifacts from complete
 Cargo output and runs a passing compiler control before negative cases. Each case

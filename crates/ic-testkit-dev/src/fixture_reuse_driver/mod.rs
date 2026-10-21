@@ -629,16 +629,9 @@ mod tests {
         ic_host_process::sampling::snapshot(64 * 1024, super::arguments::RSS_COMMAND_LIMITS)
     }
 
-    fn fixture_directory() -> ic_host_fs::owned_directory::OwnedDirectory {
-        ic_host_fs::owned_directory::OwnedDirectory::new(
-            ic_host_fs::directory::create_unique_directory(
-                &std::env::temp_dir(),
-                "testkit-fixture-driver",
-                0o700,
-                None,
-            )
-            .unwrap(),
-        )
+    fn fixture_directory() -> ic_host_fs::testing::FixtureDirectory {
+        ic_host_fs::testing::FixtureDirectory::new(&std::env::temp_dir(), "testkit-fixture-driver")
+            .unwrap()
     }
 
     #[test]

@@ -76,24 +76,24 @@ test-tools-default:
 	+cargo test -p ic-host-tools --no-default-features --all-targets --locked --offline
 .PHONY: test-tools-interface
 test-tools-interface:
-	+cargo test -p ic-host-tools --no-default-features --features ic-interface --all-targets --locked --offline
+	+cargo test -p ic-host-tools --no-default-features --features ic-interface --all-targets --locked --offline interface::
 
 .PHONY: test-tools-certificate test-tools-candid test-tools-combined test-tools-encoding test-wasm-inspection
 test-tools-certificate:
-	+cargo test -p ic-host-tools --no-default-features --features certificate --all-targets --locked --offline
+	+cargo test -p ic-host-tools --no-default-features --features certificate --all-targets --locked --offline certificate::
 test-tools-candid:
-	+cargo test -p ic-host-tools --no-default-features --features candid --all-targets --locked --offline
+	+cargo test -p ic-host-tools --no-default-features --features candid --all-targets --locked --offline candid::
 test-tools-combined:
 	+cargo test -p ic-host-tools --no-default-features --features certificate,ic-interface --all-targets --locked --offline
 .PHONY: test-tools-agent
 test-tools-agent:
-	+cargo test -p ic-host-tools --no-default-features --features agent --all-targets --locked --offline
+	+cargo test -p ic-host-tools --no-default-features --features agent --all-targets --locked --offline agent::
 
 test-tools-encoding:
-	+cargo test -p ic-host-tools --no-default-features --features encoding --all-targets --locked --offline
+	+cargo test -p ic-host-tools --no-default-features --features encoding --all-targets --locked --offline encoding::
 .PHONY: test-tools-registry
 test-tools-registry:
-	+cargo test -p ic-host-tools --no-default-features --features registry --all-targets --locked --offline
+	+cargo test -p ic-host-tools --no-default-features --features registry --all-targets --locked --offline registry::
 test-wasm-inspection:
 	+cargo test -p ic-host-wasm-inspect --all-targets --locked --offline
 tools-features-check:
@@ -125,7 +125,6 @@ publish-check:
 	+bash scripts/publish/workspace.sh check
 publish-command-check:
 	+bash scripts/publish/test-workspace.sh
-	+bash scripts/ci/test-cargo-publication-attempt.sh
 ci:
 	+$(MAKE) --no-print-directory shared-tooling-check
 	+$(MAKE) --no-print-directory check-no-symlinks

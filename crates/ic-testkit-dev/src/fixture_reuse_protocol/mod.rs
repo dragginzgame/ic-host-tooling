@@ -2,7 +2,9 @@
 
 use std::{ffi::OsString, num::NonZeroUsize, path::PathBuf};
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Clone, Copy, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, clap::ValueEnum,
+)]
 #[serde(rename_all = "lowercase")]
 pub enum Mode {
     Fresh,
@@ -18,23 +20,27 @@ impl Mode {
     }
 }
 
-impl clap::ValueEnum for Mode {
-    fn value_variants<'a>() -> &'a [Self] {
-        &[Self::Fresh, Self::Pooled]
-    }
-
-    fn to_possible_value(&self) -> Option<clap::builder::PossibleValue> {
-        Some(clap::builder::PossibleValue::new(self.as_str()))
-    }
-}
-
+#[derive(clap::Parser)]
+#[command(
+    name = "fixture_reuse_benchmark",
+    about = "Run one fixture-reuse benchmark workload",
+    version,
+    no_binary_name = true
+)]
 pub struct WorkerArguments {
+    #[arg(value_name = "mode")]
     pub mode: Mode,
+    #[arg(value_name = "capacity")]
     pub capacity: NonZeroUsize,
+    #[arg(value_name = "iterations")]
     pub iterations: NonZeroUsize,
+    #[arg(value_name = "workers")]
     pub workers: NonZeroUsize,
+    #[arg(value_name = "state_bytes")]
     pub state_bytes: u32,
+    #[arg(value_name = "wasm", allow_hyphen_values = true)]
     pub wasm: PathBuf,
+    #[arg(value_name = "server", allow_hyphen_values = true)]
     pub server: PathBuf,
 }
 
@@ -42,56 +48,10 @@ impl TryFrom<Vec<OsString>> for WorkerArguments {
     type Error = clap::Error;
 
     fn try_from(args: Vec<OsString>) -> Result<Self, Self::Error> {
-        use clap::{Arg, Command, error::ErrorKind, value_parser};
-        let mut command = Command::new("fixture_reuse_benchmark")
-            .about("Run one fixture-reuse benchmark workload")
-            .version(env!("CARGO_PKG_VERSION"))
-            .no_binary_name(true)
-            .arg(
-                Arg::new("mode")
-                    .required(true)
-                    .value_parser(value_parser!(Mode)),
-            )
-            .args(["capacity", "iterations", "workers"].map(|name| {
-                Arg::new(name)
-                    .required(true)
-                    .value_parser(value_parser!(NonZeroUsize))
-            }))
-            .arg(
-                Arg::new("state_bytes")
-                    .required(true)
-                    .value_parser(value_parser!(u32)),
-            )
-            .args(["wasm", "server"].map(|name| {
-                Arg::new(name)
-                    .required(true)
-                    .value_parser(value_parser!(PathBuf))
-                    .allow_hyphen_values(true)
-            }));
-        let mut matches = command.try_get_matches_from_mut(args)?;
-        let result = Self {
-            mode: matches.remove_one::<Mode>("mode").expect("mode required"),
-            capacity: matches
-                .remove_one::<NonZeroUsize>("capacity")
-                .expect("capacity required"),
-            iterations: matches
-                .remove_one::<NonZeroUsize>("iterations")
-                .expect("iterations required"),
-            workers: matches
-                .remove_one::<NonZeroUsize>("workers")
-                .expect("workers required"),
-            state_bytes: matches
-                .remove_one::<u32>("state_bytes")
-                .expect("state bytes required"),
-            wasm: matches
-                .remove_one::<PathBuf>("wasm")
-                .expect("Wasm required"),
-            server: matches
-                .remove_one::<PathBuf>("server")
-                .expect("server required"),
-        };
+        use clap::{CommandFactory, Parser, error::ErrorKind};
+        let result = Self::try_parse_from(args)?;
         if result.workers > result.iterations {
-            return Err(command.error(
+            return Err(Self::command().error(
                 ErrorKind::ValueValidation,
                 "workers must not exceed iterations",
             ));

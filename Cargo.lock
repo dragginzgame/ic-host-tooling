@@ -1673,9 +1673,9 @@ dependencies = [
 
 [[package]]
 name = "ic-platform"
-version = "0.6.3"
+version = "0.6.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9ebb7f66c9b68a5cd642229dd0583f21501fe602b293ad931f6c5a144161078e"
+checksum = "2ae527f77c40a2a2ac1de2b119dd58afdee6e6993faf4d033b54db99da15522a"
 dependencies = [
  "candid",
  "candid_parser",
@@ -1697,9 +1697,9 @@ dependencies = [
 
 [[package]]
 name = "ic-platform-macros"
-version = "0.6.3"
+version = "0.6.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cb61949deecb62ac71577ebd6f8c1147c0bf30f9558702c984a64104a91ee799"
+checksum = "50e407ae67a881aedb81f21b7f76cb752188d898c561bdd8f3a3d6226272995e"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1803,9 +1803,9 @@ dependencies = [
 
 [[package]]
 name = "ic-wire"
-version = "0.5.13"
+version = "0.5.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "96b4d516779c94fe18d29ca539182b6a0de17bdafd6143562078e233c0aa3b6d"
+checksum = "b4a6497f23b86fe3a4b3a1f6718e57fd535d9067291a7ad1fb16931dcffb6f21"
 dependencies = [
  "ic-wire-derive",
  "postcard",
@@ -1814,9 +1814,9 @@ dependencies = [
 
 [[package]]
 name = "ic-wire-derive"
-version = "0.5.13"
+version = "0.5.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2af8664082736467e7d81d125f13f1c2b7248a16a71f0a9e958d58c8f33f2155"
+checksum = "14c0e0772a520b53a16169c33effaa018313c82bd154c27d074d062b72665a14"
 dependencies = [
  "proc-macro2",
  "quote",

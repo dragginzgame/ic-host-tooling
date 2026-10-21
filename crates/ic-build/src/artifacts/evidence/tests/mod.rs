@@ -1,5 +1,6 @@
 use super::*;
 use crate::artifacts::test_support::fake_wasm_build_spec;
+use ic_host_artifacts::artifact::hash_reader;
 
 #[test]
 fn export_preserves_exact_bytes_and_refuses_limits_and_changed_source() {

@@ -110,7 +110,14 @@ fn capture_honors_the_selected_byte_budget_and_preserves_its_typed_error() {
         Some(ic_host_artifacts::artifact::ArtifactError::LimitExceeded { limit: 3 })
     ));
     assert_eq!(fs::read_dir(&root).unwrap().count(), 1);
-    let captured = CapturedArtifact::capture(&source, &root, 4).unwrap();
+    let (captured, identity) = CapturedArtifact::capture_with_identity(&source, &root, 4).unwrap();
+    assert_eq!(fs::read(captured.path()).unwrap(), b"four");
+    assert_eq!(identity.bytes, 4);
+    assert_eq!(
+        identity.sha256,
+        ic_host_artifacts::artifact::Sha256Digest::compute(b"four")
+    );
+    fs::write(&source, b"replacement").unwrap();
     assert_eq!(fs::read(captured.path()).unwrap(), b"four");
     let staging = captured.path().parent().unwrap().to_owned();
     captured.close().unwrap();

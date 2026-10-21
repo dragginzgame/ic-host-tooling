@@ -45,6 +45,7 @@ tokio = { workspace = true, features = ["time"] }
 ic-platform = { workspace = true, features = ["ic0"] }
 
 [target.'cfg(all(unix, not(target_arch = "wasm32")))'.dev-dependencies]
+ic-host-fs = { workspace = true, features = ["test-support"] }
 ic-host-process = { workspace = true, features = ["test-support"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
@@ -61,12 +62,6 @@ required-features = ["cli"]
 all = { level = "warn", priority = -1 }
 pedantic = { level = "warn", priority = -1 }
 nursery = { level = "warn", priority = -1 }
-missing_const_for_fn = "warn"
-must_use_candidate = "warn"
-redundant_clone = "warn"
-semicolon_if_nothing_returned = "warn"
-uninlined_format_args = "warn"
-use_self = "warn"
 doc_markdown = "allow"
 empty_line_after_doc_comments = "allow"
 enum_variant_names = "allow"

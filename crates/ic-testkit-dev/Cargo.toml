@@ -8,7 +8,7 @@ publish = false
 repository.workspace = true
 
 [dependencies]
-clap = { workspace = true, features = ["string"] }
+clap = { workspace = true, features = ["derive", "string"] }
 ic-build = { workspace = true }
 ic-host-artifacts = { workspace = true }
 ic-host-fs = { workspace = true, features = ["temporary-file"] }
@@ -23,16 +23,13 @@ serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 
+[dev-dependencies]
+ic-host-fs = { workspace = true, features = ["test-support"] }
+
 [lints.clippy]
 all = { level = "warn", priority = -1 }
 pedantic = { level = "warn", priority = -1 }
 nursery = { level = "warn", priority = -1 }
-missing_const_for_fn = "warn"
-must_use_candidate = "warn"
-redundant_clone = "warn"
-semicolon_if_nothing_returned = "warn"
-uninlined_format_args = "warn"
-use_self = "warn"
 doc_markdown = "allow"
 empty_line_after_doc_comments = "allow"
 enum_variant_names = "allow"
