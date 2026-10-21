@@ -1,8 +1,8 @@
 # Shared Tooling snapshot v1
-# version	0.26.1
+# version	0.26.2
 format	1
 source	https://github.com/dragginzgame/shared-tooling
-revision	67d4f25d1a613a27d7dfd7b5a4ae119e0e529fc7
+revision	1959ef75d0b86ed7725d41ae5056303d35eb633d
 # entrypoint	.githooks/pre-commit
 # entrypoint	.github/actions/prepare-common-tools/action.yml
 # entrypoint	.github/actions/retain-failure-evidence/action.yml
@@ -132,7 +132,7 @@ file	aacb08dcd94e864ce2d7f2e4d8a5552c6ed35ab90c581ea38618cbe98934a7fa	-	docs/car
 file	4cb513119ba707355d99b5fb6c72d1b6d7641a48fa70434c4272e0ccfe072dab	-	docs/cargo-publication.md
 file	6365435bd2f265d41b3ff31fd1e433b73c0c6cba550bb6d6c9706d3cab5d099c	-	docs/consuming-snapshots.md
 file	f280d8dcb6b92d5ac3d051c7456a158ba8a724722e50cb252bf0ea754ad2b9be	-	docs/ic-tools.md
-file	46cb64d720fb8a314645ad8de3f8201f0d439962a5a23bd192e4ae30c72734e1	-	docs/local-setup.md
+file	86550e8e7e4dee30f6c17014cfa1c8100ecc4e3879175f45aa9ddb55bca40b99	-	docs/local-setup.md
 file	b504048aee31664bb51cfeb14061a43d13fbc1cfff6d84aa6951f1809d424294	-	docs/make-interface.md
 file	59f6cb0b47fcfa698396776bbb391737292ebf34457ad7c65803fe7b36961499	-	docs/principles/README.md
 file	9315c9faffa4f36cfab496342535bf49d728ddd2111e8e127cbc44b3fac89ce7	-	docs/principles/decision-artifact-discipline.md
