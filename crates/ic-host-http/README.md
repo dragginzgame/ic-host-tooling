@@ -12,6 +12,14 @@ failure returns status, bytes received so far, a typed cause and optional bounde
 partial bytes. Debug output and retained bodies can contain sensitive data:
 redaction and durable evidence remain caller-owned. Display omits body bytes.
 
+For an outer timeout or cancellation, use `read_body_into(response, options,
+&mut bytes)`. It clears the caller's buffer when first polled and leaves accepted
+bytes there if cancelled. Inspect status/headers before moving the response.
+Returned errors move evidence into `ReadError` according to the retention flag;
+cancellation leaves the prefix regardless of that flag. The caller decides
+whether to save it. The ordinary `read_body` future owns and drops its buffer
+when cancelled. Neither API resumes a cancelled response or chooses a timeout.
+
 Two consumer patterns preserve different contracts:
 
 - Query: reject status before calling; select `reject_declared_oversize: true`

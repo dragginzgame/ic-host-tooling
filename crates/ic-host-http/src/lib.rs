@@ -9,4 +9,4 @@
 #[cfg(not(target_family = "wasm"))]
 mod response;
 #[cfg(not(target_family = "wasm"))]
-pub use response::{Body, ReadError, ReadFailure, ReadOptions, read_body};
+pub use response::{Body, ReadError, ReadFailure, ReadOptions, read_body, read_body_into};

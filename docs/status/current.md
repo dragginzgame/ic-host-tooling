@@ -2,79 +2,69 @@
 
 ## Integrated workspace
 
-IC Tooling main is `c342bb281dc82ff8878c26b5f5449972e9f5341d` (0.63.0).
+Local HEAD is `a706ca89`, the committed 0.63.2 preparation batch; workspace
+metadata remains 0.63.1 and root/detail notes target 0.63.2 Unreleased.
 Host, Build and Testkit were consolidated through
 [PR #212](https://github.com/dragginzgame/ic-tooling/pull/212), retaining crate
-boundaries and imported histories. Nine packages are public and two are private.
+boundaries and imported histories. Ten packages are public and two are private.
 Rust edition 2024 and MSRV 1.91 remain approved. See the
 [consolidation design](../design/tooling-consolidation.md) and
 [0.63 migration notes](../changelog/0.63.md).
 
-The delivered source includes Platform/macros 0.6.0, explicit principal features,
-removal of Testkit-owned Candid APIs and its Metrics dependency, and optional
-Build/Testkit CLI features. Consumers of the binaries select `--features cli`.
-Native PocketIC retains transitive Candid; Testkit's Wasm graph remains Candid-free.
-The shared publication list and narrower runtime CI are also delivered.
-This records source delivery, not registry publication or downstream adoption.
+Delivered 0.63 source removes Testkit-owned Candid and Metrics coupling,
+uses Platform 0.6 and makes Build/Testkit binaries opt in through `cli`.
+Native PocketIC still brings upstream Candid; Testkit's Wasm graph excludes it.
+The optional HTTP crate and native CI setup regression are committed at local HEAD.
+Source commits do not establish registry publication or consumer adoption.
 
-## Shared tooling
+## Current local work
 
-The snapshot is Shared 0.25.9 at `85aded191d85ac4a8c0e5deab207f6be18895862`.
-[PR #211](https://github.com/dragginzgame/ic-tooling/pull/211) overlaps this
-already-delivered adoption. Do not apply it a second time.
-[Draft #226](https://github.com/dragginzgame/ic-tooling/pull/226) contains the
-optimizer-only selection proposal. Its Shared successor requires qualification
-under [Shared #294](https://github.com/dragginzgame/shared-tooling/issues/294)
-before adoption; dirty sibling fixes are not a snapshot source.
+[#117](https://github.com/dragginzgame/ic-tooling/issues/117): the HTTP reader now
+also accepts caller-owned storage so an outer timeout preserves accepted bytes.
+Returned errors move retained evidence into the existing error; cancellation
+leaves the prefix for the caller to retain or discard. Status, requests, timeout
+and redaction remain caller-owned. Query and Blob adoption have their own issues:
+[Query #93](https://github.com/dragginzgame/ic-query/issues/93) and
+[Blob #96](https://github.com/dragginzgame/ic-blob-storage/issues/96).
+Blob's streaming provider download must remain a verifier/file stream.
 
-## Current validation and local repair
+[#227](https://github.com/dragginzgame/ic-tooling/issues/227): local opt-in
+`ic-testkit-native/stable-memory` adapts preserved Testkit PR #97 source
+`3cd17999a53689a035dc86b6f01155eca78c7140` through Platform. The already-selected
+registry Platform 0.6.2 supplies Memory and VectorMemory; the manifest floor now
+requires that supplying version. Default native and all Wasm graphs remain
+independent of the substrate. Clones share backing/counters, resets preserve
+bytes, and overflow is sticky and must refuse exact reports. Metrics stays out
+of Tooling; Metrics/Persistence own consumer adoption.
 
-Local 0.63.1 preparation is committed as `62ab46bf`; remote delivery is not
-established by that local commit. The next local notes target 0.63.2 and add
-the native setup regression from PR #226 to the existing Make fixture. Evidence
-is retained under `/tmp/ic-tooling-0632`; no package-version change is part of it.
+Focused Linux HTTP and memory tests, strict Clippy, Rustdoc, actual Rust 1.91
+native/Wasm checks, dependency graphs, pins and documentation links pass.
+Native macOS qualification remains outstanding for these local changes.
+The working tree changes are uncommitted; no version bump or publication ran.
 
-The exact 0.63.0 [runtime matrix](https://github.com/dragginzgame/ic-tooling/actions/runs/39565694899)
-passed on Linux, macOS 15 Intel and Apple Silicon. Optimizer and browser workflows
-also passed. The [main CI run](https://github.com/dragginzgame/ic-tooling/actions/runs/39565694787)
-failed native Linux at the Wasm compile stage because the development toolchain
-lacked `wasm32-unknown-unknown`; native macOS was still running at inspection.
-MSRV and lint jobs passed. This is not a fully qualified release matrix.
+## Existing contributions and qualification
 
-The local [#222 repair](https://github.com/dragginzgame/ic-tooling/issues/222)
-explicitly adds the Wasm target after preparing the file-selected compiler.
-Workflow lint, the explicit target command and focused Wasm builds pass locally.
-The local target was already installed, so this is not fresh-runner proof.
-Fresh hosted qualification is required after delivery. Notes target 0.63.1;
-package versions, refs and lockfile remain unchanged by this repair.
-Evidence is under `/tmp/ic-tooling-222`; the failed Linux log is
-`/tmp/ic-tooling-063-linux.log`.
+Shared snapshot remains 0.25.9 at `85aded191d85ac4a8c0e5deab207f6be18895862`.
+[PR #226](https://github.com/dragginzgame/ic-tooling/pull/226) owns optimizer-only
+setup and qualified Shared 0.26.2 adoption. [PR #229](https://github.com/dragginzgame/ic-tooling/pull/229)
+owns the ICP decoder. Both include their own pending notes; avoid duplicating
+implementations or the native setup regression when integrating. Both were open
+with native checks still running at inspection; no merge was performed.
 
-## Preservation and earlier evidence
+For 0.63.1 `62ab46bf`, [main CI](https://github.com/dragginzgame/ic-tooling/actions/runs/39573097382)
+passed Linux and native Apple Silicon; native Intel was still running at the
+last review. Optimizer, browser and Testkit runtime matrices passed. These do
+not qualify newer local changes. The earlier missing-Wasm-target failure was
+repaired in 0.63.1; its regression is included in local HEAD.
 
-Focused implementation evidence remains under `/tmp/ic-tooling-adoption`,
-`/tmp/ic-tooling-cleanup`, `/tmp/ic-tooling-candid`, `/tmp/ic-tooling-platform-06`,
-`/tmp/ic-tooling-no-metrics` and `/tmp/ic-tooling-cli`. Product evidence and
-publication rejection fixtures passed again during issue review. Those local
-checks do not substitute for the current required hosted matrix.
+## Preserved evidence
 
+Original HTTP evidence: `/tmp/ic-tooling-http`; native setup regression:
+`/tmp/ic-tooling-0632`. Earlier implementation evidence remains under
+`/tmp/ic-tooling-adoption`, `/tmp/ic-tooling-cleanup`, `/tmp/ic-tooling-candid`,
+`/tmp/ic-tooling-platform-06`, `/tmp/ic-tooling-no-metrics` and `/tmp/ic-tooling-cli`.
 Migration backups, full checkout archives and retirement evidence remain under
-`/tmp/ic-tooling-migration`, including `retirement/`. Source imports preserve
-Host `c3f6f605`, Build `c84c64e4` and Testkit `29399a6e` ancestry. Git history does
-not establish migration or closure of old GitHub issues/PRs. Remote deletion,
-consumer release/publication and sibling edits remain separate decisions.
-
-## Optional HTTP body reader
-
-The maintainer approved the additional Host boundary in #117. Local
-`ic-host-http` owns native bounded response accumulation, reusing Artifacts'
-fallible reservation. Requests, status ordering, retry/timeouts, codecs and
-redaction stay with callers. Six loopback tests cover full/partial results,
-size refusal, transport failure and decoded gzip limits. Clippy, Rust 1.91
-native/Wasm compilation, dependency graphs and publication-selection fixtures
-pass. Evidence is under `/tmp/ic-tooling-http`.
-
-This adds a tenth public package to the coordinated selection without changing
-workspace versions or publishing. Native macOS and actual Query/Blob adoption
-remain outstanding under [#117](https://github.com/dragginzgame/ic-tooling/issues/117).
-Sibling checkouts were inspected read-only and remain unchanged.
+`/tmp/ic-tooling-migration`, including `retirement/`. Original proposal objects
+remain readable in the ordinary former Host checkout; siblings are read-only.
+The verified stale release lock was moved to
+`/tmp/ic-tooling-stale-release-lock.qHQFTn/lock`; saved plans were preserved.

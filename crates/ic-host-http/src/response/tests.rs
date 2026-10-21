@@ -185,3 +185,76 @@ async fn missing_length_and_truncated_declared_length_remain_stream_checked() {
     assert!(matches!(error.failure, ReadFailure::Transport(_)));
     assert!(error.partial_body.len() <= 3);
 }
+
+#[tokio::test(flavor = "current_thread")]
+async fn cancelled_read_preserves_caller_owned_prefix() {
+    for retain in [false, true] {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let url = format!("http://{}/", listener.local_addr().unwrap());
+        let (release, hold) = std::sync::mpsc::channel();
+        let server = std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            stream
+                .set_read_timeout(Some(Duration::from_secs(5)))
+                .unwrap();
+            let mut request = Vec::new();
+            while !request.ends_with(b"\r\n\r\n") {
+                let mut byte = [0];
+                stream.read_exact(&mut byte).unwrap();
+                request.push(byte[0]);
+            }
+            stream
+                .write_all(b"HTTP/1.1 503 Busy\r\nContent-Length: 6\r\n\r\nabc")
+                .unwrap();
+            hold.recv_timeout(Duration::from_secs(5)).unwrap();
+        });
+        let response = reqwest::Client::builder()
+            .no_proxy()
+            .build()
+            .unwrap()
+            .get(url)
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+        let mut bytes = b"old evidence".to_vec();
+        let result = tokio::time::timeout(
+            Duration::from_millis(100),
+            read_body_into(response, options(6, retain), &mut bytes),
+        )
+        .await;
+        assert!(result.is_err());
+        assert_eq!(bytes, b"abc");
+        release.send(()).unwrap();
+        server.join().unwrap();
+    }
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn caller_buffer_replaces_old_bytes_and_moves_error_evidence() {
+    let mut bytes = b"old".to_vec();
+    let status = read_body_into(
+        response("HTTP/1.1 200 OK\r\nContent-Length: 3", b"abc", false).await,
+        options(3, true),
+        &mut bytes,
+    )
+    .await
+    .unwrap();
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(bytes, b"abc");
+    for retain in [false, true] {
+        bytes.extend_from_slice(b"old");
+        let error = read_body_into(
+            response("HTTP/1.1 200 OK\r\nContent-Length: 3", b"xyz", false).await,
+            options(2, retain),
+            &mut bytes,
+        )
+        .await
+        .unwrap_err();
+        assert_eq!(bytes, [] as [u8; 0]);
+        assert_eq!(
+            error.partial_body,
+            if retain { b"xy".as_slice() } else { b"" }
+        );
+    }
+}

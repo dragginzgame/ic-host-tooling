@@ -2,8 +2,11 @@
 
 ## [0.63.2] - Unreleased
 
+- Add opt-in Testkit native memory IO observations through Platform 0.6.2,
+  retaining dependency-free defaults ([#227](https://github.com/dragginzgame/ic-tooling/issues/227)).
 - Add optional `ic-host-http` bounded response reading with caller-selected
-  early size refusal and partial failure evidence ([#117](https://github.com/dragginzgame/ic-tooling/issues/117)).
+  early size refusal and partial failure evidence, including caller-owned bytes
+  preserved on cancellation ([#117](https://github.com/dragginzgame/ic-tooling/issues/117)).
 - Exercise native CI's compiler and Wasm-target setup with failure-path fixtures
   to prevent recurrence of [#222](https://github.com/dragginzgame/ic-tooling/issues/222).
 

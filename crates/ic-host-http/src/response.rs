@@ -101,9 +101,31 @@ impl Error for ReadError {
 /// # Errors
 /// Returns declared-size, streamed-size, transport/decompression or allocation
 /// failure. The error retains status and, only when requested, partial bytes.
-pub async fn read_body(mut response: Response, options: ReadOptions) -> Result<Body, ReadError> {
-    let status = response.status();
+pub async fn read_body(response: Response, options: ReadOptions) -> Result<Body, ReadError> {
     let mut bytes = Vec::new();
+    let status = read_body_into(response, options, &mut bytes).await?;
+    Ok(Body { status, bytes })
+}
+
+/// Read into caller-owned storage so accepted bytes survive future cancellation.
+///
+/// Clears `bytes` when first polled. Success leaves the complete body there;
+/// returned errors move retained evidence into [`ReadError`] and leave it empty.
+/// Cancellation instead leaves the accepted prefix in `bytes`, regardless of
+/// `retain_partial_on_error`; the caller decides whether to retain or discard it.
+/// Inspect response status/headers before calling if needed after cancellation.
+/// Dropping the future drops the response; this is not a resumable read.
+/// Request, timeout and status policy remain caller-owned, as in [`read_body`].
+///
+/// # Errors
+/// Returns the same typed failures and evidence as [`read_body`].
+pub async fn read_body_into(
+    mut response: Response,
+    options: ReadOptions,
+    bytes: &mut Vec<u8>,
+) -> Result<StatusCode, ReadError> {
+    bytes.clear();
+    let status = response.status();
     let mut received_bytes = 0_u64;
     let result = async {
         if options.reject_declared_oversize
@@ -124,7 +146,7 @@ pub async fn read_body(mut response: Response, options: ReadOptions) -> Result<B
                     limit: options.max_bytes,
                 });
             }
-            let admitted = reserve_bounded(&mut bytes, chunk.len(), options.max_bytes)
+            let admitted = reserve_bounded(bytes, chunk.len(), options.max_bytes)
                 .map_err(ReadFailure::Allocation)?;
             bytes.extend_from_slice(&chunk[..admitted]);
             if overflow {
@@ -137,17 +159,20 @@ pub async fn read_body(mut response: Response, options: ReadOptions) -> Result<B
     }
     .await;
     match result {
-        Ok(()) => Ok(Body { status, bytes }),
-        Err(failure) => Err(ReadError {
-            status,
-            received_bytes,
-            partial_body: if options.retain_partial_on_error {
-                bytes
-            } else {
-                Vec::new()
-            },
-            failure,
-        }),
+        Ok(()) => Ok(status),
+        Err(failure) => {
+            let partial_body = std::mem::take(bytes);
+            Err(ReadError {
+                status,
+                received_bytes,
+                partial_body: if options.retain_partial_on_error {
+                    partial_body
+                } else {
+                    Vec::new()
+                },
+                failure,
+            })
+        }
     }
 }
 

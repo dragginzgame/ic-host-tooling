@@ -1,5 +1,9 @@
 //! Thread-local native allocation measurements without runtime dependencies.
+//! Optional `stable-memory` provides shared backing-memory IO observations.
 #![cfg(not(target_arch = "wasm32"))]
+
+#[cfg(feature = "stable-memory")]
+pub mod memory;
 
 use std::{
     alloc::{GlobalAlloc, Layout, System},
