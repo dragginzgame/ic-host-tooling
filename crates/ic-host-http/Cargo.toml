@@ -1,0 +1,23 @@
+[package]
+name = "ic-host-http"
+edition.workspace = true
+rust-version.workspace = true
+version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+description = "Bounded HTTP response bodies with caller-selected failure evidence"
+readme = "README.md"
+publish = ["crates-io"]
+
+[target.'cfg(not(target_family = "wasm"))'.dependencies]
+ic-host-artifacts.workspace = true
+reqwest.workspace = true
+
+[target.'cfg(not(target_family = "wasm"))'.dev-dependencies]
+flate2.workspace = true
+reqwest = { workspace = true, features = ["gzip"] }
+tokio = { workspace = true, features = ["macros", "net", "rt", "time"] }
+
+[lints]
+workspace = true

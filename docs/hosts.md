@@ -5,7 +5,7 @@ workspace and release matrix, with separate optimizer, browser-session and
 PocketIC lifecycle workflow jobs. `make testkit-check` runs focused Testkit
 qualification using the prepared server; `make testkit-wasm-check` and
 `make testkit-msrv` qualify deployed profiles. `make testkit-package-check`
-qualifies all nine public archives through Build. Private packages remain
+qualifies all ten public archives through Build. Private packages remain
 excluded from publication. Native macOS results must come from native runners.
 
 `make msrv-qualification` is the shared CI/release MSRV gate. It runs the native

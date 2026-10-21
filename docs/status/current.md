@@ -29,6 +29,11 @@ before adoption; dirty sibling fixes are not a snapshot source.
 
 ## Current validation and local repair
 
+Local 0.63.1 preparation is committed as `62ab46bf`; remote delivery is not
+established by that local commit. The next local notes target 0.63.2 and add
+the native setup regression from PR #226 to the existing Make fixture. Evidence
+is retained under `/tmp/ic-tooling-0632`; no package-version change is part of it.
+
 The exact 0.63.0 [runtime matrix](https://github.com/dragginzgame/ic-tooling/actions/runs/39565694899)
 passed on Linux, macOS 15 Intel and Apple Silicon. Optimizer and browser workflows
 also passed. The [main CI run](https://github.com/dragginzgame/ic-tooling/actions/runs/39565694787)
@@ -58,3 +63,18 @@ Migration backups, full checkout archives and retirement evidence remain under
 Host `c3f6f605`, Build `c84c64e4` and Testkit `29399a6e` ancestry. Git history does
 not establish migration or closure of old GitHub issues/PRs. Remote deletion,
 consumer release/publication and sibling edits remain separate decisions.
+
+## Optional HTTP body reader
+
+The maintainer approved the additional Host boundary in #117. Local
+`ic-host-http` owns native bounded response accumulation, reusing Artifacts'
+fallible reservation. Requests, status ordering, retry/timeouts, codecs and
+redaction stay with callers. Six loopback tests cover full/partial results,
+size refusal, transport failure and decoded gzip limits. Clippy, Rust 1.91
+native/Wasm compilation, dependency graphs and publication-selection fixtures
+pass. Evidence is under `/tmp/ic-tooling-http`.
+
+This adds a tenth public package to the coordinated selection without changing
+workspace versions or publishing. Native macOS and actual Query/Blob adoption
+remain outstanding under [#117](https://github.com/dragginzgame/ic-tooling/issues/117).
+Sibling checkouts were inspected read-only and remain unchanged.

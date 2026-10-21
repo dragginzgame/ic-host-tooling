@@ -19,6 +19,11 @@ esac
 # Host owns the profile matrix; inspect transitive normal/build dependencies for
 # the explicit target, excluding dev fixtures. This is not artifact attestation.
 # Observe command failures separately from dependency violations.
+perl scripts/ci/check-cargo-graph.pl --consumer "$root" --package ic-host-http \
+    --target "$target" --require reqwest=1 --require ic-host-artifacts=1 \
+    --forbid-pattern '^(ic-platform|candid|ic-agent|ic-host-(fs|process|tools)|rustls|native-tls|async-compression)$'
+perl scripts/ci/check-cargo-graph.pl --consumer "$root" --package ic-host-http \
+    --target wasm32-unknown-unknown --forbid-pattern '^(?!ic-host-http$)'
 perl scripts/ci/check-cargo-graph.pl --consumer "$root" --package ic-build \
     --target "$target" --forbid clap
 perl scripts/ci/check-cargo-graph.pl --consumer "$root" --package ic-build \
@@ -26,6 +31,7 @@ perl scripts/ci/check-cargo-graph.pl --consumer "$root" --package ic-build \
 check_graph() {
     local label="$1" package="$2" defaults="$3" features="$4" required="$5" forbidden="$6" owner
     local arguments=(--consumer "$root" --package "$package" --target "${7:-$target}")
+    arguments+=(--forbid ic-host-http)
     local owners=()
     [[ "$defaults" != none ]] || arguments+=(--no-default-features)
     [[ -z "$features" ]] || arguments+=(--features "$features")

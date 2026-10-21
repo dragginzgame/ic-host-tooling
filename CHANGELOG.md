@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.63.2] - Unreleased
+
+- Add optional `ic-host-http` bounded response reading with caller-selected
+  early size refusal and partial failure evidence ([#117](https://github.com/dragginzgame/ic-tooling/issues/117)).
+- Exercise native CI's compiler and Wasm-target setup with failure-path fixtures
+  to prevent recurrence of [#222](https://github.com/dragginzgame/ic-tooling/issues/222).
+
 ## [0.63.1] - 2026-10-21
 
 - Explicitly install the Wasm target for the declared development compiler before

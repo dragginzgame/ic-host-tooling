@@ -2,7 +2,8 @@
 
 ## Coordinated tooling workspace
 
-The Host primitives retain the five boundaries below. `ic-build` now shares
+The Host primitives retain the existing boundaries below, plus the explicitly
+approved optional HTTP boundary described here. `ic-build` now shares
 this repository and owns generic Cargo execution, build input evidence and
 retained artifact caches. `ic-testkit` and `ic-testkit-native` own simulator
 integration and native test measurement. `ic-testkit-dev` and
@@ -10,6 +11,15 @@ integration and native test measurement. `ic-testkit-dev` and
 depend on Host; Host does not depend on either. The private Testkit driver
 may also depend on Build. One workspace and release identity do not merge
 these capability boundaries or enable optional features for consumers.
+
+The maintainer approved `ic-host-http` under
+[#117](https://github.com/dragginzgame/ic-tooling/issues/117). It accepts an
+already-created native reqwest response and owns bounded body accumulation and
+typed partial-failure evidence. It reuses Artifacts' bounded allocation primitive.
+It never creates requests or selects status, TLS, compression, redirect, retry,
+timeout, decoding, redaction or retention policy. Existing Host/Build/Testkit
+packages do not depend on it. Query and Blob retain their distinct status and
+failure-evidence contracts; consumer adoption is separate from this implementation.
 
 ## Fleet Candid/CDK boundary
 

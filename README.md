@@ -19,6 +19,7 @@ admitted process execution and IC-specific format handling.
 | --- | --- |
 | ic-host-artifacts | Bounded streams and hashing writers, exact byte comparison, SHA-256, gzip encoding/decoding, generic Wasm facts, validation and encoding |
 | ic-host-fs | Regular/no-follow reads, missing-suffix path resolution, streamed durable publication, private files and observed descriptor locks |
+| ic-host-http | Optional native bounded HTTP bodies with caller-selected partial failure evidence; see [usage](crates/ic-host-http/README.md) |
 | ic-host-process | Executable resolution, digest/version admission, bounded capture, explicit child/group cleanup and Git observations |
 | ic-host-text | Optional YAML decoding with byte admission, line normalization, decimal/UTC text, terminal-safe rendering, Unicode tables and progress frames |
 | ic-host-tools | Candid service facts, optional IC export facts, ICP command syntax, response decoding and certificate decoding |

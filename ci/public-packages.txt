@@ -1,6 +1,7 @@
 ic-build
 ic-host-artifacts
 ic-host-fs
+ic-host-http
 ic-host-process
 ic-host-text
 ic-host-tools

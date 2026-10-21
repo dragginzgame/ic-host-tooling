@@ -63,7 +63,7 @@ Cargo metadata before running lint or packaging; private test packages stay out.
 `make publish-check` runs Cargo's publication checks with all features
 and `--locked --registry crates-io --dry-run`. It packages and verifies the selected
 workspace packages through exact `--package NAME@VERSION` selectors without
-uploading: the five Host libraries, `ic-build`, `ic-testkit`,
+uploading: the six Host libraries, `ic-build`, `ic-testkit`,
 `ic-testkit-native` and the `ic-host-wasm-inspect` CLI. The development driver
 and Wasm probe remain private. It admits working edits so packaging can be reviewed
 before committing. It can access the registry; set `CARGO_NET_OFFLINE=true` for
