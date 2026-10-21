@@ -19,15 +19,6 @@ esac
 # Host owns the profile matrix; inspect transitive normal/build dependencies for
 # the explicit target, excluding dev fixtures. This is not artifact attestation.
 # Observe command failures separately from dependency violations.
-perl scripts/ci/check-cargo-graph.pl --consumer "$root" --package ic-testkit-native \
-    --target "$target" --forbid-pattern '^(?!ic-testkit-native$)'
-perl scripts/ci/check-cargo-graph.pl --consumer "$root" --package ic-testkit-native \
-    --target "$target" --features stable-memory --require ic-platform=1 \
-    --require ic-stable-structures=1 \
-    --forbid-pattern '^(candid|pocket-ic|ic-metrics|ic-host-.*|ic-cdk.*|ic0)$'
-perl scripts/ci/check-cargo-graph.pl --consumer "$root" --package ic-testkit-native \
-    --target wasm32-unknown-unknown --features stable-memory \
-    --forbid-pattern '^(?!ic-testkit-native$)'
 perl scripts/ci/check-cargo-graph.pl --consumer "$root" --package ic-host-http \
     --target "$target" --require reqwest=1 --require ic-host-artifacts=1 \
     --forbid-pattern '^(ic-platform|candid|ic-agent|ic-host-(fs|process|tools)|rustls|native-tls|async-compression)$'

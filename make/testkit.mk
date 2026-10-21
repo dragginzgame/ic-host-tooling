@@ -12,10 +12,10 @@ server-check:
 	@test -x "$(SERVER_CLI)" || { echo 'Run make install-server during explicit setup.' >&2; exit 1; }
 	"$(SERVER_CLI)" check
 testkit-wasm-check:
-	+cargo check -p ic-testkit -p ic-testkit-native --features ic-testkit/reply-fixtures --locked --offline --target wasm32-unknown-unknown
+	+cargo check -p ic-testkit -p ic-testkit-native --features ic-testkit/reply-fixtures,ic-testkit-native/stable-memory --locked --offline --target wasm32-unknown-unknown
 	+cargo check -p ic-testkit-perf-probe --locked --offline --target wasm32-unknown-unknown
 testkit-msrv:
-	+cargo +$(MSRV) check -p ic-testkit -p ic-testkit-native --features ic-testkit/reply-fixtures --locked --offline --target wasm32-unknown-unknown
+	+cargo +$(MSRV) check -p ic-testkit -p ic-testkit-native --features ic-testkit/reply-fixtures,ic-testkit-native/stable-memory --locked --offline --target wasm32-unknown-unknown
 	+cargo +$(MSRV) check -p ic-testkit-perf-probe --locked --offline --target wasm32-unknown-unknown
 testkit-browser-check:
 	node --test testing/browser/session.test.mjs
@@ -33,8 +33,12 @@ TESTKIT_CARGO_GRAPH_POLICY = --consumer "$(REPO_ROOT)" --require ic-platform=1 \
 testkit-graph-check:
 	@set -e; host="$$(rustc -vV | sed -n 's/^host: //p')"; test -n "$$host"; \
 		perl scripts/ci/check-cargo-graph.pl --consumer "$(REPO_ROOT)" \
-			--package ic-testkit-native --target "$$host" --all-features \
+			--package ic-testkit-native --target "$$host" \
 			--require ic-testkit-native=1 --forbid-pattern '^(?!ic-testkit-native$$)'; \
+		perl scripts/ci/check-cargo-graph.pl --consumer "$(REPO_ROOT)" \
+			--package ic-testkit-native --target "$$host" --all-features \
+			--require ic-platform=1 --require ic-stable-structures=1 \
+			--forbid-pattern '^(?!ic-testkit-native$$|ic-platform$$|ic-stable-structures$$|ic_principal$$)'; \
 		perl scripts/ci/check-cargo-graph.pl $(TESTKIT_CARGO_GRAPH_POLICY) \
 			--package ic-testkit --target "$$host" --forbid clap --forbid ic-wire --forbid ic-cdk-executor --require pocket-ic=1; \
 		perl scripts/ci/check-cargo-graph.pl $(TESTKIT_CARGO_GRAPH_POLICY) \
