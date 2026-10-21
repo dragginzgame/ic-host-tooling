@@ -5,6 +5,8 @@
 - Select only `wasm-opt` for Build optimizer qualification through Shared 0.26.2,
   preserving native/release setup scope and retained evidence.
   [Details](docs/changelog/0.63.md#0631).
+- Explicitly install the development compiler's Wasm target before native CI
+  reaches Testkit's deployed-profile checks.
 
 ## [0.63.0] - 2026-10-21
 

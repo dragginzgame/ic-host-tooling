@@ -13,6 +13,8 @@ workspace, deployed Testkit Wasm profiles and unsupported-filesystem compilation
 sequentially on Rust 1.91. Prepare that toolchain and its Wasm target first.
 
 Required hosts are Linux x86-64 and macOS 15 on Intel and Apple Silicon.
+Native CI explicitly adds `wasm32-unknown-unknown` to the declared development
+compiler after preparing it, before running the deployed Testkit profile checks.
 The FS package also owns the [native file CLI](file-cli.md). Its actual-executable
 fixture uses the focused command in that guide; native CI includes it through
 the existing package gate.
