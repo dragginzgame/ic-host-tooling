@@ -2,6 +2,9 @@
 
 ## [0.62.2]
 
+- Select only `wasm-opt` for Build optimizer qualification through Shared 0.26.1,
+  preserving native/release setup scope and retained evidence.
+  [Details](docs/changelog/0.62.md#0622).
 - Adopt Shared Tooling 0.25.9 release retry protection, refusing a second version
   increment while a committed candidate has not completed Git delivery.
 

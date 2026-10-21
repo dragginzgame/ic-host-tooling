@@ -1,5 +1,15 @@
 # Current handoff
 
+## Optimizer selection draft
+
+This isolated draft stacks on qualified adoption PR #211 and selects committed
+Shared 0.26.1 (`67d4f25d1a613a27d7dfd7b5a4ae119e0e529fc7`). Do not integrate it
+until the producer's native macOS fixture failure is repaired and the selected
+source is qualified, followed by actual consumer host qualification. Pending
+Shared working-tree fixes are excluded. Build needs only `wasm-opt`; common
+native/release setup, product APIs, pins and locks are unchanged.
+Tracking: [#224](https://github.com/dragginzgame/ic-tooling/issues/224).
+
 ## Integrated workspace
 
 Host, Build and Testkit are integrated in `dragginzgame/ic-tooling` through

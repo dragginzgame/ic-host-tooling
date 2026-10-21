@@ -148,6 +148,10 @@ if [[ "$*" == *'--package ic-build'* ]]; then
     [[ "$*" == *'--bin ic-build-release-metadata --profile debug'* ]] || exit 1
     name=install-editor-tools.sh
 fi
+if [[ "$name" == install-ic-tools.sh ]]; then
+    [[ "$*" == *'--tool wasm-opt'* && "$*" != *'--tool ic-wasm'* ]] || exit 93
+    if [[ "${HOST_MAKE_OPTIMIZER_PATH:-}" != '' ]]; then printf '%s\n' "$HOST_MAKE_OPTIMIZER_PATH"; fi
+fi
 printf '%s %s\n' "$name" "$mode" >> "$HOST_MAKE_EVENTS"
 if [[ "${HOST_MAKE_TOOL_FAIL:-}" == "$name" && "${HOST_MAKE_TOOL_FAIL_MODE:-}" == "$mode" ]]; then exit 23; fi
 STUB
@@ -354,5 +358,23 @@ for document in docs/build/guide.md docs/testkit/guide.md docs/design/tooling-co
     grep -F "$document: missing local target missing-audit-target" "$fixture/docs-failure.log" >/dev/null
     printf '# Guide\n' > "$document"
 done
+# Qualify the optimizer's actual Make and workflow callers with no installations.
+: > "$HOST_MAKE_EVENTS"
+make --no-print-directory install-ic-tools ic-tools-check > "$fixture/optimizer-tools.log" 2>&1
+printf 'install-ic-tools.sh install\ninstall-ic-tools.sh check\n' > "$fixture/expected"
+cmp "$fixture/expected" "$HOST_MAKE_EVENTS"
+yq -o json '.' "$root/.github/workflows/build-optimizer.yml" | jq -er \
+    '.jobs["wasm-optimizer"].steps[] | select(.name == "Qualify native artifact transforms") | .run' > "$fixture/optimizer-step"
+cat > scripts/ci/qualify-wasm-opt.sh <<'STUB'
+#!/usr/bin/env bash
+set -euo pipefail
+[[ "$1" == "$HOST_MAKE_OPTIMIZER_PATH/wasm-opt" && "$2" == "$RUNNER_TEMP/wasm-qualification/optimizer" ]] || exit 94
+printf 'qualify optimizer\n' >> "$HOST_MAKE_EVENTS"
+STUB
+: > "$HOST_MAKE_EVENTS"
+HOST_MAKE_OPTIMIZER_PATH="$fixture/prepared optimizer" RUNNER_TEMP="$fixture" \
+    bash -e -o pipefail "$fixture/optimizer-step"
+printf 'install-ic-tools.sh check\nqualify optimizer\n' > "$fixture/expected"
+cmp "$fixture/expected" "$HOST_MAKE_EVENTS"
 echo 'Host Make snapshot routing and execution admission passed (substitute effects)'
 fixture_complete=true
