@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.63.1] - Unreleased
+
+- Explicitly install the Wasm target for the declared development compiler before
+  native CI ([#222](https://github.com/dragginzgame/ic-tooling/issues/222)).
+
 ## [0.63.0] - 2026-10-21
 
 - **Breaking:** Build and Testkit binaries require `--features cli`; default

@@ -63,7 +63,9 @@ jobs:
             echo /bin >> "$GITHUB_PATH"
           fi
       - name: Prepare declared development compiler and Wasm target
-        run: rustup toolchain install --profile minimal --no-self-update --target wasm32-unknown-unknown
+        run: |
+          rustup toolchain install --profile minimal --no-self-update
+          rustup target add wasm32-unknown-unknown
       - name: Prepare locked dependency cache
         run: cargo fetch --locked
       - name: Prepare host tools and identify Cargo tool cache
