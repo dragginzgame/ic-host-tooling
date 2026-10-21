@@ -2,7 +2,7 @@
 
 ## Integrated workspace
 
-Local HEAD is `a706ca89`, the committed 0.63.2 preparation batch; workspace
+Local HEAD is `c73d5b71`, the committed 0.63.2 preparation batch; workspace
 metadata remains 0.63.1 and root/detail notes target 0.63.2 Unreleased.
 Host, Build and Testkit were consolidated through
 [PR #212](https://github.com/dragginzgame/ic-tooling/pull/212), retaining crate
@@ -40,20 +40,26 @@ of Tooling; Metrics/Persistence own consumer adoption.
 Focused Linux HTTP and memory tests, strict Clippy, Rustdoc, actual Rust 1.91
 native/Wasm checks, dependency graphs, pins and documentation links pass.
 Native macOS qualification remains outstanding for these local changes.
-The working tree changes are uncommitted; no version bump or publication ran.
+The implementation and Testkit graph correction are committed. The corrected
+MSRV fixture expectation and Shared refresh remain local. The incoming lockfile
+update to Platform 0.6.3 is preserved unchanged by the refresh.
 
 ## Existing contributions and qualification
 
-Shared snapshot remains 0.25.9 at `85aded191d85ac4a8c0e5deab207f6be18895862`.
-[PR #226](https://github.com/dragginzgame/ic-tooling/pull/226) owns optimizer-only
-setup and qualified Shared 0.26.2 adoption. [PR #229](https://github.com/dragginzgame/ic-tooling/pull/229)
-owns the ICP decoder. Both include their own pending notes; avoid duplicating
-implementations or the native setup regression when integrating. Both were open
-with native checks still running at inspection; no merge was performed.
+Local Shared snapshot is 0.26.2 at `1959ef75d0b86ed7725d41ae5056303d35eb633d`,
+exported from the exact qualified upstream commit. The optimizer-only routing
+from [PR #226](https://github.com/dragginzgame/ic-tooling/pull/226) is incorporated
+locally without duplicating its already-present native setup regression. That
+PR and upstream both passed native Linux, Intel and Apple Silicon matrices;
+these do not qualify this combined local tree. PR #226 remains open pending
+delivery/reconciliation; no merge or branch push ran. Refresh evidence and
+incoming dirty-file backups are under `/tmp/ic-tooling-refresh-0262`.
+[PR #229](https://github.com/dragginzgame/ic-tooling/pull/229) separately owns the
+ICP decoder; do not duplicate its implementation.
 
 For 0.63.1 `62ab46bf`, [main CI](https://github.com/dragginzgame/ic-tooling/actions/runs/39573097382)
-passed Linux and native Apple Silicon; native Intel was still running at the
-last review. Optimizer, browser and Testkit runtime matrices passed. These do
+passed Linux, native Apple Silicon and Intel. Optimizer, browser and Testkit
+runtime matrices passed. These do
 not qualify newer local changes. The earlier missing-Wasm-target failure was
 repaired in 0.63.1; its regression is included in local HEAD.
 

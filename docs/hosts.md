@@ -214,21 +214,20 @@ offline admission and optimization/execution smoke pass on Linux. Both native
 macOS setup/check jobs passed on Host 0.12.9
 ([Host #53](https://github.com/dragginzgame/ic-host-tooling/issues/53)); later
 changes retain their own qualification obligation.
-Host has no production optimizer invocation or canister build.
-The upstream Node-based optimizer smoke is not added to this Rust library's
-validation surface. Native producer optimizer qualification moves to IC Build in
-[Build PR #62](https://github.com/dragginzgame/ic-build/pull/62); integration and
-native acceptance of that contribution remain separate. Host selects neither
-the retired optimizer oracle nor the frozen Blob example-installation assessment.
+The consolidated workspace owns Build's native optimizer workflow, including
+original/transformed Wasm execution through its pinned Node runtime. Shared
+0.26.2 requires explicit IC executable selection: Make declares `IC_TOOLS :=
+wasm-opt`, and the workflow's direct offline check selects `--tool wasm-opt`.
+Host libraries themselves acquire no optimizer dependency.
 Pin changes use explicit IC setup, preserving old bundles, and need native
 acceptance independently of snapshot integrity.
 Shared 0.2.0 adoption removed its PocketIC rows while retaining the other tools.
 Host library gates have no PocketIC callers, so no simulator dependency or setup
 is added.
 Consumers that need a simulator use Testkit's qualified setup/check/run contract.
-The shared installer reads this one local five-tool matrix. Existing six-tool
-bundles fail the new offline check; explicit `make install-ic-tools` prepares
-the new selection while preserving previous bundles, receipts and failed evidence.
+The shared installer validates the complete catalog but installs only the
+selected wasm-opt executable. Explicit `make install-ic-tools` prepares this
+selection while preserving previous bundles, receipts and failed evidence.
 Tool reuse compares validated records, so comments and record order do not
 require downloads or replace installation provenance. Changed tool selections
 and malformed records still fail admission before executable checks.
