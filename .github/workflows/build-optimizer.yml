@@ -38,7 +38,7 @@ jobs:
         run: cargo fetch --locked 2>&1 | tee "$TMPDIR/dependencies-fetch.log"
       - name: Qualify native artifact transforms
         run: |
-          optimizer="$(bash scripts/dev/install-ic-tools.sh --check)"
+          optimizer="$(bash scripts/dev/install-ic-tools.sh --tool wasm-opt --check)"
           bash scripts/ci/qualify-wasm-opt.sh "$optimizer/wasm-opt" "$RUNNER_TEMP/wasm-qualification/optimizer"
       - name: Retain failed native qualification
         if: ${{ failure() && !cancelled() }}

@@ -13,6 +13,8 @@ workspace, deployed Testkit Wasm profiles and unsupported-filesystem compilation
 sequentially on Rust 1.91. Prepare that toolchain and its Wasm target first.
 
 Required hosts are Linux x86-64 and macOS 15 on Intel and Apple Silicon.
+Native CI explicitly adds `wasm32-unknown-unknown` to the declared development
+compiler after preparing it, before running the deployed Testkit profile checks.
 The FS package also owns the [native file CLI](file-cli.md). Its actual-executable
 fixture uses the focused command in that guide; native CI includes it through
 the existing package gate.
@@ -218,12 +220,13 @@ offline admission and optimization/execution smoke pass on Linux. Both native
 macOS setup/check jobs passed on Host 0.12.9
 ([Host #53](https://github.com/dragginzgame/ic-host-tooling/issues/53)); later
 changes retain their own qualification obligation.
-Host has no production optimizer invocation or canister build.
-The upstream Node-based optimizer smoke is not added to this Rust library's
-validation surface. Native producer optimizer qualification moves to IC Build in
-[Build PR #62](https://github.com/dragginzgame/ic-build/pull/62); integration and
-native acceptance of that contribution remain separate. Host selects neither
-the retired optimizer oracle nor the frozen Blob example-installation assessment.
+The consolidated repository owns Build's optimizer qualification in
+`.github/workflows/build-optimizer.yml`. It selects only `wasm-opt` through
+Make's `IC_TOOLS` and the direct installer's `--tool wasm-opt` admission.
+Native/release common setup remains independent of the IC executable target.
+Full failure retention keeps previous bundles, failed attempts and product
+evidence. The draft Shared 0.26.2 adoption must remain unintegrated until its
+producer and actual consumer native qualification pass.
 Pin changes use explicit IC setup, preserving old bundles, and need native
 acceptance independently of snapshot integrity.
 Shared 0.2.0 adoption removed its PocketIC rows while retaining the other tools.

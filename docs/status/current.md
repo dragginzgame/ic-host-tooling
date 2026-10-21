@@ -2,59 +2,61 @@
 
 ## Integrated workspace
 
-IC Tooling main is `c342bb281dc82ff8878c26b5f5449972e9f5341d` (0.63.0).
-Host, Build and Testkit were consolidated through
-[PR #212](https://github.com/dragginzgame/ic-tooling/pull/212), retaining crate
-boundaries and imported histories. Nine packages are public and two are private.
-Rust edition 2024 and MSRV 1.91 remain approved. See the
+This contribution is refreshed against main `62ab46bf` (0.63.1). Host, Build and
+Testkit were consolidated through [PR #212](https://github.com/dragginzgame/ic-tooling/pull/212),
+retaining crate boundaries and imported histories. Nine packages are public and
+two are private. Rust edition 2024 and MSRV 1.91 remain approved. See the
 [consolidation design](../design/tooling-consolidation.md) and
 [0.63 migration notes](../changelog/0.63.md).
 
-The delivered source includes Platform/macros 0.6.0, explicit principal features,
+Delivered 0.63 includes Platform/macros 0.6.0, explicit principal features,
 removal of Testkit-owned Candid APIs and its Metrics dependency, and optional
-Build/Testkit CLI features. Consumers of the binaries select `--features cli`.
-Native PocketIC retains transitive Candid; Testkit's Wasm graph remains Candid-free.
-The shared publication list and narrower runtime CI are also delivered.
-This records source delivery, not registry publication or downstream adoption.
+Build/Testkit CLI features. Binaries select `--features cli`. Native PocketIC
+retains transitive Candid; the Testkit Wasm graph remains Candid-free. The shared
+publication list and narrower runtime CI are also delivered. Source delivery
+does not establish registry publication or downstream adoption.
 
-## Shared tooling
+## Shared tooling adoption
 
-The snapshot is Shared 0.25.9 at `85aded191d85ac4a8c0e5deab207f6be18895862`.
-[PR #211](https://github.com/dragginzgame/ic-tooling/pull/211) overlaps this
-already-delivered adoption. Do not apply it a second time.
-[Draft #226](https://github.com/dragginzgame/ic-tooling/pull/226) contains the
-optimizer-only selection proposal. Its Shared successor requires qualification
-under [Shared #294](https://github.com/dragginzgame/shared-tooling/issues/294)
-before adoption; dirty sibling fixes are not a snapshot source.
+This draft selects committed Shared 0.26.2 at
+`1959ef75d0b86ed7725d41ae5056303d35eb633d` through its canonical exporter.
+Its [complete native producer matrix](https://github.com/dragginzgame/shared-tooling/actions/runs/39568135391)
+passed on Linux, Intel macOS and Apple Silicon; Shared #294 is closed.
+Build selects only `wasm-opt`; native/release host/Cargo/editor/server scope,
+product APIs and tool pins remain unchanged. Main's earlier 0.25.9 adoption from
+closed [PR #211](https://github.com/dragginzgame/ic-tooling/pull/211) is preserved.
 
-## Current validation and local repair
+[PR #226](https://github.com/dragginzgame/ic-tooling/pull/226) owns this adoption.
+Only unpublished contribution notes move to compatible 0.63.2; published 0.63.1
+notes and upstream package/lock versions are preserved. Normal merges retain the
+contribution history. Pending work in the maintainer checkout is not copied.
 
-The exact 0.63.0 [runtime matrix](https://github.com/dragginzgame/ic-tooling/actions/runs/39565694899)
-passed on Linux, macOS 15 Intel and Apple Silicon. Optimizer and browser workflows
-also passed. The [main CI run](https://github.com/dragginzgame/ic-tooling/actions/runs/39565694787)
-failed native Linux at the Wasm compile stage because the development toolchain
-lacked `wasm32-unknown-unknown`; native macOS was still running at inspection.
-MSRV and lint jobs passed. This is not a fully qualified release matrix.
+## Validation and remaining acceptance
 
-The local [#222 repair](https://github.com/dragginzgame/ic-tooling/issues/222)
-explicitly adds the Wasm target after preparing the file-selected compiler.
-Workflow lint, the explicit target command and focused Wasm builds pass locally.
-The local target was already installed, so this is not fresh-runner proof.
-Fresh hosted qualification is required after delivery. Notes target 0.63.1;
-package versions, refs and lockfile remain unchanged by this repair.
-Evidence is under `/tmp/ic-tooling-222`; the failed Linux log is
-`/tmp/ic-tooling-063-linux.log`.
+Main 0.63.1 already explicitly adds the development Wasm target after compiler
+setup. This contribution retains the same actual-workflow regression prepared
+under [#222](https://github.com/dragginzgame/ic-tooling/issues/222); do not add a
+second copy when reconciling the owner's pending work.
+The preceding PR head passed Linux native CI and all three optimizer, browser
+and PocketIC concurrency jobs. Those results do not qualify this refreshed head.
+Current-head consumer CI and maintainer integration remain required under
+[#224](https://github.com/dragginzgame/ic-tooling/issues/224).
 
-## Preservation and earlier evidence
+Focused Make/workflow routing, setup failure propagation, snapshot admission,
+shell/workflow lint and changed documentation checks qualify this contribution.
+They do not replace configured native CI, installed-product checks or release
+qualification. No full local suite, release or deployment is part of this work.
 
-Focused implementation evidence remains under `/tmp/ic-tooling-adoption`,
+## Preserved evidence
+
+Earlier focused implementation evidence remains under `/tmp/ic-tooling-adoption`,
 `/tmp/ic-tooling-cleanup`, `/tmp/ic-tooling-candid`, `/tmp/ic-tooling-platform-06`,
-`/tmp/ic-tooling-no-metrics` and `/tmp/ic-tooling-cli`. Product evidence and
-publication rejection fixtures passed again during issue review. Those local
-checks do not substitute for the current required hosted matrix.
+`/tmp/ic-tooling-no-metrics`, `/tmp/ic-tooling-cli` and `/tmp/ic-tooling-222`.
+The original missing-target run retains its own source and failure identity;
+no earlier run is relabelled as passed.
 
-Migration backups, full checkout archives and retirement evidence remain under
-`/tmp/ic-tooling-migration`, including `retirement/`. Source imports preserve
+Migration backups, complete checkout archives and retirement evidence remain
+under `/tmp/ic-tooling-migration`, including `retirement/`. Source imports preserve
 Host `c3f6f605`, Build `c84c64e4` and Testkit `29399a6e` ancestry. Git history does
 not establish migration or closure of old GitHub issues/PRs. Remote deletion,
-consumer release/publication and sibling edits remain separate decisions.
+consumer releases/publication and sibling edits remain separate decisions.

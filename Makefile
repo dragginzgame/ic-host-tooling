@@ -9,6 +9,7 @@ export SHARED_TOOLING_ROOT
 LOCAL_TOOL_INSTALL_TARGETS += install-release-editor install-server
 LOCAL_TOOL_CHECK_TARGETS += release-editor-check server-check
 include ci/tool-versions.env
+IC_TOOLS := wasm-opt
 include make/consumer.mk
 include make/testkit.mk
 export YQ := $(CURDIR)/.tools/host/bin/yq

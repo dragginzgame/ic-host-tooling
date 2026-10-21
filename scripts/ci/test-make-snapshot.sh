@@ -148,6 +148,10 @@ if [[ "$*" == *'--package ic-build'* ]]; then
     [[ "$*" == *'--bin ic-build-release-metadata --profile debug'* ]] || exit 1
     name=install-editor-tools.sh
 fi
+if [[ "$name" == install-ic-tools.sh ]]; then
+    [[ "$*" == *'--tool wasm-opt'* && "$*" != *'--tool ic-wasm'* ]] || exit 93
+    if [[ "${HOST_MAKE_OPTIMIZER_PATH:-}" != '' ]]; then printf '%s\n' "$HOST_MAKE_OPTIMIZER_PATH"; fi
+fi
 printf '%s %s\n' "$name" "$mode" >> "$HOST_MAKE_EVENTS"
 if [[ "${HOST_MAKE_TOOL_FAIL:-}" == "$name" && "${HOST_MAKE_TOOL_FAIL_MODE:-}" == "$mode" ]]; then exit 23; fi
 STUB
@@ -353,6 +357,52 @@ for document in docs/build/guide.md docs/testkit/guide.md docs/design/tooling-co
     if make --no-print-directory check-doc-links > "$fixture/docs-failure.log" 2>&1; then exit 1; fi
     grep -F "$document: missing local target missing-audit-target" "$fixture/docs-failure.log" >/dev/null
     printf '# Guide\n' > "$document"
+done
+# Qualify the optimizer's actual Make and workflow callers with no installations.
+: > "$HOST_MAKE_EVENTS"
+make --no-print-directory install-ic-tools ic-tools-check > "$fixture/optimizer-tools.log" 2>&1
+printf 'install-ic-tools.sh install\ninstall-ic-tools.sh check\n' > "$fixture/expected"
+cmp "$fixture/expected" "$HOST_MAKE_EVENTS"
+yq -o json '.' "$root/.github/workflows/build-optimizer.yml" | jq -er \
+    '.jobs["wasm-optimizer"].steps[] | select(.name == "Qualify native artifact transforms") | .run' > "$fixture/optimizer-step"
+cat > scripts/ci/qualify-wasm-opt.sh <<'STUB'
+#!/usr/bin/env bash
+set -euo pipefail
+[[ "$1" == "$HOST_MAKE_OPTIMIZER_PATH/wasm-opt" && "$2" == "$RUNNER_TEMP/wasm-qualification/optimizer" ]] || exit 94
+printf 'qualify optimizer\n' >> "$HOST_MAKE_EVENTS"
+STUB
+: > "$HOST_MAKE_EVENTS"
+HOST_MAKE_OPTIMIZER_PATH="$fixture/prepared optimizer" RUNNER_TEMP="$fixture" \
+    bash -e -o pipefail "$fixture/optimizer-step"
+printf 'install-ic-tools.sh check\nqualify optimizer\n' > "$fixture/expected"
+cmp "$fixture/expected" "$HOST_MAKE_EVENTS"
+# Execute native CI's compiler setup: rustup's implicit-toolchain install reads
+# rust-toolchain.toml and does not add the command-line target to that selection.
+yq -o json '.' "$root/.github/workflows/ci.yml" | jq -er \
+    '.jobs.native.steps[] | select(.name == "Prepare declared development compiler and Wasm target") | .run' > "$fixture/compiler-step"
+cat > "$fixture/local/rustup" <<'STUB'
+#!/usr/bin/env bash
+set -euo pipefail
+printf '%s\n' "$*" >> "$HOST_MAKE_EVENTS"
+if [[ "$1" == toolchain ]]; then exit "${HOST_MAKE_COMPILER_STATUS:-0}"; fi
+if [[ "$1" == target ]]; then exit "${HOST_MAKE_TARGET_STATUS:-0}"; fi
+exit 98
+STUB
+chmod +x "$fixture/local/rustup"
+for failed_step in none compiler target; do
+    : > "$HOST_MAKE_EVENTS"
+    compiler_status=0 target_status=0 expected_status=0
+    if [[ "$failed_step" == compiler ]]; then compiler_status=37 expected_status=37; fi
+    if [[ "$failed_step" == target ]]; then target_status=47 expected_status=47; fi
+    status=0
+    PATH="$fixture/local:$PATH" HOST_MAKE_COMPILER_STATUS="$compiler_status" \
+        HOST_MAKE_TARGET_STATUS="$target_status" bash -e -o pipefail "$fixture/compiler-step" || status=$?
+    [[ "$status" == "$expected_status" ]] || exit 1
+    printf 'toolchain install --profile minimal --no-self-update\n' > "$fixture/expected"
+    if [[ "$failed_step" != compiler ]]; then
+        printf 'target add wasm32-unknown-unknown\n' >> "$fixture/expected"
+    fi
+    cmp "$fixture/expected" "$HOST_MAKE_EVENTS"
 done
 echo 'Host Make snapshot routing and execution admission passed (substitute effects)'
 fixture_complete=true
