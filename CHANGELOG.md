@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.63.1] - Unreleased
+## [0.63.1] - 2026-10-21
 
 - Explicitly install the Wasm target for the declared development compiler before
   native CI ([#222](https://github.com/dragginzgame/ic-tooling/issues/222)).
