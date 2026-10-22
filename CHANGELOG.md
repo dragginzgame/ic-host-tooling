@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.64.0] - Unreleased
+## [0.64.0] - 2026-10-22
 
 - Adopt Shared Tooling 0.26.6: handle overlapping Cargo feature roots and harden
   retained validation/evidence failures. Ordinary hosted integration follows the
