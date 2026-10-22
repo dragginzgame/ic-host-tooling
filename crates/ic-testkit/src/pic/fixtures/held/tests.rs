@@ -30,14 +30,14 @@ fn validates_stateful_slots_and_opaque_page_spanning_replies() {
     let wasm = module(
         &methods,
         LIMITS,
-        "https://ic-testkit.invalid/test/",
-        50_000_000_000,
+        Some(("https://ic-testkit.invalid/test/", 50_000_000_000)),
+        None,
         100_000,
     )
     .unwrap();
     validate(&wasm, 100_000).unwrap();
     assert!(wasm.windows(large.len()).any(|bytes| bytes == large));
-    validate(&module(&[], LIMITS, "unused", 0, 10_000).unwrap(), 10_000).unwrap();
+    validate(&module(&[], LIMITS, None, None, 10_000).unwrap(), 10_000).unwrap();
 }
 
 #[test]
@@ -62,7 +62,7 @@ fn refuses_catalog_and_compiled_output_limits() {
         },
     ] {
         assert!(matches!(
-            module(&[method], limits, "unused", 0, 10_000),
+            module(&[method], limits, None, None, 10_000),
             Err(HeldReplyError::Catalog(RawReplyError::Budget { .. }))
         ));
     }
@@ -73,8 +73,8 @@ fn refuses_catalog_and_compiled_output_limits() {
                 ..method
             }],
             LIMITS,
-            "unused",
-            0,
+            None,
+            None,
             10_000
         ),
         Err(HeldReplyError::Query { slot: 0 })
@@ -84,8 +84,8 @@ fn refuses_catalog_and_compiled_output_limits() {
             module(
                 &[RawReplyMethod { name, ..method }],
                 LIMITS,
-                "unused",
-                0,
+                None,
+                None,
                 10_000
             ),
             Err(HeldReplyError::Catalog(RawReplyError::InvalidName {
@@ -94,9 +94,46 @@ fn refuses_catalog_and_compiled_output_limits() {
         ));
     }
     assert!(matches!(
-        module(&[method], LIMITS, "unused", 0, 1),
+        module(&[method], LIMITS, None, None, 1),
         Err(HeldReplyError::Compile(CompileError::ModuleLimit { .. }))
     ));
     let mut offset = usize::MAX;
     assert!(segment(&mut String::new(), &mut offset, b"x").is_err());
+}
+
+#[test]
+fn validates_cycle_caps_without_changing_existing_catalog_admission() {
+    let methods = [RawReplyMethod {
+        name: "paid",
+        mode: ReplyMode::Update,
+        reply: b"opaque\0\xff",
+    }];
+    for cap in [0, 1, 1 << 65, u128::MAX] {
+        for barrier in [
+            None,
+            Some(("https://ic-testkit.invalid/test/", 50_000_000_000)),
+        ] {
+            let wasm = module(&methods, LIMITS, barrier, Some(cap), 10_000).unwrap();
+            validate(&wasm, 10_000).unwrap();
+            assert!(
+                wasm.windows(20)
+                    .any(|bytes| bytes == b"msg_cycles_accept128")
+            );
+        }
+    }
+    for limits in [
+        RawReplyLimits {
+            methods: 0,
+            ..LIMITS
+        },
+        RawReplyLimits {
+            reply_bytes: 0,
+            ..LIMITS
+        },
+    ] {
+        assert!(matches!(
+            module(&methods, limits, None, Some(0), 10_000),
+            Err(HeldReplyError::Catalog(RawReplyError::Budget { .. }))
+        ));
+    }
 }

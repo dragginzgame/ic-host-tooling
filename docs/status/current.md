@@ -1,5 +1,34 @@
 # Current handoff
 
+## Bounded cycle-accepting fixtures for 0.64.2
+
+Release main is 0.64.1 at `082aba308571bce742985f8ae7916e013ca9ec12`.
+[#235 — Testkit: bounded cycle acceptance in controlled provider reply fixtures](https://github.com/dragginzgame/ic-tooling/issues/235)
+is implemented locally with additive APIs under existing `held-reply-fixtures`:
+`pic::fixtures::cycle_reply_canister` and
+`HeldReplyFixture::new_with_cycle_acceptance`. They share the finite update-slot
+generator; each slot accepts at most the explicit cap, including zero. Existing
+constructors retain zero acceptance. No dependency or release version changed;
+the incoming Wire 0.5.22 lock edit is preserved byte-for-byte.
+
+Actual IC acceptance commits in the original update. A held barrier confirms
+that commit; release returns the original bytes without accepting again. A later
+timeout/rejection preserves earlier accepted cycles. Traps roll back uncommitted
+effects. Unknown/exhausted invocations accept nothing. Product reply semantics,
+authorization, journal correlation, funding and recovery remain consumer-owned.
+
+On Linux, development Rust 1.99.1 and actual Rust 1.91 pass six focused fixture
+admission/full-validation cases and five installed cases. New proofs cover exact
+zero/partial/full acceptance, callback refunds and both balances on a fee-free
+system subnet; normal application-subnet refunds; raw success/error/malformed
+bytes; exhaustion; held out-of-order release and timeout after acceptance. Existing
+held ordering/token cases remain passing. Strict all-target Testkit Clippy,
+warning-denied Rustdoc and native/deployed feature/graph checks pass. Focused
+evidence is retained under `/tmp/ic-tooling-235`. No fresh native macOS, consumer
+funding-journal or live-provider acceptance is claimed. Existing all-feature
+native CI owns the new target on all three hosts after delivery. No commits,
+pushes, publication, release or sibling edits ran; 0.64.2 notes are prepared.
+
 ## Qualification fixture repair
 
 The maintainer committed held-reply preparation at `b6cc3f09` (manifest still

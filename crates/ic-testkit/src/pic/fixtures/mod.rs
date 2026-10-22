@@ -9,6 +9,28 @@ use thiserror::Error;
 #[cfg(feature = "held-reply-fixtures")]
 pub mod held;
 
+/// Build bounded single-use updates accepting at most `accept_cycles` per call.
+///
+/// Requires `held-reply-fixtures` for Host's native WAT compiler. Each catalog
+/// entry is one invocation; repeated names consume entries in order. Query slots
+/// refuse. All original raw bytes, name/reply limits and fixed memory are retained.
+/// The cap is explicit, including zero, and applies independently to every slot.
+/// Actual IC acceptance is `min(available, cap)` immediately before replying;
+/// unaccepted cycles refund via the caller's callback. Exhaustion rejects without
+/// accepting. Construction/installation alone performs no acceptance or funding.
+/// Reply bytes have no interpretation: malformed/error payloads still follow
+/// acceptance. IC traps roll back uncommitted acceptance. Consumers own application
+/// accounting, retry and recovery policy.
+#[cfg(feature = "held-reply-fixtures")]
+pub fn cycle_reply_canister(
+    methods: &[RawReplyMethod<'_>],
+    limits: RawReplyLimits,
+    accept_cycles: u128,
+    module_bytes: usize,
+) -> Result<Vec<u8>, held::HeldReplyError> {
+    held::module(methods, limits, None, Some(accept_cycles), module_bytes)
+}
+
 ///
 /// ReplyMode
 ///

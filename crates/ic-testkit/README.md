@@ -223,6 +223,40 @@ external Candid HTTP interface; application replies remain uninterpreted. Host's
 WAT compiler is selected only by this feature. Deployed Wasm graphs contain none
 of these native fixture, encoder, Host or Candid dependencies.
 
+### Cycle-accepting provider replies
+
+Enable `held-reply-fixtures` and supply an explicit `u128` acceptance cap:
+
+- `pic::fixtures::cycle_reply_canister(methods, limits, accept_cycles, module_bytes)`
+  generates immediate replies.
+- `HeldReplyFixture::new_with_cycle_acceptance(pic, canister, methods, limits,
+  call_cycles, accept_cycles, module_bytes)` adds acceptance to the existing held
+  controller. `call_cycles` funds its HTTP barrier independently of acceptance.
+
+Use update-only `RawReplyMethod` slots with caller-owned raw reply bytes and
+`RawReplyLimits`. Each slot is one admitted invocation, including repeated method
+names; the same cap applies independently to each slot. Actual IC acceptance is
+`min(attached_available, accept_cycles)`. Zero explicitly accepts nothing; a cap
+above the available amount accepts only what was attached. Exhaustion rejects
+before acceptance. Construction and installation accept nothing. Existing
+`raw_reply_canister` and `HeldReplyFixture::new` continue accepting no cycles.
+
+Immediate acceptance commits with the reply. For held responses, acceptance
+commits in the original update before the HTTP barrier is observable. Releasing
+the slot only returns its original bytes; it never accepts more cycles. A later
+HTTP timeout/rejection does not undo that earlier committed acceptance. Traps
+roll back uncommitted updates. Unaccepted cycles refund through the actual IC
+callback; malformed/application-error reply bytes do not undo acceptance either.
+Keep reply decoding, accounting, authorization, duplicate-payment prevention and
+recovery policy in the consumer. The held lifecycle restrictions above still apply.
+
+Native qualification reads actual callback refunds and both canister balances.
+System-subnet tests isolate exact transfers from execution fees; a separate
+application-subnet case proves the same refund path with normal fees. Gross
+application-subnet balance deltas also include execution/transport/HTTP costs.
+These fixtures never mint cycles or fund/dispatch a live provider automatically.
+No new dependency is selected, and deployed Wasm graphs remain unchanged.
+
 ## Toolchains and checks
 
 Testkit is part of the IC Tooling workspace. Use the root

@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.64.2] - Unreleased
+
+- Add bounded cycle acceptance to native provider reply fixtures, with immediate
+  or explicitly held replies and real IC refunds. Consumers select the cap and
+  raw reply bytes; existing fixtures retain their non-accepting behavior
+  ([#235 — Testkit: bounded cycle acceptance in controlled provider reply fixtures](https://github.com/dragginzgame/ic-tooling/issues/235)).
+  [Usage and timing](crates/ic-testkit/README.md#cycle-accepting-provider-replies).
+
 ## [0.64.1] - 2026-10-22
 
 - Add bounded, explicitly released provider replies for deterministic installed

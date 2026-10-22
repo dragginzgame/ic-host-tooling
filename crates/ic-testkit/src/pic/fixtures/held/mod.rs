@@ -104,6 +104,7 @@ impl HeldReplyFixture {
     /// `limits.methods` bounds lifetime request slots, including repeated names;
     /// reply/name byte limits sum every slot. `module_bytes` bounds compiled Wasm.
     /// No server, canister, installation, funding or tool download is created.
+    /// This constructor never accepts attached cycles.
     pub fn new(
         pic: &PocketIc,
         canister: Principal,
@@ -112,9 +113,63 @@ impl HeldReplyFixture {
         call_cycles: u128,
         module_bytes: usize,
     ) -> Result<Self, HeldReplyError> {
+        Self::build(
+            pic,
+            canister,
+            methods,
+            limits,
+            call_cycles,
+            None,
+            module_bytes,
+        )
+    }
+
+    /// Generate held replies accepting at most `accept_cycles` per admitted call.
+    ///
+    /// Zero accepts nothing. Acceptance is `min(available, cap)` in the original
+    /// update, before its HTTP barrier. It commits with that update; observing the
+    /// barrier confirms the commit. Later timeout/rejection does not undo it; the
+    /// remainder refunds through the real IC callback path. A call-setup trap rolls
+    /// back the update. Construction/installation alone accepts nothing. The cap
+    /// applies separately to each slot; HTTP barrier funding is independent.
+    pub fn new_with_cycle_acceptance(
+        pic: &PocketIc,
+        canister: Principal,
+        methods: &[RawReplyMethod<'_>],
+        limits: RawReplyLimits,
+        call_cycles: u128,
+        accept_cycles: u128,
+        module_bytes: usize,
+    ) -> Result<Self, HeldReplyError> {
+        Self::build(
+            pic,
+            canister,
+            methods,
+            limits,
+            call_cycles,
+            Some(accept_cycles),
+            module_bytes,
+        )
+    }
+
+    fn build(
+        pic: &PocketIc,
+        canister: Principal,
+        methods: &[RawReplyMethod<'_>],
+        limits: RawReplyLimits,
+        call_cycles: u128,
+        accept_cycles: Option<u128>,
+        module_bytes: usize,
+    ) -> Result<Self, HeldReplyError> {
         manual(pic)?;
         let prefix = format!("https://ic-testkit.invalid/held/{canister}/");
-        let wasm = module(methods, limits, &prefix, call_cycles, module_bytes)?;
+        let wasm = module(
+            methods,
+            limits,
+            Some((&prefix, call_cycles)),
+            accept_cycles,
+            module_bytes,
+        )?;
         Ok(Self {
             wasm,
             server: pic.get_server_url().to_string(),
@@ -197,11 +252,11 @@ fn manual(pic: &PocketIc) -> Result<(), HeldReplyError> {
     Ok(())
 }
 
-fn module(
+pub(super) fn module(
     methods: &[RawReplyMethod<'_>],
     limits: RawReplyLimits,
-    prefix: &str,
-    cycles: u128,
+    barrier: Option<(&str, u128)>,
+    accept_cycles: Option<u128>,
     module_bytes: usize,
 ) -> Result<Vec<u8>, HeldReplyError> {
     let exports = admit_catalog(methods, limits)?;
@@ -216,7 +271,13 @@ fn module(
 (import "ic0" "call_perform" (func $perform (result i32)))
 "#,
     );
-    let mut offset = 0;
+    if accept_cycles.is_some() {
+        source.push_str(
+            "(import \"ic0\" \"msg_cycles_accept128\" (func $accept (param i64 i64 i32)))\n",
+        );
+    }
+    // Keep the aligned acceptance-result scratch separate from immutable replies.
+    let mut offset = if accept_cycles.is_some() { 16 } else { 0 };
     let failure = segment(&mut source, &mut offset, b"held reply barrier failed")?;
     let exhausted = segment(&mut source, &mut offset, b"held reply slots exhausted")?;
     let http = segment(&mut source, &mut offset, b"http_request")?;
@@ -226,41 +287,34 @@ fn module(
     )
     .unwrap();
     for (slot, method) in methods.iter().enumerate() {
-        let request = encode_one(HttpRequestArgs {
-            url: format!("{prefix}{slot}"),
-            max_response_bytes: Some(256),
-            method: HttpMethod::GET,
-            headers: vec![],
-            body: Some((slot as u64).to_le_bytes().to_vec()),
-            transform: None,
-            is_replicated: Some(true),
-            pricing_version: None,
-        })
-        .map_err(|error| HeldReplyError::Management(error.to_string()))?;
-        let payload = segment(&mut source, &mut offset, &request)?;
         let reply = segment(&mut source, &mut offset, method.reply)?;
+        let sending = if let Some(barrier) = barrier {
+            barrier_call(&mut source, &mut offset, barrier, http, slot)?
+        } else {
+            format!("(call $reply{slot} (i32.const 0))")
+        };
         writeln!(
             source,
             r"
 (global $used{slot} (mut i32) (i32.const 0))
 (func $reply{slot} (param i32)
  (call $append (i32.const {reply}) (i32.const {reply_len})) (call $reply))
-(func $send{slot}
- (call $new (i32.const 0) (i32.const 0) (i32.const {http}) (i32.const 12)
-  (i32.const {callback}) (i32.const 0) (i32.const 0) (i32.const 0))
- (call $cycles (i64.const {high}) (i64.const {low}))
- (call $data (i32.const {payload}) (i32.const {payload_len}))
- (if (call $perform) (then unreachable)))
-",
-            reply_len = method.reply.len(),
-            callback = slot + 1,
-            high = u64::try_from(cycles >> 64).unwrap().cast_signed(),
-            low = u64::try_from(cycles & u128::from(u64::MAX))
-                .unwrap()
-                .cast_signed(),
-            payload_len = request.len()
+(func $send{slot}",
+            reply_len = method.reply.len()
         )
         .unwrap();
+        if let Some(cap) = accept_cycles {
+            let high = u64::try_from(cap >> 64).unwrap().cast_signed();
+            let low = u64::try_from(cap & u128::from(u64::MAX))
+                .unwrap()
+                .cast_signed();
+            writeln!(
+                source,
+                "(call $accept (i64.const {high}) (i64.const {low}) (i32.const 0))"
+            )
+            .unwrap();
+        }
+        writeln!(source, "{sending})").unwrap();
     }
     for (name, slots) in exports {
         let export = escaped(format!("canister_update {name}").as_bytes());
@@ -287,6 +341,42 @@ fn module(
             module_bytes,
         },
     )?)
+}
+
+fn barrier_call(
+    source: &mut String,
+    offset: &mut usize,
+    (prefix, cycles): (&str, u128),
+    http: usize,
+    slot: usize,
+) -> Result<String, HeldReplyError> {
+    let request = encode_one(HttpRequestArgs {
+        url: format!("{prefix}{slot}"),
+        max_response_bytes: Some(256),
+        method: HttpMethod::GET,
+        headers: vec![],
+        body: Some((slot as u64).to_le_bytes().to_vec()),
+        transform: None,
+        is_replicated: Some(true),
+        pricing_version: None,
+    })
+    .map_err(|error| HeldReplyError::Management(error.to_string()))?;
+    let payload = segment(source, offset, &request)?;
+    Ok(format!(
+        r"
+ (call $new (i32.const 0) (i32.const 0) (i32.const {http}) (i32.const 12)
+  (i32.const {callback}) (i32.const 0) (i32.const 0) (i32.const 0))
+ (call $cycles (i64.const {high}) (i64.const {low}))
+ (call $data (i32.const {payload}) (i32.const {payload_len}))
+ (if (call $perform) (then unreachable))
+",
+        callback = slot + 1,
+        high = u64::try_from(cycles >> 64).unwrap().cast_signed(),
+        low = u64::try_from(cycles & u128::from(u64::MAX))
+            .unwrap()
+            .cast_signed(),
+        payload_len = request.len()
+    ))
 }
 
 fn admit_catalog<'a>(
