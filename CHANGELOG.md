@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.64.1] - Unreleased
+## [0.64.1] - 2026-10-22
 
 - Add bounded, explicitly released provider replies for deterministic installed
   callback-race tests. Calls retain their original reply bytes while unrelated
