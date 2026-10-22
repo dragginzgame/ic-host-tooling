@@ -1,5 +1,44 @@
 # Current handoff
 
+## Verified outstanding issue status
+
+The checkout is at local `c22829981a0ae5ec022450151c20ab955c25cfd9`, one commit
+ahead of tracked origin/main. Package versions remain 0.64.1. Earlier preparation
+records below are superseded by the following delivery/qualification evidence.
+
+[#234 — Testkit: support controllable held replies for installed callback-race tests](https://github.com/dragginzgame/ic-tooling/issues/234)
+is closed as completed: released source `082aba30` now passes
+[CI](https://github.com/dragginzgame/ic-tooling/actions/runs/39797850833), including
+Linux/MSRV and independently native macOS 15 Intel and Apple Silicon. Testkit
+runtime, Build optimizer and browser workflows also pass. Canic's published
+0.64.1 fixture proof covers cancellation/revocation in both managed compositions;
+its own default-branch product integration remains with Canic #622.
+
+Cycle acceptance under #235 is already implemented in local `c2282998`, with
+pending 0.64.2 notes. Refreshed checks against the separate incoming Platform
+0.6.8 lock selection pass six fixture and five installed cases on development
+Rust and Rust 1.91, strict all-target Testkit Clippy and native/deployed graph/Wasm
+checks. The lock edit is preserved byte-for-byte. Follow-up installed coverage
+proves barrier-setup traps roll back acceptance and slot consumption, then the
+original slot succeeds after correcting funding without reinstalling. That case
+passes on both compilers; evidence is under `/tmp/ic-tooling-235-rollback`.
+The earlier focused evidence remains under `/tmp/ic-tooling-outstanding`.
+No production API changed. New cycle-source native macOS,
+delivery/publication and Canic funding-journal acceptance remain separate.
+
+All seven consumers named by #233 now select 0.64 on their inspected default
+branches. Qualification is still incomplete: Relay's inspected jobs are pending,
+Blob's Linux job was cancelled, and Canic preflight fails its own offline-cache,
+obsolete Build-tool fixture selection and validation command-order expectations.
+Exact commits, job links and failure causes are recorded on #233. No sibling
+source was changed or pending/cancelled/skipped check presented as passing.
+
+#225 now has a precise supplier prerequisite: IC Wire #17 must publish native
+Serde metadata projection before Canic #613 can supply the selected endpoint
+sidecar/identity contract. The current Canic document is a local design contract,
+not a working schema producer. Build must not invent a parallel schema catalogue.
+The owning issues retain these obligations; no release or publication ran here.
+
 ## Bounded cycle-accepting fixtures for 0.64.2
 
 Release main is 0.64.1 at `082aba308571bce742985f8ae7916e013ca9ec12`.

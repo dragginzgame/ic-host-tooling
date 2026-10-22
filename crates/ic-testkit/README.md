@@ -244,8 +244,9 @@ before acceptance. Construction and installation accept nothing. Existing
 Immediate acceptance commits with the reply. For held responses, acceptance
 commits in the original update before the HTTP barrier is observable. Releasing
 the slot only returns its original bytes; it never accepts more cycles. A later
-HTTP timeout/rejection does not undo that earlier committed acceptance. Traps
-roll back uncommitted updates. Unaccepted cycles refund through the actual IC
+HTTP timeout/rejection does not undo that earlier committed acceptance. A trap
+before the barrier commits rolls back acceptance and leaves the slot unused.
+Unaccepted cycles refund through the actual IC
 callback; malformed/application-error reply bytes do not undo acceptance either.
 Keep reply decoding, accounting, authorization, duplicate-payment prevention and
 recovery policy in the consumer. The held lifecycle restrictions above still apply.

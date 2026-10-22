@@ -87,6 +87,73 @@ fn installed_zero_partial_full_acceptance_preserves_bytes_refunds_and_balances()
 }
 
 #[test]
+fn barrier_setup_trap_rolls_back_acceptance_and_slot_consumption() {
+    let owned = support::startup_config()
+        .build_instance(PocketIcBuilder::new().with_system_subnet())
+        .unwrap();
+    let pic = &owned.instance;
+    let provider = funded(pic);
+    let destination = pic.cycle_balance(provider);
+    // More than the provider can send even after accepting the attached cycles.
+    let barrier_cycles = destination + ATTACHED + BARRIER_CYCLES;
+    let mut fixture = HeldReplyFixture::new_with_cycle_acceptance(
+        pic,
+        provider,
+        &methods(),
+        LIMITS,
+        barrier_cycles,
+        3_000,
+        10_000,
+    )
+    .unwrap();
+    pic.install_canister(provider, fixture.wasm().to_vec(), vec![], None);
+    let consumer = install_consumer(pic, provider);
+    let source = pic.cycle_balance(consumer);
+    let result = pic
+        .update_call(
+            consumer,
+            Principal::anonymous(),
+            "send",
+            ATTACHED.to_le_bytes().to_vec(),
+        )
+        .unwrap();
+    assert_eq!(
+        u128::from_le_bytes(result[..16].try_into().unwrap()),
+        ATTACHED
+    );
+    assert_ne!(u32::from_le_bytes(result[16..20].try_into().unwrap()), 0);
+    assert_eq!(pic.cycle_balance(consumer), source);
+    assert_eq!(pic.cycle_balance(provider), destination);
+    assert_eq!(fixture.pending(pic).unwrap(), []);
+
+    // Repair only the funding, retaining the installed module and its state.
+    pic.add_cycles(provider, barrier_cycles);
+    let call = pic
+        .submit_call(
+            consumer,
+            Principal::anonymous(),
+            "send",
+            ATTACHED.to_le_bytes().to_vec(),
+        )
+        .unwrap();
+    let mut pending = vec![];
+    for _ in 0..20 {
+        pic.tick();
+        pending = fixture.pending(pic).unwrap();
+        if !pending.is_empty() {
+            break;
+        }
+    }
+    assert_eq!(pending.len(), 1);
+    assert_eq!(pending[0].slot(), 0, "the trapped update consumed no slot");
+    assert_eq!(pic.cycle_balance(provider), destination + 3_000);
+    fixture.release(pic, &pending[0]).unwrap();
+    let result = pic.await_call(call).unwrap();
+    assert_result(&result, ATTACHED - 3_000, false, REPLIES[0]);
+    assert_eq!(pic.cycle_balance(consumer), source - 3_000);
+}
+
+#[test]
 fn held_acceptance_commits_before_release_and_survives_timeout() {
     let owned = support::startup_config()
         .build_instance(PocketIcBuilder::new().with_system_subnet())
