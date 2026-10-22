@@ -1,5 +1,38 @@
 # Current handoff
 
+## Held provider replies for 0.64.1
+
+Main is release 0.64.0, `036da0cdf3d3b35297fbc26031e373f386a2f2de`.
+Its [native CI](https://github.com/dragginzgame/ic-tooling/actions/runs/39753592846)
+and [Testkit runtime](https://github.com/dragginzgame/ic-tooling/actions/runs/39753593052)
+passed Linux x86-64 and, independently, native macOS 15 Intel and Apple Silicon.
+Those results qualify released source, not the new local fixture below.
+
+[#234 — Testkit: support controllable held replies for installed callback-race tests](https://github.com/dragginzgame/ic-tooling/issues/234)
+is implemented locally with native opt-in `held-reply-fixtures`. Single-use
+bounded update slots retain immutable original replies and real call contexts
+behind PocketIC manual HTTP barriers. Exact tokens bind fixture, request, subnet,
+server and instance. Release can be out of order; unknown/repeated/foreign tokens,
+slot reuse and automatic progress refuse. Timeout rejects without releasing the
+original bytes. Installation, funding, manual progress and teardown stay caller-owned.
+See [usage/lifecycle](../../crates/ic-testkit/README.md#held-provider-replies).
+
+Linux evidence is retained at `/tmp/ic-tooling-234`: focused fixture admission
+and full Wasm validation, real installed inter-canister ordering/identity and
+timeout/foreign-token proofs, strict Clippy, Rustdoc and deployed graph checks.
+The same focused cases run on actual Rust 1.91; native macOS qualification of
+this new source remains outstanding. Existing all-feature native CI owns it.
+No release, commit, push or sibling edit is part of this change. The incoming
+Wire lock edits remain preserved; the task adds Platform's external management
+type selection without upgrading existing selections. Native management Candid
+is required by this barrier; no application codec or deployed dependency is added.
+
+Canic adoption and both mounted callback-race cases remain with its owning issue,
+linked from #234. #233 now tracks consumer migration only; #225 still needs the
+concrete contract from Canic #613. The older preparation records below describe
+prior local evidence; the released source/qualification above supersedes their
+then-pending delivery and host status.
+
 ## Shared Tooling 0.26.6 adoption
 
 The maintainer committed the 0.64 preparation at `41b1dadb` before this refresh;
@@ -7,7 +40,7 @@ the checkout was clean. The canonical exporter now records Shared Tooling 0.26.6
 at `4cb9bc907154225a3f7e4c33fd8d75fbeaa125c8`, retaining the previous roots and
 adding `audits/ci-release-integrity.md`. All 137 payloads verify against the new
 manifest. Host/Rust/IC pins, package versions and Cargo.lock are unchanged.
-The snapshot, local baseline pointer and adoption notes remain uncommitted.
+The snapshot, local baseline pointer and adoption notes shipped in 0.64.0.
 
 Focused Linux checks pass for shell syntax/ShellCheck, local documentation links,
 real overlapping Testkit/probe feature graphs on development Cargo and Cargo
@@ -26,9 +59,9 @@ portable regression. Native macOS 15 Intel is still running at the closing
 inspection; the full workflow remains pending and is not claimed as passing.
 No fresh native macOS consumer qualification is claimed.
 
-## Prepared 0.64 workspace hard cut
+## 0.64 workspace hard-cut preparation evidence
 
-The maintainer expanded the cleanup review to the whole workspace. Pending
+The maintainer expanded the cleanup review to the whole workspace. Released
 [0.64 migration notes](../changelog/0.64.md) cover dependency/helper ownership
 under [#233 — Remove duplicate dependency facades and policy types for 0.64](https://github.com/dragginzgame/ic-tooling/issues/233)
 and decoder admission under
@@ -92,8 +125,8 @@ Evidence: `/tmp/ic-tooling-cleanup-audit5`.
 
 ## Integrated workspace
 
-Delivered main is release 0.63.3, `966dbfed90dca14dbc85dd88870c1f00327341ac`,
-tagged `v0.63.3`. The committed lockfile selects Wire 0.5.19 and PocketIC 16.1.0;
+Delivered main is release 0.64.0, `036da0cdf3d3b35297fbc26031e373f386a2f2de`,
+tagged `v0.64.0`. The committed lockfile selects Wire 0.5.20 and PocketIC 16.1.0;
 Testkit's provisioned server pin is also 16.1.0. The earlier release-preparation
 blockers are superseded. The working-tree lockfile has a separate incoming edit.
 Host, Build and Testkit were consolidated through

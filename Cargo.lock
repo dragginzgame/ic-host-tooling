@@ -1672,6 +1672,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "ic-management-canister-types"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b3e3162bdfbdbc6ca3b4bfa8145f9ba19cddaf3eb8d1af8dc7be6a39557b76c2"
+dependencies = [
+ "candid",
+ "serde",
+ "serde_bytes",
+]
+
+[[package]]
 name = "ic-platform"
 version = "0.6.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1684,6 +1695,7 @@ dependencies = [
  "ic-agent",
  "ic-cdk-executor",
  "ic-certification",
+ "ic-management-canister-types 0.11.0",
  "ic-platform-macros",
  "ic-stable-structures",
  "ic0",
@@ -1803,9 +1815,9 @@ dependencies = [
 
 [[package]]
 name = "ic-wire"
-version = "0.5.20"
+version = "0.5.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "464647587a47610157b1627d604b65bf6314b01638fa2eb4c638cd83ae7008c2"
+checksum = "99498b2192a95dddcd61427d23de41d295563a42bd5143261b8e6882ce373c8d"
 dependencies = [
  "ic-wire-derive",
  "postcard",
@@ -1814,9 +1826,9 @@ dependencies = [
 
 [[package]]
 name = "ic-wire-derive"
-version = "0.5.20"
+version = "0.5.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0142e739eae4a5d32b5bd36e97fd2dcc4e77e7782dd80c36d10f7de9b7e60db1"
+checksum = "c90c97aa90b6b3d79991def671dfa11b3795bc61efa867328d4b245e8458f93b"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2670,7 +2682,7 @@ dependencies = [
  "flate2",
  "hex",
  "ic-certification",
- "ic-management-canister-types",
+ "ic-management-canister-types 0.8.0",
  "ic-transport-types",
  "reqwest",
  "schemars",

@@ -12,10 +12,10 @@ server-check:
 	@test -x "$(SERVER_CLI)" || { echo 'Run make install-server during explicit setup.' >&2; exit 1; }
 	"$(SERVER_CLI)" check
 testkit-wasm-check:
-	+cargo check -p ic-testkit -p ic-testkit-native --features ic-testkit/reply-fixtures,ic-testkit-native/stable-memory --locked --offline --target wasm32-unknown-unknown
+	+cargo check -p ic-testkit -p ic-testkit-native --features ic-testkit/held-reply-fixtures,ic-testkit-native/stable-memory --locked --offline --target wasm32-unknown-unknown
 	+cargo check -p ic-testkit-perf-probe --locked --offline --target wasm32-unknown-unknown
 testkit-msrv:
-	+cargo +$(MSRV) check -p ic-testkit -p ic-testkit-native --features ic-testkit/reply-fixtures,ic-testkit-native/stable-memory --locked --offline --target wasm32-unknown-unknown
+	+cargo +$(MSRV) check -p ic-testkit -p ic-testkit-native --features ic-testkit/held-reply-fixtures,ic-testkit-native/stable-memory --locked --offline --target wasm32-unknown-unknown
 	+cargo +$(MSRV) check -p ic-testkit-perf-probe --locked --offline --target wasm32-unknown-unknown
 testkit-browser-check:
 	node --test testing/browser/session.test.mjs
@@ -40,7 +40,14 @@ testkit-graph-check:
 			--require ic-platform=1 --require ic-stable-structures=1 \
 			--forbid-pattern '^(?!ic-testkit-native$$|ic-platform$$|ic-stable-structures$$|ic_principal$$)'; \
 		perl scripts/ci/check-cargo-graph.pl $(TESTKIT_CARGO_GRAPH_POLICY) \
-			--package ic-testkit --target "$$host" --forbid clap --forbid ic-wire --forbid ic-cdk-executor --require pocket-ic=1; \
+			--package ic-testkit --target "$$host" --forbid clap --forbid ic-wire --forbid ic-cdk-executor --require pocket-ic=1 \
+			--forbid wat --forbid wast --forbid wasm-encoder; \
+		perl scripts/ci/check-cargo-graph.pl $(TESTKIT_CARGO_GRAPH_POLICY) \
+			--package ic-testkit --target "$$host" --features reply-fixtures \
+			--require wasm-encoder=1 --forbid wat --forbid wast; \
+		perl scripts/ci/check-cargo-graph.pl $(TESTKIT_CARGO_GRAPH_POLICY) \
+			--package ic-testkit --target "$$host" --features held-reply-fixtures \
+			--require wat=1 --require wast=1 --require wasm-encoder=1; \
 		perl scripts/ci/check-cargo-graph.pl $(TESTKIT_CARGO_GRAPH_POLICY) \
 			--package ic-testkit --target "$$host" --all-features \
 			--require clap=1 --require ic-wire=1 --forbid ic-cdk-executor --require pocket-ic=1; \
@@ -55,6 +62,7 @@ testkit-graph-check:
 	perl scripts/ci/check-cargo-graph.pl $(TESTKIT_CARGO_GRAPH_POLICY) --package ic-testkit \
 		--target wasm32-unknown-unknown --all-features --forbid-pattern '^ic-host-' \
 		--forbid candid --forbid candid_derive --forbid pocket-ic --forbid ic-wire --forbid clap \
+		--forbid wat --forbid wast --forbid wasm-encoder --forbid wasmparser --forbid ic-management-canister-types \
 		--forbid ic-platform-macros --forbid ic-cdk-executor --require ic0=1
 	perl scripts/ci/check-cargo-graph.pl $(TESTKIT_CARGO_GRAPH_POLICY) --package ic-testkit-perf-probe \
 		--target wasm32-unknown-unknown --forbid-pattern '^ic-host-' \

@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.64.1] - Unreleased
+
+- Add bounded, explicitly released provider replies for deterministic installed
+  callback-race tests. Calls retain their original reply bytes while unrelated
+  ingress commits; unknown and repeated releases refuse
+  ([#234 — Testkit: support controllable held replies for installed callback-race tests](https://github.com/dragginzgame/ic-tooling/issues/234)).
+  [Usage and lifecycle](crates/ic-testkit/README.md#held-provider-replies).
+
 ## [0.64.0] - 2026-10-22
 
 - Adopt Shared Tooling 0.26.6: handle overlapping Cargo feature roots and harden

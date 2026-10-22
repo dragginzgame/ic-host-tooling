@@ -22,6 +22,7 @@ required-features = ["cli"]
 default = []
 cli = ["dep:clap"]
 reply-fixtures = ["ic-host-artifacts/wasm-encoding"]
+held-reply-fixtures = ["reply-fixtures", "ic-host-artifacts/wasm-text"]
 wire = ["dep:ic-wire", "dep:serde"]
 
 [dependencies]
@@ -35,7 +36,8 @@ clap = { workspace = true, features = ["string"], optional = true }
 ic-host-artifacts = { workspace = true, features = ["gzip"] }
 ic-host-fs = { workspace = true }
 ic-host-process = { workspace = true }
-ic-platform = { workspace = true, features = ["pocket-ic"] }
+# Held fixtures adapt the external management HTTP protocol on native targets only.
+ic-platform = { workspace = true, features = ["pocket-ic", "candid", "management-canister-types"] }
 ic-wire = { workspace = true, optional = true }
 serde = { workspace = true, optional = true }
 thiserror = { workspace = true }

@@ -223,6 +223,24 @@ encoder. Host owns binary sections and instructions through its private encoder;
 Testkit retains simulator installation and lifecycle policy. Platform continues
 to own the Candid/CDK/PocketIC boundary.
 
+The optional native `held-reply-fixtures` feature additionally selects Host's
+`wasm-text` compiler for stateful single-use callbacks. Platform's native Candid
+encoder and management types encode the required external HTTP barrier protocol;
+application replies remain raw. The controller uses PocketIC's manual HTTP mock
+facility, without real network access. Use manual progress and fixed simulated
+time; never reinstall/restore with pending calls. See
+[held provider replies](../../crates/ic-testkit/README.md#held-provider-replies)
+for exact-request release, timeout, exhaustion and teardown behavior.
+
+The native installed qualification is `cargo test -p ic-testkit --features
+held-reply-fixtures --locked --offline --test pocket_ic_held_replies` with the
+authenticated `POCKET_IC_BIN` from the existing offline server check. It proves
+real inter-canister calls remain outstanding through unrelated committed ingress,
+out-of-order exact replies, repeat/foreign-token refusal and timeout failure.
+The existing all-feature native CI includes this target on all three hosts;
+Wasm feature/graph checks explicitly include held fixtures while excluding their
+native dependencies. These checks do not authorize provisioning a missing tool.
+
 Fixture tests call Host's full validator with a 100,000-byte allowance, followed
 by independent structural assertions. Validation covers every function body and
 type; structural inspection alone is insufficient. The encoder and validator

@@ -6,6 +6,9 @@ use ic_host_artifacts::wasm_encoding::{
 use std::collections::BTreeSet;
 use thiserror::Error;
 
+#[cfg(feature = "held-reply-fixtures")]
+pub mod held;
+
 ///
 /// ReplyMode
 ///

@@ -178,7 +178,52 @@ control-containing names, duplicate exports and unsupported Wasm32 extents are
 rejected before encoding. Method names must be unique across query and update exports.
 The generated memory has a fixed maximum and can hold replies spanning pages.
 This helper does not decode Candid, install canisters, select principals or fund
-instances; keep product reply catalogs and assertions in the consuming tests.## Toolchains and checks
+instances; keep product reply catalogs and assertions in the consuming tests.
+
+### Held provider replies
+
+Enable `held-reply-fixtures` for
+`pic::fixtures::held::{HeldReplyFixture, HeldRequest, HeldReplyError}`.
+Create and fund the provider canister, then construct `HeldReplyFixture::new`
+with its principal, the PocketIC instance, an update-only `RawReplyMethod` catalog,
+`RawReplyLimits`, cycles per barrier call and a compiled-module byte allowance.
+Install `fixture.wasm().to_vec()` into that canister yourself.
+
+Each catalog entry is a single-use request slot with immutable original reply
+bytes. Repeated method names consume slots in catalog order; other methods can
+arrive in any order. `limits.methods` bounds total lifetime calls, and the name
+and reply allowances sum every slot. Exhaustion rejects instead of recycling
+identities. Incoming application payloads are ignored; keep protocols, caller
+authority and expected results in your tests.
+
+Submit the consumer call with PocketIC's `submit_call`. Tick with your own finite
+bound until `fixture.pending(&pic)?` reports the expected slot; `request.slot()`
+identifies its original catalog position. Observation does not tick. Invoke the
+cancellation/revocation endpoint and assert its committed state while the original
+ingress is still outstanding. Call `fixture.release(&pic, &request)?`, then await
+the original ingress and assert the stale callback's application-specific result.
+Different slots can be released out of order. Tokens bind the exact HTTP request,
+fixture, subnet, server and instance; unknown/repeated release refuses.
+
+This uses PocketIC's supported manual HTTP mock facility as a barrier, without a
+live provider or a second application engine. Use only manual progress: never
+enable `auto_progress`/`make_live`, advance simulated time, or upgrade/reinstall/restore
+the fixture with held calls. Constructor, observation and release refuse automatic
+progress, but cannot prevent a caller enabling it independently. Automatic progress
+can make actual HTTP requests. Keep time fixed to avoid the management HTTP
+60-second timeout. Timeout/rejection fails the original call; it does not return
+the configured reply. Never await a held call before releasing it.
+
+Do not clone/reconstruct a controller over live calls. A transport failure during
+release is uncertain and consumes its token; abandon the isolated instance rather
+than retrying. Dropping the controller performs no cleanup or simulator operation;
+the caller owns instance teardown and any diagnostic retention. No state survives
+a fresh fixture installation. Native Platform management types/encoding adapt the
+external Candid HTTP interface; application replies remain uninterpreted. Host's
+WAT compiler is selected only by this feature. Deployed Wasm graphs contain none
+of these native fixture, encoder, Host or Candid dependencies.
+
+## Toolchains and checks
 
 Testkit is part of the IC Tooling workspace. Use the root
 [host guide](../../docs/hosts.md) and [publication guide](../../docs/publishing.md)
