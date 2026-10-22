@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.64.2] - Unreleased
+## [0.64.2] - 2026-10-22
 
 - Add bounded cycle acceptance to native provider reply fixtures, with immediate
   or explicitly held replies and real IC refunds. Consumers select the cap and
