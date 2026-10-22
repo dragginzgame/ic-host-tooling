@@ -3,7 +3,7 @@ use crate::protocol::{
     State, UpdateCaller,
 };
 use ic_platform::cdk::{query, update};
-use ic_testkit::performance::Performance;
+use ic_testkit::performance;
 use ic_wire::{Bytes, Method, Text};
 use std::cell::RefCell;
 
@@ -63,14 +63,14 @@ fn ping() -> Text<4> {
     encode_with = "encode::<BenchmarkOnce>"
 )]
 fn benchmark_once() -> u64 {
-    Performance::measure("probe/benchmark_once:start");
+    performance::measure("probe/benchmark_once:start");
 
     let mut acc = 0_u64;
     for n in 0..1_000 {
         acc = acc.wrapping_add(n * 3);
     }
 
-    Performance::measure("probe/benchmark_once:end");
+    performance::measure("probe/benchmark_once:end");
     acc
 }
 
@@ -80,7 +80,7 @@ fn benchmark_once() -> u64 {
     encode_with = "encode_unit::<BenchmarkTrap>"
 )]
 fn benchmark_start_then_trap() {
-    Performance::measure("probe/benchmark_start_then_trap:start");
+    performance::measure("probe/benchmark_start_then_trap:start");
     ic_platform::ic0::trap(b"intentional perf probe trap");
 }
 

@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.64.0] - Unreleased
+
+- **Breaking ownership cleanup:** import PocketIC clients and DTOs directly from
+  Platform, use Testkit's ordinary principal/performance helpers, and use Host's
+  shared batch-label error for diagnostics. Host Tools accepts Platform's Candid
+  limits directly. This removes duplicate facades, policy types and validation
+  while preserving lifecycle, counter and budget behavior
+  ([#233 — Remove duplicate dependency facades and policy types for 0.64](https://github.com/dragginzgame/ic-tooling/issues/233)).
+  [Required import and call changes](docs/changelog/0.64.md).
+- **Breaking error precedence:** Testkit delegates Wire response admission to
+  Wire. When both the response schema and reply size are invalid, decoding now
+  returns `SchemaLimit` instead of `Limit`; update assertions for that case.
+  Valid method contracts are unchanged
+  ([#232 — Delegate Testkit Wire response admission to the Wire decoder](https://github.com/dragginzgame/ic-tooling/issues/232)).
+  [Migration details](docs/changelog/0.64.md).
+
 ## [0.63.3] - 2026-10-21
 
 - Reduce repeated CI test execution while retaining isolated Host feature

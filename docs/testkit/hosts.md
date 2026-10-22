@@ -127,7 +127,7 @@ older identity until they adopt the published Testkit release
 Testkit 0.58 and 0.59 use Platform 0.4. The pending 0.60.0 batch adopts Platform
 0.5. Its `DecodeLimits` and typed Candid errors have that package identity, so
 callers exchanging these values select Platform 0.5.
-PocketIC, Candid DTOs and `Fake` retain `principal::ExternalPrincipal` (the
+PocketIC, Candid DTOs and `fake_principal` retain `principal::ExternalPrincipal` (the
 original upstream type); the distinct application `ic_platform::Principal` is
 converted explicitly at an application/simulator boundary. No DTO, wire bytes,
 reply budget, executor or persisted representation changes here.
@@ -137,23 +137,21 @@ runtime reject codes. Testkit's probe already supplies explicit Wire codecs;
 its PocketIC-facing reject codes and DTOs retain the original external identities.
 The signature features are not selected. No local replacement API is needed.
 
-Platform also owns the native PocketIC client and DTO dependency; Testkit forwards
-its explicit module rather than the complete upstream crate. Testkit retains
+Platform also owns the native PocketIC client and DTO dependency; callers import
+its explicit module directly. Testkit retains
 provisioning, server admission, startup/teardown, transport classification and
 fixture policy. The upstream client remains 16.1.0, with its own management DTOs
 0.8.0. The library's Wasm normal/build graph must exclude PocketIC, Candid, CDK
 and host transport; the test probe's runtime graph is a separate intentional selection.
 
-Testkit 0.55.0 narrowed the former complete upstream re-export. Published Platform
-0.2.2 supplies the placement, effective-principal, message-ID, HTTP gateway and
-HTTP response identities used by Backup and Canic. The manifest minimum now
-requires 0.5.0, which retains those exports. The server-free `pocket_ic_platform` integration tests
-compile pending-ingress, chunked-install and HTTP fixture client signatures
-through `ic_testkit::pocket_ic`, preserving PocketIC's management 0.8 identity.
+The 0.64 hard cut removes Testkit's forwarding module and convenience aliases.
+Platform supplies placement, effective-principal, message-ID, HTTP gateway and
+HTTP response identities directly. The former server-free tests of Testkit's
+forwarding surface are retired; maintained fixture/lifecycle callers now compile
+against Platform directly, preserving PocketIC's management 0.8 identity.
 Platform's separate management feature selects a different upstream DTO family;
-those identities are not interchangeable. These checks qualify Testkit's public
-forwarding, not the siblings' installed-IC journeys or native macOS execution
-([#132 — Adopt published PocketIC fixture exports and enforce their minimum](https://github.com/dragginzgame/ic-testkit/issues/132)).
+those identities are not interchangeable. Compiling local callers does not
+qualify the siblings' installed-IC journeys or native macOS execution.
 
 The private probe selects Platform's `cdk` feature and entrypoint macros, with
 IC Wire framing and shared private method contracts for its native callers. Its

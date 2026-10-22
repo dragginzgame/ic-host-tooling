@@ -8,13 +8,14 @@
 
 use std::{error::Error, fmt, num::NonZeroUsize, time::Duration};
 
+use ic_platform::pocket_ic::PocketIcBuilder;
 use ic_platform::principal::ExternalPrincipal as Principal;
 use ic_testkit::pic::{
     BaselinePoolDisposition, BaselinePreparationStage, CachedPocketIcBaseline,
     CachedPocketIcBaselinePool, CanisterSnapshotTarget, ControllerSnapshotError,
-    FailureDisposition, PocketIcBaselineRecipe, PocketIcBuilder, PocketIcStartupConfig,
-    PocketIcStartupError, PreparedBaseline, RebuildReason, ResetPolicies, ResetReceipt,
-    ResetRequirements, SnapshotRestoreFunding, is_dead_pocket_ic_transport_error,
+    FailureDisposition, PocketIcBaselineRecipe, PocketIcStartupConfig, PocketIcStartupError,
+    PreparedBaseline, RebuildReason, ResetPolicies, ResetReceipt, ResetRequirements,
+    SnapshotRestoreFunding, is_dead_pocket_ic_transport_error,
 };
 
 const EMPTY_WASM: &[u8] = b"\0asm\x01\0\0\0";

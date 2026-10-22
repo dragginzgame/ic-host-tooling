@@ -2,10 +2,9 @@
 
 mod support;
 
+use ic_platform::pocket_ic::{ErrorCode, RejectCode};
 use ic_platform::principal::ExternalPrincipal as Principal;
-use ic_testkit::pic::{
-    ErrorCode, PocketIcCallFailure, RejectCode, WireCallError, query_wire, update_wire,
-};
+use ic_testkit::pic::{PocketIcCallFailure, WireCallError, query_wire, update_wire};
 use ic_wire::{Limits, Method};
 
 struct Probe;

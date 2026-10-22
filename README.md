@@ -142,7 +142,7 @@ Consumers select tools, source custody, output limits and optional normalization
 See the [0.24 migration](docs/changelog/0.24.md) for the required Build release.
 
 `ic_host_tools::candid::decode::decode_one` decodes a reply with explicit
-`DecodeLimits` and a mutable aggregate byte allowance. Oversized replies refuse
+`ic_platform::candid::DecodeLimits` and a mutable aggregate byte allowance. Oversized replies refuse
 without charging; admitted malformed replies consume their bytes. Candid's
 compatibility rules and skipping quotas apply to extra arguments. Callers retain
 authentication, schemas, domain errors and all resource-policy choices.

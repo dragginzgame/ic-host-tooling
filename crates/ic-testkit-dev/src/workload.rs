@@ -12,13 +12,13 @@ use std::{
 };
 
 use crate::fixture_reuse_report::{Phases, Sample, WorkerReport};
+use ic_platform::pocket_ic::{PocketIc, PocketIcBuilder};
 use ic_platform::principal::ExternalPrincipal as Principal;
 use ic_testkit::pic::{
     BaselinePoolDisposition, BaselinePoolTimings, BaselinePreparationStage, CachedPocketIcBaseline,
-    CachedPocketIcBaselinePool, CanisterSnapshotTarget, FailureDisposition, PocketIc,
-    PocketIcBaselineRecipe, PocketIcBuilder, PocketIcInstance, PocketIcStartupConfig,
-    PreparedBaseline, ResetPolicies, ResetReceipt, ResetRequirements, SnapshotRestoreFunding,
-    query_wire, update_wire,
+    CachedPocketIcBaselinePool, CanisterSnapshotTarget, FailureDisposition, PocketIcBaselineRecipe,
+    PocketIcInstance, PocketIcStartupConfig, PreparedBaseline, ResetPolicies, ResetReceipt,
+    ResetRequirements, SnapshotRestoreFunding, query_wire, update_wire,
 };
 use ic_testkit_perf_probe::protocol::{InspectState, MutateState, SeedState, State};
 

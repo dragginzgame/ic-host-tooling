@@ -4,7 +4,7 @@
 
 # PocketIC upstream boundary
 
-This is maintained against Platform 0.1.16's selected `pocket-ic` 16.1 client and Testkit's
+This is maintained against Platform 0.6's selected `pocket-ic` 16.1 client and Testkit's
 current public interfaces. Recheck the relevant capabilities when changing that
 dependency. Historical decisions remain in the
 [design records](README.md#historical-design-records) and
@@ -16,9 +16,9 @@ has shipped.
 
 PocketIC owns the simulator, management operations, client runtime types and
 its default server discovery/download path. Platform owns the explicit native
-client and DTO exports and their upstream dependency selection. Testkit forwards
-that surface through `ic_testkit::pocket_ic`; the convenience exports in `pic`
-preserve those same types. Testkit does not mirror the upstream simulator API.
+client and DTO exports and their upstream dependency selection. Import those
+types directly from `ic_platform::pocket_ic`; Testkit supplies no forwarding
+module or convenience aliases. Testkit does not mirror the upstream simulator API.
 Additional upstream types must be exposed by Platform rather than copied here.
 
 Testkit owns explicit server provisioning and fixture lifecycle policy. It adds
@@ -188,7 +188,7 @@ artifact caches and application deployment recovery.
 ## Benchmarking and provenance
 
 Testkit owns the `ICTK` marker format, span pairing and counter interpretation.
-Canister-side `Performance` reads the system API through `ic0`; the private probe
+Canister-side `performance::counters` reads the system API through `ic0`; the private probe
 uses CDK entrypoint macros to qualify actual marker emission and trap handling.
 Testkit owns checked benchmark averages. The native report example and
 private benchmark programs own output schemas, files and workload policy.

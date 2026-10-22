@@ -715,9 +715,9 @@ dependencies = [
 
 [[package]]
 name = "crypto-common"
-version = "0.1.6"
+version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1bfb12502f3fc46cca1bb51ac28df9d618d813cdc3d2f25b9fe775a34af26bb3"
+checksum = "78c8292055d1c1df0cce5d180393dc8cce0abec0a7102adb6c7b1eef6016d60a"
 dependencies = [
  "generic-array",
  "typenum",
@@ -1219,9 +1219,9 @@ dependencies = [
 
 [[package]]
 name = "generic-array"
-version = "0.14.9"
+version = "0.14.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4bb6743198531e02858aeaea5398fcc883e71851fcbcb5a2f773e2fb6cb1edf2"
+checksum = "85649ca51fd72272d7821adaf274ad91c288277713d9c18820d8499a7ff69e9a"
 dependencies = [
  "typenum",
  "version_check",
@@ -1673,9 +1673,9 @@ dependencies = [
 
 [[package]]
 name = "ic-platform"
-version = "0.6.6"
+version = "0.6.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2ae527f77c40a2a2ac1de2b119dd58afdee6e6993faf4d033b54db99da15522a"
+checksum = "3d00a4644f878b644e1e20bec28af2ec419c2e296cb4268c34990071e73d1573"
 dependencies = [
  "candid",
  "candid_parser",
@@ -1697,9 +1697,9 @@ dependencies = [
 
 [[package]]
 name = "ic-platform-macros"
-version = "0.6.6"
+version = "0.6.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "50e407ae67a881aedb81f21b7f76cb752188d898c561bdd8f3a3d6226272995e"
+checksum = "9d51b6d490d7c45181b231c3a36ae72832768b4f8459d75e4363527bed32e690"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3801,9 +3801,9 @@ checksum = "fd3ca314f692efd6c868f8408f53fe444634a845f96c028b97d35f6a1f79f0ee"
 
 [[package]]
 name = "tokio"
-version = "1.54.0"
+version = "1.54.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a0c168a474b95bfecfe908a65d4bdffc523144b649a74c09c286afb35d53e0bc"
+checksum = "b52fd3255258d26fac7264ab5a76b53c13367136dc011d3d6ad4f8ed070396a3"
 dependencies = [
  "bytes",
  "libc",

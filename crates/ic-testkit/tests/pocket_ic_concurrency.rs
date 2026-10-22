@@ -13,12 +13,13 @@ use std::{
     time::{Duration, Instant},
 };
 
+use ic_platform::pocket_ic::{PocketIc, PocketIcBuilder};
 use ic_platform::principal::ExternalPrincipal as Principal;
 use ic_testkit::pic::{
     BaselinePoolDisposition, BaselinePoolError, BaselinePoolPreparationError,
     BaselinePreparationStage, CachedPocketIcBaselinePool, ControllerSnapshotError, InstallSpec,
-    PocketIc, PocketIcBuilder, PocketIcInstance, PocketIcStartupConfig, PocketIcStartupFailure,
-    RebuildReason, SnapshotRestoreFunding, StandaloneCanisterFixture, StandaloneCanisterRecipe,
+    PocketIcInstance, PocketIcStartupConfig, PocketIcStartupFailure, RebuildReason,
+    SnapshotRestoreFunding, StandaloneCanisterFixture, StandaloneCanisterRecipe,
 };
 
 const READY_TIMEOUT: Duration = Duration::from_secs(60);

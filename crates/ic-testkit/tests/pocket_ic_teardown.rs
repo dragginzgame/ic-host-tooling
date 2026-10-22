@@ -4,14 +4,14 @@
 mod support;
 
 use ic_host_process::testing::http::{HttpContentLength, capture_http_request};
+use ic_platform::pocket_ic::common::rest::{CreateInstanceResponse, RawCanisterId, Topology};
+use ic_platform::pocket_ic::{PocketIc, PocketIcBuilder};
 use ic_platform::principal::ExternalPrincipal as Principal;
 use ic_testkit::pic::{
     CanisterDiagnosticsRequest, CanisterInstallError, CanisterLogRenderLimits, InstallSpec,
-    PocketIc, PocketIcBuilder, PocketIcCallFailure, PocketIcDiagnosticsExt, PocketIcInstance,
-    PocketIcStartupConfig, StandaloneCanisterFixture, is_dead_pocket_ic_transport_error,
-    try_pocket_ic_operation,
+    PocketIcCallFailure, PocketIcDiagnosticsExt, PocketIcInstance, PocketIcStartupConfig,
+    StandaloneCanisterFixture, is_dead_pocket_ic_transport_error, try_pocket_ic_operation,
 };
-use ic_testkit::pocket_ic::common::rest::{CreateInstanceResponse, RawCanisterId, Topology};
 #[cfg(unix)]
 use std::os::fd::AsRawFd as _;
 use std::{

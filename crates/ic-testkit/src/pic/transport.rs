@@ -64,7 +64,8 @@ impl std::error::Error for PocketIcOperationError {}
 /// bound a blocked request, or catch errors while polling a returned future.
 ///
 /// ```no_run
-/// use ic_testkit::pic::{PocketIc, PocketIcOperationError, try_pocket_ic_operation};
+/// use ic_platform::pocket_ic::PocketIc;
+/// use ic_testkit::pic::{PocketIcOperationError, try_pocket_ic_operation};
 ///
 /// fn tick(pic: &PocketIc) -> Result<(), PocketIcOperationError> {
 ///     try_pocket_ic_operation(|| pic.tick())

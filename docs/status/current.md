@@ -1,15 +1,44 @@
 # Current handoff
 
-## Local cleanup after 0.63.2
+## Local 0.64 workspace hard cut
 
-The 0.63.3 draft narrows six single-feature Host Tools targets to their own
+The maintainer expanded the cleanup review to the whole workspace. Pending
+[0.64 migration notes](../changelog/0.64.md) cover dependency/helper ownership
+under [#233 — Remove duplicate dependency facades and policy types for 0.64](https://github.com/dragginzgame/ic-tooling/issues/233)
+and decoder admission under
+[#232 — Delegate Testkit Wire response admission to the Wire decoder](https://github.com/dragginzgame/ic-tooling/issues/232).
+Testkit no longer forwards Platform's PocketIC surface or uses stateless wrapper
+types for principals/counters. Diagnostics use Host's existing batch-label owner;
+Host Tools uses Platform's existing Candid limits directly. Generic provisioning
+path checks delegate to Host FS. Real local callers/examples are migrated, and
+tests of the removed forwarding contract are retired. Build already uses Host's
+batch validator; its cache/recovery contracts remain intact. Consumer import and
+call changes belong to the migration notes and owning issue; sibling checkouts
+remain read-only.
+
+All 30 focused Candid, diagnostics, provisioning, Wire and principal cases pass
+on development Rust 1.99.1 and actual Rust 1.91. Native Testkit/private-harness
+all-target/all-feature checks and library/probe Wasm checks pass on both compilers.
+Strict Clippy passes for the affected native packages and Wasm probe; all five
+Testkit doctests and warning-free Testkit/Host Tools Rustdoc pass on Linux.
+Changes remain local and package versions remain 0.63.3. The incoming Cargo.lock
+edit is preserved. Evidence: `/tmp/ic-tooling-064-api`; the first Wire-only pass
+is retained at `/tmp/ic-tooling-wire-cleanup`. No new native macOS or live server
+integration qualification is claimed for this working tree.
+An additional incoming lock edit selected Tokio 1.54.1 during review. Affected
+checks were refreshed against it; prior logs and both lock selections remain
+in the same evidence directory. No dependency update was made by this task.
+
+## Delivered 0.63.3 cleanup
+
+Release 0.63.3 narrows six single-feature Host Tools targets to their own
 tests while retaining isolated all-target compilation. Default/combined suites
 remain complete. The workspace publication adapter retains its failure/recovery
 checks; the separate generic Shared publication-runner replay is retired here.
 All six focused targets (30 cases), publication and Make fixtures, shell lint,
-snapshot integrity and documentation checks pass on Linux. New native macOS
-qualification remains asynchronous. Evidence: `/tmp/ic-tooling-cleanup-0633`.
-These edits remain local; incoming Cargo.lock and handoff changes are preserved.
+snapshot integrity and documentation checks passed on Linux. The delivered
+source subsequently passed native qualification below. Focused evidence:
+`/tmp/ic-tooling-cleanup-0633`.
 The second pass replaces Build's duplicate extractor/CLI fixture cleanup with
 Host FS's tested guard. Eight extractor cases, five actual CLI cases and strict
 all-target Build Clippy pass on Linux. Private lockfile field helpers remain
@@ -23,23 +52,24 @@ Testkit's server asset/runner and benchmark-driver fixtures now use the same
 guard; the single-caller integration directory helper is removed. All 34 affected
 cases, strict Clippy, Rust 1.91 compilation and native/Wasm graph checks pass on
 Linux. Installed-server cases remain explicit. Evidence:
-`/tmp/ic-tooling-cleanup-pass4`; native macOS qualification remains outstanding.
+`/tmp/ic-tooling-cleanup-pass4`; delivered native qualification is linked below.
 The dependency/production audit found no unused direct dependencies with
 cargo-machete. Eighteen redundant Testkit lint entries were removed after
 confirming their enabled group membership on both compilers; strict Clippy
-passes. [Issue #231](https://github.com/dragginzgame/ic-tooling/issues/231) now
-has a local private capture composition that returns the durable copy's digest
+passes. [Issue #231](https://github.com/dragginzgame/ic-tooling/issues/231) shipped
+a private capture composition that returns the durable copy's digest
 to Wasm evidence export. The second byte traversal is removed; staged-file
 readability admission and freshness/retention ordering remain. All 20 affected
 cases pass on development Rust and Rust 1.91, with strict Clippy/Rustdoc. No
-timing claim or native macOS qualification is made. Evidence: `/tmp/ic-tooling-231`.
+timing claim is made. Evidence: `/tmp/ic-tooling-231`; native CI is linked below.
 Evidence: `/tmp/ic-tooling-cleanup-audit5`.
 
 ## Integrated workspace
 
-Delivered main is release 0.63.2, `e5b4095150f49069fc51c3b497e192a8f8eda016`.
-The maintainer committed the Wire 0.5.11 lock update and completed publication;
-the earlier lockfile choice and release-preparation blockers are superseded.
+Delivered main is release 0.63.3, `966dbfed90dca14dbc85dd88870c1f00327341ac`,
+tagged `v0.63.3`. The committed lockfile selects Wire 0.5.19 and PocketIC 16.1.0;
+Testkit's provisioned server pin is also 16.1.0. The earlier release-preparation
+blockers are superseded. The working-tree lockfile has a separate incoming edit.
 Host, Build and Testkit were consolidated through
 [PR #212](https://github.com/dragginzgame/ic-tooling/pull/212), retaining crate
 boundaries and imported histories. Ten packages are public and two are private.
@@ -87,37 +117,31 @@ graph evidence remains valid for the matching source.
 
 ## Existing contributions and qualification
 
-Local Shared snapshot is 0.26.2 at `1959ef75d0b86ed7725d41ae5056303d35eb633d`,
-exported from the exact qualified upstream commit. The optimizer-only routing
-from [PR #226](https://github.com/dragginzgame/ic-tooling/pull/226) is incorporated
-locally without duplicating its already-present native setup regression.
-Upstream passed native Linux, Intel and Apple Silicon matrices; these do not
-qualify this combined local tree. Refresh evidence and
-incoming dirty-file backups are under `/tmp/ic-tooling-refresh-0262`.
+Local Shared snapshot remains 0.26.2 at `1959ef75d0b86ed7725d41ae5056303d35eb633d`,
+exported from the exact qualified upstream commit. Optimizer-only routing from
+[PR #226](https://github.com/dragginzgame/ic-tooling/pull/226) shipped without
+duplicating its native setup regression. Refresh evidence and incoming dirty-file
+backups are under `/tmp/ic-tooling-refresh-0262`.
 [PR #229](https://github.com/dragginzgame/ic-tooling/pull/229) merged the ICP
-decoder at `5b41e182`. Its original native matrix passed. PR #226 merged at
-`3e61a613` with retained release notes. The maintainer explicitly authorized
-merging while integration tests run asynchronously; fresh native qualification
-on `41624dcd` was still running at merge, with all other checks passing.
-The combined source passes focused decoder
-tests on development Rust and Rust 1.91, strict Clippy, feature graphs and Make
-routing checks. These focused Linux checks do not qualify the release
-on native macOS. Integration evidence is under
-`/tmp/ic-tooling-pr-integration`.
+decoder at `5b41e182`. PR #226 merged at `3e61a613` with retained release notes.
+Earlier integration evidence is under `/tmp/ic-tooling-pr-integration`.
 
-For 0.63.2, browser, optimizer and Testkit runtime matrices passed all three
-hosts. [Main CI](https://github.com/dragginzgame/ic-tooling/actions/runs/39588528910)
-passed MSRV and lint; native Linux and Apple Silicon were still running at this
-handoff. Intel failed before product tests on DNS resolution of
-`static.rust-lang.org` while installing the Wasm standard library.
-[Issue #230](https://github.com/dragginzgame/ic-tooling/issues/230) owns recovery;
-GitHub refused a targeted rerun while the containing workflow was active.
-Full original logs are retained at `/tmp/ic-tooling-0632-intel.log`.
+Verified 2026-10-22 on exact release commit `966dbfed`:
+[main CI](https://github.com/dragginzgame/ic-tooling/actions/runs/39637698526)
+passed lint/security, MSRV and native Linux x86-64. Native macOS 15 Intel and
+Apple Silicon also passed independently on their native runners.
+[Testkit runtime](https://github.com/dragginzgame/ic-tooling/actions/runs/39637698688),
+[Build optimizer](https://github.com/dragginzgame/ic-tooling/actions/runs/39637698491)
+and [browser session](https://github.com/dragginzgame/ic-tooling/actions/runs/39637698443)
+each passed Linux and both macOS hosts. These results qualify the delivered
+0.63.3 source, not the new working-tree Wire change.
+The earlier 0.63.2 Intel DNS failure was recovered under closed
+[issue #230](https://github.com/dragginzgame/ic-tooling/issues/230);
+original failure logs remain at `/tmp/ic-tooling-0632-intel.log`.
 
 Ordinary integration CI runs asynchronously under the maintainer's explicit
 cadence instruction. [Shared #298](https://github.com/dragginzgame/shared-tooling/issues/298)
-tracks the canonical wording; its implementation was still undelivered on the
-default branch at this review, so the recorded snapshot remains unchanged.
+is now closed upstream. This task does not adopt a new Shared snapshot.
 Required merge/release/issue acceptance gates remain separate. There are no
 open Tooling PRs at this review. [Issue #225](https://github.com/dragginzgame/ic-tooling/issues/225)
 still depends on Canic #613 supplying the concrete Wire schema/artifact contract.

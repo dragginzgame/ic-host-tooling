@@ -14,7 +14,7 @@ ic-host-artifacts = { workspace = true }
 ic-host-fs = { workspace = true, features = ["temporary-file"] }
 ic-host-process = { workspace = true }
 ic-host-text = { workspace = true }
-ic-platform = { workspace = true }
+ic-platform = { workspace = true, features = ["pocket-ic"] }
 ic-testkit = { workspace = true, features = ["wire"] }
 ic-testkit-perf-probe = { workspace = true }
 ic-wire = { workspace = true }

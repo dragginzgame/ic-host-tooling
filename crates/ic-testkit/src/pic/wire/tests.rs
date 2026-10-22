@@ -1,7 +1,6 @@
 use super::{WireCallError, call_wire, context};
-use crate::pic::{
-    ErrorCode, PocketIcCallFailure, RejectCode, RejectResponse, is_dead_pocket_ic_transport_error,
-};
+use crate::pic::{PocketIcCallFailure, is_dead_pocket_ic_transport_error};
+use ic_platform::pocket_ic::{ErrorCode, RejectCode, RejectResponse};
 use ic_platform::principal::ExternalPrincipal as Principal;
 use ic_wire::{Limits, Method};
 
@@ -201,19 +200,24 @@ fn declared_decoder_work_budget_is_not_replaced_with_a_default() {
     let reply = ic_wire::encode_response::<Sample>(&Ok(1))
         .unwrap()
         .into_bytes();
-    let error = call_wire::<BadReplyBudget>(
-        context::<BadReplyBudget>("query_call", Principal::anonymous(), Principal::anonymous()),
-        &1,
-        |_| Ok(reply),
-    )
-    .unwrap_err();
-    assert!(matches!(
-        error,
-        WireCallError::Decode {
-            source: ic_wire::Error::SchemaLimit,
-            ..
-        }
-    ));
+    // The decoder owns refusal precedence even when the reply is also oversized.
+    for reply in [reply, vec![0; LIMITS.bytes + 1]] {
+        let length = reply.len();
+        let ctx =
+            context::<BadReplyBudget>("query_call", Principal::anonymous(), Principal::anonymous());
+        let error = call_wire::<BadReplyBudget>(ctx.clone(), &1, |_| Ok(reply)).unwrap_err();
+        let WireCallError::Decode {
+            context,
+            bytes,
+            source,
+        } = error
+        else {
+            panic!("decode failure required")
+        };
+        assert_eq!(*context, ctx);
+        assert_eq!(bytes, length);
+        assert_eq!(source, ic_wire::Error::SchemaLimit);
+    }
 }
 
 #[test]

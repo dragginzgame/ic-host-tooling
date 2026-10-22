@@ -342,7 +342,8 @@ impl PocketIcStartupConfig {
     /// never claims the external server. See [`PocketIcInstance`] for drop limits.
     ///
     /// ```no_run
-    /// use ic_testkit::pic::{PocketIcBuilder, PocketIcStartupConfig};
+    /// use ic_platform::pocket_ic::PocketIcBuilder;
+    /// use ic_testkit::pic::PocketIcStartupConfig;
     /// use std::{path::Path, time::Duration};
     /// # fn run(binary: &Path) -> Result<(), ic_testkit::pic::PocketIcStartupError> {
     /// let owned = PocketIcStartupConfig::Spawn { server_binary: binary.into(), timeout: Duration::from_secs(60), server_hard_ttl: None, server_idle_ttl: None, server_output_files: None }
@@ -404,7 +405,8 @@ impl PocketIcStartupConfig {
     /// reconciliation. The deadline covers construction, not subsequent deletion.
     ///
     /// ```no_run
-    /// use ic_testkit::pic::{PocketIcBuilder, PocketIcStartupConfig};
+    /// use ic_platform::pocket_ic::PocketIcBuilder;
+    /// use ic_testkit::pic::PocketIcStartupConfig;
     /// use std::{path::Path, time::Duration};
     /// # async fn run(binary: &Path) -> Result<(), ic_testkit::pic::PocketIcStartupError> {
     /// let owned = PocketIcStartupConfig::Spawn { server_binary: binary.into(), timeout: Duration::from_secs(60), server_hard_ttl: None, server_idle_ttl: None, server_output_files: None }
@@ -1495,7 +1497,7 @@ mod tests {
         for timeout in [false, true] {
             let qualified = format!(
                 "printf 'pocket-ic-server {}\\n'",
-                ic_platform::pocket_ic::LATEST_SERVER_VERSION
+                crate::pic::POCKET_IC_SERVER_VERSION
             );
             let ending = if timeout { "wait" } else { &qualified };
             let script = TestServerScript::new(
@@ -1570,7 +1572,7 @@ mod tests {
     fn environment_binary_selection_uses_bounded_shared_version_capture() {
         let qualified = format!(
             "printf 'pocket-ic-server {}\\n'",
-            ic_platform::pocket_ic::LATEST_SERVER_VERSION
+            crate::pic::POCKET_IC_SERVER_VERSION
         );
         let failed = format!("{qualified}; exit 23");
         for (label, body, expected) in [

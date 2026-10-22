@@ -1,6 +1,7 @@
 //! Native typed transport; IC Wire remains the sole frame and codec owner.
 
-use super::{PocketIc, PocketIcCallFailure, RejectResponse, transport};
+use super::{PocketIcCallFailure, transport};
+use ic_platform::pocket_ic::{PocketIc, RejectResponse};
 use ic_platform::principal::ExternalPrincipal as Principal;
 use ic_wire::Method;
 use serde::de::DeserializeOwned;
@@ -110,6 +111,8 @@ impl std::error::Error for WireCallError {
 /// unchanged. Known PocketIC transport failures are captured; unrelated panics resume.
 /// Requests may borrow their input; responses must own their decoded data because
 /// the helper releases PocketIC's reply buffer before returning.
+/// IC Wire admits the response schema before checking reply size. An invalid
+/// schema therefore returns `SchemaLimit` even when the reply is also oversized.
 pub fn query_wire<M: Method>(
     pic: &PocketIc,
     canister_id: Principal,
@@ -181,12 +184,7 @@ where
             context: Box::new(context.clone()),
             source: Box::new(source),
         })?;
-    let response = if reply.len() > M::RESPONSE_LIMITS.bytes {
-        Err(ic_wire::Error::Limit)
-    } else {
-        ic_wire::decode_response::<M>(&reply)
-    };
-    response.map_err(|source| WireCallError::Decode {
+    ic_wire::decode_response::<M>(&reply).map_err(|source| WireCallError::Decode {
         context: Box::new(context),
         bytes: reply.len(),
         source,

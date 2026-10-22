@@ -1022,7 +1022,7 @@ esac
             &server,
             format!(
                 "#!/bin/sh\nprintf 'pocket-ic-server {}\\n'\n",
-                ic_testkit::pocket_ic::LATEST_SERVER_VERSION
+                ic_testkit::pic::POCKET_IC_SERVER_VERSION
             ),
         )
         .unwrap();

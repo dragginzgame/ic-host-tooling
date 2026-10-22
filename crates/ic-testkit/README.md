@@ -8,7 +8,8 @@ PocketIC-oriented test utilities for Internet Computer canister tests.
 
 ```toml
 [dev-dependencies]
-ic-testkit = "0.62"
+ic-testkit = "0.64"
+ic-platform = { version = "0.6", features = ["pocket-ic"] }
 ```
 
 For typed application calls, enable the `wire` feature and depend directly on
@@ -17,10 +18,10 @@ For typed application calls, enable the `wire` feature and depend directly on
 The published MSRV is Rust 1.91, and the selected PocketIC line is 16.
 Canisters using benchmark markers can add the crate under `[dependencies]`.
 The Wasm library uses Platform's raw counters and marker logging,
-without a canister SDK or Candid; `Fake` retains PocketIC’s principal identity through
+without a canister SDK or Candid; `fake_principal` retains PocketIC’s principal identity through
 `ic_platform::principal::ExternalPrincipal`, without enabling Candid on Wasm.
-`pocket_ic` and `pic` are host-only. `performance` is Wasm-only;
-`benchmark` counters, parsing and aggregation, and `Fake` are available on both
+`pic` is host-only. `performance` is Wasm-only;
+`benchmark` counters, parsing and aggregation, and `fake_principal` are available on both
 targets. Native CSV and Markdown directory output lives in the repository's
 `benchmark_report` example. Standalone recipe builders return
 `std::io::Result<StandaloneCanisterFixture>`.
@@ -46,10 +47,8 @@ Requests may use borrowed bounded fields. Responses must implement
 `serde::de::DeserializeOwned` because the helper releases the received buffer
 before returning; generic callers must carry that bound alongside `M: Method`.
 
-This is the PocketIC package in the `ic-testkit` workspace. It provides:
+This is the PocketIC package in the IC Tooling workspace. It provides:
 
-- direct re-exports of `PocketIc` and `PocketIcBuilder`
-- Platform's explicit host-only client surface at `ic_testkit::pocket_ic`
 - optional typed Wire query/update helpers with contextual, structured errors
 - `try_pocket_ic_operation` for recognized synchronous transport panics, preserving
   upstream results and unrelated panics without automatic replay
@@ -65,7 +64,7 @@ This is the PocketIC package in the `ic-testkit` workspace. It provides:
 - explicit diagnostic reporting to a caller-selected writer, containing secondary
   collection and output panics
 - compact benchmark marker parsing, aggregation and comparison
-- canister-side `Performance::measure` marker emission
+- canister-side `performance::measure` marker emission
 
 `ic-testkit` does not wrap the PocketIC simulator API or serialize independent
 instances. `pic::server_assets` owns explicit server provisioning and offline
@@ -75,9 +74,9 @@ absolute executable path to `PocketIcStartupConfig::Spawn`, without invoking the
 Explicit `server_assets::setup` takes a caller-owned cancellation predicate.
 Tests normally retain one
 `PocketIcInstance<PocketIc>` and use `owned.instance` for simulator operations;
-focused extension traits provide reusable harness behavior. Less common
-upstream client and DTO identities come from `ic_platform::pocket_ic`, forwarded
-at `ic_testkit::pocket_ic`. Platform owns additions to that explicit surface.
+focused extension traits provide reusable harness behavior. Import all upstream
+client and DTO identities directly from `ic_platform::pocket_ic`; Testkit owns no
+parallel import path. Platform owns additions to that explicit surface.
 
 ```bash
 cargo install --locked --features cli ic-testkit
@@ -114,9 +113,9 @@ lifetime independently of `--ttl`'s hard limit; omitted idle selection retains
 PocketIC's default. Both options require owned-server mode and positive seconds.
 
 Most users should read the
-[repository README](https://github.com/dragginzgame/ic-testkit#readme) for
+[repository README](https://github.com/dragginzgame/ic-tooling#readme) for
 setup, examples, local checks, and release notes.
-The [documentation index](https://github.com/dragginzgame/ic-testkit/blob/main/docs/README.md)
+The [documentation index](https://github.com/dragginzgame/ic-tooling/blob/main/docs/testkit/README.md)
 links current usage guidance and historical design records.
 
 Startup failures expose `PocketIcStartupError::failure()`
@@ -136,9 +135,9 @@ upgrade actions. Current build and artifact-cache contracts belong to IC Build;
 historical Testkit artifact imports are not current entry points.
 
 The repository also includes a complete
-[multi-canister baseline recipe](https://github.com/dragginzgame/ic-testkit/blob/main/crates/ic-testkit/examples/multi_canister_baseline_pool.rs)
+[multi-canister baseline recipe](https://github.com/dragginzgame/ic-tooling/blob/main/crates/ic-testkit/examples/multi_canister_baseline_pool.rs)
 compiled by the crate's normal all-target checks. The
-[transactional external-artifact example](https://github.com/dragginzgame/ic-build/blob/main/crates/ic-build/examples/transactional_artifact_cache.rs)
+[transactional external-artifact example](https://github.com/dragginzgame/ic-tooling/blob/main/crates/ic-build/examples/transactional_artifact_cache.rs)
 is compiled and maintained by IC Build.
 
 Benchmark aggregate/comparison rows and aggregate errors expose

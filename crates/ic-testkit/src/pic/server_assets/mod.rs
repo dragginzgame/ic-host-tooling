@@ -6,6 +6,7 @@
 
 use super::POCKET_IC_SERVER_VERSION;
 use ic_host_artifacts::artifact::{Sha256Digest, copy_gzip, hash_gzip, hash_reader};
+use ic_host_fs::path::validate_physical_directory_allow_missing;
 use ic_host_fs::{durable, read::read_file_no_follow};
 use ic_host_process::{
     child::CleanupPolicy,
@@ -19,7 +20,7 @@ use std::{
     ffi::OsString,
     fs::{self, File},
     io,
-    path::{Component, Path, PathBuf},
+    path::{Path, PathBuf},
     process::{Command, Stdio},
     sync::atomic::{AtomicU64, Ordering},
     time::Duration,
@@ -77,27 +78,8 @@ fn root_path(directory: &Path) -> Result<PathBuf> {
     {
         return Err("server directory and its ancestors must not contain line breaks".into());
     }
-    let mut path = PathBuf::new();
-    for component in absolute.components() {
-        match component {
-            Component::RootDir | Component::Normal(_) => path.push(component),
-            Component::CurDir => continue,
-            _ => return Err("server directory must not contain parent traversal".into()),
-        }
-        match fs::symlink_metadata(&path) {
-            Ok(metadata) if !metadata.is_dir() || metadata.is_symlink() => {
-                return Err(format!(
-                    "server directory component is not a physical directory: {}",
-                    path.display()
-                )
-                .into());
-            }
-            Ok(_) => {}
-            Err(error) if error.kind() == io::ErrorKind::NotFound => {}
-            Err(error) => return Err(error.into()),
-        }
-    }
-    Ok(path)
+    validate_physical_directory_allow_missing(&absolute)?;
+    Ok(absolute.components().collect())
 }
 
 fn bundle_path(root: &Path, asset: &Asset) -> PathBuf {

@@ -24,7 +24,7 @@ impl Fixture {
             &fixture.0.path().join("server"),
             format!(
                 "#!/bin/sh\nif [ \"$1\" = --version ]; then printf 'pocket-ic-server {}\\n'; exit 0; fi\nprintf '%s\\n' \"$$\" > \"$SERVER_PID_FILE\"\nif [ \"$1\" = --hard-ttl ]; then printf '%s' \"$2\" > \"$TTL_FILE\"; shift 2; fi\nif [ \"$1\" = --ttl ]; then printf '%s' \"$2\" > \"$IDLE_TTL_FILE\"; shift 2; fi\n[ \"$1\" = --port-file ] || exit 99\ndd if=/dev/zero bs=1024 count=20 2>/dev/null\nprintf stdout-end\ndd if=/dev/zero bs=1024 count=20 >&2 2>/dev/null\nprintf stderr-end >&2\nprintf '34567\\n' > \"$2\"\nexec sleep 30\n",
-                ic_testkit::pocket_ic::LATEST_SERVER_VERSION
+                ic_testkit::pic::POCKET_IC_SERVER_VERSION
             ),
         ).expect("write executable test script");
         fixture
@@ -217,7 +217,7 @@ fn invalid_configuration_and_version_failure_never_run_the_command() {
         &fixture.0.path().join("failed-version"),
         format!(
             "#!/bin/sh\nprintf 'pocket-ic-server {}\\n'\nexit 23\n",
-            ic_testkit::pocket_ic::LATEST_SERVER_VERSION
+            ic_testkit::pic::POCKET_IC_SERVER_VERSION
         ),
     )
     .expect("write executable test script");
@@ -339,7 +339,8 @@ fn real_server_runs_a_separate_process_using_environment_startup() {
 #[test]
 #[ignore = "invoked by the real server runner test in a separate process"]
 fn runner_environment_worker() {
-    use ic_testkit::pic::{PocketIcBuilder, PocketIcStartupConfig};
+    use ic_platform::pocket_ic::PocketIcBuilder;
+    use ic_testkit::pic::PocketIcStartupConfig;
     if std::env::var_os("IC_TESTKIT_TEST_PRECLIENT_DELAY").is_some() {
         thread::sleep(Duration::from_secs(65));
     }

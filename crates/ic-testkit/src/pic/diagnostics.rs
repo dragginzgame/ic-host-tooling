@@ -1,9 +1,9 @@
 use std::{
-    collections::HashMap,
     fmt, io,
     time::{Duration, Instant},
 };
 
+use ic_host_artifacts::batch::{BatchLabelError, validate_labels};
 use ic_platform::pocket_ic::{CanisterLogRecord, CanisterStatusResult, PocketIc};
 use ic_platform::principal::ExternalPrincipal as Principal;
 
@@ -56,26 +56,6 @@ pub struct LabeledCanisterDiagnosticsRequest {
     pub label: String,
     /// Exact controller-aware diagnostic inputs.
     pub request: CanisterDiagnosticsRequest,
-}
-
-/// Structural error that prevents a diagnostics batch from starting.
-#[non_exhaustive]
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum CanisterDiagnosticsBatchContractError {
-    /// An entry label was empty.
-    EmptyLabel {
-        /// Zero-based position of the invalid entry.
-        index: usize,
-    },
-    /// Two entries used the same label.
-    DuplicateLabel {
-        /// Duplicated caller label.
-        label: String,
-        /// Position where the label first appeared.
-        first_index: usize,
-        /// Position where the label was repeated.
-        duplicate_index: usize,
-    },
 }
 
 /// One canister-log record retained as bounded lossy UTF-8 text.
@@ -360,11 +340,12 @@ pub trait PocketIcDiagnosticsExt {
     /// Every target is attempted even when an earlier entry fails or panics.
     /// Each entry preserves its exact request and independent status/log
     /// outcomes; no anonymous retry or fallback is performed.
+    /// Invalid labels return Host's [`BatchLabelError`] before collection starts.
     fn collect_canister_diagnostics_batch(
         &self,
         requests: &[LabeledCanisterDiagnosticsRequest],
-    ) -> Result<CanisterDiagnosticsBatchReport, CanisterDiagnosticsBatchContractError> {
-        validate_diagnostics_batch_labels(requests)?;
+    ) -> Result<CanisterDiagnosticsBatchReport, BatchLabelError> {
+        validate_labels(requests.iter().map(|request| request.label.as_str()))?;
         let started = Instant::now();
         let entries = requests
             .iter()
@@ -391,49 +372,6 @@ pub trait PocketIcDiagnosticsExt {
         })
     }
 }
-
-fn validate_diagnostics_batch_labels(
-    requests: &[LabeledCanisterDiagnosticsRequest],
-) -> Result<(), CanisterDiagnosticsBatchContractError> {
-    let mut seen = HashMap::new();
-    for (index, request) in requests.iter().enumerate() {
-        let label = request.label.as_str();
-        if label.is_empty() {
-            return Err(CanisterDiagnosticsBatchContractError::EmptyLabel { index });
-        }
-        if let Some(first_index) = seen.insert(label, index) {
-            return Err(CanisterDiagnosticsBatchContractError::DuplicateLabel {
-                label: label.to_owned(),
-                first_index,
-                duplicate_index: index,
-            });
-        }
-    }
-    Ok(())
-}
-
-impl fmt::Display for CanisterDiagnosticsBatchContractError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::EmptyLabel { index } => {
-                write!(
-                    formatter,
-                    "diagnostics batch label at index {index} is empty"
-                )
-            }
-            Self::DuplicateLabel {
-                label,
-                first_index,
-                duplicate_index,
-            } => write!(
-                formatter,
-                "diagnostics batch label {label:?} at index {duplicate_index} duplicates index {first_index}",
-            ),
-        }
-    }
-}
-
-impl std::error::Error for CanisterDiagnosticsBatchContractError {}
 
 impl PocketIcDiagnosticsExt for PocketIc {
     fn collect_canister_diagnostics(
@@ -498,13 +436,14 @@ fn render_log_records(
 mod tests {
     use std::cell::Cell;
 
+    use ic_host_artifacts::batch::BatchLabelError;
     use ic_platform::pocket_ic::CanisterLogRecord;
     use ic_platform::principal::ExternalPrincipal as Principal;
 
     use super::{
-        CanisterDiagnosticsBatchContractError, CanisterDiagnosticsReport,
-        CanisterDiagnosticsRequest, CanisterLogRenderLimits, LabeledCanisterDiagnosticsRequest,
-        PocketIcCallFailure, PocketIcDiagnosticsExt, capture_call, render_log_records,
+        CanisterDiagnosticsReport, CanisterDiagnosticsRequest, CanisterLogRenderLimits,
+        LabeledCanisterDiagnosticsRequest, PocketIcCallFailure, PocketIcDiagnosticsExt,
+        capture_call, render_log_records,
     };
 
     #[test]
@@ -706,10 +645,7 @@ mod tests {
                 request,
             }])
             .expect_err("empty label must reject diagnostics batch");
-        assert_eq!(
-            empty,
-            CanisterDiagnosticsBatchContractError::EmptyLabel { index: 0 }
-        );
+        assert_eq!(empty, BatchLabelError::Empty { index: 0 });
         assert_eq!(collector.calls.get(), 0);
 
         let duplicate = collector
@@ -726,7 +662,7 @@ mod tests {
             .expect_err("duplicate labels must reject diagnostics batch");
         assert_eq!(
             duplicate,
-            CanisterDiagnosticsBatchContractError::DuplicateLabel {
+            BatchLabelError::Duplicate {
                 label: "same".to_owned(),
                 first_index: 0,
                 duplicate_index: 1,

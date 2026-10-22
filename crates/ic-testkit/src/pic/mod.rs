@@ -1,10 +1,9 @@
-//! Direct PocketIC types plus value-adding host-test harness extensions.
+//! PocketIC host-test harness extensions.
 //!
-//! Platform's explicit client surface is available through [`crate::pocket_ic`]. This
-//! module keeps the common runtime types alongside ic-testkit's focused
-//! extension traits and policy types.
+//! Import the client and DTOs directly from `ic_platform::pocket_ic`.
+//! This module owns Testkit's extension traits and policy types.
 //!
-//! Construct and own [`PocketIc`] instances normally, then import individual
+//! Construct and own [`ic_platform::pocket_ic::PocketIc`] instances normally, then import individual
 //! extension traits or [`prelude`] for installation, diagnostics and snapshots.
 //! Import the call functions, startup configuration and polling helpers explicitly.
 //! Native simulator operations remain upstream inherent methods.
@@ -14,11 +13,6 @@
 //! downloads a server implicitly. On Unix, `server_assets` owns explicit
 //! authenticated provisioning and admission; the published
 //! `ic-testkit-server setup` / `check` commands delegate to that implementation.
-
-pub use ic_platform::pocket_ic::{
-    CanisterStatusResult, ErrorCode, LATEST_SERVER_VERSION, PocketIc, PocketIcBuilder, RejectCode,
-    RejectResponse,
-};
 
 #[cfg(feature = "reply-fixtures")]
 pub mod fixtures;
@@ -52,10 +46,10 @@ pub use baseline_pool::{
     ResetPolicies, ResetReceipt, ResetRequirements, StateResetPolicy, TimeResetPolicy,
 };
 pub use diagnostics::{
-    CanisterDiagnosticLogRecord, CanisterDiagnosticLogs, CanisterDiagnosticsBatchContractError,
-    CanisterDiagnosticsBatchEntry, CanisterDiagnosticsBatchReport, CanisterDiagnosticsReport,
-    CanisterDiagnosticsRequest, CanisterLogRenderLimits, DEFAULT_CANISTER_LOG_BYTE_LIMIT,
-    DEFAULT_CANISTER_LOG_RECORD_LIMIT, LabeledCanisterDiagnosticsRequest, PocketIcDiagnosticsExt,
+    CanisterDiagnosticLogRecord, CanisterDiagnosticLogs, CanisterDiagnosticsBatchEntry,
+    CanisterDiagnosticsBatchReport, CanisterDiagnosticsReport, CanisterDiagnosticsRequest,
+    CanisterLogRenderLimits, DEFAULT_CANISTER_LOG_BYTE_LIMIT, DEFAULT_CANISTER_LOG_RECORD_LIMIT,
+    LabeledCanisterDiagnosticsRequest, PocketIcDiagnosticsExt,
 };
 pub use errors::{CanisterInstallError, StandaloneCanisterInstallError};
 pub use lifecycle::{CanisterInstallExt, InstallSpec, RetryPolicy};

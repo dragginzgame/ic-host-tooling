@@ -99,7 +99,7 @@ small project with a few independent tests may only need PocketIC directly.
 
 ic-testkit builds on PocketIC rather than replacing or hiding it. Developers
 can use Platform's explicit native client surface through
-`ic_testkit::pocket_ic` and add the testkit helpers they need. Platform owns the
+`ic_platform::pocket_ic` and add the testkit helpers they need. Platform owns the
 PocketIC dependency selection; Testkit owns server and fixture policy.
 
 ## Install
@@ -108,7 +108,8 @@ Host-side test crates normally add:
 
 ```toml
 [dev-dependencies]
-ic-testkit = "0.62"
+ic-testkit = "0.64"
+ic-platform = { version = "0.6", features = ["pocket-ic"] }
 ```
 
 For typed application calls, enable the `wire` feature and depend directly on
@@ -117,11 +118,11 @@ For typed application calls, enable the `wire` feature and depend directly on
 Canister crates that emit benchmark markers can add the same version under
 `[dependencies]` and use `ic_testkit::performance`.
 
-The crate supports Rust 1.91 and uses PocketIC 16. The `pocket_ic` and `pic`
-modules are host-only; `performance` emits markers on Wasm. Benchmark counters,
-marker parsing, aggregation and `Fake` are available on native and Wasm targets.
+The crate supports Rust 1.91 and uses PocketIC 16. The `pic` helpers
+are host-only; `performance` emits markers on Wasm. Benchmark counters,
+marker parsing, aggregation and `fake_principal` are available on native and Wasm targets.
 The Wasm library uses Platform's raw counters and marker logging,
-without a canister SDK or Candid; `Fake` retains PocketIC’s principal identity through
+without a canister SDK or Candid; `fake_principal` retains PocketIC’s principal identity through
 `ic_platform::principal::ExternalPrincipal`, without enabling Candid on Wasm.
 Native CSV/Markdown directory output is provided by the repository's
 `benchmark_report` example; applications own provenance and output policy.
@@ -187,7 +188,7 @@ restored or validated.
 
 | Area | Main surface | Value added by ic-testkit |
 | --- | --- | --- |
-| PocketIC runtime | `pocket_ic`; `pic::{PocketIc, PocketIcBuilder}` | Platform client surface plus focused convenience re-exports; no wrapper |
+| PocketIC runtime | `ic_platform::pocket_ic` | Import the upstream client and DTOs directly from their dependency owner |
 | Startup | `PocketIcStartupConfig`, `PocketIcManagedServer` | Explicit bounded spawn/connect policy, owned shared-server lifecycle, and structured failures |
 | Calls | `query_wire`, `update_wire` (feature `wire`) | Method-bound encoding/decoding, contextual errors, preserved rejections |
 | Raw operations | `try_pocket_ic_operation` | Return recognized synchronous transport panics without retrying or changing upstream results |
@@ -198,7 +199,7 @@ restored or validated.
 | Diagnostics | `PocketIcDiagnosticsExt` | Controller-aware structured status and bounded log reporting |
 | Readiness progression | `tick_until` | Bounded advance/tick rounds with a caller-owned predicate |
 | Benchmarks | `benchmark`, `performance` | Marker emission, parsing, aggregation, comparison, and reports |
-| Test identities | `Fake` | Stable deterministic principals |
+| Test identities | `fake_principal` | Stable deterministic principals |
 
 `ic_testkit::pic::prelude::*` imports the three extension traits only. Data types
 and PocketIC types remain explicit imports.
@@ -209,7 +210,8 @@ Each test normally constructs and directly owns one fresh `PocketIc`:
 
 ```rust,no_run
 use ic_platform::principal::ExternalPrincipal as Principal;
-use ic_testkit::pic::{PocketIc, query_wire};
+use ic_platform::pocket_ic::{PocketIc};
+use ic_testkit::pic::{query_wire};
 
 fn read_counter<M: ic_wire::Method<Request = (), Response = u64>>(
     pocket_ic: &PocketIc, canister_id: Principal,
@@ -289,9 +291,8 @@ Configure topology on the upstream builder and make the startup source and
 deadline explicit:
 
 ```rust,no_run
-use ic_testkit::pic::{
-    PocketIc, PocketIcBuilder, PocketIcInstance, PocketIcStartupConfig,
-};
+use ic_platform::pocket_ic::{PocketIc, PocketIcBuilder};
+use ic_testkit::pic::{PocketIcInstance, PocketIcStartupConfig};
 use std::{path::Path, time::Duration};
 
 fn build_test_ic(server_binary: &Path) -> Result<PocketIcInstance<PocketIc>, ic_testkit::pic::PocketIcStartupError> {
@@ -346,7 +347,8 @@ The async instance requires explicit deletion while its server is retained:
 
 ```rust,no_run
 # async fn example(binary: &std::path::Path) -> Result<(), ic_testkit::pic::PocketIcStartupError> {
-use ic_testkit::pic::{PocketIcBuilder, PocketIcStartupConfig};
+use ic_platform::pocket_ic::{PocketIcBuilder};
+use ic_testkit::pic::{PocketIcStartupConfig};
 use std::time::Duration;
 let owned = PocketIcStartupConfig::Spawn {
         server_binary: binary.into(),
@@ -381,9 +383,8 @@ A serial suite can retain one testkit-owned server explicitly and construct
 several bounded instances against it:
 
 ```rust,no_run
-use ic_testkit::pic::{
-    PocketIcBuilder, PocketIcStartupConfig,
-};
+use ic_platform::pocket_ic::{PocketIcBuilder};
+use ic_testkit::pic::{PocketIcStartupConfig};
 use std::{path::Path, time::Duration};
 
 fn run_serial_suite(server_binary: &Path) -> Result<(), ic_testkit::pic::PocketIcStartupError> {
@@ -424,7 +425,8 @@ dropped. For suites spanning several Cargo or test-runner processes, keep one
 runner-owned server and use the shared environment contract in each process:
 
 ```rust,no_run
-use ic_testkit::pic::{PocketIcBuilder, PocketIcStartupConfig};
+use ic_platform::pocket_ic::{PocketIcBuilder};
+use ic_testkit::pic::{PocketIcStartupConfig};
 use std::time::Duration;
 
 let config = PocketIcStartupConfig::from_env(Duration::from_secs(30))?;
@@ -545,9 +547,8 @@ the active endpoint.
 
 ```rust,no_run
 use ic_platform::principal::ExternalPrincipal as Principal;
-use ic_testkit::pic::{
-    InstallSpec, PocketIcBuilder, PocketIcStartupConfig, StandaloneCanisterFixture,
-};
+use ic_platform::pocket_ic::{PocketIcBuilder};
+use ic_testkit::pic::{InstallSpec, PocketIcStartupConfig, StandaloneCanisterFixture};
 
 fn install_counter(wasm: Vec<u8>, init_bytes: Vec<u8>)
     -> Result<StandaloneCanisterFixture, Box<dyn std::error::Error>>
@@ -591,7 +592,8 @@ canister may already exist, and later installs are not attempted.
 
 ```rust,no_run
 use std::{num::NonZeroUsize, time::Duration};
-use ic_testkit::pic::{CanisterInstallExt, PocketIc, RejectResponse, RetryPolicy};
+use ic_platform::pocket_ic::{PocketIc, RejectResponse};
+use ic_testkit::pic::{CanisterInstallExt, RetryPolicy};
 
 fn retry_install(pocket_ic: &PocketIc, install_again: impl FnMut() -> Result<(), RejectResponse>)
     -> Result<(), RejectResponse>
@@ -614,9 +616,8 @@ those captured senders and requires an explicit cycle-funding policy:
 
 ```rust,no_run
 use ic_platform::principal::ExternalPrincipal as Principal;
-use ic_testkit::pic::{
-    CanisterSnapshotTarget, PocketIc, PocketIcSnapshotExt, SnapshotRestoreFunding,
-};
+use ic_platform::pocket_ic::{PocketIc};
+use ic_testkit::pic::{CanisterSnapshotTarget, PocketIcSnapshotExt, SnapshotRestoreFunding};
 
 fn restore_pair(
     pocket_ic: &PocketIc, root_canister: Principal, root_controller: Principal,
@@ -661,10 +662,7 @@ its installed canister ID:
 
 ```rust,no_run
 use std::{num::NonZeroUsize, sync::LazyLock};
-use ic_testkit::pic::{
-    CachedPocketIcBaselinePool, query_wire, SnapshotRestoreFunding,
-    StandaloneCanisterFixture, StandaloneCanisterRecipe,
-};
+use ic_testkit::pic::{CachedPocketIcBaselinePool, query_wire, SnapshotRestoreFunding, StandaloneCanisterFixture, StandaloneCanisterRecipe};
 
 static POOL: LazyLock<
     CachedPocketIcBaselinePool<StandaloneCanisterRecipe<fn() -> std::io::Result<StandaloneCanisterFixture>>>,
@@ -729,9 +727,7 @@ lifetime:
 
 ```rust,no_run
 use std::num::NonZeroUsize;
-use ic_testkit::pic::{
-    CachedPocketIcBaselinePool, PocketIcBaselineRecipe,
-};
+use ic_testkit::pic::{CachedPocketIcBaselinePool, PocketIcBaselineRecipe};
 
 fn use_recipe<R: PocketIcBaselineRecipe>(recipe: R)
     -> Result<(), ic_testkit::pic::BaselinePoolError<R::Error>>
@@ -834,9 +830,8 @@ operations even if one fails and returns their results independently:
 
 ```rust,no_run
 use ic_platform::principal::ExternalPrincipal as Principal;
-use ic_testkit::pic::{
-    CanisterDiagnosticsRequest, CanisterLogRenderLimits, PocketIc, PocketIcDiagnosticsExt,
-};
+use ic_platform::pocket_ic::{PocketIc};
+use ic_testkit::pic::{CanisterDiagnosticsRequest, CanisterLogRenderLimits, PocketIcDiagnosticsExt};
 
 fn diagnose(pocket_ic: &PocketIc, canister_id: Principal, sender: Principal) {
     let report = pocket_ic.collect_canister_diagnostics(CanisterDiagnosticsRequest {
@@ -855,14 +850,12 @@ For several controllers or roles, wrap each exact request in a stable label and
 collect them sequentially without fail-fast behavior:
 
 ```rust,no_run
-use ic_testkit::pic::{
-    CanisterDiagnosticsRequest, LabeledCanisterDiagnosticsRequest, PocketIc,
-    PocketIcDiagnosticsExt,
-};
+use ic_platform::pocket_ic::{PocketIc};
+use ic_testkit::pic::{CanisterDiagnosticsRequest, LabeledCanisterDiagnosticsRequest, PocketIcDiagnosticsExt};
 
 fn diagnose_pair(
     pocket_ic: &PocketIc, root: CanisterDiagnosticsRequest, worker: CanisterDiagnosticsRequest,
-) -> Result<(), ic_testkit::pic::CanisterDiagnosticsBatchContractError> {
+) -> Result<(), ic_host_artifacts::batch::BatchLabelError> {
     let requests = [
         LabeledCanisterDiagnosticsRequest { label: "root".into(), request: root },
         LabeledCanisterDiagnosticsRequest { label: "worker".into(), request: worker },
@@ -880,7 +873,7 @@ Each entry retains its collection wall time and the report retains total
 sequential batch time. An earlier rejection, transport failure, or panic does
 not prevent later requests from being attempted, and no operation retries
 anonymously. Empty or duplicate labels return
-`CanisterDiagnosticsBatchContractError` before any diagnostic call starts.
+`ic_host_artifacts::batch::BatchLabelError` before any diagnostic call starts.
 
 Fetched log content is retained as bounded lossy UTF-8 rather than raw byte
 arrays. `CanisterLogRenderLimits` controls the record and aggregate byte bounds;
@@ -892,7 +885,7 @@ from secondary diagnostic or output failures.
 Read nanoseconds since the Unix epoch directly from PocketIC:
 
 ```rust,no_run
-use ic_testkit::pic::PocketIc;
+use ic_platform::pocket_ic::PocketIc;
 
 let pocket_ic = PocketIc::new();
 let now_ns = pocket_ic.get_time().as_nanos_since_unix_epoch();
@@ -903,7 +896,8 @@ Use PocketIC's inherent `get_time`, `set_time`, `set_certified_time`,
 caller-owned readiness condition, `tick_until` bounds simulated progression:
 
 ```rust,no_run
-use ic_testkit::pic::{PocketIc, TickUntilError, tick_until};
+use ic_platform::pocket_ic::{PocketIc};
+use ic_testkit::pic::{TickUntilError, tick_until};
 use std::{task::Poll, time::Duration};
 
 fn await_condition(
@@ -952,11 +946,11 @@ producers use `benchmark::format_marker` with their own counters. Canister code
 emits compact markers around the measured region:
 
 ```rust,no_run
-use ic_testkit::performance::Performance;
+use ic_testkit::performance;
 
-Performance::measure("storage/write:start");
+performance::measure("storage/write:start");
 // measured work
-Performance::measure("storage/write:end");
+performance::measure("storage/write:end");
 ```
 
 The default line format is:
@@ -1036,20 +1030,20 @@ ambiguous framing; callers own responses and transport-failure injection.
 ## Deterministic principals
 
 ```rust
-use ic_testkit::Fake;
+use ic_testkit::fake_principal;
 
-let alice = Fake::principal(1);
-let bob = Fake::principal(2);
+let alice = fake_principal(1);
+let bob = fake_principal(2);
 
 assert_ne!(alice, bob);
-assert_eq!(alice, Fake::principal(1));
+assert_eq!(alice, fake_principal(1));
 ```
 
 ## Scope boundaries
 
 | Capability | Owner and Testkit's integration |
 | --- | --- |
-| Simulator, canister execution and client runtime types | PocketIC; Testkit re-exports its types and adds explicit fixture lifecycle policy |
+| Simulator, canister execution and client runtime types | PocketIC through Platform; Testkit adds explicit fixture lifecycle policy |
 | Server provisioning, startup, typed calls, snapshots, baseline reuse and benchmark markers | `ic-testkit`; callers select topology, reset coverage, limits and scenarios |
 | Bounded Candid reply decoding on native and Wasm targets | `ic-platform` with its `candid` feature; transports and applications select budgets and retain their own reply policy |
 | Cargo/Wasm builds, input resolution, retained artifacts and package qualification | IC Build; only the private `ic-testkit-dev` programs depend on it here |

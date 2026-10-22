@@ -5,7 +5,7 @@
 //! [`compare_benchmark_aggregates`]. Native report output lives in
 //! the repository's `benchmark_report` example. Marker
 //! producers can use [`format_marker`] on the host or
-//! `ic_testkit::performance::Performance` in canister code.
+//! `ic_testkit::performance` in canister code.
 //!
 //! Totals and run counts remain exact integers. Means use Testkit's exact
 //! scaled integer projection, rounded down. Callers choose the scale and handle

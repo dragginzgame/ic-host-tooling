@@ -22,7 +22,7 @@ retaining its guards, explicit codecs and existing exported method names.
 ## Current Fixtures
 
 - `ic-testkit-perf-probe`: emits compact `ICTK|...` benchmark markers via
-  `ic_testkit::performance::Performance::measure`. It exposes `ping`,
+  `ic_testkit::performance::measure`. It exposes `ping`,
   `benchmark_once`, and `benchmark_start_then_trap` to exercise successful
   spans and unmatched start markers after a trap.
 
