@@ -33,8 +33,13 @@ mkdir "$fixture/relative-parent"
 ln -s "$fixture/relative-parent" "$fixture/relative-alias"
 for input in scripts/ci/test-make-snapshot.sh scripts/release/test-adapter.sh \
     scripts/publish/test-workspace.sh; do
+    log="$fixture/relative-${input##*/}.log"
     (cd "$fixture"; TMPDIR=relative-alias bash "$root/$input") \
-        > "$fixture/relative-${input##*/}.log" 2>&1
+        > "$log" 2>&1 || {
+            status=$?
+            fixture_replay_logs "$log"
+            exit "$status"
+        }
     remaining=("$fixture/relative-parent/"*)
     [[ ! -e "${remaining[0]}" ]] || exit 1
 done

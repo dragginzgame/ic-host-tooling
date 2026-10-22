@@ -1,5 +1,20 @@
 # Current handoff
 
+## Qualification fixture repair
+
+The maintainer committed held-reply preparation at `b6cc3f09` (manifest still
+0.64.0). Release verification stopped in the local Make snapshot fixture:
+its expected MSRV command still selected `reply-fixtures`, while the real target
+now selects `held-reply-fixtures`. The local repair aligns that expectation and
+replays nested relative-fixture logs without replacing their failure status.
+No Rust, versions, release state or incoming artifacts were changed.
+Original failure evidence remains at `/tmp/host-fixture-retention.6LzebK`;
+focused repair evidence is retained at `/tmp/ic-tooling-fixture-fix`.
+Linux `make tooling-command-check`, Bash syntax, ShellCheck and local documentation
+links pass. A controlled nested failure proves diagnostic replay, original exit
+code 23 and preservation of both evidence directories. No full release rerun or
+fresh native macOS qualification is claimed.
+
 ## Held provider replies for 0.64.1
 
 Main is release 0.64.0, `036da0cdf3d3b35297fbc26031e373f386a2f2de`.

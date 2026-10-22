@@ -7,6 +7,9 @@
   ingress commits; unknown and repeated releases refuse
   ([#234 — Testkit: support controllable held replies for installed callback-race tests](https://github.com/dragginzgame/ic-tooling/issues/234)).
   [Usage and lifecycle](crates/ic-testkit/README.md#held-provider-replies).
+- Fix the release qualification fixture's expected held-reply Wasm profile and
+  surface nested fixture failure logs while preserving failure status/evidence.
+  [Details](docs/changelog/0.64.md#qualification-fixtures).
 
 ## [0.64.0] - 2026-10-22
 
