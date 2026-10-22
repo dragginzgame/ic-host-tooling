@@ -1,6 +1,32 @@
 # Current handoff
 
-## Local 0.64 workspace hard cut
+## Shared Tooling 0.26.6 adoption
+
+The maintainer committed the 0.64 preparation at `41b1dadb` before this refresh;
+the checkout was clean. The canonical exporter now records Shared Tooling 0.26.6
+at `4cb9bc907154225a3f7e4c33fd8d75fbeaa125c8`, retaining the previous roots and
+adding `audits/ci-release-integrity.md`. All 137 payloads verify against the new
+manifest. Host/Rust/IC pins, package versions and Cargo.lock are unchanged.
+The snapshot, local baseline pointer and adoption notes remain uncommitted.
+
+Focused Linux checks pass for shell syntax/ShellCheck, local documentation links,
+real overlapping Testkit/probe feature graphs on development Cargo and Cargo
+1.91, and controlled consumer failure/evidence paths. The latter exercise NUL
+checksum refusal, original backend statuses, independent parent/nested errors,
+redirected latest-log paths and summary failure without masking target status.
+The first temporary proof attempt hit an assertion glob that also selected its
+deliberately occupied directory; the corrected proof passes and both attempts
+remain at `/tmp/ic-tooling-refresh-0266`. The local tooling-command gate also
+passes product-evidence round trips, Host fixture retention, actual Make snapshot
+routing and substituted release-command admission. No product Rust changed.
+
+Shared's [source CI](https://github.com/dragginzgame/shared-tooling/actions/runs/39747129095)
+passes lint/security, change selection, Linux and native macOS Apple Silicon
+portable regression. Native macOS 15 Intel is still running at the closing
+inspection; the full workflow remains pending and is not claimed as passing.
+No fresh native macOS consumer qualification is claimed.
+
+## Prepared 0.64 workspace hard cut
 
 The maintainer expanded the cleanup review to the whole workspace. Pending
 [0.64 migration notes](../changelog/0.64.md) cover dependency/helper ownership
@@ -21,8 +47,8 @@ on development Rust 1.99.1 and actual Rust 1.91. Native Testkit/private-harness
 all-target/all-feature checks and library/probe Wasm checks pass on both compilers.
 Strict Clippy passes for the affected native packages and Wasm probe; all five
 Testkit doctests and warning-free Testkit/Host Tools Rustdoc pass on Linux.
-Changes remain local and package versions remain 0.63.3. The incoming Cargo.lock
-edit is preserved. Evidence: `/tmp/ic-tooling-064-api`; the first Wire-only pass
+The maintainer committed these changes at `41b1dadb`; package versions remain
+0.63.3. Evidence: `/tmp/ic-tooling-064-api`; the first Wire-only pass
 is retained at `/tmp/ic-tooling-wire-cleanup`. No new native macOS or live server
 integration qualification is claimed for this working tree.
 An additional incoming lock edit selected Tokio 1.54.1 during review. Affected
@@ -117,8 +143,8 @@ graph evidence remains valid for the matching source.
 
 ## Existing contributions and qualification
 
-Local Shared snapshot remains 0.26.2 at `1959ef75d0b86ed7725d41ae5056303d35eb633d`,
-exported from the exact qualified upstream commit. Optimizer-only routing from
+Local Shared snapshot is now 0.26.6 at `4cb9bc907154225a3f7e4c33fd8d75fbeaa125c8`,
+with adoption evidence above. Earlier optimizer-only routing from
 [PR #226](https://github.com/dragginzgame/ic-tooling/pull/226) shipped without
 duplicating its native setup regression. Refresh evidence and incoming dirty-file
 backups are under `/tmp/ic-tooling-refresh-0262`.
@@ -134,14 +160,14 @@ Apple Silicon also passed independently on their native runners.
 [Build optimizer](https://github.com/dragginzgame/ic-tooling/actions/runs/39637698491)
 and [browser session](https://github.com/dragginzgame/ic-tooling/actions/runs/39637698443)
 each passed Linux and both macOS hosts. These results qualify the delivered
-0.63.3 source, not the new working-tree Wire change.
+0.63.3 source, not the prepared 0.64 source or Shared refresh.
 The earlier 0.63.2 Intel DNS failure was recovered under closed
 [issue #230](https://github.com/dragginzgame/ic-tooling/issues/230);
 original failure logs remain at `/tmp/ic-tooling-0632-intel.log`.
 
-Ordinary integration CI runs asynchronously under the maintainer's explicit
-cadence instruction. [Shared #298](https://github.com/dragginzgame/shared-tooling/issues/298)
-is now closed upstream. This task does not adopt a new Shared snapshot.
+Ordinary integration CI follows the adopted baseline's
+[asynchronous cadence](../../DRAGGINZGAME.md#validation-and-evidence);
+the former local exception is no longer needed.
 Required merge/release/issue acceptance gates remain separate. There are no
 open Tooling PRs at this review. [Issue #225](https://github.com/dragginzgame/ic-tooling/issues/225)
 still depends on Canic #613 supplying the concrete Wire schema/artifact contract.

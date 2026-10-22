@@ -2,6 +2,10 @@
 
 ## [0.64.0] - Unreleased
 
+- Adopt Shared Tooling 0.26.6: handle overlapping Cargo feature roots and harden
+  retained validation/evidence failures. Ordinary hosted integration follows the
+  shared asynchronous policy; release and enforced GitHub gates remain separate.
+  Tool pins are unchanged. [Details](docs/changelog/0.64.md#shared-tooling).
 - **Breaking ownership cleanup:** import PocketIC clients and DTOs directly from
   Platform, use Testkit's ordinary principal/performance helpers, and use Host's
   shared batch-label error for diagnostics. Host Tools accepts Platform's Candid
