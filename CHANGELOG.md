@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.66.0] - Unreleased
+## [0.66.0] - 2026-10-23
 
 - **Breaking:** make PocketIC client/server ownership transfer explicit. Replace
   public field access with borrowing accessors and use named construction or
