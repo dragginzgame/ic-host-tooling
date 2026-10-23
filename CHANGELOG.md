@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.66.1] - Unreleased
+
+- Correct current Build, Host and Testkit dependency examples to the coordinated
+  0.66 release line.
+- Give Build's executable examples standard help/version output and reject missing,
+  extra or invalid arguments before effects. Clap remains a development dependency
+  for these examples; the default library graph stays unchanged.
+- Adopt Shared Tooling 0.26.9's safer setup contention handling while retaining
+  offline checks, tool pins and existing installation evidence.
+  [Details and setup](docs/changelog/0.66.md#0661---unreleased).
+
 ## [0.66.0] - 2026-10-23
 
 - **Breaking:** make PocketIC client/server ownership transfer explicit. Replace

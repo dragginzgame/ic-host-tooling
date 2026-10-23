@@ -42,18 +42,18 @@ Batch label errors use `ic_host_artifacts::batch::BatchLabelError` in
 
 ## Use
 
-The published 0.23 API requires Rust 1.91.0 or newer:
+IC Build requires Rust 1.91.0 or newer:
 
 ```toml
 [dependencies]
-ic-build = "0.62"
+ic-build = "0.66"
 # Add matching direct Host dependencies when passing Host values through Build.
-ic-host-process = { version = "0.62", default-features = false }
+ic-host-process = { version = "0.66", default-features = false }
 ```
 
-The coordinated Build 0.62 selects Host 0.62. Consumers passing Host values
+The coordinated Build 0.66 selects Host 0.66. Consumers passing Host values
 through the execution/artifact APIs must align their direct Artifacts, FS and
-Process dependencies to 0.32. The command/byte observation interfaces do not
+Process dependencies to 0.66. The command/byte observation interfaces do not
 exchange Host values. Defaults stay disabled; Build needs no Platform dependency.
 
 The examples use the current API and are compiled as Cargo example targets.

@@ -1684,9 +1684,9 @@ dependencies = [
 
 [[package]]
 name = "ic-platform"
-version = "0.6.9"
+version = "0.6.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e369961ed6ac751925b11f302e85e380634e99598d7c233c69c01cc10cc3c5e4"
+checksum = "c8f5e91537f896a8f70dd2abf00fe57b48a33b901ce959ebaf2a4b712897f3b5"
 dependencies = [
  "candid",
  "candid_parser",
@@ -1709,9 +1709,9 @@ dependencies = [
 
 [[package]]
 name = "ic-platform-macros"
-version = "0.6.9"
+version = "0.6.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f90597c982a9134adb6592f1434ddbe4f54dc136fff13d5d30aacf46ae0c0d81"
+checksum = "5315eef2ab82da5b28fee6f6b95f248e03e93fd830fc715702e12ba6e0304987"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1815,10 +1815,11 @@ dependencies = [
 
 [[package]]
 name = "ic-wire"
-version = "0.6.6"
+version = "0.6.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e3a07fb6296024fa31d880c4ee802d474abf9e7bc2e8f92a5868a5fc366b3609"
+checksum = "4588521b810c96f6cc3d1bc0e2b8e1418935a747cbc535c749a9a4dc8f66eefb"
 dependencies = [
+ "bytemuck",
  "ic-wire-derive",
  "postcard",
  "serde",
@@ -1826,9 +1827,9 @@ dependencies = [
 
 [[package]]
 name = "ic-wire-derive"
-version = "0.6.6"
+version = "0.6.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d6442d06a6e2c00b4a96e362b246eb05488f8669700b6b009e1dba4e8a583b61"
+checksum = "c8ade0cf486107d075269c638f424419426ff231c7374557a0ef381e0debfaff"
 dependencies = [
  "proc-macro2",
  "quote",

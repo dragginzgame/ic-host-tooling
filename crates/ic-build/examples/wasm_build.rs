@@ -4,6 +4,7 @@
 //! for the whole invocation. This example captures the caller's environment;
 //! applications choose their own complete environment and process custody.
 
+use clap::{Arg, Command, value_parser};
 use ic_build::{
     artifacts::{WasmBuildSpec, build_wasm_canisters_cached},
     cargo::selection::CargoSelection,
@@ -12,14 +13,21 @@ use ic_host_process::child::OwnedChild;
 use std::{error::Error, path::PathBuf};
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let mut arguments = std::env::args_os().skip(1);
-    let workspace =
-        PathBuf::from(arguments.next().ok_or("expected WORKSPACE PACKAGE")?).canonicalize()?;
-    let package = arguments
-        .next()
-        .ok_or("expected PACKAGE")?
-        .into_string()
-        .map_err(|_| "PACKAGE must be UTF-8")?;
+    let arguments = Command::new("wasm_build")
+        .about("Build and read a caller-selected Wasm library")
+        .version(env!("CARGO_PKG_VERSION"))
+        .arg(
+            Arg::new("workspace")
+                .required(true)
+                .value_parser(value_parser!(PathBuf)),
+        )
+        .arg(Arg::new("package").required(true))
+        .get_matches();
+    let workspace = arguments
+        .get_one::<PathBuf>("workspace")
+        .unwrap()
+        .canonicalize()?;
+    let package = arguments.get_one::<String>("package").unwrap();
     let environment = std::env::vars_os().filter(|(name, _)| name != "CARGO_TARGET_DIR");
     let spec = WasmBuildSpec::new(
         &workspace,

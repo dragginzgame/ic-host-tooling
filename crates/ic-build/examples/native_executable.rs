@@ -4,6 +4,7 @@
 //! configuration, tools and the mutable target through executable consumption.
 //! Command environment, admission and child cleanup are explicit caller choices.
 
+use clap::{Arg, Command as Cli, value_parser};
 use ic_build::cargo::{
     native::{NativeExecutableSpec, NativeTargetKind, build_native_executable},
     selection::CargoSelection,
@@ -12,26 +13,26 @@ use ic_host_process::child::OwnedChild;
 use std::{error::Error, path::PathBuf, process::Command};
 
 fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
-    let mut arguments = std::env::args_os().skip(1);
-    let workspace = PathBuf::from(
-        arguments
-            .next()
-            .ok_or("expected WORKSPACE PACKAGE EXAMPLE")?,
-    )
-    .canonicalize()?;
-    let package = arguments
-        .next()
-        .ok_or("expected PACKAGE")?
-        .into_string()
-        .map_err(|_| "PACKAGE must be UTF-8")?;
-    let target_name = arguments
-        .next()
-        .ok_or("expected EXAMPLE")?
-        .into_string()
-        .map_err(|_| "EXAMPLE must be UTF-8")?;
+    let arguments = Cli::new("native_executable")
+        .about("Build a caller-selected native Cargo example")
+        .version(env!("CARGO_PKG_VERSION"))
+        .arg(
+            Arg::new("workspace")
+                .required(true)
+                .value_parser(value_parser!(PathBuf)),
+        )
+        .arg(Arg::new("package").required(true))
+        .arg(Arg::new("example").required(true))
+        .get_matches();
+    let workspace = arguments
+        .get_one::<PathBuf>("workspace")
+        .unwrap()
+        .canonicalize()?;
+    let package = arguments.get_one::<String>("package").unwrap();
+    let target_name = arguments.get_one::<String>("example").unwrap();
     let spec = NativeExecutableSpec {
-        package: &package,
-        target_name: &target_name,
+        package,
+        target_name,
         target_kind: NativeTargetKind::Example,
         selection: CargoSelection::default(),
         max_message_bytes: 16 * 1024 * 1024,
