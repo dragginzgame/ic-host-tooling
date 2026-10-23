@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.66.1] - Unreleased
+## [0.66.1] - 2026-10-23
 
 - Correct current Build, Host and Testkit dependency examples to the coordinated
   0.66 release line.
