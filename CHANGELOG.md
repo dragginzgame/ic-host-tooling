@@ -1,5 +1,7 @@
 # Changelog
 
+## [0.66.2] - 2026-10-23
+
 ## [0.66.1] - 2026-10-23
 
 - Correct current Build, Host and Testkit dependency examples to the coordinated
