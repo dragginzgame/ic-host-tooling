@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.65.0] - Unreleased
+## [0.65.0] - 2026-10-23
 
 - **Breaking:** adopt IC Wire 0.6.4's native Serde codec. Testkit Wire calls now
   take an explicit endpoint name, ID and per-direction limits through `WireCallSpec`,
