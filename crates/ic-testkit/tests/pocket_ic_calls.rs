@@ -4,23 +4,25 @@ mod support;
 
 use ic_platform::pocket_ic::{ErrorCode, RejectCode};
 use ic_platform::principal::ExternalPrincipal as Principal;
-use ic_testkit::pic::{PocketIcCallFailure, WireCallError, query_wire, update_wire};
-use ic_wire::{Limits, Method};
+use ic_testkit::pic::{PocketIcCallFailure, WireCallError, WireCallSpec, query_wire, update_wire};
+use ic_wire::Limits;
 
-struct Probe;
-impl Method for Probe {
-    type Request = ();
-    type Response = u64;
-    const ID: u64 = 91;
-    const NAME: &'static str = "probe";
-    const REQUEST_LIMITS: Limits = Limits {
+const PROBE: WireCallSpec = WireCallSpec {
+    method: "probe",
+    method_id: 91,
+    request_limits: Limits {
         bytes: 64,
-        allocation: 64,
+        allocation: 512,
         nodes: 8,
         depth: 4,
-    };
-    const RESPONSE_LIMITS: Limits = Self::REQUEST_LIMITS;
-}
+    },
+    response_limits: Limits {
+        bytes: 64,
+        allocation: 512,
+        nodes: 8,
+        depth: 4,
+    },
+};
 
 #[cfg(feature = "reply-fixtures")]
 #[test]
@@ -29,14 +31,15 @@ fn wire_calls_preserve_codec_refusals_and_error_identity() {
         CanisterInstallExt as _, InstallSpec,
         fixtures::{RawReplyLimits, RawReplyMethod, ReplyMode, raw_reply_canister},
     };
-    let valid = ic_wire::encode_response::<Probe>(&42).unwrap().into_bytes();
+    let valid =
+        ic_wire::native::encode_response(PROBE.method_id, &42_u64, PROBE.response_limits).unwrap();
     let owned = support::pocket_ic();
     let pic = &owned.instance;
     for mode in [ReplyMode::Query, ReplyMode::Update] {
         for reply in [valid.as_slice(), &[]] {
             let wasm = raw_reply_canister(
                 &[RawReplyMethod {
-                    name: Probe::NAME,
+                    name: PROBE.method,
                     mode,
                     reply,
                 }],
@@ -57,8 +60,12 @@ fn wire_calls_preserve_codec_refusals_and_error_identity() {
                 })
                 .unwrap();
             let result = match mode {
-                ReplyMode::Query => query_wire::<Probe>(pic, id, Principal::anonymous(), &()),
-                ReplyMode::Update => update_wire::<Probe>(pic, id, Principal::anonymous(), &()),
+                ReplyMode::Query => {
+                    query_wire::<_, u64>(pic, id, Principal::anonymous(), PROBE, &())
+                }
+                ReplyMode::Update => {
+                    update_wire::<_, u64>(pic, id, Principal::anonymous(), PROBE, &())
+                }
             };
             if reply.is_empty() {
                 let error = result.unwrap_err();
@@ -91,9 +98,12 @@ fn wire_call_errors_preserve_live_pocket_ic_rejections() {
     pic.delete_canister(removed, None).unwrap();
     for caller in [Principal::anonymous(), Principal::management_canister()] {
         for (result, operation) in [
-            (query_wire::<Probe>(pic, removed, caller, &()), "query_call"),
             (
-                update_wire::<Probe>(pic, removed, caller, &()),
+                query_wire::<_, u64>(pic, removed, caller, PROBE, &()),
+                "query_call",
+            ),
+            (
+                update_wire::<_, u64>(pic, removed, caller, PROBE, &()),
                 "update_call",
             ),
         ] {
@@ -110,7 +120,7 @@ fn wire_call_errors_preserve_live_pocket_ic_rejections() {
             assert_eq!(context.operation, operation);
             assert_eq!(context.canister_id, removed);
             assert_eq!(context.caller, caller);
-            assert_eq!(context.method, Probe::NAME);
+            assert_eq!(context.method, PROBE.method);
         }
     }
 }

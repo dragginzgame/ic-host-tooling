@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.65.0] - Unreleased
+
+- **Breaking:** adopt IC Wire 0.6.4's native Serde codec. Testkit Wire calls now
+  take an explicit endpoint name, ID and per-direction limits through `WireCallSpec`,
+  with request/response Rust types selected by the caller. Migrate both endpoints
+  and callers from Wire's removed finite `Method` API and qualify their budgets.
+  [Migration](docs/changelog/0.65.md).
+
 ## [0.64.2] - 2026-10-22
 
 - Add bounded cycle acceptance to native provider reply fixtures, with immediate

@@ -1,7 +1,10 @@
 //! Workload for the fixture-reuse driver; not an ordinary test.
 //! See docs/fixture-reuse-benchmark.md for the workload and measurement boundaries.
 
-use crate::fixture_reuse_protocol::{Mode, WorkerArguments};
+use crate::{
+    fixture_reuse_protocol::{Mode, WorkerArguments},
+    probe_wire_spec,
+};
 use std::{
     error::Error,
     fmt, fs, io,
@@ -75,8 +78,14 @@ impl Recipe {
             pic.instance.add_cycles(id, 5_000_000_000_000);
             pic.instance
                 .install_canister(id, self.wasm.to_vec(), vec![], None);
-            update_wire::<SeedState>(&pic.instance, id, Principal::anonymous(), &self.state_bytes)
-                .map_err(recipe_error)?;
+            update_wire::<u32, ()>(
+                &pic.instance,
+                id,
+                Principal::anonymous(),
+                probe_wire_spec(SeedState::NAME, SeedState::ID),
+                &self.state_bytes,
+            )
+            .map_err(recipe_error)?;
         }
         Ok((pic, ids))
     }
@@ -94,8 +103,14 @@ impl Recipe {
             first,
         };
         for id in ids {
-            let state = query_wire::<InspectState>(pic, *id, Principal::anonymous(), &())
-                .map_err(recipe_error)?;
+            let state = query_wire::<_, State>(
+                pic,
+                *id,
+                Principal::anonymous(),
+                probe_wire_spec(InspectState::NAME, InspectState::ID),
+                &(),
+            )
+            .map_err(recipe_error)?;
             if state != expected {
                 return Err(recipe_error(io::Error::other(format!(
                     "fixture state mismatch: expected {expected:?}, got {state:?}"
@@ -107,7 +122,13 @@ impl Recipe {
 
     fn exercise(&self, pic: &PocketIc, ids: &[Principal; 2]) -> Result<()> {
         for id in ids {
-            update_wire::<MutateState>(pic, *id, Principal::anonymous(), &())?;
+            update_wire::<_, ()>(
+                pic,
+                *id,
+                Principal::anonymous(),
+                probe_wire_spec(MutateState::NAME, MutateState::ID),
+                &(),
+            )?;
         }
         self.validate_state(pic, ids, true)?;
         Ok(())

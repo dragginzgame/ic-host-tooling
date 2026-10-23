@@ -12,8 +12,8 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 ic-wire = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 ic-platform = { workspace = true, features = ["cdk"] }
 ic-testkit = { workspace = true }
-serde = { workspace = true }

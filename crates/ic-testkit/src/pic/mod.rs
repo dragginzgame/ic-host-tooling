@@ -69,7 +69,7 @@ pub use transport::{
     try_pocket_ic_operation,
 };
 #[cfg(feature = "wire")]
-pub use wire::{WireCallContext, WireCallError, query_wire, update_wire};
+pub use wire::{WireCallContext, WireCallError, WireCallSpec, query_wire, update_wire};
 
 /// All PocketIC extension traits, and no data types.
 ///

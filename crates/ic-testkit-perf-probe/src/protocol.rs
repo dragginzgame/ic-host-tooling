@@ -1,114 +1,96 @@
 //! Private method contracts shared by the probe and its native callers.
 //! These bounds cover control values; seeded heap bytes never cross the wire.
 
-use ic_wire::{Bytes, Limits, Method, Text, Wire};
+use ic_wire::Limits;
+use serde::{Deserialize, Serialize};
 
 /// Maximum frame size admitted before the CDK copies an argument.
 pub const FRAME_BYTES: usize = 64;
-const LIMITS: Limits = Limits {
+pub const LIMITS: Limits = Limits {
     bytes: FRAME_BYTES,
-    allocation: 256,
-    nodes: 16,
-    depth: 4,
+    allocation: 4096,
+    nodes: 128,
+    depth: 16,
 };
 
 /// Snapshot-contained heap state observed by the fixture-reuse workload.
-#[derive(Debug, Eq, PartialEq, Wire)]
+#[derive(Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct State {
-    #[wire(id = 1)]
     pub mutations: u64,
-    #[wire(id = 2)]
     pub bytes: u64,
-    #[wire(id = 3)]
     pub first: Option<u8>,
 }
 
 /// Seed the fixture's deterministic heap allocation.
 pub struct SeedState;
-impl Method for SeedState {
-    type Request = u32;
-    type Response = ();
-    const ID: u64 = 0x544b_5052_4f42_0001;
-    const NAME: &'static str = "fixture_seed_state";
-    const REQUEST_LIMITS: Limits = LIMITS;
-    const RESPONSE_LIMITS: Limits = LIMITS;
+impl SeedState {
+    pub const ID: u64 = 0x544b_5052_4f42_0001;
+    pub const NAME: &'static str = "fixture_seed_state";
+    pub const REQUEST_LIMITS: Limits = LIMITS;
+    pub const RESPONSE_LIMITS: Limits = LIMITS;
 }
 
 /// Mutate the fixture's counter and first byte.
 pub struct MutateState;
-impl Method for MutateState {
-    type Request = ();
-    type Response = ();
-    const ID: u64 = 0x544b_5052_4f42_0002;
-    const NAME: &'static str = "fixture_mutate_state";
-    const REQUEST_LIMITS: Limits = LIMITS;
-    const RESPONSE_LIMITS: Limits = LIMITS;
+impl MutateState {
+    pub const ID: u64 = 0x544b_5052_4f42_0002;
+    pub const NAME: &'static str = "fixture_mutate_state";
+    pub const REQUEST_LIMITS: Limits = LIMITS;
+    pub const RESPONSE_LIMITS: Limits = LIMITS;
 }
 
 /// Inspect the fixture's heap without mutating it.
 pub struct InspectState;
-impl Method for InspectState {
-    type Request = ();
-    type Response = State;
-    const ID: u64 = 0x544b_5052_4f42_0003;
-    const NAME: &'static str = "fixture_state";
-    const REQUEST_LIMITS: Limits = LIMITS;
-    const RESPONSE_LIMITS: Limits = LIMITS;
+impl InspectState {
+    pub const ID: u64 = 0x544b_5052_4f42_0003;
+    pub const NAME: &'static str = "fixture_state";
+    pub const REQUEST_LIMITS: Limits = LIMITS;
+    pub const RESPONSE_LIMITS: Limits = LIMITS;
 }
 
 /// Confirm the same canister remains callable after an intentional trap.
 pub struct Ping;
-impl Method for Ping {
-    type Request = ();
-    type Response = Text<4>;
-    const ID: u64 = 0x544b_5052_4f42_0004;
-    const NAME: &'static str = "ping";
-    const REQUEST_LIMITS: Limits = LIMITS;
-    const RESPONSE_LIMITS: Limits = LIMITS;
+impl Ping {
+    pub const ID: u64 = 0x544b_5052_4f42_0004;
+    pub const NAME: &'static str = "ping";
+    pub const REQUEST_LIMITS: Limits = LIMITS;
+    pub const RESPONSE_LIMITS: Limits = LIMITS;
 }
 
 /// Execute the measured arithmetic workload.
 pub struct BenchmarkOnce;
-impl Method for BenchmarkOnce {
-    type Request = ();
-    type Response = u64;
-    const ID: u64 = 0x544b_5052_4f42_0005;
-    const NAME: &'static str = "benchmark_once";
-    const REQUEST_LIMITS: Limits = LIMITS;
-    const RESPONSE_LIMITS: Limits = LIMITS;
+impl BenchmarkOnce {
+    pub const ID: u64 = 0x544b_5052_4f42_0005;
+    pub const NAME: &'static str = "benchmark_once";
+    pub const REQUEST_LIMITS: Limits = LIMITS;
+    pub const RESPONSE_LIMITS: Limits = LIMITS;
 }
 
 /// Emit a start marker and intentionally trap before its matching end.
 pub struct BenchmarkTrap;
-impl Method for BenchmarkTrap {
-    type Request = ();
-    type Response = ();
-    const ID: u64 = 0x544b_5052_4f42_0006;
-    const NAME: &'static str = "benchmark_start_then_trap";
-    const REQUEST_LIMITS: Limits = LIMITS;
-    const RESPONSE_LIMITS: Limits = LIMITS;
+impl BenchmarkTrap {
+    pub const ID: u64 = 0x544b_5052_4f42_0006;
+    pub const NAME: &'static str = "benchmark_start_then_trap";
+    pub const REQUEST_LIMITS: Limits = LIMITS;
+    pub const RESPONSE_LIMITS: Limits = LIMITS;
 }
 
 /// Observe the actual caller of a query through the typed native adapter.
 pub struct QueryCaller;
-impl Method for QueryCaller {
-    type Request = ();
-    type Response = Bytes<29>;
-    const ID: u64 = 0x544b_5052_4f42_0007;
-    const NAME: &'static str = "fixture_query_caller";
-    const REQUEST_LIMITS: Limits = LIMITS;
-    const RESPONSE_LIMITS: Limits = LIMITS;
+impl QueryCaller {
+    pub const ID: u64 = 0x544b_5052_4f42_0007;
+    pub const NAME: &'static str = "fixture_query_caller";
+    pub const REQUEST_LIMITS: Limits = LIMITS;
+    pub const RESPONSE_LIMITS: Limits = LIMITS;
 }
 
 /// Observe the actual caller of an update through the typed native adapter.
 pub struct UpdateCaller;
-impl Method for UpdateCaller {
-    type Request = ();
-    type Response = Bytes<29>;
-    const ID: u64 = 0x544b_5052_4f42_0008;
-    const NAME: &'static str = "fixture_update_caller";
-    const REQUEST_LIMITS: Limits = LIMITS;
-    const RESPONSE_LIMITS: Limits = LIMITS;
+impl UpdateCaller {
+    pub const ID: u64 = 0x544b_5052_4f42_0008;
+    pub const NAME: &'static str = "fixture_update_caller";
+    pub const REQUEST_LIMITS: Limits = LIMITS;
+    pub const RESPONSE_LIMITS: Limits = LIMITS;
 }
 
 #[cfg(test)]
@@ -117,9 +99,15 @@ mod tests {
 
     #[test]
     fn selected_limits_admit_the_largest_control_values() {
-        let request = ic_wire::encode_request::<SeedState>(&u32::MAX).unwrap();
+        let request =
+            ic_wire::native::encode_request(SeedState::ID, &u32::MAX, SeedState::REQUEST_LIMITS)
+                .unwrap();
         assert_eq!(
-            ic_wire::decode_request::<SeedState>(request.as_bytes()),
+            ic_wire::native::decode_request::<u32>(
+                SeedState::ID,
+                &request,
+                SeedState::REQUEST_LIMITS
+            ),
             Ok(u32::MAX)
         );
         for first in [None, Some(u8::MAX)] {
@@ -128,15 +116,33 @@ mod tests {
                 bytes: u64::MAX,
                 first,
             };
-            let reply = ic_wire::encode_response::<InspectState>(&state).unwrap();
+            let reply = ic_wire::native::encode_response(
+                InspectState::ID,
+                &state,
+                InspectState::RESPONSE_LIMITS,
+            )
+            .unwrap();
             assert_eq!(
-                ic_wire::decode_response::<InspectState>(reply.as_bytes()),
+                ic_wire::native::decode_response::<State>(
+                    InspectState::ID,
+                    &reply,
+                    InspectState::RESPONSE_LIMITS
+                ),
                 Ok(state)
             );
         }
-        let reply = ic_wire::encode_response::<BenchmarkOnce>(&u64::MAX).unwrap();
+        let reply = ic_wire::native::encode_response(
+            BenchmarkOnce::ID,
+            &u64::MAX,
+            BenchmarkOnce::RESPONSE_LIMITS,
+        )
+        .unwrap();
         assert_eq!(
-            ic_wire::decode_response::<BenchmarkOnce>(reply.as_bytes()),
+            ic_wire::native::decode_response::<u64>(
+                BenchmarkOnce::ID,
+                &reply,
+                BenchmarkOnce::RESPONSE_LIMITS
+            ),
             Ok(u64::MAX)
         );
     }

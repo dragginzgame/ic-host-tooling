@@ -4,7 +4,8 @@ use crate::protocol::{
 };
 use ic_platform::cdk::{query, update};
 use ic_testkit::performance;
-use ic_wire::{Bytes, Method, Text};
+use ic_wire::{Bytes, Text, native};
+use serde::{Serialize, de::DeserializeOwned};
 use std::cell::RefCell;
 
 thread_local! {
@@ -14,8 +15,8 @@ thread_local! {
 // Deterministic snapshot-contained state for the opt-in fixture benchmark.
 #[update(
     guard = "guard",
-    decode_with = "decode::<SeedState>",
-    encode_with = "encode_unit::<SeedState>"
+    decode_with = "decode::<u32, {SeedState::ID}>",
+    encode_with = "encode_unit::<{SeedState::ID}>"
 )]
 fn fixture_seed_state(bytes: u32) {
     FIXTURE_STATE.with_borrow_mut(|state| *state = (0, vec![42; bytes as usize]));
@@ -23,8 +24,8 @@ fn fixture_seed_state(bytes: u32) {
 
 #[update(
     guard = "guard",
-    decode_with = "decode::<MutateState>",
-    encode_with = "encode_unit::<MutateState>"
+    decode_with = "decode::<(), {MutateState::ID}>",
+    encode_with = "encode_unit::<{MutateState::ID}>"
 )]
 fn fixture_mutate_state() {
     FIXTURE_STATE.with_borrow_mut(|state| {
@@ -37,8 +38,8 @@ fn fixture_mutate_state() {
 
 #[query(
     guard = "guard",
-    decode_with = "decode::<InspectState>",
-    encode_with = "encode::<InspectState>"
+    decode_with = "decode::<(), {InspectState::ID}>",
+    encode_with = "encode::<State, {InspectState::ID}>"
 )]
 fn fixture_state() -> State {
     FIXTURE_STATE.with_borrow(|state| State {
@@ -50,8 +51,8 @@ fn fixture_state() -> State {
 
 #[query(
     guard = "guard",
-    decode_with = "decode::<Ping>",
-    encode_with = "encode::<Ping>"
+    decode_with = "decode::<(), {Ping::ID}>",
+    encode_with = "encode::<Text<4>, {Ping::ID}>"
 )]
 fn ping() -> Text<4> {
     Text::new("pong".into()).expect("fixed probe reply fits")
@@ -59,8 +60,8 @@ fn ping() -> Text<4> {
 
 #[update(
     guard = "guard",
-    decode_with = "decode::<BenchmarkOnce>",
-    encode_with = "encode::<BenchmarkOnce>"
+    decode_with = "decode::<(), {BenchmarkOnce::ID}>",
+    encode_with = "encode::<u64, {BenchmarkOnce::ID}>"
 )]
 fn benchmark_once() -> u64 {
     performance::measure("probe/benchmark_once:start");
@@ -76,8 +77,8 @@ fn benchmark_once() -> u64 {
 
 #[update(
     guard = "guard",
-    decode_with = "decode::<BenchmarkTrap>",
-    encode_with = "encode_unit::<BenchmarkTrap>"
+    decode_with = "decode::<(), {BenchmarkTrap::ID}>",
+    encode_with = "encode_unit::<{BenchmarkTrap::ID}>"
 )]
 fn benchmark_start_then_trap() {
     performance::measure("probe/benchmark_start_then_trap:start");
@@ -86,8 +87,8 @@ fn benchmark_start_then_trap() {
 
 #[query(
     guard = "guard",
-    decode_with = "decode::<QueryCaller>",
-    encode_with = "encode::<QueryCaller>"
+    decode_with = "decode::<(), {QueryCaller::ID}>",
+    encode_with = "encode::<Bytes<29>, {QueryCaller::ID}>"
 )]
 fn fixture_query_caller() -> Bytes<29> {
     Bytes::new(ic_platform::cdk::api::msg_caller().as_slice().to_vec())
@@ -96,8 +97,8 @@ fn fixture_query_caller() -> Bytes<29> {
 
 #[update(
     guard = "guard",
-    decode_with = "decode::<UpdateCaller>",
-    encode_with = "encode::<UpdateCaller>"
+    decode_with = "decode::<(), {UpdateCaller::ID}>",
+    encode_with = "encode::<Bytes<29>, {UpdateCaller::ID}>"
 )]
 fn fixture_update_caller() -> Bytes<29> {
     Bytes::new(ic_platform::cdk::api::msg_caller().as_slice().to_vec())
@@ -112,19 +113,14 @@ fn guard() -> Result<(), String> {
     }
 }
 
-fn decode<M: Method>(bytes: Vec<u8>) -> M::Request
-where
-    M::Request: serde::de::DeserializeOwned,
-{
-    ic_wire::decode_request::<M>(&bytes).expect("bounded perf probe Wire request")
+fn decode<Request: Serialize + DeserializeOwned, const ID: u64>(bytes: Vec<u8>) -> Request {
+    native::decode_request(ID, &bytes, protocol::LIMITS).expect("bounded perf probe Wire request")
 }
 
-fn encode<M: Method>(value: M::Response) -> Vec<u8> {
-    ic_wire::encode_response::<M>(&value)
-        .expect("bounded perf probe Wire reply")
-        .into_bytes()
+fn encode<Response: Serialize, const ID: u64>(value: Response) -> Vec<u8> {
+    native::encode_response(ID, &value, protocol::LIMITS).expect("bounded perf probe Wire reply")
 }
 
-fn encode_unit<M: Method<Response = ()>>() -> Vec<u8> {
-    encode::<M>(())
+fn encode_unit<const ID: u64>() -> Vec<u8> {
+    encode::<(), ID>(())
 }

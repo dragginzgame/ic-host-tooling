@@ -32,10 +32,10 @@ PocketIC retains its upstream Candid dependencies; Testkit's Wasm profile remain
 Candid-free.
 
 The optional native `wire` feature adds `pic::query_wire` and `pic::update_wire`.
-Enable it on your Testkit dependency and declare `ic-wire = "0.5"` for your method
-contracts. Each helper takes an explicit target/caller
-and borrowed request; the Method owns the exact name, identity, types and finite
-limits. It executes one PocketIC operation without update retries; a refused reply
+Enable it on your Testkit dependency and declare `ic-wire = "0.6"` for your native
+Serde contracts. Each helper takes an explicit target/caller, a `WireCallSpec`
+with the exported name, method ID and request/response limits, and a borrowed
+request. It executes one PocketIC operation without update retries; a refused reply
 does not prove absence of effects. It preserves
 application-level results. `WireCallError` retains typed codec causes, complete
 structured rejections and the existing transport classification. Unrelated panic
@@ -44,8 +44,12 @@ requests and original-byte evidence. Reply admission follows PocketIC's allocati
 so it supplies no network pre-allocation or peak-heap guarantee. The feature is off
 by default and adds no Wire dependency to the canister library graph.
 Requests may use borrowed bounded fields. Responses must implement
-`serde::de::DeserializeOwned` because the helper releases the received buffer
-before returning; generic callers must carry that bound alongside `M: Method`.
+`serde::Serialize` and `serde::de::DeserializeOwned` because Wire verifies
+canonical bytes and the helper releases the received buffer before returning.
+Call `query_wire::<Request, Response>(pic, canister, caller, spec, &request)` or
+`update_wire` with the same arguments. The caller owns the Serde types and
+per-direction limits; finite-codec budgets need requalification for native Serde.
+See the [0.65 migration](../../docs/changelog/0.65.md).
 
 This is the PocketIC package in the IC Tooling workspace. It provides:
 

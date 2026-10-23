@@ -1,57 +1,56 @@
-use super::{WireCallError, call_wire, context};
+use super::{WireCallError, WireCallSpec, call_wire, context};
+
 use crate::pic::{PocketIcCallFailure, is_dead_pocket_ic_transport_error};
 use ic_platform::pocket_ic::{ErrorCode, RejectCode, RejectResponse};
 use ic_platform::principal::ExternalPrincipal as Principal;
-use ic_wire::{Limits, Method};
+use ic_wire::{Limits, native};
 
 const LIMITS: Limits = Limits {
     bytes: 64,
-    allocation: 128,
-    nodes: 8,
-    depth: 4,
+    allocation: 2048,
+    nodes: 64,
+    depth: 16,
 };
 
 #[test]
 fn borrowed_requests_return_owned_responses() {
     use ic_wire::{Bytes, BytesRef};
-    use std::marker::PhantomData;
+    const BORROWED: WireCallSpec = WireCallSpec {
+        method: "borrowed",
+        method_id: 73,
+        request_limits: LIMITS,
+        response_limits: LIMITS,
+    };
 
-    struct Borrowed<'a>(PhantomData<&'a ()>);
-    impl<'a> Method for Borrowed<'a> {
-        type Request = BytesRef<'a, 8>;
-        type Response = Bytes<8>;
-        const ID: u64 = 73;
-        const NAME: &'static str = "borrowed";
-        const REQUEST_LIMITS: Limits = LIMITS;
-        const RESPONSE_LIMITS: Limits = LIMITS;
-    }
-
-    let _ = super::query_wire::<Borrowed<'_>>;
-    let _ = super::update_wire::<Borrowed<'_>>;
+    let _ = super::query_wire::<BytesRef<'_, 8>, Bytes<8>>;
+    let _ = super::update_wire::<BytesRef<'_, 8>, Bytes<8>>;
     let result = {
         let payload = vec![1, 2, 3];
         let request = BytesRef::new(&payload).unwrap();
         let mut calls = 0;
-        let response = call_wire::<Borrowed<'_>>(
-            context::<Borrowed<'_>>(
+        let response = call_wire::<BytesRef<'_, 8>, Bytes<8>>(
+            context(
                 "update_call",
+                BORROWED,
                 Principal::anonymous(),
                 Principal::anonymous(),
             ),
+            BORROWED,
             &request,
             |frame| {
                 calls += 1;
                 assert_eq!(
-                    ic_wire::decode_request::<Borrowed<'_>>(&frame)
+                    native::decode_request::<BytesRef<'_, 8>>(BORROWED.method_id, &frame, LIMITS)
                         .unwrap()
                         .as_slice(),
                     payload
                 );
-                Ok(
-                    ic_wire::encode_response::<Borrowed<'_>>(&Bytes::new(vec![3, 2, 1]).unwrap())
-                        .unwrap()
-                        .into_bytes(),
+                Ok(native::encode_response(
+                    BORROWED.method_id,
+                    &Bytes::<8>::new(vec![3, 2, 1]).unwrap(),
+                    LIMITS,
                 )
+                .unwrap())
             },
         )
         .unwrap();
@@ -61,60 +60,49 @@ fn borrowed_requests_return_owned_responses() {
     assert_eq!(result.as_slice(), &[3, 2, 1]);
 }
 
-struct Sample;
-impl Method for Sample {
-    type Request = u32;
-    type Response = Result<u64, ()>;
-    const ID: u64 = 71;
-    const NAME: &'static str = "sample";
-    const REQUEST_LIMITS: Limits = LIMITS;
-    const RESPONSE_LIMITS: Limits = LIMITS;
-}
-
-struct BadRequestBudget;
-impl Method for BadRequestBudget {
-    type Request = u32;
-    type Response = ();
-    const ID: u64 = 72;
-    const NAME: &'static str = "bad_request_budget";
-    const REQUEST_LIMITS: Limits = Limits {
+const SAMPLE: WireCallSpec = WireCallSpec {
+    method: "sample",
+    method_id: 71,
+    request_limits: LIMITS,
+    response_limits: LIMITS,
+};
+const BAD_REQUEST: WireCallSpec = WireCallSpec {
+    method: "bad_request_budget",
+    method_id: 72,
+    request_limits: Limits {
         bytes: 11,
         ..LIMITS
-    };
-    const RESPONSE_LIMITS: Limits = LIMITS;
-}
-
-struct BadReplyBudget;
-impl Method for BadReplyBudget {
-    type Request = u32;
-    type Response = Result<u64, ()>;
-    const ID: u64 = Sample::ID;
-    const NAME: &'static str = "bad_reply_budget";
-    const REQUEST_LIMITS: Limits = LIMITS;
-    const RESPONSE_LIMITS: Limits = Limits { nodes: 1, ..LIMITS };
-}
+    },
+    response_limits: LIMITS,
+};
+const BAD_REPLY: WireCallSpec = WireCallSpec {
+    response_limits: Limits { nodes: 1, ..LIMITS },
+    ..SAMPLE
+};
 
 #[test]
 fn one_call_preserves_method_context_and_application_results() {
     for operation in ["query_call", "update_call"] {
         for value in [Ok(u64::MAX), Err(())] {
-            let ctx = context::<Sample>(
+            let ctx = context(
                 operation,
+                SAMPLE,
                 Principal::from_slice(&[1]),
                 Principal::from_slice(&[2]),
             );
             assert_eq!(ctx.operation, operation);
             assert_eq!(ctx.canister_id, Principal::from_slice(&[1]));
             assert_eq!(ctx.caller, Principal::from_slice(&[2]));
-            assert_eq!(ctx.method, Sample::NAME);
-            assert_eq!(ctx.method_id, Sample::ID);
+            assert_eq!(ctx.method, SAMPLE.method);
+            assert_eq!(ctx.method_id, SAMPLE.method_id);
             let mut calls = 0;
-            let result = call_wire::<Sample>(ctx, &u32::MAX, |bytes| {
+            let result = call_wire::<u32, Result<u64, ()>>(ctx, SAMPLE, &u32::MAX, |bytes| {
                 calls += 1;
-                assert_eq!(ic_wire::decode_request::<Sample>(&bytes), Ok(u32::MAX));
-                Ok(ic_wire::encode_response::<Sample>(&value)
-                    .unwrap()
-                    .into_bytes())
+                assert_eq!(
+                    native::decode_request::<u32>(SAMPLE.method_id, &bytes, LIMITS),
+                    Ok(u32::MAX)
+                );
+                Ok(native::encode_response(SAMPLE.method_id, &value, LIMITS).unwrap())
             })
             .unwrap();
             assert_eq!(result, value);
@@ -125,56 +113,76 @@ fn one_call_preserves_method_context_and_application_results() {
 
 #[test]
 fn request_admission_precedes_transport() {
-    let error = call_wire::<BadRequestBudget>(
-        context::<BadRequestBudget>(
-            "update_call",
-            Principal::anonymous(),
-            Principal::anonymous(),
-        ),
-        &1,
-        |_| panic!("refused request must not reach transport"),
-    )
-    .unwrap_err();
-    assert!(matches!(
-        error,
-        WireCallError::Encode {
-            source: ic_wire::Error::SchemaLimit,
-            ..
-        }
-    ));
-    assert!(
-        std::error::Error::source(&error)
-            .unwrap()
-            .is::<ic_wire::Error>()
-    );
+    for request_limits in [
+        BAD_REQUEST.request_limits,
+        Limits { nodes: 3, ..LIMITS },
+        Limits { depth: 2, ..LIMITS },
+        Limits {
+            allocation: LIMITS.bytes,
+            ..LIMITS
+        },
+    ] {
+        let spec = WireCallSpec {
+            request_limits,
+            ..BAD_REQUEST
+        };
+        let error = call_wire::<u32, ()>(
+            context(
+                "update_call",
+                spec,
+                Principal::anonymous(),
+                Principal::anonymous(),
+            ),
+            spec,
+            &1,
+            |_| panic!("refused request must not reach transport"),
+        )
+        .unwrap_err();
+        assert!(matches!(
+            error,
+            WireCallError::Encode {
+                source: ic_wire::Error::Limit,
+                ..
+            }
+        ));
+        assert!(
+            std::error::Error::source(&error)
+                .unwrap()
+                .is::<ic_wire::Error>()
+        );
+    }
 }
 
 #[test]
 fn invalid_responses_preserve_typed_refusal_and_context_without_payload_logs() {
-    let valid = ic_wire::encode_response::<Sample>(&Ok(7))
-        .unwrap()
-        .into_bytes();
+    let valid = native::encode_response(SAMPLE.method_id, &Ok::<u64, ()>(7), LIMITS).unwrap();
     let mut wrong_method = valid.clone();
     wrong_method[2] ^= 1;
     let cases = [
         (wrong_method, ic_wire::Error::Identity),
         (
-            ic_wire::encode_request::<Sample>(&7).unwrap().into_bytes(),
+            native::encode_request(SAMPLE.method_id, &7_u32, LIMITS).unwrap(),
             ic_wire::Error::Identity,
         ),
         (vec![], ic_wire::Error::Malformed),
         (valid[..valid.len() - 1].to_vec(), ic_wire::Error::Malformed),
         ([valid.as_slice(), &[0]].concat(), ic_wire::Error::Trailing),
+        (
+            [&valid[..valid.len() - 1], &[0x87, 0]].concat(),
+            ic_wire::Error::Noncanonical,
+        ),
         (vec![0; LIMITS.bytes + 1], ic_wire::Error::Limit),
     ];
     for (reply, expected) in cases {
         let length = reply.len();
-        let ctx = context::<Sample>(
+        let ctx = context(
             "query_call",
+            SAMPLE,
             Principal::from_slice(&[1]),
             Principal::from_slice(&[2]),
         );
-        let error = call_wire::<Sample>(ctx.clone(), &7, |_| Ok(reply)).unwrap_err();
+        let error =
+            call_wire::<u32, Result<u64, ()>>(ctx.clone(), SAMPLE, &7, |_| Ok(reply)).unwrap_err();
         assert!(
             std::error::Error::source(&error)
                 .unwrap()
@@ -197,15 +205,18 @@ fn invalid_responses_preserve_typed_refusal_and_context_without_payload_logs() {
 
 #[test]
 fn declared_decoder_work_budget_is_not_replaced_with_a_default() {
-    let reply = ic_wire::encode_response::<Sample>(&Ok(1))
-        .unwrap()
-        .into_bytes();
-    // The decoder owns refusal precedence even when the reply is also oversized.
+    let reply = native::encode_response(SAMPLE.method_id, &Ok::<u64, ()>(1), LIMITS).unwrap();
+    // Native decoding owns both work-budget and oversized-frame admission.
     for reply in [reply, vec![0; LIMITS.bytes + 1]] {
         let length = reply.len();
-        let ctx =
-            context::<BadReplyBudget>("query_call", Principal::anonymous(), Principal::anonymous());
-        let error = call_wire::<BadReplyBudget>(ctx.clone(), &1, |_| Ok(reply)).unwrap_err();
+        let ctx = context(
+            "query_call",
+            BAD_REPLY,
+            Principal::anonymous(),
+            Principal::anonymous(),
+        );
+        let error = call_wire::<u32, Result<u64, ()>>(ctx.clone(), BAD_REPLY, &1, |_| Ok(reply))
+            .unwrap_err();
         let WireCallError::Decode {
             context,
             bytes,
@@ -216,7 +227,7 @@ fn declared_decoder_work_budget_is_not_replaced_with_a_default() {
         };
         assert_eq!(*context, ctx);
         assert_eq!(bytes, length);
-        assert_eq!(source, ic_wire::Error::SchemaLimit);
+        assert_eq!(source, ic_wire::Error::Limit);
     }
 }
 
@@ -228,13 +239,14 @@ fn rejection_remains_structured_and_is_never_retried() {
         error_code: ErrorCode::CanisterRejectedMessage,
         certified: true,
     };
-    let ctx = context::<Sample>(
+    let ctx = context(
         "update_call",
+        SAMPLE,
         Principal::from_slice(&[1]),
         Principal::from_slice(&[2]),
     );
     let mut calls = 0;
-    let error = call_wire::<Sample>(ctx.clone(), &1, |_| {
+    let error = call_wire::<u32, Result<u64, ()>>(ctx.clone(), SAMPLE, &1, |_| {
         calls += 1;
         Err(response.clone())
     })
@@ -250,15 +262,20 @@ fn rejection_remains_structured_and_is_never_retried() {
 
 #[test]
 fn transport_classification_and_original_unrelated_panics_are_preserved() {
-    let ctx = context::<Sample>("query_call", Principal::anonymous(), Principal::anonymous());
-    let error = call_wire::<Sample>(ctx.clone(), &1, |_| {
-        panic!("HTTP failure: reqwest::Error {{ kind: Request, url: \"http://127.0.0.1:1234/instances/0/read/query\", source: ConnectError(\"tcp connect error\", Os {{ code: 111, kind: ConnectionRefused, message: \"Connection refused\" }}) }}")
+    let ctx = context(
+        "query_call",
+        SAMPLE,
+        Principal::anonymous(),
+        Principal::anonymous(),
+    );
+    let error = call_wire::<u32, Result<u64, ()>>(ctx.clone(), SAMPLE, &1, |_| {
+        panic!("HTTP failure: reqwest::Error {{ kind: Request, url: \"http://127.0.0.1:1234/instances/0/read/query\", source: ConnectError(\"tcp connect error\",BORROWED.method_id, BAD_REPLY.method_id, BAD_REQUEST.method_id, SAMPLE.method_id,  Os {{ code: 111, kind: ConnectionRefused, message: \"Connection refused\" }}) }}")
     }).unwrap_err();
     assert!(is_dead_pocket_ic_transport_error(&error));
     let payload = Box::new(9_u8);
     let original = std::ptr::from_ref(payload.as_ref());
     let error = std::panic::catch_unwind(|| {
-        call_wire::<Sample>(ctx, &1, |_| std::panic::panic_any(payload))
+        call_wire::<u32, Result<u64, ()>>(ctx, SAMPLE, &1, |_| std::panic::panic_any(payload))
     })
     .unwrap_err();
     let resumed = error.downcast::<Box<u8>>().unwrap();

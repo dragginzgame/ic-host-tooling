@@ -1,5 +1,24 @@
 # Current handoff
 
+## IC Wire 0.6.4 adoption
+
+The checkout is at release `5685b8b9` (workspace 0.64.2). Incoming manifest/lock
+edits already selected published IC Wire/derive 0.6.4 and are preserved unchanged.
+Testkit's optional native Wire calls now use explicit `WireCallSpec` values and
+request/response Serde types, delegating framing and traversal admission directly
+to Wire's native codec. The private probe and native drivers migrate together;
+the 64-byte pre-copy frame cap remains, with native traversal budgets qualified.
+No removed finite Method facade or compatibility codec is recreated.
+
+Eleven focused cases pass on Linux with development Rust 1.99.1 and actual Rust
+1.91: seven adapter cases, the probe's maximum control values, two installed
+query/update cases and the installed probe contract/markers/caller/trap proof.
+Native driver compilation, strict native Clippy and native/deployed graph/Wasm
+checks pass. Evidence, starting source and retained attempts are under
+`/tmp/ic-tooling-wire064`. Fresh native macOS qualification remains separate.
+The public Wire call contract changes require pending 0.65.0 notes; package
+versions remain unchanged. No commit, release or publication ran.
+
 ## Verified outstanding issue status
 
 The checkout is at local `c22829981a0ae5ec022450151c20ab955c25cfd9`, one commit
@@ -33,11 +52,14 @@ obsolete Build-tool fixture selection and validation command-order expectations.
 Exact commits, job links and failure causes are recorded on #233. No sibling
 source was changed or pending/cancelled/skipped check presented as passing.
 
-#225 now has a precise supplier prerequisite: IC Wire #17 must publish native
-Serde metadata projection before Canic #613 can supply the selected endpoint
-sidecar/identity contract. The current Canic document is a local design contract,
-not a working schema producer. Build must not invent a parallel schema catalogue.
-The owning issues retain these obligations; no release or publication ran here.
+For #225, published Wire 0.6 supplies native Serde metadata derivation; 0.6.3
+also supports retained `deny_unknown_fields` and qualified `serde_bytes` fields.
+Principal projection remains with Wire #17. Canic #613 has active local DTO/TS
+conformance work, but its compiled endpoint sidecar and release identity producer
+remain unfinished. Build's existing exact-input transaction/cache APIs can be
+composed once that producer supplies its actual artifacts. Do not duplicate the
+active Canic batch or invent a parallel schema catalogue. No release or publication
+ran here.
 
 ## Bounded cycle-accepting fixtures for 0.64.2
 

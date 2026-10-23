@@ -21,11 +21,12 @@ use ic_testkit::{
         update_wire,
     },
 };
+use ic_testkit_dev::probe_wire_spec;
 use ic_testkit_perf_probe::protocol::{
     self, BenchmarkOnce, BenchmarkTrap, InspectState, MutateState, Ping, QueryCaller, SeedState,
     State, UpdateCaller,
 };
-use ic_wire::Method;
+
 use std::process::Command;
 const PERF_PROBE_PACKAGE: &str = "ic-testkit-perf-probe";
 
@@ -101,10 +102,11 @@ fn install_probe() -> StandaloneCanisterFixture {
 #[test]
 fn perf_probe_canister_emits_parseable_benchmark_markers() {
     let fixture = install_probe();
-    let result = update_wire::<BenchmarkOnce>(
+    let result = update_wire::<_, u64>(
         fixture.pocket_ic(),
         fixture.canister_id(),
         Principal::anonymous(),
+        probe_wire_spec(BenchmarkOnce::NAME, BenchmarkOnce::ID),
         &(),
     )
     .expect("benchmark_once update call");
@@ -157,10 +159,11 @@ fn perf_probe_canister_emits_parseable_benchmark_markers() {
 }
 
 fn assert_probe_trap(fixture: &StandaloneCanisterFixture) {
-    let error = update_wire::<BenchmarkTrap>(
+    let error = update_wire::<(), ()>(
         fixture.pocket_ic(),
         fixture.canister_id(),
         Principal::anonymous(),
+        probe_wire_spec(BenchmarkTrap::NAME, BenchmarkTrap::ID),
         &(),
     )
     .expect_err("the probe deliberately traps");
@@ -171,10 +174,11 @@ fn assert_probe_trap(fixture: &StandaloneCanisterFixture) {
         matches!(*source, PocketIcCallFailure::Rejected(response) if response.reject_message.contains("intentional perf probe trap"))
     );
     assert_eq!(
-        query_wire::<Ping>(
+        query_wire::<_, ic_wire::Text<4>>(
             fixture.pocket_ic(),
             fixture.canister_id(),
             Principal::anonymous(),
+            probe_wire_spec(Ping::NAME, Ping::ID),
             &()
         )
         .unwrap()
@@ -187,22 +191,49 @@ fn assert_probe_trap(fixture: &StandaloneCanisterFixture) {
             fixture.canister_id(),
             Principal::anonymous(),
             Ping::NAME,
-            ic_wire::encode_request::<Ping>(&()).unwrap().into_bytes(),
+            ic_wire::native::encode_request(Ping::ID, &(), Ping::REQUEST_LIMITS).unwrap(),
         )
         .expect("the same canister remains callable after the trap");
     assert_eq!(
-        ic_wire::decode_response::<Ping>(&reply).unwrap().as_str(),
+        ic_wire::native::decode_response::<ic_wire::Text<4>>(
+            Ping::ID,
+            &reply,
+            Ping::RESPONSE_LIMITS
+        )
+        .unwrap()
+        .as_str(),
         "pong"
     );
-    assert!(ic_wire::decode_response::<InspectState>(&reply).is_err());
-    let request = ic_wire::encode_request::<Ping>(&()).unwrap();
-    assert!(ic_wire::decode_response::<Ping>(request.as_bytes()).is_err());
+    assert!(
+        ic_wire::native::decode_response::<State>(
+            InspectState::ID,
+            &reply,
+            InspectState::RESPONSE_LIMITS
+        )
+        .is_err()
+    );
+    let request = ic_wire::native::encode_request(Ping::ID, &(), Ping::REQUEST_LIMITS).unwrap();
+    assert!(
+        ic_wire::native::decode_response::<ic_wire::Text<4>>(
+            Ping::ID,
+            &request,
+            Ping::RESPONSE_LIMITS
+        )
+        .is_err()
+    );
     for malformed in [
         reply[..reply.len() - 1].to_vec(),
         [reply.as_slice(), &[0]].concat(),
         vec![0; protocol::FRAME_BYTES + 1],
     ] {
-        assert!(ic_wire::decode_response::<Ping>(&malformed).is_err());
+        assert!(
+            ic_wire::native::decode_response::<ic_wire::Text<4>>(
+                Ping::ID,
+                &malformed,
+                Ping::RESPONSE_LIMITS
+            )
+            .is_err()
+        );
     }
 }
 
@@ -210,31 +241,47 @@ fn assert_probe_contract(fixture: &StandaloneCanisterFixture) {
     let pic = fixture.pocket_ic();
     let id = fixture.canister_id();
     let caller = Principal::anonymous();
-    for size in [0, 3] {
-        update_wire::<SeedState>(pic, id, caller, &size).unwrap();
+    for size in [0_u32, 3] {
+        update_wire::<_, ()>(
+            pic,
+            id,
+            caller,
+            probe_wire_spec(SeedState::NAME, SeedState::ID),
+            &size,
+        )
+        .unwrap();
         let expected = State {
             mutations: 0,
             bytes: u64::from(size),
             first: (size > 0).then_some(42),
         };
         assert_eq!(
-            query_wire::<InspectState>(pic, id, caller, &()).unwrap(),
+            query_wire::<_, State>(
+                pic,
+                id,
+                caller,
+                probe_wire_spec(InspectState::NAME, InspectState::ID),
+                &()
+            )
+            .unwrap(),
             expected
         );
     }
-    update_wire::<MutateState>(pic, id, caller, &()).unwrap();
-    let request = ic_wire::encode_request::<SeedState>(&99)
-        .unwrap()
-        .into_bytes();
+    update_wire::<_, ()>(
+        pic,
+        id,
+        caller,
+        probe_wire_spec(MutateState::NAME, MutateState::ID),
+        &(),
+    )
+    .unwrap();
+    let request =
+        ic_wire::native::encode_request(SeedState::ID, &99_u32, SeedState::REQUEST_LIMITS).unwrap();
     let bad = [
         vec![],
         request[..request.len() - 1].to_vec(),
-        ic_wire::encode_request::<MutateState>(&())
-            .unwrap()
-            .into_bytes(),
-        ic_wire::encode_response::<SeedState>(&())
-            .unwrap()
-            .into_bytes(),
+        ic_wire::native::encode_request(MutateState::ID, &(), MutateState::REQUEST_LIMITS).unwrap(),
+        ic_wire::native::encode_response(SeedState::ID, &(), SeedState::RESPONSE_LIMITS).unwrap(),
         [request.as_slice(), &[0]].concat(),
         vec![0; protocol::FRAME_BYTES + 1],
     ];
@@ -251,7 +298,14 @@ fn assert_probe_contract(fixture: &StandaloneCanisterFixture) {
             );
         }
         assert_eq!(
-            query_wire::<InspectState>(pic, id, caller, &()).unwrap(),
+            query_wire::<_, State>(
+                pic,
+                id,
+                caller,
+                probe_wire_spec(InspectState::NAME, InspectState::ID),
+                &()
+            )
+            .unwrap(),
             State {
                 mutations: 1,
                 bytes: 3,
@@ -263,20 +317,30 @@ fn assert_probe_contract(fixture: &StandaloneCanisterFixture) {
         id,
         caller,
         InspectState::NAME,
-        ic_wire::encode_request::<Ping>(&()).unwrap().into_bytes(),
+        ic_wire::native::encode_request(Ping::ID, &(), Ping::REQUEST_LIMITS).unwrap(),
     )
     .expect_err("query must check its method identity too");
 }
 
 fn assert_callers(fixture: &StandaloneCanisterFixture) {
     for caller in [Principal::anonymous(), Principal::from_slice(&[7, 3])] {
-        let query =
-            query_wire::<QueryCaller>(fixture.pocket_ic(), fixture.canister_id(), caller, &())
-                .unwrap();
+        let query = query_wire::<_, ic_wire::Bytes<29>>(
+            fixture.pocket_ic(),
+            fixture.canister_id(),
+            caller,
+            probe_wire_spec(QueryCaller::NAME, QueryCaller::ID),
+            &(),
+        )
+        .unwrap();
         assert_eq!(query.as_slice(), caller.as_slice());
-        let update =
-            update_wire::<UpdateCaller>(fixture.pocket_ic(), fixture.canister_id(), caller, &())
-                .unwrap();
+        let update = update_wire::<_, ic_wire::Bytes<29>>(
+            fixture.pocket_ic(),
+            fixture.canister_id(),
+            caller,
+            probe_wire_spec(UpdateCaller::NAME, UpdateCaller::ID),
+            &(),
+        )
+        .unwrap();
         assert_eq!(update.as_slice(), caller.as_slice());
     }
 }
