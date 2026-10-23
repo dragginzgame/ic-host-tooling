@@ -477,9 +477,9 @@ dependencies = [
 
 [[package]]
 name = "cc"
-version = "1.9.0"
+version = "1.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "877bf67ac8e52449eb2f9e98a344ea163beb70dd1f9eebe3cc5357dcfeaee4df"
+checksum = "86e055fa6e3e40ad6187ba25b6855eeb635d5271f8e0f0e1e9a5826b8d75bea0"
 dependencies = [
  "find-msvc-tools",
  "jobserver",
@@ -1815,9 +1815,9 @@ dependencies = [
 
 [[package]]
 name = "ic-wire"
-version = "0.6.4"
+version = "0.6.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3c5d01ddfe0feeb133a0867ecb407ce0a38fdb64ef48472f0f5bf72aca593f25"
+checksum = "e3a07fb6296024fa31d880c4ee802d474abf9e7bc2e8f92a5868a5fc366b3609"
 dependencies = [
  "ic-wire-derive",
  "postcard",
@@ -1826,9 +1826,9 @@ dependencies = [
 
 [[package]]
 name = "ic-wire-derive"
-version = "0.6.4"
+version = "0.6.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8d49ed4a64baef2956ebb79b806e357362b469724b91219bd68b08d8fb519b05"
+checksum = "d6442d06a6e2c00b4a96e362b246eb05488f8669700b6b009e1dba4e8a583b61"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -4347,9 +4347,9 @@ dependencies = [
 
 [[package]]
 name = "webpki-root-certs"
-version = "1.0.10"
+version = "1.0.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "58ec80e73fd8baf57bf0d9615554c75348bda990d6d5bbeab964dd068319fecb"
+checksum = "e49d0e65abc00c142e8f9428da991da9f1a250c39be97459901eb12b9b49f62a"
 dependencies = [
  "rustls-pki-types",
 ]

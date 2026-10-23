@@ -21,7 +21,7 @@ impl StandaloneCanisterFixture {
         instance: PocketIcInstance<PocketIc>,
         spec: InstallSpec,
     ) -> Result<Self, StandaloneCanisterInstallError> {
-        let canister_id = match instance.instance.try_create_and_install(spec) {
+        let canister_id = match instance.instance().try_create_and_install(spec) {
             Ok(canister_id) => canister_id,
             Err(error) => return Err(StandaloneCanisterInstallError::new(instance, error)),
         };
@@ -35,7 +35,7 @@ impl StandaloneCanisterFixture {
     /// Borrow the PocketIC instance that owns this standalone fixture.
     #[must_use]
     pub const fn pocket_ic(&self) -> &PocketIc {
-        &self.instance.instance
+        self.instance.instance()
     }
 
     /// Read the installed canister id for this standalone fixture.

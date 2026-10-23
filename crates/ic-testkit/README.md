@@ -77,10 +77,15 @@ Rust fixtures call `server_assets::check(&directory)` and pass the returned
 absolute executable path to `PocketIcStartupConfig::Spawn`, without invoking the CLI.
 Explicit `server_assets::setup` takes a caller-owned cancellation predicate.
 Tests normally retain one
-`PocketIcInstance<PocketIc>` and use `owned.instance` for simulator operations;
+`PocketIcInstance<PocketIc>` and use `owned.instance()` for simulator operations;
 focused extension traits provide reusable harness behavior. Import all upstream
 client and DTO identities directly from `ic_platform::pocket_ic`; Testkit owns no
 parallel import path. Platform owns additions to that explicit surface.
+The client and managed server remain privately paired. Use `server()` for shared
+server inspection and `into_parts()` only when taking over teardown ordering.
+Wrap a client on an externally owned server with
+`PocketIcInstance::from_borrowed_server(client)`.
+See the [0.66 migration](../../docs/changelog/0.66.md).
 
 ```bash
 cargo install --locked --features cli ic-testkit

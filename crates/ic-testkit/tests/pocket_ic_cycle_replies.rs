@@ -31,7 +31,7 @@ fn installed_zero_partial_full_acceptance_preserves_bytes_refunds_and_balances()
     let owned = support::startup_config()
         .build_instance(PocketIcBuilder::new().with_system_subnet())
         .unwrap();
-    let pic = &owned.instance;
+    let pic = owned.instance();
     for cap in [0, 3_000, ATTACHED, u128::MAX] {
         let provider = funded(pic);
         let initial = pic.cycle_balance(provider);
@@ -91,7 +91,7 @@ fn barrier_setup_trap_rolls_back_acceptance_and_slot_consumption() {
     let owned = support::startup_config()
         .build_instance(PocketIcBuilder::new().with_system_subnet())
         .unwrap();
-    let pic = &owned.instance;
+    let pic = owned.instance();
     let provider = funded(pic);
     let destination = pic.cycle_balance(provider);
     // More than the provider can send even after accepting the attached cycles.
@@ -158,7 +158,7 @@ fn held_acceptance_commits_before_release_and_survives_timeout() {
     let owned = support::startup_config()
         .build_instance(PocketIcBuilder::new().with_system_subnet())
         .unwrap();
-    let pic = &owned.instance;
+    let pic = owned.instance();
     let provider = funded(pic);
     let destination = pic.cycle_balance(provider);
     let methods = methods();
@@ -341,7 +341,7 @@ fn application_subnet_uses_the_same_real_refund_path() {
     // Application-subnet execution fees are separate from callback refunds.
     // Exact gross balance conservation is qualified on the system subnet above.
     let owned = support::pocket_ic();
-    let pic = &owned.instance;
+    let pic = owned.instance();
     let provider = funded(pic);
     let wasm = cycle_reply_canister(&methods(), LIMITS, 3_000, 10_000).unwrap();
     pic.install_canister(provider, wasm, vec![], None);

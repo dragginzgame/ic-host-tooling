@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.66.0] - Unreleased
+
+- **Breaking:** make PocketIC client/server ownership transfer explicit. Replace
+  public field access with borrowing accessors and use named construction or
+  decomposition when taking over lifecycle responsibility
+  ([#237 — Make PocketIcInstance ownership transfer explicit](https://github.com/dragginzgame/ic-tooling/issues/237)).
+  [Migration](docs/changelog/0.66.md).
+
 ## [0.65.0] - 2026-10-23
 
 - **Breaking:** adopt IC Wire 0.6.4's native Serde codec. Testkit Wire calls now

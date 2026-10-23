@@ -34,7 +34,7 @@ fn wire_calls_preserve_codec_refusals_and_error_identity() {
     let valid =
         ic_wire::native::encode_response(PROBE.method_id, &42_u64, PROBE.response_limits).unwrap();
     let owned = support::pocket_ic();
-    let pic = &owned.instance;
+    let pic = owned.instance();
     for mode in [ReplyMode::Query, ReplyMode::Update] {
         for reply in [valid.as_slice(), &[]] {
             let wasm = raw_reply_canister(
@@ -92,7 +92,7 @@ fn wire_calls_preserve_codec_refusals_and_error_identity() {
 #[test]
 fn wire_call_errors_preserve_live_pocket_ic_rejections() {
     let owned = support::pocket_ic();
-    let pic = &owned.instance;
+    let pic = owned.instance();
     let removed = pic.create_canister();
     pic.stop_canister(removed, None).unwrap();
     pic.delete_canister(removed, None).unwrap();

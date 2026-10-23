@@ -33,7 +33,7 @@ fn installed_fixture_returns_exact_query_and_update_bytes() {
     )
     .expect("admit the explicit fixture catalog");
     let owned = support::pocket_ic();
-    let pocket_ic = &owned.instance;
+    let pocket_ic = owned.instance();
     let canister = pocket_ic
         .try_create_and_install(InstallSpec {
             wasm,

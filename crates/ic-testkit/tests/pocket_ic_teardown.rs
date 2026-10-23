@@ -198,7 +198,7 @@ fn raw_instance_request_probe() {
     std::io::stdin()
         .read_exact(&mut [0])
         .expect("parent releases raw call");
-    let error = try_pocket_ic_operation(|| owned.instance.get_time())
+    let error = try_pocket_ic_operation(|| owned.instance().get_time())
         .expect_err("raw request peer is gone");
     assert!(error.is_transport());
     assert!(is_dead_pocket_ic_transport_error(&error));
@@ -209,7 +209,7 @@ fn raw_instance_request_probe() {
 #[ignore = "subprocess probe selected explicitly by the parent transport test"]
 fn refused_instance_request_probe() {
     let owned = synthetic_instance();
-    let pic = &owned.instance;
+    let pic = owned.instance();
     std::io::stdin()
         .read_exact(&mut [0])
         .expect("parent releases refused call");
@@ -253,7 +253,7 @@ fn refused_instance_request_probe() {
 #[ignore = "subprocess probe selected explicitly by the parent install test"]
 fn refused_creation_probe() {
     let pic = synthetic_instance();
-    let instance_id = pic.instance.instance_id();
+    let instance_id = pic.instance().instance_id();
     std::io::stdin()
         .read_exact(&mut [0])
         .expect("parent releases refused creation");
@@ -274,7 +274,7 @@ fn refused_creation_probe() {
     );
     assert!(is_dead_pocket_ic_transport_error(&error));
     let (pic, install_error) = error.into_parts();
-    assert_eq!(pic.instance.instance_id(), instance_id);
+    assert_eq!(pic.instance().instance_id(), instance_id);
     assert!(
         matches!(install_error, CanisterInstallError::CreateCanister { source, .. } if source.is_transport())
     );

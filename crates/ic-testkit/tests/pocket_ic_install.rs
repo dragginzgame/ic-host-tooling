@@ -9,7 +9,7 @@ use ic_testkit::pic::{
 #[test]
 fn fallible_install_preserves_the_original_failure_for_caller_diagnostics() {
     let owned = support::pocket_ic();
-    let pocket_ic = &owned.instance;
+    let pocket_ic = owned.instance();
     let error = pocket_ic
         .try_create_and_install(InstallSpec {
             wasm: vec![0xde, 0xad],

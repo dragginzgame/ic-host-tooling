@@ -89,7 +89,7 @@ impl StandaloneCanisterInstallError {
     /// Borrow the caller-created instance retained after the failed install.
     #[must_use]
     pub fn pocket_ic(&self) -> &PocketIc {
-        &self.instance.instance
+        self.instance.instance()
     }
 
     /// Inspect the structured install failure.

@@ -32,7 +32,7 @@ impl<T> CachedPocketIcBaseline<T> {
         if targets.peek().is_none() {
             return Err(ControllerSnapshotError::EmptyCanisterSet);
         }
-        let snapshots = instance.instance.capture_snapshots(targets)?;
+        let snapshots = instance.instance().capture_snapshots(targets)?;
         Ok(Self {
             instance,
             snapshots,
@@ -44,14 +44,14 @@ impl<T> CachedPocketIcBaseline<T> {
     /// Success means the complete captured set was restored.
     pub fn restore(&self, funding: SnapshotRestoreFunding) -> Result<(), ControllerSnapshotError> {
         self.instance
-            .instance
+            .instance()
             .restore_snapshots(&self.snapshots, funding)
     }
 
     /// Borrow the owned PocketIC instance behind this cached baseline.
     #[must_use]
     pub const fn pocket_ic(&self) -> &PocketIc {
-        &self.instance.instance
+        self.instance.instance()
     }
 
     /// Return the number of canisters captured by this baseline.

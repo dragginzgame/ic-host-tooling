@@ -350,7 +350,7 @@ fn runner_environment_worker() {
         .build_instance(PocketIcBuilder::new().with_application_subnet())
         .unwrap();
     assert_eq!(
-        pic.instance.get_server_url().as_str(),
+        pic.instance().get_server_url().as_str(),
         std::env::var("IC_TESTKIT_POCKET_IC_URL").unwrap()
     );
     drop(pic);

@@ -142,7 +142,7 @@ fn standalone_accepts_a_caller_built_instance_and_preserves_it_in_parts() {
     )
     .expect("install standalone fixture");
     let (owned, canister_id) = fixture.into_parts();
-    let pocket_ic = &owned.instance;
+    let pocket_ic = owned.instance();
 
     pocket_ic
         .canister_status(canister_id, None)
@@ -736,7 +736,7 @@ fn run_worker<F>(
     }
 
     let owned = build();
-    let pocket_ic = &owned.instance;
+    let pocket_ic = owned.instance();
     if events.send(Event::Ready { worker }).is_err() {
         return;
     }

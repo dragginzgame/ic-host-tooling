@@ -358,10 +358,11 @@ let owned = PocketIcStartupConfig::Spawn {
         server_output_files: None,
     }
     .build_instance_async(PocketIcBuilder::new().with_application_subnet()).await?;
-let canister = owned.instance.create_canister().await;
-assert!(owned.instance.canister_exists(canister).await);
-owned.instance.drop().await;
-drop(owned.server);
+let canister = owned.instance().create_canister().await;
+assert!(owned.instance().canister_exists(canister).await);
+let (instance, server) = owned.into_parts();
+instance.drop().await;
+drop(server);
 # Ok(())
 # }
 ```
@@ -569,7 +570,7 @@ its instance, `canister_id()` identifies the installed canister, and `into_parts
 returns the ownership record and ID. Failed `try_install` returns a
 `StandaloneCanisterInstallError` containing the same instance/server record and
 the `CanisterInstallError`. A caller-built instance on an externally owned server
-can be passed explicitly as `PocketIcInstance { instance, server: None }`.
+can be passed explicitly as `PocketIcInstance::from_borrowed_server(instance)`.
 Creation, cycle funding, and installation panics are captured as
 `CanisterInstallError::CreateCanister`, `::AddCycles` or `::InstallCode`.
 Funding and installation variants require the created canister ID; match the

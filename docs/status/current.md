@@ -1,5 +1,26 @@
 # Current handoff
 
+## Explicit PocketIC ownership for 0.66
+
+On release source `378ad712` (workspace 0.65.0),
+[#237 — Make PocketIcInstance ownership transfer explicit](https://github.com/dragginzgame/ic-tooling/issues/237)
+is implemented locally. Client/server fields are private; shared accessors retain
+the owner, `into_parts()` deliberately transfers teardown responsibility, and
+`from_borrowed_server()` preserves externally managed servers. All in-workspace
+callers and maintained examples are migrated. The
+[0.66 migration](../changelog/0.66.md) records Canic's three borrowed constructions
+and startup extraction; sibling sources remain unchanged.
+
+Thirteen focused runtime cases and seven doctests pass on Linux with development
+Rust 1.99.1 and actual Rust 1.91, including real owned sync/async servers, explicit
+transfer, borrowed teardown, deletion-response ordering and privacy/lifetime
+refusals. Native all-target/all-feature caller compilation and strict Clippy pass.
+Evidence and retained attempts are under `/tmp/ic-tooling-237`. The separate
+incoming lock changed during work from Wire 0.6.5 to 0.6.6 plus certificate roots;
+both snapshots are retained and affected checks pass on the later selection.
+Fresh native macOS qualification remains outstanding. Pending notes select the
+breaking 0.66.0 release. Package versions are unchanged; nothing was published.
+
 ## IC Wire 0.6.4 adoption
 
 The checkout is at release `5685b8b9` (workspace 0.64.2). Incoming manifest/lock

@@ -10,7 +10,7 @@ use ic_testkit::pic::{
 #[test]
 fn explicit_snapshot_senders_support_mixed_controller_sets_without_fallback() {
     let owned = support::pocket_ic();
-    let pocket_ic = &owned.instance;
+    let pocket_ic = owned.instance();
     let explicit_controller = Principal::from_slice(&[42]);
     let anonymous_canister = pocket_ic.create_canister();
     let explicit_canister = pocket_ic.create_canister_with_settings(
@@ -105,7 +105,7 @@ fn explicit_snapshot_senders_support_mixed_controller_sets_without_fallback() {
 #[test]
 fn duplicate_snapshot_inputs_are_rejected_before_any_capture() {
     let owned = support::pocket_ic();
-    let pocket_ic = &owned.instance;
+    let pocket_ic = owned.instance();
     let canister_id = pocket_ic.create_canister();
     pocket_ic.install_canister(canister_id, b"\0asm\x01\0\0\0".to_vec(), vec![], None);
     pocket_ic.stop_canister(canister_id, None).unwrap();
@@ -142,7 +142,7 @@ fn duplicate_snapshot_inputs_are_rejected_before_any_capture() {
 #[test]
 fn snapshot_capture_reports_first_failure_in_canister_order() {
     let owned = support::pocket_ic();
-    let pocket_ic = &owned.instance;
+    let pocket_ic = owned.instance();
     let mut missing = [pocket_ic.create_canister(), pocket_ic.create_canister()];
     for canister_id in missing {
         pocket_ic.stop_canister(canister_id, None).unwrap();
@@ -167,7 +167,7 @@ fn snapshot_capture_reports_first_failure_in_canister_order() {
 #[test]
 fn failed_snapshot_set_capture_cleans_up_earlier_snapshots() {
     let owned = support::pocket_ic();
-    let pocket_ic = &owned.instance;
+    let pocket_ic = owned.instance();
     let captured_first = pocket_ic.create_canister();
     pocket_ic.install_canister(captured_first, b"\0asm\x01\0\0\0".to_vec(), vec![], None);
     pocket_ic
@@ -219,7 +219,7 @@ fn failed_snapshot_set_capture_cleans_up_earlier_snapshots() {
 #[test]
 fn snapshot_restore_only_adds_cycles_when_explicitly_requested() {
     let owned = support::pocket_ic();
-    let pocket_ic = &owned.instance;
+    let pocket_ic = owned.instance();
     let canister_id = pocket_ic.create_canister();
     pocket_ic.install_canister(canister_id, b"\0asm\x01\0\0\0".to_vec(), vec![], None);
     pocket_ic

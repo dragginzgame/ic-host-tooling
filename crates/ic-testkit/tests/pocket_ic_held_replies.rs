@@ -20,7 +20,7 @@ use std::{fmt::Write, time::Duration};
 #[test]
 fn holds_real_intercanister_calls_until_exact_out_of_order_release() {
     let owned = support::pocket_ic();
-    let pic = &owned.instance;
+    let pic = owned.instance();
     let caller = Principal::anonymous();
     let provider = pic.create_canister();
     pic.add_cycles(provider, 10_000_000_000_000);
@@ -112,7 +112,7 @@ fn holds_real_intercanister_calls_until_exact_out_of_order_release() {
     // Same server, distinct instance must not accept the controller/token.
     let other = support::pocket_ic();
     assert!(matches!(
-        fixture.pending(&other.instance),
+        fixture.pending(other.instance()),
         Err(HeldReplyError::WrongInstance)
     ));
     pic.auto_progress();
@@ -177,7 +177,7 @@ fn install_consumer(pic: &PocketIc, provider: Principal) -> Principal {
 #[test]
 fn expired_and_foreign_requests_never_release_another_original() {
     let owned = support::pocket_ic();
-    let pic = &owned.instance;
+    let pic = owned.instance();
     let caller = Principal::anonymous();
     let methods = [RawReplyMethod {
         name: "hold",

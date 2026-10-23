@@ -73,19 +73,68 @@ pub struct PocketIcManagedServer {
 ///
 /// Fields are ordered so a synchronous [`PocketIc`] is deleted before the server
 /// is terminated. Connect mode borrows the caller's server and returns `None`.
-/// Native PocketIC operations remain available directly through `instance`.
-/// Destructuring transfers responsibility for this lifetime ordering to the caller.
+/// Native PocketIC operations remain available through [`Self::instance`].
+/// [`Self::into_parts`] explicitly transfers teardown ordering to the caller.
 ///
 /// PocketIC 16 synchronous deletion has no request deadline and can block drop.
 /// Its nonblocking instance has no automatic deletion: call
-/// `instance.drop().await` while retaining `server` when instance deletion matters,
-/// especially with a borrowed server. Dropping an owned server stops all its instances.
+/// [`Self::into_parts`], then `instance.drop().await` while retaining `server`,
+/// when deletion matters, especially with a borrowed server. Dropping an owned
+/// server stops all its instances.
+///
+/// Field projection cannot silently detach the client from its server:
+/// ```compile_fail
+/// use ic_testkit::pic::PocketIcInstance;
+/// fn detach<T>(owned: PocketIcInstance<T>) -> T {
+///     owned.instance
+/// }
+/// ```
+/// Nor can a client borrow outlive a temporary owner:
+/// ```compile_fail
+/// use ic_testkit::pic::PocketIcInstance;
+/// let client = PocketIcInstance::from_borrowed_server(String::new()).instance();
+/// assert!(client.is_empty());
+/// ```
 #[must_use]
 pub struct PocketIcInstance<T> {
-    /// The upstream synchronous or nonblocking PocketIC instance.
-    pub instance: T,
-    /// Exact managed server, or `None` for a borrowed connection.
-    pub server: Option<PocketIcManagedServer>,
+    instance: T,
+    server: Option<PocketIcManagedServer>,
+}
+
+impl<T> PocketIcInstance<T> {
+    /// Retain an existing client whose server lifetime is owned elsewhere.
+    ///
+    /// This creates no server or instance and claims no server process authority.
+    /// The client retains its upstream deletion behavior; its external server
+    /// must outlive it. Use a startup configuration for a managed server owner.
+    pub const fn from_borrowed_server(instance: T) -> Self {
+        Self {
+            instance,
+            server: None,
+        }
+    }
+
+    /// Borrow the client while retaining this record's managed-server ownership.
+    #[must_use]
+    pub const fn instance(&self) -> &T {
+        &self.instance
+    }
+
+    /// Borrow the exact managed server, or `None` for an externally owned server.
+    #[must_use]
+    pub const fn server(&self) -> Option<&PocketIcManagedServer> {
+        self.server.as_ref()
+    }
+
+    /// Transfer the client and optional server, without deleting or stopping either.
+    ///
+    /// The caller must retain the server until client deletion is complete. For
+    /// a nonblocking client, explicitly await `instance.drop()` before dropping
+    /// the returned server. No implicit asynchronous or blocking cleanup is added.
+    #[must_use]
+    pub fn into_parts(self) -> (T, Option<PocketIcManagedServer>) {
+        (self.instance, self.server)
+    }
 }
 
 /// Bounded lossy UTF-8 output captured from a managed PocketIC server.
@@ -348,8 +397,8 @@ impl PocketIcStartupConfig {
     /// # fn run(binary: &Path) -> Result<(), ic_testkit::pic::PocketIcStartupError> {
     /// let owned = PocketIcStartupConfig::Spawn { server_binary: binary.into(), timeout: Duration::from_secs(60), server_hard_ttl: None, server_idle_ttl: None, server_output_files: None }
     ///     .build_instance(PocketIcBuilder::new().with_application_subnet())?;
-    /// let canister = owned.instance.create_canister();
-    /// assert!(owned.instance.canister_exists(canister));
+    /// let canister = owned.instance().create_canister();
+    /// assert!(owned.instance().canister_exists(canister));
     /// // Drop deletes the instance, then terminates and reaps the owned server.
     /// # Ok(())
     /// # }
@@ -411,10 +460,11 @@ impl PocketIcStartupConfig {
     /// # async fn run(binary: &Path) -> Result<(), ic_testkit::pic::PocketIcStartupError> {
     /// let owned = PocketIcStartupConfig::Spawn { server_binary: binary.into(), timeout: Duration::from_secs(60), server_hard_ttl: None, server_idle_ttl: None, server_output_files: None }
     ///     .build_instance_async(PocketIcBuilder::new().with_application_subnet()).await?;
-    /// let canister = owned.instance.create_canister().await;
-    /// assert!(owned.instance.canister_exists(canister).await);
-    /// owned.instance.drop().await;
-    /// drop(owned.server);
+    /// let canister = owned.instance().create_canister().await;
+    /// assert!(owned.instance().canister_exists(canister).await);
+    /// let (instance, server) = owned.into_parts();
+    /// instance.drop().await;
+    /// drop(server);
     /// # Ok(())
     /// # }
     /// ```

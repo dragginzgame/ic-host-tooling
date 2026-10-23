@@ -137,12 +137,12 @@ impl PocketIcBaselineRecipe for TwoCanisterRecipe {
             support::pocket_ic()
         };
         let canister_ids = [
-            pocket_ic.instance.create_canister(),
-            pocket_ic.instance.create_canister(),
+            pocket_ic.instance().create_canister(),
+            pocket_ic.instance().create_canister(),
         ];
         for canister_id in canister_ids {
             pocket_ic
-                .instance
+                .instance()
                 .install_canister(canister_id, EMPTY_WASM.to_vec(), vec![], None);
         }
 

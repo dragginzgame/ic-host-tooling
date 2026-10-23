@@ -71,15 +71,15 @@ impl Recipe {
         )
         .map_err(recipe_error)?;
         let ids = [
-            pic.instance.create_canister(),
-            pic.instance.create_canister(),
+            pic.instance().create_canister(),
+            pic.instance().create_canister(),
         ];
         for id in ids {
-            pic.instance.add_cycles(id, 5_000_000_000_000);
-            pic.instance
+            pic.instance().add_cycles(id, 5_000_000_000_000);
+            pic.instance()
                 .install_canister(id, self.wasm.to_vec(), vec![], None);
             update_wire::<u32, ()>(
-                &pic.instance,
+                pic.instance(),
                 id,
                 Principal::anonymous(),
                 probe_wire_spec(SeedState::NAME, SeedState::ID),
@@ -214,7 +214,7 @@ fn fresh_sample(recipe: &Recipe, iteration: usize) -> Result<Sample> {
     let (pic, ids) = recipe.create()?;
     let build_ms = Some(ms(started.elapsed()));
     let validation_started = Instant::now();
-    recipe.validate_state(&pic.instance, &ids, false)?;
+    recipe.validate_state(pic.instance(), &ids, false)?;
     let phases = Phases {
         build_ms,
         validation_ms: Some(ms(validation_started.elapsed())),
@@ -222,7 +222,7 @@ fn fresh_sample(recipe: &Recipe, iteration: usize) -> Result<Sample> {
         ..Phases::default()
     };
     let body = Instant::now();
-    recipe.exercise(&pic.instance, &ids)?;
+    recipe.exercise(pic.instance(), &ids)?;
     let body_ms = ms(body.elapsed());
     let release = Instant::now();
     drop(pic);
