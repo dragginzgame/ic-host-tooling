@@ -26,12 +26,14 @@ required; [host qualification](../hosts.md) owns focused checks and native hosts
   are private. Borrow through accessors, use `into_parts()` to transfer teardown,
   and use `from_borrowed_server()` for externally managed servers. Sync owner
   drop preserves client-before-server order; async client deletion remains
-  explicit. [#237](https://github.com/dragginzgame/ic-tooling/issues/237) owns
-  remaining acceptance; do not restore field access or compatibility wrappers.
+  explicit. [#237](https://github.com/dragginzgame/ic-tooling/issues/237) is closed
+  with producer evidence; consumer adoption remains separate. Do not restore
+  field access or compatibility wrappers.
 - [0.65 Wire migration](../changelog/0.65.md): native calls use explicit
   `WireCallSpec` and Serde request/response types; Wire owns framing/traversal.
   The pre-copy frame bound and caller-owned budgets remain.
-  [#236](https://github.com/dragginzgame/ic-tooling/issues/236) owns acceptance.
+  [#236](https://github.com/dragginzgame/ic-tooling/issues/236) is closed with
+  producer qualification and Auth adoption of published Testkit.
 - [Cycle-accepting fixtures (#235)](https://github.com/dragginzgame/ic-tooling/issues/235)
   bound acceptance and retain exact replies/counters across held release.
   A setup trap rolls back acceptance/slot consumption. Fixture support does not
@@ -61,6 +63,12 @@ doctests on development Rust 1.99.1 and actual Rust 1.91, with strict native
 Clippy and caller compilation. Original attempts and both observed lock inputs
 remain under `/tmp/ic-tooling-237/`. Fresh native macOS acceptance was not
 established by that local record.
+
+Delivered 0.66.0 subsequently passed [source-bound CI](https://github.com/dragginzgame/ic-tooling/actions/runs/39930549305)
+on Linux/MSRV and, separately, native macOS 15 Intel and Apple Silicon.
+All four installed cycle-reply cases pass on both Macs; #235 is closed.
+Five explicit real-server ownership/baseline cases remain ignored in hosted CI;
+their passing Linux evidence above is not Mac execution evidence.
 
 Wire adoption evidence is `/tmp/ic-tooling-wire064/`; cycle-acceptance and
 rollback evidence are `/tmp/ic-tooling-235/` and `/tmp/ic-tooling-235-rollback/`.
