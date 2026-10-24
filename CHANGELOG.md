@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.67.0] - Unreleased
+## [0.67.0] - 2026-10-24
 
 - **Breaking:** archive qualification requires explicit feature selection; public
   command errors and configuration observations gain evidence fields. The workspace

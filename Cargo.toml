@@ -18,7 +18,7 @@ resolver = "3"
 [workspace.package]
 edition = "2024"
 rust-version = "1.91.0"
-version = "0.66.3"
+version = "0.67.0"
 license = "MIT"
 repository = "https://github.com/dragginzgame/ic-tooling"
 authors = ["borovan <84897664+borovan@users.noreply.github.com>"]
@@ -33,10 +33,10 @@ cargo_metadata = "0.23.1"
 clap = { version = "4.6.7", default-features = false, features = ["std", "help", "usage", "error-context"] }
 command-fds = "0.3.3"
 flate2 = { version = "1.1.10", default-features = false, features = ["rust_backend"] }
-ic-host-artifacts = { path = "crates/ic-host-artifacts", version = "0.66", default-features = false }
-ic-host-fs = { path = "crates/ic-host-fs", version = "0.66", default-features = false }
-ic-host-process = { path = "crates/ic-host-process", version = "0.66", default-features = false }
-ic-host-text = { path = "crates/ic-host-text", version = "0.66", default-features = false }
+ic-host-artifacts = { path = "crates/ic-host-artifacts", version = "0.67", default-features = false }
+ic-host-fs = { path = "crates/ic-host-fs", version = "0.67", default-features = false }
+ic-host-process = { path = "crates/ic-host-process", version = "0.67", default-features = false }
+ic-host-text = { path = "crates/ic-host-text", version = "0.67", default-features = false }
 ic-platform = { version = "0.6.11", default-features = false }
 ic-wire = "0.6"
 leb128 = "0.2.5"
@@ -61,8 +61,8 @@ wasmparser = { version = "0.262", default-features = false, features = ["std", "
 wat = { version = "1.262.0", default-features = false }
 
 # Tests and tooling only
-ic-build = { path = "crates/ic-build", version = "0.66", default-features = false }
-ic-testkit = { path = "crates/ic-testkit", version = "0.66", default-features = false }
+ic-build = { path = "crates/ic-build", version = "0.67", default-features = false }
+ic-testkit = { path = "crates/ic-testkit", version = "0.67", default-features = false }
 ic-testkit-perf-probe = { path = "crates/ic-testkit-perf-probe" }
 
 [workspace.lints.rust]
