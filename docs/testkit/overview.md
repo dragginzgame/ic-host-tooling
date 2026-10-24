@@ -211,12 +211,12 @@ Each test normally constructs and directly owns one fresh `PocketIc`:
 ```rust,no_run
 use ic_platform::principal::ExternalPrincipal as Principal;
 use ic_platform::pocket_ic::{PocketIc};
-use ic_testkit::pic::{query_wire};
+use ic_testkit::pic::{query_wire, WireCallSpec};
 
-fn read_counter<M: ic_wire::Method<Request = (), Response = u64>>(
-    pocket_ic: &PocketIc, canister_id: Principal,
+fn read_counter(
+    pocket_ic: &PocketIc, canister_id: Principal, spec: WireCallSpec,
 ) -> Result<u64, ic_testkit::pic::WireCallError> {
-    query_wire::<M>(pocket_ic, canister_id, Principal::anonymous(), &())
+    query_wire::<_, u64>(pocket_ic, canister_id, Principal::anonymous(), spec, &())
 }
 ```
 
@@ -255,16 +255,19 @@ controlled application protocols. Add `ic-wire` alongside it:
 
 ```toml
 [dev-dependencies]
-ic-wire = "0.5"
+ic-wire = "0.7.0"
 ```
 
-Both helpers accept an explicit canister, caller and borrowed request. The selected
-`ic_wire::Method` owns the exported name, method identity, request/response types
-and finite limits. One call encodes once, executes one PocketIC operation and
-decodes the exact response; application-level results are returned unchanged.
+Both helpers accept an explicit canister, caller, `WireCallSpec` and borrowed
+request. The caller selects the exported name, method identity, request/response
+Serde types and finite limits. One call encodes once, executes one PocketIC
+operation and decodes its response; application-level results are returned unchanged.
 Requests may use Wire's borrowed bounded fields. Responses must implement
 `serde::de::DeserializeOwned`, because the helper releases the reply buffer before
-returning. Generic callers must carry that response bound alongside `M: Method`.
+returning; Serialize is not required for responses. Wire 0.7 validates primitives
+in one pass and permits collection/custom-visitor normalization. Consumers own
+semantic ordering and uniqueness rules; re-encoding is not original-byte proof.
+Use raw calls to retain frames for exact retries, signatures or hashes.
 Updates are never retried; a refused reply does not prove absence of effects.
 `WireCallError` distinguishes encoding, call and decode
 failures, retaining typed codec causes and complete structured rejections. Known
@@ -663,7 +666,7 @@ its installed canister ID:
 
 ```rust,no_run
 use std::{num::NonZeroUsize, sync::LazyLock};
-use ic_testkit::pic::{CachedPocketIcBaselinePool, query_wire, SnapshotRestoreFunding, StandaloneCanisterFixture, StandaloneCanisterRecipe};
+use ic_testkit::pic::{CachedPocketIcBaselinePool, query_wire, WireCallSpec, SnapshotRestoreFunding, StandaloneCanisterFixture, StandaloneCanisterRecipe};
 
 static POOL: LazyLock<
     CachedPocketIcBaselinePool<StandaloneCanisterRecipe<fn() -> std::io::Result<StandaloneCanisterFixture>>>,
@@ -679,9 +682,9 @@ static POOL: LazyLock<
 });
 
 # fn build_fixture() -> std::io::Result<StandaloneCanisterFixture> { unimplemented!() }
-fn read_pooled_counter<M: ic_wire::Method<Request = (), Response = u64>>() -> Result<u64, Box<dyn std::error::Error>> {
+fn read_pooled_counter(spec: WireCallSpec) -> Result<u64, Box<dyn std::error::Error>> {
     let (baseline, _outcome) = POOL.acquire()?;
-    let value = query_wire::<M>(baseline.pocket_ic(), *baseline.metadata(), ic_platform::principal::ExternalPrincipal::anonymous(), &())?;
+    let value = query_wire::<_, u64>(baseline.pocket_ic(), *baseline.metadata(), ic_platform::principal::ExternalPrincipal::anonymous(), spec, &())?;
     Ok(value)
 }
 ```

@@ -38,7 +38,7 @@ ic-host-fs = { path = "crates/ic-host-fs", version = "0.67", default-features = 
 ic-host-process = { path = "crates/ic-host-process", version = "0.67", default-features = false }
 ic-host-text = { path = "crates/ic-host-text", version = "0.67", default-features = false }
 ic-platform = { version = "0.6.11", default-features = false }
-ic-wire = "0.6"
+ic-wire = "0.7.0"
 leb128 = "0.2.5"
 libc = "0.2.190"
 prost = "0.14.3"

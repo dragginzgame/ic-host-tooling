@@ -32,7 +32,7 @@ PocketIC retains its upstream Candid dependencies; Testkit's Wasm profile remain
 Candid-free.
 
 The optional native `wire` feature adds `pic::query_wire` and `pic::update_wire`.
-Enable it on your Testkit dependency and declare `ic-wire = "0.6"` for your native
+Enable it on your Testkit dependency and declare `ic-wire = "0.7.0"` for your native
 Serde contracts. Each helper takes an explicit target/caller, a `WireCallSpec`
 with the exported name, method ID and request/response limits, and a borrowed
 request. It executes one PocketIC operation without update retries; a refused reply
@@ -44,8 +44,11 @@ requests and original-byte evidence. Reply admission follows PocketIC's allocati
 so it supplies no network pre-allocation or peak-heap guarantee. The feature is off
 by default and adds no Wire dependency to the canister library graph.
 Requests may use borrowed bounded fields. Responses must implement
-`serde::Serialize` and `serde::de::DeserializeOwned` because Wire verifies
-canonical bytes and the helper releases the received buffer before returning.
+`serde::de::DeserializeOwned` because the helper releases the received buffer
+before returning. Wire validates primitives in one pass; collection and custom
+visitor normalization is consumer-owned. Re-encoding a decoded value need not
+reproduce the received frame. Use raw calls to retain original bytes for exact
+retries, signatures or hashes. Encode and decode budgets apply independently.
 Call `query_wire::<Request, Response>(pic, canister, caller, spec, &request)` or
 `update_wire` with the same arguments. The caller owns the Serde types and
 per-direction limits; finite-codec budgets need requalification for native Serde.

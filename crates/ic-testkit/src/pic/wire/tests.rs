@@ -169,7 +169,7 @@ fn invalid_responses_preserve_typed_refusal_and_context_without_payload_logs() {
         ([valid.as_slice(), &[0]].concat(), ic_wire::Error::Trailing),
         (
             [&valid[..valid.len() - 1], &[0x87, 0]].concat(),
-            ic_wire::Error::Noncanonical,
+            ic_wire::Error::Malformed,
         ),
         (vec![0; LIMITS.bytes + 1], ic_wire::Error::Limit),
     ];
@@ -280,4 +280,41 @@ fn transport_classification_and_original_unrelated_panics_are_preserved() {
     .unwrap_err();
     let resumed = error.downcast::<Box<u8>>().unwrap();
     assert_eq!(std::ptr::from_ref(resumed.as_ref().as_ref()), original);
+}
+
+#[test]
+fn deserialize_only_and_normalizing_responses_are_admitted() {
+    use serde::Deserialize;
+    use std::collections::BTreeMap;
+
+    struct ResponseOnly(u32);
+    impl<'de> Deserialize<'de> for ResponseOnly {
+        fn deserialize<D: serde::Deserializer<'de>>(decoder: D) -> Result<Self, D::Error> {
+            u32::deserialize(decoder).map(Self)
+        }
+    }
+    // Both public helpers accept Deserialize-only responses independently of
+    // the request's encoding bound; Postcard still requires a known value shape.
+    let _ = super::query_wire::<(), ResponseOnly>;
+    let _ = super::update_wire::<(), ResponseOnly>;
+    let ctx = context(
+        "query_call",
+        SAMPLE,
+        Principal::anonymous(),
+        Principal::anonymous(),
+    );
+    let decoded = call_wire::<(), ResponseOnly>(ctx.clone(), SAMPLE, &(), |_| {
+        Ok(native::encode_response(SAMPLE.method_id, &7_u32, LIMITS).unwrap())
+    });
+    assert_eq!(decoded.unwrap().0, 7);
+
+    // Keep the caller-owned received frame for byte identity. Wire permits map
+    // insertion order to differ from the BTreeMap's normalized iteration order.
+    let mut received = native::encode_response(SAMPLE.method_id, &(), LIMITS).unwrap();
+    received.extend_from_slice(&[2, 2, 20, 1, 10]);
+    let value =
+        call_wire::<(), BTreeMap<u8, u8>>(ctx, SAMPLE, &(), |_| Ok(received.clone())).unwrap();
+    assert_eq!(value, BTreeMap::from([(1, 10), (2, 20)]));
+    let reencoded = native::encode_response(SAMPLE.method_id, &value, LIMITS).unwrap();
+    assert_ne!(received, reencoded);
 }

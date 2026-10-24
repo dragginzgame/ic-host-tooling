@@ -127,7 +127,9 @@ impl std::error::Error for WireCallError {
 /// unchanged. Known `PocketIC` transport failures are captured; unrelated panics resume.
 /// Requests may borrow their input; responses must own their decoded data because
 /// the helper releases `PocketIC`'s reply buffer before returning.
-/// IC Wire owns native frame admission, canonical decoding and traversal limits.
+/// IC Wire owns native frame admission, primitive validation and traversal limits.
+/// Decoding may normalize collections or custom visitors. Use raw `PocketIC` calls
+/// to retain original frames when exact bytes are needed for hashes or retries.
 ///
 /// # Errors
 /// Returns request encoding, query rejection/transport or response decoding errors.
@@ -140,7 +142,7 @@ pub fn query_wire<Request, Response>(
 ) -> Result<Response, WireCallError>
 where
     Request: Serialize + ?Sized,
-    Response: Serialize + DeserializeOwned,
+    Response: DeserializeOwned,
 {
     call_wire(
         context("query_call", spec, canister_id, caller),
@@ -167,7 +169,7 @@ pub fn update_wire<Request, Response>(
 ) -> Result<Response, WireCallError>
 where
     Request: Serialize + ?Sized,
-    Response: Serialize + DeserializeOwned,
+    Response: DeserializeOwned,
 {
     call_wire(
         context("update_call", spec, canister_id, caller),
@@ -200,7 +202,7 @@ fn call_wire<Request, Response>(
 ) -> Result<Response, WireCallError>
 where
     Request: Serialize + ?Sized,
-    Response: Serialize + DeserializeOwned,
+    Response: DeserializeOwned,
 {
     let request =
         native::encode_request(spec.method_id, request, spec.request_limits).map_err(|source| {

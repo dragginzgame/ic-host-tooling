@@ -2,97 +2,73 @@
 
 ## Source and ownership
 
-The committed baseline is `3c6aa1b4668f715e95283a1c8fd656eabb566e1e`, release
-source 0.66.3. The current local audit repairs are uncommitted; package versions
-remain unchanged. The incoming lockfile update selects Wire/derive 0.6.12 and
-is preserved. A version/tag alone does not prove publication,
-consumer adoption or native qualification.
+The delivered baseline is 0.67.0, commit
+`248df96b27b44366095d9d8e195cca8a1023bde1`. The clean release passed
+[CI](https://github.com/dragginzgame/ic-tooling/actions/runs/40083807665),
+[browser](https://github.com/dragginzgame/ic-tooling/actions/runs/40083807675),
+[runtime](https://github.com/dragginzgame/ic-tooling/actions/runs/40083807707) and
+[optimizer](https://github.com/dragginzgame/ic-tooling/actions/runs/40083807692)
+qualification, including native macOS 15 Intel and Apple Silicon. Those results
+qualify the released source, not subsequent local dependency changes.
 
 Host, Build and Testkit retain the [extraction boundaries](../extraction.md).
 Consumers own credentials, budgets, targets, retries, installation and recovery.
-The reviewed Shared Tooling snapshot is 0.26.10 at `a8141e7`, recorded in
-[the snapshot manifest](../../.shared-tooling.snapshot). Rust edition 2024,
-MSRV 1.91 and Linux/native macOS 15 Intel and Apple Silicon remain required.
+Shared Tooling 0.26.10 at `a8141e7` is recorded in
+[the snapshot manifest](../../.shared-tooling.snapshot). Rust edition 2024 and
+MSRV 1.91 remain required. Package versions are still 0.67.0.
 
-## Current local changes
+## Current local work
 
-The accepted whole-workspace audit batch is described in
-[0.67.0 notes](../changelog/0.67.md). Explicit archive feature selection and new
-public evidence fields require a minor release; this task does not bump versions,
-commit, push or publish. Consumers of the archive API must pass feature selection. Configuration observation
-and Wasm build construction now require caller-selected limits; benchmark comparison
-returns a typed error for duplicate row identities.
+Adopt published Wire/derive 0.7.0, following the supplying release
+`aa7cc32acbd54a58d77720bedfb1ae530926f57e`. The incoming lockfile already
+selected Platform/macros 0.6.14 and Wire/derive 0.6.13; preserve its independent
+Platform update. This task changes only Wire selections in that starting lock.
+The registry packages were available in the local dependency cache.
 
-Build now separates Cargo input resolution privately and exposes comparison-only
-recipe identity on snapshots and build records. Source/features remain separately
-attributable, and cache admission is unchanged. The producer request is
-[#241](https://github.com/dragginzgame/ic-tooling/issues/241); Timers adoption must
-use the published API and qualify its own cohort acceptance.
+Testkit responses and private probe request decoding no longer require Serialize.
+Wire now validates primitives in one pass, permits consumer-owned collection
+normalization and returns Malformed for nonminimal varints. Typed helpers keep
+owned responses and one-call behavior; raw calls retain original-byte evidence.
+Read the [0.68 migration notes](../changelog/0.68.md) before adopting exposed Wire
+types or relying on decoding/re-encoding for byte identity. The next draft is
+0.68.0 because public Wire types and decoding semantics change. No own version,
+Git ref, publication or installation policy is changed by this local adoption.
 
-Browser sessions now reject unsuccessful fixture exit after readiness while
-retaining independent callback/cleanup failures. Evidence and delivery belong to
-[#242](https://github.com/dragginzgame/ic-tooling/issues/242). Testkit manifests
-inherit workspace lints; public docs and narrow native-operation annotations
-replace duplicated broad exceptions.
+Focused adoption logs and the starting source snapshot are retained at
+`/tmp/ic-tooling-wire-07/`. Eight adapter cases pass on development Rust and
+actual Rust 1.91, including Deserialize-only and normalization admission. Private
+protocol limits and the real PocketIC query/update, caller, rejection and trap
+probe pass on Linux. The prepared server required no download; its first sandbox
+run could not bind localhost, and the admitted native rerun passed. Changed-caller
+Clippy, MSRV compilation, probe/Testkit Wasm checks, graph policy, formatting and
+local doc links pass. Native macOS qualification of this later Wire graph has not
+run; the earlier release matrix does not supply it.
 
-CI caches ordinary compilation directories only, preserving fresh archive
-qualification targets. Superseded browser runs are cancelled. Publication scripts
-are included in ShellCheck. Hosted cache performance has not been measured. Runtime evidence collection and
-outer job timeouts are configured; isolated Tools/Text features run in development
-and actual MSRV qualification. The repeated publication Clippy gate is retained:
-the latest baseline Linux job spent 0.55 seconds on it.
-
-Shared Tooling 0.26.10 adoption reuses the common action's Cargo-tool cache and
-external IC dependency inventory, retaining stricter local ownership rules.
-Adoption evidence is under `/tmp/ic-tooling-shared-02610/`: snapshot integrity,
-actual dependency graphs, an injected renamed optional/dev IC dependency refusal,
-formatting/hook and substituted Make/action checks pass on Linux. The aggregate
-offline report admits Host/Cargo/release-editor tools; server admission remains
-unprepared because `target/debug/ic-testkit-server` is absent. No downloads or
-native macOS qualification were performed during this adoption.
-
-## Qualification and blockers
-
-Focused audit evidence is retained under `/tmp/ic-tooling-audit-fixes/`, including
-failed intermediate checks. The original browser false-success reproduction is
-`/tmp/ic-tooling-audit-browser-RwZzM9/`. The sandbox also failed unchanged Node
-child-pipe tests; the focused seven-case browser suite passed outside it using the
-installed pinned Node 24.21.0. Build's 268 library cases and focused strict Clippy
-pass on Linux. Exact-archive feature tests, bounded diagnostics, seven pool cases,
-four native memory cases, ShellCheck/workflow lint, formatting and doc links pass.
-Actual Rust 1.91 caller checks, four recipe-related cases and exact-archive tests
-pass; no whole-workspace test or release command was run.
-Second-audit evidence is under `/tmp/ic-tooling-audit-2-fixes/`. It includes
-configuration budget and include-topology regressions, benchmark duplicate refusal,
-log-retention diagnostics and runtime evidence collection. All 19 benchmark cases
-and 18 isolated feature cases pass on development Rust and actual Rust 1.91;
-changed-package strict Clippy, MSRV caller compilation and Testkit Wasm checks
-pass. Formatting, shell/workflow lint and local documentation links pass. Native macOS
-qualification of these uncommitted changes has not run.
+## Dependency blocker
 
 [Crypto qualification #240](https://github.com/dragginzgame/ic-tooling/issues/240)
-remains blocked on the canonical correction in
-[Platform #50](https://github.com/dragginzgame/ic-platform/issues/50). The selected
-Platform 0.6.12 graph still contains crypto-bigint 0.5.5. A direct curve update
-alone does not correct every Agent/derivation path, and actual ECDSA signing
-prevents an unused-code exemption. No local crypto fork, override or exemption
-was added. Source/configuration digest APIs do not qualify this dependency risk.
+remains owned separately, with the supplying correction at
+[Platform #50](https://github.com/dragginzgame/ic-platform/issues/50).
+The selected graph still contains crypto-bigint 0.5.5. Actual ECDSA signing
+prevents an unused-code exemption; no local crypto fork, override or exemption
+was added. Wire adoption does not qualify or resolve that dependency risk.
 
-The delivered #239 input-boundary and hashing-phase repairs are included in the
-baseline. Their original package failure remains at
-`target/package-qualification-3180841-0/`; focused and fresh-archive evidence is
-under `/tmp/ic-tooling-239/` and `/tmp/ic-tooling-package-phase/`. Do not remove
-those artifacts or weaken source guards to make a later attempt pass.
+## Retained evidence and recovery
 
-## Recovery and historical evidence
+The closed 0.67 producer issues and native logs own their delivery evidence.
+Original audit evidence remains under `/tmp/ic-tooling-audit-fixes/`,
+`/tmp/ic-tooling-audit-2/`, `/tmp/ic-tooling-audit-2-fixes/` and
+`/tmp/ic-tooling-shared-02610/`. The original browser reproduction remains at
+`/tmp/ic-tooling-audit-browser-RwZzM9/`.
 
-Migration archives and local-repository retirement evidence remain under
-`/tmp/ic-tooling-migration/`, including `retirement/`. Original refs were preserved
-in the former Host repository. Stale release-lock recovery evidence remains at
-`/tmp/ic-tooling-stale-release-lock.qHQFTn/lock`; retained plans are not disposable.
+The delivered nested-workspace target fix and hashing-phase correction are in
+the baseline. Preserve `target/package-qualification-3180841-0/`,
+`/tmp/ic-tooling-239/` and `/tmp/ic-tooling-package-phase/`. Earlier detailed
+handoff evidence is retained in the
+[released handoff](https://github.com/dragginzgame/ic-tooling/blob/248df96b27b44366095d9d8e195cca8a1023bde1/docs/status/current.md).
 
-Earlier ownership, Wire and cycle-fixture qualification is described in
-[the committed handoff](https://github.com/dragginzgame/ic-tooling/blob/3c6aa1b4668f715e95283a1c8fd656eabb566e1e/docs/status/current.md)
-and the [release ledger](../../CHANGELOG.md). Historical Linux or macOS results
-do not qualify the current dirty source. Inspect owning GitHub issues and exact
-workflow revisions for delivery; this handoff is not a parallel issue tracker.
+Migration and local-repository retirement archives remain under
+`/tmp/ic-tooling-migration/`, including `retirement/`; original refs were
+preserved in the former Host repository. Stale release-lock recovery evidence
+remains at `/tmp/ic-tooling-stale-release-lock.qHQFTn/lock`. Retained plans,
+failed attempts, original artifacts and backups are not disposable.

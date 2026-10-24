@@ -113,7 +113,7 @@ fn guard() -> Result<(), String> {
     }
 }
 
-fn decode<Request: Serialize + DeserializeOwned, const ID: u64>(bytes: Vec<u8>) -> Request {
+fn decode<Request: DeserializeOwned, const ID: u64>(bytes: Vec<u8>) -> Request {
     native::decode_request(ID, &bytes, protocol::LIMITS).expect("bounded perf probe Wire request")
 }
 

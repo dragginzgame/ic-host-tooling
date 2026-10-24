@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.68.0] - Unreleased
+
+- **Breaking:** adopt IC Wire 0.7.0 for Testkit's native Wire feature and private
+  probes. Responses need only DeserializeOwned; collection decoding may normalize
+  input, and malformed varints now report `Malformed` instead of `Noncanonical`.
+  Update exposed Wire types and retain original frames for exact byte identity.
+  [Details and migration](docs/changelog/0.68.md).
+
 ## [0.67.0] - 2026-10-24
 
 - **Breaking:** archive qualification requires explicit feature selection; public
