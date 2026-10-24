@@ -9,7 +9,7 @@ PocketIC-oriented test utilities for Internet Computer canister tests.
 ```toml
 [dev-dependencies]
 ic-testkit = "0.66"
-ic-platform = { version = "0.6", features = ["pocket-ic"] }
+ic-platform = { version = "0.6.15", features = ["pocket-ic"] }
 ```
 
 For typed application calls, enable the `wire` feature and depend directly on
@@ -29,10 +29,15 @@ targets. Native CSV and Markdown directory output lives in the repository's
 External interfaces that require Candid remain caller-owned: use a direct
 Platform dependency for encoding/decoding and PocketIC's raw byte operations.
 PocketIC retains its upstream Candid dependencies; Testkit's Wasm profile remains
-Candid-free.
+Candid-free. Native Testkit also selects Platform's Candid and management DTO
+capabilities used by held fixtures, even when that fixture feature is disabled.
+This retains the existing dependency identity and API instead of adding a
+published support crate solely for target-specific feature isolation. The
+[#249 — Held-fixture Platform capabilities in default Testkit](https://github.com/dragginzgame/ic-tooling/issues/249) is
+intentional; native Testkit is not a Candid-free profile.
 
 The optional native `wire` feature adds `pic::query_wire` and `pic::update_wire`.
-Enable it on your Testkit dependency and declare `ic-wire = "0.7.1"` for your native
+Enable it on your Testkit dependency and declare `ic-wire = "0.7.2"` for your native
 Serde contracts. Each helper takes an explicit target/caller, a `WireCallSpec`
 with the exported name, method ID and request/response limits, and a borrowed
 request. It executes one PocketIC operation without update retries; a refused reply

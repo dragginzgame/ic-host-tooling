@@ -187,7 +187,11 @@ case "$operation" in
         fi
         editor_setup=false
         if [[ "$fresh_tool_setup" == true ]]; then
-            if ! select_editor; then
+            editor_status=0
+            select_editor || editor_status=$?
+            # Busy admission is not missing setup; never install over its owner.
+            [[ "$editor_status" != 75 ]] || exit "$editor_status"
+            if [[ "$editor_status" != 0 ]]; then
                 # A first release needs the renderer before layout comparison.
                 # Source admission precedes setup; already prepared tools allow
                 # unsupported metadata to refuse before any setup dispatch.

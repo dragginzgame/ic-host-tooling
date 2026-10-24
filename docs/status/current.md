@@ -2,66 +2,81 @@
 
 ## Source and ownership
 
-The delivered baseline is 0.68.0, commit
-`8f281177faaeee0adc51edc1031d4a7b268b0ce0`. The preceding 0.67.0 release passed
-[CI](https://github.com/dragginzgame/ic-tooling/actions/runs/40083807665),
-[browser](https://github.com/dragginzgame/ic-tooling/actions/runs/40083807675),
-[runtime](https://github.com/dragginzgame/ic-tooling/actions/runs/40083807707) and
-[optimizer](https://github.com/dragginzgame/ic-tooling/actions/runs/40083807692)
-qualification, including native macOS 15 Intel and Apple Silicon. Those results
-qualify that historical source, not subsequent releases or local dependency changes.
+The checkout remains on committed preparation
+`195ec97b99256532a7aae5521f6b628291d7ae51`; its commit label is 0.68.1, while
+Cargo's actual workspace version remains 0.68.0. The latest finalized release
+notes are 0.68.0 at `8f281177faaeee0adc51edc1031d4a7b268b0ce0`. Local changes
+extend the compatible 0.68.1 draft. No own version or Git ref was changed here.
 
 Host, Build and Testkit retain the [extraction boundaries](../extraction.md).
 Consumers own credentials, budgets, targets, retries, installation and recovery.
-Shared Tooling 0.26.10 at `a8141e7` is recorded in
-[the snapshot manifest](../../.shared-tooling.snapshot). Rust edition 2024 and
-MSRV 1.91 remain required. Package versions are still 0.68.0.
+The reviewed Shared Tooling snapshot is 0.26.14 at
+`e14050bcc0c627f9c8a9064051699cac44fd7ab3`, recorded in
+[the snapshot manifest](../../.shared-tooling.snapshot). Rust edition 2024,
+MSRV 1.91 and Linux/native macOS 15 Intel and Apple Silicon remain required.
 
 ## Current local work
 
-Adopt published Wire/derive 0.7.1 from supplying release
-`2978dee37ddaf62c09ce1df411a0b1b6c9748bcd`. The incoming lockfile already
-selected both 0.7.1 packages and is preserved byte-for-byte. The workspace minimum
-and consumer examples now require 0.7.1. See the
-[0.68.1 notes](../changelog/0.68.md#0681---unreleased).
+Manifest minimums and examples select published Wire/derive 0.7.2 and
+Platform/macros 0.6.15. Their supplying releases are Wire
+`a4da015251beb8fa3346fb3780c0b3dc85c0ef32` and Platform
+`6dcf54a229201f85775d218b7a9f41809297878f`. The incoming lockfile already
+selected these versions and is preserved byte-for-byte. Feature selections,
+existing protocol fields, encoder bytes and the 0.7 decoding contract remain.
+See the [0.68.1 notes](../changelog/0.68.md#0681---unreleased).
 
-Wire 0.7.1 adds opt-in host schema advice and Packed<i8>; existing Tooling fields,
-frame bytes and the 0.7 decoding contract remain unchanged. The next draft is
-0.68.1 because the existing consumer API and semantics remain compatible. Own
-package versions, Git refs and publication remain user-owned.
+Shared Tooling adds setup phase diagnostics, safer recovery from manually
+committed candidates and distinct busy-tool admission. The local release adapter
+now preserves editor status 75 instead of dispatching setup for an admitted busy
+slot. Fresh preflight, standalone verification and saved-preparation recovery
+have substituted refusal cases. No implicit retry/wait or real release is added.
 
-Current adoption evidence and the starting source snapshot are under
-`/tmp/ic-tooling-wire-071/`. Eight adapter cases and the private protocol limits
-test pass on Linux. Actual Rust 1.91 caller compilation, probe/Testkit Wasm checks,
-strict changed-package Clippy, dependency/graph policy, formatting and doc links
-pass. No Rust implementation or field changes were needed.
-Original Wire 0.7.0 integration evidence remains under `/tmp/ic-tooling-wire-07/`,
-including Deserialize-only and normalization cases and a real PocketIC probe.
-Native macOS qualification of this later Wire graph has not run; historical host
-results do not supply it.
+The pending Host/Build layering repair and its six-case negative fixture remain
+in the working tree; their Make/guard/fixture source matches this task's starting
+snapshot. Its owning
+[#250 — Enforce downward Host and Build dependencies](https://github.com/dragginzgame/ic-tooling/issues/250)
+remains open for delivery and required qualification. The maintainer retired
+[#249 — Held-fixture-only Platform capabilities in default Testkit](https://github.com/dragginzgame/ic-tooling/issues/249)
+in favour of retaining the existing graph rather than adding a published crate.
 
-## Dependency blocker
+## Qualification and evidence
+
+Current adoption logs and the task-start snapshot are under
+`/tmp/ic-tooling-adopt-20261024/`. Eight Wire adapter cases, one private protocol
+case and three held-fixture cases pass on Linux. A real PocketIC Wire
+query/update, caller, rejection and trap probe also passes with the prepared
+server; no server download was needed. Changed-caller Clippy, actual
+Rust 1.91 compilation, all-feature Testkit/observer Wasm and probe Wasm checks
+pass. An isolated exact-registry Rust 1.91 consumer confirms that Platform's
+Principal and Account satisfy the same Wire 0.7.2 native metadata trait.
+
+Snapshot integrity, prepared Cargo/release-editor admission, dependency/graph
+policy, the pending layering fixture, formatting, shell/workflow lint and local
+doc links pass. Release-runner and consumer adapter fixtures, including busy
+admission, pass with substituted effects. Formatting-hook and Make/jobserver
+fixtures pass. Native
+macOS qualification of this later dependency/snapshot selection has not run.
+Earlier host CI qualifies its own source, not these local changes.
+
+## Dependency blocker and retained history
 
 [Crypto qualification #240](https://github.com/dragginzgame/ic-tooling/issues/240)
-remains owned separately, with the supplying correction at
-[Platform #50](https://github.com/dragginzgame/ic-platform/issues/50).
-The selected graph still contains crypto-bigint 0.5.5. Actual ECDSA signing
-prevents an unused-code exemption; no local crypto fork, override or exemption
-was added. Wire adoption does not qualify or resolve that dependency risk.
+remains separate, with the supplying correction at
+[Platform #50](https://github.com/dragginzgame/ic-platform/issues/50). The selected
+graph still contains crypto-bigint 0.5.5. Actual ECDSA signing prevents an
+unused-code exemption; no local crypto fork, override or exemption was added.
+Platform 0.6.15 and Wire adoption do not resolve that dependency risk.
 
-## Retained evidence and recovery
+Keep `/tmp/ic-tooling-249-250/`, `/tmp/ic-tooling-wire-07/` and
+`/tmp/ic-tooling-wire-071/` as earlier graph/codec evidence. Original audits remain
+under `/tmp/ic-tooling-audit-fixes/`, `/tmp/ic-tooling-audit-2/`,
+`/tmp/ic-tooling-audit-2-fixes/` and `/tmp/ic-tooling-shared-02610/`.
+Preserve the browser reproduction at `/tmp/ic-tooling-audit-browser-RwZzM9/`.
 
-The closed 0.67 producer issues and native logs own their delivery evidence.
-Original audit evidence remains under `/tmp/ic-tooling-audit-fixes/`,
-`/tmp/ic-tooling-audit-2/`, `/tmp/ic-tooling-audit-2-fixes/` and
-`/tmp/ic-tooling-shared-02610/`. The original browser reproduction remains at
-`/tmp/ic-tooling-audit-browser-RwZzM9/`.
-
-The delivered nested-workspace target fix and hashing-phase correction are in
-the baseline. Preserve `target/package-qualification-3180841-0/`,
-`/tmp/ic-tooling-239/` and `/tmp/ic-tooling-package-phase/`. Earlier detailed
-handoff evidence is retained in the
-[released handoff](https://github.com/dragginzgame/ic-tooling/blob/248df96b27b44366095d9d8e195cca8a1023bde1/docs/status/current.md).
+The nested-workspace target fix is delivered. Preserve its original failed
+`target/package-qualification-3180841-0/`, `/tmp/ic-tooling-239/` and
+`/tmp/ic-tooling-package-phase/`. Earlier detailed qualification is retained in
+[the released handoff](https://github.com/dragginzgame/ic-tooling/blob/248df96b27b44366095d9d8e195cca8a1023bde1/docs/status/current.md).
 
 Migration and local-repository retirement archives remain under
 `/tmp/ic-tooling-migration/`, including `retirement/`; original refs were

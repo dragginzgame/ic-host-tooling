@@ -109,7 +109,7 @@ Host-side test crates normally add:
 ```toml
 [dev-dependencies]
 ic-testkit = "0.66"
-ic-platform = { version = "0.6", features = ["pocket-ic"] }
+ic-platform = { version = "0.6.15", features = ["pocket-ic"] }
 ```
 
 For typed application calls, enable the `wire` feature and depend directly on
@@ -255,7 +255,7 @@ controlled application protocols. Add `ic-wire` alongside it:
 
 ```toml
 [dev-dependencies]
-ic-wire = "0.7.1"
+ic-wire = "0.7.2"
 ```
 
 Both helpers accept an explicit canister, caller, `WireCallSpec` and borrowed

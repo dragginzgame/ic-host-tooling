@@ -130,6 +130,7 @@ check-doc-links:
 release-adapter-check:
 	+bash scripts/release/test-adapter.sh
 tooling-command-check:
+	+bash scripts/ci/test-tools-layering.sh
 	+bash scripts/ci/test-product-evidence.sh
 	+bash scripts/ci/test-host-fixture-retention.sh
 	+bash scripts/ci/test-make-snapshot.sh

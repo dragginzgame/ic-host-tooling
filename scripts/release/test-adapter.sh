@@ -171,6 +171,10 @@ printf '#!%s\n' "$ADAPTER_REAL_BASH" > "$fixture/bin/bash"
 cat >> "$fixture/bin/bash" <<'STUB'
 set -euo pipefail
 if [[ "${1##*/}" == editor.sh && "${2:-}" == check ]]; then
+    if [[ "${ADAPTER_EDITOR_RESULT:-0}" != 0 ]]; then
+        echo 'fixture: selected editor slot is busy' >&2
+        exit "$ADAPTER_EDITOR_RESULT"
+    fi
     if [[ -n "${ADAPTER_EDITOR_CACHE:-}" && ! -f "$ADAPTER_EDITOR_CACHE" ]]; then
         echo 'fixture: release editor is not prepared' >&2
         exit 1
@@ -300,6 +304,18 @@ cmp Cargo.toml source/Cargo.toml
 cmp Cargo.lock "$root/Cargo.lock"
 [[ ! -e release-state ]] || exit 1
 
+# A busy selected slot is a distinct refusal, never a setup/install request.
+for operation in preflight verify; do
+    : > "$ADAPTER_EVENTS"
+    status=0
+    ADAPTER_EDITOR_RESULT=75 bash "$adapter" "$operation" > "editor-busy-$operation.log" 2>&1 || status=$?
+    [[ "$status" == 75 ]] || exit 1
+    grep -F 'selected editor slot is busy' "editor-busy-$operation.log" > /dev/null
+    if grep -F 'install-tools' "$ADAPTER_EVENTS"; then exit 1; fi
+done
+cmp Cargo.toml source/Cargo.toml
+cmp Cargo.lock source/Cargo.lock
+
 # First-use preflight prepares and admits its own editor once; standalone verify
 # stays offline and must not repair a missing selection or dispatch installation.
 : > "$ADAPTER_EVENTS"
@@ -317,6 +333,11 @@ if grep -F 'install-tools' "$ADAPTER_EVENTS"; then exit 1; fi
 # editor must fail without installation, even though the source still matches.
 mkdir release-state
 : > "release-state/$RELEASE_VERSION.plan"
+: > "$ADAPTER_EVENTS"
+status=0
+ADAPTER_EDITOR_RESULT=75 bash "$adapter" preflight > saved-editor-busy.log 2>&1 || status=$?
+[[ "$status" == 75 && -f "release-state/$RELEASE_VERSION.plan" ]] || exit 1
+if grep -F 'install-tools' "$ADAPTER_EVENTS"; then exit 1; fi
 : > "$ADAPTER_EVENTS"
 bash "$adapter" preflight > saved-preflight.log 2>&1
 if grep -F 'install-tools' "$ADAPTER_EVENTS"; then exit 1; fi

@@ -275,6 +275,16 @@ certification and enumerated CDK dependencies in every workspace member, includi
 renamed, dev/build and target-specific declarations. Platform owns those upstream
 edges. Unused root catalog declarations and future CDK package names still require
 review; the checker covers declared member edges and exact policy names.
+Generic Host and Build profiles also reject Wire, Testkit and known higher
+product families on transitive normal/build edges. Generic Host excludes Build;
+Build and generic Host exclude Platform. Tools retains its explicitly selected
+Platform profiles. Testkit's optional Wire and the private performance probe keep
+their separately admitted graphs.
+`bash scripts/ci/test-tools-layering.sh` exercises the actual policy against
+small local Cargo graphs with renamed transitive normal/build edges, including
+older published package identities. These are graph fixtures, not downloads or
+compilation of those historical packages. The fixture is part of
+`make tooling-command-check`.
 These checks preserve Tools/Text/inspection ownership boundaries; role comments
 are explanatory and are not parsed as an executable exclusion policy.
 
@@ -308,3 +318,8 @@ in `portable-regression.log`, so the shared failure collector can retain them.
 prints read-only selection JSON without installing or qualifying executables.
 Native CI selects the shared action's Cargo-tool cache with the release-editor
 recipe digest; restore is followed by ordinary setup and admission.
+
+Offline Cargo-tool admission returns status 75 for an admitted busy selected
+slot. The release adapter preserves that refusal without dispatching setup.
+Read-only admission waits are explicit at the shared installer interface; see
+[the bounded wait contract](local-setup.md#standard-cargo-tool-build-environment).

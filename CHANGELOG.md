@@ -2,9 +2,15 @@
 
 ## [0.68.1] - Unreleased
 
-- Adopt IC Wire/derive 0.7.1 while preserving existing schemas, frame bytes and
-  Testkit's 0.7 decoding contract. Update the shared dependency minimum and
-  consumer examples. [Details](docs/changelog/0.68.md#0681---unreleased).
+- Adopt IC Wire/derive 0.7.2 and Platform 0.6.15 together, preserving existing
+  schemas, frame bytes and Testkit's 0.7 decoding contract. Update the shared
+  dependency minimums and consumer examples. [Details](docs/changelog/0.68.md#0681---unreleased).
+- Adopt Shared Tooling 0.26.14's setup diagnostics, release-recovery fixes and
+  distinct busy-tool admission; preserve busy status without triggering setup.
+  [Details](docs/changelog/0.68.md#shared-tooling-02614-adoption).
+- Enforce Host/Build dependency direction across existing graph profiles, with
+  rejection fixtures for renamed and older higher-layer dependencies.
+  [Details](docs/changelog/0.68.md#host-and-build-layering).
 
 ## [0.68.0] - 2026-10-24
 
