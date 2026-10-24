@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.68.1] - Unreleased
+## [0.68.1] - 2026-10-24
 
 - Adopt IC Wire/derive 0.7.2 and Platform 0.6.15 together, preserving existing
   schemas, frame bytes and Testkit's 0.7 decoding contract. Update the shared
