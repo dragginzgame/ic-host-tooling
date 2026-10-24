@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.68.1] - Unreleased
+
+- Adopt IC Wire/derive 0.7.1 while preserving existing schemas, frame bytes and
+  Testkit's 0.7 decoding contract. Update the shared dependency minimum and
+  consumer examples. [Details](docs/changelog/0.68.md#0681---unreleased).
+
 ## [0.68.0] - 2026-10-24
 
 - **Breaking:** adopt IC Wire 0.7.0 for Testkit's native Wire feature and private

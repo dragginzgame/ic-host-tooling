@@ -32,7 +32,7 @@ PocketIC retains its upstream Candid dependencies; Testkit's Wasm profile remain
 Candid-free.
 
 The optional native `wire` feature adds `pic::query_wire` and `pic::update_wire`.
-Enable it on your Testkit dependency and declare `ic-wire = "0.7.0"` for your native
+Enable it on your Testkit dependency and declare `ic-wire = "0.7.1"` for your native
 Serde contracts. Each helper takes an explicit target/caller, a `WireCallSpec`
 with the exported name, method ID and request/response limits, and a borrowed
 request. It executes one PocketIC operation without update retries; a refused reply

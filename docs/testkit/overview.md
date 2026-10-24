@@ -255,7 +255,7 @@ controlled application protocols. Add `ic-wire` alongside it:
 
 ```toml
 [dev-dependencies]
-ic-wire = "0.7.0"
+ic-wire = "0.7.1"
 ```
 
 Both helpers accept an explicit canister, caller, `WireCallSpec` and borrowed

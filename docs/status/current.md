@@ -2,47 +2,43 @@
 
 ## Source and ownership
 
-The delivered baseline is 0.67.0, commit
-`248df96b27b44366095d9d8e195cca8a1023bde1`. The clean release passed
+The delivered baseline is 0.68.0, commit
+`8f281177faaeee0adc51edc1031d4a7b268b0ce0`. The preceding 0.67.0 release passed
 [CI](https://github.com/dragginzgame/ic-tooling/actions/runs/40083807665),
 [browser](https://github.com/dragginzgame/ic-tooling/actions/runs/40083807675),
 [runtime](https://github.com/dragginzgame/ic-tooling/actions/runs/40083807707) and
 [optimizer](https://github.com/dragginzgame/ic-tooling/actions/runs/40083807692)
 qualification, including native macOS 15 Intel and Apple Silicon. Those results
-qualify the released source, not subsequent local dependency changes.
+qualify that historical source, not subsequent releases or local dependency changes.
 
 Host, Build and Testkit retain the [extraction boundaries](../extraction.md).
 Consumers own credentials, budgets, targets, retries, installation and recovery.
 Shared Tooling 0.26.10 at `a8141e7` is recorded in
 [the snapshot manifest](../../.shared-tooling.snapshot). Rust edition 2024 and
-MSRV 1.91 remain required. Package versions are still 0.67.0.
+MSRV 1.91 remain required. Package versions are still 0.68.0.
 
 ## Current local work
 
-Adopt published Wire/derive 0.7.0, following the supplying release
-`aa7cc32acbd54a58d77720bedfb1ae530926f57e`. The incoming lockfile already
-selected Platform/macros 0.6.14 and Wire/derive 0.6.13; preserve its independent
-Platform update. This task changes only Wire selections in that starting lock.
-The registry packages were available in the local dependency cache.
+Adopt published Wire/derive 0.7.1 from supplying release
+`2978dee37ddaf62c09ce1df411a0b1b6c9748bcd`. The incoming lockfile already
+selected both 0.7.1 packages and is preserved byte-for-byte. The workspace minimum
+and consumer examples now require 0.7.1. See the
+[0.68.1 notes](../changelog/0.68.md#0681---unreleased).
 
-Testkit responses and private probe request decoding no longer require Serialize.
-Wire now validates primitives in one pass, permits consumer-owned collection
-normalization and returns Malformed for nonminimal varints. Typed helpers keep
-owned responses and one-call behavior; raw calls retain original-byte evidence.
-Read the [0.68 migration notes](../changelog/0.68.md) before adopting exposed Wire
-types or relying on decoding/re-encoding for byte identity. The next draft is
-0.68.0 because public Wire types and decoding semantics change. No own version,
-Git ref, publication or installation policy is changed by this local adoption.
+Wire 0.7.1 adds opt-in host schema advice and Packed<i8>; existing Tooling fields,
+frame bytes and the 0.7 decoding contract remain unchanged. The next draft is
+0.68.1 because the existing consumer API and semantics remain compatible. Own
+package versions, Git refs and publication remain user-owned.
 
-Focused adoption logs and the starting source snapshot are retained at
-`/tmp/ic-tooling-wire-07/`. Eight adapter cases pass on development Rust and
-actual Rust 1.91, including Deserialize-only and normalization admission. Private
-protocol limits and the real PocketIC query/update, caller, rejection and trap
-probe pass on Linux. The prepared server required no download; its first sandbox
-run could not bind localhost, and the admitted native rerun passed. Changed-caller
-Clippy, MSRV compilation, probe/Testkit Wasm checks, graph policy, formatting and
-local doc links pass. Native macOS qualification of this later Wire graph has not
-run; the earlier release matrix does not supply it.
+Current adoption evidence and the starting source snapshot are under
+`/tmp/ic-tooling-wire-071/`. Eight adapter cases and the private protocol limits
+test pass on Linux. Actual Rust 1.91 caller compilation, probe/Testkit Wasm checks,
+strict changed-package Clippy, dependency/graph policy, formatting and doc links
+pass. No Rust implementation or field changes were needed.
+Original Wire 0.7.0 integration evidence remains under `/tmp/ic-tooling-wire-07/`,
+including Deserialize-only and normalization cases and a real PocketIC probe.
+Native macOS qualification of this later Wire graph has not run; historical host
+results do not supply it.
 
 ## Dependency blocker
 
