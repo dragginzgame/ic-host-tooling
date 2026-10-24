@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.68.0] - Unreleased
+## [0.68.0] - 2026-10-24
 
 - **Breaking:** adopt IC Wire 0.7.0 for Testkit's native Wire feature and private
   probes. Responses need only DeserializeOwned; collection decoding may normalize
