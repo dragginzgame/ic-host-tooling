@@ -15,7 +15,11 @@ caller-owned files. Logs append, including on startup/body failure.
 Cleanup sends a newline, then SIGTERM and SIGKILL, waiting at most `stopMs` after
 each stage. It reaps the direct child; the fixture must manage its descendants.
 It preserves body failures, including falsy exceptions, and aggregates cleanup
-failures. This helper targets Linux/macOS, not Windows process termination.
+and unsuccessful fixture-exit failures after readiness. Signals sent by session
+cleanup are expected shutdown, while other signals and nonzero exit codes fail
+the session. The callback is awaited before reporting failures; its work is never
+abandoned by racing it against child exit. This helper targets Linux/macOS,
+not Windows process termination.
 
 Run `node --test testing/browser/session.test.mjs`. Tests use disposable Node
 children; installed PocketIC/browser qualification remains with the consumer.

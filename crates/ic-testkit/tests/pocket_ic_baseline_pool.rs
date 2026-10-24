@@ -1,3 +1,4 @@
+//! Integration checks for pocket ic baseline pool behavior.
 mod support;
 
 use std::{

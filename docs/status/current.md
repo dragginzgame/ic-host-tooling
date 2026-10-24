@@ -1,128 +1,98 @@
 # Current handoff
 
-## Delivered source and ownership
+## Source and ownership
 
-The committed baseline is release source
-`4bc810c84ba45baa191030eb625b8e793124581e`, workspace 0.66.2. A tag or version
-does not establish registry publication, consumer adoption or complete native
-acceptance. Read the selected Cargo.lock before reusing qualification; the normal
-checkout has an independent lock edit that this documentation change does not carry.
+The committed baseline is `3c6aa1b4668f715e95283a1c8fd656eabb566e1e`, release
+source 0.66.3. The current local audit repairs are uncommitted; package versions
+remain unchanged. The incoming lockfile update selects Wire/derive 0.6.12 and
+is preserved. A version/tag alone does not prove publication,
+consumer adoption or native qualification.
 
-Host, Build and Testkit share one release workspace while retaining the
-[crate ownership boundaries](../extraction.md). Host owns host primitives, Build
-owns generic Cargo/build artifacts, and Testkit owns simulator admission and
-lifecycle. Consumers retain credentials, targets, retry/retention policy and
-application qualification. Public package identities survived consolidation;
-the [migration design](../design/tooling-consolidation.md) retains import history.
+Host, Build and Testkit retain the [extraction boundaries](../extraction.md).
+Consumers own credentials, budgets, targets, retries, installation and recovery.
+The reviewed Shared Tooling snapshot is 0.26.10 at `a8141e7`, recorded in
+[the snapshot manifest](../../.shared-tooling.snapshot). Rust edition 2024,
+MSRV 1.91 and Linux/native macOS 15 Intel and Apple Silicon remain required.
 
-The reviewed Shared snapshot is 0.26.9 at `3657c04`, recorded in
-[the manifest](../../.shared-tooling.snapshot). Do not patch its payloads or infer
-adoption from a newer sibling checkout. Rust edition 2024 and MSRV 1.91 remain
-required; [host qualification](../hosts.md) owns focused checks and native hosts.
+## Current local changes
 
-Pending [0.66.3 notes](../changelog/0.66.md#0663---unreleased) raise the shared
-Platform minimum to published 0.6.11, already selected by the incoming lock edit.
-Shared Tooling's current upstream revision matches the verified local snapshot.
-Package versions remain 0.66.2; the incoming lockfile is preserved unchanged.
-Focused Linux Clippy, Rust 1.91 caller compilation, Wasm compilation and dependency
-graphs pass, with eleven memory, Candid and principal cases. Formatting, doc links
-and snapshot admission pass. Evidence is under `/tmp/ic-tooling-0663/`;
-fresh native macOS qualification of this pending batch has not run.
+The accepted whole-workspace audit batch is described in
+[0.67.0 notes](../changelog/0.67.md). Explicit archive feature selection and new
+public evidence fields require a minor release; this task does not bump versions,
+commit, push or publish. Consumers of the archive API must pass feature selection. Configuration observation
+and Wasm build construction now require caller-selected limits; benchmark comparison
+returns a typed error for duplicate row identities.
 
-[#239](https://github.com/dragginzgame/ic-tooling/issues/239) is implemented in
-committed preparation `2c439cef`: nested explicit workspace targets are excluded from
-Cargo snapshots and transactional guards, while declared inputs and physical
-source aliases remain watched. Original regression and related-case evidence
-remain under `/tmp/ic-tooling-239/`. The current incoming lock also advances
-generic-array/smallvec and changes crypto-common; five boundary cases on both
-compilers and strict Clippy were refreshed under `/tmp/ic-tooling-issues-20261024/`.
-Delivery, native macOS and actual Canic adoption remain separate; no
-consumer-specific generated-state exclusion was added.
+Build now separates Cargo input resolution privately and exposes comparison-only
+recipe identity on snapshots and build records. Source/features remain separately
+attributable, and cache admission is unchanged. The producer request is
+[#241](https://github.com/dragginzgame/ic-tooling/issues/241); Timers adoption must
+use the published API and qualify its own cohort acceptance.
 
-Release qualification of committed preparation `2c439cef` caught a #239 regression:
-missing inputs failed in discovery instead of content hashing. The local repair
-moves source-tree admission into hashing and retains the failed path. The original
-package evidence remains at `target/package-qualification-3180841-0/`; focused
-repair and fresh-archive evidence are under `/tmp/ic-tooling-package-phase/`.
-All 266 Build library cases pass from source and the fresh archive. With the
-final repair, all five nested-workspace boundary cases and the original batch
-failure case pass on actual Rust 1.91; strict Clippy and formatting pass on Linux.
-Package versions and release state remain unchanged.
+Browser sessions now reject unsuccessful fixture exit after readiness while
+retaining independent callback/cleanup failures. Evidence and delivery belong to
+[#242](https://github.com/dragginzgame/ic-tooling/issues/242). Testkit manifests
+inherit workspace lints; public docs and narrow native-operation annotations
+replace duplicated broad exceptions.
 
-## Current public contracts and open acceptance
+CI caches ordinary compilation directories only, preserving fresh archive
+qualification targets. Superseded browser runs are cancelled. Publication scripts
+are included in ShellCheck. Hosted cache performance has not been measured. Runtime evidence collection and
+outer job timeouts are configured; isolated Tools/Text features run in development
+and actual MSRV qualification. The repeated publication Clippy gate is retained:
+the latest baseline Linux job spent 0.55 seconds on it.
 
-- [0.66 ownership migration](../changelog/0.66.md): PocketIC client/server fields
-  are private. Borrow through accessors, use `into_parts()` to transfer teardown,
-  and use `from_borrowed_server()` for externally managed servers. Sync owner
-  drop preserves client-before-server order; async client deletion remains
-  explicit. [#237](https://github.com/dragginzgame/ic-tooling/issues/237) is closed
-  with producer evidence; consumer adoption remains separate. Do not restore
-  field access or compatibility wrappers.
-- [0.65 Wire migration](../changelog/0.65.md): native calls use explicit
-  `WireCallSpec` and Serde request/response types; Wire owns framing/traversal.
-  The pre-copy frame bound and caller-owned budgets remain.
-  [#236](https://github.com/dragginzgame/ic-tooling/issues/236) is closed with
-  producer qualification and Auth adoption of published Testkit.
-- [Cycle-accepting fixtures (#235)](https://github.com/dragginzgame/ic-tooling/issues/235)
-  bound acceptance and retain exact replies/counters across held release.
-  A setup trap rolls back acceptance/slot consumption. Fixture support does not
-  qualify a downstream funding journal or live provider.
-- [0.64 migration](../changelog/0.64.md) removed duplicate dependency facades
-  and policy types. Consumers import Platform types directly; native PocketIC's
-  Candid graph is distinct from Testkit's Candid-free Wasm graph.
-  [#233](https://github.com/dragginzgame/ic-tooling/issues/233) is retired as a
-  coordination tracker; remaining Canic qualification has its own
-  [native](https://github.com/dragginzgame/canic/issues/450) and
-  [codec](https://github.com/dragginzgame/canic/issues/615) owners.
+Shared Tooling 0.26.10 adoption reuses the common action's Cargo-tool cache and
+external IC dependency inventory, retaining stricter local ownership rules.
+Adoption evidence is under `/tmp/ic-tooling-shared-02610/`: snapshot integrity,
+actual dependency graphs, an injected renamed optional/dev IC dependency refusal,
+formatting/hook and substituted Make/action checks pass on Linux. The aggregate
+offline report admits Host/Cargo/release-editor tools; server admission remains
+unprepared because `target/debug/ic-testkit-server` is absent. No downloads or
+native macOS qualification were performed during this adoption.
 
-## Next independent work
+## Qualification and blockers
 
-[Canic's Wire producer (#613)](https://github.com/dragginzgame/canic/issues/613)
-already composes the published Build snapshot/transaction APIs. Canic retains
-normal phase invocation, release schema identities and frontend delivery.
-[#225](https://github.com/dragginzgame/ic-tooling/issues/225) is retired as duplicate
-coordination; the concrete Build input-boundary defect remains with #239.
+Focused audit evidence is retained under `/tmp/ic-tooling-audit-fixes/`, including
+failed intermediate checks. The original browser false-success reproduction is
+`/tmp/ic-tooling-audit-browser-RwZzM9/`. The sandbox also failed unchanged Node
+child-pipe tests; the focused seven-case browser suite passed outside it using the
+installed pinned Node 24.21.0. Build's 268 library cases and focused strict Clippy
+pass on Linux. Exact-archive feature tests, bounded diagnostics, seven pool cases,
+four native memory cases, ShellCheck/workflow lint, formatting and doc links pass.
+Actual Rust 1.91 caller checks, four recipe-related cases and exact-archive tests
+pass; no whole-workspace test or release command was run.
+Second-audit evidence is under `/tmp/ic-tooling-audit-2-fixes/`. It includes
+configuration budget and include-topology regressions, benchmark duplicate refusal,
+log-retention diagnostics and runtime evidence collection. All 19 benchmark cases
+and 18 isolated feature cases pass on development Rust and actual Rust 1.91;
+changed-package strict Clippy, MSRV caller compilation and Testkit Wasm checks
+pass. Formatting, shell/workflow lint and local documentation links pass. Native macOS
+qualification of these uncommitted changes has not run.
 
-[Crypto qualification (#240)](https://github.com/dragginzgame/ic-tooling/issues/240)
-tracks the native Agent graph's crypto-bigint advisory. Isolated non-Agent and
-Wasm graphs exclude it; combined native workspace features can unify it through
-Platform. Caller-selected ECDSA signing prevents a blanket unused-code exemption.
-[Platform #50](https://github.com/dragginzgame/ic-platform/issues/50) owns the
-supplying correction; no compatible lock-only update or exemption was applied.
-Current audit/graph evidence is under `/tmp/ic-tooling-issues-20261024/`.
+[Crypto qualification #240](https://github.com/dragginzgame/ic-tooling/issues/240)
+remains blocked on the canonical correction in
+[Platform #50](https://github.com/dragginzgame/ic-platform/issues/50). The selected
+Platform 0.6.12 graph still contains crypto-bigint 0.5.5. A direct curve update
+alone does not correct every Agent/derivation path, and actual ECDSA signing
+prevents an unused-code exemption. No local crypto fork, override or exemption
+was added. Source/configuration digest APIs do not qualify this dependency risk.
 
-For other acceptance, inspect the [owning issues](https://github.com/dragginzgame/ic-tooling/issues)
-and matching current workflows. This summary changes no issue disposition and
-does not carry forward superseded claims about the current checkout or open PRs.
+The delivered #239 input-boundary and hashing-phase repairs are included in the
+baseline. Their original package failure remains at
+`target/package-qualification-3180841-0/`; focused and fresh-archive evidence is
+under `/tmp/ic-tooling-239/` and `/tmp/ic-tooling-package-phase/`. Do not remove
+those artifacts or weaken source guards to make a later attempt pass.
 
-## Qualification and retained evidence
+## Recovery and historical evidence
 
-Ownership-transfer checks passed thirteen focused runtime cases and seven
-doctests on development Rust 1.99.1 and actual Rust 1.91, with strict native
-Clippy and caller compilation. Original attempts and both observed lock inputs
-remain under `/tmp/ic-tooling-237/`. Fresh native macOS acceptance was not
-established by that local record.
+Migration archives and local-repository retirement evidence remain under
+`/tmp/ic-tooling-migration/`, including `retirement/`. Original refs were preserved
+in the former Host repository. Stale release-lock recovery evidence remains at
+`/tmp/ic-tooling-stale-release-lock.qHQFTn/lock`; retained plans are not disposable.
 
-Delivered 0.66.0 subsequently passed [source-bound CI](https://github.com/dragginzgame/ic-tooling/actions/runs/39930549305)
-on Linux/MSRV and, separately, native macOS 15 Intel and Apple Silicon.
-All four installed cycle-reply cases pass on both Macs; #235 is closed.
-Five explicit real-server ownership/baseline cases remain ignored in hosted CI;
-their passing Linux evidence above is not Mac execution evidence.
-
-Wire adoption evidence is `/tmp/ic-tooling-wire064/`; cycle-acceptance and
-rollback evidence are `/tmp/ic-tooling-235/` and `/tmp/ic-tooling-235-rollback/`.
-The original identities and limitations remain authoritative. The earlier
-[0.63.3 native CI](https://github.com/dragginzgame/ic-tooling/actions/runs/39637698526)
-does not qualify later 0.66 source or the independent dirty lock.
-
-Migration archives, imported proposal objects and retirement evidence remain
-under `/tmp/ic-tooling-migration/`, including `retirement/`. The former Host
-checkout retains original refs. The retained stale release lock is
-`/tmp/ic-tooling-stale-release-lock.qHQFTn/lock`; saved plans were preserved.
-Never delete those recovery inputs to make a later attempt pass.
-
-The complete former handoff, including HTTP/native-observer evidence, historical
-workflow links and earlier failed attempts, is retained at
-[the baseline revision](https://github.com/dragginzgame/ic-tooling/blob/d71f4690c7e8e3ffe99f72467bc35cbadce33042/docs/status/current.md).
-Use it for a specific historical obligation rather than requiring it at startup.
-No artifacts, locks, package versions or release state change in this cleanup.
+Earlier ownership, Wire and cycle-fixture qualification is described in
+[the committed handoff](https://github.com/dragginzgame/ic-tooling/blob/3c6aa1b4668f715e95283a1c8fd656eabb566e1e/docs/status/current.md)
+and the [release ledger](../../CHANGELOG.md). Historical Linux or macOS results
+do not qualify the current dirty source. Inspect owning GitHub issues and exact
+workflow revisions for delivery; this handoff is not a parallel issue tracker.

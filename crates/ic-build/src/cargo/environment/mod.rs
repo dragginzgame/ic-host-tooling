@@ -3,15 +3,28 @@
 #[cfg(test)]
 mod tests;
 
-use ic_host_artifacts::artifact::Sha256Digest;
+use ic_host_artifacts::artifact::{ArtifactError, Sha256Digest};
 use std::{
     borrow::Cow,
     collections::BTreeSet,
     ffi::OsStr,
-    fs, io,
+    io,
     path::{Path, PathBuf},
 };
 use toml::Value;
+
+/// Caller-selected bounds for one complete configuration observation.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct ConfigurationLimits {
+    /// Maximum bytes read from any one file.
+    pub file_bytes: usize,
+    /// Maximum bytes read across all files and aliases.
+    pub total_bytes: usize,
+    /// Maximum number of files read, including aliases.
+    pub files: usize,
+    /// Maximum include depth; roots have depth zero.
+    pub depth: usize,
+}
 
 /// One observed configuration's location, raw-byte identity and compiler overrides.
 ///
@@ -23,6 +36,10 @@ pub struct ConfigurationFile {
     pub location: PathBuf,
     /// SHA-256 of the same UTF-8 bytes parsed during this observation.
     pub sha256: Sha256Digest,
+    /// Digest of build/target/profile/unstable settings and recognized build/compiler
+    /// environment entries, excluding output directories and unrelated credentials.
+    /// `None` means the configuration contains no comparison-relevant settings.
+    pub recipe_sha256: Option<Sha256Digest>,
     /// Present build compiler/wrapper fields, in canonical field order.
     pub compiler_overrides: Vec<&'static str>,
 }
@@ -30,6 +47,14 @@ pub struct ConfigurationFile {
 /// Configuration observation failure; diagnostics exclude configuration contents.
 #[derive(Debug, thiserror::Error)]
 pub enum ConfigurationError {
+    /// Bounded regular-file admission failed.
+    #[error("read Cargo configuration {}: {source}", path.display())]
+    Read {
+        /// Selected lookup path.
+        path: PathBuf,
+        /// Original bounded-read error.
+        source: ArtifactError,
+    },
     /// Original filesystem failure at its selected lookup path.
     #[error("{operation} {}: {source}", path.display())]
     Io {
@@ -100,7 +125,7 @@ pub fn preferred_configuration(directory: &Path) -> Option<PathBuf> {
 /// Observe selected roots and their include trees in order, deduplicating lookup paths.
 ///
 /// Roots must be absolute. Required missing/invalid files fail; optional absent includes
-/// are skipped. Includes resolve beside the configured entry, not a symlink referent.
+/// are skipped while budget remains. Includes resolve beside the configured entry, not a symlink referent.
 /// Recorded lookup paths are not read or expanded again in the same call. Active
 /// recursion is suppressed without merging distinct lookup aliases.
 ///
@@ -109,14 +134,16 @@ pub fn preferred_configuration(directory: &Path) -> Option<PathBuf> {
 ///
 /// # Errors
 /// Returns original filesystem errors or a structural refusal for relative roots,
-/// invalid TOML and malformed includes. Error text excludes configuration contents.
+/// invalid TOML, malformed includes and exhausted traversal limits. Bounded reads
+/// refuse non-regular files and excessive bytes. Error text excludes configuration contents.
 pub fn observe_configurations(
     roots: &[PathBuf],
+    mut limits: ConfigurationLimits,
 ) -> Result<Vec<ConfigurationFile>, ConfigurationError> {
     let mut files = Vec::new();
     let mut active = BTreeSet::new();
     for root in roots {
-        append_configuration(&mut files, root, &mut active, false)?;
+        append_configuration(&mut files, root, &mut active, false, &mut limits, 0)?;
     }
     Ok(files)
 }
@@ -150,11 +177,20 @@ pub fn is_build_variable(name: &str) -> bool {
         || name.starts_with("CARGO_TARGET_") && name != "CARGO_TARGET_DIR"
 }
 
+pub(crate) fn is_recipe_variable(name: &str) -> bool {
+    !matches!(name, "CARGO_BUILD_TARGET_DIR" | "CARGO_BUILD_BUILD_DIR")
+        && (is_build_variable(name)
+            || is_compiler_override(name)
+            || matches!(name, "CARGO_INCREMENTAL" | "RUSTC_BOOTSTRAP"))
+}
+
 fn append_configuration(
     files: &mut Vec<ConfigurationFile>,
     config: &Path,
     active: &mut BTreeSet<PathBuf>,
     optional: bool,
+    limits: &mut ConfigurationLimits,
+    depth: usize,
 ) -> Result<(), ConfigurationError> {
     if !config.is_absolute() {
         return Err(invalid_configuration(
@@ -165,17 +201,44 @@ fn append_configuration(
     if files.iter().any(|file| file.path == config) {
         return Ok(());
     }
-    let contents = match fs::read_to_string(config) {
-        Ok(contents) => contents,
-        Err(error) if optional && error.kind() == io::ErrorKind::NotFound => return Ok(()),
-        Err(source) => {
-            return Err(ConfigurationError::Io {
-                operation: "read Cargo configuration",
-                path: config.to_owned(),
-                source,
-            });
-        }
-    };
+    if depth > limits.depth {
+        return Err(invalid_configuration(
+            config,
+            "include depth limit exceeded",
+        ));
+    }
+    if limits.files == 0 {
+        return Err(invalid_configuration(
+            config,
+            "configuration file count limit exceeded",
+        ));
+    }
+    let contents =
+        match ic_host_fs::read::read_file(config, limits.file_bytes.min(limits.total_bytes)) {
+            Ok(contents) => contents,
+            Err(ArtifactError::Io(error))
+                if optional && error.kind() == io::ErrorKind::NotFound =>
+            {
+                return Ok(());
+            }
+            Err(ArtifactError::Io(source)) => {
+                return Err(ConfigurationError::Io {
+                    operation: "read Cargo configuration",
+                    path: config.to_owned(),
+                    source,
+                });
+            }
+            Err(source) => {
+                return Err(ConfigurationError::Read {
+                    path: config.to_owned(),
+                    source,
+                });
+            }
+        };
+    limits.files -= 1;
+    limits.total_bytes -= contents.len();
+    let contents = String::from_utf8(contents)
+        .map_err(|_| invalid_configuration(config, "configuration is not UTF-8"))?;
     let parent = config.parent().ok_or_else(|| {
         invalid_configuration(config, "configuration path has no parent directory")
     })?;
@@ -214,6 +277,7 @@ fn append_configuration(
         location: location.clone(),
         sha256: Sha256Digest::compute(contents.as_bytes()),
         compiler_overrides,
+        recipe_sha256: configuration_recipe(&configuration),
     });
     if let Some(include) = configuration.get("include") {
         for (included, optional) in configuration_includes(include, config)? {
@@ -222,7 +286,7 @@ fn append_configuration(
             } else {
                 Cow::Owned(parent.join(included))
             };
-            append_configuration(files, &included, active, optional)?;
+            append_configuration(files, &included, active, optional, limits, depth + 1)?;
         }
     }
     active.remove(&location);
@@ -275,4 +339,34 @@ fn invalid_configuration(path: &Path, message: &str) -> ConfigurationError {
         path: path.to_owned(),
         message: message.to_owned(),
     }
+}
+
+fn configuration_recipe(configuration: &Value) -> Option<Sha256Digest> {
+    let mut selected = toml::map::Map::new();
+    for key in ["build", "target", "profile", "unstable", "include"] {
+        if let Some(value) = configuration.get(key) {
+            let mut value = value.clone();
+            if key == "build"
+                && let Some(table) = value.as_table_mut()
+            {
+                table.remove("target-dir");
+                table.remove("build-dir");
+            }
+            if !value.as_table().is_some_and(toml::map::Map::is_empty) {
+                selected.insert(key.to_owned(), value);
+            }
+        }
+    }
+    if let Some(environment) = configuration.get("env").and_then(Value::as_table) {
+        let environment: toml::map::Map<_, _> = environment
+            .iter()
+            .filter(|(name, _)| is_recipe_variable(name))
+            .map(|(name, value)| (name.clone(), value.clone()))
+            .collect();
+        if !environment.is_empty() {
+            selected.insert("env".to_owned(), Value::Table(environment));
+        }
+    }
+    (!selected.is_empty())
+        .then(|| Sha256Digest::compute(Value::Table(selected).to_string().as_bytes()))
 }

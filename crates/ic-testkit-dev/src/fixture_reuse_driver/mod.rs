@@ -112,6 +112,10 @@ extern "C" fn mark_interrupted(_signal: libc::c_int) {
 }
 
 #[cfg(unix)]
+#[expect(
+    unsafe_code,
+    reason = "bounded native operation with the local SAFETY contract below"
+)]
 fn install_interrupt_handler() -> Result<SignalActions, SignalActionError> {
     INTERRUPTED.store(false, Ordering::Relaxed);
     // SAFETY: this standalone driver exclusively owns SIGINT through guard
@@ -412,6 +416,7 @@ fn prepare(options: &Options) -> Result<Inputs, Error> {
         &target.join("ic-testkit-fixture-benchmark-wasm"),
         &["ic-testkit-perf-probe"],
         environment,
+        CONFIGURATION_LIMITS,
     )
     .with_cargo_program(cargo)
     .with_cargo_selection(CargoSelection {
@@ -482,6 +487,10 @@ fn git_provenance(root: &Path, limits: OutputLimits) -> Result<GitObservations, 
     Ok(observed)
 }
 
+#[expect(
+    unsafe_code,
+    reason = "bounded native operation with the local SAFETY contract below"
+)]
 fn provenance(
     root: &Path,
     options: &Options,
@@ -601,6 +610,15 @@ pub fn run() -> Result<(), Error> {
             .collect::<Vec<_>>(),
     )
 }
+
+// This caller admits small configuration trees; libraries do not select this policy.
+const CONFIGURATION_LIMITS: ic_build::cargo::environment::ConfigurationLimits =
+    ic_build::cargo::environment::ConfigurationLimits {
+        file_bytes: 1024 * 1024,
+        total_bytes: 16 * 1024 * 1024,
+        files: 128,
+        depth: 32,
+    };
 
 #[cfg(test)]
 mod tests {
@@ -1375,6 +1393,10 @@ esac
 
     #[test]
     #[cfg(unix)]
+    #[expect(
+        unsafe_code,
+        reason = "bounded native operation with the local SAFETY contract below"
+    )]
     fn interruption_waits_for_worker_completion() {
         const CHILD_ENV: &str = "IC_TESTKIT_FIXTURE_BENCHMARK_INTERRUPT_CHILD";
         if std::env::var_os(CHILD_ENV).is_none() {

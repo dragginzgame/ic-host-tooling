@@ -53,6 +53,56 @@ fn checked_scaled_average(
         .ok_or(BenchmarkAverageError::Overflow)
 }
 
+/// A comparison refuses ambiguous row identities or unrepresentable means.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum BenchmarkComparisonError {
+    /// More than one current row has the same scope and span.
+    DuplicateCurrent {
+        /// Repeated scope.
+        scope: BenchmarkScope,
+        /// Repeated span label.
+        span_label: String,
+    },
+    /// More than one previous row has the same scope and span.
+    DuplicatePrevious {
+        /// Repeated scope.
+        scope: BenchmarkScope,
+        /// Repeated span label.
+        span_label: String,
+    },
+    /// A row's selected mean cannot be represented.
+    Average(BenchmarkAverageError),
+}
+
+impl std::fmt::Display for BenchmarkComparisonError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::DuplicateCurrent { scope, span_label } => write!(
+                formatter,
+                "duplicate current benchmark row: {scope:?}/{span_label}"
+            ),
+            Self::DuplicatePrevious { scope, span_label } => write!(
+                formatter,
+                "duplicate previous benchmark row: {scope:?}/{span_label}"
+            ),
+            Self::Average(error) => error.fmt(formatter),
+        }
+    }
+}
+impl std::error::Error for BenchmarkComparisonError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Average(error) => Some(error),
+            Self::DuplicateCurrent { .. } | Self::DuplicatePrevious { .. } => None,
+        }
+    }
+}
+impl From<BenchmarkAverageError> for BenchmarkComparisonError {
+    fn from(error: BenchmarkAverageError) -> Self {
+        Self::Average(error)
+    }
+}
+
 /// Default prefix for benchmark marker lines.
 pub const DEFAULT_PREFIX: &str = "ICTK";
 
@@ -65,9 +115,12 @@ pub enum BenchmarkScope {
     All,
 }
 
+/// Marker prefixes, suite naming and noise handling selected by the caller.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct BenchmarkParserConfig {
+    /// Accepted marker prefixes.
     pub prefixes: Vec<String>,
+    /// Rule used to derive each event’s suite.
     pub suite_derivation: SuiteDerivation,
     /// When enabled, non-empty lines without a configured marker prefix are
     /// reported as malformed markers instead of ignored log noise.
@@ -84,13 +137,17 @@ impl Default for BenchmarkParserConfig {
     }
 }
 
+/// How a marker label determines its suite.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum SuiteDerivation {
+    /// Use the first slash-delimited label segment, falling back to the whole label.
     FirstPathSegment,
+    /// Use the supplied suite for every marker.
     Fixed(String),
 }
 
 impl SuiteDerivation {
+    /// Derive the suite name for a marker label.
     #[must_use]
     pub fn derive_suite(&self, span_label: &str) -> String {
         match self {
@@ -105,21 +162,30 @@ impl SuiteDerivation {
     }
 }
 
+/// Whether a marker opens or closes a measured span.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum BenchmarkEventKind {
+    /// Opening counter sample.
     Start,
+    /// Closing counter sample.
     End,
 }
 
+/// Stream from which a marker was collected.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum BenchmarkEventSource {
+    /// Stream identity was not supplied.
     Unknown,
+    /// Captured standard output.
     Stdout,
+    /// Captured standard error.
     Stderr,
+    /// Fetched canister log.
     FetchedLog,
 }
 
 impl BenchmarkEventSource {
+    /// Return the stable stream label used in reports.
     #[must_use]
     pub const fn as_str(self) -> &'static str {
         match self {
@@ -131,10 +197,14 @@ impl BenchmarkEventSource {
     }
 }
 
+/// Exact instruction and byte counters reported by a marker.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct BenchmarkCounters {
+    /// Instruction counter in the representation described by this type.
     pub instructions: u128,
+    /// Heap byte counter in the representation described by this type.
     pub heap_bytes: u128,
+    /// Memory byte counter in the representation described by this type.
     pub memory_bytes: u128,
 }
 
@@ -177,62 +247,100 @@ impl BenchmarkCounters {
     }
 }
 
+/// Parsed marker with its original stream and line provenance.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct RawBenchmarkEvent {
+    /// Matched marker prefix.
     pub prefix: String,
+    /// Derived suite name.
     pub suite: String,
+    /// Marker label used to group matching spans.
     pub span_label: String,
+    /// Opening or closing marker.
     pub kind: BenchmarkEventKind,
+    /// Counters observed at this marker.
     pub counters: BenchmarkCounters,
+    /// One-based line number in the original input stream.
     pub source_line: usize,
+    /// Originating stream.
     pub source: BenchmarkEventSource,
 }
 
+/// Rejected marker and its parse diagnostic.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct MalformedBenchmarkMarker {
+    /// One-based line number in the original input stream.
     pub source_line: usize,
+    /// Originating stream.
     pub source: BenchmarkEventSource,
+    /// Original rejected line.
     pub line: String,
+    /// Explanation of the rejected marker.
     pub reason: String,
 }
 
+/// Parsed events, rejected markers and ignored log noise.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct BenchmarkParseReport {
+    /// Successfully parsed markers in input order.
     pub events: Vec<RawBenchmarkEvent>,
+    /// Rejected marker lines with diagnostics.
     pub malformed_markers: Vec<MalformedBenchmarkMarker>,
+    /// Lines ignored as non-marker noise.
     pub ignored_line_count: usize,
 }
 
+/// Matched start/end markers with nonnegative counter differences.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct BenchmarkSpan {
+    /// Derived suite name.
     pub suite: String,
+    /// Marker label used to group matching spans.
     pub span_label: String,
+    /// One-based line of the opening marker.
     pub start_line: usize,
+    /// One-based line of the closing marker.
     pub end_line: usize,
+    /// Counter values observed at the closing marker.
     pub end: BenchmarkCounters,
+    /// Closing counters minus opening counters.
     pub delta: BenchmarkCounters,
 }
 
+/// Matched markers whose counters decreased.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct InvalidBenchmarkSpan {
+    /// Opening marker.
     pub start: RawBenchmarkEvent,
+    /// Closing marker.
     pub end: RawBenchmarkEvent,
 }
 
+/// Pairing result retaining unmatched and invalid markers.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct BenchmarkSpanReport {
+    /// Successfully paired spans.
     pub spans: Vec<BenchmarkSpan>,
+    /// Markers without a matching start or end.
     pub unpaired_markers: Vec<RawBenchmarkEvent>,
+    /// Matched pairs whose counters decreased.
     pub invalid_spans: Vec<InvalidBenchmarkSpan>,
 }
 
+/// Exact totals and extrema for one scope and span label.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct BenchmarkAggregateRow {
+    /// Marker label used to group matching spans.
     pub span_label: String,
+    /// Number of measured spans.
     pub runs: u64,
+    /// Sum of the per-span counter differences.
     pub total: BenchmarkCounters,
+    /// Smallest per-counter span difference.
     pub min: BenchmarkCounters,
+    /// Largest per-counter span difference.
     pub max: BenchmarkCounters,
+    /// Largest per-counter closing value.
     pub peak_end: BenchmarkCounters,
     /// Suite identity or the cross-suite aggregate.
     pub scope: BenchmarkScope,
@@ -244,25 +352,35 @@ pub struct BenchmarkAggregateRow {
 /// interpret them in the original counter unit. Scale zero projects zero.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct BenchmarkAverages {
+    /// Multiplier applied before dividing by the run count.
     pub scale: u64,
+    /// Instruction counter in the representation described by this type.
     pub instructions: u128,
+    /// Heap byte counter in the representation described by this type.
     pub heap_bytes: u128,
+    /// Memory byte counter in the representation described by this type.
     pub memory_bytes: u128,
 }
 
 /// Counter whose aggregate cannot be represented.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum BenchmarkCounter {
+    /// Measured span count.
     Runs,
+    /// Instruction total.
     Instructions,
+    /// Heap byte total.
     HeapBytes,
+    /// Memory byte total.
     MemoryBytes,
 }
 
 /// Overflow rejects the complete aggregation, without returning partial totals.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct BenchmarkAggregateError {
+    /// Marker label used to group matching spans.
     pub span_label: String,
+    /// Counter that overflowed.
     pub counter: BenchmarkCounter,
     /// Suite identity or the cross-suite aggregate.
     pub scope: BenchmarkScope,
@@ -283,15 +401,20 @@ impl std::error::Error for BenchmarkAggregateError {}
 /// Run count and scaled means for one present comparison side.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct BenchmarkMeasurement {
+    /// Number of measured spans.
     pub runs: u64,
+    /// Scaled, floor-rounded means.
     pub average: BenchmarkAverages,
 }
 
 /// Current and previous measurements, preserving missing rows and measured zero.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct BenchmarkComparisonRow {
+    /// Marker label used to group matching spans.
     pub span_label: String,
+    /// Current measurement, absent when that side has no row.
     pub current: Option<BenchmarkMeasurement>,
+    /// Previous measurement, absent when that side has no row.
     pub previous: Option<BenchmarkMeasurement>,
     /// Suite identity or the cross-suite aggregate.
     pub scope: BenchmarkScope,
@@ -299,6 +422,8 @@ pub struct BenchmarkComparisonRow {
 
 impl BenchmarkAggregateRow {
     /// Project exact totals at the caller's scale, rounding down.
+    ///
+    /// # Errors
     /// Zero runs and unrepresentable scaled results return [`BenchmarkAverageError`].
     pub fn average(&self, scale: u64) -> Result<BenchmarkAverages, BenchmarkAverageError> {
         Ok(BenchmarkAverages {
@@ -310,6 +435,7 @@ impl BenchmarkAggregateRow {
     }
 }
 
+/// Format one marker using the supplied prefix, label and counters.
 #[must_use]
 pub fn format_marker(prefix: &str, label: &str, counters: BenchmarkCounters) -> String {
     format!(
@@ -318,11 +444,13 @@ pub fn format_marker(prefix: &str, label: &str, counters: BenchmarkCounters) -> 
     )
 }
 
+/// Parse markers without assigning a stream identity.
 #[must_use]
 pub fn parse_benchmark_events(input: &str, config: &BenchmarkParserConfig) -> BenchmarkParseReport {
     parse_benchmark_events_from_source(input, config, BenchmarkEventSource::Unknown)
 }
 
+/// Parse markers while retaining the supplied stream identity.
 #[must_use]
 pub fn parse_benchmark_events_from_source(
     input: &str,
@@ -380,7 +508,12 @@ pub fn parse_benchmark_events_from_captured_output(
     report
 }
 
+/// Pair markers by suite and label, using the most recent unmatched start.
 #[must_use]
+#[expect(
+    clippy::missing_panics_doc,
+    reason = "only an internal nonempty-stack invariant can panic"
+)]
 pub fn pair_benchmark_spans(events: &[RawBenchmarkEvent]) -> BenchmarkSpanReport {
     let mut report = BenchmarkSpanReport::default();
     let mut open_starts: BTreeMap<(&str, &str), Vec<&RawBenchmarkEvent>> = BTreeMap::new();
@@ -416,6 +549,7 @@ pub fn pair_benchmark_spans(events: &[RawBenchmarkEvent]) -> BenchmarkSpanReport
 
 /// Aggregate spans by named suite and across all suites.
 ///
+/// # Errors
 /// Returns an error if any counter total or run count overflows. No partial
 /// report is returned, and totals are never wrapped or saturated.
 pub fn aggregate_benchmark_spans(
@@ -437,20 +571,37 @@ pub fn aggregate_benchmark_spans(
 }
 
 /// Pair current and previous means at the same caller-selected scale.
-/// Returns a typed error if either side cannot supply the selected projection.
+///
+/// # Errors
+/// Returns a typed error for duplicate scope/span rows on either side or an invalid mean.
 pub fn compare_benchmark_aggregates(
     current: &[BenchmarkAggregateRow],
     previous: &[BenchmarkAggregateRow],
     scale: u64,
-) -> Result<Vec<BenchmarkComparisonRow>, BenchmarkAverageError> {
+) -> Result<Vec<BenchmarkComparisonRow>, BenchmarkComparisonError> {
     let mut rows = BTreeMap::new();
     for row in current {
-        rows.insert((&row.scope, row.span_label.as_str()), (Some(row), None));
+        if rows
+            .insert((&row.scope, row.span_label.as_str()), (Some(row), None))
+            .is_some()
+        {
+            return Err(BenchmarkComparisonError::DuplicateCurrent {
+                scope: row.scope.clone(),
+                span_label: row.span_label.clone(),
+            });
+        }
     }
     for row in previous {
-        rows.entry((&row.scope, row.span_label.as_str()))
+        let previous = &mut rows
+            .entry((&row.scope, row.span_label.as_str()))
             .or_insert((None, None))
-            .1 = Some(row);
+            .1;
+        if previous.replace(row).is_some() {
+            return Err(BenchmarkComparisonError::DuplicatePrevious {
+                scope: row.scope.clone(),
+                span_label: row.span_label.clone(),
+            });
+        }
     }
     let measurement = |row: &BenchmarkAggregateRow| -> Result<_, BenchmarkAverageError> {
         Ok(BenchmarkMeasurement {

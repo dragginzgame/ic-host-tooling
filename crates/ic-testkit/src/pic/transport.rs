@@ -5,7 +5,7 @@ use std::{
 
 use ic_platform::pocket_ic::RejectResponse;
 
-/// Captured PocketIC operation failure, retaining transport classification.
+/// Captured `PocketIC` operation failure, retaining transport classification.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PocketIcOperationError {
     message: String,
@@ -13,7 +13,7 @@ pub struct PocketIcOperationError {
 }
 
 impl PocketIcOperationError {
-    /// Capture an upstream PocketIC panic message and classify its transport.
+    /// Capture an upstream `PocketIC` panic message and classify its transport.
     #[must_use]
     pub fn new(message: impl Into<String>) -> Self {
         let message = message.into();
@@ -27,7 +27,7 @@ impl PocketIcOperationError {
         &self.message
     }
 
-    /// Whether the message matches a recognized PocketIC transport failure.
+    /// Whether the message matches a recognized `PocketIC` transport failure.
     #[must_use]
     pub const fn is_transport(&self) -> bool {
         self.transport
@@ -51,7 +51,7 @@ impl std::fmt::Display for PocketIcOperationError {
 
 impl std::error::Error for PocketIcOperationError {}
 
-/// Execute one synchronous PocketIC operation, returning recognized transport panics.
+/// Execute one synchronous `PocketIC` operation, returning recognized transport panics.
 ///
 /// Successful values are returned unchanged, including any upstream `Result` and
 /// its original rejection. Unrelated panics resume with their original payload.
@@ -59,7 +59,7 @@ impl std::error::Error for PocketIcOperationError {}
 /// A transport failure does not establish whether an update was accepted or
 /// whether an instance died; callers retain recovery and reconciliation policy.
 ///
-/// Recognition uses the maintained panic shapes of the selected PocketIC client.
+/// Recognition uses the maintained panic shapes of the selected `PocketIC` client.
 /// It cannot recover the typed cause discarded upstream, suppress the panic hook,
 /// bound a blocked request, or catch errors while polling a returned future.
 ///
@@ -74,6 +74,9 @@ impl std::error::Error for PocketIcOperationError {}
 ///
 /// # Panics
 /// Unrecognized panic payloads continue unwinding.
+///
+/// # Errors
+/// Returns recognized upstream operation failures; unrelated panics continue unwinding.
 pub fn try_pocket_ic_operation<T>(
     operation: impl FnOnce() -> T,
 ) -> Result<T, PocketIcOperationError> {
@@ -90,13 +93,13 @@ pub fn try_pocket_ic_operation<T>(
     }
 }
 
-/// A rejected management call or a captured PocketIC operation panic.
+/// A rejected management call or a captured `PocketIC` operation panic.
 #[non_exhaustive]
 #[derive(Debug)]
 pub enum PocketIcCallFailure {
-    /// PocketIC returned a structured management-canister rejection.
+    /// `PocketIC` returned a structured management-canister rejection.
     Rejected(RejectResponse),
-    /// Captured PocketIC panic, retaining its original transport classification.
+    /// Captured `PocketIC` panic, retaining its original transport classification.
     Operation(PocketIcOperationError),
 }
 
@@ -143,7 +146,7 @@ pub(super) fn panic_payload_to_string(payload: &(dyn Any + Send)) -> String {
     "non-string panic payload".to_string()
 }
 
-/// Recognize PocketIC transport failures in typed causes and request-error text.
+/// Recognize `PocketIC` transport failures in typed causes and request-error text.
 ///
 /// The complete error source chain is inspected so a recipe can classify its
 /// own wrapper error as [`super::RebuildReason::DeadPocketIcTransport`]. This
@@ -155,14 +158,14 @@ pub(super) fn panic_payload_to_string(payload: &(dyn Any + Send)) -> String {
 /// the error source chain.
 ///
 /// For other errors, message recognition requires a reqwest debug error with a
-/// PocketIC instance URL and a recognized transport source, optionally prefixed
-/// by PocketIC's HTTP panic context. Generic application messages and bare I/O
+/// `PocketIC` instance URL and a recognized transport source, optionally prefixed
+/// by `PocketIC`'s HTTP panic context. Generic application messages and bare I/O
 /// error kinds do not qualify.
 /// Recognized sources include OS connection resets during an HTTP request.
 ///
-/// Use this only for errors originating in a PocketIC operation. This is a
+/// Use this only for errors originating in a `PocketIC` operation. This is a
 /// message-based heuristic, not proof that the server or instance has died;
-/// another service or application can reproduce the same text. PocketIC does
+/// another service or application can reproduce the same text. `PocketIC` does
 /// not yet expose a structured transport error.
 #[must_use]
 pub fn is_dead_pocket_ic_transport_error(error: &(dyn std::error::Error + 'static)) -> bool {
@@ -194,14 +197,11 @@ pub fn is_dead_pocket_ic_transport_error(error: &(dyn std::error::Error + 'stati
         // io::Error::source delegates to the contained error's source, skipping
         // the contained error itself. Inspect it before following its causes so
         // contextual errors keep their own structured classification.
-        current = if let Some(inner) = candidate
+        current = candidate
             .downcast_ref::<std::io::Error>()
             .and_then(std::io::Error::get_ref)
-        {
-            Some(inner)
-        } else {
-            candidate.source()
-        };
+            .map(|inner| inner as &dyn std::error::Error)
+            .or_else(|| candidate.source());
     }
     false
 }

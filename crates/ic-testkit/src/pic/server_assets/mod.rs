@@ -1,4 +1,4 @@
-//! Explicit, release-bound PocketIC assets for Rust fixtures and the CLI.
+//! Explicit, release-bound `PocketIC` assets for Rust fixtures and the CLI.
 //!
 //! [`check`] is offline and never sets up a missing bundle. [`setup`] explicitly
 //! provisions it. Callers retain namespace custody and select the bundle root;

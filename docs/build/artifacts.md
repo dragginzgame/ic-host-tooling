@@ -6,12 +6,15 @@ and `build_wasm_canisters_cached_with_progress(&spec, config, observer, spawn)`
 for observation. Both use the same internal acquisition engine. Progress remains
 independent of the explicit spawner's custody and stdin policy.
 
-`WasmBuildSpec::new(workspace, target, packages, environment)` requires the
+`WasmBuildSpec::new(workspace, target, packages, environment, configuration_limits)` requires the
 complete child environment. Consumers capture and select PATH, HOME/CARGO_HOME,
 Rustup settings, compiler/wrapper variables, flags and application build inputs
 before construction. Probes, metadata and builds clear inheritance and use that
 same map. Omitted variables stay absent. `with_environment` replaces the whole
 map; `with_extra_env` and `with_inherited_env` are removed without aliases.
+`configuration_limits` selects per-file and total configuration bytes, file count
+and include depth (roots are depth zero). These caller-owned limits also apply
+to included Cargo configuration; output/cache directories do not select them.
 Recapture at the consumer when ambient changes should select a different recipe.
 The constructor selects initial Cargo/Rustc programs from the supplied CARGO/RUSTC
 values, or literal cargo/rustc defaults; explicit tool builders remain available.
@@ -200,6 +203,7 @@ for every application to maintain a separate manifest edit.
 The existing API can apply a shared release selection explicitly:
 
 ```rust,no_run
+# let configuration_limits = ic_build::cargo::environment::ConfigurationLimits { file_bytes: 1024 * 1024, total_bytes: 16 * 1024 * 1024, files: 128, depth: 32 };
 # let environment = std::collections::BTreeMap::<std::ffi::OsString, std::ffi::OsString>::new();
 use ic_build::artifacts::WasmBuildSpec;
 use ic_build::cargo::selection::CargoSelection;
@@ -209,7 +213,7 @@ let workspace = Path::new("/application/workspace");
 let target = workspace.join("target/canister-builds");
 let mut environment = environment;
 environment.insert("CARGO_PROFILE_RELEASE_LTO".into(), "fat".into());
-let spec = WasmBuildSpec::new(workspace, &target, &["application_canister"], environment.clone())
+let spec = WasmBuildSpec::new(workspace, &target, &["application_canister"], environment.clone(), configuration_limits)
     .with_cargo_selection(CargoSelection {
         profile: Some("release".into()),
         locked: true,
@@ -590,6 +594,7 @@ shared-target maintenance builders. Existing isolated build directories are
 preserved and need explicit maintenance if no longer wanted.
 
 ```rust,no_run
+# let configuration_limits = ic_build::cargo::environment::ConfigurationLimits { file_bytes: 1024 * 1024, total_bytes: 16 * 1024 * 1024, files: 128, depth: 32 };
 # let environment = std::collections::BTreeMap::<std::ffi::OsString, std::ffi::OsString>::new();
 use ic_host_process::child::OwnedChild;
 use ic_build::artifacts::{
@@ -623,7 +628,7 @@ let target = workspace.join("target").join("pic-wasm");
 let spec = WasmBuildSpec::new(
     &workspace,
     &target,
-    &["counter_canister"], environment.clone())
+    &["counter_canister"], environment.clone(), configuration_limits)
 .with_cargo_selection(CargoSelection {
     profile: Some("release".into()),
     locked: true,
@@ -799,6 +804,7 @@ Suites can override the default workspace shared Cargo target while retaining
 exact immutable final Wasm entries:
 
 ```rust,no_run
+# let configuration_limits = ic_build::cargo::environment::ConfigurationLimits { file_bytes: 1024 * 1024, total_bytes: 16 * 1024 * 1024, files: 128, depth: 32 };
 # let environment = std::collections::BTreeMap::<std::ffi::OsString, std::ffi::OsString>::new();
 use ic_host_process::child::OwnedChild;
 use ic_build::artifacts::{
@@ -812,7 +818,7 @@ let shared_incremental = workspace.join("target/pic-wasm-incremental");
 let spec = WasmBuildSpec::new(
     &workspace,
     &exact_cache,
-    &["counter_canister"], environment.clone())
+    &["counter_canister"], environment.clone(), configuration_limits)
 .with_shared_incremental_target(&shared_incremental)
 .with_shared_incremental_target_maintenance_at_most_every(
     CacheRetentionLimits::new()
@@ -866,6 +872,7 @@ default. Consumers that prefer a usable Wasm acquisition over successful
 retention can supply an explicit best-effort configuration:
 
 ```rust,no_run
+# let configuration_limits = ic_build::cargo::environment::ConfigurationLimits { file_bytes: 1024 * 1024, total_bytes: 16 * 1024 * 1024, files: 128, depth: 32 };
 # let environment = std::collections::BTreeMap::<std::ffi::OsString, std::ffi::OsString>::new();
 use ic_build::artifacts::{
     SharedIncrementalTargetMaintenanceConfig,
@@ -884,7 +891,7 @@ let maintenance = SharedIncrementalTargetMaintenanceConfig::new(
 let spec = WasmBuildSpec::new(
     &workspace,
     &target,
-    &["counter_canister"], environment.clone())
+    &["counter_canister"], environment.clone(), configuration_limits)
 .with_shared_incremental_target(target.join("shared"))
 .with_shared_incremental_target_maintenance(maintenance);
 # let _ = spec;
@@ -901,6 +908,7 @@ publication can expose synchronous structured progress without changing the
 existing silent API:
 
 ```rust,no_run
+# let configuration_limits = ic_build::cargo::environment::ConfigurationLimits { file_bytes: 1024 * 1024, total_bytes: 16 * 1024 * 1024, files: 128, depth: 32 };
 # let environment = std::collections::BTreeMap::<std::ffi::OsString, std::ffi::OsString>::new();
 use ic_host_process::child::{CleanupPolicy, OwnedChild};
 use ic_build::artifacts::{
@@ -913,7 +921,7 @@ use std::time::Duration;
 let spec = WasmBuildSpec::new(
     &workspace,
     &workspace.join("target/pic-wasm"),
-    &["counter_canister"], environment.clone());
+    &["counter_canister"], environment.clone(), configuration_limits);
 let outcome = ic_build::artifacts::build_wasm_canisters_cached_with_progress(
     &spec,
         WasmBuildProgressConfig::new()
@@ -944,6 +952,7 @@ Suites that require standalone feature resolution for several variants can
 batch independent specs without changing Cargo feature semantics:
 
 ```rust,no_run
+# let configuration_limits = ic_build::cargo::environment::ConfigurationLimits { file_bytes: 1024 * 1024, total_bytes: 16 * 1024 * 1024, files: 128, depth: 32 };
 # let environment = std::collections::BTreeMap::<std::ffi::OsString, std::ffi::OsString>::new();
 use ic_host_process::child::{CleanupPolicy, OwnedChild};
 use ic_build::artifacts::{
@@ -956,11 +965,11 @@ use ic_build::artifacts::{
 let specs = [
     LabeledWasmBuildSpec::new(
         "role-a",
-        WasmBuildSpec::new(&workspace, &target, &["role_a"], environment.clone()),
+        WasmBuildSpec::new(&workspace, &target, &["role_a"], environment.clone(), configuration_limits),
     ),
     LabeledWasmBuildSpec::new(
         "role-b",
-        WasmBuildSpec::new(&workspace, &target, &["role_b"], environment.clone()),
+        WasmBuildSpec::new(&workspace, &target, &["role_b"], environment.clone(), configuration_limits),
     ),
 ];
 let batch = build_wasm_canisters_cached_batch(&specs, WasmBuildBatchConfig::new(), None, |command: &mut std::process::Command| OwnedChild::spawn(command, CleanupPolicy::KillAndWait))?;
@@ -1379,3 +1388,18 @@ Current Host contracts belong to [IC Host Tooling](https://github.com/dragginzga
 PocketIC upgrade and startup guidance belongs to IC Testkit. The pinned designs
 above preserve extraction history without maintaining another Host/PocketIC
 migration guide here.
+
+## Source-independent cohort comparisons
+
+`ResolvedCargoBuildInputs::recipe_identity()` and `WasmBuildRecord::recipe_identity()`
+compare observed build settings while allowing source and feature differences.
+Report `facts().selection.features` separately and compare lock identity under the
+consumer’s own policy. The digest covers compiler/Cargo observations, target,
+profile, package/example selection, workspace profiles and recognized
+configuration/environment settings without exposing their raw values.
+Configuration locations and all profiles are conservative inputs. Wrapper bytes
+and arbitrary build-script inputs need caller-owned constraints.
+
+Use this identity for comparison admission only; retain `fingerprint()` and
+source guards for exact artifact validity. See the [0.67 migration notes](../changelog/0.67.md)
+for the archive feature-selection and evidence-field changes.

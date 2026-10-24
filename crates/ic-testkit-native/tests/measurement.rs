@@ -1,3 +1,4 @@
+//! Allocator measurement ownership and peak-count behavior.
 #![cfg(not(target_arch = "wasm32"))]
 
 use ic_testkit_native::{AlreadyMeasuring, MeasuredAllocator, measure};

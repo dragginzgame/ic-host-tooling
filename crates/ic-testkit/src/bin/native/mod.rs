@@ -37,6 +37,10 @@ extern "C" fn interrupted(signal: libc::c_int) {
     INTERRUPTED.store(signal, Ordering::Relaxed);
 }
 
+#[expect(
+    unsafe_code,
+    reason = "bounded native operation with the local SAFETY contract below"
+)]
 fn install_signals() -> Result<SignalActions, SignalActionError> {
     // SAFETY: this standalone CLI exclusively owns these dispositions through
     // guard drop. The static handler only stores a lock-free atomic value.
@@ -251,22 +255,19 @@ fn report_provisioning(result: Result<PathBuf, Box<dyn std::error::Error>>) -> E
     if let Some(status) = interruption_exit_code() {
         return status;
     }
-    match result {
-        Ok(path) => {
-            let stdout = std::io::stdout();
-            let mut stdout = stdout.lock();
-            if stdout
-                .write_all(path.as_os_str().as_bytes())
-                .and_then(|()| stdout.write_all(b"\n"))
-                .is_err()
-            {
-                ExitCode::FAILURE
-            } else {
-                ExitCode::SUCCESS
-            }
+    result.map_or(ExitCode::FAILURE, |path| {
+        let stdout = std::io::stdout();
+        let mut stdout = stdout.lock();
+        if stdout
+            .write_all(path.as_os_str().as_bytes())
+            .and_then(|()| stdout.write_all(b"\n"))
+            .is_err()
+        {
+            ExitCode::FAILURE
+        } else {
+            ExitCode::SUCCESS
         }
-        Err(_) => ExitCode::FAILURE,
-    }
+    })
 }
 
 fn command_exit_code(status: std::process::ExitStatus) -> ExitCode {

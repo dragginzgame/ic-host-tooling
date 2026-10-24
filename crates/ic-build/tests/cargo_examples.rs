@@ -74,6 +74,7 @@ fn recipe(root: &Path) -> WasmBuildSpec {
         &workspace.join("target/cargo"),
         &["example-fixture"],
         support::cargo::environment(),
+        CONFIGURATION_LIMITS,
     )
     .with_example("probe")
     .with_cargo_selection(CargoSelection {
@@ -153,6 +154,7 @@ fn named_examples_build_and_reuse_without_aliasing_library_or_other_example() {
             &root.join("workspace/target/cargo"),
             &["example-fixture"],
             support::cargo::environment(),
+            CONFIGURATION_LIMITS,
         )
         .with_cargo_selection(CargoSelection {
             features: CargoFeatureSelection {
@@ -304,6 +306,7 @@ fn unsafe_or_conflicting_example_selectors_fail_before_dispatch() {
         &root.join("target"),
         &["one", "two"],
         support::cargo::environment(),
+        CONFIGURATION_LIMITS,
     )
     .with_example("probe");
     assert!(multi.cargo_build_command().is_err());
@@ -428,3 +431,12 @@ fn prepared_metadata_sharing_preserves_distinct_example_selections() {
     drop(guard);
     fs::remove_dir_all(root).unwrap();
 }
+
+// This caller admits small configuration trees; libraries do not select this policy.
+const CONFIGURATION_LIMITS: ic_build::cargo::environment::ConfigurationLimits =
+    ic_build::cargo::environment::ConfigurationLimits {
+        file_bytes: 1024 * 1024,
+        total_bytes: 16 * 1024 * 1024,
+        files: 128,
+        depth: 32,
+    };

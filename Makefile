@@ -96,6 +96,20 @@ test-tools-registry:
 	+cargo test -p ic-host-tools --no-default-features --features registry --all-targets --locked --offline registry::
 test-wasm-inspection:
 	+cargo test -p ic-host-wasm-inspect --all-targets --locked --offline
+.PHONY: isolated-features-check test-tools-icp-project test-tools-icp-ledger test-tools-ledger-evidence test-text-yaml
+isolated-features-check:
+	+$(MAKE) --no-print-directory test-tools-icp-project
+	+$(MAKE) --no-print-directory test-tools-icp-ledger
+	+$(MAKE) --no-print-directory test-tools-ledger-evidence
+	+$(MAKE) --no-print-directory test-text-yaml
+test-tools-icp-project:
+	+cargo test -p ic-host-tools --no-default-features --features icp-project --all-targets --locked --offline icp_project::
+test-tools-icp-ledger:
+	+cargo test -p ic-host-tools --no-default-features --features icp-ledger --all-targets --locked --offline icp_ledger::
+test-tools-ledger-evidence:
+	+cargo test -p ic-host-tools --no-default-features --features ledger-evidence --all-targets --locked --offline ledger_evidence::
+test-text-yaml:
+	+cargo test -p ic-host-text --no-default-features --features yaml --lib --locked --offline yaml::
 tools-features-check:
 	+bash scripts/ci/check-tools-features.sh
 msrv:
@@ -108,6 +122,7 @@ msrv-qualification:
 	+$(MAKE) --no-print-directory msrv-workspace
 	+$(MAKE) --no-print-directory testkit-msrv
 	+RUSTUP_TOOLCHAIN="$(MSRV)" $(MAKE) --no-print-directory check-fs-non-unix
+	+RUSTUP_TOOLCHAIN="$(MSRV)" $(MAKE) --no-print-directory isolated-features-check
 dependency-pins-check:
 	+bash scripts/ci/check-dependency-pins.sh --cargo-inheritance
 check-doc-links:
@@ -143,6 +158,7 @@ ci:
 	+$(MAKE) --no-print-directory test-artifacts-encoding
 	+$(MAKE) --no-print-directory test-artifacts-text
 	+$(MAKE) --no-print-directory tools-features-check
+	+$(MAKE) --no-print-directory isolated-features-check
 	+$(MAKE) --no-print-directory testkit-graph-check testkit-wasm-check
 	+$(MAKE) --no-print-directory testkit-installed-check
 	+$(MAKE) --no-print-directory testkit-package-check
@@ -193,7 +209,7 @@ install-validation-tools:
 lint: check-shell check-workflows
 
 check-shell:
-	"$(SHELLCHECK)" -x -P SCRIPTDIR -P . scripts/ci/*.sh scripts/dev/*.sh scripts/release/*.sh .githooks/pre-commit
+	"$(SHELLCHECK)" -x -P SCRIPTDIR -P . scripts/ci/*.sh scripts/dev/*.sh scripts/release/*.sh scripts/publish/*.sh .githooks/pre-commit
 
 check-workflows:
 	"$(ACTIONLINT)" .github/workflows/*.yml

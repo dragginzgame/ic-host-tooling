@@ -20,7 +20,7 @@ pub struct ControllerSnapshots(BTreeMap<Principal, ControllerSnapshot>);
 pub struct CanisterSnapshotTarget {
     /// Canister whose snapshot will be captured.
     pub canister_id: Principal,
-    /// Exact management-call sender; None selects PocketIC's default.
+    /// Exact management-call sender; None selects `PocketIC`'s default.
     pub sender: Option<Principal>,
 }
 
@@ -93,6 +93,9 @@ pub trait PocketIcSnapshotExt {
     /// Input is duplicate-checked before any effects and captured in deterministic
     /// canister-id order. A later failure rolls back snapshots captured earlier
     /// in the set. No other sender is attempted after a rejection.
+    ///
+    /// # Errors
+    /// Returns a target-admission or snapshot-capture error, retaining completed work.
     fn capture_snapshots<I>(
         &self,
         targets: I,
@@ -103,8 +106,11 @@ pub trait PocketIcSnapshotExt {
     /// Restore each snapshot with its exact captured sender and selected funding.
     ///
     /// `Preserve` never adds cycles; `TopUpTo` is evaluated before each restore.
-    /// PocketIC may charge cycles for the restore itself. Rejection or panic stops
+    /// `PocketIC` may charge cycles for the restore itself. Rejection or panic stops
     /// the set without retrying another sender or rewinding earlier restores.
+    ///
+    /// # Errors
+    /// Returns a funding or restoration error, retaining partial progress.
     fn restore_snapshots(
         &self,
         snapshots: &ControllerSnapshots,

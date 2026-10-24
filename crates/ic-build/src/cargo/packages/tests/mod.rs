@@ -68,6 +68,7 @@ fn invalid_selection_and_occupied_evidence_do_not_invoke_tools() {
             &root,
             &evidence,
             &specs,
+            &CargoFeatureSelection::default(),
             limits(),
             || panic!("no Cargo effect"),
             |_, _| panic!("no extraction effect")
@@ -86,6 +87,7 @@ fn invalid_selection_and_occupied_evidence_do_not_invoke_tools() {
             &root,
             &evidence,
             &specs,
+            &CargoFeatureSelection::default(),
             limits(),
             || panic!("no Cargo effect"),
             |_, _| panic!("no extraction effect")
@@ -233,6 +235,14 @@ fn failed_command_retains_original_status_and_diagnostics() {
         .args(["-c", "printf partial; printf diagnostic >&2; exit 23"])
         .stdin(Stdio::null());
     let error = execute(&mut command, &root, "metadata", limits().process).unwrap_err();
+    let context = error.downcast_ref::<PackageCommandError>().unwrap();
+    assert_eq!(context.stage, "metadata");
+    assert_eq!(
+        fs::read_to_string(root.join("current-stage")).unwrap(),
+        "metadata"
+    );
+    assert_eq!(context.stdout_path, root.join("metadata.json"));
+    assert_eq!(context.stderr_path, root.join("metadata.stderr"));
     assert!(
         matches!(error.downcast_ref::<PackageCommandError>().and_then(|error| error.execution.as_ref()), Some(ToolError::Execution(error)) if matches!(error.failure, ExecutionFailure::ExitStatus) && error.evidence.status.unwrap().code() == Some(23))
     );
@@ -250,13 +260,18 @@ fn logging_failure_does_not_replace_nonzero_process_evidence() {
     command
         .args([
             "-c",
-            "rmdir \"$1\"; printf retained-in-error; exit 23",
+            "rm \"$1/current-stage\"; rmdir \"$1\"; printf retained-in-error; exit 23",
             "sh",
         ])
         .arg(&root);
     let error = execute(&mut command, &root, "metadata", limits().process).unwrap_err();
     let error = error.downcast_ref::<PackageCommandError>().unwrap();
     assert_eq!(error.retention.len(), 2);
+    assert_eq!(
+        error.to_string().matches("log retention failed:").count(),
+        2
+    );
+    assert!(error.to_string().contains("stdout log destination:"));
     assert!(
         matches!(&error.execution, Some(ToolError::Execution(error)) if error.evidence.status.unwrap().code() == Some(23) && error.evidence.stdout == b"retained-in-error")
     );

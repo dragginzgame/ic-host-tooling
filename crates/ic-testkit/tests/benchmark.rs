@@ -1,3 +1,4 @@
+//! Integration checks for benchmark behavior.
 mod support;
 
 use ic_testkit::benchmark::{
@@ -615,7 +616,7 @@ ICTK|app/a:end|150|50|100
 }
 
 #[test]
-fn comparisons_preserve_order_missing_rows_and_last_duplicate() {
+fn comparisons_preserve_order_missing_rows_and_refuse_duplicates() {
     let aggregate = |input| {
         let parsed = parse_benchmark_events(
             input,
@@ -642,6 +643,11 @@ fn comparisons_preserve_order_missing_rows_and_last_duplicate() {
         .clone();
     duplicate.total.instructions = 300;
     current.push(duplicate);
+    assert!(matches!(
+        compare_benchmark_aggregates(&current, &previous, 1),
+        Err(ic_testkit::benchmark::BenchmarkComparisonError::DuplicateCurrent { .. })
+    ));
+    current.pop();
     let comparison = compare_benchmark_aggregates(&current, &previous, 1).unwrap();
 
     assert_eq!(
@@ -658,7 +664,7 @@ fn comparisons_preserve_order_missing_rows_and_last_duplicate() {
             (BenchmarkScope::All, "previous"),
         ],
     );
-    assert_eq!(comparison[0].current.unwrap().average.instructions, 300);
+    assert_eq!(comparison[0].current.unwrap().average.instructions, 150);
     assert_eq!(comparison[3].current.unwrap().average.instructions, 150);
     for row in &comparison {
         assert_eq!(row.current.or(row.previous).unwrap().average.heap_bytes, 0);
@@ -684,10 +690,14 @@ fn comparisons_preserve_order_missing_rows_and_last_duplicate() {
     duplicate.total.instructions = 600;
     duplicate.runs = 2;
     duplicated_previous.push(duplicate);
-    let comparison = compare_benchmark_aggregates(&current, &duplicated_previous, 1).unwrap();
-    assert_eq!(comparison[0].previous.unwrap().runs, 2);
-    assert_eq!(comparison[0].previous.unwrap().average.instructions, 300);
-    assert_eq!(comparison[3].current.unwrap().average.instructions, 150);
+    assert!(matches!(
+        compare_benchmark_aggregates(&current, &duplicated_previous, 1),
+        Err(ic_testkit::benchmark::BenchmarkComparisonError::DuplicatePrevious { .. })
+    ));
+    assert!(matches!(
+        compare_benchmark_aggregates(&duplicated_previous, &current, 1),
+        Err(ic_testkit::benchmark::BenchmarkComparisonError::DuplicateCurrent { .. })
+    ));
     assert_eq!(
         compare_benchmark_aggregates(&[], &[], 1).unwrap(),
         [] as [ic_testkit::benchmark::BenchmarkComparisonRow; 0],

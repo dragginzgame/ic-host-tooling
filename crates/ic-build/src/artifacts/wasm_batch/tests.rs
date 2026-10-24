@@ -60,6 +60,7 @@ fn library_output_validation_survives_batch_and_prepared_resolution() {
         &root.join("exact"),
         &["ordinary"],
         crate::cargo_fixture::environment(),
+        CONFIGURATION_LIMITS,
     )
     .with_cargo_program(root.join("cargo.sh"));
     let specs = [
@@ -123,8 +124,14 @@ fn batch_retains_every_indexed_failure() {
     let specs = [
         LabeledWasmBuildSpec::new(
             "root",
-            WasmBuildSpec::new(&root, &target, &[], crate::cargo_fixture::environment())
-                .with_cargo_program(&cargo),
+            WasmBuildSpec::new(
+                &root,
+                &target,
+                &[],
+                crate::cargo_fixture::environment(),
+                CONFIGURATION_LIMITS,
+            )
+            .with_cargo_program(&cargo),
         ),
         LabeledWasmBuildSpec::new(
             "worker",
@@ -133,6 +140,7 @@ fn batch_retains_every_indexed_failure() {
                 &target,
                 &["fixture"],
                 crate::cargo_fixture::environment(),
+                CONFIGURATION_LIMITS,
             )
             .with_cargo_selection(CargoSelection {
                 profile: Some(String::new()),
@@ -194,6 +202,7 @@ fn batch_failure_retains_partial_metadata_timing() {
             &root.join("target"),
             &["fixture"],
             crate::cargo_fixture::environment(),
+            CONFIGURATION_LIMITS,
         )
         .with_cargo_program(&cargo),
     )];
@@ -285,6 +294,7 @@ fn batch_rejects_invalid_labels_before_progress_or_build_work() {
         Path::new("target"),
         &[],
         crate::cargo_fixture::environment(),
+        CONFIGURATION_LIMITS,
     );
     let empty = [LabeledWasmBuildSpec::new("", invalid.clone())];
     let mut progress_events = 0;
@@ -338,6 +348,7 @@ fn batch_progress_retains_the_caller_label() {
             Path::new("target"),
             &[],
             crate::cargo_fixture::environment(),
+            CONFIGURATION_LIMITS,
         ),
     )];
     let mut labels = Vec::new();
@@ -373,6 +384,7 @@ fn batch_maintenance_configures_each_shared_target_once() {
         Path::new("exact-a"),
         &["a"],
         crate::cargo_fixture::environment(),
+        CONFIGURATION_LIMITS,
     )
     .with_shared_incremental_target("shared-a");
     let second = WasmBuildSpec::new(
@@ -380,6 +392,7 @@ fn batch_maintenance_configures_each_shared_target_once() {
         Path::new("exact-b"),
         &["b"],
         crate::cargo_fixture::environment(),
+        CONFIGURATION_LIMITS,
     )
     .with_shared_incremental_target("shared-a");
     let other = WasmBuildSpec::new(
@@ -387,6 +400,7 @@ fn batch_maintenance_configures_each_shared_target_once() {
         Path::new("exact-c"),
         &["c"],
         crate::cargo_fixture::environment(),
+        CONFIGURATION_LIMITS,
     )
     .with_shared_incremental_target("shared-b");
     let isolated = WasmBuildSpec::new(
@@ -394,6 +408,7 @@ fn batch_maintenance_configures_each_shared_target_once() {
         Path::new("exact-d"),
         &["d"],
         crate::cargo_fixture::environment(),
+        CONFIGURATION_LIMITS,
     )
     .with_isolated_builds();
 
@@ -477,6 +492,7 @@ fn batch_maintenance_rejects_per_spec_policy_ownership() {
             Path::new("exact"),
             &["fixture"],
             crate::cargo_fixture::environment(),
+            CONFIGURATION_LIMITS,
         )
         .with_shared_incremental_target("shared")
         .with_shared_incremental_target_maintenance(maintenance),
@@ -651,3 +667,12 @@ fn missing_tools_keep_their_phase_in_silent_and_observed_batches() {
     }
     fs::remove_dir_all(root).unwrap();
 }
+
+// This caller admits small configuration trees; libraries do not select this policy.
+const CONFIGURATION_LIMITS: crate::cargo::environment::ConfigurationLimits =
+    crate::cargo::environment::ConfigurationLimits {
+        file_bytes: 1024 * 1024,
+        total_bytes: 16 * 1024 * 1024,
+        files: 128,
+        depth: 32,
+    };

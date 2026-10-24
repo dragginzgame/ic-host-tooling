@@ -34,6 +34,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         &workspace.join("target/canister-builds"),
         &[package.as_str()],
         environment,
+        CONFIGURATION_LIMITS,
     )
     .with_cargo_selection(CargoSelection {
         profile: Some("release".into()),
@@ -45,3 +46,12 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("read {} retained Wasm bytes", bytes.len());
     Ok(())
 }
+
+// This caller admits small configuration trees; libraries do not select this policy.
+const CONFIGURATION_LIMITS: ic_build::cargo::environment::ConfigurationLimits =
+    ic_build::cargo::environment::ConfigurationLimits {
+        file_bytes: 1024 * 1024,
+        total_bytes: 16 * 1024 * 1024,
+        files: 128,
+        depth: 32,
+    };

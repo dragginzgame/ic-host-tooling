@@ -1,3 +1,4 @@
+//! Integration checks for pocket ic concurrency behavior.
 mod support;
 
 use std::{
@@ -722,6 +723,10 @@ fn coordinate_workers(
     }
 }
 
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "worker owns channel endpoints and disconnects them on return"
+)]
 fn run_worker<F>(
     worker: usize,
     build: &F,

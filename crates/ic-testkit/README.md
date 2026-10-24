@@ -154,6 +154,8 @@ Benchmark aggregate/comparison rows and aggregate errors expose
 checked floor-rounded `u128` means with Testkit's `BenchmarkAverageError`.
 `compare_benchmark_aggregates(current, previous, scale)` returns
 current/previous means and run counts, preserving missing rows and measured zero.
+Duplicate scope/span rows on either side return `BenchmarkComparisonError`;
+its `Average` variant preserves projection failures.
 Approximate percentage fields are removed. Aggregate CSV/text uses scale one in
 original counter units; comparison CSV includes both scales. Exact totals remain
 available, and zero runs/scaled overflow return typed errors. Write the changed

@@ -26,6 +26,8 @@ export async function withFixtureSession(options, run) {
   const failures = [];
   let result;
   let exit;
+  let ready = false;
+  let shutdownSignal;
   try {
     child = spawn(command, args, { cwd, env, stdio: ['pipe', log.fd, log.fd] });
     exit = new Promise(resolve => {
@@ -42,6 +44,7 @@ export async function withFixtureSession(options, run) {
       catch (error) { if (error.code !== 'ENOENT' && !(error instanceof SyntaxError)) throw error; }
       await delay(Math.min(pollMs, Math.max(1, deadline - performance.now())));
     }
+    ready = true;
     result = await run(connection);
   } catch (error) { failures.push(error); }
   finally {
@@ -49,15 +52,18 @@ export async function withFixtureSession(options, run) {
       if (child && exit && !outcome) {
         child.stdin.end('\n');
         if (!await exitedWithin(exit, stopMs)) {
-          child.kill('SIGTERM');
+          if (child.kill('SIGTERM')) shutdownSignal = 'SIGTERM';
           if (!await exitedWithin(exit, stopMs)) {
-            child.kill('SIGKILL');
+            if (child.kill('SIGKILL')) shutdownSignal = 'SIGKILL';
             if (!await exitedWithin(exit, stopMs)) throw new Error('fixture did not exit after SIGKILL');
           }
         }
       }
     } catch (error) {
       failures.push(error);
+    }
+    if (ready && outcome && (outcome.error || (outcome.code !== 0 && outcome.signal !== shutdownSignal))) {
+      failures.push(outcome.error ?? new Error(`fixture exited unsuccessfully (${outcome.code ?? outcome.signal}); see ${logPath}`));
     }
     try { await log.close(); } catch (error) { failures.push(error); }
   }

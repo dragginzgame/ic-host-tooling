@@ -5,7 +5,7 @@ use super::{
 use ic_platform::pocket_ic::PocketIc;
 use ic_platform::principal::ExternalPrincipal as Principal;
 
-/// One owned PocketIC instance/server record with snapshots and caller metadata.
+/// One owned `PocketIC` instance/server record with snapshots and caller metadata.
 ///
 /// The value contains no synchronization. A [`super::PocketIcBaselineRecipe`]
 /// can own it as its fixture in a [`super::CachedPocketIcBaselinePool`].
@@ -20,6 +20,9 @@ impl<T> CachedPocketIcBaseline<T> {
     ///
     /// Empty inputs are rejected before capture. Capture is ordered and transactional as documented by
     /// [`PocketIcSnapshotExt::capture_snapshots`]. No sender fallback is performed.
+    ///
+    /// # Errors
+    /// Returns a controller snapshot error if target admission or snapshot capture fails.
     pub fn capture<I>(
         instance: PocketIcInstance<PocketIc>,
         targets: I,
@@ -42,13 +45,16 @@ impl<T> CachedPocketIcBaseline<T> {
 
     /// Restore with exactly the captured senders and selected cycle funding.
     /// Success means the complete captured set was restored.
+    ///
+    /// # Errors
+    /// Returns a controller snapshot error if funding or snapshot restoration fails.
     pub fn restore(&self, funding: SnapshotRestoreFunding) -> Result<(), ControllerSnapshotError> {
         self.instance
             .instance()
             .restore_snapshots(&self.snapshots, funding)
     }
 
-    /// Borrow the owned PocketIC instance behind this cached baseline.
+    /// Borrow the owned `PocketIC` instance behind this cached baseline.
     #[must_use]
     pub const fn pocket_ic(&self) -> &PocketIc {
         self.instance.instance()

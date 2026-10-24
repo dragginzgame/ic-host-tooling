@@ -1,4 +1,4 @@
-//! Explicit PocketIC setup, offline admission and command-scoped ownership.
+//! Explicit `PocketIC` setup, offline admission and command-scoped ownership.
 
 #[cfg(all(unix, not(target_arch = "wasm32")))]
 mod native;

@@ -6,6 +6,10 @@ use crate::fixture_reuse_protocol::Mode;
 
 #[derive(Default, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
+#[expect(
+    clippy::struct_field_names,
+    reason = "serialized field names explicitly carry their millisecond units"
+)]
 pub struct Phases {
     pub(super) wait_ms: f64,
     #[serde(deserialize_with = "Option::deserialize")]

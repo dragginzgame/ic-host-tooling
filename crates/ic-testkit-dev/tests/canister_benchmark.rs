@@ -1,3 +1,4 @@
+//! Native benchmark checks for the private Wasm probe.
 use ic_build::{
     artifacts::{WasmBuildSpec, build_wasm_canisters_cached},
     cargo::{
@@ -65,12 +66,18 @@ fn install_probe() -> StandaloneCanisterFixture {
     );
 
     let env = std::env::vars_os();
-    let spec = WasmBuildSpec::new(&workspace, target_dir.path(), &[PERF_PROBE_PACKAGE], env)
-        .with_cargo_selection(CargoSelection {
-            locked: true,
-            ..CargoSelection::default()
-        })
-        .with_shared_incremental_target(workspace.join("target/pic-wasm"));
+    let spec = WasmBuildSpec::new(
+        &workspace,
+        target_dir.path(),
+        &[PERF_PROBE_PACKAGE],
+        env,
+        CONFIGURATION_LIMITS,
+    )
+    .with_cargo_selection(CargoSelection {
+        locked: true,
+        ..CargoSelection::default()
+    })
+    .with_shared_incremental_target(workspace.join("target/pic-wasm"));
     let outcome = build_wasm_canisters_cached(&spec, |command| {
         OwnedChild::spawn(command, CleanupPolicy::KillAndWait)
     })
@@ -344,3 +351,12 @@ fn assert_callers(fixture: &StandaloneCanisterFixture) {
         assert_eq!(update.as_slice(), caller.as_slice());
     }
 }
+
+// This caller admits small configuration trees; libraries do not select this policy.
+const CONFIGURATION_LIMITS: ic_build::cargo::environment::ConfigurationLimits =
+    ic_build::cargo::environment::ConfigurationLimits {
+        file_bytes: 1024 * 1024,
+        total_bytes: 16 * 1024 * 1024,
+        files: 128,
+        depth: 32,
+    };

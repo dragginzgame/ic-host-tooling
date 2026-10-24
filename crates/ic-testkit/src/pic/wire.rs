@@ -26,7 +26,7 @@ pub struct WireCallSpec {
 #[non_exhaustive]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct WireCallContext {
-    /// Underlying PocketIC operation: query_call or update_call.
+    /// Underlying `PocketIC` operation: `query_call` or `update_call`.
     pub operation: &'static str,
     /// Target canister selected by the caller.
     pub canister_id: Principal,
@@ -40,7 +40,7 @@ pub struct WireCallContext {
 
 /// Codec or transport refusal with typed causes and bounded diagnostics.
 ///
-/// Raw reply bytes are not retained or rendered. Use PocketIC's raw methods when
+/// Raw reply bytes are not retained or rendered. Use `PocketIC`'s raw methods when
 /// original bytes or deliberately malformed requests are required as evidence.
 #[non_exhaustive]
 #[derive(Debug)]
@@ -63,7 +63,7 @@ pub enum WireCallError {
     Decode {
         /// Target, caller, operation and method identity.
         context: Box<WireCallContext>,
-        /// Number of already allocated PocketIC reply bytes.
+        /// Number of already allocated `PocketIC` reply bytes.
         bytes: usize,
         /// Original Wire refusal, including oversized reply admission.
         source: ic_wire::Error,
@@ -124,10 +124,13 @@ impl std::error::Error for WireCallError {
 ///
 /// The caller supplies the exact name, identity and request/response limits.
 /// Explicit anonymous callers are permitted. Application-level results are returned
-/// unchanged. Known PocketIC transport failures are captured; unrelated panics resume.
+/// unchanged. Known `PocketIC` transport failures are captured; unrelated panics resume.
 /// Requests may borrow their input; responses must own their decoded data because
-/// the helper releases PocketIC's reply buffer before returning.
+/// the helper releases `PocketIC`'s reply buffer before returning.
 /// IC Wire owns native frame admission, canonical decoding and traversal limits.
+///
+/// # Errors
+/// Returns request encoding, query rejection/transport or response decoding errors.
 pub fn query_wire<Request, Response>(
     pic: &PocketIc,
     canister_id: Principal,
@@ -149,9 +152,12 @@ where
 
 /// Encode a method-bound request and execute one update as `caller`, without retry.
 ///
-/// The response uses the same admission as query_wire. No installation, authority,
+/// The response uses the same admission as `query_wire`. No installation, authority,
 /// effect reconciliation or replay policy is selected by this helper.
 /// A refused reply does not establish that the update had no effect.
+///
+/// # Errors
+/// Returns request encoding, update rejection/transport or response decoding errors.
 pub fn update_wire<Request, Response>(
     pic: &PocketIc,
     canister_id: Principal,

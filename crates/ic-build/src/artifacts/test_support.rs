@@ -41,8 +41,18 @@ exec {quoted_cargo} "$@"
         &root.join("exact"),
         &["fixture"],
         crate::cargo_fixture::environment(),
+        CONFIGURATION_LIMITS,
     )
     .with_isolated_builds()
     .with_cargo_program(wrapper);
     (root, spec)
 }
+
+// This caller admits small configuration trees; libraries do not select this policy.
+const CONFIGURATION_LIMITS: crate::cargo::environment::ConfigurationLimits =
+    crate::cargo::environment::ConfigurationLimits {
+        file_bytes: 1024 * 1024,
+        total_bytes: 16 * 1024 * 1024,
+        files: 128,
+        depth: 32,
+    };

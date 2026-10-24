@@ -4,12 +4,12 @@ use ic_platform::stable_structures::{Memory, VectorMemory};
 use std::{cell::Cell, rc::Rc};
 
 ///
-/// MemoryIoCounts
+/// `MemoryIoCounts`
 ///
 /// Safe and unsafe read attempts share read totals; unsafe reads are also
 /// counted separately. Writes count attempts before delegation. Growth counts
 /// completed calls, with requested pages counted only when growth succeeds.
-/// Size queries do not count as IO. Counters saturate at u64::MAX and set a
+/// Size queries do not count as IO. Counters saturate at `u64::MAX` and set a
 /// sticky overflow flag on actual overflow. Measurement callers must reject
 /// overflowed counts rather than reporting clipped values as exact totals.
 ///
@@ -37,14 +37,12 @@ pub struct MemoryIoCounts {
 }
 
 ///
-/// MeteredMemory
+/// `MeteredMemory`
 ///
 /// Shared native memory and IO counters. Clones observe the same backing and
 /// counters; resetting any clone resets the whole shared observation window.
 /// The wrapper preserves the backing's specialized unsafe read implementation.
 /// It does not provide transactions, failure injection or IC instruction counts.
-///
-
 pub struct MeteredMemory<M: Memory = VectorMemory> {
     memory: Rc<M>,
     counts: Rc<Cell<MemoryIoCounts>>,
@@ -129,6 +127,10 @@ impl<M: Memory> Memory for MeteredMemory<M> {
         self.memory.read(offset, dst);
     }
 
+    #[expect(
+        unsafe_code,
+        reason = "forward the caller's Memory::read_unsafe contract without changing its buffer"
+    )]
     unsafe fn read_unsafe(&self, offset: u64, dst: *mut u8, count: usize) {
         self.record_read(count, true);
         // SAFETY: Forward the caller's valid, nonoverlapping destination unchanged.

@@ -5,12 +5,12 @@ ROOT="$0"
 [[ "$ROOT" == /* ]] || ROOT="$PWD/$ROOT"
 ROOT="$(cd -P "${ROOT%/*}/../.." && printf '%s/.' "$PWD")"
 ROOT="${ROOT%/.}"
-fixture="$(mktemp -d "${TMPDIR:-/tmp}/publication-attempt.XXXXXX")"
-fixture="$(cd -P "$fixture" && printf '%s/.' "$PWD")"
-fixture="${fixture%/.}"
-fixture_complete=false
 # shellcheck source=scripts/ci/fixture-lifecycle.sh
 source "$ROOT/scripts/ci/fixture-lifecycle.sh"
+fixture="$(fixture_create "${TMPDIR:-/tmp}/publication-attempt.XXXXXX")"
+# GNU Make's execution probe also allocates scratch after we change directory.
+export TMPDIR="${fixture%/*}"
+fixture_complete=false
 trap 'fixture_finish "$?" "$fixture" "Publication attempt fixture retained"' EXIT
 unset MAKEFLAGS MFLAGS MAKEOVERRIDES GNUMAKEFLAGS MAKEFILES
 mkdir "$fixture/bin" "$fixture/evidence" "$fixture/workspace"

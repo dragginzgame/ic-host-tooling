@@ -11,7 +11,7 @@ use super::{
 /// Snapshot-only recipe for one caller-built, installed canister.
 ///
 /// Use with [`super::CachedPocketIcBaselinePool`]. The baseline metadata is the
-/// installed canister ID; calls go through the baseline's borrowed PocketIC.
+/// installed canister ID; calls go through the baseline's borrowed `PocketIC`.
 /// The builder owns initialization and readiness before capture and must produce
 /// the same topology and seeded state for every slot of this recipe. It returns
 /// `io::Result<StandaloneCanisterFixture>`; build errors retain their original

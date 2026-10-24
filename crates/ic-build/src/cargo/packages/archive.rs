@@ -3,6 +3,7 @@
 use super::external_lock::admit_lock;
 use super::source_inventory::sources;
 use crate::cargo::observation::schema::{Metadata, Package};
+use crate::cargo::selection::CargoFeatureSelection;
 use ic_host_artifacts::artifact::Sha256Digest;
 use ic_host_process::tool::{CompletedExecution, capture_command};
 use ic_host_process::tool::{OutputLimits, ToolError};
@@ -45,6 +46,12 @@ pub struct PackageQualificationLimits {
 /// Command failure preserves execution separately from diagnostic-retention failures.
 #[derive(Debug)]
 pub struct PackageCommandError {
+    /// Qualification stage that invoked the command.
+    pub stage: String,
+    /// Location selected for the command's stdout record.
+    pub stdout_path: PathBuf,
+    /// Location selected for the command's stderr record.
+    pub stderr_path: PathBuf,
     /// Original process/capture failure, or `None` if only log retention failed.
     pub execution: Option<ToolError>,
     /// Independent failures writing the retained stdout/stderr records.
@@ -52,11 +59,22 @@ pub struct PackageCommandError {
 }
 impl fmt::Display for PackageCommandError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "package stage {}: ", self.stage)?;
         if let Some(error) = &self.execution {
-            error.fmt(f)
+            error.fmt(f)?;
         } else {
-            f.write_str("package command diagnostic retention failed")
+            f.write_str("diagnostic retention failed")?;
         }
+        write!(
+            f,
+            "\nstdout log destination: {}\nstderr log destination: {}",
+            self.stdout_path.display(),
+            self.stderr_path.display()
+        )?;
+        for error in &self.retention {
+            write!(f, "\nlog retention failed: {error}")?;
+        }
+        Ok(())
     }
 }
 impl Error for PackageCommandError {
@@ -108,15 +126,22 @@ impl Error for PackageQualificationError {
 /// Commands execute once, offline; resolution may update only the verification lock
 /// before admission. Every external package/checksum must already be frozen in the
 /// original lock. No install, publication, source mutation, cleanup or retry occurs.
+/// `features` selects the same graph for packaging, extracted metadata and tests.
+/// Named features use Cargo's workspace `package/feature` syntax when needed.
 ///
 /// # Errors
 /// Retains exact process failure (including status/diagnostics), missing inputs,
 /// bounded decoding, graph/lock refusals and final input drift in the evidence root.
+#[expect(
+    clippy::too_many_arguments,
+    reason = "tools, paths, graph selection and budgets remain explicit caller inputs"
+)]
 pub fn qualify_package_archives(
     workspace: &Path,
     archive_root: &Path,
     evidence: &Path,
     packages: &[PackageArchiveSpec<'_>],
+    features: &CargoFeatureSelection,
     limits: PackageQualificationLimits,
     mut cargo: impl FnMut() -> Command,
     mut extractor: impl FnMut(&Path, &Path) -> Command,
@@ -126,6 +151,7 @@ pub fn qualify_package_archives(
         archive_root,
         evidence,
         packages,
+        features,
         limits,
         &mut cargo,
         &mut extractor,
@@ -138,6 +164,7 @@ pub fn qualify_package_archives(
 
 #[expect(
     clippy::too_many_lines,
+    clippy::too_many_arguments,
     reason = "ordered archive qualification retains one before/after custody boundary"
 )]
 fn qualify(
@@ -145,6 +172,7 @@ fn qualify(
     archive_root: &Path,
     evidence: &Path,
     packages: &[PackageArchiveSpec<'_>],
+    features: &CargoFeatureSelection,
     limits: PackageQualificationLimits,
     cargo: &mut impl FnMut() -> Command,
     extractor: &mut impl FnMut(&Path, &Path) -> Command,
@@ -216,6 +244,7 @@ fn qualify(
     for spec in packages {
         command.args(["-p", spec.name]);
     }
+    command.args(features.arguments());
     execute(&mut command, &evidence, "package", limits.process)?;
     let mut archives = BTreeMap::new();
     for (index, spec) in packages.iter().enumerate() {
@@ -254,7 +283,8 @@ fn qualify(
             "1",
             "--manifest-path",
         ])
-        .arg(&manifest_path);
+        .arg(&manifest_path)
+        .args(features.arguments());
     let metadata = execute(&mut command, &evidence, "metadata", limits.process)?;
     admit_graph(&serde_json::from_slice(&metadata)?, &evidence, packages)?;
     let admitted_lock = read(&payload_lock, limits.file_bytes)?;
@@ -268,7 +298,8 @@ fn qualify(
             .env("CARGO_TARGET_DIR", evidence.join("target"))
             .args(["test", "--offline", "--locked", "--manifest-path"])
             .arg(&manifest_path)
-            .args(["--workspace", selection]);
+            .args(["--workspace", selection])
+            .args(features.arguments());
         execute(&mut command, &evidence, label, limits.process)?;
     }
     if read(&lock, limits.file_bytes)? != entry_lock {
@@ -342,6 +373,8 @@ fn execute(
     label: &str,
     limits: OutputLimits,
 ) -> Result<Vec<u8>, Cause> {
+    // Retain intent before a potentially long command; output remains bounded capture.
+    fs::write(evidence.join("current-stage"), label)?;
     let result = capture_command(command, limits)
         .and_then(CompletedExecution::require_success)
         .and_then(CompletedExecution::require_complete);
@@ -360,6 +393,9 @@ fn execute(
     match result {
         Ok(output) if retention.is_empty() => Ok(output.stdout),
         other => Err(Box::new(PackageCommandError {
+            stage: label.to_owned(),
+            stdout_path: evidence.join(format!("{label}.json")),
+            stderr_path: evidence.join(format!("{label}.stderr")),
             execution: other.err(),
             retention,
         })),

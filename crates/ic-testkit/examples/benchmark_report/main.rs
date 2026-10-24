@@ -1,5 +1,5 @@
 //! Render captured benchmark markers using this example's CSV/Markdown layout.
-//! Usage: benchmark_report INPUT OUTPUT_DIRECTORY [PREVIOUS_INPUT]
+//! Usage: `benchmark_report INPUT OUTPUT_DIRECTORY [PREVIOUS_INPUT]`
 
 mod output;
 

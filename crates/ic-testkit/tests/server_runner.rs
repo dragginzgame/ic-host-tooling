@@ -1,3 +1,4 @@
+//! Integration checks for server runner behavior.
 #![cfg(unix)]
 
 use ic_host_process::testing::write_executable_script;
@@ -428,11 +429,19 @@ fn managed_idle_ttl_allows_preclient_work_beyond_server_default() {
 }
 
 #[test]
+#[expect(
+    unsafe_code,
+    reason = "signal the owned fixture runner while testing interrupted setup"
+)]
 fn interrupted_setup_terminates_downloader_descendants_and_retains_failure() {
     use ic_host_process::tool::{ExecutionError, ExecutionEvidence, ExecutionFailure, ToolError};
 
     struct DownloadGroup(u32);
     impl Drop for DownloadGroup {
+        #[expect(
+            unsafe_code,
+            reason = "bounded native operation with the local SAFETY contract below"
+        )]
         fn drop(&mut self) {
             if !stopped(self.0) {
                 // SAFETY: the fixture downloader owns this process group.
@@ -711,6 +720,10 @@ fn offline_check_and_run_refuse_missing_setup_without_executing_tools() {
 }
 
 #[test]
+#[expect(
+    unsafe_code,
+    reason = "bounded native operation with the local SAFETY contract below"
+)]
 fn interruption_terminates_the_owned_server_command_and_descendants() {
     let fixture = Fixture::new();
     let mut command = fixture.runner();

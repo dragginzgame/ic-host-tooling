@@ -58,7 +58,7 @@ pub fn worker_main() -> ExitCode {
     }
 }
 
-/// Project the private probe's explicit native frame contract for PocketIC calls.
+/// Project the private probe's explicit native frame contract for `PocketIC` calls.
 #[must_use]
 pub const fn probe_wire_spec(
     method: &'static str,

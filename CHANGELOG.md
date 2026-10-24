@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.67.0] - Unreleased
+
+- **Breaking:** archive qualification requires explicit feature selection; public
+  command errors and configuration observations gain evidence fields. The workspace
+  qualifier tests all features and prints useful bounded failure diagnostics.
+- Add source-independent Build recipe identities for cohort comparisons, keeping
+  features and source/cache identity separate.
+- Reject failed browser fixtures after readiness, centralize Testkit lint policy,
+  and improve CI cache, cancellation and publication-script lint coverage.
+- Adopt Shared Tooling 0.26.10, reuse its common CI tool cache and external IC
+  dependency inventory, and retain stricter workspace ownership rules.
+  [Details and migration](docs/changelog/0.67.md).
+
 ## [0.66.3] - 2026-10-24
 
 - Exclude generated targets of nested explicit Cargo workspaces from Build's

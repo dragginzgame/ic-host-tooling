@@ -6,6 +6,7 @@ mod support;
 use ic_build::cargo::packages::{
     PackageArchiveSpec, PackageQualificationLimits, qualify_package_archives,
 };
+use ic_build::cargo::selection::CargoFeatureSelection;
 use ic_host_artifacts::artifact::Sha256Digest;
 use ic_host_process::tool::{OutputLimit, OutputLimits};
 use std::{fs, os::unix::fs::PermissionsExt as _, process::Command};
@@ -14,8 +15,8 @@ use std::{fs, os::unix::fs::PermissionsExt as _, process::Command};
 fn real_package_qualification_retains_exact_graph_and_source_inventory() {
     let root = support::fs_fixture::unique_temp_directory("package-qualification");
     fs::create_dir(root.join("src")).unwrap();
-    fs::write(root.join("Cargo.toml"), "[workspace]\n[package]\nname='qualification-fixture'\nversion='0.1.0'\nedition='2024'\n[dependencies]\nitoa='1.0'\n").unwrap();
-    fs::write(root.join("src/lib.rs"), "pub fn value() -> String { itoa::Buffer::new().format(42).to_owned() }\n#[test]\nfn formats_value() { assert_eq!(value(), \"42\"); }\n").unwrap();
+    fs::write(root.join("Cargo.toml"), "[workspace]\n[package]\nname='qualification-fixture'\nversion='0.1.0'\nedition='2024'\n[features]\noptional-check=[]\n[dependencies]\nitoa='1.0'\n").unwrap();
+    fs::write(root.join("src/lib.rs"), "pub fn value() -> String { itoa::Buffer::new().format(42).to_owned() }\n#[cfg(feature = \"optional-check\")]\n#[test]\nfn formats_value() { assert_eq!(value(), \"42\"); }\n").unwrap();
     let cargo = || {
         let mut command = Command::new(env!("CARGO"));
         command
@@ -47,6 +48,10 @@ fn real_package_qualification_retains_exact_graph_and_source_inventory() {
             version: "0.1.0",
             patch_registry: true,
         }],
+        &CargoFeatureSelection {
+            all_features: true,
+            ..CargoFeatureSelection::default()
+        },
         PackageQualificationLimits {
             process: OutputLimits {
                 stdout: OutputLimit::Terminate(4 * 1024 * 1024),
@@ -65,6 +70,11 @@ fn real_package_qualification_retains_exact_graph_and_source_inventory() {
         },
     )
     .unwrap();
+    assert!(
+        fs::read_to_string(evidence.join("test-targets.json"))
+            .unwrap()
+            .contains("formats_value ... ok")
+    );
     assert_eq!(fs::read(root.join("Cargo.lock")).unwrap(), entry_lock);
     let archive = fs::read(root.join("target/package/qualification-fixture-0.1.0.crate")).unwrap();
     assert_eq!(

@@ -1,3 +1,4 @@
+//! Integration checks for pocket ic snapshots behavior.
 mod support;
 
 use ic_platform::pocket_ic::CanisterSettings;

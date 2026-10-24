@@ -1,6 +1,6 @@
-//! Focused PocketIC test-harness utilities for Internet Computer canisters.
+//! Focused `PocketIC` test-harness utilities for Internet Computer canisters.
 //!
-//! Import native PocketIC clients and DTOs directly from `ic_platform::pocket_ic`.
+//! Import native `PocketIC` clients and DTOs directly from `ic_platform::pocket_ic`.
 //! `pic` adds optional typed Wire calls, extension traits for
 //! installation, diagnostics and snapshots, startup errors, caller-owned
 //! managed-server startup and bounded readiness polling. It does not provide a

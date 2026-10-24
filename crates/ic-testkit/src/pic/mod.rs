@@ -1,4 +1,4 @@
-//! PocketIC host-test harness extensions.
+//! `PocketIC` host-test harness extensions.
 //!
 //! Import the client and DTOs directly from `ic_platform::pocket_ic`.
 //! This module owns Testkit's extension traits and policy types.
@@ -71,7 +71,7 @@ pub use transport::{
 #[cfg(feature = "wire")]
 pub use wire::{WireCallContext, WireCallError, WireCallSpec, query_wire, update_wire};
 
-/// All PocketIC extension traits, and no data types.
+/// All `PocketIC` extension traits, and no data types.
 ///
 /// Importing this module keeps policy/data types explicit while avoiding
 /// repeated trait lists across a large integration-test crate.

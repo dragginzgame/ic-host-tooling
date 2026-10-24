@@ -1,3 +1,8 @@
+#![expect(
+    unsafe_code,
+    reason = "exercise unsafe reads using live, correctly sized test-owned buffers"
+)]
+
 use super::*;
 use std::mem::MaybeUninit;
 

@@ -42,3 +42,35 @@ test('falsy body exceptions are preserved', async () => {
   catch (error) { caught = true; assert.equal(error, undefined); }
   assert.ok(caught);
 });
+
+test('nonzero fixture exit after readiness refuses successful and failed bodies', async () => {
+  for (const bodyFails of [false, true]) {
+    const bodyError = new Error('independent body failure');
+    const session = fixture(`process.on('SIGUSR1',()=>process.exit(23)); ${ready} setInterval(()=>{},100);`, async ({pid}) => {
+      process.kill(pid, 'SIGUSR1');
+      const deadline = performance.now() + 2000;
+      for (;;) {
+        try { process.kill(pid, 0); }
+        catch (error) { if (error.code === 'ESRCH') break; throw error; }
+        assert.ok(performance.now() < deadline, 'fixture must exit');
+        await new Promise(resolve => setTimeout(resolve, 10));
+      }
+      if (bodyFails) throw bodyError;
+      return 42;
+    });
+    await assert.rejects(session, error => {
+      if (bodyFails) {
+        assert.ok(error instanceof AggregateError);
+        assert.equal(error.errors[0], bodyError);
+        assert.match(error.errors[1].message, /fixture exited unsuccessfully \(23\)/);
+      } else {
+        assert.match(error.message, /fixture exited unsuccessfully \(23\)/);
+      }
+      return true;
+    });
+  }
+});
+
+test('nonzero exit during requested graceful shutdown is retained', async () => {
+  await assert.rejects(fixture(`${ready} process.stdin.once('data',()=>process.exit(17));`, () => 42), /fixture exited unsuccessfully \(17\)/);
+});

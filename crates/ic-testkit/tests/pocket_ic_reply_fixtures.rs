@@ -1,3 +1,4 @@
+//! Integration checks for pocket ic reply fixtures behavior.
 #![cfg(feature = "reply-fixtures")]
 
 mod support;

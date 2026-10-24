@@ -1,3 +1,4 @@
+//! Integration checks for pocket ic install behavior.
 mod support;
 
 use ic_platform::principal::ExternalPrincipal as Principal;

@@ -11,7 +11,7 @@ pub struct InstallSpec {
     pub wasm: Vec<u8>,
     /// Raw initialization bytes encoded by the caller.
     pub init_bytes: Vec<u8>,
-    /// Extra cycles added after PocketIC creates the canister and before install.
+    /// Extra cycles added after `PocketIC` creates the canister and before install.
     pub cycles: u128,
     /// Optional sender for the management-canister install operation.
     pub install_sender: Option<Principal>,
@@ -30,26 +30,32 @@ pub struct RetryPolicy {
 
 /// Generic canister installation and structured install-code retry policy.
 ///
-/// The extension creates canisters using PocketIC defaults. `InstallSpec::cycles`
+/// The extension creates canisters using `PocketIC` defaults. `InstallSpec::cycles`
 /// is an additional top-up, not the complete initial balance.
 pub trait CanisterInstallExt {
     /// Create and install one canister from a reusable specification.
     ///
-    /// Captures PocketIC panics during creation, cycle funding, and installation.
+    /// Captures `PocketIC` panics during creation, cycle funding, and installation.
     /// The error identifies the stage and retains an id when creation succeeded.
     /// Callers choose whether to collect diagnostics; this performs no diagnostic
     /// requests or error logging.
+    ///
+    /// # Errors
+    /// Returns the failed creation or installation stage, retaining canister identity when available.
     fn try_create_and_install(&self, spec: InstallSpec) -> Result<Principal, CanisterInstallError>;
 
     /// Advance simulated time once, then tick twice for an install-code cooldown.
     /// Zero duration skips time reads/writes while retaining both ticks.
     fn wait_out_install_code_rate_limit(&self, cooldown: Duration);
 
-    /// Retry only while PocketIC reports install-code rate limiting.
+    /// Retry only while `PocketIC` reports install-code rate limiting.
     ///
     /// `RetryPolicy::max_attempts` includes the initial call. Before each
     /// retry, this advances simulated time by the configured cooldown and
-    /// executes two PocketIC ticks. Other rejections are returned unchanged.
+    /// executes two `PocketIC` ticks. Other rejections are returned unchanged.
+    ///
+    /// # Errors
+    /// Returns the final rejection after the selected retry policy is exhausted.
     fn retry_install_code<T, F>(&self, policy: RetryPolicy, op: F) -> Result<T, RejectResponse>
     where
         F: FnMut() -> Result<T, RejectResponse>;
@@ -89,7 +95,7 @@ impl CanisterInstallExt for PocketIc {
         Ok(canister_id)
     }
 
-    /// Wait out the PocketIC `install_code` cooldown window inside the same instance.
+    /// Wait out the `PocketIC` `install_code` cooldown window inside the same instance.
     fn wait_out_install_code_rate_limit(&self, cooldown: Duration) {
         super::time::advance_and_tick(self, cooldown, 2);
     }

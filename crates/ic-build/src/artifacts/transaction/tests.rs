@@ -135,6 +135,7 @@ fn nested_workspace_generated_outputs_preserve_transactions_and_explicit_guards(
         &root.join("build-target"),
         &["driver"],
         crate::cargo_fixture::environment(),
+        CONFIGURATION_LIMITS,
     );
     let generated = root.join("adapter/consumer/target/generated");
     fs::create_dir_all(generated.parent().unwrap()).unwrap();
@@ -234,6 +235,7 @@ fn cargo_snapshot_keys_semantic_identity_and_guards_raw_workspace_inputs() {
         &root.join("target"),
         &["canister"],
         crate::cargo_fixture::environment(),
+        CONFIGURATION_LIMITS,
     );
     let before = resolve_cargo_build_inputs(&build_spec).expect("resolve first Cargo snapshot");
     let artifact_spec = |resolved| {
@@ -1740,3 +1742,12 @@ fn cache_timing_accumulation_preserves_optional_presence_and_saturates() {
         assert_eq!([total.caller_build(), total.maintenance()], [expected; 2]);
     }
 }
+
+// This caller admits small configuration trees; libraries do not select this policy.
+const CONFIGURATION_LIMITS: crate::cargo::environment::ConfigurationLimits =
+    crate::cargo::environment::ConfigurationLimits {
+        file_bytes: 1024 * 1024,
+        total_bytes: 16 * 1024 * 1024,
+        files: 128,
+        depth: 32,
+    };

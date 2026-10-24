@@ -35,3 +35,28 @@ make_probe_parallel_dispatch() {
         [[ -s "$events" ]] || return 1
     done
 }
+
+# Caller stubs the actual lint/effect leaves, recording ordered lines through
+# MAKE_PROBE_EVENTS and returning MAKE_PROBE_LINT_STATUS from the lint leaf.
+# Expected files describe the caller's full prefix and successful pipeline.
+make_probe_lint_order() {
+    [[ $# == 7 ]] || return 2
+    local executable="$1" makefile="$2" directory="$3" events="$4"
+    local target="$5" failure_events="$6" success_events="$7" lint_status status expected
+    [[ -f "$makefile" && -d "$directory" && -f "$failure_events" && -f "$success_events" ]] || return 2
+    for lint_status in 23 0; do
+        : > "$events" || return
+        status=0
+        MAKE_PROBE_EVENTS="$events" MAKE_PROBE_LINT_STATUS="$lint_status" \
+            "$executable" -j4 --no-print-directory -f "$makefile" "$target" \
+            > "$directory/lint-$lint_status.log" 2>&1 || status=$?
+        expected="$failure_events"
+        if [[ "$lint_status" == 0 ]]; then
+            [[ "$status" == 0 ]] || return 1
+            expected="$success_events"
+        else
+            [[ "$status" != 0 ]] || return 1
+        fi
+        cmp "$expected" "$events" || return 1
+    done
+}

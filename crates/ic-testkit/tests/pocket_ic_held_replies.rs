@@ -1,3 +1,4 @@
+//! Integration checks for pocket ic held replies behavior.
 #![cfg(feature = "held-reply-fixtures")]
 
 mod support;

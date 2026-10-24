@@ -58,12 +58,10 @@ fn account(old: usize, new: usize, allocation: bool, reallocation: bool) {
 }
 
 ///
-/// MeasuredAllocator
+/// `MeasuredAllocator`
 ///
 /// Instrument an existing global allocator while preserving its allocation contract.
 /// Counters are opt-in and scoped to the calling thread.
-///
-
 pub struct MeasuredAllocator<A = System> {
     allocator: A,
 }
@@ -112,7 +110,7 @@ unsafe impl<A: GlobalAlloc> GlobalAlloc for MeasuredAllocator<A> {
 }
 
 ///
-/// AlreadyMeasuring
+/// `AlreadyMeasuring`
 ///
 /// A nested measurement was refused without executing its workload.
 ///

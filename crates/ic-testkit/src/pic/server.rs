@@ -1,11 +1,11 @@
-//! Release-bound PocketIC server policy, independent of client download defaults.
+//! Release-bound `PocketIC` server policy, independent of client download defaults.
 
 /// The server selected by this Testkit release's explicit provisioning CLI.
 pub const POCKET_IC_SERVER_VERSION: &str = "16.1.0";
 
 /// Whether a successful server version probe satisfies Testkit's protocol policy.
 ///
-/// Stable 16.x servers are supported, matching the selected PocketIC client's
+/// Stable 16.x servers are supported, matching the selected `PocketIC` client's
 /// `>=16.0.0,<17.0.0` protocol range. Provisioning selects one exact reviewed
 /// artifact separately; this predicate does not authenticate executable bytes.
 #[must_use]

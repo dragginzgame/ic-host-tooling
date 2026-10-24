@@ -1,4 +1,4 @@
-//! Bounded, single-use replies held by PocketIC's manual HTTP mock barrier.
+//! Bounded, single-use replies held by `PocketIC`'s manual HTTP mock barrier.
 //!
 //! The fixture issues no application-specific protocol. Each supplied update slot
 //! retains its own raw reply and call context until the driver releases its exact
@@ -69,7 +69,7 @@ pub enum HeldReplyError {
     /// Host could not compile the admitted fixture.
     #[error(transparent)]
     Compile(#[from] CompileError),
-    /// The PocketIC client lost its transport.
+    /// The `PocketIC` client lost its transport.
     #[error(transparent)]
     Operation(#[from] PocketIcOperationError),
 }
@@ -105,6 +105,9 @@ impl HeldReplyFixture {
     /// reply/name byte limits sum every slot. `module_bytes` bounds compiled Wasm.
     /// No server, canister, installation, funding or tool download is created.
     /// This constructor never accepts attached cycles.
+    ///
+    /// # Errors
+    /// Rejects invalid method limits, oversized modules or failed simulator inspection.
     pub fn new(
         pic: &PocketIc,
         canister: Principal,
@@ -132,6 +135,9 @@ impl HeldReplyFixture {
     /// remainder refunds through the real IC callback path. A call-setup trap rolls
     /// back the update. Construction/installation alone accepts nothing. The cap
     /// applies separately to each slot; HTTP barrier funding is independent.
+    ///
+    /// # Errors
+    /// Rejects invalid method limits, oversized modules or failed simulator inspection.
     pub fn new_with_cycle_acceptance(
         pic: &PocketIc,
         canister: Principal,
@@ -186,6 +192,9 @@ impl HeldReplyFixture {
     }
 
     /// Observe currently held slots without ticking or settling any call.
+    ///
+    /// # Errors
+    /// Returns an admission or transport error when the instance cannot be inspected.
     pub fn pending(&self, pic: &PocketIc) -> Result<Vec<HeldRequest>, HeldReplyError> {
         self.admit(pic)?;
         Ok(try_pocket_ic_operation(|| pic.get_canister_http())?
@@ -217,6 +226,9 @@ impl HeldReplyFixture {
     /// dispatch is uncertain: the token remains consumed and must not be retried.
     /// The empty mock body is only a barrier signal; application bytes were frozen
     /// in the original slot and are returned by its own callback, never another call.
+    ///
+    /// # Errors
+    /// Rejects unknown or consumed request tokens and preserves transport failures.
     pub fn release(&mut self, pic: &PocketIc, request: &HeldRequest) -> Result<(), HeldReplyError> {
         if !self.pending(pic)?.contains(request) {
             return Err(HeldReplyError::UnknownRequest);

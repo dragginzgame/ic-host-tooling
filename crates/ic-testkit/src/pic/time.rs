@@ -6,7 +6,10 @@ use std::{task::Poll, time::Duration};
 pub enum TickUntilError<E> {
     /// The predicate was still pending after this many advance/tick rounds.
     #[error("readiness remained pending after {rounds} rounds")]
-    ProgressLimit { rounds: u32 },
+    ProgressLimit {
+        /// Completed simulated advance/tick rounds.
+        rounds: u32,
+    },
     /// The predicate returned its own failure.
     #[error("readiness check failed: {0}")]
     Failed(#[source] E),
@@ -19,7 +22,7 @@ pub enum TickUntilError<E> {
 /// or decide application readiness. Callers own completion and cadence budgets.
 ///
 /// # Panics
-/// PocketIC operation failures retain the upstream client's panic behavior.
+/// `PocketIC` operation failures retain the upstream client's panic behavior.
 pub fn advance_and_tick(pic: &PocketIc, advance: Duration, ticks: u32) {
     if !advance.is_zero() {
         pic.advance_time(advance);
@@ -37,9 +40,12 @@ pub fn advance_and_tick(pic: &PocketIc, advance: Duration, ticks: u32) {
 /// duration permits ticks without reading or writing simulated time. Completion
 /// on the last allowed round succeeds; predicate failures return immediately without another round.
 ///
-/// This bounds simulated progression, not wall-clock time spent inside PocketIC
-/// calls or the predicate. PocketIC operation failures retain upstream panic
+/// This bounds simulated progression, not wall-clock time spent inside `PocketIC`
+/// calls or the predicate. `PocketIC` operation failures retain upstream panic
 /// behavior. Applications own readiness meaning and predicate error types.
+///
+/// # Errors
+/// Returns the predicate error or `ProgressLimit` when all permitted rounds remain pending.
 pub fn tick_until<T, E>(
     pic: &PocketIc,
     max_rounds: u32,

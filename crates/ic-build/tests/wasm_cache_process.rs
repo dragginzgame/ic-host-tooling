@@ -130,6 +130,7 @@ fn shared_incremental_process_worker() {
         &root.join(format!("cache-{worker}")),
         &["fixture"],
         support::cargo::environment(),
+        CONFIGURATION_LIMITS,
     )
     .with_shared_incremental_target(root.join("shared-target"))
     .with_cargo_program(root.join("cargo-wrapper.sh"))
@@ -179,6 +180,7 @@ fn scheduled_shared_target_maintenance_process_worker() {
         &root.join(format!("cache-{worker}")),
         &["fixture"],
         support::cargo::environment(),
+        CONFIGURATION_LIMITS,
     )
     .with_shared_incremental_target(root.join("shared-target"));
     let outcome = maintain_shared_incremental_target_at_most_every(
@@ -254,3 +256,12 @@ fn spawn_test_worker(
         .spawn()
         .expect("spawn shared-target process worker")
 }
+
+// This caller admits small configuration trees; libraries do not select this policy.
+const CONFIGURATION_LIMITS: ic_build::cargo::environment::ConfigurationLimits =
+    ic_build::cargo::environment::ConfigurationLimits {
+        file_bytes: 1024 * 1024,
+        total_bytes: 16 * 1024 * 1024,
+        files: 128,
+        depth: 32,
+    };

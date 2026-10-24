@@ -1,4 +1,4 @@
-//! Controlled reproduction of PocketIC's synchronous instance-deletion wait.
+//! Controlled reproduction of `PocketIC`'s synchronous instance-deletion wait.
 //! The parent owns a synthetic HTTP peer and can always kill/reap the probe.
 
 mod support;
@@ -95,6 +95,10 @@ fn reset_instance_request_is_classified_at_the_call_boundary() {
 }
 
 #[cfg(unix)]
+#[expect(
+    unsafe_code,
+    reason = "bounded native operation with the local SAFETY contract below"
+)]
 fn run_reset_operation_probe(name: &str, expected_request: &str) {
     let listener = TcpListener::bind("127.0.0.1:0").expect("bind resetting PocketIC peer");
     listener.set_nonblocking(true).expect("bound accept wait");
@@ -135,6 +139,10 @@ fn run_reset_operation_probe(name: &str, expected_request: &str) {
 
 #[cfg(unix)]
 #[test]
+#[expect(
+    unsafe_code,
+    reason = "bounded native operation with the local SAFETY contract below"
+)]
 fn request_reader_handles_an_initially_nonblocking_stream() {
     let listener = TcpListener::bind("127.0.0.1:0").expect("bind synthetic peer");
     listener.set_nonblocking(true).expect("bound accept wait");

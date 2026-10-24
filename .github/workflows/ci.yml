@@ -46,6 +46,7 @@ jobs:
             os: Darwin
             architecture: arm64
     runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
     steps:
       # actions/checkout v6
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -66,40 +67,26 @@ jobs:
         run: |
           rustup toolchain install --profile minimal --no-self-update
           rustup target add wasm32-unknown-unknown
+      - name: Restore ordinary workspace compilation cache
+        uses: Swatinem/rust-cache@42dc69e1aa15d09112580998cf2ef0119e2e91ae # v2
+        timeout-minutes: 3
+        continue-on-error: true
+        with:
+          # Archive verification always uses a fresh attempt-specific target.
+          cache-targets: false
+          cache-bin: false
+          cache-directories: |
+            target/debug
+            target/wasm32-unknown-unknown/debug
+          save-if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
       - name: Prepare locked dependency cache
         run: cargo fetch --locked
-      - name: Prepare host tools and identify Cargo tool cache
-        id: tool-cache-key
-        run: |
-          make --no-print-directory install-host-tools
-          make --no-print-directory host-tools-check
-          export PATH="$GITHUB_WORKSPACE/.tools/host/bin:$PATH"
-          bash scripts/ci/cargo-tool-cache-key.sh ci/tool-versions.env >> "$GITHUB_OUTPUT"
-      - name: Restore Cargo tool builds
-        id: tool-cache
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        timeout-minutes: 3
-        continue-on-error: true
-        env:
-          SEGMENT_DOWNLOAD_TIMEOUT_MINS: 2
-        with:
-          path: |
-            ${{ steps.tool-cache-key.outputs.root }}/cargo-cache
-            ${{ steps.tool-cache-key.outputs.root }}/rust-*
-          # The shared identity covers the selected common formatter tools.
-          key: cargo-tools-${{ runner.os }}-${{ runner.arch }}-${{ steps.tool-cache-key.outputs.key }}-${{ hashFiles('ci/release-editor.env') }}
-      - name: Prepare pinned local tools
+      - name: Prepare pinned local tools with the shared Cargo cache
         uses: ./.github/actions/prepare-common-tools
-      - name: Save admitted Cargo tool builds
-        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.tool-cache.outputs.cache-hit != 'true' }}
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        timeout-minutes: 3
-        continue-on-error: true
         with:
-          path: |
-            ${{ steps.tool-cache-key.outputs.root }}/cargo-cache
-            ${{ steps.tool-cache-key.outputs.root }}/rust-*
-          key: cargo-tools-${{ runner.os }}-${{ runner.arch }}-${{ steps.tool-cache-key.outputs.key }}-${{ hashFiles('ci/release-editor.env') }}
+          cache: 'true'
+          cache-save: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          cache-extra-key: ${{ hashFiles('ci/release-editor.env') }}
       - name: Run native CI
         env:
           TMPDIR: ${{ runner.temp }}/portable-fixtures
@@ -121,6 +108,7 @@ jobs:
 
   msrv:
     runs-on: ubuntu-24.04
+    timeout-minutes: 45
     steps:
       # actions/checkout v6
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1

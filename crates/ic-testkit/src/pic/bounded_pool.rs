@@ -218,6 +218,7 @@ impl<T, R> Drop for BoundedSlotLease<'_, T, R> {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         coordinator.available.push_back(self.slot_index);
+        drop(coordinator);
         self.pool.slot_available.notify_all();
     }
 }
@@ -238,6 +239,7 @@ impl<T, R> Drop for WaitTicket<'_, T, R> {
             .position(|queued_ticket| *queued_ticket == ticket)
         {
             coordinator.waiters.remove(position);
+            drop(coordinator);
             self.pool.slot_available.notify_all();
         }
     }
@@ -257,6 +259,10 @@ mod tests {
     const TIMEOUT: Duration = Duration::from_secs(5);
 
     #[test]
+    #[expect(
+        clippy::significant_drop_tightening,
+        reason = "lease and coordinator scope deliberately cover the complete operation"
+    )]
     fn concurrent_first_acquisitions_share_one_lazy_capacity() {
         let capacity = NonZeroUsize::new(4).unwrap();
         let pool = Arc::new(BoundedSlotPool::<usize, ()>::new(capacity));
@@ -358,6 +364,10 @@ mod tests {
     }
 
     #[test]
+    #[expect(
+        clippy::significant_drop_tightening,
+        reason = "lease and coordinator scope deliberately cover the complete operation"
+    )]
     fn cancelling_the_head_waiter_wakes_the_next_waiter() {
         let pool = Arc::new(BoundedSlotPool::<usize, ()>::new(
             NonZeroUsize::new(1).unwrap(),
@@ -407,6 +417,10 @@ mod tests {
     }
 
     #[test]
+    #[expect(
+        clippy::significant_drop_tightening,
+        reason = "lease and coordinator scope deliberately cover the complete operation"
+    )]
     fn unwind_invalidates_but_preserves_slot_value_for_safe_teardown() {
         for (value, invalidate) in [(None, false), (Some(42), false), (Some(42), true)] {
             let pool = BoundedSlotPool::<_, ()>::new(NonZeroUsize::new(1).unwrap());

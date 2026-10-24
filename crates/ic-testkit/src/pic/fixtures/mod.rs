@@ -22,6 +22,9 @@ pub mod held;
 /// acceptance. IC traps roll back uncommitted acceptance. Consumers own application
 /// accounting, retry and recovery policy.
 #[cfg(feature = "held-reply-fixtures")]
+///
+/// # Errors
+/// Rejects invalid methods, reply limits or a module exceeding `module_bytes`.
 pub fn cycle_reply_canister(
     methods: &[RawReplyMethod<'_>],
     limits: RawReplyLimits,
@@ -32,7 +35,7 @@ pub fn cycle_reply_canister(
 }
 
 ///
-/// ReplyMode
+/// `ReplyMode`
 ///
 /// Explicit IC entry-point mode for one fixture method.
 ///
@@ -46,7 +49,7 @@ pub enum ReplyMode {
 }
 
 ///
-/// RawReplyMethod
+/// `RawReplyMethod`
 ///
 /// One method and its unmodified reply, including malformed frames when required.
 ///
@@ -62,7 +65,7 @@ pub struct RawReplyMethod<'a> {
 }
 
 ///
-/// RawReplyLimits
+/// `RawReplyLimits`
 ///
 /// Caller-selected aggregate admission ceilings checked before module construction.
 ///
@@ -78,7 +81,7 @@ pub struct RawReplyLimits {
 }
 
 ///
-/// RawReplyError
+/// `RawReplyError`
 ///
 /// Typed refusal before any simulator, network, or filesystem effects.
 ///

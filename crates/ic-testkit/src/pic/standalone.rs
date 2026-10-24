@@ -3,20 +3,23 @@ use ic_platform::principal::ExternalPrincipal as Principal;
 
 use super::{CanisterInstallExt, InstallSpec, PocketIcInstance, StandaloneCanisterInstallError};
 
-/// One caller-built PocketIC instance/server owner and one installed canister.
+/// One caller-built `PocketIC` instance/server owner and one installed canister.
 ///
 /// This fixture retains the instance and its optional managed server together.
-/// It does not impose process-wide synchronization or hide PocketIC methods.
+/// It does not impose process-wide synchronization or hide `PocketIC` methods.
 pub struct StandaloneCanisterFixture {
     instance: PocketIcInstance<PocketIc>,
     canister_id: Principal,
 }
 
 impl StandaloneCanisterFixture {
-    /// Install one canister into a caller-configured PocketIC instance.
+    /// Install one canister into a caller-configured `PocketIC` instance.
     ///
     /// On failure, the error retains both the caller's instance/server ownership record and
     /// the structured install failure.
+    ///
+    /// # Errors
+    /// Returns the installation failure with the owned instance for caller recovery.
     pub fn try_install(
         instance: PocketIcInstance<PocketIc>,
         spec: InstallSpec,
@@ -32,7 +35,7 @@ impl StandaloneCanisterFixture {
         })
     }
 
-    /// Borrow the PocketIC instance that owns this standalone fixture.
+    /// Borrow the `PocketIC` instance that owns this standalone fixture.
     #[must_use]
     pub const fn pocket_ic(&self) -> &PocketIc {
         self.instance.instance()

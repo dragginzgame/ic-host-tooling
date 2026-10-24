@@ -1,3 +1,4 @@
+//! Integration checks for pocket ic calls behavior.
 #![cfg(feature = "wire")]
 
 mod support;

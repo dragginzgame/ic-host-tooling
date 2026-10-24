@@ -122,13 +122,13 @@ impl CanisterDiagnosticLogs {
         &self.records
     }
 
-    /// Total number of records returned by PocketIC before bounding.
+    /// Total number of records returned by `PocketIC` before bounding.
     #[must_use]
     pub const fn total_records(&self) -> usize {
         self.total_records
     }
 
-    /// Total raw content bytes returned by PocketIC before bounding.
+    /// Total raw content bytes returned by `PocketIC` before bounding.
     #[must_use]
     pub const fn total_content_bytes(&self) -> usize {
         self.total_content_bytes
@@ -302,11 +302,11 @@ impl fmt::Display for CanisterDiagnosticsReport {
     }
 }
 
-/// Reusable structured PocketIC failure diagnostics.
+/// Reusable structured `PocketIC` failure diagnostics.
 pub trait PocketIcDiagnosticsExt {
     /// Collect status and bounded logs using the request's exact senders.
     ///
-    /// Both calls are attempted independently. PocketIC transport panics are
+    /// Both calls are attempted independently. `PocketIC` transport panics are
     /// captured so diagnostics can remain subordinate to the original failure.
     fn collect_canister_diagnostics(
         &self,
@@ -322,6 +322,9 @@ pub trait PocketIcDiagnosticsExt {
     /// in the written report; successful output does not mean those calls passed.
     /// Callers keep their primary failure authoritative and decide whether to
     /// retain or ignore this secondary reporting result.
+    ///
+    /// # Errors
+    /// Returns the writer’s I/O error when diagnostics cannot be written.
     fn write_canister_diagnostics(
         &self,
         request: CanisterDiagnosticsRequest,
@@ -341,6 +344,9 @@ pub trait PocketIcDiagnosticsExt {
     /// Each entry preserves its exact request and independent status/log
     /// outcomes; no anonymous retry or fallback is performed.
     /// Invalid labels return Host's [`BatchLabelError`] before collection starts.
+    ///
+    /// # Errors
+    /// Rejects invalid or duplicate labels before collecting diagnostics.
     fn collect_canister_diagnostics_batch(
         &self,
         requests: &[LabeledCanisterDiagnosticsRequest],

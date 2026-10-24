@@ -318,6 +318,10 @@ cat > "$fixture/expected" <<'EVENTS'
 +1.91.0 check -p ic-testkit -p ic-testkit-native --features ic-testkit/held-reply-fixtures,ic-testkit-native/stable-memory --locked --offline --target wasm32-unknown-unknown
 +1.91.0 check -p ic-testkit-perf-probe --locked --offline --target wasm32-unknown-unknown
 check -p ic-host-fs --lib --bins --test unsupported_lock --all-features --target wasm32-unknown-unknown --locked --offline
+test -p ic-host-tools --no-default-features --features icp-project --all-targets --locked --offline icp_project::
+test -p ic-host-tools --no-default-features --features icp-ledger --all-targets --locked --offline icp_ledger::
+test -p ic-host-tools --no-default-features --features ledger-evidence --all-targets --locked --offline ledger_evidence::
+test -p ic-host-text --no-default-features --features yaml --lib --locked --offline yaml::
 EVENTS
 cmp "$fixture/expected" "$HOST_MAKE_EVENTS"
 # Actual Host formatting stops after sorter failure and points at complete logs.

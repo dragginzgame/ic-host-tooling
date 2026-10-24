@@ -8,7 +8,7 @@ cd "$root"
 
 # Inspect all direct declarations (aliases, dev/build and target-specific edges)
 # before inspecting the selected transitive graphs below.
-bash scripts/ci/check-cargo-dependency-boundaries.sh --consumer "$root"
+bash scripts/ci/check-cargo-dependency-boundaries.sh --consumer "$root" --external-ic
 
 [[ $# -le 1 ]] || { echo 'usage: check-tools-features.sh [TARGET]' >&2; exit 2; }
 target="${1:-${CARGO_BUILD_TARGET:-$(rustc -vV | sed -n 's/^host: //p')}}"

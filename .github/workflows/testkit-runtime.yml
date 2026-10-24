@@ -8,6 +8,9 @@ permissions:
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
+defaults:
+  run:
+    shell: /bin/bash --noprofile --norc -e -o pipefail {0}
 jobs:
   pocket-ic-concurrency:
     strategy:
@@ -15,9 +18,14 @@ jobs:
       matrix:
         os: [ubuntu-24.04, macos-15, macos-15-intel]
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
     steps:
       # actions/checkout v6
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+      - name: Prepare retained runtime fixtures
+        run: |
+          mkdir -p "$RUNNER_TEMP/portable-fixtures"
+          echo "TMPDIR=$RUNNER_TEMP/portable-fixtures" >> "$GITHUB_ENV"
       - name: Prepare declared development compiler
         run: rustup toolchain install --profile minimal --no-self-update
       # Swatinem/rust-cache v2
@@ -25,19 +33,19 @@ jobs:
       - name: Prepare and admit PocketIC
         shell: bash
         run: |
-          make install-server
+          make install-server 2>&1 | tee -a "$RUNNER_TEMP/portable-regression.log"
           server="$(target/debug/ic-testkit-server check)"
           echo "POCKET_IC_BIN=$server" >> "$GITHUB_ENV"
       - name: Qualify real owned sync and async instance lifetimes
-        run: cargo test -p ic-testkit --locked --offline --lib pic::startup::tests -- --ignored
+        run: cargo test -p ic-testkit --locked --offline --lib pic::startup::tests -- --ignored 2>&1 | tee -a "$RUNNER_TEMP/portable-regression.log"
       - name: Qualify standalone pool failed recovery
-        run: cargo test -p ic-testkit --locked --offline --test pocket_ic_concurrency standalone_dead_transport_preserves_failed_recovery_and_can_build_again -- --ignored --exact
+        run: cargo test -p ic-testkit --locked --offline --test pocket_ic_concurrency standalone_dead_transport_preserves_failed_recovery_and_can_build_again -- --ignored --exact 2>&1 | tee -a "$RUNNER_TEMP/portable-regression.log"
       - name: Qualify baseline pool dedicated-server recovery
-        run: cargo test -p ic-testkit --locked --offline --test pocket_ic_baseline_pool killed_dedicated_server_rebuilds_on_a_fresh_server -- --ignored --exact
+        run: cargo test -p ic-testkit --locked --offline --test pocket_ic_baseline_pool killed_dedicated_server_rebuilds_on_a_fresh_server -- --ignored --exact 2>&1 | tee -a "$RUNNER_TEMP/portable-regression.log"
       - name: Qualify provisioning and managed launch without consumer pins
-        run: cargo test -p ic-testkit --features cli --locked --offline --test server_runner provisioned_cli_runs_a_real_instance_without_consumer_server_selection -- --ignored --exact
+        run: cargo test -p ic-testkit --features cli --locked --offline --test server_runner provisioned_cli_runs_a_real_instance_without_consumer_server_selection -- --ignored --exact 2>&1 | tee -a "$RUNNER_TEMP/portable-regression.log"
       - name: Qualify idle lifetime during pre-client work
-        run: cargo test -p ic-testkit --features cli --locked --offline --test server_runner managed_idle_ttl_allows_preclient_work_beyond_server_default -- --ignored --exact
+        run: cargo test -p ic-testkit --features cli --locked --offline --test server_runner managed_idle_ttl_allows_preclient_work_beyond_server_default -- --ignored --exact 2>&1 | tee -a "$RUNNER_TEMP/portable-regression.log"
       - name: Retain idle lifetime evidence
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -46,3 +54,13 @@ jobs:
           path: target/idle-lifetime-*
           retention-days: 14
           if-no-files-found: warn
+      - name: Retain runtime failure evidence
+        if: ${{ failure() && !cancelled() }}
+        uses: ./.github/actions/retain-failure-evidence
+        with:
+          name: runtime-failure-${{ matrix.os }}-${{ github.run_attempt }}
+          temp-root: ${{ runner.temp }}
+          repository-root: ${{ github.workspace }}
+      - name: Retain product qualification evidence
+        if: ${{ failure() && !cancelled() }}
+        uses: ./.github/actions/retain-product-evidence

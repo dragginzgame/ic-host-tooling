@@ -1,3 +1,4 @@
+//! Integration checks for pocket ic cycle replies behavior.
 #![cfg(feature = "held-reply-fixtures")]
 
 mod support;

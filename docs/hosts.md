@@ -213,8 +213,9 @@ uses it transitively, although Host's direct Tokio declaration is dev-only.
 including package selection, provenance, Cargo/log failures, interruption and
 retained attempt locks. Shared Tooling owns the generic publication-runner
 regression matrix; this consumer does not replay it separately.
-Host's direct-dependency guard covers the known external IC package families in
-`ci/cargo-dependency-boundaries.json`, including renamed, development, optional and
+Host's direct-dependency guard selects Shared Tooling's
+`ci/external-ic-dependencies.txt` inventory and composes it with stricter local
+`ci/cargo-dependency-boundaries.json` rules, including renamed, development, optional and
 target-specific declarations. The broader Platform boundary also requires review
 of new IC package identities and generated imports; the finite policy does not
 automatically classify every future package. General-purpose dependencies remain
@@ -268,6 +269,7 @@ features. `bash scripts/ci/check-tools-features.sh TARGET` inspects a named supp
 Linux/macOS target without claiming native execution. The checker is in CI and
 release validation. Cargo aliases are reported by their resolved package names.
 Before those graph checks, Shared's canonical dependency-boundary checker reads
+the common external IC inventory together with
 `ci/cargo-dependency-boundaries.json` and rejects direct Candid, parser,
 certification and enumerated CDK dependencies in every workspace member, including
 renamed, dev/build and target-specific declarations. Platform owns those upstream
@@ -286,3 +288,23 @@ successful build evidence to the installed artifact. Shared's sorter, pin checke
 and snapshot verification do not provide that admission. Further test-only catalog
 entries require explicit graph exclusions; comments alone do not activate them.
 Native macOS and deployment evidence remain distinct from graph checks.
+
+The focused `test-tools-icp-project`, `test-tools-icp-ledger`,
+`test-tools-ledger-evidence` and `test-text-yaml` targets exercise each named
+feature with default features disabled. `ci` runs them with development Rust;
+`msrv-qualification` runs the same targets with the actual selected MSRV compiler.
+For a focused MSRV check, prefix the selected target with
+`RUSTUP_TOOLCHAIN=1.91.0 make`.
+
+CI outer job ceilings are 90 minutes for native qualification, 45 minutes for
+MSRV, runtime and optimizer jobs, and 10 minutes for browser fixtures. These allow
+headroom over the 0.66.3 run (native Intel macOS about 35 minutes, runtime about
+7 minutes, optimizer about 2 minutes); they do not impose library deadlines.
+Runtime fixtures live below `runner.temp/portable-fixtures`, with command output
+in `portable-regression.log`, so the shared failure collector can retain them.
+
+`make tools-report` runs every existing offline tool check and retains all failures;
+`make tools-check` remains the fail-fast admission gate. Installer `--describe`
+prints read-only selection JSON without installing or qualifying executables.
+Native CI selects the shared action's Cargo-tool cache with the release-editor
+recipe digest; restore is followed by ordinary setup and admission.

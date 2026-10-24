@@ -1,3 +1,6 @@
+use super::resolution::{
+    append_cargo_configuration_inputs, locked_package_identities, semantic_package_identity,
+};
 use crate::cargo::selection::{CargoFeatureSelection, CargoSelection};
 use crate::cargo_fixture::spawn_cargo;
 use ic_host_fs::owned_directory::OwnedDirectory;
@@ -11,16 +14,14 @@ use super::{
     ProgressReporter, SharedIncrementalTargetMaintenanceConfig,
     SharedIncrementalTargetMaintenanceFailureMode, SharedIncrementalTargetMaintenanceOutcome,
     WasmBuildBatchInputResolver, WasmBuildError, WasmBuildOutcome, WasmBuildPhase,
-    WasmBuildProgressConfig, WasmBuildProgressEvent, WasmBuildSpec,
-    append_cargo_configuration_inputs, artifact_stamp_path, build_wasm_canisters_cached,
-    ensure_cache_directory_tag, finish_fingerprint_build, inspect_shared_incremental_target,
-    integrated_shared_maintenance_result, lock_wasm_build_cache,
-    lock_wasm_build_cache_with_progress, locked_package_identities,
-    maintain_shared_incremental_target, maintain_shared_incremental_target_at_most_every,
-    materialize_artifacts, perform_configured_shared_incremental_target_maintenance,
-    prune_wasm_build_cache, prune_wasm_build_cache_locked, publish_artifact_stamps,
-    resolve_cargo_build_inputs, run_cargo_build, semantic_package_identity, validate_spec,
-    validated_artifact_set,
+    WasmBuildProgressConfig, WasmBuildProgressEvent, WasmBuildSpec, artifact_stamp_path,
+    build_wasm_canisters_cached, ensure_cache_directory_tag, finish_fingerprint_build,
+    inspect_shared_incremental_target, integrated_shared_maintenance_result, lock_wasm_build_cache,
+    lock_wasm_build_cache_with_progress, maintain_shared_incremental_target,
+    maintain_shared_incremental_target_at_most_every, materialize_artifacts,
+    perform_configured_shared_incremental_target_maintenance, prune_wasm_build_cache,
+    prune_wasm_build_cache_locked, publish_artifact_stamps, resolve_cargo_build_inputs,
+    run_cargo_build, validate_spec, validated_artifact_set,
 };
 use crate::artifacts::cache_fs::{CacheRetentionLimits, write_last_used};
 use crate::artifacts::{WasmBuildInputSnapshot, digest::digest_bytes};
@@ -194,6 +195,7 @@ fn default_builds_share_cargo_state_across_fingerprints() {
         &root.join("exact"),
         &["fixture"],
         crate::cargo_fixture::environment(),
+        CONFIGURATION_LIMITS,
     )
     .with_cargo_program(fixture.cargo_program);
     let first = build_wasm_canisters_cached(&spec, OwnedChild::spawn_direct).unwrap();
@@ -267,18 +269,19 @@ fn workspace_selection_preserves_membership_ambiguity_and_requested_order() {
         Path::new("/target"),
         &[],
         crate::cargo_fixture::environment(),
+        CONFIGURATION_LIMITS,
     );
     // Exercise the selector independently of the builder's canonical ordering.
     spec.packages = vec!["zeta".into(), "alpha".into()];
     let canonical = serde_json::from_value(original.clone()).unwrap();
     let parsed = super::ParsedCargoMetadata::parse(&canonical).unwrap();
     assert_eq!(
-        super::selected_package_ids(&spec, &parsed).unwrap(),
+        super::resolution::selected_package_ids(&spec, &parsed).unwrap(),
         ["z", "a"]
     );
     spec.packages = vec!["missing".into(), "alpha".into()];
     assert!(matches!(
-        super::selected_package_ids(&spec, &parsed),
+        super::resolution::selected_package_ids(&spec, &parsed),
         Err(WasmBuildError::InvalidSpec { message })
             if message == "Cargo workspace contains no package named `missing`"
     ));
@@ -289,13 +292,16 @@ fn workspace_selection_preserves_membership_ambiguity_and_requested_order() {
     let parsed = super::ParsedCargoMetadata::parse(&canonical).unwrap();
     spec.packages = vec!["alpha".into()];
     assert!(matches!(
-        super::selected_package_ids(&spec, &parsed),
+        super::resolution::selected_package_ids(&spec, &parsed),
         Err(WasmBuildError::InvalidSpec { message })
             if message == "Cargo workspace package name `alpha` is ambiguous"
     ));
     // An unused ambiguous name still permits selecting another workspace member.
     spec.packages = vec!["zeta".into()];
-    assert_eq!(super::selected_package_ids(&spec, &parsed).unwrap(), ["z"]);
+    assert_eq!(
+        super::resolution::selected_package_ids(&spec, &parsed).unwrap(),
+        ["z"]
+    );
 }
 
 #[test]
@@ -315,12 +321,14 @@ fn package_selection_agrees_across_identity_artifacts_and_cargo_invocation() {
         &target,
         &["alpha", "zeta"],
         crate::cargo_fixture::environment(),
+        CONFIGURATION_LIMITS,
     );
     let redundant = WasmBuildSpec::new(
         &root,
         &target,
         &["zeta", "alpha", "zeta", "alpha"],
         crate::cargo_fixture::environment(),
+        CONFIGURATION_LIMITS,
     );
     assert_eq!(redundant.packages(), ordered.packages());
     assert_eq!(redundant, ordered);
@@ -469,6 +477,7 @@ fn typed_features_watch_enabled_optional_dependencies() {
         &root.join("target"),
         &["fixture"],
         crate::cargo_fixture::environment(),
+        CONFIGURATION_LIMITS,
     );
 
     for feature in ["extra", "map"] {
@@ -526,12 +535,18 @@ fn builders_preserve_os_native_values() {
         (OsString::from("MODE"), OsString::from("exact")),
         ("RUSTFLAGS".into(), "".into()),
     ];
-    let spec = WasmBuildSpec::new(Path::new("."), Path::new("target"), &["fixture"], selected)
-        .with_cargo_selection(CargoSelection {
-            locked: true,
-            ..Default::default()
-        })
-        .with_additional_inputs([PathBuf::from("schema")]);
+    let spec = WasmBuildSpec::new(
+        Path::new("."),
+        Path::new("target"),
+        &["fixture"],
+        selected,
+        CONFIGURATION_LIMITS,
+    )
+    .with_cargo_selection(CargoSelection {
+        locked: true,
+        ..Default::default()
+    })
+    .with_additional_inputs([PathBuf::from("schema")]);
     assert_eq!(
         spec.cargo_selection.build_arguments(),
         [OsString::from("--locked")]
@@ -561,6 +576,7 @@ fn cargo_target_overrides_are_rejected_before_acquisition() {
         &root.join("exact"),
         &["fixture"],
         crate::cargo_fixture::environment(),
+        CONFIGURATION_LIMITS,
     );
     let override_spec = spec.with_environment(crate::cargo_fixture::environment_with([(
         "CARGO_TARGET_DIR",
@@ -583,7 +599,7 @@ fn shared_target_boundaries_preserve_retained_exact_entries() {
         .clone()
         .with_shared_incremental_target(base.target_dir.join("incremental"));
     assert!(matches!(
-        super::validate_shared_incremental_target_boundary(
+        super::resolution::validate_shared_incremental_target_boundary(
             &generated,
             &[("root".into(), root.clone()), ("missing".into(), missing.clone())],
         ),
@@ -695,6 +711,7 @@ fn nested_workspace_targets_do_not_change_cargo_snapshots() {
         &root.join("build-target"),
         &["driver"],
         crate::cargo_fixture::environment(),
+        CONFIGURATION_LIMITS,
     );
     let before = resolve_cargo_build_inputs(&spec).unwrap();
     for workspace in ["consumer", "embedded-consumer"] {
@@ -746,6 +763,7 @@ fn nested_workspace_source_and_explicit_input_changes_are_not_excluded() {
         &root.join("build-target"),
         &["driver"],
         crate::cargo_fixture::environment(),
+        CONFIGURATION_LIMITS,
     );
     let before = resolve_cargo_build_inputs(&spec).unwrap();
     for path in [
@@ -811,6 +829,7 @@ fn nested_workspace_target_aliases_remain_watched_with_source_aliases() {
         &root.join("build-target"),
         &["driver"],
         crate::cargo_fixture::environment(),
+        CONFIGURATION_LIMITS,
     );
     let before = resolve_cargo_build_inputs(&spec).unwrap();
     fs::write(external.join("source"), b"changed external source").unwrap();
@@ -853,6 +872,7 @@ fn selected_cargo_sources_under_nested_targets_are_watched() {
         &root.join("build-target"),
         &["driver"],
         crate::cargo_fixture::environment(),
+        CONFIGURATION_LIMITS,
     );
     let snapshot = resolve_cargo_build_inputs(&spec).unwrap();
     fs::write(&source, b"pub fn changed() {}\n").unwrap();
@@ -888,6 +908,7 @@ fn public_cargo_input_snapshot_detects_local_source_changes() {
         &root.join("target"),
         &["fixture"],
         crate::cargo_fixture::environment(),
+        CONFIGURATION_LIMITS,
     );
 
     let snapshot = resolve_cargo_build_inputs(&spec).expect("resolve Cargo input snapshot");
@@ -1038,6 +1059,7 @@ fn semantic_workspace_projection_ignores_unrelated_host_dependency_changes() {
         &root.join("target"),
         &["canister"],
         crate::cargo_fixture::environment(),
+        CONFIGURATION_LIMITS,
     );
 
     let before = resolve_cargo_build_inputs(&spec).expect("resolve initial semantic projection");
@@ -1082,6 +1104,7 @@ fn semantic_workspace_projection_tracks_selected_dependencies_and_profiles() {
         &root.join("target"),
         &["canister"],
         crate::cargo_fixture::environment(),
+        CONFIGURATION_LIMITS,
     )
     .with_cargo_selection(CargoSelection {
         profile: Some("release".into()),
@@ -1124,6 +1147,7 @@ fn explicit_environment_key_separates_retained_keys_and_keeps_stamp_format() {
             "RUSTUP_TOOLCHAIN",
         ]
         .map(|name| (name, "selected")),
+        CONFIGURATION_LIMITS,
     );
     let fingerprint = super::finish_build_fingerprint(
         &spec,
@@ -1162,7 +1186,7 @@ fn semantic_projection_uses_typed_v2_metadata_fields() {
     let identity = semantic_package_identity(
         &package,
         Path::new("/workspace"),
-        &super::LockedPackageIndex::new(),
+        &super::resolution::LockedPackageIndex::new(),
     )
     .unwrap();
     let value = serde_json::json!({
@@ -1171,7 +1195,7 @@ fn semantic_projection_uses_typed_v2_metadata_fields() {
             "dep_kinds": [{"kind": null, "target": null, "future_field": "preserve"}]}],
     });
     let node = serde_json::from_value(value.clone()).unwrap();
-    let projection = super::semantic_package_projection(
+    let projection = super::resolution::semantic_package_projection(
         &package,
         &node,
         &std::collections::HashMap::from([(id, identity)]),
@@ -1195,7 +1219,7 @@ fn semantic_projection_uses_typed_v2_metadata_fields() {
     let normalized = serde_json::from_value(normalized).unwrap();
     assert_eq!(
         projection,
-        super::semantic_package_projection(&normalized, &node, &identities).unwrap()
+        super::resolution::semantic_package_projection(&normalized, &node, &identities).unwrap()
     );
     let mut reordered = value.clone();
     reordered["features"] = serde_json::json!(["a", "z"]);
@@ -1206,7 +1230,7 @@ fn semantic_projection_uses_typed_v2_metadata_fields() {
     let reordered = serde_json::from_value(reordered).unwrap();
     assert_eq!(
         projection,
-        super::semantic_package_projection(&package, &reordered, &identities).unwrap()
+        super::resolution::semantic_package_projection(&package, &reordered, &identities).unwrap()
     );
     for (field, changed) in [
         ("description", serde_json::json!("changed")),
@@ -1219,7 +1243,8 @@ fn semantic_projection_uses_typed_v2_metadata_fields() {
         let changed_package = serde_json::from_value(changed_package).unwrap();
         assert_ne!(
             projection,
-            super::semantic_package_projection(&changed_package, &node, &identities).unwrap(),
+            super::resolution::semantic_package_projection(&changed_package, &node, &identities)
+                .unwrap(),
             "{field} remains hash-significant"
         );
     }
@@ -1233,14 +1258,15 @@ fn semantic_projection_uses_typed_v2_metadata_fields() {
         let changed_node = serde_json::from_value(changed_node).unwrap();
         assert_ne!(
             projection,
-            super::semantic_package_projection(&package, &changed_node, &identities).unwrap()
+            super::resolution::semantic_package_projection(&package, &changed_node, &identities)
+                .unwrap()
         );
     }
     let mut unsupported = value;
     unsupported["deps"][0]["dep_kinds"][0]["kind"] = serde_json::json!("future-kind");
     let unsupported = serde_json::from_value(unsupported).unwrap();
     assert!(matches!(
-        super::semantic_package_projection(&package, &unsupported, &identities),
+        super::resolution::semantic_package_projection(&package, &unsupported, &identities),
         Err(WasmBuildError::InvalidMetadata { message }) if message.contains("unsupported")
     ));
 }
@@ -1262,10 +1288,13 @@ fn semantic_projection_survives_checkout_relocation() {
                 "dep_kinds": [{"kind": null, "target": null}]}],
         }))
         .unwrap();
-        let identity =
-            semantic_package_identity(&package, Path::new(root), &super::LockedPackageIndex::new())
-                .unwrap();
-        let projection = super::semantic_package_projection(
+        let identity = semantic_package_identity(
+            &package,
+            Path::new(root),
+            &super::resolution::LockedPackageIndex::new(),
+        )
+        .unwrap();
+        let projection = super::resolution::semantic_package_projection(
             &package,
             &node,
             &std::collections::HashMap::from([(id.as_str(), identity)]),
@@ -1302,14 +1331,20 @@ fn semantic_package_identity_uses_selected_registry_lock_checksum() {
 
     write_lock(Some("aaa"));
     let first_lock = locked_package_identities(&root).expect("project first lockfile");
-    let first =
-        semantic_package_identity(&package, &root, &super::index_locked_packages(&first_lock))
-            .expect("project checksummed registry package");
+    let first = semantic_package_identity(
+        &package,
+        &root,
+        &super::resolution::index_locked_packages(&first_lock),
+    )
+    .expect("project checksummed registry package");
     write_lock(Some("bbb"));
     let second_lock = locked_package_identities(&root).expect("project second lockfile");
-    let second =
-        semantic_package_identity(&package, &root, &super::index_locked_packages(&second_lock))
-            .expect("project changed registry checksum");
+    let second = semantic_package_identity(
+        &package,
+        &root,
+        &super::resolution::index_locked_packages(&second_lock),
+    )
+    .expect("project changed registry checksum");
     assert_ne!(first, second);
 
     write_lock(None);
@@ -1318,7 +1353,7 @@ fn semantic_package_identity_uses_selected_registry_lock_checksum() {
         semantic_package_identity(
             &package,
             &root,
-            &super::index_locked_packages(&missing_checksum)
+            &super::resolution::index_locked_packages(&missing_checksum)
         )
         .is_none()
     );
@@ -1346,7 +1381,11 @@ fn semantic_package_identity_uses_selected_registry_lock_checksum() {
         fs::write(root.join("Cargo.lock"), contents).unwrap();
         let rows = locked_package_identities(&root).unwrap();
         assert_eq!(
-            semantic_package_identity(&package, &root, &super::index_locked_packages(&rows)),
+            semantic_package_identity(
+                &package,
+                &root,
+                &super::resolution::index_locked_packages(&rows)
+            ),
             checksum.map(|_| first)
         );
     }
@@ -1369,6 +1408,7 @@ fn semantic_workspace_projection_falls_back_for_workspace_root_packages() {
         &root.join("target/exact"),
         &["root_canister"],
         crate::cargo_fixture::environment(),
+        CONFIGURATION_LIMITS,
     );
 
     let resolved = resolve_cargo_build_inputs(&spec).expect("resolve fallback projection");
@@ -1413,26 +1453,27 @@ fn batch_input_snapshot_reuses_compatible_toolchain_and_metadata_resolution() {
     let target = root.join("exact");
     let selected = crate::cargo_fixture::environment();
     let recipe = |package| {
-        WasmBuildSpec::new(&root, &target, &[package], selected.clone())
-            .with_cargo_program(&cargo_wrapper)
+        WasmBuildSpec::new(
+            &root,
+            &target,
+            &[package],
+            selected.clone(),
+            CONFIGURATION_LIMITS,
+        )
+        .with_cargo_program(&cargo_wrapper)
+    };
+    let alpha = CargoSelection {
+        features: CargoFeatureSelection {
+            features: ["alpha".into()].into(),
+            ..Default::default()
+        },
+        ..Default::default()
     };
     let specs = [
         recipe("fixture_a"),
-        recipe("fixture_b").with_cargo_selection(CargoSelection {
-            features: CargoFeatureSelection {
-                features: ["alpha".into()].into(),
-                ..Default::default()
-            },
-            ..Default::default()
-        }),
+        recipe("fixture_b").with_cargo_selection(alpha.clone()),
         recipe("fixture_b"),
-        recipe("fixture_a").with_cargo_selection(CargoSelection {
-            features: CargoFeatureSelection {
-                features: ["alpha".into()].into(),
-                ..Default::default()
-            },
-            ..Default::default()
-        }),
+        recipe("fixture_a").with_cargo_selection(alpha),
     ];
     let mut resolver = WasmBuildBatchInputResolver::new(&specs, None).unwrap();
     let mut progress = ProgressReporter::silent();
@@ -1501,6 +1542,7 @@ fn profile_output_directory_is_confined_before_resolution_or_acquisition() {
             &target,
             &["fixture"],
             crate::cargo_fixture::environment(),
+            CONFIGURATION_LIMITS,
         )
         .with_cargo_selection(CargoSelection {
             profile: Some(profile.into()),
@@ -1530,6 +1572,7 @@ fn profile_output_directory_is_confined_before_resolution_or_acquisition() {
             &target,
             &["fixture"],
             crate::cargo_fixture::environment(),
+            CONFIGURATION_LIMITS,
         )
         .with_cargo_selection(CargoSelection {
             profile: Some(profile.into()),
@@ -1556,6 +1599,7 @@ fn cargo_profiles_match_output_directories() {
             Path::new("target"),
             &["fixture"],
             crate::cargo_fixture::environment(),
+            CONFIGURATION_LIMITS,
         )
         .with_cargo_selection(CargoSelection {
             profile: profile.map(str::to_owned),
@@ -1617,6 +1661,7 @@ fn build_spec_requires_at_least_one_package() {
         Path::new("target"),
         &["fixture"],
         crate::cargo_fixture::environment(),
+        CONFIGURATION_LIMITS,
     )
     .with_cargo_message_bytes(0);
     assert!(matches!(
@@ -1628,6 +1673,7 @@ fn build_spec_requires_at_least_one_package() {
         Path::new("target"),
         &[],
         crate::cargo_fixture::environment(),
+        CONFIGURATION_LIMITS,
     );
     assert!(matches!(
         validate_spec(&spec),
@@ -1639,6 +1685,7 @@ fn build_spec_requires_at_least_one_package() {
         Path::new("target"),
         &["fixture"],
         crate::cargo_fixture::environment(),
+        CONFIGURATION_LIMITS,
     )
     .with_isolated_builds()
     .with_shared_incremental_target_maintenance_at_most_every(
@@ -1660,6 +1707,7 @@ fn shared_target_inspection_is_explicit_and_does_not_create_a_missing_target() {
         &root.join("exact"),
         &["fixture"],
         crate::cargo_fixture::environment(),
+        CONFIGURATION_LIMITS,
     )
     .with_isolated_builds();
     assert!(matches!(
@@ -1720,6 +1768,7 @@ fn shared_target_maintenance_clears_cargo_state_but_preserves_coordination() {
         &root.join("exact"),
         &["fixture"],
         crate::cargo_fixture::environment(),
+        CONFIGURATION_LIMITS,
     )
     .with_shared_incremental_target(&target);
 
@@ -1775,6 +1824,7 @@ fn scheduled_shared_target_maintenance_skips_expensive_work_inside_interval() {
         &root.join("exact"),
         &["fixture"],
         crate::cargo_fixture::environment(),
+        CONFIGURATION_LIMITS,
     )
     .with_shared_incremental_target(&target);
     let policy = CacheRetentionLimits::new().with_max_size_bytes(0);
@@ -1841,6 +1891,7 @@ fn zero_progress_heartbeat_is_rejected_for_a_valid_build() {
         &root.join("exact"),
         &["fixture"],
         crate::cargo_fixture::environment(),
+        CONFIGURATION_LIMITS,
     );
     validate_spec(&spec).expect("valid heartbeat build spec");
     let result = crate::artifacts::build_wasm_canisters_cached_with_progress(
@@ -1876,6 +1927,7 @@ fn maintenance_configuration_is_readable_and_strict_by_default() {
         Path::new("target"),
         &["fixture"],
         crate::cargo_fixture::environment(),
+        CONFIGURATION_LIMITS,
     )
     .with_shared_incremental_target("target/shared")
     .with_shared_incremental_target_maintenance(shared_config)
@@ -1951,6 +2003,7 @@ fn best_effort_integrated_maintenance_retains_a_failure_message() {
         &root.join("exact"),
         &["fixture"],
         crate::cargo_fixture::environment(),
+        CONFIGURATION_LIMITS,
     )
     .with_shared_incremental_target(&target)
     .with_shared_incremental_target_maintenance(config);
@@ -2166,6 +2219,7 @@ done
         &root.join("exact"),
         &["fixture"],
         crate::cargo_fixture::environment(),
+        CONFIGURATION_LIMITS,
     )
     .with_cargo_program("/bin/sh")
     .with_environment(crate::cargo_fixture::environment_with([(
@@ -2249,6 +2303,7 @@ fn observed_cargo_parallel_streams_preserve_raw_bytes() {
         &root.join("exact"),
         &["fixture"],
         crate::cargo_fixture::environment(),
+        CONFIGURATION_LIMITS,
     )
     .with_cargo_program("/bin/sh");
     let mut forwarded_stdout = Vec::new();
@@ -2293,6 +2348,7 @@ fn observed_cargo_leader_exit_cleans_descendant_held_pipes_without_eof() {
         &root.join("exact"),
         &["fixture"],
         crate::cargo_fixture::environment(),
+        CONFIGURATION_LIMITS,
     )
     .with_cargo_program("/bin/sh");
     let (done, completion) = mpsc::channel();
@@ -2355,6 +2411,7 @@ fn observed_cargo_failure_retains_captured_diagnostics_and_exit_event() {
         &root.join("exact"),
         &["fixture"],
         crate::cargo_fixture::environment(),
+        CONFIGURATION_LIMITS,
     )
     .with_cargo_program("/bin/sh");
     for emit in [Some(true), Some(false), None] {
@@ -2432,6 +2489,7 @@ fn overflowing_cargo_diagnostics_are_bounded_without_losing_forwarded_output() {
         &root.join("exact"),
         &["fixture"],
         crate::cargo_fixture::environment(),
+        CONFIGURATION_LIMITS,
     )
     .with_cargo_program("/bin/sh");
     for observed in [false, true] {
@@ -2691,6 +2749,7 @@ fn complete_probe_limits_preserve_status_spawn_causes_and_refuse_partial_data() 
         &root.join("exact"),
         &["fixture"],
         crate::cargo_fixture::environment(),
+        CONFIGURATION_LIMITS,
     )
     .with_cargo_program("/bin/sh");
     let identity = vec![b'x'; super::TOOL_IDENTITY_BYTES];
@@ -3242,6 +3301,7 @@ fn cargo_configuration_discovery_matches_cargo_search_and_include_rules() {
         &root.join("target"),
         &["fixture"],
         crate::cargo_fixture::environment(),
+        CONFIGURATION_LIMITS,
     )
     .with_environment(crate::cargo_fixture::environment_with([(
         "CARGO_HOME",
@@ -3305,6 +3365,7 @@ fn cargo_configuration_symlinks_preserve_include_locations_and_mutation_guards()
         &root.join("exact"),
         &["fixture"],
         crate::cargo_fixture::environment(),
+        CONFIGURATION_LIMITS,
     )
     .with_environment(crate::cargo_fixture::environment_with([(
         "CARGO_HOME",
@@ -3382,6 +3443,7 @@ fn cargo_configuration_guards_follow_each_directory_alias() {
         &root.join("exact"),
         &["fixture"],
         crate::cargo_fixture::environment(),
+        CONFIGURATION_LIMITS,
     )
     .with_environment(crate::cargo_fixture::environment_with([(
         "CARGO_HOME",
@@ -3432,6 +3494,7 @@ fn required_cargo_configuration_include_is_an_exact_input() {
         &root.join("target"),
         &["fixture"],
         crate::cargo_fixture::environment(),
+        CONFIGURATION_LIMITS,
     )
     .with_environment(crate::cargo_fixture::environment_with([(
         "CARGO_HOME",
@@ -3529,6 +3592,7 @@ fn observed_cargo_panic_stops_compiler_descendants() {
         &root.join("exact"),
         &["fixture"],
         crate::cargo_fixture::environment(),
+        CONFIGURATION_LIMITS,
     )
     .with_cargo_program("/bin/sh");
     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
@@ -3810,6 +3874,7 @@ fn cargo_spawn_custody_and_stdin_do_not_depend_on_progress() {
                 &root.join("exact"),
                 &["fixture"],
                 crate::cargo_fixture::environment(),
+                CONFIGURATION_LIMITS,
             )
             .with_cargo_program("/bin/sh");
             let mut observer = |_| {};
@@ -3928,8 +3993,14 @@ fn invalid_environment_is_rejected_before_commands_or_cache_creation() {
         ("BAD\0NAME", "value"),
         ("NAME", "bad\0value"),
     ] {
-        let spec = WasmBuildSpec::new(&root, &root.join("exact"), &["fixture"], [(name, value)])
-            .with_cargo_program("/missing/must-not-run");
+        let spec = WasmBuildSpec::new(
+            &root,
+            &root.join("exact"),
+            &["fixture"],
+            [(name, value)],
+            CONFIGURATION_LIMITS,
+        )
+        .with_cargo_program("/missing/must-not-run");
         assert!(matches!(
             build_wasm_canisters_cached(&spec, |_| panic!("must not spawn")),
             Err(WasmBuildError::InvalidSpec { .. })
@@ -3968,3 +4039,95 @@ fn mismatched_cargo_artifact_count_refuses_before_copy_and_can_recover() {
     );
     fs::remove_dir_all(root).unwrap();
 }
+
+#[cfg(unix)]
+#[test]
+fn recipe_identity_separates_source_features_and_unrelated_environment() {
+    let (root, spec) = fake_wasm_build_spec("comparison-recipe");
+    let manifest = root.join("fixture/Cargo.toml");
+    let original = fs::read_to_string(&manifest).unwrap();
+    fs::write(&manifest, format!("{original}\n[features]\ncohort=[]\n")).unwrap();
+    let before = resolve_cargo_build_inputs(&spec).unwrap();
+    fs::write(
+        root.join("fixture/src/lib.rs"),
+        "pub fn value() -> u8 { 2 }\n",
+    )
+    .unwrap();
+    let after = resolve_cargo_build_inputs(&spec).unwrap();
+    assert_eq!(before.recipe_identity(), after.recipe_identity());
+    assert_ne!(before.input_digest(), after.input_digest());
+    let mut selection = spec.cargo_selection.clone();
+    selection.features.features.insert("cohort".to_owned());
+    let feature =
+        resolve_cargo_build_inputs(&spec.clone().with_cargo_selection(selection)).unwrap();
+    assert_eq!(before.recipe_identity(), feature.recipe_identity());
+    assert_ne!(
+        before.facts().selection.features,
+        feature.facts().selection.features
+    );
+    let mut environment = spec.environment().clone();
+    environment.insert("PRIVATE_CREDENTIAL".into(), "do-not-report-me".into());
+    let unrelated =
+        resolve_cargo_build_inputs(&spec.clone().with_environment(environment.clone())).unwrap();
+    assert_eq!(before.recipe_identity(), unrelated.recipe_identity());
+    assert!(!format!("{unrelated:?}").contains("do-not-report-me"));
+    for variable in [
+        "CARGO_INCREMENTAL",
+        "RUSTC_BOOTSTRAP",
+        "CARGO_BUILD_TARGET_DIR",
+        "CARGO_BUILD_BUILD_DIR",
+    ] {
+        let mut selected = spec.environment().clone();
+        selected.insert(variable.into(), "1".into());
+        let observed =
+            resolve_cargo_build_inputs(&spec.clone().with_environment(selected)).unwrap();
+        assert_eq!(
+            before.recipe_identity() == observed.recipe_identity(),
+            variable.starts_with("CARGO_BUILD_")
+        );
+    }
+    environment.insert("RUSTFLAGS".into(), "-C opt-level=2".into());
+    let flags = resolve_cargo_build_inputs(&spec.clone().with_environment(environment)).unwrap();
+    assert_ne!(before.recipe_identity(), flags.recipe_identity());
+    fs::create_dir(root.join(".cargo")).unwrap();
+    fs::write(
+        root.join(".cargo/config.toml"),
+        "[build]\nrustflags=['-C','opt-level=1']\n",
+    )
+    .unwrap();
+    let configured = resolve_cargo_build_inputs(&spec).unwrap();
+    assert_ne!(before.recipe_identity(), configured.recipe_identity());
+    let workspace = root.join("Cargo.toml");
+    let original = fs::read_to_string(&workspace).unwrap();
+    fs::write(
+        workspace,
+        format!("{original}\n[profile.dev]\nopt-level=2\n"),
+    )
+    .unwrap();
+    let profile = resolve_cargo_build_inputs(&spec).unwrap();
+    assert_ne!(configured.recipe_identity(), profile.recipe_identity());
+    let built = build_wasm_canisters_cached(&spec, OwnedChild::spawn_direct).unwrap();
+    assert_eq!(profile.recipe_identity(), built.record().recipe_identity());
+    let config = root.join(".cargo");
+    fs::write(config.join("config.toml"), "include=['a.toml']\n").unwrap();
+    fs::write(
+        config.join("a.toml"),
+        "include=['b.toml']\n[profile.dev]\nopt-level=1\n",
+    )
+    .unwrap();
+    fs::write(config.join("b.toml"), "[profile.dev]\nopt-level=2\n").unwrap();
+    let nested = resolve_cargo_build_inputs(&spec).unwrap();
+    fs::write(config.join("config.toml"), "include=['a.toml','b.toml']\n").unwrap();
+    fs::write(config.join("a.toml"), "[profile.dev]\nopt-level=1\n").unwrap();
+    let flat = resolve_cargo_build_inputs(&spec).unwrap();
+    assert_ne!(nested.recipe_identity(), flat.recipe_identity());
+}
+
+// This caller admits small configuration trees; libraries do not select this policy.
+const CONFIGURATION_LIMITS: crate::cargo::environment::ConfigurationLimits =
+    crate::cargo::environment::ConfigurationLimits {
+        file_bytes: 1024 * 1024,
+        total_bytes: 16 * 1024 * 1024,
+        files: 128,
+        depth: 32,
+    };

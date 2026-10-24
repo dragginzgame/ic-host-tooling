@@ -14,7 +14,7 @@ use super::{
 #[non_exhaustive]
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum ResetDomainKind {
-    /// PocketIC simulated time.
+    /// `PocketIC` simulated time.
     PocketIcTime,
     /// Canisters outside the captured baseline set.
     ExtraCanisters,
@@ -26,7 +26,7 @@ pub enum ResetDomainKind {
     ExternalResources,
 }
 
-/// PocketIC time handling required or achieved by one reset.
+/// `PocketIC` time handling required or achieved by one reset.
 #[non_exhaustive]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum TimeResetPolicy {
@@ -93,7 +93,7 @@ pub enum StateResetPolicy {
 /// ```
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct ResetPolicies {
-    /// PocketIC simulated time.
+    /// `PocketIC` simulated time.
     pub pocket_ic_time: Option<TimeResetPolicy>,
     /// Canisters outside the captured baseline set.
     pub extra_canisters: Option<ExtraCanisterPolicy>,
@@ -129,11 +129,17 @@ pub struct ResetReceipt {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum BaselinePoolContractError {
     /// A required reset domain had no matching achievement.
-    MissingResetDomain { domain: ResetDomainKind },
+    MissingResetDomain {
+        /// Reset domain that did not satisfy the contract.
+        domain: ResetDomainKind,
+    },
     /// The first mismatched domain, with both complete policy sets for inspection.
     ResetPolicyMismatch {
+        /// Reset domain that did not satisfy the contract.
         domain: ResetDomainKind,
+        /// Policies required by the recipe.
         requirement: ResetPolicies,
+        /// Policies reported by the reset.
         achievement: ResetPolicies,
     },
 }
@@ -173,7 +179,7 @@ pub enum BaselinePreparationStage {
 #[non_exhaustive]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum RebuildReason {
-    /// PocketIC transport was no longer reachable.
+    /// `PocketIC` transport was no longer reachable.
     DeadPocketIcTransport,
     /// Captured snapshot restoration failed.
     SnapshotRestoreFailure,
@@ -190,7 +196,10 @@ pub enum RebuildReason {
     /// A lease was dropped while its thread was unwinding.
     UnwindWhileLeased,
     /// Recipe-specific structured reason.
-    RecipeClassified { code: String },
+    RecipeClassified {
+        /// Caller-defined rebuild reason.
+        code: String,
+    },
 }
 
 /// Recipe decision for a failed restored-slot preparation stage.
@@ -289,6 +298,9 @@ pub trait PocketIcBaselineRecipe: Send + Sync + 'static {
     fn reset_requirements(&self) -> &ResetRequirements;
 
     /// Construct and capture one complete baseline.
+    ///
+    /// # Errors
+    /// Returns the recipe error if construction or baseline capture fails.
     fn build(&self) -> Result<CachedPocketIcBaseline<Self::Metadata>, Self::Error>;
 
     /// Admit recipe-specific preconditions before the pool restores snapshots.
@@ -296,6 +308,9 @@ pub trait PocketIcBaselineRecipe: Send + Sync + 'static {
     /// Most recipes need no preflight. Checks such as exact current cycle-balance
     /// guards run here, before restoration can charge cycles. This cannot replace
     /// the pool's canonical restore or manufacture its completion evidence.
+    ///
+    /// # Errors
+    /// Returns the recipe error when a precondition forbids snapshot restoration.
     fn prepare_restore(
         &self,
         _baseline: &CachedPocketIcBaseline<Self::Metadata>,
@@ -304,6 +319,9 @@ pub trait PocketIcBaselineRecipe: Send + Sync + 'static {
     }
 
     /// Reset state not covered by canister snapshots.
+    ///
+    /// # Errors
+    /// Returns the recipe error if the required non-snapshot reset fails.
     fn reset_non_snapshot_state(
         &self,
         baseline: &CachedPocketIcBaseline<Self::Metadata>,
@@ -311,6 +329,9 @@ pub trait PocketIcBaselineRecipe: Send + Sync + 'static {
 
     /// Drive the topology to the recipe's readiness boundary.
     /// Successful completion permits final invariant validation.
+    ///
+    /// # Errors
+    /// Returns the recipe error if the caller-defined readiness boundary is not reached.
     fn drive_to_readiness(
         &self,
         baseline: &CachedPocketIcBaseline<Self::Metadata>,
@@ -318,6 +339,9 @@ pub trait PocketIcBaselineRecipe: Send + Sync + 'static {
 
     /// Validate the same baseline invariants after build and restore.
     /// Success admits this pool-owned recipe's baseline for leasing.
+    ///
+    /// # Errors
+    /// Returns the recipe error when baseline invariants are not satisfied.
     fn validate(
         &self,
         baseline: &CachedPocketIcBaseline<Self::Metadata>,
@@ -334,15 +358,15 @@ pub trait PocketIcBaselineRecipe: Send + Sync + 'static {
     }
 }
 
-/// Caller-owned runtime-capacity pool of independently restorable PocketIC baselines.
+/// Caller-owned runtime-capacity pool of independently restorable `PocketIC` baselines.
 ///
 /// One pool structurally owns one [`PocketIcBaselineRecipe`]. A warm
 /// acquisition restores the complete captured canister set, applies the
 /// recipe's non-snapshot reset, reaches its readiness boundary, checks typed
 /// reset coverage, and validates final invariants before exposing a lease.
-/// Each capacity slot owns an independent PocketIC instance.
+/// Each capacity slot owns an independent `PocketIC` instance.
 ///
-/// Snapshot reuse is not a complete PocketIC rollback. The recipe must account
+/// Snapshot reuse is not a complete `PocketIC` rollback. The recipe must account
 /// for time, extra canisters, pending messages, subnet state, cycles, and
 /// external resources when those domains matter to its tests.
 pub struct CachedPocketIcBaselinePool<R>
@@ -353,7 +377,7 @@ where
     slots: BoundedSlotPool<CachedPocketIcBaseline<R::Metadata>, RebuildReason>,
 }
 
-/// Exclusive lease of one validated pooled PocketIC baseline.
+/// Exclusive lease of one validated pooled `PocketIC` baseline.
 pub struct CachedPocketIcBaselinePoolGuard<'a, R>
 where
     R: PocketIcBaselineRecipe,
@@ -423,7 +447,7 @@ impl BaselinePreparationStage {
     /// Default rebuild reason used by [`PocketIcBaselineRecipe::classify_failure`].
     ///
     /// Recipes that override classification can use this for their fallback
-    /// after handling a more specific error such as dead PocketIC transport.
+    /// after handling a more specific error such as dead `PocketIC` transport.
     #[must_use]
     pub fn default_rebuild_reason(self) -> RebuildReason {
         match self {
@@ -551,7 +575,7 @@ where
         }
     }
 
-    /// Maximum number of simultaneously leased PocketIC baselines.
+    /// Maximum number of simultaneously leased `PocketIC` baselines.
     #[must_use]
     pub const fn capacity(&self) -> NonZeroUsize {
         self.slots.capacity()
@@ -568,6 +592,10 @@ where
     ///
     /// Returns a stage-specific recipe or contract error. If warm preparation
     /// and its one recovery build both fail, the error preserves both causes.
+    #[expect(
+        clippy::significant_drop_tightening,
+        reason = "lease and coordinator scope deliberately cover the complete operation"
+    )]
     pub fn acquire(
         &self,
     ) -> Result<
