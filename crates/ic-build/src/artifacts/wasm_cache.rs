@@ -1798,10 +1798,10 @@ impl<'a, 'session> WasmBuildBatchInputResolver<'a, 'session> {
         let resolved_inputs = progress.run_phase(WasmBuildPhase::ContentHashing, || {
             discovered
                 .into_iter()
-                .map(|(index, inputs, exclusions)| {
+                .map(|(index, inputs, mut exclusions)| {
                     let result = digest_resolved_local_inputs(
                         &inputs,
-                        &exclusions,
+                        &mut exclusions,
                         digest_cache,
                         workspace_root,
                         "hash batched Wasm build inputs",
@@ -3438,7 +3438,7 @@ fn build_fingerprint_with_policy(
     let cargo_metadata = metadata_started.elapsed();
 
     let discovery_started = Instant::now();
-    let (inputs, exclusions) = progress.run_phase(WasmBuildPhase::InputDiscovery, || {
+    let (inputs, mut exclusions) = progress.run_phase(WasmBuildPhase::InputDiscovery, || {
         let parsed =
             ParsedCargoMetadata::parse(&metadata).map_err(|message| invalid_metadata(&message))?;
         resolve_local_inputs(spec, &parsed)
@@ -3451,7 +3451,7 @@ fn build_fingerprint_with_policy(
             let mut cache = LabeledPathDigestCache::default();
             digest_resolved_local_inputs(
                 &inputs,
-                &exclusions,
+                &mut exclusions,
                 &mut cache,
                 &spec.workspace_root,
                 "hash Wasm build inputs",
@@ -3803,17 +3803,7 @@ fn resolve_local_inputs(
     append_additional_inputs(&mut validation_inputs, spec, workspace_root);
     validate_shared_incremental_target_boundary(spec, &validation_inputs)?;
     let base_exclusions = source_exclusions(spec, &validation_inputs);
-    let mut exclusions = base_exclusions.clone();
-    source_inputs::exclude_nested_workspace_targets(
-        validation_inputs.iter().map(|(_, path)| path.as_path()),
-        &declared_package_files,
-        &mut exclusions,
-    )
-    .map_err(|source| WasmBuildError::Io {
-        operation: "discover nested Cargo workspace targets",
-        path: spec.workspace_root.clone(),
-        source,
-    })?;
+    let exclusions = base_exclusions.clone();
     Ok((
         ResolvedLocalInputs {
             validation_inputs,
@@ -4121,12 +4111,27 @@ fn is_broad_workspace_input(label: &Path) -> bool {
 
 fn digest_resolved_local_inputs(
     inputs: &ResolvedLocalInputs,
-    exclusions: &[PathBuf],
+    exclusions: &mut Vec<PathBuf>,
     cache: &mut LabeledPathDigestCache,
     error_path: &Path,
     validation_operation: &'static str,
     semantic_operation: &'static str,
 ) -> Result<(InputDigest, InputDigest), WasmBuildError> {
+    // Tree admission is part of hashing, including missing/unreadable inputs.
+    // Keep each batch entry's original failure phase and independent outcome.
+    source_inputs::exclude_nested_workspace_targets(
+        inputs
+            .validation_inputs
+            .iter()
+            .map(|(_, path)| path.as_path()),
+        &inputs.declared_package_files,
+        exclusions,
+    )
+    .map_err(|source| WasmBuildError::Io {
+        operation: validation_operation,
+        path: error_path.to_owned(),
+        source,
+    })?;
     let validation_digest = digest_labeled_paths_composable(
         "wasm-source-inputs-v1",
         inputs

@@ -13,7 +13,17 @@ pub(super) fn exclude_nested_workspace_targets<'a>(
     exclusions: &mut Vec<PathBuf>,
 ) -> io::Result<()> {
     let roots = inputs
-        .map(Path::canonicalize)
+        .map(|path| {
+            path.canonicalize().map_err(|source| {
+                io::Error::new(
+                    source.kind(),
+                    InputPathError {
+                        path: path.to_owned(),
+                        source,
+                    },
+                )
+            })
+        })
         .collect::<io::Result<BTreeSet<_>>>()?;
     let mut pending = roots.clone();
     let declared_package_files = declared_package_files

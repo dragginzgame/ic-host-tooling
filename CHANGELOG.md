@@ -5,6 +5,7 @@
 - Exclude generated targets of nested explicit Cargo workspaces from Build's
   source snapshots and artifact transactions, while retaining source and declared
   input guards ([#239](https://github.com/dragginzgame/ic-tooling/issues/239)).
+  Missing inputs retain their hashing-phase failure and independent batch outcomes.
   [Details](docs/changelog/0.66.md#nested-cargo-workspace-targets).
 - Raise the shared IC Platform dependency minimum to 0.6.11 while preserving
   existing feature boundaries and protocol behavior.

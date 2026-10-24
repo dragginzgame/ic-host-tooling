@@ -29,8 +29,8 @@ graphs pass, with eleven memory, Candid and principal cases. Formatting, doc lin
 and snapshot admission pass. Evidence is under `/tmp/ic-tooling-0663/`;
 fresh native macOS qualification of this pending batch has not run.
 
-[#239](https://github.com/dragginzgame/ic-tooling/issues/239) is implemented locally
-in the same pending patch: nested explicit workspace targets are excluded from
+[#239](https://github.com/dragginzgame/ic-tooling/issues/239) is implemented in
+committed preparation `2c439cef`: nested explicit workspace targets are excluded from
 Cargo snapshots and transactional guards, while declared inputs and physical
 source aliases remain watched. Original regression and related-case evidence
 remain under `/tmp/ic-tooling-239/`. The current incoming lock also advances
@@ -38,6 +38,16 @@ generic-array/smallvec and changes crypto-common; five boundary cases on both
 compilers and strict Clippy were refreshed under `/tmp/ic-tooling-issues-20261024/`.
 Delivery, native macOS and actual Canic adoption remain separate; no
 consumer-specific generated-state exclusion was added.
+
+Release qualification of committed preparation `2c439cef` caught a #239 regression:
+missing inputs failed in discovery instead of content hashing. The local repair
+moves source-tree admission into hashing and retains the failed path. The original
+package evidence remains at `target/package-qualification-3180841-0/`; focused
+repair and fresh-archive evidence are under `/tmp/ic-tooling-package-phase/`.
+All 266 Build library cases pass from source and the fresh archive. With the
+final repair, all five nested-workspace boundary cases and the original batch
+failure case pass on actual Rust 1.91; strict Clippy and formatting pass on Linux.
+Package versions and release state remain unchanged.
 
 ## Current public contracts and open acceptance
 
