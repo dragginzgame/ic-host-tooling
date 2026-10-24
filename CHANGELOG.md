@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.66.3] - Unreleased
+## [0.66.3] - 2026-10-24
 
 - Exclude generated targets of nested explicit Cargo workspaces from Build's
   source snapshots and artifact transactions, while retaining source and declared
