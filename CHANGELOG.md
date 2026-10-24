@@ -1,6 +1,20 @@
 # Changelog
 
+## [0.66.3] - Unreleased
+
+- Exclude generated targets of nested explicit Cargo workspaces from Build's
+  source snapshots and artifact transactions, while retaining source and declared
+  input guards ([#239](https://github.com/dragginzgame/ic-tooling/issues/239)).
+  [Details](docs/changelog/0.66.md#nested-cargo-workspace-targets).
+- Raise the shared IC Platform dependency minimum to 0.6.11 while preserving
+  existing feature boundaries and protocol behavior.
+  [Details](docs/changelog/0.66.md#0663---unreleased).
+
 ## [0.66.2] - 2026-10-23
+
+- Replace the accumulated contributor handoff with current contracts, ownership
+  and qualification evidence. Library behavior is unchanged.
+  [Details](docs/changelog/0.66.md#0662---2026-10-23).
 
 ## [0.66.1] - 2026-10-23
 
@@ -11,7 +25,7 @@
   for these examples; the default library graph stays unchanged.
 - Adopt Shared Tooling 0.26.9's safer setup contention handling while retaining
   offline checks, tool pins and existing installation evidence.
-  [Details and setup](docs/changelog/0.66.md#0661---unreleased).
+  [Details and setup](docs/changelog/0.66.md#0661---2026-10-23).
 
 ## [0.66.0] - 2026-10-23
 

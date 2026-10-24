@@ -31,6 +31,39 @@ pub fn write_fixture_package(
     fs::write(directory.join("src/lib.rs"), source)
 }
 
+/// A selected external dependency containing two independent Cargo workspaces.
+pub fn write_nested_workspace_fixture(root: &Path) -> io::Result<()> {
+    for (directory, name, tail) in [
+        (
+            "driver",
+            "driver",
+            "[workspace]\n[dependencies]\nadapter = { path = \"../adapter\" }\n",
+        ),
+        (
+            "adapter",
+            "adapter",
+            "include = [\"src/**\", \"README.md\", \"LICENSE\"]\n",
+        ),
+        ("adapter/consumer", "consumer", "[workspace]\n"),
+        (
+            "adapter/embedded-consumer",
+            "embedded-consumer",
+            "[workspace]\n",
+        ),
+    ] {
+        let directory = root.join(directory);
+        fs::create_dir_all(directory.join("src"))?;
+        fs::write(
+            directory.join("Cargo.toml"),
+            format!(
+                "[package]\nname = \"{name}\"\nversion = \"0.0.0\"\nedition = \"2024\"\n{tail}"
+            ),
+        )?;
+        fs::write(directory.join("src/lib.rs"), "pub fn value() {}\n")?;
+    }
+    Ok(())
+}
+
 /// Synthetic Cargo artifact record using the fixture's actual package/target ID.
 /// The shell variable must contain a JSON-safe generated fixture output directory.
 pub fn wasm_artifact_message_script(root: &Path, variable: &str) -> String {

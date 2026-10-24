@@ -109,6 +109,14 @@ source separately; named-target graph checks do not execute on those hosts.
 `make test-tools-agent` exercises native construction, exact binding and response
 ceilings. Its Wasm graph check observes dependency exclusion, not Tools execution.
 
+Qualify dependencies for the actual target and selected features. Package-selected
+graphs differ from a combined workspace build: native Platform features can unify
+Agent dependencies into other consumers of the same package. Agent builders retain
+caller-selected identity and signing, so operation review must name the identity
+and secret-bearing path. See [the crypto qualification owner](https://github.com/dragginzgame/ic-tooling/issues/240)
+for the current graph evidence and Platform correction dependency. Named-target
+macOS graphs establish selection only; native execution remains separate evidence.
+
 The optional `icp-project` feature qualifies bounded effective-YAML projection;
 default and certificate profiles exclude its YAML parser.
 

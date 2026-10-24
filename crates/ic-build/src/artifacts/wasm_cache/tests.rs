@@ -682,6 +682,200 @@ fn relative_exact_target_is_shared_by_cargo_and_cache_operations() {
 }
 
 #[test]
+fn nested_workspace_targets_do_not_change_cargo_snapshots() {
+    let root = unique_temp_directory("nested-workspace-targets");
+    crate::cargo_fixture::write_nested_workspace_fixture(&root).unwrap();
+    fs::write(
+        root.join("adapter/embedded-consumer/Cargo.toml"),
+        b"[workspace]\nmembers = []\n",
+    )
+    .unwrap();
+    let spec = WasmBuildSpec::new(
+        &root.join("driver"),
+        &root.join("build-target"),
+        &["driver"],
+        crate::cargo_fixture::environment(),
+    );
+    let before = resolve_cargo_build_inputs(&spec).unwrap();
+    for workspace in ["consumer", "embedded-consumer"] {
+        let target = root.join("adapter").join(workspace).join("target");
+        fs::create_dir_all(&target).unwrap();
+        fs::write(target.join("generated"), b"unrelated compiler output").unwrap();
+        #[cfg(unix)]
+        symlink("missing", target.join("dangling-artifact")).unwrap();
+        assert!(before.is_content_current().unwrap());
+        let after = resolve_cargo_build_inputs(&spec).unwrap();
+        assert_eq!(before.fingerprint(), after.fingerprint());
+        assert_eq!(before.validation_digest(), after.validation_digest());
+        fs::write(target.join("generated"), b"changed compiler output").unwrap();
+        assert!(before.is_content_current().unwrap());
+        assert_eq!(
+            before.fingerprint(),
+            resolve_cargo_build_inputs(&spec).unwrap().fingerprint()
+        );
+    }
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn nested_workspace_source_and_explicit_input_changes_are_not_excluded() {
+    let root = unique_temp_directory("nested-workspace-source");
+    crate::cargo_fixture::write_nested_workspace_fixture(&root).unwrap();
+    for (path, bytes) in [
+        ("adapter/assets/target/source", "ordinary source"),
+        ("adapter/consumer/Cargo.lock", "nested lock"),
+        ("adapter/consumer/.cargo/config.toml", "[build]\n"),
+        (
+            "adapter/.canic/release-builds/artifacts/root.wasm",
+            "consumer-owned state",
+        ),
+        (
+            "adapter/decoy/Cargo.toml",
+            "workspace = 'not a Cargo workspace'\n",
+        ),
+        ("adapter/decoy/target/source", "still source"),
+        ("adapter/malformed/Cargo.toml", "not valid [workspace"),
+        ("adapter/malformed/target/source", "still watched"),
+    ] {
+        let path = root.join(path);
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(path, bytes).unwrap();
+    }
+    let spec = WasmBuildSpec::new(
+        &root.join("driver"),
+        &root.join("build-target"),
+        &["driver"],
+        crate::cargo_fixture::environment(),
+    );
+    let before = resolve_cargo_build_inputs(&spec).unwrap();
+    for path in [
+        "adapter/src/lib.rs",
+        "adapter/Cargo.toml",
+        "driver/Cargo.lock",
+        "adapter/consumer/Cargo.toml",
+        "adapter/consumer/Cargo.lock",
+        "adapter/consumer/.cargo/config.toml",
+        "adapter/assets/target/source",
+        "adapter/.canic/release-builds/artifacts/root.wasm",
+        "adapter/decoy/target/source",
+        "adapter/malformed/target/source",
+    ] {
+        let path = root.join(path);
+        let original = fs::read(&path).unwrap();
+        let mut changed = original.clone();
+        changed.extend_from_slice(b"\n# changed\n");
+        fs::write(&path, changed).unwrap();
+        assert!(
+            !before.is_content_current().unwrap(),
+            "must watch {}",
+            path.display()
+        );
+        fs::write(&path, original).unwrap();
+        assert!(before.is_content_current().unwrap());
+    }
+    // A file with this name cannot be a Cargo generated directory. Admission
+    // must be re-derived during content guards, not retained after it changes.
+    let target = root.join("adapter/consumer/target");
+    fs::write(&target, b"source file named target").unwrap();
+    assert!(!before.is_content_current().unwrap());
+    let file_snapshot = resolve_cargo_build_inputs(&spec).unwrap();
+    fs::write(&target, b"changed source file").unwrap();
+    assert!(!file_snapshot.is_content_current().unwrap());
+    fs::remove_file(&target).unwrap();
+    fs::create_dir_all(&target).unwrap();
+    let generated = target.join("schema");
+    fs::write(&generated, b"explicit schema").unwrap();
+    assert!(before.is_content_current().unwrap());
+    let explicit =
+        resolve_cargo_build_inputs(&spec.with_additional_inputs([generated.clone()])).unwrap();
+    fs::write(generated, b"changed explicit schema").unwrap();
+    assert!(
+        !explicit.is_content_current().unwrap(),
+        "declared generated inputs must remain watched"
+    );
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[cfg(unix)]
+#[test]
+fn nested_workspace_target_aliases_remain_watched_with_source_aliases() {
+    let root = unique_temp_directory("nested-workspace-aliases");
+    crate::cargo_fixture::write_nested_workspace_fixture(&root).unwrap();
+    let external = root.join("external");
+    fs::create_dir_all(&external).unwrap();
+    fs::write(external.join("source"), b"external source").unwrap();
+    symlink(&external, root.join("adapter/source-alias")).unwrap();
+    symlink(root.join("adapter"), root.join("adapter/cycle")).unwrap();
+    let spec = WasmBuildSpec::new(
+        &root.join("driver"),
+        &root.join("build-target"),
+        &["driver"],
+        crate::cargo_fixture::environment(),
+    );
+    let before = resolve_cargo_build_inputs(&spec).unwrap();
+    fs::write(external.join("source"), b"changed external source").unwrap();
+    assert!(!before.is_content_current().unwrap());
+    fs::write(external.join("source"), b"external source").unwrap();
+    assert!(before.is_content_current().unwrap());
+    let target = root.join("adapter/consumer/target");
+    for redirected in [root.join("adapter/src"), external] {
+        symlink(redirected, &target).unwrap();
+        assert!(!before.is_content_current().unwrap());
+        let aliased = resolve_cargo_build_inputs(&spec).unwrap();
+        fs::write(target.join("linked-change"), b"changed linked source").unwrap();
+        assert!(!aliased.is_content_current().unwrap());
+        fs::remove_file(target.join("linked-change")).unwrap();
+        fs::remove_file(&target).unwrap();
+        assert!(before.is_content_current().unwrap());
+    }
+    symlink(root.join("missing"), &target).unwrap();
+    assert!(before.is_content_current().is_err());
+    assert!(resolve_cargo_build_inputs(&spec).is_err());
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn selected_cargo_sources_under_nested_targets_are_watched() {
+    let root = unique_temp_directory("nested-workspace-selected-source");
+    crate::cargo_fixture::write_nested_workspace_fixture(&root).unwrap();
+    let manifest = root.join("adapter/Cargo.toml");
+    let original = fs::read_to_string(&manifest).unwrap();
+    fs::write(
+        &manifest,
+        format!("{original}\n[lib]\npath = 'consumer/target/selected.rs'\n"),
+    )
+    .unwrap();
+    let source = root.join("adapter/consumer/target/selected.rs");
+    fs::create_dir_all(source.parent().unwrap()).unwrap();
+    fs::write(&source, b"pub fn selected() {}\n").unwrap();
+    let spec = WasmBuildSpec::new(
+        &root.join("driver"),
+        &root.join("build-target"),
+        &["driver"],
+        crate::cargo_fixture::environment(),
+    );
+    let snapshot = resolve_cargo_build_inputs(&spec).unwrap();
+    fs::write(&source, b"pub fn changed() {}\n").unwrap();
+    assert!(!snapshot.is_content_current().unwrap());
+    assert_ne!(
+        snapshot.fingerprint(),
+        resolve_cargo_build_inputs(&spec).unwrap().fingerprint()
+    );
+    #[cfg(unix)]
+    {
+        // Cargo may spell a target source through a link outside the generated
+        // tree. Admission must protect its physical source, not just its name.
+        fs::write(&manifest, original).unwrap();
+        fs::remove_file(root.join("adapter/src/lib.rs")).unwrap();
+        symlink(&source, root.join("adapter/src/lib.rs")).unwrap();
+        let snapshot = resolve_cargo_build_inputs(&spec).unwrap();
+        fs::write(&source, b"pub fn changed_again() {}\n").unwrap();
+        assert!(!snapshot.is_content_current().unwrap());
+    }
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
 fn public_cargo_input_snapshot_detects_local_source_changes() {
     let root = unique_temp_directory("resolved-cargo-inputs");
     let package = root.join("fixture");

@@ -3,7 +3,7 @@
 ## Delivered source and ownership
 
 The committed baseline is release source
-`d71f4690c7e8e3ffe99f72467bc35cbadce33042`, workspace 0.66.0. A tag or version
+`4bc810c84ba45baa191030eb625b8e793124581e`, workspace 0.66.2. A tag or version
 does not establish registry publication, consumer adoption or complete native
 acceptance. Read the selected Cargo.lock before reusing qualification; the normal
 checkout has an independent lock edit that this documentation change does not carry.
@@ -15,10 +15,29 @@ lifecycle. Consumers retain credentials, targets, retry/retention policy and
 application qualification. Public package identities survived consolidation;
 the [migration design](../design/tooling-consolidation.md) retains import history.
 
-The reviewed Shared snapshot remains 0.26.6 at `4cb9bc9`, recorded in
+The reviewed Shared snapshot is 0.26.9 at `3657c04`, recorded in
 [the manifest](../../.shared-tooling.snapshot). Do not patch its payloads or infer
 adoption from a newer sibling checkout. Rust edition 2024 and MSRV 1.91 remain
 required; [host qualification](../hosts.md) owns focused checks and native hosts.
+
+Pending [0.66.3 notes](../changelog/0.66.md#0663---unreleased) raise the shared
+Platform minimum to published 0.6.11, already selected by the incoming lock edit.
+Shared Tooling's current upstream revision matches the verified local snapshot.
+Package versions remain 0.66.2; the incoming lockfile is preserved unchanged.
+Focused Linux Clippy, Rust 1.91 caller compilation, Wasm compilation and dependency
+graphs pass, with eleven memory, Candid and principal cases. Formatting, doc links
+and snapshot admission pass. Evidence is under `/tmp/ic-tooling-0663/`;
+fresh native macOS qualification of this pending batch has not run.
+
+[#239](https://github.com/dragginzgame/ic-tooling/issues/239) is implemented locally
+in the same pending patch: nested explicit workspace targets are excluded from
+Cargo snapshots and transactional guards, while declared inputs and physical
+source aliases remain watched. Original regression and related-case evidence
+remain under `/tmp/ic-tooling-239/`. The current incoming lock also advances
+generic-array/smallvec and changes crypto-common; five boundary cases on both
+compilers and strict Clippy were refreshed under `/tmp/ic-tooling-issues-20261024/`.
+Delivery, native macOS and actual Canic adoption remain separate; no
+consumer-specific generated-state exclusion was added.
 
 ## Current public contracts and open acceptance
 
@@ -41,16 +60,26 @@ required; [host qualification](../hosts.md) owns focused checks and native hosts
 - [0.64 migration](../changelog/0.64.md) removed duplicate dependency facades
   and policy types. Consumers import Platform types directly; native PocketIC's
   Candid graph is distinct from Testkit's Candid-free Wasm graph.
-  [#233](https://github.com/dragginzgame/ic-tooling/issues/233) retains consumer
-  qualification; do not infer it from Tooling's producer checks.
+  [#233](https://github.com/dragginzgame/ic-tooling/issues/233) is retired as a
+  coordination tracker; remaining Canic qualification has its own
+  [native](https://github.com/dragginzgame/canic/issues/450) and
+  [codec](https://github.com/dragginzgame/canic/issues/615) owners.
 
 ## Next independent work
 
-[Wire artifact composition (#225)](https://github.com/dragginzgame/ic-tooling/issues/225)
-depends on [Canic's producer contract (#613)](https://github.com/dragginzgame/canic/issues/613).
-Canic owns compiled endpoint metadata and release identities. Compose Build's
-existing exact-input/cache transactions only against those concrete artifacts;
-do not invent a parallel schema catalog or duplicate the active Canic work.
+[Canic's Wire producer (#613)](https://github.com/dragginzgame/canic/issues/613)
+already composes the published Build snapshot/transaction APIs. Canic retains
+normal phase invocation, release schema identities and frontend delivery.
+[#225](https://github.com/dragginzgame/ic-tooling/issues/225) is retired as duplicate
+coordination; the concrete Build input-boundary defect remains with #239.
+
+[Crypto qualification (#240)](https://github.com/dragginzgame/ic-tooling/issues/240)
+tracks the native Agent graph's crypto-bigint advisory. Isolated non-Agent and
+Wasm graphs exclude it; combined native workspace features can unify it through
+Platform. Caller-selected ECDSA signing prevents a blanket unused-code exemption.
+[Platform #50](https://github.com/dragginzgame/ic-platform/issues/50) owns the
+supplying correction; no compatible lock-only update or exemption was applied.
+Current audit/graph evidence is under `/tmp/ic-tooling-issues-20261024/`.
 
 For other acceptance, inspect the [owning issues](https://github.com/dragginzgame/ic-tooling/issues)
 and matching current workflows. This summary changes no issue disposition and

@@ -37,6 +37,7 @@ use toml::Value as TomlValue;
 
 mod acquisition;
 use acquisition::prepare_exact_cache_entry;
+mod source_inputs;
 
 use super::{
     cache_fs::{
@@ -267,6 +268,9 @@ pub struct ResolvedCargoBuildInputs {
     input_digest: InputDigest,
     validation_digest: InputDigest,
     inputs: Arc<[CargoBuildInput]>,
+    // Re-derive nested targets during guards; a former generated root can become source.
+    base_exclusions: Arc<[PathBuf]>,
+    declared_package_files: Arc<[PathBuf]>,
     exclusions: Arc<[PathBuf]>,
     wasm_outputs: Result<ResolvedWasmOutputs, String>,
     timings: WasmInputResolutionTimings,
@@ -308,6 +312,8 @@ struct ResolvedWasmOutputs {
 
 struct ResolvedLocalInputs {
     validation_inputs: Vec<(PathBuf, PathBuf)>,
+    base_exclusions: Vec<PathBuf>,
+    declared_package_files: Vec<PathBuf>,
     workspace_projection: Option<InputDigest>,
     wasm_targets: Result<Vec<WasmArtifactTarget>, String>,
 }
@@ -1461,6 +1467,8 @@ impl ResolvedCargoBuildInputs {
             input_digest,
             validation_digest,
             inputs: cargo_build_inputs(inputs.validation_inputs),
+            base_exclusions: inputs.base_exclusions.into(),
+            declared_package_files: inputs.declared_package_files.into(),
             exclusions: exclusions.into(),
             wasm_outputs: inputs.wasm_targets.map(|targets| ResolvedWasmOutputs {
                 artifact_paths: expected_artifacts(spec, &spec.target_dir, &targets).into(),
@@ -1527,6 +1535,8 @@ impl ResolvedCargoBuildInputs {
     ///
     /// These exclusions are derived by IC Build; callers cannot add
     /// arbitrary exclusions through this snapshot.
+    /// Nested explicit Cargo workspaces contribute ordinary `target` directories
+    /// unless they contain a declared input. Links remain watched, not excluded.
     #[must_use]
     pub fn exclusions(&self) -> &[PathBuf] {
         &self.exclusions
@@ -1577,15 +1587,23 @@ impl ResolvedCargoBuildInputs {
     }
 
     pub(super) fn current_validation_digest(&self) -> Result<InputDigest, WasmBuildError> {
-        digest_labeled_paths_composable(
-            "wasm-source-inputs-v1",
-            self.inputs
-                .iter()
-                .map(|input| (input.label.as_path(), input.path.as_path())),
-            &self.exclusions,
-            &mut LabeledPathDigestCache::default(),
-        )
-        .map_err(|source| WasmBuildError::Io {
+        let digest = || {
+            let mut exclusions = self.base_exclusions.to_vec();
+            source_inputs::exclude_nested_workspace_targets(
+                self.inputs.iter().map(|input| input.path.as_path()),
+                &self.declared_package_files,
+                &mut exclusions,
+            )?;
+            digest_labeled_paths_composable(
+                "wasm-source-inputs-v1",
+                self.inputs
+                    .iter()
+                    .map(|input| (input.label.as_path(), input.path.as_path())),
+                &exclusions,
+                &mut LabeledPathDigestCache::default(),
+            )
+        };
+        digest().map_err(|source| WasmBuildError::Io {
             operation: "rehash resolved Cargo build inputs",
             path: self
                 .inputs
@@ -3776,7 +3794,7 @@ fn resolve_local_inputs(
     let workspace_root = metadata.workspace_root;
     let workspace_projection = semantic_workspace_projection(metadata, &closure, workspace_root)?;
     let mut validation_inputs = workspace_configuration_inputs(spec, workspace_root)?;
-    append_package_inputs(
+    let declared_package_files = append_package_inputs(
         &mut validation_inputs,
         &metadata.packages,
         closure,
@@ -3784,10 +3802,23 @@ fn resolve_local_inputs(
     )?;
     append_additional_inputs(&mut validation_inputs, spec, workspace_root);
     validate_shared_incremental_target_boundary(spec, &validation_inputs)?;
-    let exclusions = source_exclusions(spec, &validation_inputs);
+    let base_exclusions = source_exclusions(spec, &validation_inputs);
+    let mut exclusions = base_exclusions.clone();
+    source_inputs::exclude_nested_workspace_targets(
+        validation_inputs.iter().map(|(_, path)| path.as_path()),
+        &declared_package_files,
+        &mut exclusions,
+    )
+    .map_err(|source| WasmBuildError::Io {
+        operation: "discover nested Cargo workspace targets",
+        path: spec.workspace_root.clone(),
+        source,
+    })?;
     Ok((
         ResolvedLocalInputs {
             validation_inputs,
+            base_exclusions,
+            declared_package_files,
             workspace_projection,
             wasm_targets,
         },
@@ -4266,7 +4297,8 @@ fn append_package_inputs(
     packages: &HashMap<&str, &schema::Package>,
     closure: BTreeSet<&str>,
     workspace_root: &Path,
-) -> Result<(), WasmBuildError> {
+) -> Result<Vec<PathBuf>, WasmBuildError> {
+    let mut declared_package_files = Vec::new();
     for id in closure {
         let Some(package) = packages.get(id) else {
             return Err(invalid_metadata(&format!(
@@ -4290,8 +4322,15 @@ fn append_package_inputs(
         let label = PathBuf::from(format!("package/{}@{}", package.name, package.version))
             .join(relative_manifest.parent().unwrap_or_else(|| Path::new(".")));
         inputs.push((label, root.as_std_path().to_owned()));
+        declared_package_files.push(package.manifest_path.clone().into_std_path_buf());
+        declared_package_files.extend(
+            package
+                .targets
+                .iter()
+                .map(|target| target.src_path.clone().into_std_path_buf()),
+        );
     }
-    Ok(())
+    Ok(declared_package_files)
 }
 
 fn append_additional_inputs(
